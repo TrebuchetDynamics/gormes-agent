@@ -111,8 +111,8 @@ var CommandRegistry = []CommandDef{
 	{Name: "verbose", Description: "Cycle tool progress display", Kind: EventVerbose, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "voice", Description: "Toggle voice mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "yolo", Description: "Toggle YOLO mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
-	{Name: "undo", Description: "Remove the last user/assistant exchange", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "retry", Description: "Retry the last message (resend to agent)", Kind: EventRetry, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
+	{Name: "undo", Description: "Remove the last user/assistant exchange", Kind: EventUndo, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "title", Description: "Set a title for the current session", Kind: EventTitle, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "branch", Description: "Branch the current session (explore a different path)", Kind: EventUnknown, Aliases: []string{"fork"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "compress", Description: "Manually compress conversation context", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -211,7 +211,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventRetry {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

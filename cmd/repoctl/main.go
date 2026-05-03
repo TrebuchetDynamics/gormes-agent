@@ -12,7 +12,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/repoctl"
 )
 
-const usage = "usage: repoctl [--repo-root <path>] {benchmark record|readme update}"
+const usage = "usage: repoctl [--repo-root <path>] {benchmark record|readme update|progress seed <fleet|missing-all>}"
 
 var errParse = errors.New("parse error")
 
@@ -42,6 +42,14 @@ func run(stdout, stderr io.Writer, args []string) error {
 		})
 	case len(args) == 2 && args[0] == "readme" && args[1] == "update":
 		return repoctl.UpdateReadme(repoctl.ReadmeOptions{Root: root})
+	case len(args) == 3 && args[0] == "progress" && args[1] == "seed":
+		result, err := repoctl.SeedProgressRows(repoctl.ProgressSeedOptions{Root: root, Set: args[2]})
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(stdout, "repoctl: progress seed %s added=%d skipped=%d total_items=%d\n",
+			result.Set, result.Added, result.Skipped, result.TotalItems)
+		return err
 	default:
 		return fmt.Errorf("%w\n%s", errParse, usage)
 	}

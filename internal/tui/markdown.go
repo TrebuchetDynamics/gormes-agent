@@ -191,6 +191,50 @@ func RenderMarkdown(text string) string {
 	return strings.Join(output, "\n")
 }
 
+func RenderMarkdownStable(text string, cache *string) string {
+	if text == "" {
+		*cache = ""
+		return ""
+	}
+	if cache != nil && *cache != "" && strings.HasPrefix(text, *cache) {
+		suffix := text[len(*cache):]
+		if !strings.Contains(suffix, "\n\n") && !strings.Contains(suffix, "```") {
+			return RenderMarkdown(text)
+		}
+	}
+	boundary := findStableBoundary(text)
+	var stable, unstable string
+	if boundary > 0 && boundary < len(text) {
+		stable = text[:boundary]
+		unstable = text[boundary:]
+	} else {
+		unstable = text
+	}
+	if cache != nil && stable != "" {
+		*cache = stable
+	}
+	if stable == "" {
+		return RenderMarkdown(unstable)
+	}
+	rendered := RenderMarkdown(stable)
+	if unstable != "" {
+		rendered += "\n" + RenderMarkdown(unstable)
+	}
+	return rendered
+}
+
+func findStableBoundary(text string) int {
+	lastNewline := strings.LastIndex(text, "\n\n")
+	if lastNewline > 0 {
+		return lastNewline + 2
+	}
+	lastFence := strings.LastIndex(text, "\n```")
+	if lastFence > 0 {
+		return lastFence
+	}
+	return -1
+}
+
 // isHorizontalRule checks if a line is a horizontal rule.
 func isHorizontalRule(line string) bool {
 	line = strings.TrimSpace(line)

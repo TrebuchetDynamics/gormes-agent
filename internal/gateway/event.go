@@ -52,6 +52,10 @@ const (
 	EventBusy
 	// EventTTS handles /tts subcommands (on, off, speed, voice, engine, language).
 	EventTTS
+	// EventRetry handles /retry (retry the last message by resending to agent).
+	EventRetry
+	// EventUndo handles /undo (remove the last user/assistant exchange).
+	EventUndo
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -95,6 +99,10 @@ func (k EventKind) String() string {
 		return "busy"
 	case EventTTS:
 		return "tts"
+	case EventRetry:
+		return "retry"
+	case EventUndo:
+		return "undo"
 	default:
 		return "unknown"
 	}

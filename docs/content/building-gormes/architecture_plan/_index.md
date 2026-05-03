@@ -829,6 +829,11 @@ classification and row-backed implementation queue.
 - [x] Gormes login removed-command typo suggestion contract
 - [x] Gormes model interactive provider/model picker
 - [x] Gormes setup minimal sectioned wizard slice
+- [x] Gormes setup top-level chooser menu
+- [x] Gormes setup full-wizard shell and branded summary
+- [ ] Gormes setup tools checklist command binding
+- [ ] Gormes setup gateway platform checklist command binding
+- [x] Gormes setup terminal TTS and agent-settings section bindings
 - [x] Gormes uninstall dry-run command contract
 - [x] Gormes mcp login interface seam + noninteractive default
 - [x] Gormes mcp login browser callback flow

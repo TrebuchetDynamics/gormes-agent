@@ -3,6 +3,7 @@ package site
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,8 +12,7 @@ import (
 	"testing"
 )
 
-const canonicalInstallScript = "../../../scripts/install.sh"
-const embeddedInstallScript = "installers/install.sh"
+const canonicalInstallScript = "../../../install.sh"
 
 func runInstallSH(t *testing.T, body string, env ...string) (string, error) {
 	t.Helper()
@@ -59,17 +59,48 @@ func writeExecutable(t *testing.T, path string, body string) {
 	}
 }
 
-func TestInstallSH_SiteCopyMatchesCanonicalScript(t *testing.T) {
+func TestInstallSH_SiteLoadsCanonicalScript(t *testing.T) {
 	canonical, err := os.ReadFile(canonicalInstallScript)
 	if err != nil {
 		t.Fatalf("read canonical install.sh: %v", err)
 	}
-	embedded, err := os.ReadFile(embeddedInstallScript)
+
+	site, err := loadSite()
 	if err != nil {
-		t.Fatalf("read embedded install.sh: %v", err)
+		t.Fatalf("loadSite: %v", err)
 	}
-	if !bytes.Equal(embedded, canonical) {
-		t.Fatal("embedded install.sh differs from scripts/install.sh")
+	if !bytes.Equal(site.InstallScript("install.sh"), canonical) {
+		t.Fatal("served install.sh differs from repository-root install.sh")
+	}
+}
+
+func TestInstallSH_CanonicalScriptLivesAtRepoRoot(t *testing.T) {
+	if _, err := os.Stat(canonicalInstallScript); err != nil {
+		t.Fatalf("repository-root install.sh should be the canonical Unix installer: %v", err)
+	}
+	if _, err := os.Stat("../../../scripts/install.sh"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("scripts/install.sh should not be the canonical Unix installer: err=%v", err)
+	}
+}
+
+func TestInstallSH_DeployWorkflowWatchesRepoRootScript(t *testing.T) {
+	workflow, err := os.ReadFile("../../../.github/workflows/deploy-gormes-www.yml")
+	if err != nil {
+		t.Fatalf("read deploy workflow: %v", err)
+	}
+	body := string(workflow)
+	if !strings.Contains(body, "\n      - 'install.sh'\n") {
+		t.Fatalf("deploy workflow should watch repository-root install.sh:\n%s", body)
+	}
+	if strings.Contains(body, "scripts/install.sh") {
+		t.Fatalf("deploy workflow should not watch scripts/install.sh:\n%s", body)
+	}
+}
+
+func TestInstallSH_HasNoSiteCopy(t *testing.T) {
+	_, err := os.Stat("installers/install.sh")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("site install.sh copy should not exist: err=%v", err)
 	}
 }
 
@@ -147,12 +178,12 @@ if [ "${1:-}" = "build" ]; then
   mkdir -p "$(dirname "$out")"
   cat > "$out" <<'EOF'
 #!/bin/sh
-  if [ -n "${GORMES_FAKE_LOG:-}" ]; then
-    printf 'built-gormes' >> "$GORMES_FAKE_LOG"
-    for arg in "$@"; do
-    printf ' %%s' "$arg" >> "$GORMES_FAKE_LOG"
+if [ -n "${GORMES_FAKE_LOG:-}" ]; then
+  line='built-gormes'
+  for arg in "$@"; do
+    line="${line} ${arg}"
   done
-  printf '\n' >> "$GORMES_FAKE_LOG"
+  printf '%%s\n' "$line" >> "$GORMES_FAKE_LOG"
 fi
 case "${1:-}" in
   version)
@@ -205,6 +236,8 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 	linkBasicUnixTools(t, bin)
 	writeExecutable(t, filepath.Join(bin, "git"), fakeGitScript())
 	writeExecutable(t, filepath.Join(bin, "go"), fakeGoScript("go", "go1.25.0"))
+	writeExecutable(t, filepath.Join(bin, "curl"), fakeNoReleaseCurlScript())
+	writeExecutable(t, filepath.Join(bin, "tar"), fakeTarScript())
 
 	return bin, logPath
 }
@@ -221,6 +254,30 @@ func linkBasicUnixTools(t *testing.T, bin string) {
 			t.Fatalf("symlink %s: %v", name, err)
 		}
 	}
+}
+
+func fakeNoReleaseCurlScript() string {
+	return `#!/bin/sh
+set -eu
+printf 'curl' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+exit 22
+`
+}
+
+func fakeTarScript() string {
+	return `#!/bin/sh
+set -eu
+printf 'tar' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+exit 2
+`
 }
 
 func writeFakePackageManager(t *testing.T, bin string, name string) {
@@ -243,6 +300,32 @@ for arg in "$@"; do
       cp "$GORMES_FAKE_GO_TEMPLATE" "$GORMES_FAKE_BIN/go"
       chmod +x "$GORMES_FAKE_BIN/go"
       ;;
+    curl)
+      cat > "$GORMES_FAKE_BIN/curl" <<'CURL'
+#!/bin/sh
+set -eu
+printf 'curl' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+exit 22
+CURL
+      chmod +x "$GORMES_FAKE_BIN/curl"
+      ;;
+    tar)
+      cat > "$GORMES_FAKE_BIN/tar" <<'TAR'
+#!/bin/sh
+set -eu
+printf 'tar' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+exit 2
+TAR
+      chmod +x "$GORMES_FAKE_BIN/tar"
+      ;;
   esac
 done
 `)
@@ -254,48 +337,160 @@ func writeFakeDownloadTools(t *testing.T, bin string) {
 set -eu
 printf 'curl' >> "$GORMES_FAKE_LOG"
 out=
+url=
 for arg in "$@"; do
   printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
   if [ "${prev:-}" = "-o" ]; then
     out="$arg"
   fi
+  case "$arg" in
+    http://*|https://*) url="$arg" ;;
+  esac
   prev="$arg"
 done
 printf '\n' >> "$GORMES_FAKE_LOG"
 if [ -n "$out" ]; then
   mkdir -p "$(dirname "$out")"
-  printf 'fake go tarball\n' > "$out"
+  case "$url" in
+    */repos/TrebuchetDynamics/gormes-agent/releases/latest)
+      if [ -z "${GORMES_FAKE_RELEASE_TAG:-}" ]; then
+        exit 22
+      fi
+      printf '{"tag_name":"%s"}\n' "$GORMES_FAKE_RELEASE_TAG" > "$out"
+      ;;
+    */releases/download/*/*.tar.gz.sha256)
+      asset="${url##*/}"
+      asset="${asset%.sha256}"
+      sum=$(printf 'fake release archive\n' | sha256sum | sed 's/ .*//')
+      printf '%s  %s\n' "$sum" "$asset" > "$out"
+      ;;
+    */releases/download/*/*.tar.gz)
+      printf 'fake release archive\n' > "$out"
+      ;;
+    *)
+      printf 'fake go tarball\n' > "$out"
+      ;;
+  esac
 fi
 `)
 	writeExecutable(t, filepath.Join(bin, "wget"), `#!/bin/sh
 set -eu
 printf 'wget' >> "$GORMES_FAKE_LOG"
 out=
+url=
 for arg in "$@"; do
   printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
   if [ "${prev:-}" = "-O" ]; then
     out="$arg"
   fi
+  case "$arg" in
+    http://*|https://*) url="$arg" ;;
+  esac
   prev="$arg"
 done
 printf '\n' >> "$GORMES_FAKE_LOG"
 if [ -n "$out" ]; then
   mkdir -p "$(dirname "$out")"
-  printf 'fake go tarball\n' > "$out"
+  case "$url" in
+    */repos/TrebuchetDynamics/gormes-agent/releases/latest)
+      if [ -z "${GORMES_FAKE_RELEASE_TAG:-}" ]; then
+        exit 22
+      fi
+      printf '{"tag_name":"%s"}\n' "$GORMES_FAKE_RELEASE_TAG" > "$out"
+      ;;
+    */releases/download/*/*.tar.gz.sha256)
+      asset="${url##*/}"
+      asset="${asset%.sha256}"
+      sum=$(printf 'fake release archive\n' | sha256sum | sed 's/ .*//')
+      printf '%s  %s\n' "$sum" "$asset" > "$out"
+      ;;
+    */releases/download/*/*.tar.gz)
+      printf 'fake release archive\n' > "$out"
+      ;;
+    *)
+      printf 'fake go tarball\n' > "$out"
+      ;;
+  esac
 fi
 `)
 	writeExecutable(t, filepath.Join(bin, "tar"), `#!/bin/sh
 set -eu
 printf 'tar' >> "$GORMES_FAKE_LOG"
+dest=
+archive=
 for arg in "$@"; do
   printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+  if [ "${prev:-}" = "-C" ]; then
+    dest="$arg"
+  fi
+  case "$arg" in
+    *.tar.gz) archive="$arg" ;;
+  esac
+  prev="$arg"
 done
 printf '\n' >> "$GORMES_FAKE_LOG"
+base="${archive##*/}"
+case "$base" in
+  gormes-*.tar.gz)
+    dir="${base%.tar.gz}"
+    mkdir -p "$dest/$dir"
+    cp "$GORMES_FAKE_RELEASE_BIN_TEMPLATE" "$dest/$dir/gormes"
+    chmod +x "$dest/$dir/gormes"
+    exit 0
+    ;;
+esac
 home="${GORMES_INSTALL_HOME:-$HOME/.gormes}"
 mkdir -p "$home/go/bin"
 cp "$GORMES_FAKE_MANAGED_GO_TEMPLATE" "$home/go/bin/go"
 chmod +x "$home/go/bin/go"
 `)
+}
+
+func writeFakeReleaseToolchain(t *testing.T, root string) (string, string, string) {
+	t.Helper()
+	bin := filepath.Join(root, "fakebin")
+	logPath := filepath.Join(root, "toolchain.log")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatalf("mkdir fakebin: %v", err)
+	}
+	linkBasicUnixTools(t, bin)
+	writeFakeDownloadTools(t, bin)
+
+	releaseTemplate := filepath.Join(root, "release-gormes.template")
+	writeExecutable(t, releaseTemplate, `#!/bin/sh
+set -eu
+if [ -n "${GORMES_FAKE_LOG:-}" ]; then
+  printf 'release-gormes' >> "$GORMES_FAKE_LOG"
+  for arg in "$@"; do
+    printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+  done
+  printf '\n' >> "$GORMES_FAKE_LOG"
+fi
+case "${1:-}" in
+  version)
+    printf 'gormes release-test\n'
+    ;;
+  doctor)
+    if [ "${2:-}" = "--offline" ]; then
+      printf 'doctor ok\n'
+    fi
+    ;;
+  gateway)
+    case "${2:-}" in
+      status)
+        printf '{"runtime":{"gateway_state":"stopped","active_agents":0},"validation":{"status":"stopped","live":false}}\n'
+        ;;
+      stop)
+        printf 'gateway stop: stopped\n'
+        ;;
+      "")
+        printf 'gateway started\n'
+        ;;
+    esac
+    ;;
+esac
+`)
+	return bin, logPath, releaseTemplate
 }
 
 func writeBootstrapTemplates(t *testing.T, root string, systemGoVersion string) (string, string, string) {
@@ -431,23 +626,78 @@ func TestInstallSH_WindowsShellHintMentionsPowerShell(t *testing.T) {
 	}
 }
 
-func TestInstallSH_FirstInstallCreatesManagedCheckoutAndPublishedCommand(t *testing.T) {
+func TestInstallSH_InstallsReleaseBinaryWhenAvailable(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
-	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	fakebin, logPath, releaseTemplate := writeFakeReleaseToolchain(t, root)
 
 	out, err := runInstallScript(t,
 		"HOME="+home,
 		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_RELEASE_TAG=v1.2.3",
+		"GORMES_FAKE_RELEASE_BIN_TEMPLATE="+releaseTemplate,
+		"UNAME=Linux",
 	)
 	if err != nil {
-		t.Fatalf("install.sh failed: %v\n%s", err, out)
+		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
 	}
 
-	checkout := filepath.Join(home, ".gormes", "gormes-agent")
-	if _, err := os.Stat(filepath.Join(checkout, ".git")); err != nil {
-		t.Fatalf("managed checkout missing: %v", err)
+	managed := filepath.Join(home, ".gormes", "bin", "gormes")
+	body, err := os.ReadFile(managed)
+	if err != nil {
+		t.Fatalf("read managed release binary: %v", err)
+	}
+	if !strings.Contains(string(body), "release-gormes") {
+		t.Fatalf("managed binary was not the release binary:\n%s", body)
+	}
+	published := filepath.Join(home, ".local", "bin", "gormes")
+	if _, err := os.Stat(published); err != nil {
+		t.Fatalf("published command missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".gormes", "gormes-agent")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("release install should not create a source checkout: err=%v", err)
+	}
+	log := readTextFile(t, logPath)
+	for _, want := range []string{
+		"curl -fsSL https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest -o",
+		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v1.2.3/gormes-1.2.3-",
+		"tar -C",
+		"release-gormes version",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("toolchain log missing %q\n%s", want, log)
+		}
+	}
+	for _, reject := range []string{"git clone", "go build"} {
+		if strings.Contains(log, reject) {
+			t.Fatalf("release install should not use %q\n%s", reject, log)
+		}
+	}
+	if !strings.Contains(out, "installed release v1.2.3") {
+		t.Fatalf("release install output missing release evidence:\n%s", out)
+	}
+}
+
+func TestInstallSH_NoReleaseClonesTemporarySourceAndBuilds(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	writeFakeDownloadTools(t, fakebin)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"TMPDIR="+filepath.Join(root, "tmp"),
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
+	}
+
+	persistentCheckout := filepath.Join(home, ".gormes", "gormes-agent")
+	if _, err := os.Stat(persistentCheckout); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("source fallback should not leave a managed checkout: err=%v", err)
 	}
 	published := filepath.Join(home, ".local", "bin", "gormes")
 	if _, err := os.Stat(published); err != nil {
@@ -462,12 +712,55 @@ func TestInstallSH_FirstInstallCreatesManagedCheckoutAndPublishedCommand(t *test
 	}
 	log := string(logBody)
 	for _, want := range []string{
+		"curl -fsSL https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest -o",
 		"git clone --branch main",
 		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
 		}
+	}
+	if strings.Contains(log, persistentCheckout) {
+		t.Fatalf("source fallback used persistent checkout instead of temporary clone:\n%s", log)
+	}
+	if !strings.Contains(out, "no release binary found; building from source") {
+		t.Fatalf("fallback output missing no-release evidence:\n%s", out)
+	}
+}
+
+func TestInstallSH_BranchOverrideBuildsTemporarySourceInsteadOfLatestRelease(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	writeFakeDownloadTools(t, fakebin)
+	archiveHash := fmt.Sprintf("%x", sha256.Sum256([]byte("fake release archive\n")))
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--branch", "development"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_RELEASE_TAG=v9.9.9",
+		"GORMES_FAKE_RELEASE_TARGET=gormes-9.9.9-linux-amd64",
+		"GORMES_FAKE_RELEASE_ARCHIVE_SHA="+archiveHash,
+		"TMPDIR="+filepath.Join(root, "tmp"),
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s", err, out)
+	}
+
+	log := readTextFile(t, logPath)
+	if !strings.Contains(log, "git clone --branch development") {
+		t.Fatalf("branch override did not build requested source branch:\n%s", log)
+	}
+	for _, reject := range []string{"releases/download/v9.9.9", "release-gormes version"} {
+		if strings.Contains(log, reject) {
+			t.Fatalf("branch override should skip latest release path %q:\n%s", reject, log)
+		}
+	}
+	if !strings.Contains(out, "branch development requested; building from source") {
+		t.Fatalf("branch override output missing source evidence:\n%s", out)
 	}
 }
 
@@ -507,7 +800,7 @@ func TestInstallSH_UpdatesExistingCommandEarlierOnPATH(t *testing.T) {
 	}
 }
 
-func TestInstallSH_RerunUpdatesManagedCheckoutWithoutCloning(t *testing.T) {
+func TestInstallSH_SourceFallbackDoesNotUpdatePersistentCheckout(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	checkout := filepath.Join(home, ".gormes", "gormes-agent")
@@ -521,11 +814,13 @@ func TestInstallSH_RerunUpdatesManagedCheckoutWithoutCloning(t *testing.T) {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
+	writeFakeDownloadTools(t, fakebin)
 
 	out, err := runInstallScript(t,
 		"HOME="+home,
 		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
+		"TMPDIR="+filepath.Join(root, "tmp"),
 	)
 	if err != nil {
 		t.Fatalf("install.sh failed: %v\n%s", err, out)
@@ -536,13 +831,13 @@ func TestInstallSH_RerunUpdatesManagedCheckoutWithoutCloning(t *testing.T) {
 		t.Fatalf("read fake log: %v", err)
 	}
 	log := string(logBody)
-	for _, want := range []string{"git status --porcelain", "git fetch origin main", "git checkout main", "git pull --ff-only origin main"} {
-		if !strings.Contains(log, want) {
-			t.Fatalf("toolchain log missing %q\n%s", want, log)
-		}
+	if !strings.Contains(log, "git clone --branch main") {
+		t.Fatalf("source fallback did not clone a fresh temporary checkout:\n%s", log)
 	}
-	if strings.Contains(log, "git clone") {
-		t.Fatalf("rerun cloned instead of updating:\n%s", log)
+	for _, reject := range []string{"git status --porcelain", "git fetch origin main", "git pull --ff-only origin main", checkout} {
+		if strings.Contains(log, reject) {
+			t.Fatalf("source fallback should not update persistent checkout %q:\n%s", reject, log)
+		}
 	}
 }
 
@@ -690,6 +985,83 @@ func TestInstallSH_DryRunDoesNotBuildPublishOrRestart(t *testing.T) {
 		t.Fatalf("dry-run created install home")
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("stat install home: %v", err)
+	}
+}
+
+func TestInstallSH_VerboseDryRunShowsResolvedPlan(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	binDir := filepath.Join(root, "bin")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--dry-run", "--verbose", "--branch", "development", "--home", home, "--bin-dir", binDir, "--restart-gateway", "never"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("verbose dry-run failed: %v\n%s", err, out)
+	}
+	for _, want := range []string{
+		"resolved install plan",
+		"verbose: true",
+		"platform:",
+		"install_home: " + home,
+		"source_mode: release",
+		"source_fallback: temporary git clone of development",
+		"managed_binary: " + filepath.Join(home, "bin", "gormes"),
+		"published_binary: " + filepath.Join(binDir, "gormes"),
+		"restart_gateway: never",
+		"dry run",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("verbose dry-run output missing %q\n%s", want, out)
+		}
+	}
+	if got := readTextFile(t, logPath); got != "" {
+		t.Fatalf("verbose dry-run invoked toolchain:\n%s", got)
+	}
+}
+
+func TestInstallSH_UninstallDelegatesToPublishedGormesWithoutBuild(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	binDir := filepath.Join(root, "bin")
+	logPath := filepath.Join(root, "uninstall.log")
+	writeExecutable(t, filepath.Join(binDir, "gormes"), `#!/bin/sh
+set -eu
+printf 'gormes' >> "$GORMES_FAKE_LOG"
+for arg in "$@"; do
+  printf ' %s' "$arg" >> "$GORMES_FAKE_LOG"
+done
+printf '\n' >> "$GORMES_FAKE_LOG"
+if [ "${1:-}" = "uninstall" ]; then
+  printf 'uninstall dry-run: 0 artifact(s)\n'
+  exit 0
+fi
+exit 99
+`)
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--bin-dir", binDir, "--uninstall", "--keep-config", "--dry-run=false", "--yes"},
+		"HOME="+home,
+		"PATH="+binDir,
+		"GORMES_FAKE_LOG="+logPath,
+	)
+	if err != nil {
+		t.Fatalf("uninstall failed: %v\n%s", err, out)
+	}
+	if got, want := readTextFile(t, logPath), "gormes uninstall --keep-config --dry-run=false --yes\n"; got != want {
+		t.Fatalf("uninstall command = %q, want %q", got, want)
+	}
+	if strings.Contains(out, "Gormes installed") || strings.Contains(out, "cloning Gormes") || strings.Contains(out, "building gormes") {
+		t.Fatalf("--uninstall ran install flow:\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".gormes", "install.lock")); err == nil {
+		t.Fatalf("--uninstall created install lock")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat install lock: %v", err)
 	}
 }
 

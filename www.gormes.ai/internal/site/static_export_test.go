@@ -111,7 +111,7 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		"~12 MB",
 		"Install in one command. Verify everything works.",
 		"One command to install",
-		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh | sh",
+		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh",
 		"Run AI Agents as One Go Binary.",
 		"Phase 3 — SQLite + FTS5 transcript memory.",
 		// Old single-row ledger copy must not survive the grouped rewrite

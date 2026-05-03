@@ -7,7 +7,7 @@ package gormes
 import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/pybridge"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/runtimebridge"
 )
 
 // Hermes wire surface — everything Gormes needs to speak HTTP+SSE to a
@@ -37,9 +37,9 @@ type (
 	PlatformEventKind = kernel.PlatformEventKind
 )
 
-// Runtime seam — Phase-5 interface definitions, present in Phase 1 so
-// downstream integrators can write conforming runtimes ahead of time.
+// Runtime seam — Python-neutral interface definitions for future external
+// runtimes. The current Gormes runtime does not use this seam.
 type (
-	Runtime    = pybridge.Runtime
-	Invocation = pybridge.Invocation
+	Runtime    = runtimebridge.Runtime
+	Invocation = runtimebridge.Invocation
 )

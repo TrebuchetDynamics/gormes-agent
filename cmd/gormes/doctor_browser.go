@@ -47,14 +47,12 @@ func doctorBrowserRuntimeStatusWithDeps(deps browserRuntimeDoctorDeps) doctor.Ch
 		deps.probeCDP = probeChromeCDPEndpoint
 	}
 
-	harnessPath, harnessOK := firstBrowserRuntimePath(deps.lookPath, "go-browser-harness")
 	chromePath, chromeOK := firstBrowserRuntimePath(deps.lookPath, chromeExecutableCandidates...)
 	endpoint := browserCDPEndpointFromEnv(deps.getenv)
 
 	status := doctor.StatusPass
 	summary := "local_cdp_ready"
 	items := []doctor.ItemInfo{
-		browserHarnessDoctorItem(harnessPath, harnessOK),
 		browserChromeDoctorItem(chromePath, chromeOK, endpoint),
 	}
 
@@ -91,10 +89,6 @@ func doctorBrowserRuntimeStatusWithDeps(deps browserRuntimeDoctorDeps) doctor.Ch
 		Status: doctor.StatusPass,
 		Note:   "reachable at " + endpoint,
 	})
-	if !harnessOK {
-		status = doctor.StatusWarn
-		summary = "harness_unavailable"
-	}
 	return doctor.CheckResult{Name: "Browser runtime", Status: status, Summary: summary, Items: items}
 }
 
@@ -108,17 +102,6 @@ func firstBrowserRuntimePath(lookPath func(string) (string, error), names ...str
 		}
 	}
 	return "", false
-}
-
-func browserHarnessDoctorItem(path string, ok bool) doctor.ItemInfo {
-	if ok {
-		return doctor.ItemInfo{Name: "harness", Status: doctor.StatusPass, Note: "go-browser-harness at " + path}
-	}
-	return doctor.ItemInfo{
-		Name:   "harness",
-		Status: doctor.StatusWarn,
-		Note:   "go-browser-harness not found on PATH; build/install ../go-browser-harness so browser_* and CDP web_extract can run",
-	}
 }
 
 func browserChromeDoctorItem(path string, ok bool, endpoint string) doctor.ItemInfo {

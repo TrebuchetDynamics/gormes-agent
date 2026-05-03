@@ -1826,8 +1826,8 @@ func TestWebExtractToolFallsBackToCDPWhenFirecrawlFails(t *testing.T) {
 		status: http.StatusBadGateway,
 		body:   `{"error":"scraper blocked"}`,
 	}}}
-	runner := &recordingHarnessRunner{
-		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/fallback","title":"Fallback Page","text":"CDP rendered content"}`)},
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{SchemaVersion: browserHarnessActionSchemaVersion, Evidence: BrowserHarnessEvidenceActionAccepted, Kind: BrowserActionNavigate, URL: "https://example.test/fallback", Title: "Fallback Page", Text: "CDP rendered content"},
 	}
 	tool := NewWebExtractTool(WebToolsConfig{
 		Client: client,
@@ -1838,9 +1838,9 @@ func TestWebExtractToolFallsBackToCDPWhenFirecrawlFails(t *testing.T) {
 			Available: true,
 		},
 		Browser: BrowserHarnessToolsConfig{
-			Runner: runner,
-			Env:    map[string]string{"CHROME_REMOTE_DEBUGGING_URL": "http://127.0.0.1:9222"},
-			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+			Backend: backend,
+			Env:     map[string]string{"CHROME_REMOTE_DEBUGGING_URL": "http://127.0.0.1:9222"},
+			Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 		},
 	})
 
@@ -1851,13 +1851,7 @@ func TestWebExtractToolFallsBackToCDPWhenFirecrawlFails(t *testing.T) {
 	if len(client.requests) != 1 {
 		t.Fatalf("requests = %d, want Firecrawl attempted once before fallback", len(client.requests))
 	}
-	if len(runner.argv) < 3 {
-		t.Fatalf("argv = %v, want go-browser-harness fallback call", runner.argv)
-	}
-	if got, wantPrefix := strings.Join(runner.argv[:2], "\x00"), "go-browser-harness\x00--action-json"; got != wantPrefix {
-		t.Fatalf("argv prefix = %q, want %q", got, wantPrefix)
-	}
-	action := decodeHarnessAction(t, runner.argv[2])
+	action := backend.req
 	if action.Kind != BrowserActionNavigate || action.URL != "https://example.test/fallback" || !action.NewTab {
 		t.Fatalf("fallback action = %#v, want new-tab navigate to requested URL", action)
 	}
@@ -1887,8 +1881,8 @@ func TestWebExtractToolFallsBackToCDPWhenBatchProviderFails(t *testing.T) {
 		status: http.StatusServiceUnavailable,
 		body:   `{"error":"provider unavailable"}`,
 	}}}
-	runner := &recordingHarnessRunner{
-		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/exa-fallback","title":"Exa Fallback","text":"CDP batch fallback"}`)},
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{SchemaVersion: browserHarnessActionSchemaVersion, Evidence: BrowserHarnessEvidenceActionAccepted, Kind: BrowserActionNavigate, URL: "https://example.test/exa-fallback", Title: "Exa Fallback", Text: "CDP batch fallback"},
 	}
 	tool := NewWebExtractTool(WebToolsConfig{
 		Client: client,
@@ -1899,9 +1893,9 @@ func TestWebExtractToolFallsBackToCDPWhenBatchProviderFails(t *testing.T) {
 			Available: true,
 		},
 		Browser: BrowserHarnessToolsConfig{
-			Runner: runner,
-			Env:    map[string]string{"CHROME_REMOTE_DEBUGGING_URL": "http://127.0.0.1:9222"},
-			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+			Backend: backend,
+			Env:     map[string]string{"CHROME_REMOTE_DEBUGGING_URL": "http://127.0.0.1:9222"},
+			Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 		},
 	})
 
@@ -1912,10 +1906,7 @@ func TestWebExtractToolFallsBackToCDPWhenBatchProviderFails(t *testing.T) {
 	if len(client.requests) != 1 {
 		t.Fatalf("requests = %d, want Exa attempted once before fallback", len(client.requests))
 	}
-	if len(runner.argv) < 3 {
-		t.Fatalf("argv = %v, want go-browser-harness fallback call", runner.argv)
-	}
-	action := decodeHarnessAction(t, runner.argv[2])
+	action := backend.req
 	if action.Kind != BrowserActionNavigate || action.URL != "https://example.test/exa-fallback" || !action.NewTab {
 		t.Fatalf("fallback action = %#v, want new-tab navigate to requested URL", action)
 	}
@@ -1937,8 +1928,8 @@ func TestWebExtractToolFallsBackToCDPWhenBatchProviderFails(t *testing.T) {
 
 func TestWebExtractToolUsesCDPForDuckDuckGoURLExtractWhenConfigured(t *testing.T) {
 	client := &recordingWebHTTPClient{}
-	runner := &recordingHarnessRunner{
-		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/ddg-cdp","title":"Rendered DDG Fallback","text":"browser rendered page"}`)},
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{SchemaVersion: browserHarnessActionSchemaVersion, Evidence: BrowserHarnessEvidenceActionAccepted, Kind: BrowserActionNavigate, URL: "https://example.test/ddg-cdp", Title: "Rendered DDG Fallback", Text: "browser rendered page"},
 	}
 	tool := NewWebExtractTool(WebToolsConfig{
 		Client: client,
@@ -1948,9 +1939,9 @@ func TestWebExtractToolUsesCDPForDuckDuckGoURLExtractWhenConfigured(t *testing.T
 			Available: true,
 		},
 		Browser: BrowserHarnessToolsConfig{
-			Runner: runner,
-			Env:    map[string]string{"BROWSER_CDP_URL": "http://127.0.0.1:9223"},
-			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+			Backend: backend,
+			Env:     map[string]string{"BROWSER_CDP_URL": "http://127.0.0.1:9223"},
+			Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 		},
 	})
 
@@ -1961,8 +1952,8 @@ func TestWebExtractToolUsesCDPForDuckDuckGoURLExtractWhenConfigured(t *testing.T
 	if len(client.requests) != 0 {
 		t.Fatalf("requests = %d, want DuckDuckGo Instant Answer skipped when CDP extract fallback is configured", len(client.requests))
 	}
-	if runner.env["CHROME_REMOTE_DEBUGGING_URL"] != "http://127.0.0.1:9223" || runner.env["BROWSER_CDP_URL"] != "http://127.0.0.1:9223" {
-		t.Fatalf("runner env = %+v, want both CDP env aliases populated", runner.env)
+	if backend.env["CHROME_REMOTE_DEBUGGING_URL"] != "http://127.0.0.1:9223" || backend.env["BROWSER_CDP_URL"] != "http://127.0.0.1:9223" {
+		t.Fatalf("backend env = %+v, want both CDP env aliases populated", backend.env)
 	}
 
 	var payload struct {
@@ -1980,8 +1971,8 @@ func TestWebExtractToolUsesCDPForDuckDuckGoURLExtractWhenConfigured(t *testing.T
 }
 
 func TestWebExtractToolCallsCDPBackendThroughBrowserHarness(t *testing.T) {
-	runner := &recordingHarnessRunner{
-		result: BrowserHarnessProcessResult{Stdout: []byte(`{"schema_version":"gormes.browser.action.v1","evidence":"go_browser_harness_action_accepted","kind":"navigate","url":"https://example.test/page","title":"Example Page","text":"Rendered content"}`)},
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{SchemaVersion: browserHarnessActionSchemaVersion, Evidence: BrowserHarnessEvidenceActionAccepted, Kind: BrowserActionNavigate, URL: "https://example.test/page", Title: "Example Page", Text: "Rendered content"},
 	}
 	tool := NewWebExtractTool(WebToolsConfig{
 		Resolution: WebBackendResolution{
@@ -1990,8 +1981,8 @@ func TestWebExtractToolCallsCDPBackendThroughBrowserHarness(t *testing.T) {
 			Available: true,
 		},
 		Browser: BrowserHarnessToolsConfig{
-			Runner: runner,
-			Budget: ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
+			Backend: backend,
+			Budget:  ToolResultBudgetConfig{OutputDir: t.TempDir(), TextBudgetBytes: 4096, PreviewBytes: 512},
 		},
 	})
 
@@ -1999,21 +1990,18 @@ func TestWebExtractToolCallsCDPBackendThroughBrowserHarness(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if got, wantPrefix := strings.Join(runner.argv[:2], "\x00"), "go-browser-harness\x00--action-json"; got != wantPrefix {
-		t.Fatalf("argv prefix = %q, want %q", got, wantPrefix)
-	}
-	action := decodeHarnessAction(t, runner.argv[2])
+	action := backend.req
 	if action.SchemaVersion != browserHarnessActionSchemaVersion || action.Kind != BrowserActionNavigate || action.URL != "https://example.test/page" {
 		t.Fatalf("CDP extract action = %#v", action)
 	}
 	if !action.NewTab {
 		t.Fatalf("CDP extract must navigate in a new tab: %#v", action)
 	}
-	if runner.env["CHROME_REMOTE_DEBUGGING_URL"] != "http://127.0.0.1:9222" {
-		t.Fatalf("CHROME_REMOTE_DEBUGGING_URL = %q, want resolution base URL", runner.env["CHROME_REMOTE_DEBUGGING_URL"])
+	if backend.env["CHROME_REMOTE_DEBUGGING_URL"] != "http://127.0.0.1:9222" {
+		t.Fatalf("CHROME_REMOTE_DEBUGGING_URL = %q, want resolution base URL", backend.env["CHROME_REMOTE_DEBUGGING_URL"])
 	}
-	if runner.env["BROWSER_CDP_URL"] != "http://127.0.0.1:9222" {
-		t.Fatalf("BROWSER_CDP_URL = %q, want resolution base URL", runner.env["BROWSER_CDP_URL"])
+	if backend.env["BROWSER_CDP_URL"] != "http://127.0.0.1:9222" {
+		t.Fatalf("BROWSER_CDP_URL = %q, want resolution base URL", backend.env["BROWSER_CDP_URL"])
 	}
 
 	var payload struct {
@@ -2032,22 +2020,22 @@ func TestWebExtractToolCallsCDPBackendThroughBrowserHarness(t *testing.T) {
 }
 
 func TestWebExtractToolBlocksPrivateURLBeforeCDPBackend(t *testing.T) {
-	runner := &recordingHarnessRunner{}
+	backend := &recordingBrowserHarnessBackend{}
 	tool := NewWebExtractTool(WebToolsConfig{
 		Resolution: WebBackendResolution{
 			Backend:   WebBackendCDP,
 			BaseURL:   "http://127.0.0.1:9222",
 			Available: true,
 		},
-		Browser: BrowserHarnessToolsConfig{Runner: runner},
+		Browser: BrowserHarnessToolsConfig{Backend: backend},
 	})
 
 	out, err := tool.Execute(context.Background(), json.RawMessage(`{"urls":["http://127.0.0.1/admin"]}`))
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	if len(runner.argv) != 0 {
-		t.Fatalf("argv = %v, want no browser harness call for private URL", runner.argv)
+	if backend.req.Kind != "" {
+		t.Fatalf("backend request = %#v, want no browser call for private URL", backend.req)
 	}
 	var payload struct {
 		Results []struct {

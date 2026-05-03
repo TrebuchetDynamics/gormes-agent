@@ -290,6 +290,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/sessions", s.handleDashboardSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
 	s.mux.HandleFunc("/api/logs", s.handleDashboardLogs)
+	s.mux.Handle("/static/", staticHandler())
 	s.mux.HandleFunc("/dashboard", s.handleWebDashboard)
 	s.mux.HandleFunc("/dashboard/", s.handleWebDashboard)
 	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)

@@ -331,11 +331,12 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 		return newExitCodeError(1, fmt.Errorf("gormes -z: safety policy setup failed: %w", err))
 	}
 	kernelCfg := kernel.Config{
-		Model:      model,
-		Endpoint:   cfg.Hermes.Endpoint,
-		Admission:  kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
-		ToolAudit:  audit.NewJSONLWriter(config.ToolAuditLogPath()),
-		ToolSafety: toolSafety,
+		Model:             model,
+		Endpoint:          cfg.Hermes.Endpoint,
+		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
+		MaxToolIterations: configuredMaxToolIterations(cfg),
+		ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
+		ToolSafety:        toolSafety,
 	}
 	if len(configureKernel) > 0 && configureKernel[0] != nil {
 		configureKernel[0](&kernelCfg)
@@ -506,12 +507,13 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 
 	tm := telemetry.New()
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
+	registry := buildDefaultRegistry(rootCtx, cfg, c, modelName)
 	k := kernel.New(kernel.Config{
 		Model:             modelName,
 		Endpoint:          cfg.Hermes.Endpoint,
 		Admission:         kernel.Admission{MaxBytes: cfg.Input.MaxBytes, MaxLines: cfg.Input.MaxLines},
-		Tools:             buildDefaultRegistry(rootCtx, cfg, c, modelName),
-		MaxToolIterations: kernel.DefaultMaxToolIterations,
+		Tools:             registry,
+		MaxToolIterations: configuredMaxToolIterations(cfg),
 		MaxToolDuration:   30 * time.Second,
 		InitialSessionID:  initialSID,
 		ToolAudit:         toolAudit,

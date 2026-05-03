@@ -14,7 +14,8 @@ The site is built in Go and serves the public homepage at `/` plus embedded stat
 - `internal/site/server.go` - route wiring and template execution.
 - `internal/site/templates/*.tmpl` - HTML templates.
 - `internal/site/static/*` - embedded CSS and other static assets.
-- `internal/site/installers/install.{sh,ps1,cmd}` - embedded installer assets served at `/install.sh`, `/install.ps1`, `/install.cmd`. Kept byte-equal to the canonical scripts under `../scripts/` (parity is enforced by `install_unix_test.go` and `install_pwsh_test.go`).
+- `../install.sh` - canonical Unix installer served at `/install.sh`.
+- `internal/site/installers/install.{ps1,cmd}` - embedded Windows installer assets served at `/install.ps1` and `/install.cmd`.
 - `tests/home.spec.mjs` - Playwright smoke test for the homepage.
 
 ## Installer Surface
@@ -23,20 +24,20 @@ The site serves three installer assets, one per supported user shell:
 
 | Path | Source | Audience |
 |------|--------|----------|
-| `/install.sh` | `installers/install.sh` (mirror of `../scripts/install.sh`) | Linux, macOS, Termux, WSL |
+| `/install.sh` | `../install.sh` | Linux, macOS, Termux, WSL |
 | `/install.ps1` | `installers/install.ps1` (mirror of `../scripts/install.ps1`) | Windows PowerShell 5.1+ / pwsh 7+ |
 | `/install.cmd` | `installers/install.cmd` (mirror of `../scripts/install.cmd`) | CMD wrapper that launches the PowerShell installer |
 
-All three behave the same way: managed checkout, rerun-as-update with
-autostash, source-backed build, and a stable global `gormes` command. Unix
-non-root installs use the Gormes install home plus a user-scoped bin directory;
-Termux publishes to `$PREFIX/bin`; root Linux installs follow the Hermes-style
-FHS policy with code in `/usr/local/lib/gormes-agent` and the command in
-`/usr/local/bin`, while preserving existing legacy root checkouts under the
-Gormes install home.
+The Unix installer is release-first: it downloads the latest compatible
+`gormes-${version}-${os}-${arch}.tar.gz` archive, verifies the `.sha256`, and
+publishes a stable global `gormes` command. If no compatible release exists, it
+clones the requested branch into a temporary directory, builds from source, and
+removes the temporary checkout. Termux falls back to source when a release
+artifact cannot run on the host. Root Linux publishes to `/usr/local/bin`;
+non-root installs publish to a user-scoped bin directory unless overridden.
 
-The landing page should recommend a source build (`git clone`, `make build`)
-until signed binaries, checksums, Homebrew, and Scoop/Winget manifests land.
+The landing page should keep the inspect-first installer and source build paths
+visible until signed binaries, Homebrew, and Scoop/Winget manifests land.
 The `/install.*` URLs remain convenience aliases, not the primary trust story.
 
 ## Local Development

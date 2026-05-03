@@ -1,0 +1,432 @@
+{
+  "name": "missing-all",
+  "rows": [
+    {
+      "phase": "5",
+      "subphase": "5.J",
+      "item": {
+        "name": "Secrets Runtime Controls",
+        "status": "planned",
+        "priority": "P0",
+        "contract": "Port OpenClaw's secrets runtime control surface: secrets apply for deploying previously generated plans, secrets audit to detect plaintext secrets/unresolved refs/precedence drift, secrets configure for interactive provider setup with SecretRef mapping and preflight validation, and secrets reload to re-resolve secret references and atomically swap the runtime snapshot.",
+        "contract_status": "draft",
+        "slice_size": "medium",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator"
+        ],
+        "degraded_mode": "Unresolved SecretRef, missing provider, or reload failure reports secrets_unavailable with exact ref path rather than silently falling back or leaking plaintext secrets.",
+        "fixture": "internal/tools/secrets_test.go",
+        "source_refs": [
+          "openclaw secrets apply/audit/configure/reload CLI surface",
+          "docs/content/building-gormes/openclaw-platform-parity-audit.md",
+          "docs/content/building-gormes/fleet-operational-patterns.md"
+        ],
+        "ready_when": [
+          "Hermes credential/oauth store migration (5.O) is validated.",
+          "SecretRef resolution layer is defined."
+        ],
+        "not_ready_when": [
+          "The row ships without audit/reload atomicity.",
+          "The row stores secrets in plaintext outside the secrets provider."
+        ],
+        "unblocks": [
+          "Security audit (5.J)",
+          "Provider auth parity"
+        ],
+        "acceptance": [
+          "gormes secrets audit detects plaintext secrets, unresolved refs, and precedence drift.",
+          "gormes secrets reload atomically swaps runtime snapshot without restart.",
+          "SecretRef format matches OpenClaw's typed {source, provider, id} object convention."
+        ],
+        "write_scope": [
+          "internal/tools/secrets.go",
+          "internal/tools/secrets_test.go",
+          "cmd/gormes/secrets.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/tools -run TestSecrets -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "gormes secrets ships with audit, configure, and reload commands."
+        ]
+      }
+    },
+    {
+      "phase": "5",
+      "subphase": "5.J",
+      "item": {
+        "name": "Security Audit Command",
+        "status": "planned",
+        "priority": "P0",
+        "contract": "Port OpenClaw's security audit: gormes security audit --deep --fix --json. Deep mode includes live gateway probe checks. Fix mode applies safe remediations and file-permission fixes. JSON mode produces machine-readable output. Audit categories: gateway auth status, state integrity, channel security warnings, shell blocklist coverage, filesystem scoping, credential redaction.",
+        "contract_status": "draft",
+        "slice_size": "medium",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator"
+        ],
+        "degraded_mode": "Unauditable surfaces, missing probes, or unfixable issues report per-category status with severity level and recommended action rather than blocking the entire audit.",
+        "fixture": "internal/tools/security_audit_test.go",
+        "source_refs": [
+          "openclaw security audit --deep --fix --json CLI surface",
+          "docs/content/building-gormes/openclaw-platform-parity-audit.md",
+          "docs/content/building-gormes/must-have-features.md"
+        ],
+        "ready_when": [
+          "Shell blocklist + filesystem scoping (5.J) is operational.",
+          "Secrets runtime controls (5.J) is operational."
+        ],
+        "not_ready_when": [
+          "The row performs destructive fixes without --fix flag.",
+          "The row requires live gateway for basic audit checks."
+        ],
+        "unblocks": [
+          "Production security posture"
+        ],
+        "acceptance": [
+          "gormes security audit --deep checks gateway auth, state integrity, channel security, shell blocklist, filesystem scoping, and credential redaction.",
+          "--fix applies safe remediations (file permissions, auth token generation).",
+          "--json produces machine-readable output with per-category pass/fail/warn."
+        ],
+        "write_scope": [
+          "internal/tools/security_audit.go",
+          "internal/tools/security_audit_test.go",
+          "cmd/gormes/security.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/tools -run TestSecurityAudit -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "gormes security audit ships with --deep, --fix, and --json modes."
+        ]
+      }
+    },
+    {
+      "phase": "5",
+      "subphase": "5.N",
+      "item": {
+        "name": "System Events, Heartbeat, and Presence",
+        "status": "planned",
+        "priority": "P1",
+        "contract": "Port OpenClaw's system event surface: gormes system event enqueues a system event and optionally triggers a heartbeat; gormes system heartbeat shows and controls heartbeat state; gormes system presence lists system presence entries. Events are written to the audit ledger (JSONL) and surfaced in gormes status.",
+        "contract_status": "draft",
+        "slice_size": "medium",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator",
+          "system"
+        ],
+        "degraded_mode": "Missing audit ledger, event queue full, or heartbeat disabled reports system_unavailable with ledger path/error details.",
+        "fixture": "internal/tools/system_events_test.go",
+        "source_refs": [
+          "openclaw system event/heartbeat/presence CLI surface",
+          "internal/audit/ (JSONL audit log)",
+          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        ],
+        "ready_when": [
+          "Audit JSONL ledger (internal/audit/) is operational.",
+          "Session health monitoring (5.N) provides heartbeat data."
+        ],
+        "not_ready_when": [
+          "The row introduces a new event bus or message queue.",
+          "The row depends on external monitoring services."
+        ],
+        "unblocks": [
+          "Operator observability",
+          "Gateway discover/probe diagnostics"
+        ],
+        "acceptance": [
+          "gormes system event 'gateway restart' enqueues event with timestamp.",
+          "gormes system heartbeat shows on/off state and last beat time.",
+          "gormes system presence lists active components with last-seen times."
+        ],
+        "write_scope": [
+          "internal/tools/system_events.go",
+          "internal/tools/system_events_test.go",
+          "cmd/gormes/system.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/tools -run TestSystemEvents -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "gormes system ships with event, heartbeat, and presence subcommands."
+        ]
+      }
+    },
+    {
+      "phase": "5",
+      "subphase": "5.N",
+      "item": {
+        "name": "Gateway Discover and Probe",
+        "status": "planned",
+        "priority": "P1",
+        "contract": "Port OpenClaw's gateway network discovery: gormes gateway discover finds local gateways via Bonjour/mDNS; gormes gateway probe shows gateway reachability + discovery + health + status summary; gormes gateway usage-cost fetches usage cost summary from session logs.",
+        "contract_status": "draft",
+        "slice_size": "small",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator"
+        ],
+        "degraded_mode": "No gateways discovered, probe timeout, or usage data unavailable reports per-endpoint status with failure reason.",
+        "fixture": "internal/tools/gateway_discover_test.go",
+        "source_refs": [
+          "openclaw gateway discover/probe/usage-cost CLI surface",
+          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        ],
+        "ready_when": [
+          "Gateway status and health commands are operational.",
+          "Session store has usage/cost data accessible."
+        ],
+        "not_ready_when": [
+          "The row requires Tailscale or CoreDNS for basic discovery.",
+          "The row sends unauthenticated probe requests."
+        ],
+        "unblocks": [
+          "Multi-instance fleet management"
+        ],
+        "acceptance": [
+          "gormes gateway discover lists local gateways with addresses and ports.",
+          "gormes gateway probe shows reachability + discovery + health + status.",
+          "gormes gateway usage-cost shows per-session and aggregate token costs."
+        ],
+        "write_scope": [
+          "internal/tools/gateway_discover.go",
+          "internal/tools/gateway_discover_test.go",
+          "cmd/gormes/gateway_discover.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/tools -run TestGatewayDiscover -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "gormes gateway discover/probe/usage-cost ships."
+        ]
+      }
+    },
+    {
+      "phase": "5",
+      "subphase": "5.N",
+      "item": {
+        "name": "Channels Capabilities Introspection",
+        "status": "planned",
+        "priority": "P2",
+        "contract": "Port OpenClaw's channels capabilities: gormes channels capabilities shows provider capabilities (intents/scopes + supported features) for each configured channel. Enables operators to understand what each channel adapter supports before configuring it.",
+        "contract_status": "draft",
+        "slice_size": "small",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator"
+        ],
+        "degraded_mode": "Unconfigured channel, missing adapter, or capability query failure reports per-channel status with 'unknown' capability rather than crashing.",
+        "fixture": "internal/channels/capabilities_test.go",
+        "source_refs": [
+          "openclaw channels capabilities CLI surface",
+          "internal/channels/* (adapter implementations)",
+          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        ],
+        "ready_when": [
+          "Channel adapters expose capability metadata.",
+          "CLI channel command routing is defined."
+        ],
+        "not_ready_when": [
+          "The row hardcodes per-channel capabilities.",
+          "The row requires live channel connections for capability discovery."
+        ],
+        "unblocks": [
+          "Channel configuration UX"
+        ],
+        "acceptance": [
+          "gormes channels capabilities --channel telegram shows intents, scopes, and supported features.",
+          "Output includes media support, command support, and format limitations per channel.",
+          "Unconfigured channels show 'not configured' status."
+        ],
+        "write_scope": [
+          "internal/channels/capabilities.go",
+          "internal/channels/capabilities_test.go",
+          "cmd/gormes/channels_capabilities.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/channels -run TestCapabilities -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "gormes channels capabilities ships for all configured channel adapters."
+        ]
+      }
+    },
+    {
+      "phase": "5",
+      "subphase": "5.H",
+      "item": {
+        "name": "ACP Client Bridge Mode",
+        "status": "planned",
+        "priority": "P1",
+        "contract": "Complete the ACP integration with client bridge mode: gormes acp client connects to the Go-native ACP server (5.H server side is validated) with session key/label resolution, reset-session capability, require-existing guard, provenance modes (off/meta/meta+receipt), and --no-prefix-cwd flag. Match OpenClaw's ACP bridge surface.",
+        "contract_status": "draft",
+        "slice_size": "medium",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator",
+          "system"
+        ],
+        "degraded_mode": "Unsupported ACP provider, missing auth, session key not found, or permission prompt timeout returns explicit acp_client_row_backed evidence with available fallback modes.",
+        "fixture": "internal/acp/client_test.go",
+        "source_refs": [
+          "openclaw acp client CLI surface",
+          "internal/acp/server_manifest_test.go",
+          "docs/content/building-gormes/openclaw-platform-parity-audit.md"
+        ],
+        "ready_when": [
+          "ACP server side (5.H) is validated — server manifest, auth, session, tools, permissions, events.",
+          "Gateway session store supports key/label resolution."
+        ],
+        "not_ready_when": [
+          "The row requires a running Hermes Python process.",
+          "The row exposes unauthenticated ACP endpoints."
+        ],
+        "unblocks": [
+          "Multi-agent interoperability",
+          "Editor integrations"
+        ],
+        "acceptance": [
+          "gormes acp client --session agent:main:main connects to local ACP server.",
+          "Provenance mode meta+receipt writes signed receipts.",
+          "--reset-session clears and reinitializes the session key.",
+          "--require-existing fails when session does not exist."
+        ],
+        "write_scope": [
+          "internal/acp/client.go",
+          "internal/acp/client_test.go",
+          "cmd/gormes/acp.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/acp -run TestClient -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "gormes acp client ships with session key/label resolution and provenance modes."
+        ]
+      }
+    },
+    {
+      "phase": "5",
+      "subphase": "5.I",
+      "item": {
+        "name": "Extension Lifecycle Hook System",
+        "status": "planned",
+        "priority": "P2",
+        "contract": "Port agent-zero extension lifecycle hook system: register extensions at 8+ lifecycle points (agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, stream_chunk, tool_before/after, context_deleted). Extension chain executes in registration order with per-extension timeout and panic isolation.",
+        "contract_status": "draft",
+        "slice_size": "large",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator",
+          "system"
+        ],
+        "degraded_mode": "Extension load failure, timeout, or panic reports per-extension status with degraded extension skipped. No single extension failure blocks the agent turn.",
+        "fixture": "internal/kernel/extensions_test.go",
+        "source_refs": [
+          "agent-zero helpers/extension.py (@extensible decorator)",
+          "agent-zero agent.py (hook points)",
+          "docs/content/building-gormes/agent-zero-feature-analysis.md",
+          "internal/kernel/kernel.go"
+        ],
+        "ready_when": [
+          "Kernel state machine transitions are well-defined.",
+          "Plugin registry supports lifecycle callback registration."
+        ],
+        "not_ready_when": [
+          "The row introduces Python dependency.",
+          "The row adds hooks without timeout/panic recovery per extension."
+        ],
+        "unblocks": [
+          "Plugin ecosystem",
+          "Skill injection pipeline"
+        ],
+        "acceptance": [
+          "Extensions register for monologue_start, message_loop_start, prompt_before, prompt_after, stream_chunk, tool_before, tool_after hooks.",
+          "Extension chain executes in registration order.",
+          "Extension timeout or panic does not crash agent turn.",
+          "gormes extensions list shows registered extensions with hook points."
+        ],
+        "write_scope": [
+          "internal/kernel/extensions.go",
+          "internal/kernel/extensions_test.go",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/kernel -run TestExtensions -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "Extension lifecycle hook system ships with 8+ hook points and per-extension error isolation."
+        ]
+      }
+    },
+    {
+      "phase": "5",
+      "subphase": "5.N",
+      "item": {
+        "name": "Prompt Fragment Include System",
+        "status": "planned",
+        "priority": "P2",
+        "contract": "Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time.",
+        "contract_status": "draft",
+        "slice_size": "medium",
+        "execution_owner": "tools",
+        "trust_class": [
+          "operator",
+          "system"
+        ],
+        "degraded_mode": "Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.",
+        "fixture": "internal/hermes/prompt_fragments_test.go",
+        "source_refs": [
+          "agent-zero prompts/ (72 fragment files)",
+          "agent-zero agent.py:prepare_prompt",
+          "docs/content/building-gormes/agent-zero-feature-analysis.md"
+        ],
+        "ready_when": [
+          "Extension lifecycle hooks (5.I) provide prompt_before/after hook points.",
+          "Skill system supports profile-level prompt overrides."
+        ],
+        "not_ready_when": [
+          "The row hardcodes prompt content in Go strings.",
+          "The row bypasses existing prompt builder contract."
+        ],
+        "unblocks": [
+          "Agent profile customization",
+          "Plugin prompt injection"
+        ],
+        "acceptance": [
+          "{{include agent.system.main.role.md}} resolves through priority search.",
+          "{{include original}} chains through profile > user > default hierarchy.",
+          "Circular includes detected and reported.",
+          "Fragment cache invalidates on file change."
+        ],
+        "write_scope": [
+          "internal/hermes/prompt_fragments.go",
+          "internal/hermes/prompt_fragments_test.go",
+          "prompts/*.md",
+          "docs/content/building-gormes/architecture_plan/progress.json"
+        ],
+        "test_commands": [
+          "go test ./internal/hermes -run TestPromptFragments -count=1",
+          "go run ./cmd/progress validate"
+        ],
+        "done_signal": [
+          "Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution."
+        ]
+      }
+    }
+  ]
+}

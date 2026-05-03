@@ -30,25 +30,50 @@ func UpdateReadme(opts ReadmeOptions) error {
 		Binary struct {
 			SizeMB json.RawMessage `json:"size_mb"`
 		} `json:"binary"`
+		Code struct {
+			TestCount    json.RawMessage `json:"test_count"`
+			GoFiles      json.RawMessage `json:"go_files"`
+			GoLines      json.RawMessage `json:"go_lines"`
+			Dependencies json.RawMessage `json:"dependencies"`
+		} `json:"code"`
 	}
 	if err := json.Unmarshal(raw, &data); err != nil {
 		return err
 	}
-	sizeMB, err := benchmarkSizeMB(data.Binary.SizeMB)
-	if err != nil {
-		return err
-	}
-	if sizeMB == "" {
-		return fmt.Errorf("benchmarks.json missing binary.size_mb")
-	}
+
 	readmePath := filepath.Join(opts.Root, "README.md")
 	readme, err := os.ReadFile(readmePath)
 	if err != nil {
 		return err
 	}
+	content := string(readme)
+
 	re := regexp.MustCompile(`~[0-9.]+ MB`)
-	updated := re.ReplaceAllString(string(readme), "~"+sizeMB+" MB")
-	return os.WriteFile(readmePath, []byte(updated), 0o644)
+	if sizeMB, err := benchmarkSizeMB(data.Binary.SizeMB); err == nil && sizeMB != "" {
+		content = re.ReplaceAllString(content, "~"+sizeMB+" MB")
+	}
+
+	if testCount, err := intVal(data.Code.TestCount); err == nil && testCount > 0 {
+		re := regexp.MustCompile(`[0-9,]+\+ tests`)
+		content = re.ReplaceAllString(content, fmt.Sprintf("%d+ tests", testCount))
+	}
+
+	if goFiles, err := intVal(data.Code.GoFiles); err == nil && goFiles > 0 {
+		re := regexp.MustCompile(`[0-9,]+\+ Go source files`)
+		content = re.ReplaceAllString(content, fmt.Sprintf("%d+ Go source files", goFiles))
+	}
+
+	if goLines, err := intVal(data.Code.GoLines); err == nil && goLines > 0 {
+		re := regexp.MustCompile(`[0-9,]+ lines of Go`)
+		content = re.ReplaceAllString(content, fmt.Sprintf("%d lines of Go", goLines))
+	}
+
+	if deps, err := intVal(data.Code.Dependencies); err == nil && deps > 0 {
+		re := regexp.MustCompile(`[0-9,]+ dependencies`)
+		content = re.ReplaceAllString(content, fmt.Sprintf("%d dependencies", deps))
+	}
+
+	return os.WriteFile(readmePath, []byte(content), 0o644)
 }
 
 func benchmarkSizeMB(raw json.RawMessage) (string, error) {
@@ -64,4 +89,15 @@ func benchmarkSizeMB(raw json.RawMessage) (string, error) {
 		return strconv.FormatFloat(number, 'f', -1, 64), nil
 	}
 	return "", fmt.Errorf("benchmarks.json binary.size_mb has unsupported type")
+}
+
+func intVal(raw json.RawMessage) (int, error) {
+	if len(raw) == 0 {
+		return 0, nil
+	}
+	var n float64
+	if err := json.Unmarshal(raw, &n); err != nil {
+		return 0, err
+	}
+	return int(n), nil
 }

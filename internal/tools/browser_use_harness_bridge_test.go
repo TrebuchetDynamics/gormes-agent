@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -149,18 +150,23 @@ func TestBrowserUseStopCleanup(t *testing.T) {
 	}
 }
 
-func TestBrowserHarnessCommandRunner(t *testing.T) {
-	runner := &recordingHarnessRunner{
-		result: BrowserHarnessProcessResult{
-			Stdout: []byte("page ready\n" + strings.Repeat("content ", 64)),
-			Stderr: []byte("warning: ignored\n"),
+func TestBrowserHarnessInternalRunnerBudgetsOutput(t *testing.T) {
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Evidence:      BrowserHarnessEvidenceActionAccepted,
+			Kind:          BrowserActionNavigate,
+			TaskID:        "Task 7 / Login",
+			URL:           "https://example.com",
+			Title:         "Example",
+			Text:          "page ready\n" + strings.Repeat("content ", 64),
 		},
 	}
-	bridge := BrowserHarnessBridge{Runner: runner}
+	bridge := BrowserHarnessBridge{Backend: backend}
 
 	result, err := bridge.Run(context.Background(), BrowserHarnessCommandRequest{
 		TaskID:     "Task 7 / Login",
-		ActionJSON: []byte(`{"schema_version":"gormes.browser.action.v1","kind":"navigate","url":"https://example.com"}`),
+		ActionJSON: []byte(`{"schema_version":"gormes.browser.action.v1","kind":"navigate","task_id":"Task 7 / Login","url":"https://example.com","new_tab":true}`),
 		Env: map[string]string{
 			"BROWSER_USE_API_KEY": "bu-secret",
 			"OTHER":               "ok",
@@ -168,21 +174,21 @@ func TestBrowserHarnessCommandRunner(t *testing.T) {
 		Budget: ToolResultBudgetConfig{
 			OutputDir:       t.TempDir(),
 			TextBudgetBytes: 64,
-			PreviewBytes:    32,
+			PreviewBytes:    512,
 		},
 		Action: BrowserAction{Kind: BrowserActionSnapshot, TaskID: "Task 7 / Login"},
 	})
 	if err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
-	if got, want := strings.Join(runner.argv, "\x00"), "go-browser-harness\x00--action-json\x00"+`{"schema_version":"gormes.browser.action.v1","kind":"navigate","url":"https://example.com"}`; got != want {
-		t.Fatalf("argv = %q, want %q", got, want)
+	if len(result.Argv) != 0 {
+		t.Fatalf("Argv = %v, want no external command argv", result.Argv)
 	}
-	if runner.env["BU_NAME"] != "gormes_Task_7_Login" {
-		t.Fatalf("BU_NAME = %q, want sanitized Gormes session key", runner.env["BU_NAME"])
+	if backend.env["BU_NAME"] != "gormes_Task_7_Login" {
+		t.Fatalf("BU_NAME = %q, want sanitized Gormes session key", backend.env["BU_NAME"])
 	}
-	if runner.env["BROWSER_USE_API_KEY"] != "bu-secret" {
-		t.Fatalf("runner did not receive BROWSER_USE_API_KEY in env")
+	if backend.env["BROWSER_USE_API_KEY"] != "bu-secret" {
+		t.Fatalf("backend did not receive BROWSER_USE_API_KEY in env")
 	}
 	if result.Env["BROWSER_USE_API_KEY"] == "bu-secret" {
 		t.Fatalf("result env leaked BROWSER_USE_API_KEY")
@@ -190,8 +196,88 @@ func TestBrowserHarnessCommandRunner(t *testing.T) {
 	if result.Evidence != BrowserHarnessEvidenceCommandOK || result.Envelope.Evidence != BrowserEvidenceResultTruncated {
 		t.Fatalf("result evidence = %q/%q, want command ok + truncated envelope", result.Evidence, result.Envelope.Evidence)
 	}
-	if !strings.Contains(result.Envelope.Text, "tool_output_artifact") || !strings.Contains(result.Envelope.Text, "page ready") {
-		t.Fatalf("envelope text missing artifact pointer/preview: %q", result.Envelope.Text)
+	if !strings.Contains(result.Envelope.Text, "tool_output_artifact") || !strings.Contains(result.Envelope.Text, "schema_version") {
+		t.Fatalf("envelope text missing artifact pointer/JSON preview: %q", result.Envelope.Text)
+	}
+}
+
+func TestBrowserHarnessBridgeDefaultRunsInternalBackend(t *testing.T) {
+	backend := &recordingBrowserHarnessBackend{
+		result: BrowserHarnessActionResult{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Evidence:      BrowserHarnessEvidenceActionAccepted,
+			Kind:          BrowserActionNavigate,
+			TaskID:        "Task 7 / Login",
+			URL:           "https://example.com",
+			Title:         "Example",
+			Text:          "page ready",
+		},
+	}
+	bridge := BrowserHarnessBridge{Backend: backend}
+
+	result, err := bridge.Run(context.Background(), BrowserHarnessCommandRequest{
+		TaskID:     "Task 7 / Login",
+		ActionJSON: []byte(`{"schema_version":"gormes.browser.action.v1","kind":"navigate","task_id":"Task 7 / Login","url":"https://example.com","new_tab":true}`),
+		Env: map[string]string{
+			"BROWSER_USE_API_KEY": "bu-secret",
+			"OTHER":               "ok",
+		},
+		Budget: ToolResultBudgetConfig{
+			OutputDir:       t.TempDir(),
+			TextBudgetBytes: 4096,
+			PreviewBytes:    512,
+		},
+		Action: BrowserAction{Kind: BrowserActionNavigate, TaskID: "Task 7 / Login", URL: "https://example.com"},
+	})
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if len(result.Argv) != 0 {
+		t.Fatalf("Argv = %v, want no external command argv for default internal backend", result.Argv)
+	}
+	if backend.req.Kind != BrowserActionNavigate || backend.req.URL != "https://example.com" || !backend.req.NewTab {
+		t.Fatalf("backend request = %#v, want new-tab navigate action", backend.req)
+	}
+	if backend.env["BU_NAME"] != "gormes_Task_7_Login" {
+		t.Fatalf("BU_NAME = %q, want sanitized Gormes session key", backend.env["BU_NAME"])
+	}
+	if backend.env["BROWSER_USE_API_KEY"] != "bu-secret" {
+		t.Fatalf("backend did not receive BROWSER_USE_API_KEY in env")
+	}
+	if result.Env["BROWSER_USE_API_KEY"] == "bu-secret" {
+		t.Fatalf("result env leaked BROWSER_USE_API_KEY")
+	}
+	if result.Evidence != BrowserHarnessEvidenceCommandOK || !strings.Contains(result.Envelope.Text, "Example") {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestBrowserHarnessChromedpBackendNavigateCreatesTargetBeforePageNavigate(t *testing.T) {
+	transport := &recordingBrowserHarnessCDPTransport{
+		responses: map[string]json.RawMessage{
+			"Target.createTarget":   json.RawMessage(`{"targetId":"target-1"}`),
+			"Target.activateTarget": json.RawMessage(`{}`),
+			"Page.navigate":         json.RawMessage(`{"frameId":"frame-1"}`),
+			"Runtime.evaluate":      json.RawMessage(`{"result":{"value":{"url":"https://example.com","title":"Example","text":"Ready","interactive":[],"readyState":"complete"}}}`),
+		},
+	}
+	backend := NewBrowserHarnessChromedpBackendFromTransport(transport)
+
+	result, err := backend.RunAction(context.Background(), BrowserHarnessActionRequest{
+		SchemaVersion: browserHarnessActionSchemaVersion,
+		Kind:          BrowserActionNavigate,
+		TaskID:        "nav-task",
+		URL:           "https://example.com",
+		NewTab:        true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("RunAction returned error: %v", err)
+	}
+	if got, want := strings.Join(transport.methods, ","), "Target.createTarget,Target.activateTarget,Page.navigate,Runtime.evaluate"; got != want {
+		t.Fatalf("CDP methods = %s, want %s", got, want)
+	}
+	if result.Evidence != BrowserHarnessEvidenceActionAccepted || result.Title != "Example" || result.Text != "Ready" {
+		t.Fatalf("result = %#v", result)
 	}
 }
 
@@ -220,7 +306,7 @@ func TestBrowserHarnessLegacyCommandRunnerExplicit(t *testing.T) {
 }
 
 func TestBrowserHarnessNoLiveRuntimeInUnitTests(t *testing.T) {
-	harness := BrowserHarnessBridge{Runner: &recordingHarnessRunner{err: errors.New("synthetic failure")}}
+	harness := BrowserHarnessBridge{Backend: &recordingBrowserHarnessBackend{err: errors.New("synthetic failure")}}
 	result, err := harness.Run(context.Background(), BrowserHarnessCommandRequest{
 		TaskID:     "unit test",
 		ActionJSON: []byte(`{"schema_version":"gormes.browser.action.v1","kind":"snapshot"}`),
@@ -302,4 +388,41 @@ func (r *recordingHarnessRunner) Run(ctx context.Context, argv []string, env map
 		r.env[k] = v
 	}
 	return r.result, r.err
+}
+
+type recordingBrowserHarnessBackend struct {
+	req    BrowserHarnessActionRequest
+	env    map[string]string
+	result BrowserHarnessActionResult
+	err    error
+}
+
+func (b *recordingBrowserHarnessBackend) RunAction(_ context.Context, req BrowserHarnessActionRequest, env map[string]string) (BrowserHarnessActionResult, error) {
+	b.req = req
+	b.env = map[string]string{}
+	for k, v := range env {
+		b.env[k] = v
+	}
+	return b.result, b.err
+}
+
+type recordingBrowserHarnessCDPTransport struct {
+	methods   []string
+	params    []any
+	responses map[string]json.RawMessage
+	err       error
+}
+
+func (t *recordingBrowserHarnessCDPTransport) SendCommand(_ context.Context, method string, params any) (json.RawMessage, error) {
+	t.methods = append(t.methods, method)
+	t.params = append(t.params, params)
+	if t.err != nil {
+		return nil, t.err
+	}
+	if t.responses != nil {
+		if raw, ok := t.responses[method]; ok {
+			return raw, nil
+		}
+	}
+	return json.RawMessage(`{}`), nil
 }

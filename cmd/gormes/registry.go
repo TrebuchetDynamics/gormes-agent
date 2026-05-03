@@ -58,7 +58,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	}) {
 		reg.MustRegister(tool)
 	}
-	registerAudioTools(reg)
+	registerAudioTools(reg, cfg)
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
 	}))

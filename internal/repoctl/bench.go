@@ -79,6 +79,9 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 	binary["last_measured"] = date
 	bench["binary"] = binary
 
+	code := countCodeMetrics(opts.Root)
+	bench["code"] = code
+
 	history, _ := bench["history"].([]any)
 	if len(history) == 0 || historyDate(history[0]) != date {
 		entry := map[string]any{
@@ -125,6 +128,12 @@ func defaultBenchmarkSkeleton() map[string]any {
 			"linker":      "static",
 			"stripped":    true,
 			"go_version":  "1.25+",
+		},
+		"code": map[string]any{
+			"test_count":    0,
+			"go_files":      0,
+			"go_lines":      0,
+			"dependencies":  0,
 		},
 		"properties": map[string]any{
 			"cgo":          false,
@@ -275,4 +284,62 @@ func parsePhaseKey(key string) (int, error) {
 	var n int
 	_, err := fmt.Sscanf(key, "%d", &n)
 	return n, err
+}
+
+func countCodeMetrics(root string) map[string]any {
+	metrics := map[string]any{}
+
+	testCount := 0
+	cmd := exec.Command("go", "test", "./...", "-list", ".*")
+	cmd.Dir = root
+	out, _ := cmd.Output()
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "Test") {
+			testCount++
+		}
+	}
+	if testCount > 0 {
+		metrics["test_count"] = testCount
+	}
+
+	goFiles := 0
+	goLines := 0
+	for _, dir := range []string{"internal", "cmd"} {
+		_ = filepath.WalkDir(filepath.Join(root, dir), func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() && (d.Name() == "testdata" || d.Name() == ".git") {
+				return filepath.SkipDir
+			}
+			if strings.HasSuffix(d.Name(), ".go") && !strings.HasSuffix(d.Name(), "_test.go") {
+				goFiles++
+				if raw, err := os.ReadFile(path); err == nil {
+					goLines += strings.Count(string(raw), "\n")
+				}
+			}
+			return nil
+		})
+	}
+	if goFiles > 0 {
+		metrics["go_files"] = goFiles
+	}
+	if goLines > 0 {
+		metrics["go_lines"] = goLines
+	}
+
+	depsRaw, err := os.ReadFile(filepath.Join(root, "go.sum"))
+	if err == nil {
+		deps := 0
+		for _, line := range strings.Split(string(depsRaw), "\n") {
+			if strings.TrimSpace(line) != "" {
+				deps++
+			}
+		}
+		if deps > 0 {
+			metrics["dependencies"] = deps
+		}
+	}
+
+	return metrics
 }

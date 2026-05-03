@@ -14,8 +14,9 @@ blocker.
 
 ## Mission
 
-Make Gormes browser automation track Hermes behavior while targeting
-`../go-browser-harness` as the Go-native browser runtime. The Python
+Make Gormes browser automation track Hermes behavior while using Gormes'
+in-process Go browser runtime. The old `../go-browser-harness` sibling repo is
+not a runtime dependency and may be deleted. The Python
 `browser-use/browser-harness` checkout is a behavior reference only, not the
 default Gormes plugin dependency. This skill is for browser parity slices only;
 keep provider auth work in `gormes-provider-parity` and generic tool registry
@@ -36,10 +37,11 @@ work in `gormes-builder`.
    - `../hermes-agent/cli.py:_handle_browser_command`
    - matching tests under `../hermes-agent/tests/tools/` and
      `../hermes-agent/tests/cli/`.
-3. Inspect `../go-browser-harness` for the Go runtime contract:
-   - `../go-browser-harness/pkg/harness/action.go`
-   - `../go-browser-harness/pkg/harness/harness.go`
-   - `../go-browser-harness/cmd/go-browser-harness/main.go`
+3. Inspect Gormes' internal Go runtime contract:
+   - `internal/tools/browser_harness_backend.go`
+   - `internal/tools/browser_harness_chromedp_transport.go`
+   - `internal/tools/browser_harness_tools.go`
+   - `internal/tools/browser_use_harness_bridge.go`
 4. Inspect legacy browser-harness only for Browser Use/CDP operator workflow:
    - `../browser-harness/SKILL.md`
    - `../browser-harness/install.md`
@@ -63,9 +65,10 @@ work in `gormes-builder`.
    `browser_scroll`, `browser_back`, `browser_press`, `browser_console`,
    `browser_get_images`, `browser_vision`, `browser_cdp`, and
    `browser_dialog`.
-3. Keep `go-browser-harness --action-json` as the default external runtime
-   bridge. The legacy `browser-harness -c` path is explicit compatibility only
-   and must not be required for normal Gormes browser tool operation.
+3. Keep Gormes' in-process `gormes.browser.action.v1` backend as the default
+   runtime bridge. The legacy `browser-harness -c` path is explicit
+   compatibility only and must not be required for normal Gormes browser tool
+   operation.
 4. The Go contract must still expose Hermes-style schemas, result envelopes,
    evidence, private-URL safety, timeout, and cleanup behavior.
 5. Do not start Chrome, open tabs, call Browser Use, or hit Browserbase,
@@ -76,9 +79,11 @@ work in `gormes-builder`.
 
 ## Chromedp Backend (Default as of 2026-04-29)
 
-`../go-browser-harness/pkg/harness` now provides a live `ChromedpBackend` that
-dispatches browser actions through the Chrome DevTools Protocol (CDP) using the
-`github.com/chromedp/chromedp` and `github.com/chromedp/cdproto` libraries.
+`internal/tools/browser_harness_backend.go` and
+`internal/tools/browser_harness_chromedp_transport.go` provide a live
+`BrowserHarnessChromedpBackend` that dispatches browser actions through the
+Chrome DevTools Protocol (CDP) using the `github.com/chromedp/chromedp` and
+`github.com/chromedp/cdproto` libraries.
 
 ### Operator setup
 
@@ -91,10 +96,12 @@ dispatches browser actions through the Chrome DevTools Protocol (CDP) using the
    export CHROME_REMOTE_DEBUGGING_URL=http://localhost:9222
    ```
    A full websocket URL (`ws://localhost:9222/devtools/browser/...`) is also accepted.
-3. Run `go-browser-harness --action-json '{"schema_version":"gormes.browser.action.v1",...}'`
+3. Run a Gormes browser tool or CDP-backed `web_extract` path that emits
+   `gormes.browser.action.v1` internally.
 
-Gormes never auto-launches Chrome. If `CHROME_REMOTE_DEBUGGING_URL` is unset, the
-harness returns `go_browser_harness_backend_unavailable` typed evidence.
+Gormes never auto-launches Chrome. If neither `CHROME_REMOTE_DEBUGGING_URL` nor
+`BROWSER_CDP_URL` is set, the internal backend returns typed unavailable
+evidence.
 
 ### New-tab semantics
 
@@ -102,9 +109,10 @@ harness returns `go_browser_harness_backend_unavailable` typed evidence.
 `Target.activateTarget` before navigating. It never reuses the operator's active tab.
 In the Go action JSON contract this is represented by `new_tab: true` on navigate.
 
-This is enforced at the harness layer in
-`pkg/harness/chromedp_backend.go:ChromedpBackend.runNavigate` and at the tool layer
-in `internal/tools/browser_harness_tools.go:buildActionRequest` (case `browser_navigate`).
+This is enforced at the internal backend layer in
+`internal/tools/browser_harness_backend.go:BrowserHarnessChromedpBackend.runNavigate`
+and at the tool layer in `internal/tools/browser_harness_tools.go:buildActionRequest`
+(case `browser_navigate`).
 
 ### Python browser-harness (legacy path only)
 
@@ -114,8 +122,8 @@ in `BrowserHarnessToolsConfig`. It is never the default.
 
 ## Browser-Harness Mapping Rules
 
-- `go-browser-harness --action-json <gormes.browser.action.v1>` is the default
-  fakeable command runner contract; never shell-concatenate user input.
+- `gormes.browser.action.v1` is the default fakeable internal backend
+  contract; never shell-concatenate user input.
 - `browser-harness -c` is legacy compatibility only and must be selected
   explicitly in config/tests.
 - First navigation in harness instructions is `new_tab(url)`, not `goto_url`,
@@ -143,21 +151,20 @@ go test ./docs -count=1
 find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -path '*/gormes-browser-harness/SKILL.md' -print
 ```
 
-For runtime go-browser-harness rows, add the row-specific test first. Typical
+For runtime browser harness rows, add the row-specific test first. Typical
 minimum commands:
 
 ```sh
 go test ./internal/tools -run 'TestBrowserHarness|TestBrowserProvider|TestBrowserCDP|TestBrowserContract' -count=1
 go test ./internal/tools -count=1
-(cd ../go-browser-harness && go test ./... -count=1)
 go run ./cmd/progress validate
 ```
 
 ## Guardrails
 
-- Do not mark browser parity complete because `../browser-harness` or
-  `../go-browser-harness` exists. Gormes needs Go tests and Hermes-visible tool
-  behavior.
+- Do not mark browser parity complete because `../browser-harness` exists or
+  because a deleted sibling runtime used to exist. Gormes needs Go tests and
+  Hermes-visible tool behavior.
 - Do not import browser-harness Python packages into Gormes runtime code or
   require Python installation for the default browser plugin path. External
   execution must be behind an interface.

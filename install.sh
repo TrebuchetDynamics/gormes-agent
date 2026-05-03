@@ -1,24 +1,26 @@
 #!/bin/sh
-# install.sh - source-backed Unix installer for Gormes.
+# install.sh - release-first Unix installer for Gormes.
 #
 # Usage:
-#   curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.sh
+#   curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
 #   less install.sh
 #   sh install.sh
 #   sh install.sh --branch main
+#   sh install.sh --uninstall
 #
 # Environment overrides:
 #   GORMES_BRANCH        target branch (default: main)
+#                        used only for source fallback or --local metadata
+#   GORMES_RELEASE_TAG    release tag to install instead of latest (e.g. v0.2.0)
 #   GORMES_INSTALL_HOME  managed install home (default: $HOME/.gormes)
-#   GORMES_INSTALL_DIR   managed checkout directory
-#                        default (non-root): $GORMES_INSTALL_HOME/gormes-agent
-#                        default (root Linux): /usr/local/lib/gormes-agent
+#   GORMES_INSTALL_DIR   compatibility source checkout helper path
 #   GORMES_BIN_DIR       published command directory
 #                        default (non-root): $HOME/.local/bin
 #                        default (root Linux): /usr/local/bin
 #   GORMES_PREFIX        compatibility prefix; publishes into $GORMES_PREFIX/bin
 #   GORMES_RESTART_GATEWAY restart policy: auto, always, never (default: auto)
 #   GORMES_GO_SHA256      optional expected SHA-256 for managed Go download
+#   GORMES_INSTALL_VERBOSE set to 1/true/yes/on for verbose installer diagnostics
 #
 # Native Windows shells are not supported here. Use:
 #   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
@@ -29,20 +31,33 @@ set -eu
 
 REPO_URL_SSH="${GORMES_REPO_URL_SSH:-git@github.com:TrebuchetDynamics/gormes-agent.git}"
 REPO_URL_HTTPS="${GORMES_REPO_URL_HTTPS:-https://github.com/TrebuchetDynamics/gormes-agent.git}"
+RELEASE_REPO="${GORMES_RELEASE_REPO:-TrebuchetDynamics/gormes-agent}"
+RELEASE_API_URL="${GORMES_RELEASE_API_URL:-https://api.github.com/repos/${RELEASE_REPO}/releases/latest}"
+RELEASE_BASE_URL="${GORMES_RELEASE_BASE_URL:-https://github.com/${RELEASE_REPO}/releases/download}"
 BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.25.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
+VERBOSE="${GORMES_INSTALL_VERBOSE:-0}"
 DRY_RUN=0
+UNINSTALL=0
+UNINSTALL_ARGS=""
 LOCAL_SOURCE_DIR=""
 INSTALL_LOCK_DIR=""
 OLD_BUILD_TAG=""
 BUILD_TAG=""
+SOURCE_ROOT_DIR=""
+INSTALL_SOURCE_DESC=""
 PREVIOUS_GATEWAY_PID=""
 NEW_GATEWAY_PID=""
 TMP_DIRS=""
+TMP_DIR_COUNT=0
 
 log() { printf '[gormes] %s\n' "$*" >&2; }
 fail() { printf '[gormes] error: %s\n' "$*" >&2; exit 1; }
+verbose() {
+  [ "$VERBOSE" -eq 1 ] || return 0
+  log "$@"
+}
 
 usage() {
   cat <<'EOF'
@@ -52,29 +67,37 @@ Usage:
   install.sh [--branch NAME] [--home DIR] [--dir DIR] [--bin-dir DIR]
   install.sh --local [--bin-dir DIR]
   install.sh --dry-run
+  install.sh --uninstall [gormes uninstall flags]
 
 Options:
-  --branch NAME  Git branch to install or update (default: main)
+  --branch NAME  Git branch used when falling back to a source build
+                 (default: main)
   --home DIR     Managed install home (default: $HOME/.gormes)
-  --dir DIR      Managed checkout directory
-                   default (non-root): $HOME/.gormes/gormes-agent
-                   default (root Linux): /usr/local/lib/gormes-agent
+  --dir DIR      Compatibility source checkout helper path
   --bin-dir DIR  Published command directory
                    default (non-root): $HOME/.local/bin
                    default (root Linux): /usr/local/bin
-  --local        Build from the current checkout instead of updating the
-                 managed source checkout
+  --local        Build from the current checkout instead of installing a
+                 release artifact
   --dry-run      Print the resolved plan without cloning, building, publishing,
                  or restarting the gateway
+  -v, --verbose  Print resolved paths, platform details, and step diagnostics
+  --uninstall    Delegate to an existing "gormes uninstall" command and exit.
+                 Flags after --uninstall are passed through, for example:
+                 install.sh --uninstall --dry-run
+                 install.sh --uninstall --dry-run=false --yes
   --restart-gateway auto|always|never
                  Restart a live gateway after update (default: auto)
   --no-restart   Alias for --restart-gateway never
   -h, --help     Show this help
 
-Root Linux installs use an FHS layout like Hermes Agent: code under
-/usr/local/lib/gormes-agent, command in /usr/local/bin/gormes, and data under
-$GORMES_INSTALL_HOME. Existing legacy root checkouts at
-$GORMES_INSTALL_HOME/gormes-agent are preserved in place.
+Default installs download the latest matching GitHub release artifact. If no
+release exists yet, install.sh clones a temporary source checkout, builds
+gormes locally, publishes the resulting command, and removes the temporary
+checkout on exit.
+
+Root Linux installs use an FHS command path like Hermes Agent:
+/usr/local/bin/gormes, with data under $GORMES_INSTALL_HOME.
 EOF
 }
 
@@ -194,6 +217,35 @@ active_command_path() {
     /*|*/*) printf '%s\n' "$found" ;;
     *) printf '\n' ;;
   esac
+}
+
+uninstall_command_path() {
+  published="$(pick_bin_dir)/gormes"
+  if [ -x "$published" ]; then
+    printf '%s\n' "$published"
+    return
+  fi
+
+  active=$(active_command_path)
+  if [ -n "$active" ] && [ -x "$active" ]; then
+    printf '%s\n' "$active"
+    return
+  fi
+
+  managed="$(managed_bin_dir)/gormes"
+  if [ -x "$managed" ]; then
+    printf '%s\n' "$managed"
+    return
+  fi
+
+  return 1
+}
+
+run_uninstall() {
+  uninstall_bin=$(uninstall_command_path 2>/dev/null || true)
+  [ -n "$uninstall_bin" ] || fail "could not find an installed gormes command; rerun with --bin-dir or put gormes on PATH"
+  log "running ${uninstall_bin} uninstall"
+  "$uninstall_bin" uninstall "$@"
 }
 
 readlink_f() {
@@ -332,6 +384,11 @@ go_version_supported() {
 }
 
 parse_args() {
+  case "$VERBOSE" in
+    1|true|TRUE|yes|YES|on|ON) VERBOSE=1 ;;
+    *) VERBOSE=0 ;;
+  esac
+
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --branch)
@@ -365,6 +422,19 @@ parse_args() {
         DRY_RUN=1
         shift
         ;;
+      -v|--verbose)
+        VERBOSE=1
+        shift
+        ;;
+      --uninstall)
+        UNINSTALL=1
+        shift
+        if [ "${1:-}" = "--" ]; then
+          shift
+        fi
+        UNINSTALL_ARGS="$*"
+        break
+        ;;
       --restart-gateway)
         [ "$#" -ge 2 ] || fail "--restart-gateway requires auto, always, or never"
         RESTART_GATEWAY="$2"
@@ -388,7 +458,8 @@ parse_args() {
   esac
 }
 
-ensure_prerequisites() {
+ensure_base_prerequisites() {
+  verbose "checking base prerequisites"
   need uname
   need mkdir
   need rm
@@ -399,13 +470,21 @@ ensure_prerequisites() {
   need sleep
 
   check_platform
+}
 
+ensure_source_prerequisites() {
+  verbose "checking source-build prerequisites"
   if is_termux; then
     ensure_termux_core_packages
   else
     ensure_git
     ensure_go
   fi
+}
+
+ensure_prerequisites() {
+  ensure_base_prerequisites
+  ensure_source_prerequisites
 }
 
 run_privileged() {
@@ -490,6 +569,7 @@ ensure_termux_core_packages() {
 
 ensure_git() {
   if has git; then
+    verbose "git found: $(command -v git)"
     return
   fi
 
@@ -502,6 +582,7 @@ ensure_go() {
   if has go; then
     goversion=$(current_go_version)
     if go_version_supported "$goversion"; then
+      verbose "go found: $(command -v go) (${goversion})"
       return
     fi
     log "found ${goversion}; installing managed Go ${GO_VERSION}"
@@ -618,11 +699,150 @@ verify_managed_go_download() {
   log "Go download sha256 verified"
 }
 
+new_tmp_dir() {
+  base="${TMPDIR:-/tmp}"
+  base="${base%/}"
+  if has mktemp; then
+    dir=$(mktemp -d "${base}/gormes-install.XXXXXX") ||
+      fail "could not create temporary directory under ${base}"
+  else
+    TMP_DIR_COUNT=$((TMP_DIR_COUNT + 1))
+    dir="${base}/gormes-install.$$.$TMP_DIR_COUNT"
+    mkdir -p "$dir" || fail "could not create temporary directory ${dir}"
+  fi
+  TMP_DIRS="${TMP_DIRS}${TMP_DIRS:+ }${dir}"
+  printf '%s\n' "$dir"
+}
+
+latest_release_tag() {
+  if [ -n "${GORMES_RELEASE_TAG:-}" ]; then
+    printf '%s\n' "$GORMES_RELEASE_TAG"
+    return 0
+  fi
+
+  tmp_dir=$(new_tmp_dir)
+  metadata="${tmp_dir}/latest-release.json"
+  download_file "$RELEASE_API_URL" "$metadata" || return 1
+  tag=$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$metadata" | sed -n '1p')
+  [ -n "$tag" ] || return 1
+  printf '%s\n' "$tag"
+}
+
+release_version_from_tag() {
+  case "$1" in
+    v*) printf '%s\n' "${1#v}" ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+release_target_name() {
+  tag="$1"
+  os=$(go_platform)
+  arch=$(go_arch)
+  case "$arch" in
+    amd64|arm64) ;;
+    *) return 1 ;;
+  esac
+  version=$(release_version_from_tag "$tag")
+  printf 'gormes-%s-%s-%s\n' "$version" "$os" "$arch"
+}
+
+verify_release_checksum() {
+  archive="$1"
+  checksum_file="$2"
+  expected=$(sed -n 's/^\([0-9A-Fa-f][0-9A-Fa-f]*\).*/\1/p' "$checksum_file" | sed -n '1p')
+  [ -n "$expected" ] || fail "release checksum file is empty or malformed: ${checksum_file}"
+  actual=$(file_sha256 "$archive" 2>/dev/null || true)
+  [ -n "$actual" ] || fail "could not compute sha256 for ${archive}"
+  if [ "$actual" != "$expected" ]; then
+    fail "release archive sha256 mismatch: expected ${expected}, got ${actual}"
+  fi
+}
+
+install_release_binary() {
+  if is_termux; then
+    log "no release binary found; building from source"
+    return 1
+  fi
+  if ! has curl && ! has wget; then
+    log "no release binary found; building from source"
+    return 1
+  fi
+  if ! has tar; then
+    log "no release binary found; building from source"
+    return 1
+  fi
+  if [ "$BRANCH" != "main" ] && [ -z "${GORMES_RELEASE_TAG:-}" ]; then
+    log "branch ${BRANCH} requested; building from source"
+    return 1
+  fi
+
+  tag=$(latest_release_tag 2>/dev/null || true)
+  if [ -z "$tag" ]; then
+    log "no release binary found; building from source"
+    return 1
+  fi
+
+  target=$(release_target_name "$tag" 2>/dev/null || true)
+  if [ -z "$target" ]; then
+    log "no release binary found; building from source"
+    return 1
+  fi
+
+  tmp_dir=$(new_tmp_dir)
+  archive="${tmp_dir}/${target}.tar.gz"
+  checksum="${archive}.sha256"
+  extract_dir="${tmp_dir}/extract"
+  archive_url="${RELEASE_BASE_URL}/${tag}/${target}.tar.gz"
+  checksum_url="${archive_url}.sha256"
+
+  log "installing Gormes release ${tag}"
+  if ! download_file "$archive_url" "$archive"; then
+    log "release artifact unavailable for ${target}; building from source"
+    return 1
+  fi
+  if ! download_file "$checksum_url" "$checksum"; then
+    log "release checksum unavailable for ${target}; building from source"
+    return 1
+  fi
+  verify_release_checksum "$archive" "$checksum"
+
+  mkdir -p "$extract_dir"
+  tar -C "$extract_dir" -xzf "$archive" ||
+    fail "could not extract release archive ${archive}"
+  release_bin="${extract_dir}/${target}/gormes"
+  [ -f "$release_bin" ] || fail "release archive did not contain ${target}/gormes"
+  chmod +x "$release_bin"
+
+  build_bin="$(managed_bin_dir)/gormes"
+  mkdir -p "$(managed_bin_dir)"
+  if [ -f "${build_bin}.build-tag" ]; then
+    OLD_BUILD_TAG=$(cat "${build_bin}.build-tag" 2>/dev/null || true)
+  fi
+  tmp_bin="${build_bin}.tmp.$$"
+  cp "$release_bin" "$tmp_bin" || fail "could not stage release binary"
+  chmod +x "$tmp_bin"
+  if ! "$tmp_bin" version >/dev/null 2>&1; then
+    rm -f "$tmp_bin"
+    log "release binary did not run on this host; building from source"
+    return 1
+  fi
+  mv -f "$tmp_bin" "$build_bin" || fail "could not install release binary"
+  printf '%s\n' "$tag" > "${build_bin}.build-tag"
+  BUILD_TAG="$tag"
+  INSTALL_SOURCE_DESC="GitHub release ${tag} (${target})"
+  log "installed release ${tag}"
+  return 0
+}
+
 clone_checkout() {
-  checkout_dir=$(managed_checkout_dir)
+  checkout_dir="${SOURCE_ROOT_DIR:-$(managed_checkout_dir)}"
   mkdir -p "$(parent_dir "$checkout_dir")"
 
   log "cloning Gormes into ${checkout_dir}"
+  verbose "clone branch: ${BRANCH}"
+  verbose "clone ssh url: ${REPO_URL_SSH}"
+  verbose "clone https fallback: ${REPO_URL_HTTPS}"
   if GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=5" \
     git clone --branch "$BRANCH" "$REPO_URL_SSH" "$checkout_dir"; then
     return
@@ -634,61 +854,29 @@ clone_checkout() {
     fail "could not clone Gormes from SSH or HTTPS"
 }
 
-update_checkout() {
-  checkout_dir=$(managed_checkout_dir)
-
-  if [ ! -d "$checkout_dir/.git" ]; then
-    fail "${checkout_dir} exists but is not a git checkout; remove it or rerun with --dir"
-  fi
-
-  log "updating managed checkout ${checkout_dir}"
-  (
-    cd "$checkout_dir" || exit 1
-
-    stashed=0
-    if [ -n "$(git status --porcelain)" ]; then
-      log "local changes detected; stashing before update"
-      git stash push -u -m "gormes installer autostash" >/dev/null ||
-        fail "could not stash local changes in ${checkout_dir}"
-      stashed=1
-    fi
-
-    git fetch origin "$BRANCH" || fail "could not fetch origin/${BRANCH}"
-    git checkout "$BRANCH" || fail "could not checkout ${BRANCH}"
-    git pull --ff-only origin "$BRANCH" || fail "could not fast-forward ${BRANCH}"
-
-    if [ "$stashed" -eq 1 ]; then
-      git stash pop >/dev/null ||
-        fail "updated checkout but could not reapply stashed changes; inspect: cd ${checkout_dir} && git stash list"
-      log "local changes restored after update"
-    fi
-  )
-}
-
 ensure_checkout() {
   if [ -n "$LOCAL_SOURCE_DIR" ]; then
     if [ ! -f "$LOCAL_SOURCE_DIR/go.mod" ] || [ ! -d "$LOCAL_SOURCE_DIR/cmd/gormes" ]; then
       fail "--local must be run from a Gormes source checkout"
     fi
+    SOURCE_ROOT_DIR="$LOCAL_SOURCE_DIR"
+    INSTALL_SOURCE_DESC="$LOCAL_SOURCE_DIR"
     log "using local source checkout ${LOCAL_SOURCE_DIR}"
     return
   fi
 
-  checkout_dir=$(managed_checkout_dir)
-
-  if [ -d "$checkout_dir" ]; then
-    update_checkout
-    return
-  fi
-
-  if [ -e "$checkout_dir" ]; then
-    fail "${checkout_dir} exists but is not a directory; remove it or rerun with --dir"
-  fi
-
+  tmp_dir=$(new_tmp_dir)
+  SOURCE_ROOT_DIR="${tmp_dir}/gormes-agent"
+  INSTALL_SOURCE_DESC="$SOURCE_ROOT_DIR"
   clone_checkout
 }
 
 build_root_dir() {
+  if [ -n "$SOURCE_ROOT_DIR" ]; then
+    printf '%s\n' "$SOURCE_ROOT_DIR"
+    return
+  fi
+
   if [ -n "$LOCAL_SOURCE_DIR" ]; then
     printf '%s\n' "$LOCAL_SOURCE_DIR"
     return
@@ -706,14 +894,25 @@ build_root_dir() {
     return
   fi
 
-  fail "could not find a Gormes Go module under ${checkout_dir}"
+  return 1
+}
+
+install_source_description() {
+  if [ -n "$INSTALL_SOURCE_DESC" ]; then
+    printf '%s\n' "$INSTALL_SOURCE_DESC"
+    return
+  fi
+  build_root_dir 2>/dev/null || printf 'release-or-temporary-source\n'
 }
 
 build_gormes() {
   build_bin="$(managed_bin_dir)/gormes"
-  build_root=$(build_root_dir)
+  build_root=$(build_root_dir) || fail "could not find a Gormes Go module to build"
   cache_tag=$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || echo "unknown")
   BUILD_TAG="$cache_tag"
+  verbose "build root: ${build_root}"
+  verbose "build output: ${build_bin}"
+  verbose "source commit: ${cache_tag}"
 
   if [ -x "$build_bin" ]; then
     cached_tag=""
@@ -746,6 +945,8 @@ publish_command() {
   build_bin="$(managed_bin_dir)/gormes"
   published_bin="${bin_dir}/gormes"
 
+  verbose "publish source: ${build_bin}"
+  verbose "publish target: ${published_bin}"
   publish_built_binary "$build_bin" "$published_bin"
   update_active_command "$build_bin" "$published_bin"
 }
@@ -841,16 +1042,18 @@ $active_bin
 verify_install() {
   published_bin="$(pick_bin_dir)/gormes"
 
+  verbose "verifying published command: ${published_bin}"
   [ -x "$published_bin" ] || fail "published command is not executable: ${published_bin}"
   "$published_bin" version >/dev/null 2>&1 || fail "verification failed: ${published_bin} version"
 
   active_bin=$(active_command_path)
   if [ -n "$active_bin" ]; then
+    verbose "verifying active PATH command: ${active_bin}"
     "$active_bin" version >/dev/null 2>&1 || fail "verification failed: active PATH command ${active_bin} version"
   fi
 
-  build_root=$(build_root_dir 2>/dev/null || managed_checkout_dir)
-  if [ -f "$build_root/go.mod" ]; then
+  build_root=$(build_root_dir 2>/dev/null || true)
+  if [ -n "$build_root" ] && [ -f "$build_root/go.mod" ]; then
     log ""
     if (cd "$build_root" && go run ./cmd/progress validate) >/dev/null 2>&1; then
       log "  progress ✓"
@@ -891,7 +1094,7 @@ append_install_ledger() {
   mkdir -p "$(parent_dir "$ledger")"
   build_bin="$(managed_bin_dir)/gormes"
   hash=$(file_sha256 "$build_bin" 2>/dev/null || true)
-  source=$(build_root_dir 2>/dev/null || managed_checkout_dir)
+  source=$(install_source_description)
   timestamp=""
   if has date; then
     timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)
@@ -1043,7 +1246,7 @@ print_summary() {
   log ""
   log "═══ Gormes installed ═══"
   log "  binary: ${published_bin}"
-  log "  source: $(build_root_dir 2>/dev/null || managed_checkout_dir)"
+  log "  source: $(install_source_description)"
   log "  config: $(managed_home_dir)/config.toml"
   active_bin=$(active_command_path)
   if [ -n "$active_bin" ] && [ "$active_bin" != "$published_bin" ] && ! same_binary "$active_bin" "$published_bin"; then
@@ -1183,11 +1386,45 @@ print_dry_run() {
   if [ -n "$LOCAL_SOURCE_DIR" ]; then
     log "  source: ${LOCAL_SOURCE_DIR}"
   else
-    log "  source: $(managed_checkout_dir)"
+    log "  source: latest release from ${RELEASE_REPO}"
+    log "  source_fallback: temporary git clone of ${BRANCH}"
   fi
   log "  install_home: $(managed_home_dir)"
   log "  managed_binary: $(managed_bin_dir)/gormes"
   log "  published_binary: $(pick_bin_dir)/gormes"
+  log "  restart_gateway: ${RESTART_GATEWAY}"
+}
+
+yes_no() {
+  if "$@" >/dev/null 2>&1; then
+    printf 'yes\n'
+  else
+    printf 'no\n'
+  fi
+}
+
+print_verbose_plan() {
+  active_bin=$(active_command_path)
+  [ -n "$active_bin" ] || active_bin="<none>"
+  log "resolved install plan"
+  log "  verbose: true"
+  log "  platform: $(platform_name)"
+  log "  termux: $(yes_no is_termux)"
+  log "  root_linux_install: $(yes_no is_root_linux_install)"
+  log "  effective_uid: $(effective_uid)"
+  log "  branch: ${BRANCH}"
+  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+    log "  source_mode: local"
+    log "  source: ${LOCAL_SOURCE_DIR}"
+  else
+    log "  source_mode: release"
+    log "  release_api: ${RELEASE_API_URL}"
+    log "  source_fallback: temporary git clone of ${BRANCH}"
+  fi
+  log "  install_home: $(managed_home_dir)"
+  log "  managed_binary: $(managed_bin_dir)/gormes"
+  log "  published_binary: $(pick_bin_dir)/gormes"
+  log "  active_command: ${active_bin}"
   log "  restart_gateway: ${RESTART_GATEWAY}"
 }
 
@@ -1219,17 +1456,41 @@ release_install_lock() {
   cleanup_tmp_dirs
 }
 
+prepare_gormes_binary() {
+  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+    ensure_source_prerequisites
+    ensure_checkout
+    build_gormes
+    return
+  fi
+
+  if install_release_binary; then
+    return
+  fi
+
+  ensure_source_prerequisites
+  ensure_checkout
+  build_gormes
+}
+
 main() {
   parse_args "$@"
+  if [ "$VERBOSE" -eq 1 ]; then
+    print_verbose_plan
+  fi
+  if [ "$UNINSTALL" -eq 1 ]; then
+    # shellcheck disable=SC2086
+    run_uninstall $UNINSTALL_ARGS
+    return
+  fi
   if [ "$DRY_RUN" -eq 1 ]; then
     print_dry_run
     return
   fi
   acquire_install_lock
   PREVIOUS_GATEWAY_PID=$(running_gateway_pid 2>/dev/null || true)
-  ensure_prerequisites
-  ensure_checkout
-  build_gormes
+  ensure_base_prerequisites
+  prepare_gormes_binary
   publish_command
   bootstrap_config
   verify_install

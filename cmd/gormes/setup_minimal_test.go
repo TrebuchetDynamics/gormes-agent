@@ -18,6 +18,9 @@ type setupCommandFakeSeams struct {
 
 	modelPickerCalls int
 	loadedCurrent    int
+
+	chooseSetupAction func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	runFullWizard     func(*cobra.Command, bool) error
 }
 
 func (f *setupCommandFakeSeams) seams() setupCommandSeams {
@@ -37,6 +40,8 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 			f.loadedCurrent++
 			return f.current, nil
 		},
+		ChooseSetupAction: f.chooseSetupAction,
+		RunFullWizard:     f.runFullWizard,
 	}
 }
 
@@ -61,8 +66,8 @@ func runSetupTestCommandWithInput(t *testing.T, seams setupCommandSeams, input s
 	return stdout.String(), stderr.String(), err
 }
 
-func TestSetupNoSectionPrintsSectionList(t *testing.T) {
-	fake := &setupCommandFakeSeams{isTTY: true}
+func TestSetupNoSectionNonTTYPrintsSectionList(t *testing.T) {
+	fake := &setupCommandFakeSeams{isTTY: false}
 	stdout, stderr, err := runSetupTestCommand(t, fake.seams())
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
@@ -72,8 +77,94 @@ func TestSetupNoSectionPrintsSectionList(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
+	if strings.Contains(stdout, "What would you like to do?") {
+		t.Fatalf("non-TTY setup launched interactive menu:\n%s", stdout)
+	}
 	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
 		t.Fatalf("setup without section invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupNoSectionInteractiveMenuShowsTopLevelChoices(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	var captured []setupMenuOption
+	var defaultIndex int
+	fake := &setupCommandFakeSeams{isTTY: true}
+	fake.chooseSetupAction = func(_ *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
+		captured = append([]setupMenuOption(nil), options...)
+		defaultIndex = defaultOption
+		return setupActionExit, nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams())
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if defaultIndex != 0 {
+		t.Fatalf("default menu index = %d, want Quick Setup at 0", defaultIndex)
+	}
+	for _, want := range []string{
+		"What would you like to do?",
+		"Quick Setup - configure missing items only",
+		"Full Setup - reconfigure everything",
+		"Model & Provider",
+		"Terminal Backend",
+		"Messaging Platforms (Gateway)",
+		"Tools",
+		"Agent Settings",
+		"Exit",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if len(captured) != 8 || captured[0].Action != setupActionQuick || captured[7].Action != setupActionExit {
+		t.Fatalf("captured menu = %#v, want Quick..Exit eight-option menu", captured)
+	}
+	if _, err := os.Stat(config.ConfigPath()); !os.IsNotExist(err) {
+		t.Fatalf("exit-only setup mutated config path %s: %v", config.ConfigPath(), err)
+	}
+	if fake.modelPickerCalls != 0 || fake.loadedCurrent != 0 {
+		t.Fatalf("exit-only setup invoked work: picker=%d loadCurrent=%d", fake.modelPickerCalls, fake.loadedCurrent)
+	}
+}
+
+func TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fullCalls := 0
+	fake := &setupCommandFakeSeams{isTTY: true}
+	fake.chooseSetupAction = func(_ *cobra.Command, _ []setupMenuOption, _ int) (setupAction, error) {
+		return setupActionFull, nil
+	}
+	fake.runFullWizard = func(cmd *cobra.Command, nonInteractive bool) error {
+		fullCalls++
+		if nonInteractive {
+			t.Fatal("top-level interactive full wizard was marked non-interactive")
+		}
+		printSetupSummary(cmd)
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams())
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if fullCalls != 1 {
+		t.Fatalf("RunFullWizard calls = %d, want 1", fullCalls)
+	}
+	for _, want := range []string{"Setup Complete", "All your files are in", "Settings:", config.ConfigPath(), "API Keys:", config.EnvPath(), "gormes setup", "gormes config edit", "gormes doctor"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, forbidden := range []string{".hermes", "config.yaml", "hermes setup", "hermes doctor"} {
+		if strings.Contains(stdout, forbidden) {
+			t.Fatalf("stdout contains Hermes-owned summary text %q:\n%s", forbidden, stdout)
+		}
 	}
 }
 
@@ -186,8 +277,8 @@ func TestSetupProviderRequiresTTYWithoutNonInteractive(t *testing.T) {
 	}
 }
 
-func TestSetupOtherSectionsReturnUnsupported(t *testing.T) {
-	for _, section := range []string{"tts", "terminal", "gateway", "tools", "unknown"} {
+func TestSetupUnknownSectionReturnsUnsupported(t *testing.T) {
+	for _, section := range []string{"unknown"} {
 		t.Run(section, func(t *testing.T) {
 			fake := &setupCommandFakeSeams{isTTY: true}
 			stdout, stderr, err := runSetupTestCommand(t, fake.seams(), section)
@@ -209,6 +300,75 @@ func TestSetupOtherSectionsReturnUnsupported(t *testing.T) {
 	}
 }
 
+func TestSetupHermesParitySectionsAreImplementedNonInteractive(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	for _, tc := range []struct {
+		section string
+		want    []string
+	}{
+		{section: "tts", want: []string{"Text-to-Speech Provider", "Edge TTS", "OpenAI TTS", "Keep current"}},
+		{section: "terminal", want: []string{"Terminal Backend", "Local", "Docker", "Modal", "SSH", "Daytona", "Singularity/Apptainer", "Keep current"}},
+		{section: "gateway", want: []string{"Messaging Platforms", "Telegram", "Discord", "Slack", "gormes gateway"}},
+		{section: "tools", want: []string{"Tools for CLI", "Web Search & Scraping", "Browser Automation", "Terminal & Processes", "File Operations"}},
+		{section: "agent", want: []string{"Agent Settings", "Max iterations", "Tool progress mode", "Compression threshold", "Session reset policy"}},
+	} {
+		t.Run(tc.section, func(t *testing.T) {
+			fake := &setupCommandFakeSeams{isTTY: false}
+			stdout, stderr, err := runSetupTestCommand(t, fake.seams(), tc.section, "--non-interactive")
+			if err != nil {
+				t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("stdout missing %q:\n%s", want, stdout)
+				}
+			}
+			if strings.Contains(stdout+stderr, "setup_section_unsupported") {
+				t.Fatalf("implemented section returned unsupported evidence:\nstdout=%s\nstderr=%s", stdout, stderr)
+			}
+		})
+	}
+}
+
+func TestSetupAgentSettingsInteractivePersistsRuntimeConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "200\nverbose\n0.75\ndaily\n", "agent")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{"Max iterations set to 200", "Tool progress set to: verbose", "Compression threshold set to 0.75", "Session reset policy set to: daily"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	body, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	for _, want := range []string{
+		"max_tool_iterations = 200",
+		"compression_threshold = 0.75",
+		"session_reset_policy = 'daily'",
+		"tool_progress = 'verbose'",
+	} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("config missing %q:\n%s", want, string(body))
+		}
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if got := configuredMaxToolIterations(cfg); got != 200 {
+		t.Fatalf("configuredMaxToolIterations = %d, want 200", got)
+	}
+}
+
 func TestSetupAgentWorkspaceBindingsSectionsAreImplemented(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -216,7 +376,7 @@ func TestSetupAgentWorkspaceBindingsSectionsAreImplemented(t *testing.T) {
 		section string
 		want    []string
 	}{
-		{section: "agent", want: []string{"Agent setup in non-interactive mode", "gormes agent reset"}},
+		{section: "agent", want: []string{"Agent Settings", "Max iterations", "Tool progress mode"}},
 		{section: "workspace", want: []string{"Workspace setup in non-interactive mode", home + "/workspace", "[agents.defaults] workspace"}},
 		{section: "bindings", want: []string{"Bindings setup in non-interactive mode", "[[bindings]]", "channel = \"telegram\""}},
 	} {
@@ -238,20 +398,17 @@ func TestSetupAgentWorkspaceBindingsSectionsAreImplemented(t *testing.T) {
 	}
 }
 
-func TestSetupResetReconfigureRejected(t *testing.T) {
+func TestSetupResetReconfigureRunsFullWizard(t *testing.T) {
 	for _, args := range [][]string{{"--reset"}, {"--reconfigure"}, {"model", "--reset"}} {
 		t.Run(strings.Join(args, "_"), func(t *testing.T) {
 			fake := &setupCommandFakeSeams{isTTY: true}
 			stdout, stderr, err := runSetupTestCommand(t, fake.seams(), args...)
-			if err == nil {
-				t.Fatalf("Execute() error = nil, want full wizard unsupported stdout=%s stderr=%s", stdout, stderr)
+			if err != nil {
+				t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 			}
-			if code := exitCodeFromError(err); code != 2 {
-				t.Fatalf("exit code = %d, want 2 (err=%v)", code, err)
-			}
-			for _, want := range []string{"setup_full_wizard_unsupported", "gormes config edit", "gormes auth add"} {
-				if !strings.Contains(stdout+stderr+err.Error(), want) {
-					t.Fatalf("missing %q stdout=%s stderr=%s err=%v", want, stdout, stderr, err)
+			for _, want := range []string{"Setup Complete", "gormes setup", config.ConfigPath(), config.EnvPath()} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("missing %q stdout=%s stderr=%s", want, stdout, stderr)
 				}
 			}
 			if fake.modelPickerCalls != 0 {

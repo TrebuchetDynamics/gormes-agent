@@ -68,6 +68,12 @@ type ManagerConfig struct {
 	// platforms. Hermes defaults this gate off.
 	ToolProgressCommandEnabled bool
 	BusyInputMode              string // interrupt, queue, or steer
+	// ReplyMode controls whether outbound gateway messages quote the triggering
+	// inbound message via platform reply threading. Hermes parity values:
+	//   "first" — only the first response per turn is a reply
+	//   "all"   — every response is a reply (Hermes default, Gormes default)
+	//   "off"   — no outbound message is threaded as a reply
+	ReplyMode string
 	// PersistToolProgressMode saves /verbose mode changes. Production writes
 	// display.platforms.<platform>.tool_progress into config.yaml.
 	PersistToolProgressMode func(platform, mode string) error
@@ -203,6 +209,7 @@ type Manager struct {
 	turnFrameSeen    bool
 	turnLastUserText string // captures the last inbound submit text for auto-title
 	turnKernel       KernelSubmitter
+	turnReplySent    bool // tracks first reply for ReplyMode "first"
 	kernelSessionKey string
 	shuttingDown     bool
 	followUps        []InboundEvent
@@ -828,6 +835,12 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
 		return nil
+	case EventRetry:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
+		return nil
+	case EventUndo:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/undo is coming soon — message undo is not yet implemented in the gateway")
+		return nil
 	case EventSubmit:
 		if m.handleSlashSubmitCommand(ctx, ch, ev) {
 			return nil
@@ -882,7 +895,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -964,6 +977,12 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
+		return true
+	case EventRetry:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
+		return true
+	case EventUndo:
+		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/undo is coming soon — message undo is not yet implemented in the gateway")
 		return true
 	default:
 		return false
@@ -1213,12 +1232,29 @@ func (m *Manager) recordInboundDedupEvidence(ev InboundEvent, evidence MessageDe
 	})
 }
 
+func (m *Manager) replyTargetForTurn(msgID string) string {
+	replyMode := strings.ToLower(strings.TrimSpace(m.cfg.ReplyMode))
+	switch replyMode {
+	case "off":
+		return ""
+	case "first":
+		if m.turnReplySent {
+			return ""
+		}
+		m.turnReplySent = true
+		return msgID
+	default:
+		return msgID
+	}
+}
+
 func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **coalescer, coCancel *context.CancelFunc) {
 	m.rememberUsageFrame(f)
 	m.turnMu.Lock()
 	platform := m.turnPlatform
 	chatID := m.turnChatID
-	replyToMsgID := m.turnMsgID
+	msgID := m.turnMsgID
+	replyToMsgID := m.replyTargetForTurn(msgID)
 	sessionID := m.turnSessionID
 	lastUserText := m.turnLastUserText
 	staleInitialIdle := platform != "" && chatID != "" && !m.turnFrameSeen && isStartupIdleFrame(f)
@@ -1715,6 +1751,7 @@ func (m *Manager) pinTurn(platform, chatID, msgID string) {
 	m.turnFrameSeen = false
 	m.turnLastUserText = ""
 	m.turnKernel = nil
+	m.turnReplySent = false
 	m.resetToolProgress()
 }
 
@@ -2325,7 +2362,12 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 			m.clearTurn()
 			configHint := gormesHomeHint()
 			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, fmt.Sprintf(
-				"Agent `%s` is unavailable (agent_runtime_unavailable).\n\nRun: gormes setup provider\nOr edit: %s/config.toml → [hermes] endpoint + api_key.",
+				"No provider configured for agent `%s` (agent_runtime_unavailable).\n\n"+
+					"To fix this, run in your terminal:\n"+
+					"  gormes setup provider\n\n"+
+					"Or see the setup guide:\n"+
+					"  https://docs.gormes.ai/getting-started/first-run/\n\n"+
+					"Config file: %s/config.toml",
 				route.Decision.AgentID, configHint))
 			return false
 		}

@@ -1,13 +1,13 @@
 ---
 name: gormes-git
-description: Commit, validate, push, and PR-merge the existing Gormes development branch safely. Use when the user asks Codex to commit all current changes, push development, make the branch green, finish/publish the dirty worktree, open/update/merge the development-to-main PR, or recover a rejected development push without creating branches or worktrees.
+description: Commit, validate, push, and PR-merge the existing Gormes development branch safely without crashing the agent session. Use when the user asks Codex to commit all current changes, push development, make the branch green, finish/publish the dirty worktree, open/update/merge the development-to-main PR, or recover a rejected development push without creating branches or worktrees.
 ---
 
 # Gormes Git
 
 ## Overview
 
-Use this skill for the exact "make development green, commit everything, push it, and handle the development-to-main PR" lane. It is not a feature-building workflow and it must not create branches or worktrees.
+Use this skill for the exact "make development green, commit everything, push it, and handle the development-to-main PR" lane. It is not a feature-building workflow and it must not create branches, worktrees, or unbounded command sessions.
 
 ## Branch Rule
 
@@ -18,6 +18,17 @@ Work only on the existing `development` branch.
 3. Do not create feature branches, short-lived branches, or git worktrees.
 4. Do not use destructive commands such as `git reset --hard` or `git checkout -- <path>` unless the user explicitly asks for that exact operation.
 5. Never edit `main` directly. Changes reach `main` only through a GitHub pull request from `development`.
+
+## Session Safety
+
+Keep the agent session responsive while still preserving validation integrity.
+
+- Run expensive commands one at a time. Do not parallelize full repo tests, e2e tests, pushes, merges, or PR checks.
+- Use non-interactive commands only. Never use watch mode, browser-opening flags, or commands that wait indefinitely.
+- Put an explicit timeout around any gate that can hang. If GNU `timeout` is unavailable, use the command runner's own timeout mechanism.
+- Keep output bounded. Start with summary commands, and if a full gate fails with huge output, rerun the smallest failing package, test, or spec for readable evidence.
+- If a command times out, report it as timed out. Do not claim the gate passed, do not keep retrying the same full command, and do not continue to commit or merge until the timeout is understood.
+- If remote checks are pending, report the pending state or poll in a small bounded loop. Do not leave a watch command running.
 
 ## Workflow
 
@@ -35,20 +46,20 @@ If the user says "commit all changes", include tracked and untracked dirty files
 
 ### 2. Make It Green Before Commit
 
-Run the repository green gate:
+Run the repository green gate one command at a time with timeouts:
 
 ```sh
-go test ./... -count=1
-go run ./cmd/progress validate
+timeout 20m go test ./... -count=1
+timeout 5m go run ./cmd/progress validate
 git diff --check
 ```
 
 Run focused public-surface gates when relevant:
 
 ```sh
-(cd www.gormes.ai && go test ./... -count=1)
-(cd www.gormes.ai && npm run test:e2e)
-(cd docs/www-tests && npm run test:e2e)
+timeout 20m sh -c 'cd www.gormes.ai && go test ./... -count=1'
+timeout 30m sh -c 'cd www.gormes.ai && npm run test:e2e'
+timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
 ```
 
 Use the public-surface gates when `README.md`, `docs/`, `www.gormes.ai/`, `benchmarks.json`, or `docs/content/building-gormes/architecture_plan/progress.json` changed. If a gate fails, inspect the failing test or command output, fix the real issue in the current worktree, then rerun the failing gate and any affected higher-level gate.
@@ -105,11 +116,14 @@ git fetch origin main development
 2. Confirm local `development` is clean, pushed, and matches `origin/development`.
 3. Ensure `development` includes current `origin/main`. If not, merge `origin/main` into `development`, rerun the green gate, commit the merge if needed, and push `origin development`.
 4. Open or reuse the PR with base `main` and head `development`. Do not open PRs from any other branch.
-5. Before merging, require clean local gates and clean remote checks for the latest `origin/development` SHA:
+5. Before merging, require clean local gates and clean remote checks for the latest `origin/development` SHA. Use a bounded, non-watch check:
 
 ```sh
-gh pr checks --watch
+gh pr checks --json name,bucket,state,workflow,link \
+  --jq '.[] | [.bucket, .state, .name, .workflow] | @tsv'
 ```
+
+If `gh pr checks` exits with code 8, checks are pending. That is not a crash and not a pass; poll only in a bounded loop or report the pending checks and stop.
 
 6. Merge only after required checks pass and the PR is mergeable. Prefer the repository's configured merge method. Do not force-merge, bypass branch protection, delete `development`, or push directly to `main`.
 7. After merge, fetch refs and confirm `origin/main` contains the merged `development` head. Leave the local worktree on `development`.
