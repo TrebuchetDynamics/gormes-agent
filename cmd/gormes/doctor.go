@@ -246,7 +246,12 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 
 	summary := fmt.Sprintf("configured endpoint=%s", h.Endpoint)
 	if missing > 0 {
-		summary = fmt.Sprintf("configured endpoint=%s missing=%d", h.Endpoint, missing)
+		missingNames := missingReadinessItemNames(items)
+		if h.Endpoint == "" {
+			summary = "setup incomplete: missing " + strings.Join(missingNames, ", ")
+		} else {
+			summary = fmt.Sprintf("configured endpoint=%s missing=%s", h.Endpoint, strings.Join(missingNames, ", "))
+		}
 	}
 	return doctor.CheckResult{
 		Name:    "Custom endpoint",
@@ -254,6 +259,16 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 		Summary: summary,
 		Items:   items,
 	}
+}
+
+func missingReadinessItemNames(items []doctor.ItemInfo) []string {
+	missing := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.Status != doctor.StatusPass {
+			missing = append(missing, item.Name)
+		}
+	}
+	return missing
 }
 
 // readinessItem returns a Pass item with note "set" when value is non-empty,
