@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -12,6 +13,34 @@ import (
 )
 
 func newOnboardCommand() *cobra.Command {
+	return newOnboardCommandWithSeams(defaultOnboardCommandSeams())
+}
+
+type onboardCommandSeams struct {
+	IsTTY        func() bool
+	PromptAction func(*cobra.Command, cli.OnboardStep, string) (string, error)
+	RunAction    func(*cobra.Command, cli.OnboardStep) error
+}
+
+func defaultOnboardCommandSeams() onboardCommandSeams {
+	return onboardCommandSeams{
+		IsTTY:        isStdinTTY,
+		PromptAction: promptOnboardAction,
+		RunAction:    runOnboardActionRowBacked,
+	}
+}
+
+func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
+	if seams.IsTTY == nil {
+		seams.IsTTY = isStdinTTY
+	}
+	if seams.PromptAction == nil {
+		seams.PromptAction = promptOnboardAction
+	}
+	if seams.RunAction == nil {
+		seams.RunAction = runOnboardActionRowBacked
+	}
+
 	var wizard bool
 	var nonInteractive bool
 	cmd := &cobra.Command{
@@ -24,8 +53,11 @@ func newOnboardCommand() *cobra.Command {
 				return err
 			}
 			if wizard {
-				printOnboardWizardPlan(cmd, cfg, nonInteractive || !isStdinTTY())
-				return nil
+				if nonInteractive || !seams.IsTTY() {
+					printOnboardWizardPlan(cmd, cfg, true)
+					return nil
+				}
+				return runOnboardWizard(cmd, cfg, seams)
 			}
 			printOnboardStatus(cmd, cfg)
 			return nil
@@ -123,17 +155,7 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 }
 
 func printOnboardWizardPlan(cmd *cobra.Command, cfg config.Config, nonInteractive bool) {
-	local, builtin := onboardSkillCounts(cfg)
-	plan := cli.BuildOnboardPlan(cli.OnboardPlanInput{
-		Provider:       cfg.Hermes.Provider,
-		Endpoint:       cfg.Hermes.Endpoint,
-		Model:          cfg.Hermes.Model,
-		APIKeyPresent:  cfg.Hermes.APIKey != "",
-		GatewayTargets: onboardGatewayTargets(cfg),
-		BrowserCDPURL:  cfg.Browser.CDPURL,
-		LocalSkills:    local,
-		BundledSkills:  builtin,
-	})
+	plan := buildOnboardPlanFromConfig(cfg)
 
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Gormes first-run wizard")
@@ -143,14 +165,129 @@ func printOnboardWizardPlan(cmd *cobra.Command, cfg config.Config, nonInteractiv
 		fmt.Fprintln(out, "Mode: wizard plan; prompts and external launches remain row-backed, so this view only reports the ordered flow.")
 	}
 	fmt.Fprintln(out)
+	printOnboardPlanSteps(out, plan)
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Interactive action prompting is available in a TTY; this plan is safe to run in CI and first-run diagnostics.")
+}
+
+func runOnboardWizard(cmd *cobra.Command, cfg config.Config, seams onboardCommandSeams) error {
+	plan := buildOnboardPlanFromConfig(cfg)
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Gormes first-run wizard")
+	fmt.Fprintln(out, "Mode: interactive action runner; selected actions delegate through safe command seams.")
+	fmt.Fprintln(out)
 	for i, step := range plan.Steps {
-		fmt.Fprintf(out, "%d. %s: %s\n", i+1, step.Title, step.Status)
-		fmt.Fprintf(out, "   %s\n", step.Detail)
-		fmt.Fprintf(out, "   Next: %s\n", step.NextCommand)
-		fmt.Fprintf(out, "   Skip warning: %s\n", step.SkipWarning)
+		printOnboardStep(out, i, step)
+		defaultAction := defaultOnboardStepAction(step)
+		fmt.Fprintf(out, "   Action for %s [run/review/skip] (%s):\n", step.Title, defaultAction)
+		action, err := seams.PromptAction(cmd, step, defaultAction)
+		if err != nil {
+			return err
+		}
+		action = normalizeOnboardAction(action, defaultAction)
+		switch action {
+		case "run":
+			if err := seams.RunAction(cmd, step); err != nil {
+				return err
+			}
+		case "review":
+			printOnboardReview(out, step)
+		case "skip":
+			printOnboardSkip(out, step)
+		default:
+			return newExitCodeError(2, fmt.Errorf("onboard_action_invalid: %s", action))
+		}
 	}
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Full interactive prompting remains in progress; this plan is safe to run in CI and first-run diagnostics.")
+	fmt.Fprintln(out, "Onboarding wizard finished.")
+	return nil
+}
+
+func buildOnboardPlanFromConfig(cfg config.Config) cli.OnboardPlan {
+	local, builtin := onboardSkillCounts(cfg)
+	return cli.BuildOnboardPlan(cli.OnboardPlanInput{
+		Provider:       cfg.Hermes.Provider,
+		Endpoint:       cfg.Hermes.Endpoint,
+		Model:          cfg.Hermes.Model,
+		APIKeyPresent:  cfg.Hermes.APIKey != "",
+		GatewayTargets: onboardGatewayTargets(cfg),
+		BrowserCDPURL:  cfg.Browser.CDPURL,
+		LocalSkills:    local,
+		BundledSkills:  builtin,
+	})
+}
+
+func printOnboardPlanSteps(out io.Writer, plan cli.OnboardPlan) {
+	for i, step := range plan.Steps {
+		printOnboardStep(out, i, step)
+	}
+}
+
+func printOnboardStep(out io.Writer, index int, step cli.OnboardStep) {
+	fmt.Fprintf(out, "%d. %s: %s\n", index+1, step.Title, step.Status)
+	fmt.Fprintf(out, "   %s\n", step.Detail)
+	fmt.Fprintf(out, "   Next: %s\n", step.NextCommand)
+	fmt.Fprintf(out, "   Skip warning: %s\n", step.SkipWarning)
+}
+
+func defaultOnboardStepAction(step cli.OnboardStep) string {
+	switch step.Status {
+	case cli.OnboardStatusMissing:
+		return "run"
+	case cli.OnboardStatusConfigured:
+		return "review"
+	}
+	if step.ID == cli.OnboardStepDashboard {
+		return "skip"
+	}
+	return "review"
+}
+
+func promptOnboardAction(cmd *cobra.Command, _ cli.OnboardStep, defaultAction string) (string, error) {
+	var input string
+	_, err := fmt.Fscanln(cmd.InOrStdin(), &input)
+	if err != nil {
+		if err.Error() == "unexpected newline" || strings.Contains(err.Error(), "expected") {
+			return defaultAction, nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(input), nil
+}
+
+func normalizeOnboardAction(action, defaultAction string) string {
+	action = normalizeSetupChoice(action)
+	if action == "" {
+		return defaultAction
+	}
+	switch action {
+	case "r":
+		return "run"
+	case "s":
+		return "skip"
+	case "v":
+		return "review"
+	default:
+		return action
+	}
+}
+
+func printOnboardReview(out io.Writer, step cli.OnboardStep) {
+	fmt.Fprintf(out, "review: %s current=%s command=%q\n", step.ID, step.Status, step.NextCommand)
+	fmt.Fprintf(out, "review_detail: %s\n", step.Detail)
+}
+
+func printOnboardSkip(out io.Writer, step cli.OnboardStep) {
+	if step.Status == cli.OnboardStatusMissing {
+		fmt.Fprintf(out, "skip_warning: step=%s %s\n", step.ID, step.SkipWarning)
+		return
+	}
+	fmt.Fprintf(out, "skip: step=%s\n", step.ID)
+}
+
+func runOnboardActionRowBacked(cmd *cobra.Command, step cli.OnboardStep) error {
+	fmt.Fprintf(cmd.OutOrStdout(), "onboard_action_row_backed: step=%s recommended_command=%q\n", step.ID, step.NextCommand)
+	return nil
 }
 
 func onboardProviderLabel(cfg config.Config) string {

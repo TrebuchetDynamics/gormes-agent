@@ -110,28 +110,7 @@ selection.
 - Unblocks: Busy-input first-touch hint binding, Tool-progress first-touch hint binding
 - Why now: Unblocks Busy-input first-touch hint binding, Tool-progress first-touch hint binding.
 
-## 5. Gormes onboard interactive action runner
-
-- Phase: 5 / 5.O
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: `gormes onboard --wizard` in an interactive TTY turns the existing deterministic first-run plan into an action runner. It renders the same model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard steps, shows each step's configured/missing status and skip warning before any action, and lets the operator run, skip, or review each step. Selected actions delegate through fakeable command seams to existing setup/model/auth/gateway/browser/skills/dashboard surfaces; tests must never start live providers, gateways, browsers, dashboards, TTS downloads, or vendor probes.
-- Trust class: operator, system
-- Ready when: Interactive Onboarding has the deterministic `gormes onboard --wizard --non-interactive` plan builder and configured-state prefill fixtures., Gormes setup top-level chooser menu and full-wizard shell rows are complete so model/provider/setup steps have existing command targets., Tests can inject action seams, prompt answers, configured-state input, and output buffers without relying on a real TTY, provider credential, gateway process, browser, or dashboard server.
-- Not ready when: The slice starts live external services, opens a browser, contacts a provider, probes Browser/CDP, launches the dashboard server, or starts a messaging gateway in tests., The slice duplicates provider/model/auth setup logic instead of delegating to existing command seams., The slice removes or changes the noninteractive wizard plan output already used for CI diagnostics., The slice treats `gormes onboard` as strict Hermes command parity; upstream has `hermes setup`, while this command is a Gormes-owned diagnostic/action wrapper.
-- Degraded mode: Non-TTY or `--non-interactive` invocations keep the current deterministic plan output and do not prompt. If an action seam is unavailable, the wizard returns onboard_action_row_backed with the step id and recommended command while preserving the remaining plan.
-- Fixture: `cmd/gormes/onboard_wizard_test.go; internal/cli/onboard_test.go::TestOnboardPlan*`
-- Write scope: `cmd/gormes/onboard.go`, `cmd/gormes/onboard_wizard_test.go`, `cmd/gormes/skills_onboard_test.go`, `internal/cli/onboard.go`, `internal/cli/onboard_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes -run '^TestOnboardWizard' -count=1`, `go test ./internal/cli -run TestOnboard -count=1`, `go run ./cmd/progress validate`
-- Done signal: Onboard wizard fixtures prove interactive action prompting, skip-warning rendering, configured-state defaults, delegated/row-backed step handlers, and noninteractive no-prompt behavior without live external services.
-- Acceptance: TestOnboardWizardInteractivePromptsForStepActions proves interactive `gormes onboard --wizard` renders all seven plan steps in order and asks run/skip/review for each step through an injected prompt seam., TestOnboardWizardSkipWarningsBeforeSkip proves skipping a missing step prints that step's skip warning before continuing., TestOnboardWizardConfiguredStepsArePrefilled proves configured provider/model/auth/gateway/browser state changes the step status/detail and defaults the action to review or skip instead of blindly reconfiguring., TestOnboardWizardDelegatesSelectedActions proves selected model/provider/auth/gateway/browser/skills/dashboard steps call injected action handlers with the step id and recommended command., TestOnboardWizardRowBackedActionEvidence proves unavailable handlers return onboard_action_row_backed with the step id and recommended command without aborting the whole plan., TestOnboardWizardNonInteractiveStillDoesNotPrompt proves `--non-interactive` and non-TTY invocations keep the deterministic plan and never invoke prompt or action seams., Existing TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings and internal/cli TestOnboardPlan* fixtures remain green.
-- Source refs: ../hermes-agent/hermes_cli/main.py:8369-8403:setup_parser, ../hermes-agent/hermes_cli/setup.py:217-253:prompt_choice, ../hermes-agent/hermes_cli/setup.py:2953-3245:run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup, ../hermes-agent/agent/onboarding.py:busy_input_hint_cli,tool_progress_hint_cli,openclaw_residue_hint_cli, cmd/gormes/onboard.go, internal/cli/onboard.go, cmd/gormes/setup.go, cmd/gormes/auth.go, cmd/gormes/dashboard.go
-- Unblocks: First-run user experience, Interactive Onboarding
-- Why now: Unblocks First-run user experience, Interactive Onboarding.
-
-## 6. ACP Client Bridge Mode
+## 5. ACP Client Bridge Mode
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -152,7 +131,7 @@ selection.
 - Unblocks: Multi-agent interoperability, Editor integrations
 - Why now: Unblocks Multi-agent interoperability, Editor integrations.
 
-## 7. Extension Lifecycle Hook System
+## 6. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -173,7 +152,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 8. System Events, Heartbeat, and Presence
+## 7. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -194,7 +173,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 9. Gateway Discover and Probe
+## 8. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -215,7 +194,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 10. Channels Capabilities Introspection
+## 9. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -235,5 +214,26 @@ selection.
 - Source refs: openclaw channels capabilities CLI surface, internal/channels/* (adapter implementations), docs/content/building-gormes/openclaw-platform-parity-audit.md
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
+
+## 10. Prompt Fragment Include System
+
+- Phase: 5 / 5.N
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time.
+- Trust class: operator, system
+- Ready when: Extension lifecycle hooks (5.I) provide prompt_before/after hook points., Skill system supports profile-level prompt overrides.
+- Not ready when: The row hardcodes prompt content in Go strings., The row bypasses existing prompt builder contract.
+- Degraded mode: Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.
+- Fixture: `internal/hermes/prompt_fragments_test.go`
+- Write scope: `internal/hermes/prompt_fragments.go`, `internal/hermes/prompt_fragments_test.go`, `prompts/*.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run TestPromptFragments -count=1`, `go run ./cmd/progress validate`
+- Done signal: Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution.
+- Acceptance: {{include agent.system.main.role.md}} resolves through priority search., {{include original}} chains through profile > user > default hierarchy., Circular includes detected and reported., Fragment cache invalidates on file change.
+- Source refs: agent-zero prompts/ (72 fragment files), agent-zero agent.py:prepare_prompt, docs/content/building-gormes/agent-zero-feature-analysis.md
+- Unblocks: Agent profile customization, Plugin prompt injection
+- Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
 <!-- PROGRESS:END -->

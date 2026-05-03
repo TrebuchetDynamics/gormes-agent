@@ -29725,10 +29725,10 @@
             },
             {
               "name": "Gormes onboard interactive action runner",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "`gormes onboard --wizard` in an interactive TTY turns the existing deterministic first-run plan into an action runner. It renders the same model -> provider -> auth -> gateway -> browser/CDP -> skills -> dashboard steps, shows each step's configured/missing status and skip warning before any action, and lets the operator run, skip, or review each step. Selected actions delegate through fakeable command seams to existing setup/model/auth/gateway/browser/skills/dashboard surfaces; tests must never start live providers, gateways, browsers, dashboards, TTS downloads, or vendor probes.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -29789,6 +29789,28 @@
               "done_signal": [
                 "Onboard wizard fixtures prove interactive action prompting, skip-warning rendering, configured-state defaults, delegated/row-backed step handlers, and noninteractive no-prompt behavior without live external services."
               ],
+              "note": "Complete 2026-05-03: `gormes onboard --wizard` now uses fakeable command seams to run an interactive TTY action runner over the existing deterministic first-run plan. It renders the seven model/provider/auth/gateway/browser/CDP/skills/dashboard steps, shows each status/detail/skip warning before action, applies status-aware defaults, supports run/skip/review, delegates selected run actions through an injected seam, defaults unavailable actions to onboard_action_row_backed evidence, and preserves non-TTY/--non-interactive plan-only output. No live providers, gateway starts, browser probes, dashboard launches, TTS downloads, or vendor calls are started by the row fixtures.",
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/onboard.go:newOnboardCommandWithSeams exposes IsTTY, PromptAction, and RunAction seams for hermetic wizard tests.",
+                  "cmd/gormes/onboard.go:runOnboardWizard renders the existing cli.BuildOnboardPlan output, prompts run/review/skip per step, prints review-only details, and emits skip warnings for missing skipped steps.",
+                  "cmd/gormes/onboard.go:runOnboardActionRowBacked returns onboard_action_row_backed evidence with the step id and recommended command while continuing the remaining plan.",
+                  "cmd/gormes/onboard.go keeps --non-interactive and non-TTY wizard invocations on the deterministic plan path without invoking prompt or action seams."
+                ],
+                "tests": [
+                  "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardInteractivePromptsForStepActions",
+                  "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardSkipWarningsBeforeSkip",
+                  "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardConfiguredStepsArePrefilled",
+                  "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardDelegatesSelectedActions",
+                  "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardRowBackedActionEvidence",
+                  "cmd/gormes/onboard_wizard_test.go:TestOnboardWizardNonInteractiveStillDoesNotPrompt"
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run '^TestOnboardWizard' -count=1 -> ok",
+                  "go test ./internal/cli -run TestOnboard -count=1 -> ok",
+                  "go test ./cmd/gormes ./internal/cli -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:hermes_cli/setup.py run_setup_wizard + agent/onboarding.py contextual first-touch hints",
