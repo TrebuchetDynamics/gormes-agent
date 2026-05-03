@@ -27354,10 +27354,10 @@
             },
             {
               "name": "Gormes setup tools checklist command binding",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "`gormes setup tools` and the top-level Tools choice render Hermes-compatible tool/provider checklists over the existing Go toolset helpers. The command shows configurable toolsets for the CLI platform, preselects current defaults minus default-off rows, persists selected toolsets through the platform toolset config helper, preserves MCP server names/no_mcp semantics, and then offers provider/API-key configuration rows for selected tools without making live vendor calls.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -27401,7 +27401,7 @@
                 "TestSetupToolsProviderRowsAreRowBacked proves provider/API-key checklist rows for web, browser, image generation, RL, voice/TTS, GitHub Skills Hub, Honcho, and Home Assistant return typed row-backed evidence without live network calls.",
                 "Existing internal/cli toolset config and effective-toolset fixtures still pass."
               ],
-              "note": "Added 2026-05-03 from operator transcript showing Hermes' `Which tools would you like to configure?` provider checklist and `Tools for CLI` toolset checklist. Gormes already has pure config/effective-picker helpers; this row binds them to the setup command and keeps provider credential setup fakeable.",
+              "note": "Complete 2026-05-03: `gormes setup tools` now renders source-backed CLI toolset rows from the existing effective-toolset picker, preselects the CLI platform runtime defaults minus default-off rows, accepts simple comma-separated number/key selections in interactive mode, persists through PlatformToolsetConfig while preserving custom MCP server names and clearing no_mcp as typed evidence, rejects restricted Discord toolsets for CLI, and renders provider/API-key setup as row-backed evidence only. No vendor/provider calls or runtime tool descriptor changes landed.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/setup_tools_test.go",
@@ -27418,6 +27418,24 @@
               "done_signal": [
                 "Setup tools fixtures prove CLI toolset checklist rendering, default-off filtering, persistence through existing helpers, row-backed provider/API-key setup, and no live vendor calls."
               ],
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/setup.go:runSetupToolsSection loads config.toml, renders CLI toolset rows from cli.EffectiveToolsetPickerOptions, and keeps non-interactive mode render-only.",
+                  "cmd/gormes/setup.go:parseSetupToolSelection accepts comma/space-separated numbers or toolset keys and delegates persistence to cli.PlatformToolsetConfig.SavePlatformSelection(\"cli\", ...).",
+                  "cmd/gormes/setup.go:renderSetupToolsProviderRows emits setup_tools_provider_row_backed evidence for selected web, browser, image_gen, rl, tts, skills, memory, and homeassistant toolsets without calling providers."
+                ],
+                "tests": [
+                  "cmd/gormes/setup_tools_test.go:TestSetupToolsChecklistShowsCLIConfigurableToolsets",
+                  "cmd/gormes/setup_tools_test.go:TestSetupToolsChecklistPreselectsDefaultsMinusDefaultOff",
+                  "cmd/gormes/setup_tools_test.go:TestSetupToolsPersistsViaPlatformToolsetConfig",
+                  "cmd/gormes/setup_tools_test.go:TestSetupToolsProviderRowsAreRowBacked"
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run '^TestSetupTools' -count=1 -> ok",
+                  "go test ./internal/cli -run 'Toolset|EffectiveToolset' -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/setup.py setup_tools + hermes_cli/tools_config.py tools_command",
@@ -27426,10 +27444,10 @@
             },
             {
               "name": "Gormes setup gateway platform checklist command binding",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "`gormes setup gateway` and the top-level Messaging Platforms choice render a Hermes-compatible platform checklist, preselect already-configured platforms from gateway status/config helpers, and dispatch selected platforms to existing or row-backed setup handlers. The first pass covers Telegram, Discord, and Slack with typed row-backed evidence for live token/webhook/service setup; it must not start the gateway or require live platform credentials in tests.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -27473,7 +27491,7 @@
                 "TestSetupGatewaySelectedPlatformDelegatesOrReportsRowBacked proves selected platforms invoke injected setup handlers or return setup_gateway_platform_row_backed with the platform id.",
                 "TestSetupGatewayDoesNotStartGateway proves no gateway process/service start seam is invoked during setup."
               ],
-              "note": "Added 2026-05-03 from operator transcript showing Hermes' `Which platforms would you like to set up?` checklist for Telegram, Discord, and Slack. Keep this as setup-command binding over gateway config/status seams; live platform setup remains platform-row work.",
+              "note": "Complete 2026-05-03: `gormes setup gateway` now renders a manifest-backed first-pass Telegram/Discord/Slack checklist with config/status-derived configured markers, keeps non-interactive and blank interactive runs render-only/no-op, routes top-level Messaging Platforms through the gateway setup seam, accepts comma-separated numbers or ids, and dispatches selected platforms through fakeable handlers that default to setup_gateway_platform_row_backed evidence. No gateway process, service install, vendor API, webhook, or live credential setup is started by this slice.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/setup_gateway_test.go",
@@ -27489,6 +27507,26 @@
               "done_signal": [
                 "Setup gateway fixtures prove platform checklist rendering, configured preselection, no-selection no-op, delegated/row-backed selected-platform setup, and no gateway startup."
               ],
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/setup.go:runSetupGatewaySection loads native Gormes config, renders Telegram/Discord/Slack rows from internal/gateway.HermesGatewayPlatformManifest plus configuredGatewayStatusChannels, and keeps non-interactive mode render-only.",
+                  "cmd/gormes/setup.go:parseSetupGatewaySelection accepts comma/space-separated numbers or platform ids and rejects unknown selections with setup_gateway_invalid_selection.",
+                  "cmd/gormes/setup.go:runSetupGatewayPlatformRowBacked emits setup_gateway_platform_row_backed evidence for selected Telegram, Discord, and Slack setup handlers without starting gateway services or calling vendors.",
+                  "cmd/gormes/setup.go setupCommandSeams now exposes RunSetupGateway and RunGatewayPlatform so top-level setup, full wizard, and selected platform handling stay fakeable in tests."
+                ],
+                "tests": [
+                  "cmd/gormes/setup_gateway_test.go:TestSetupGatewayChecklistShowsCorePlatforms",
+                  "cmd/gormes/setup_gateway_test.go:TestSetupGatewayPreselectsConfiguredPlatforms",
+                  "cmd/gormes/setup_gateway_test.go:TestSetupGatewayNoSelectionDoesNotMutateConfig",
+                  "cmd/gormes/setup_gateway_test.go:TestSetupGatewaySelectedPlatformDelegatesOrReportsRowBacked",
+                  "cmd/gormes/setup_gateway_test.go:TestSetupGatewayDoesNotStartGateway",
+                  "cmd/gormes/setup_gateway_test.go:TestSetupGatewayTopLevelRoutesThroughGatewaySeam"
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run '^TestSetupGateway' -count=1 -> ok",
+                  "go test ./internal/gateway -run 'PlatformManifest|GatewayRegistry' -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/setup.py setup_gateway",

@@ -3,12 +3,17 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -47,11 +52,14 @@ var knownProviderModels = map[string]string{
 }
 
 type setupCommandSeams struct {
-	IsTTY             func() bool
-	RunModelPicker    func(*cobra.Command) error
-	LoadCurrentModel  func() (cli.ProviderModel, error)
-	ChooseSetupAction func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	RunFullWizard     func(*cobra.Command, bool) error
+	IsTTY              func() bool
+	RunModelPicker     func(*cobra.Command) error
+	LoadCurrentModel   func() (cli.ProviderModel, error)
+	ChooseSetupAction  func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	RunFullWizard      func(*cobra.Command, bool) error
+	RunSetupGateway    func(*cobra.Command, bool) error
+	RunSetupTools      func(*cobra.Command, bool) error
+	RunGatewayPlatform func(*cobra.Command, string) error
 }
 
 type setupAction string
@@ -97,6 +105,17 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	if seams.ChooseSetupAction == nil {
 		seams.ChooseSetupAction = promptSetupAction
 	}
+	if seams.RunSetupTools == nil {
+		seams.RunSetupTools = runSetupToolsSection
+	}
+	if seams.RunGatewayPlatform == nil {
+		seams.RunGatewayPlatform = runSetupGatewayPlatformRowBacked
+	}
+	if seams.RunSetupGateway == nil {
+		seams.RunSetupGateway = func(cmd *cobra.Command, nonInteractive bool) error {
+			return runSetupGatewaySection(cmd, seams, nonInteractive)
+		}
+	}
 	if seams.RunFullWizard == nil {
 		seams.RunFullWizard = func(cmd *cobra.Command, nonInteractive bool) error {
 			return runSetupFullWizard(cmd, seams, nonInteractive)
@@ -139,9 +158,9 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 			case "terminal":
 				return runSetupTerminalSection(cmd, nonInteractive)
 			case "gateway":
-				return runSetupGatewaySection(cmd, nonInteractive)
+				return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
 			case "tools":
-				return runSetupToolsSection(cmd, nonInteractive)
+				return seams.RunSetupTools(cmd, nonInteractive || !seams.IsTTY())
 			default:
 				return setupSectionUnsupported(cmd, section)
 			}
@@ -202,9 +221,9 @@ func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bo
 	case setupActionTerminal:
 		return runSetupTerminalSection(cmd, nonInteractive)
 	case setupActionGateway:
-		return runSetupGatewaySection(cmd, nonInteractive)
+		return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
 	case setupActionTools:
-		return runSetupToolsSection(cmd, nonInteractive)
+		return seams.RunSetupTools(cmd, nonInteractive)
 	case setupActionAgent:
 		return runSetupAgentSettingsSection(cmd, nonInteractive)
 	case setupActionExit:
@@ -289,16 +308,20 @@ func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteract
 		if err := runSetupModelSection(cmd, seams, true); err != nil {
 			return err
 		}
-		for _, run := range []func(*cobra.Command, bool) error{
-			runSetupTTSSection,
-			runSetupTerminalSection,
-			runSetupAgentSettingsSection,
-			runSetupGatewaySection,
-			runSetupToolsSection,
-		} {
-			if err := run(cmd, true); err != nil {
-				return err
-			}
+		if err := runSetupTTSSection(cmd, true); err != nil {
+			return err
+		}
+		if err := runSetupTerminalSection(cmd, true); err != nil {
+			return err
+		}
+		if err := runSetupAgentSettingsSection(cmd, true); err != nil {
+			return err
+		}
+		if err := seams.RunSetupGateway(cmd, true); err != nil {
+			return err
+		}
+		if err := seams.RunSetupTools(cmd, true); err != nil {
+			return err
 		}
 		printSetupSummary(cmd)
 		return nil
@@ -316,10 +339,10 @@ func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteract
 	if err := runSetupAgentSettingsSection(cmd, false); err != nil {
 		return err
 	}
-	if err := runSetupGatewaySection(cmd, false); err != nil {
+	if err := seams.RunSetupGateway(cmd, false); err != nil {
 		return err
 	}
-	if err := runSetupToolsSection(cmd, false); err != nil {
+	if err := seams.RunSetupTools(cmd, false); err != nil {
 		return err
 	}
 	printSetupSummary(cmd)
@@ -720,79 +743,210 @@ func runSetupTerminalSection(cmd *cobra.Command, nonInteractive bool) error {
 	}
 }
 
-func runSetupGatewaySection(cmd *cobra.Command, nonInteractive bool) error {
+func runSetupGatewaySection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("setup gateway: load config: %w", err)
+	}
+	options := setupGatewayPlatformOptions(cfg)
+
 	fmt.Fprintln(out, "Messaging Platforms")
 	fmt.Fprintln(out, "Which platforms would you like to set up?")
 	fmt.Fprintln(out)
-	for _, option := range []struct {
-		value string
-		label string
-	}{
-		{"telegram", "Telegram"},
-		{"discord", "Discord"},
-		{"slack", "Slack"},
-	} {
-		fmt.Fprintf(out, "  [ ] %s\n", option.label)
-		_ = option.value
+	for i, option := range options {
+		marker := "[ ]"
+		status := "not configured"
+		if option.configured {
+			marker = "[x]"
+			status = "configured"
+			if option.detail != "" {
+				status += " (" + option.detail + ")"
+			}
+		}
+		fmt.Fprintf(out, "  %2d. %s %-10s %-9s %s\n", i+1, marker, option.label, option.key, status)
 	}
 	if nonInteractive {
-		fmt.Fprintln(out, "\nSkipped (no messaging platforms selected).")
+		fmt.Fprintln(out, "\nSkipped (keeping current gateway platform configuration).")
 		fmt.Fprintln(out, "Run `gormes setup gateway` interactively or configure credentials with `gormes config edit`.")
 		fmt.Fprintln(out, "Start messaging with: gormes gateway")
 		return nil
 	}
 
-	selection, err := promptString(cmd, "Platforms (comma-separated, blank to skip): ", "")
+	selection, err := promptString(cmd, "Messaging platforms (comma-separated numbers or ids, blank to keep current): ", "")
 	if err != nil {
 		return err
 	}
-	selected := splitSetupSelection(selection)
+	selected, keepCurrent, err := parseSetupGatewaySelection(selection, options)
+	if err != nil {
+		return err
+	}
+	if keepCurrent {
+		fmt.Fprintln(out, "No platform setup changes selected.")
+		fmt.Fprintln(out, "Keeping current gateway platform configuration.")
+		return nil
+	}
 	if len(selected) == 0 {
-		fmt.Fprintln(out, "No messaging platforms selected.")
+		fmt.Fprintln(out, "No platform setup changes selected.")
 		return nil
 	}
 	for _, platform := range selected {
-		switch platform {
-		case "telegram":
-			fmt.Fprintln(out, "Telegram selected. Set GORMES_TELEGRAM_BOT_TOKEN and telegram.allowed_chat_id.")
-		case "discord":
-			fmt.Fprintln(out, "Discord selected. Set GORMES_DISCORD_TOKEN and discord.allowed_channel_id.")
-		case "slack":
-			if err := config.WriteTOMLValue(config.ConfigPath(), "slack.enabled", "true"); err != nil {
-				return err
-			}
-			fmt.Fprintln(out, "Slack selected. Set GORMES_SLACK_BOT_TOKEN and GORMES_SLACK_APP_TOKEN.")
-		default:
-			fmt.Fprintf(cmd.ErrOrStderr(), "setup_gateway_platform_row_backed: platform=%s\n", platform)
-			return newExitCodeError(2, fmt.Errorf("setup_gateway_platform_row_backed: %s", platform))
+		if err := seams.RunGatewayPlatform(cmd, platform); err != nil {
+			return err
 		}
 	}
 	fmt.Fprintln(out, "Start messaging with: gormes gateway")
 	return nil
 }
 
+type setupGatewayPlatformOption struct {
+	key        string
+	label      string
+	configured bool
+	detail     string
+}
+
+func setupGatewayPlatformOptions(cfg config.Config) []setupGatewayPlatformOption {
+	configured := map[string]string{}
+	for _, channel := range configuredGatewayStatusChannels(cfg) {
+		configured[channel.Name] = channel.Detail
+	}
+	manifestByID := map[string]gateway.PlatformManifestEntry{}
+	for _, entry := range gateway.HermesGatewayPlatformManifest() {
+		manifestByID[entry.ID] = entry
+	}
+
+	out := make([]setupGatewayPlatformOption, 0, 3)
+	for _, key := range []string{"telegram", "discord", "slack"} {
+		label := setupGatewayPlatformFallbackLabel(key)
+		if entry, ok := manifestByID[key]; ok && strings.TrimSpace(entry.DisplayName) != "" {
+			label = entry.DisplayName
+		}
+		detail, ok := configured[key]
+		out = append(out, setupGatewayPlatformOption{
+			key:        key,
+			label:      label,
+			configured: ok,
+			detail:     detail,
+		})
+	}
+	return out
+}
+
+func setupGatewayPlatformFallbackLabel(key string) string {
+	switch key {
+	case "telegram":
+		return "Telegram"
+	case "discord":
+		return "Discord"
+	case "slack":
+		return "Slack"
+	default:
+		return key
+	}
+}
+
+func parseSetupGatewaySelection(input string, options []setupGatewayPlatformOption) ([]string, bool, error) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return nil, true, nil
+	}
+	byKey := make(map[string]setupGatewayPlatformOption, len(options))
+	byLabel := make(map[string]setupGatewayPlatformOption, len(options))
+	for _, option := range options {
+		byKey[option.key] = option
+		byLabel[normalizeSetupChoice(option.label)] = option
+	}
+
+	var selected []string
+	seen := map[string]bool{}
+	for _, token := range strings.FieldsFunc(input, setupSelectionSeparator) {
+		token = strings.TrimSpace(token)
+		if token == "" {
+			continue
+		}
+		var key string
+		if index, err := strconv.Atoi(token); err == nil {
+			if index < 1 || index > len(options) {
+				return nil, false, newExitCodeError(2, fmt.Errorf("setup_gateway_invalid_selection: %s", token))
+			}
+			key = options[index-1].key
+		} else {
+			normalized := normalizeSetupChoice(token)
+			if option, ok := byKey[normalized]; ok {
+				key = option.key
+			} else if option, ok := byLabel[normalized]; ok {
+				key = option.key
+			} else {
+				return nil, false, newExitCodeError(2, fmt.Errorf("setup_gateway_invalid_selection: %s", token))
+			}
+		}
+		if !seen[key] {
+			selected = append(selected, key)
+			seen[key] = true
+		}
+	}
+	return selected, false, nil
+}
+
+func runSetupGatewayPlatformRowBacked(cmd *cobra.Command, platform string) error {
+	fmt.Fprintf(cmd.OutOrStdout(), "setup_gateway_platform_row_backed: platform=%s recommended_command=\"gormes setup gateway\"\n", platform)
+	return nil
+}
+
 func runSetupToolsSection(cmd *cobra.Command, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
+	doc, toolCfg, err := loadSetupToolsConfig(config.ConfigPath())
+	if err != nil {
+		return err
+	}
+	status, err := toolCfg.PlatformStatus("cli")
+	if err != nil {
+		return err
+	}
+	options, err := setupToolOptions()
+	if err != nil {
+		return err
+	}
+	selected := stringSet(status.RuntimeToolsets)
+
 	fmt.Fprintln(out, "Tools for CLI")
 	fmt.Fprintln(out)
-	for _, option := range setupToolOptions() {
-		marker := "[✓]"
-		if option.defaultOff {
-			marker = "[ ]"
+	for i, option := range options {
+		marker := "[ ]"
+		if selected[option.key] {
+			marker = "[x]"
 		}
-		suffix := ""
-		if option.noAPIKey {
-			suffix = "  [no API key]"
-		}
-		fmt.Fprintf(out, "  %s %s  (%s)%s\n", marker, option.label, option.tools, suffix)
+		fmt.Fprintf(out, "  %2d. %s %-28s %-16s %s\n", i+1, marker, option.label, option.key, option.description)
 	}
 	if nonInteractive {
 		fmt.Fprintln(out, "\nSkipped (keeping current tool selection).")
 		return nil
 	}
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Tool selection is currently runtime-manifest backed. Use `gormes config edit` for platform-specific toolsets.")
+	selection, err := promptString(cmd, "Toolsets (comma-separated numbers or keys, blank to keep current): ", "")
+	if err != nil {
+		return err
+	}
+	chosen, err := parseSetupToolSelection(selection, options, status.RuntimeToolsets)
+	if err != nil {
+		return err
+	}
+	report, err := toolCfg.SavePlatformSelection("cli", chosen)
+	if err != nil {
+		return err
+	}
+	doc["platform_toolsets"] = toolCfg.PlatformToolsets
+	if err := writeSetupToolsConfig(config.ConfigPath(), doc); err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Saved CLI tool configuration: %s\n", strings.Join(report.PersistedToolsets, ", "))
+	for _, issue := range report.Issues {
+		if issue.Platform == "cli" || issue.Platform == "" {
+			fmt.Fprintf(out, "setup_tools_issue: kind=%s toolset=%s detail=%s\n", issue.Kind, issue.Toolset, issue.Detail)
+		}
+	}
+	renderSetupToolsProviderRows(out, chosen)
 	return nil
 }
 
@@ -911,34 +1065,174 @@ func terminalBackendOptions() []setupChoice {
 }
 
 type setupToolOption struct {
-	label      string
-	tools      string
-	defaultOff bool
-	noAPIKey   bool
+	key         string
+	label       string
+	description string
 }
 
-func setupToolOptions() []setupToolOption {
-	return []setupToolOption{
-		{label: "Web Search & Scraping", tools: "web_search, web_extract", noAPIKey: true},
-		{label: "Browser Automation", tools: "navigate, click, type, scroll"},
-		{label: "Terminal & Processes", tools: "terminal, process"},
-		{label: "File Operations", tools: "read, write, patch, search"},
-		{label: "Code Execution", tools: "execute_code"},
-		{label: "Vision / Image Analysis", tools: "vision_analyze"},
-		{label: "Image Generation", tools: "image_generate", noAPIKey: true},
-		{label: "Mixture of Agents", tools: "mixture_of_agents", defaultOff: true, noAPIKey: true},
-		{label: "Text-to-Speech", tools: "text_to_speech"},
-		{label: "Skills", tools: "list, view, manage"},
-		{label: "Task Planning", tools: "todo"},
-		{label: "Memory", tools: "persistent memory across sessions"},
-		{label: "Session Search", tools: "search past conversations"},
-		{label: "Clarifying Questions", tools: "clarify"},
-		{label: "Task Delegation", tools: "delegate_task"},
-		{label: "Cron Jobs", tools: "create/list/update/pause/resume/run"},
-		{label: "Cross-Platform Messaging", tools: "send_message"},
-		{label: "RL Training", tools: "Tinker-Atropos training tools", defaultOff: true, noAPIKey: true},
-		{label: "Home Assistant", tools: "smart home device control", noAPIKey: true},
+func setupToolOptions() ([]setupToolOption, error) {
+	report, err := cli.EffectiveToolsetPickerOptions(plugins.Inventory{})
+	if err != nil {
+		return nil, err
 	}
+	out := make([]setupToolOption, 0, len(report.Options))
+	for _, option := range report.Options {
+		out = append(out, setupToolOption{
+			key:         option.Key,
+			label:       option.Label,
+			description: option.Description,
+		})
+	}
+	return out, nil
+}
+
+func loadSetupToolsConfig(path string) (map[string]any, cli.PlatformToolsetConfig, error) {
+	doc := map[string]any{}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			cfg, _ := cli.ParsePlatformToolsetConfig(doc)
+			return doc, cfg, nil
+		}
+		return nil, cli.PlatformToolsetConfig{}, fmt.Errorf("setup tools: read %s: %w", path, err)
+	}
+	if err := toml.Unmarshal(body, &doc); err != nil {
+		return nil, cli.PlatformToolsetConfig{}, fmt.Errorf("setup tools: parse %s: %w", path, err)
+	}
+	cfg, _ := cli.ParsePlatformToolsetConfig(doc)
+	return doc, cfg, nil
+}
+
+func writeSetupToolsConfig(path string, doc map[string]any) error {
+	body, err := toml.Marshal(doc)
+	if err != nil {
+		return fmt.Errorf("setup tools: marshal config: %w", err)
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("setup tools: mkdir %s: %w", dir, err)
+	}
+	tmp, err := os.CreateTemp(dir, ".config.toml.*")
+	if err != nil {
+		return fmt.Errorf("setup tools: tempfile: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if _, err := tmp.Write(body); err != nil {
+		tmp.Close()
+		return fmt.Errorf("setup tools: write temp: %w", err)
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		return fmt.Errorf("setup tools: chmod temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("setup tools: close temp: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("setup tools: rename config: %w", err)
+	}
+	return nil
+}
+
+func parseSetupToolSelection(input string, options []setupToolOption, current []string) ([]string, error) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return append([]string(nil), current...), nil
+	}
+	byKey := make(map[string]setupToolOption, len(options))
+	for _, option := range options {
+		byKey[option.key] = option
+	}
+	var selected []string
+	for _, token := range strings.FieldsFunc(input, setupSelectionSeparator) {
+		token = strings.TrimSpace(token)
+		if token == "" {
+			continue
+		}
+		if index, err := strconv.Atoi(token); err == nil {
+			if index < 1 || index > len(options) {
+				return nil, newExitCodeError(2, fmt.Errorf("setup_tools_invalid_selection: %s", token))
+			}
+			selected = append(selected, options[index-1].key)
+			continue
+		}
+		key := normalizeSetupChoice(token)
+		key = strings.ReplaceAll(key, "-", "_")
+		if option, ok := byKey[key]; ok {
+			selected = append(selected, option.key)
+			continue
+		}
+		selected = append(selected, token)
+	}
+	return selected, nil
+}
+
+func setupSelectionSeparator(r rune) bool {
+	return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == ';'
+}
+
+func stringSet(values []string) map[string]bool {
+	out := make(map[string]bool, len(values))
+	for _, value := range values {
+		out[value] = true
+	}
+	return out
+}
+
+type setupToolsProviderRow struct {
+	Toolset string
+	Kind    string
+	Label   string
+}
+
+var setupToolsProviderRows = map[string][]setupToolsProviderRow{
+	"web": {
+		{Toolset: "web", Kind: "web", Label: "Web search and extraction"},
+	},
+	"browser": {
+		{Toolset: "browser", Kind: "browser", Label: "Browser backend"},
+	},
+	"image_gen": {
+		{Toolset: "image_gen", Kind: "image_gen", Label: "Image generation provider"},
+	},
+	"rl": {
+		{Toolset: "rl", Kind: "rl", Label: "RL training provider"},
+	},
+	"tts": {
+		{Toolset: "tts", Kind: "tts", Label: "Voice/TTS provider"},
+	},
+	"skills": {
+		{Toolset: "skills", Kind: "github_skills_hub", Label: "GitHub Skills Hub"},
+	},
+	"memory": {
+		{Toolset: "memory", Kind: "honcho", Label: "Honcho/Goncho memory provider"},
+	},
+	"homeassistant": {
+		{Toolset: "homeassistant", Kind: "homeassistant", Label: "Home Assistant credentials"},
+	},
+}
+
+func renderSetupToolsProviderRows(out io.Writer, selected []string) {
+	selectedSet := stringSet(selected)
+	printedHeader := false
+	for _, option := range providerRowToolsetOrder() {
+		if !selectedSet[option] {
+			continue
+		}
+		for _, row := range setupToolsProviderRows[option] {
+			if !printedHeader {
+				fmt.Fprintln(out)
+				fmt.Fprintln(out, "Provider/API key setup")
+				printedHeader = true
+			}
+			fmt.Fprintf(out, "  setup_tools_provider_row_backed: toolset=%s provider=%s label=%s\n", row.Toolset, row.Kind, row.Label)
+		}
+	}
+}
+
+func providerRowToolsetOrder() []string {
+	return []string{"web", "browser", "image_gen", "rl", "tts", "skills", "memory", "homeassistant"}
 }
 
 func terminalBackendLabel(value string) string {
@@ -984,20 +1278,6 @@ func normalizeSetupChoice(value string) string {
 		return "singularity"
 	}
 	return value
-}
-
-func splitSetupSelection(value string) []string {
-	fields := strings.FieldsFunc(value, func(r rune) bool {
-		return r == ',' || r == ';' || r == ' ' || r == '\t' || r == '\n'
-	})
-	var out []string
-	for _, field := range fields {
-		normalized := normalizeSetupChoice(field)
-		if normalized != "" {
-			out = append(out, normalized)
-		}
-	}
-	return out
 }
 
 func parsePositiveInt(value string) (int, bool) {
