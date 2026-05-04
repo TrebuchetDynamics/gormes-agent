@@ -220,6 +220,9 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 
 func runDocsAstroBuild(t *testing.T, dest string) {
 	t.Helper()
+	if err := os.RemoveAll(filepath.Join(".astro", ".prerender")); err != nil {
+		t.Fatalf("clean Astro prerender cache: %v", err)
+	}
 	cmd := exec.Command("npm", "run", "build")
 	cmd.Dir = "."
 	cmd.Env = append(os.Environ(),
