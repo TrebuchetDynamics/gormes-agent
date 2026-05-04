@@ -24720,19 +24720,23 @@
             },
             {
               "name": "Gateway Discover and Probe",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Port OpenClaw's gateway network discovery: gormes gateway discover finds local gateways via Bonjour/mDNS; gormes gateway probe shows gateway reachability + discovery + health + status summary; gormes gateway usage-cost fetches usage cost summary from session logs.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
               "degraded_mode": "No gateways discovered, probe timeout, or usage data unavailable reports per-endpoint status with failure reason.",
-              "fixture": "internal/tools/gateway_discover_test.go",
+              "fixture": "internal/tools/gateway_discover_test.go + cmd/gormes/gateway_discover_test.go",
               "source_refs": [
-                "openclaw gateway discover/probe/usage-cost CLI surface",
+                "../openclaw/docs/cli/gateway.md:gateway discover/probe/usage-cost",
+                "../openclaw/docs/gateway/discovery.md:Bonjour service beacon details",
+                "../openclaw/src/commands/gateway-status/probe-run.ts",
+                "../openclaw/src/infra/bonjour-discovery.ts",
+                "../openclaw/src/infra/session-cost-usage.ts",
                 "docs/content/building-gormes/openclaw-platform-parity-audit.md"
               ],
               "ready_when": [
@@ -24755,15 +24759,18 @@
                 "internal/tools/gateway_discover.go",
                 "internal/tools/gateway_discover_test.go",
                 "cmd/gormes/gateway_discover.go",
+                "cmd/gormes/gateway_discover_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run TestGatewayDiscover -count=1",
+                "go test ./cmd/gormes -run TestGatewayDiscover -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "gormes gateway discover/probe/usage-cost ships."
-              ]
+              ],
+              "note": "Complete: added a pure internal/tools gateway discovery/probe/usage-cost contract plus Cobra commands for `gormes gateway discover`, `gormes gateway probe`, and `gormes gateway usage-cost`. Discovery keeps Bonjour/mDNS TXT as unauthenticated operator hints, parses resolved address/port from platform discovery helpers when available, and reports no-beacon degraded evidence. Probe uses TCP reachability only and combines discovery with persisted gateway runtime status without unauthenticated gateway RPC reads. Usage-cost reads durable session metadata token counters and supports explicit per-1K pricing flags for estimated per-session and aggregate USD costs while reporting unavailable usage data as degraded evidence."
             },
             {
               "name": "Channels Capabilities Introspection",
@@ -29924,6 +29931,78 @@
               }
             },
             {
+              "name": "CLI setup/onboard/help text fidelity matrix",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Add a deterministic operator-visible text matrix for `gormes setup`, setup sections, `gormes onboard`, provider/model setup guidance, root help, unknown-command suggestions, and non-TTY fallbacks. The matrix must keep Hermes-compatible setup behavior where upstream owns the flow, preserve Gormes-owned first-run onboarding wording where it intentionally differs, and prevent regressions such as parent setup arguments leaking into delegated model/provider commands, arrow-key escape bytes being treated as selections, Hermes paths appearing in Gormes summaries, or interactive-only navigation copy appearing in line-input fallback mode.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "When a setup/onboard action is not wired yet, output must include a row-backed command name and actionable next step instead of panic text, raw Cobra errors, or silent no-ops.",
+              "fixture": "cmd/gormes/setup_text_fidelity_test.go::TestSetupTextFidelity_* + cmd/gormes/onboard_wizard_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:setup_parser",
+                "../hermes-agent/hermes_cli/setup.py:prompt_choice,run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
+                "../hermes-agent/agent/onboarding.py:busy_input_hint_cli,tool_progress_hint_cli,openclaw_residue_hint_cli",
+                "../hermes-agent/ui-tui/src/content/setup.ts",
+                "cmd/gormes/setup.go",
+                "cmd/gormes/onboard.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/setup_minimal_test.go",
+                "cmd/gormes/onboard_wizard_test.go",
+                "internal/cli/onboard.go"
+              ],
+              "ready_when": [
+                "Gormes setup top-level chooser, full-wizard shell/summary, provider/model delegation, gateway/tools/TTS/agent sections, and onboard action runner rows are complete.",
+                "Tests can run with fake command seams, stdin buffers, temp config/env roots, and no live provider, browser, dashboard, gateway, or credential prompts.",
+                "The fixture table can mark each line as Hermes-owned, Gormes-owned, or deliberate Gormes branding divergence."
+              ],
+              "not_ready_when": [
+                "The slice contacts providers, writes real HOME config, starts a gateway/dashboard/browser, or relies on terminal arrow-key support in CI.",
+                "The slice rewrites setup command behavior broadly instead of pinning the visible strings and fixing only failing text/routing edges.",
+                "The slice hides raw errors by swallowing exit codes; failures must remain machine-testable."
+              ],
+              "acceptance": [
+                "TestSetupTextFidelity_TopLevelTTYMenuAndLineFallback proves the TTY menu copy and the line-input fallback do not promise unsupported key navigation, and escape sequences before a numeric/text selection are ignored deterministically.",
+                "TestSetupTextFidelity_QuickSetupDelegatesMissingProviderModel proves quick setup routes to provider/model seams without constructing `model setup` or leaking parent arguments.",
+                "TestSetupTextFidelity_BrandedSummaryAndPaths proves the completion summary says Gormes, points to Gormes config/env paths, and never prints stale Hermes install/config edit commands.",
+                "TestSetupTextFidelity_OnboardPlanAndWizard proves `gormes onboard`/`--wizard` output keeps the seven-step first-run plan, skip warnings, configured-state details, and row-backed action evidence stable.",
+                "TestSetupTextFidelity_UnknownCommandGuidance proves typo suggestions and unsupported setup sections produce actionable stderr/stdout without raw Cobra-only `unknown command` text."
+              ],
+              "note": "Added by the 2026-05-04 behavioral parity audit after setup/onboard were functionally fixed but spread across many tests. This row consolidates visible text expectations so first-run UX stays easy, branded, and deterministic while still acknowledging that `gormes onboard` is a Gormes-owned wrapper over Hermes setup/onboarding behavior.",
+              "write_scope": [
+                "cmd/gormes/setup.go",
+                "cmd/gormes/onboard.go",
+                "cmd/gormes/setup_text_fidelity_test.go",
+                "cmd/gormes/setup_minimal_test.go",
+                "cmd/gormes/onboard_wizard_test.go",
+                "internal/cli/onboard.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestSetupTextFidelity|TestSetup|TestOnboardWizard|TestRootHelp|TestHermesCLIParityManifest' -count=1",
+                "go test ./cmd/gormes ./internal/cli -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Text fixtures prove setup/onboard/help/unknown-command visible output is stable, Gormes-branded, Hermes-compatible where applicable, and resilient to non-TTY/line-input fallback edge cases."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:hermes_cli/setup.py + agent/onboarding.py",
+                "note": "Hermes defines setup wizard/onboarding hint behavior; Gormes owns additional first-run text and must keep the divergence explicit."
+              },
+              "blocked_by": [
+                "Gormes setup top-level chooser menu",
+                "Gormes setup full-wizard shell and branded summary",
+                "Gormes onboard interactive action runner"
+              ]
+            },
+            {
               "name": "Logs Command",
               "status": "complete",
               "priority": "P2",
@@ -31568,10 +31647,14 @@
               "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
               "fixture": "internal/tui/hermes_chrome_test.go::TestHermesChrome_*",
               "source_refs": [
-                "../hermes-agent/ui-tui/src/components/appLayout.tsx:AlternateScreen default Shell",
-                "../hermes-agent/ui-tui/src/components/appLayout.tsx:ComposerPane",
+                "../hermes-agent/ui-tui/src/components/appLayout.tsx:TranscriptPane,ComposerPane,StatusRulePane,AlternateScreen",
                 "../hermes-agent/ui-tui/src/components/appChrome.tsx:StatusRule",
+                "../hermes-agent/ui-tui/src/components/messageLine.tsx:MessageLine",
+                "../hermes-agent/ui-tui/src/components/thinking.tsx:ToolTrail,Thinking",
+                "../hermes-agent/ui-tui/src/components/queuedMessages.tsx:QueuedMessages",
                 "../hermes-agent/ui-tui/src/app/turnController.ts:recordMessageComplete finalTail streaming clear",
+                "../hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts",
+                "../hermes-agent/ui-tui/src/__tests__/messages.test.ts",
                 "../hermes-agent/tests/cli/test_cli_status_bar.py",
                 "internal/kernel/kernel.go:runTurn final assistant history append",
                 "internal/tui/view.go:View,renderConv,conversationViewportTail",
@@ -31597,7 +31680,7 @@
                 "TestHermesChrome_UsesAltScreen and TestNativeTUIStartupUsesAltScreen prove local full-screen TUI startup enables alt-screen by default, matching current Hermes Ink and preventing stale scrollback frame fragments.",
                 "TestKernel_FinalIdleClearsDraftAfterHistoryAppend proves the final idle frame moves assistant text into history and clears DraftText so the TUI cannot render the same assistant reply twice."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-identity follow-up: assistant rows render under `⚕ Gormes` in the Hermes response-box shape, not the upstream `⚕ Hermes` label. 2026-04-30 visual follow-up: the input area no longer renders as a rounded box/card or six repeated prompt rows; idle input is one unboxed Hermes prompt line, multiline drafts expand up to four rows, idle chrome no longer shows the developer-only `phase: Idle · session · mouse` row unless there is actionable non-idle/status evidence, and current Hermes Ink StatusRule now provides composer separation without old standalone full-width input rules. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows do not use `gormes:` dashboard tags, idle input does not render rounded border glyphs, idle composer output does not leak debug phase chrome, no standalone input-rule rows are injected, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
+              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-identity follow-up: assistant rows render under `⚕ Gormes` in the Hermes response-box shape, not the upstream `⚕ Hermes` label. 2026-04-30 visual follow-up: the input area no longer renders as a rounded box/card or six repeated prompt rows; idle input is one unboxed Hermes prompt line, multiline drafts expand up to four rows, idle chrome no longer shows the developer-only `phase: Idle · session · mouse` row unless there is actionable non-idle/status evidence, and current Hermes Ink StatusRule now provides composer separation without old standalone full-width input rules. 2026-05-04 behavioral audit refreshed the upstream references from legacy prompt_toolkit-first evidence to active Hermes Ink appLayout/appChrome/messageLine/thinking/queuedMessages components; deeper transcript/tool-trail snapshot parity is split into `Native TUI Ink behavioral transcript golden matrix`. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows do not use `gormes:` dashboard tags, idle input does not render rounded border glyphs, idle composer output does not leak debug phase chrome, no standalone input-rule rows are injected, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",
@@ -31623,7 +31706,7 @@
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:ui-tui Ink AlternateScreen + turnController message.complete handling",
-                "note": "Current Hermes Ink owns the active full-screen/operator contract; classic prompt_toolkit remains useful for chrome details. Gormes implements parity with Bubble Tea and Go renderer helpers, not Python prompt_toolkit or Node/Ink runtime code."
+                "note": "Current Hermes Ink owns the active full-screen/operator contract; classic prompt_toolkit remains legacy evidence only where current Ink has no equivalent source. Gormes implements parity with Bubble Tea and Go renderer helpers, not Python prompt_toolkit or Node/Ink runtime code."
               },
               "blocked_by": [
                 "Native TUI renderConv viewport budget binding",
@@ -31835,6 +31918,155 @@
                 "note": "Hermes defines modal/tool progress UI; Gormes should port renderer contracts before live approval/tool wiring."
               },
               "blocked_by": [
+                "Native TUI Hermes bottom-pinned chrome layout"
+              ]
+            },
+            {
+              "name": "Native TUI Ink behavioral transcript golden matrix",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Add deterministic text snapshots for the active Hermes Ink full-screen transcript/composer behavior as a single Gormes-visible sequence: user rows, assistant rows, tool-trail/thinking rows, tool-result boxes, queued-message rows, sticky prompt/status rule, live streaming assistant draft, and final assistant history. The matrix must prove Gormes' Bubble Tea renderer preserves visible ordering and duplication rules while keeping Gormes-owned branding differences explicit.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If the matrix cannot express a Hermes Ink behavior yet, the fixture records an explicit unsupported_behavior evidence string instead of silently accepting legacy prompt_toolkit output.",
+              "fixture": "internal/tui/hermes_behavioral_fidelity_test.go::TestHermesBehavioralFidelity_*",
+              "source_refs": [
+                "../hermes-agent/ui-tui/src/components/appLayout.tsx:TranscriptPane,ComposerPane,StatusRulePane",
+                "../hermes-agent/ui-tui/src/components/messageLine.tsx:MessageLine",
+                "../hermes-agent/ui-tui/src/components/thinking.tsx:ToolTrail,Thinking",
+                "../hermes-agent/ui-tui/src/components/queuedMessages.tsx:QueuedMessages",
+                "../hermes-agent/ui-tui/src/components/streamingAssistant.tsx:StreamingAssistant",
+                "../hermes-agent/ui-tui/src/app/createGatewayEventHandler.ts:pushUnique,scheduleThinkingStatus",
+                "../hermes-agent/ui-tui/src/app/turnController.ts:recordMessageComplete finalTail streaming clear",
+                "../hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts",
+                "../hermes-agent/ui-tui/src/__tests__/messages.test.ts",
+                "../hermes-agent/ui-tui/src/__tests__/textInputWrap.test.ts",
+                "internal/tui/hermes_chrome.go",
+                "internal/tui/hermes_panels.go",
+                "internal/tui/view.go",
+                "internal/kernel/kernel.go"
+              ],
+              "ready_when": [
+                "Native TUI Hermes bottom-pinned chrome layout, status bar, slash completion, and panel renderer rows are complete.",
+                "The worker can build snapshot inputs from kernel.RenderFrame and pure TUI renderer helpers without starting a Bubble Tea Program, provider, gateway, Node, or Hermes Ink runtime.",
+                "Gormes-owned divergences such as the `Gormes` product label are declared in the fixture table rather than treated as Hermes gaps."
+              ],
+              "not_ready_when": [
+                "The slice uses screenshots or terminal OCR instead of deterministic text snapshots.",
+                "The slice imports Node/Ink, prompt_toolkit, or upstream Hermes runtime code.",
+                "The slice changes provider/kernel turn semantics, live approval behavior, gateway delivery, or session persistence while adding the matrix."
+              ],
+              "acceptance": [
+                "TestHermesBehavioralFidelity_InkTranscriptOrder proves user, trail/tool, assistant, streaming draft, status rule, and prompt rows render in the same top-to-bottom order as active Hermes Ink AppLayout.",
+                "TestHermesBehavioralFidelity_ToolTrailAndResultBox proves tool calls, thinking, and tool-result previews stay in the transcript/tool-trail region and never mix into final assistant prose.",
+                "TestHermesBehavioralFidelity_QueuedMessagesAndStickyPrompt proves queued-message rows and sticky-prompt evidence stay above the status rule/composer, matching Hermes Ink ComposerPane behavior.",
+                "TestHermesBehavioralFidelity_FinalAssistantNotDuplicated proves a completed assistant response appears once in history and not again as a live draft.",
+                "TestHermesBehavioralFidelity_NoLegacyPromptToolkitChrome proves the snapshot contains no Telemetry/Soul sidebar, standalone prompt_toolkit rules, `phase:` debug footer, or stale Hermes product label beyond explicitly allowed upstream source refs."
+              ],
+              "note": "Added by the 2026-05-04 behavioral parity audit. Existing complete TUI rows prove individual chrome/status/panel helpers; this follow-up pins cross-component visible transcript behavior against active Hermes Ink sources so future UI work does not regress into legacy prompt_toolkit or dashboard/sidebar patterns.",
+              "write_scope": [
+                "internal/tui/hermes_behavioral_fidelity_test.go",
+                "internal/tui/hermes_chrome.go",
+                "internal/tui/view.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesBehavioralFidelity_' -count=1",
+                "go test ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Snapshot fixtures prove the active Hermes Ink transcript/composer sequence, tool-trail placement, queued-message placement, duplicate suppression, and no legacy chrome leakage."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:ui-tui Ink AppLayout/MessageLine/Thinking",
+                "note": "Active Hermes Ink owns the behavioral UI contract; Gormes adapts it to native Go renderer helpers without running Node."
+              },
+              "blocked_by": [
+                "Native TUI Hermes bottom-pinned chrome layout",
+                "Native TUI Hermes tool progress + modal panel renderers",
+                "Native TUI Hermes slash completion helpers"
+              ]
+            },
+            {
+              "name": "Channel/TUI iteration-limit finalization transcript fixture",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Add an end-to-end visible transcript fixture for Hermes-style max-tool-iteration exhaustion across kernel, gateway, and local TUI renderers. When the tool loop reaches the budget, Gormes must ask the provider for a single no-tools summary, deliver one final assistant message, clear live tool-progress/thinking indicators, and never expose raw loop-control errors such as `tool iteration limit exceeded`, duplicate final answers, or a stuck hourglass/progress row.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If the no-tools summary request fails, the visible final transcript uses a bounded degraded summary-failed message with provider error classification, not a raw loop panic or repeated progress bubble.",
+              "fixture": "internal/gateway/iteration_finalization_test.go::TestIterationLimitFinalization_* + internal/tui/hermes_behavioral_fidelity_test.go::TestHermesBehavioralFidelity_FinalAssistantNotDuplicated",
+              "source_refs": [
+                "../hermes-agent/run_agent.py:_handle_max_iterations",
+                "../hermes-agent/run_agent.py:run_conversation max_iterations budget branch",
+                "../hermes-agent/gateway/run.py:progress_callback",
+                "../hermes-agent/gateway/stream_consumer.py:render_streaming_message",
+                "../hermes-agent/ui-tui/src/app/createGatewayEventHandler.ts:pushUnique,scheduleThinkingStatus",
+                "../hermes-agent/ui-tui/src/app/turnController.ts:recordMessageComplete finalTail streaming clear",
+                "internal/kernel/kernel.go:DefaultMaxToolIterations,requestMaxIterationSummary",
+                "internal/kernel/tools_test.go:TestKernel_ToolIterationBudgetRequestsToollessSummary",
+                "internal/gateway/coalesce.go",
+                "internal/gateway/manager.go:dispatchFrame,dispatchToolProgress",
+                "internal/tui/view.go:renderConv"
+              ],
+              "ready_when": [
+                "Kernel tool loop is complete and requestMaxIterationSummary is validated with a toolless provider request.",
+                "Gateway stream/tool trace formatting fixture matrix is complete so progress messages are separate from final assistant text.",
+                "The worker can drive fake kernel frames or a fake provider through gateway/TUI renderers without live channels, providers, Telegram API calls, or a Bubble Tea Program."
+              ],
+              "not_ready_when": [
+                "The slice changes the 90-iteration default or removes the Hermes summary-request text.",
+                "The slice relies on real provider latency, live channel delivery, screenshots, or sleeps instead of fake events/clocked coalescer fixtures.",
+                "The slice accepts a final transcript containing raw loop-control text, duplicate assistant final text, or lingering progress after finalization."
+              ],
+              "acceptance": [
+                "TestIterationLimitFinalization_GatewaySendsOneSummaryFinal drives a fake budget-exhausted turn and proves gateway output contains one final assistant message, no raw iteration-limit error, and no duplicate final send/edit fallback.",
+                "TestIterationLimitFinalization_ToolProgressClearedAfterFinal proves the channel progress message is finalized/cleared before the assistant final transcript is considered complete.",
+                "TestIterationLimitFinalization_SummaryFailureIsBoundedDegradedText proves provider failure during the no-tools summary path yields one bounded degraded final message and no red loop-control bubble.",
+                "TestHermesBehavioralFidelity_FinalAssistantNotDuplicated proves local TUI output renders the summary once from history and not again from DraftText or live streaming state.",
+                "Existing kernel tests for DefaultMaxToolIterations=90 and toolless summary requests remain green."
+              ],
+              "note": "Added by the 2026-05-04 behavioral parity audit. The kernel loop and gateway tool-progress rows are already complete, but the user-visible failure mode spans kernel summary, gateway coalescing, tool-progress cleanup, and TUI draft/history rendering; this row lives in Phase 5.Q so the already-shipped Phase 2 gateway lane stays closed while the remaining visible transcript fidelity work is tracked with TUI/API behavior.",
+              "write_scope": [
+                "internal/gateway/iteration_finalization_test.go",
+                "internal/gateway/coalesce.go",
+                "internal/gateway/manager.go",
+                "internal/tui/hermes_behavioral_fidelity_test.go",
+                "internal/tui/view.go",
+                "internal/kernel/tools_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run '^TestIterationLimitFinalization_' -count=1",
+                "go test ./internal/tui -run 'TestHermesBehavioralFidelity_FinalAssistantNotDuplicated' -count=1",
+                "go test ./internal/kernel -run 'TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen|TestKernel_ToolIterationBudgetRequestsToollessSummary' -count=1",
+                "go test ./internal/gateway ./internal/tui ./internal/kernel -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway/TUI transcript fixtures prove max-iteration exhaustion produces one no-tools summary final, clears progress, avoids raw loop text, and never duplicates assistant output."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:run_agent.py _handle_max_iterations + gateway progress_callback + ui-tui turnController",
+                "note": "Hermes defines the no-tools summary behavior; Gormes already mirrors the kernel path and needs a channel/TUI visible transcript fixture for behavioral fidelity."
+              },
+              "blocked_by": [
+                "Kernel tool loop",
+                "Gateway stream/tool trace formatting fixture matrix",
                 "Native TUI Hermes bottom-pinned chrome layout"
               ]
             },

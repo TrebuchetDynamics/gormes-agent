@@ -1,13 +1,13 @@
 ---
 title: "Gormes Behavioral Gap Matrix"
 description: "Curated behavioral gap inventory for observable Hermes-vs-Gormes differences. Cross-references parity matrix, swarm audit, and progress.json."
-date: 2026-04-30
+date: 2026-05-04
 draft: false
 ---
 
 # Gormes Behavioral Gap Matrix
 
-**Last updated:** 2026-04-30 (rebuilt after subagent deletion)
+**Last updated:** 2026-05-04 (behavioral fidelity audit: UI, commands/text, tool loops)
 
 **Derived from:** [Hermes <-> Gormes Parity Matrix](../hermes-gormes-parity-matrix/), [Swarm Feature Parity Audit](../swarm-feature-parity-audit/), [Hermes And Honcho Feature Map](../hermes-honcho-feature-map/), `progress.json`
 
@@ -27,14 +27,14 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 
 | # | Behavior | Severity | Status | Progress Row |
 |---|----------|----------|--------|-------------|
-| 1.1 | `/status` formatting — bold labels, ⚡ marker, local timestamps | P1 | partial | `Telegram /status Hermes-format closeout` (2.B.1) |
+| 1.1 | `/status` formatting — bold labels, ⚡ marker, local timestamps | P1 | parity | `Telegram /status Hermes-format closeout` (2.B.1) |
 | 1.2 | `/title` command — output formatting (emoji+bold) | P1 | partial | `Gateway /title manual session title command` (2.F.3) |
-| 1.3 | Dynamic slash menu — priority tiers, hidden-count | P1 | planned | `Telegram dynamic BotCommand menu wiring` (2.B.1) |
+| 1.3 | Dynamic slash menu — priority tiers, hidden-count | P1 | parity | `Telegram dynamic BotCommand menu wiring` (2.B.1) |
 | 1.4 | Reply quoting modes (first/all/off) + deleted-target fallback | P1 | planned | `Telegram reply_to_mode and reply-context parity` (2.B.1) |
 | 1.5 | Message threading (forum topic message_thread_id) | P1 | planned | Same as 1.4 (scope expansion) |
 | 1.6 | Typing action (native sendChatAction) | P2 | planned | `Gateway typing-action wiring during stream` (2.B.1) |
-| 1.7 | Tool trace skin emoji overrides | P2 | partial | Future TUI skin-engine row |
-| 1.8 | Operator duplicate collapse (restart markers) | P2 | partial | No dedicated row |
+| 1.7 | Tool trace skin emoji overrides | P2 | parity | `Native TUI Hermes skin token renderer` + `Gateway stream/tool trace formatting fixture matrix` |
+| 1.8 | Operator duplicate collapse (restart markers) | P2 | parity | `Gateway /restart command + takeover markers` + `Gateway message deduplicator bounded helper` |
 
 ## Section 2 — Session & Status Management
 
@@ -56,6 +56,7 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 | 3.2 | Skill guidance ordering in system prompt | P1 | planned | `Toolset-aware skills prompt snapshot` (4.C) |
 | 3.3 | Streaming text formatting | — | parity | Complete |
 | 3.4 | Tool trace rendering (all channels) | — | parity | Complete |
+| 3.5 | Iteration-limit visible finalization — one summary final, no raw loop text, no stuck progress | P1 | planned | `Channel/TUI iteration-limit finalization transcript fixture` (5.Q) |
 
 ## Section 4 — Identity, Persona & Defaults
 
@@ -105,7 +106,8 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 
 | # | Behavior | Severity | Status | Progress Row |
 |---|----------|----------|--------|-------------|
-| 8.1 | CLI command registry coverage (20 vs ~50) | P1 | partial | `Hermes CLI command-tree parity manifest` (5.O) |
+| 8.1 | CLI command registry inventory | P1 | parity | `Hermes CLI command-tree parity manifest` (5.O) |
+| 8.1b | CLI setup/onboard/help visible text fidelity | P1 | planned | `CLI setup/onboard/help text fidelity matrix` (5.O) |
 | 8.2 | Config edit/check/migrate | P1 | partial | `Gormes config edit/check/native schema-migrate closeout` (5.O) |
 | 8.3 | Diagnostics CLI (doctor/backup/logs) | P1 | partial | `Diagnostics, backup, logs, and status CLI` (5.O) |
 | 8.4 | Gateway status CLI | — | parity | Complete |
@@ -191,18 +193,30 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 2. Developer-role API-boundary swap — verify production entrypoint invokes the swap
 
 **P1 (Next 2-3 Planner Passes):**
-3. Gateway conversational session metadata refresh
-4. Telegram /status Hermes-format closeout
-5. Telegram reply_to_mode and reply-context parity
-6. Telegram inline approval buttons + model picker
-7. Telegram webhook mode + polling conflict + network backoff
-8. Memory file locking + atomic writes
-9. Auth cross-process lock
-10. 49-file CLI tree port + slash autocomplete
+3. Native TUI Ink behavioral transcript golden matrix
+4. CLI setup/onboard/help text fidelity matrix
+5. Channel/TUI iteration-limit finalization transcript fixture
+6. Gateway conversational session metadata refresh
+7. Telegram reply_to_mode and reply-context parity
+8. Telegram inline approval buttons + model picker
+9. Telegram webhook mode + polling conflict + network backoff
+10. Memory file locking + atomic writes
+11. Auth cross-process lock
 
 **P2 (Follow-Up):**
-11. Telegram typing action, dynamic menu, markdown tables, send_voice
-12. Z.AI probing, config check, CLI alias resolution, memory dedup
+12. 49-file CLI tree port handler closeout + slash autocomplete binding
+13. Telegram typing action, markdown tables, send_voice
+14. Z.AI probing, config check, CLI alias resolution, memory dedup
+
+## 2026-05-04 Behavioral Fidelity Audit
+
+The audit reclassified several previously partial UX items as covered by completed rows and added three source-backed rows for the remaining visible fidelity risk:
+
+| Area | Audit result | Progress row |
+|---|---|---|
+| Active full-screen UI source of truth | Current Hermes Ink `ui-tui/src/components/appLayout.tsx`, `appChrome.tsx`, `messageLine.tsx`, `thinking.tsx`, and `queuedMessages.tsx` now supersede legacy prompt_toolkit as the primary UI parity source. | `Native TUI Ink behavioral transcript golden matrix` |
+| Setup/onboard/help text | Functional setup/onboard rows are complete, but visible copy is spread across tests; a consolidated text matrix is needed for first-run UX regressions. | `CLI setup/onboard/help text fidelity matrix` |
+| Tool-loop exhaustion | Kernel summary behavior and gateway tool progress are covered separately; one cross-surface transcript fixture is still needed. | `Channel/TUI iteration-limit finalization transcript fixture` |
 
 ---
 
@@ -214,3 +228,4 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 | 2026-04-30 | Upstream audit corrections (1.2, 2.1, 2.3, 4.2, 4.4, 5.1) |
 | 2026-04-30 | M1-M50 gaps documented and row-backed across all passes |
 | 2026-04-30 | Rebuilt after subagent deletion, reflecting current progress.json state |
+| 2026-05-04 | Behavioral fidelity audit added UI transcript, setup/onboard/help text, and iteration-limit transcript rows |

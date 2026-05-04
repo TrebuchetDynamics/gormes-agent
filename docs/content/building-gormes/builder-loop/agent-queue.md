@@ -48,28 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 2. Gateway Discover and Probe
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Port OpenClaw's gateway network discovery: gormes gateway discover finds local gateways via Bonjour/mDNS; gormes gateway probe shows gateway reachability + discovery + health + status summary; gormes gateway usage-cost fetches usage cost summary from session logs.
-- Trust class: operator
-- Ready when: Gateway status and health commands are operational., Session store has usage/cost data accessible.
-- Not ready when: The row requires Tailscale or CoreDNS for basic discovery., The row sends unauthenticated probe requests.
-- Degraded mode: No gateways discovered, probe timeout, or usage data unavailable reports per-endpoint status with failure reason.
-- Fixture: `internal/tools/gateway_discover_test.go`
-- Write scope: `internal/tools/gateway_discover.go`, `internal/tools/gateway_discover_test.go`, `cmd/gormes/gateway_discover.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestGatewayDiscover -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes gateway discover/probe/usage-cost ships.
-- Acceptance: gormes gateway discover lists local gateways with addresses and ports., gormes gateway probe shows reachability + discovery + health + status., gormes gateway usage-cost shows per-session and aggregate token costs.
-- Source refs: openclaw gateway discover/probe/usage-cost CLI surface, docs/content/building-gormes/openclaw-platform-parity-audit.md
-- Unblocks: Multi-instance fleet management
-- Why now: Unblocks Multi-instance fleet management.
-
-## 3. Channels Capabilities Introspection
+## 2. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 4. Prompt Fragment Include System
+## 3. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 5. Plan gate hook in agent turn loop
+## 4. Plan gate hook in agent turn loop
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -131,7 +110,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Tool gate pre-execution validation
+## 5. Tool gate pre-execution validation
 
 - Phase: 4 / 4.L
 - Owner: `tools`
@@ -151,7 +130,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Refusal-as-action in ReAct cycle
+## 6. Refusal-as-action in ReAct cycle
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -171,7 +150,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Safety loop end-to-end integration
+## 7. Safety loop end-to-end integration
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -191,7 +170,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/safety_plan_gate.go, internal/tools/safety_tool_gate.go, internal/hermes/refuse_action.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Circuit breaker per provider and API key
+## 8. Circuit breaker per provider and API key
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -211,7 +190,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go, internal/hermes/provider.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. P95 latency-aware failover
+## 9. P95 latency-aware failover
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -229,6 +208,26 @@ selection.
 - Done signal: Latency router tests prove degraded providers get reduced weight while healthy ones get priority
 - Acceptance: P95 latency tracked per provider in rolling window, Degraded providers receive reduced traffic weight, Non-degraded providers prioritized in selection, Latency window configurable (default: last 100 requests)
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Capability-based model tier routing
+
+- Phase: 4 / 4.M
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Route simple queries to cheap models and complex queries to capable models based on a fast classifier. Avoids sending 'hello' to Claude Opus and avoids sending multi-file refactors to a 7B model.
+- Trust class: operator
+- Ready when: Multiple model tiers configured in provider registry
+- Not ready when: Only one model tier available
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/capability_router.go`, `internal/hermes/capability_router_test.go`
+- Test commands: `go test ./internal/hermes -run TestCapabilityRouter -count=1`
+- Done signal: Capability router tests prove simple queries hit cheap tier and complex queries hit capable tier
+- Acceptance: Simple queries (greetings, single-file edits) route to cheap tier, Complex queries (multi-file refactor, architecture) route to capable tier, Classifier is fast (<100ms) and does not add LLM call overhead, Operator can override classifier with explicit model selection, Classification failures fall back to capable tier (safe default)
+- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/provider.go, Beluga AI model-switching docs
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

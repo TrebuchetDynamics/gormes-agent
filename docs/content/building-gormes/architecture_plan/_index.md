@@ -791,7 +791,7 @@ classification and row-backed implementation queue.
 - [x] QMD Hybrid Search
 - [x] Session Rollover Automation
 - [x] System Events, Heartbeat, and Presence
-- [ ] Gateway Discover and Probe
+- [x] Gateway Discover and Probe
 - [ ] Channels Capabilities Introspection
 - [ ] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
@@ -874,6 +874,7 @@ classification and row-backed implementation queue.
 - [x] Hermes config.yaml model/provider runtime bridge
 - [x] Interactive Onboarding
 - [x] Gormes onboard interactive action runner
+- [ ] CLI setup/onboard/help text fidelity matrix
 - [x] Logs Command
 
 ### 5.P — Docker / Packaging 🔨
@@ -912,6 +913,8 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes input keybinding semantics
 - [x] Native TUI Hermes slash completion helpers
 - [x] Native TUI Hermes tool progress + modal panel renderers
+- [ ] Native TUI Ink behavioral transcript golden matrix
+- [ ] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [x] Responses API store + run event stream
