@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -183,6 +184,25 @@ func TestSetupModelSectionDelegatesToPicker(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "Setup section: model") {
 		t.Fatalf("stdout missing model-section evidence:\n%s", stdout)
+	}
+}
+
+func TestSetupModelSectionCancelIsClean(t *testing.T) {
+	fake := &setupCommandFakeSeams{isTTY: true}
+	seams := fake.seams()
+	seams.RunModelPicker = func(*cobra.Command) error {
+		return fmt.Errorf("gormes model: %w", cli.ErrModelPickerCancelled)
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "model")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Setup cancelled.") {
+		t.Fatalf("stdout missing clean cancel message:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "model_picker_cancelled") {
+		t.Fatalf("setup leaked internal cancel sentinel stdout=%s stderr=%s", stdout, stderr)
 	}
 }
 

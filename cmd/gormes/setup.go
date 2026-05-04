@@ -689,7 +689,14 @@ func runSetupModelSection(cmd *cobra.Command, seams setupCommandSeams, nonIntera
 		fmt.Fprintln(cmd.ErrOrStderr(), "setup_requires_tty: run `gormes setup model --non-interactive` to use defaults without prompts")
 		return errSetupRequiresTTY
 	}
-	return seams.RunModelPicker(cmd)
+	if err := seams.RunModelPicker(cmd); err != nil {
+		if errors.Is(err, cli.ErrModelPickerCancelled) {
+			fmt.Fprintln(cmd.OutOrStdout(), "Setup cancelled.")
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func runSetupTTSSection(cmd *cobra.Command, nonInteractive bool) error {
