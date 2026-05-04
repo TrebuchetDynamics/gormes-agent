@@ -126,6 +126,7 @@ Daily use:
   gormes --offline                  smoke test without provider calls
   gormes doctor --offline           check local readiness
   gormes dashboard                  start http://127.0.0.1:43827/dashboard
+  gormes kanban list                inspect durable multi-agent work
 
 Configuration:
   gormes config edit                open config.toml in your editor
@@ -191,7 +192,7 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newACPCommand(), newSystemCommand(), newAgentCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
 	return root
 }
 

@@ -1046,6 +1046,19 @@ func MemoryDBPath() string {
 	return filepath.Join(GormesHome(), "memory.db")
 }
 
+// KanbanDBPath returns the native Gormes Kanban SQLite database path.
+// Gormes intentionally ignores Hermes runtime env vars here; Hermes state is
+// only read by explicit migrate commands.
+func KanbanDBPath() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_HOME")); v != "" {
+		return filepath.Join(v, "kanban.db")
+	}
+	return filepath.Join(GormesHome(), "kanban.db")
+}
+
 // CronMirrorPath returns the resolved CRON.md path — either
 // cfg.Cron.MirrorPath (explicit override) or the Gormes home default.
 func (c Config) CronMirrorPath() string {

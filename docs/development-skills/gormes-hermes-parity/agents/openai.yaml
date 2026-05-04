@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Hermes Parity"
-  short_description: "Sweep parity and route follow-up tasks."
-  default_prompt: "Use $gormes-hermes-parity to run a bounded Hermes/Gormes parity sweep, safely update taxonomy if needed, route follow-up tasks through gormes-skill-manager, record progress evidence, and identify the next builder-ready rows."
+  short_description: "Audit source-backed Gormes parity drift."
+  default_prompt: "Use $gormes-hermes-parity to choose one high-risk Gormes/Hermes parity scope, compare source-backed upstream refs, respect the no-live-config evidence boundary, update canonical progress/docs if needed, and identify the next builder-ready rows."

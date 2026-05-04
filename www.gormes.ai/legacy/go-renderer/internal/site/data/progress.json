@@ -22590,6 +22590,374 @@
                 "note": "Hermes defines MOA behavior; ADK/Nanobot/Axe provide fan-out, tool-output, and budget-evidence pattern references."
               },
               "wired": true
+            },
+            {
+              "name": "Hermes Kanban durable board core",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes implements the first Hermes Kanban vertical slice over native Gormes-owned state: a local SQLite kanban.db under GORMES_HOME/GORMES_KANBAN_* only, idempotent schema creation, tasks with assignees/status/workspace/dependency links, parent-completion child promotion, cycle rejection, atomic ready-task claim, block/unblock readiness recomputation, JSON CLI output, and parity manifest evidence for implemented core commands versus residual Kanban surfaces.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing or invalid task ids, unsupported workspace kinds/status filters, cycle attempts, and non-ready claims return visible errors or claimed=false evidence without touching ~/.hermes, reading other agents' config, spawning workers, or widening into dashboard/gateway state.",
+              "fixture": "internal/kanban/store_test.go; cmd/gormes/kanban_command_test.go; internal/cli/command_registry_policy_test.go; cmd/gormes/hermes_cli_parity_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb",
+                "../hermes-agent/hermes_cli/kanban.py@54e78cadb",
+                "../hermes-agent/tools/kanban_tools.py@54e78cadb",
+                "../hermes-agent/tests/hermes_cli/test_kanban_db.py@54e78cadb",
+                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb",
+                "../hermes-agent/tests/tools/test_kanban_tools.py@54e78cadb",
+                "internal/kanban/store.go",
+                "cmd/gormes/kanban.go",
+                "internal/config/config.go:KanbanDBPath",
+                "cmd/gormes/hermes_cli_parity.go"
+              ],
+              "ready_when": [
+                "The current upstream Hermes Kanban source and tests are synced locally and read from source/test files only, not live user config.",
+                "The slice can use temp GORMES_HOME paths and fake worker names; no gateway, dashboard, subprocess workers, or live profile config is required.",
+                "SQLite is already an approved Gormes dependency through the existing ncruces/go-sqlite3 driver."
+              ],
+              "not_ready_when": [
+                "The slice reads ~/.hermes, HERMES_HOME, profile configs, or other agents' memory outside explicit migrate commands.",
+                "The slice implies dispatcher, worker tools, slash/gateway routing, dashboard, multi-board management, notifications, or run logs are complete.",
+                "Task claiming is implemented as a read-then-write race instead of a single SQL update that only one process can win."
+              ],
+              "acceptance": [
+                "TestKanbanStorePromotesChildAfterParentCompletes proves child tasks remain todo until every parent is done and then promote to ready.",
+                "TestKanbanStoreConcurrentClaimOnlyOneWinner proves two concurrent workers racing for one ready task yield exactly one winner and durable claim evidence.",
+                "TestKanbanStoreLinkRejectsCyclesAndDemotesReadyChildren proves adding an incomplete parent demotes a ready child and reverse links are rejected as cycles.",
+                "TestKanbanStoreBlockUnblockRecomputesReadiness proves blocked tasks preserve reason evidence and unblock back to todo or ready based on dependency state.",
+                "TestKanbanCommandUsesGormesHomeNotHermesHome proves CLI initialization creates GORMES_HOME/kanban.db and does not touch HERMES_HOME.",
+                "TestKanbanCommandCreateWithParentPromotesAfterComplete proves CLI JSON create/show/complete flows preserve dependency promotion.",
+                "TestKanbanCommandListJSONFiltersByStatus proves list --status --json filters durable tasks for automation.",
+                "Command registry and Hermes CLI parity fixtures prove /kanban is recognized but unavailable until slash handlers land, while core gormes kanban commands are marked implemented and residual commands remain row-backed."
+              ],
+              "note": "Complete: TDD landed internal/kanban.Store with idempotent SQLite schema creation, task/dependency/comment/event tables, create/get/list, complete promotion, atomic claim, cycle-checked link, block/unblock, and Gormes-only Kanban path resolution. cmd/gormes now exposes kanban init/create/list/show/claim/complete/block/unblock/link with JSON output for automation. This is deliberately the default-board durable core only: Hermes boards, dispatcher, daemon/watch/stats, notifications, run logs, worker tools, slash/gateway handlers, and dashboard remain explicit follow-up rows.",
+              "write_scope": [
+                "internal/kanban/store.go",
+                "internal/kanban/store_test.go",
+                "internal/config/config.go",
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_command_test.go",
+                "cmd/gormes/main.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1",
+                "go test ./cmd/gormes -run 'TestHermesCLIParityManifest(ClassifiesKanbanCoreAndResiduals|CrossLinksSlashRegistry|NoUnknowns)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gormes has a native kanban.db core with dependency promotion, atomic claim, block/unblock, GORMES_HOME isolation, CLI JSON output, slash-unavailable recognition, and manifest residuals for the unimplemented Kanban surfaces."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-04T15:36:10Z",
+                "last_success": "2026-05-04T15:36:10Z",
+                "evidence": [
+                  "RED: go test ./internal/kanban -run TestKanbanStorePromotesChildAfterParentCompletes -count=1 failed because Open, CreateTaskInput, StatusReady, StatusTodo, and CompleteTaskInput were missing.",
+                  "GREEN: go test ./internal/kanban -run TestKanbanStorePromotesChildAfterParentCompletes -count=1 passed after adding the SQLite store core.",
+                  "RED: go test ./internal/kanban -run 'TestKanbanStore(ConcurrentClaimOnlyOneWinner|LinkRejectsCyclesAndDemotesReadyChildren|BlockUnblockRecomputesReadiness)' -count=1 failed because ClaimTask, LinkTasks, BlockTask, and UnblockTask were missing.",
+                  "GREEN: go test ./internal/kanban -count=1 passed after adding atomic claim, cycle-checked links, and block/unblock readiness recomputation.",
+                  "RED: go test ./cmd/gormes -run TestKanbanCommand -count=1 failed with unknown command \"kanban\".",
+                  "GREEN: go test ./cmd/gormes -run TestKanbanCommand -count=1 passed after adding cmd/gormes kanban and Gormes-only Kanban path resolution.",
+                  "RED: go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1 and go test ./cmd/gormes -run TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals -count=1 failed until /kanban and manifest classifications were added."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:54e78cadb hermes_cli/kanban_db.py",
+                  "hermes:54e78cadb hermes_cli/kanban.py",
+                  "hermes:54e78cadb tools/kanban_tools.py",
+                  "hermes:54e78cadb tests/hermes_cli/test_kanban_db.py",
+                  "hermes:54e78cadb tests/hermes_cli/test_kanban_cli.py",
+                  "hermes:54e78cadb tests/tools/test_kanban_tools.py"
+                ],
+                "note": "Hermes defines Kanban behavior; Gormes ports the durable default-board core into one Go binary and keeps all non-core orchestration surfaces row-backed."
+              },
+              "evidence": {
+                "implementation": "internal/kanban/store.go; cmd/gormes/kanban.go; internal/config/config.go; internal/cli/command_registry.go; cmd/gormes/hermes_cli_parity.go",
+                "tests": "go test ./internal/kanban -count=1; go test ./cmd/gormes -run TestKanbanCommand -count=1; go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1; go test ./cmd/gormes -run 'TestHermesCLIParityManifest(ClassifiesKanbanCoreAndResiduals|CrossLinksSlashRegistry|NoUnknowns)' -count=1",
+                "note": "Default-board Kanban core is implemented and verified with temp GORMES_HOME fixtures; HERMES_HOME is not read or written."
+              }
+            },
+            {
+              "name": "Hermes Kanban dispatcher and worker spawn loop",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes ports the Hermes Kanban dispatcher as a native gateway-managed loop that periodically reclaims stale claims, promotes dependency-ready tasks, spawns named profile workers as independent OS processes, records run attempts and worker logs, applies per-task runtime caps, and blocks tasks behind a circuit breaker after repeated spawn/runtime failures.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing profile binaries, spawn failures, exceeded runtime caps, stale worker heartbeats, and locked databases report dispatcher_unavailable, worker_spawn_failed, worker_timed_out, or task_circuit_open evidence without infinite retry loops.",
+              "fixture": "internal/kanban/dispatcher_test.go; internal/gateway/kanban_dispatcher_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban.py@54e78cadb:dispatch/daemon",
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:runs/events/claim_ttl",
+                "../hermes-agent/gateway/run.py@54e78cadb:kanban dispatcher integration",
+                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run"
+              ],
+              "ready_when": [
+                "Hermes Kanban durable board core is complete.",
+                "Gormes has a profile/process spawn seam that can be faked in tests without launching live agent sessions.",
+                "Run records, heartbeats, and log paths are modeled in the Kanban store before gateway wiring."
+              ],
+              "not_ready_when": [
+                "The slice shells out to Hermes Python, reads live Hermes profile config, or starts real workers in unit tests.",
+                "A crashed worker leaves a task permanently running with no TTL reclaim evidence.",
+                "Permanent failures retry forever instead of opening a circuit and requiring operator input."
+              ],
+              "blocked_by": [
+                "Hermes Kanban durable board core"
+              ],
+              "unblocks": [
+                "Hermes Kanban worker tools and prompt gating",
+                "Hermes Kanban slash/gateway/dashboard surfaces"
+              ],
+              "acceptance": [
+                "Dispatcher fixtures prove dry-run output, ready-task selection, max-spawn caps, and no-op behavior when no ready tasks exist.",
+                "Stale-claim fixtures prove expired running tasks return to ready with reclaim evidence.",
+                "Spawn fixtures prove worker env includes the Gormes task id, board path, assignee/profile, and workspace details without leaking other agents' config.",
+                "Failure fixtures prove retry counts, timeout handling, crash recovery, and circuit breaker block after the configured failure limit.",
+                "Gateway lifecycle fixtures prove the dispatcher is owned by the gateway loop and can be nudged without starting duplicate daemons."
+              ],
+              "note": "Planned after default-board core. Keep this row separate because dispatcher correctness is about process ownership, crash recovery, and circuit breaking rather than CRUD.",
+              "write_scope": [
+                "internal/kanban/",
+                "internal/gateway/",
+                "cmd/gormes/kanban.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run TestKanbanDispatcher -count=1",
+                "go test ./internal/gateway -run TestKanbanDispatcher -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway-managed dispatcher fixtures prove spawn, reclaim, promotion, retry, timeout, and circuit-breaker behavior without live Hermes or real worker processes."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:54e78cadb hermes_cli/kanban.py + gateway/run.py",
+                "note": "Hermes defines dispatcher semantics; Gormes should implement them through native process and gateway seams."
+              }
+            },
+            {
+              "name": "Hermes Kanban worker tools and prompt gating",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes exposes Hermes-compatible worker tools for Kanban tasks: kanban_show, kanban_complete, kanban_block, kanban_heartbeat, kanban_comment, kanban_create, and kanban_link are only visible inside a Kanban worker task or explicit profile toolset, enforce task ownership for destructive operations, and carry structured parent summaries/metadata to children.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "child-agent",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Outside a Kanban worker context the tools are hidden or return kanban_context_missing; attempts to complete/block/comment a foreign task return kanban_task_ownership_denied without mutating the board.",
+              "fixture": "internal/kanbantools/kanban_tools_test.go; cmd/gormes/registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/kanban_tools.py@54e78cadb",
+                "../hermes-agent/tests/tools/test_kanban_tools.py@54e78cadb",
+                "internal/tools/tool.go",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "Hermes Kanban durable board core is complete.",
+                "Dispatcher row defines worker context env/state names or a fake worker context can be injected.",
+                "Native tool registry supports contextual visibility and ownership-denied evidence."
+              ],
+              "not_ready_when": [
+                "Tools are globally visible by default in normal chats.",
+                "Destructive tool calls mutate task ids other than the current worker task without explicit allowed fan-out.",
+                "Completion summaries or metadata are stored as opaque logs only and cannot flow to child context."
+              ],
+              "blocked_by": [
+                "Hermes Kanban durable board core",
+                "Hermes Kanban dispatcher and worker spawn loop"
+              ],
+              "unblocks": [
+                "Hermes Kanban slash/gateway/dashboard surfaces"
+              ],
+              "acceptance": [
+                "Tool visibility fixtures prove Kanban tools are hidden without worker context and visible with HERMES/GORMES-style task context or enabled profile toolset.",
+                "Ownership fixtures prove current-task destructive calls succeed while foreign task completion/block/comment is denied.",
+                "Heartbeat fixtures prove workers can refresh liveness without changing task status.",
+                "Complete/block fixtures prove summaries, metadata, comments, and child handoff context are stored and visible through kanban context.",
+                "Registry fixtures prove Kanban tools are not enabled in the default non-worker runtime."
+              ],
+              "note": "Planned worker-tool parity. Keep external names kanban_* to match Hermes; this is separate from Goncho/Honcho memory tooling.",
+              "write_scope": [
+                "internal/kanbantools/",
+                "internal/kanban/",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanbantools -run TestKanbanTools -count=1",
+                "go test ./cmd/gormes -run TestBuildDefaultRegistryKanban -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Kanban worker tools are context-gated, ownership-safe, heartbeat-capable, and able to pass structured handoff summaries to children."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:54e78cadb tools/kanban_tools.py",
+                "note": "Hermes defines tool names, visibility, and ownership rules."
+              }
+            },
+            {
+              "name": "Hermes Kanban slash/gateway/dashboard surfaces",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports the operator surfaces around Kanban: /kanban routes in TUI/gateway use the same parser/output as gormes kanban, gateway status exposes dispatcher state and nudge capability, and the dashboard shows live Kanban tasks, lanes, filters, worker runs, and dispatcher nudges over authenticated Gormes dashboard routes.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "When the dispatcher or dashboard stream is unavailable, operators see kanban_dispatcher_unavailable or kanban_dashboard_unavailable evidence; /kanban remains recognized and unavailable rather than leaking to the model.",
+              "fixture": "internal/gateway/kanban_command_test.go; internal/tui/kanban_slash_test.go; internal/dashboard/kanban_dashboard_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/commands.py@54e78cadb:CommandDef('kanban')",
+                "../hermes-agent/hermes_cli/kanban.py@54e78cadb:run_slash",
+                "../hermes-agent/gateway/run.py@54e78cadb:_handle_kanban_command",
+                "../hermes-agent/plugins/kanban/dashboard@54e78cadb"
+              ],
+              "ready_when": [
+                "Hermes Kanban durable board core is complete.",
+                "Dispatcher and worker-tool rows define the status/read-model events the dashboard should render.",
+                "Dashboard authentication and WebSocket/event-stream patterns are validated for existing Gormes dashboard routes."
+              ],
+              "not_ready_when": [
+                "Slash commands duplicate CLI parsing and diverge from gormes kanban output.",
+                "Dashboard endpoints expose Kanban data without the active Gormes dashboard session token.",
+                "The dashboard implies live dispatcher/worker features before the dispatcher row is complete."
+              ],
+              "blocked_by": [
+                "Hermes Kanban durable board core",
+                "Hermes Kanban dispatcher and worker spawn loop",
+                "Hermes Kanban worker tools and prompt gating"
+              ],
+              "acceptance": [
+                "Slash fixtures prove /kanban create/list/show/complete uses the same command implementation as gormes kanban and no slash text reaches the model.",
+                "Gateway fixtures prove /kanban output is formatted for platform messages and respects active-turn policy.",
+                "Dashboard route fixtures prove tasks, lanes, filters, runs, and dispatcher nudge endpoints require authentication and stream bounded updates.",
+                "Status fixtures prove dispatcher state is operator-visible without reading live Hermes config."
+              ],
+              "note": "Planned after dispatcher/tool rows. The current slice only recognizes /kanban as unavailable so user text does not leak to the model.",
+              "write_scope": [
+                "internal/cli/",
+                "internal/gateway/",
+                "internal/tui/",
+                "internal/dashboard/",
+                "web/",
+                "cmd/gormes/kanban.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway ./internal/cli -run TestKanbanSlash -count=1",
+                "go test ./internal/dashboard -run TestKanbanDashboard -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "/kanban, gateway status/nudge, and dashboard Kanban lanes are authenticated, share CLI output semantics, and surface unavailable dispatcher evidence clearly."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:54e78cadb hermes_cli/kanban.py + gateway/run.py + plugins/kanban/dashboard",
+                "note": "Hermes defines the shared slash/gateway/dashboard operator surfaces; Gormes should use native auth and event-stream patterns."
+              }
+            },
+            {
+              "name": "Hermes Kanban multi-board, workspace, and run-history parity",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes extends the default Kanban core to Hermes multi-board and workspace semantics: board registry/list/create/switch/rename/remove, per-board database roots, scratch/worktree/dir workspace allocation, comments/events/runs/log retention, notification subscriptions, stats/watch/tail views, and garbage collection policies.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unsupported board names, workspace collisions, missing log files, invalid notification subscriptions, and GC denial return typed evidence without deleting active task state or crossing into Hermes home directories.",
+              "fixture": "internal/kanban/boards_test.go; internal/kanban/workspaces_test.go; cmd/gormes/kanban_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban.py@54e78cadb:boards/workspace/log/runs/gc commands",
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:board registry and workspace helpers",
+                "../hermes-agent/tests/hermes_cli/test_kanban_db.py@54e78cadb:tenant/board/workspace tests",
+                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:context/tenant/json tests"
+              ],
+              "ready_when": [
+                "Hermes Kanban durable board core is complete.",
+                "Dispatcher and worker-tool rows define run/log/heartbeat data that board views should expose.",
+                "A Gormes-owned board namespace policy exists and rejects Hermes env aliases outside migrate commands."
+              ],
+              "not_ready_when": [
+                "Board switching reads HERMES_KANBAN_BOARD or ~/.hermes board files as live config.",
+                "Workspace allocation creates git worktrees in tests or deletes real operator directories.",
+                "GC can delete active-task logs, workspaces, or board databases without explicit archived/retention checks."
+              ],
+              "blocked_by": [
+                "Hermes Kanban durable board core",
+                "Hermes Kanban dispatcher and worker spawn loop"
+              ],
+              "acceptance": [
+                "Board fixtures prove list/create/switch/rename/remove behavior under temp GORMES_KANBAN_HOME roots with no Hermes state reads.",
+                "Workspace fixtures prove scratch, worktree, and dir metadata resolution without creating real git worktrees in unit tests.",
+                "Runs/log/event fixtures prove show/context/tail/watch/stats expose deterministic read models.",
+                "Notification fixtures prove subscribe/list/unsubscribe records are scoped to Gormes gateway sources.",
+                "GC fixtures prove archived-task workspaces, old events, and old logs are pruned only under explicit retention rules."
+              ],
+              "note": "Planned breadth row for the Kanban surfaces intentionally left out of the first slice.",
+              "write_scope": [
+                "internal/kanban/",
+                "cmd/gormes/kanban.go",
+                "internal/gateway/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run 'TestKanban(Board|Workspace|Run|Notification|GC)' -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gormes Kanban supports Gormes-owned board namespaces, workspaces, comments/events/runs/logs, notifications, stats/watch/tail, and safe GC without live Hermes config."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:54e78cadb hermes_cli/kanban.py + hermes_cli/kanban_db.py",
+                "note": "Hermes supplies the expanded board/workspace/run-history contract; Gormes preserves Gormes-owned namespace boundaries."
+              }
             }
           ]
         },

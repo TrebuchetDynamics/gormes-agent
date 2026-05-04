@@ -1,6 +1,6 @@
 ---
 name: gormes-hermes-parity
-description: Use when running a recurring or periodic Gormes-vs-Hermes parity sweep, checking overall Hermes-in-Go progress, refreshing parity definitions, safely renaming or restructuring parity taxonomy, delegating follow-up tasks through gormes-skill-manager, or recording source-backed parity evidence into progress.json.
+description: Use when checking Gormes-vs-Hermes/Honcho/GBrain parity, selecting the next parity audit scope, handling stale upstream evidence, restructuring parity taxonomy, or turning a user-visible Gormes drift report into source-backed progress rows.
 ---
 
 # Gormes Hermes Parity
@@ -11,6 +11,25 @@ For Gormes work, stay on the existing `development` branch. Do not create or
 use feature branches, short-lived branches, or git worktrees. If the checkout
 is not on `development`, stop before editing and switch safely or report the
 blocker.
+
+## Evidence Boundary
+
+Parity evidence comes from source code, tests, docs, generated progress data,
+and sanitized user-provided transcripts. Do not read another agent's live
+private config, memory, credentials, session stores, or home directory as
+parity evidence.
+
+Allowed: upstream source checkouts (`../hermes-agent`, `../honcho`,
+`../gbrain`), checked-in Gormes files, temp fixtures, and explicitly provided
+logs/transcripts.
+
+Not allowed unless the selected row is a migration or runtime-home command:
+`~/.hermes`, `~/.openclaw`, `~/.claude`, `~/.codex`, `~/.agents`, other agents'
+config/memory/session files, imported config outside `gormes migrate hermes` or
+`gormes migrate openclaw`, and private credentials or channel tokens.
+
+If config behavior matters, use source refs, checked-in fixtures, or temp
+`GORMES_HOME`; otherwise record live-config access as blocked.
 
 ## Mission
 
@@ -164,8 +183,14 @@ Pick one surface unless the user named several independent scopes:
 - prompt/context/runtime loop behavior;
 - plugins, skills, browser automation, packaging, docs, or public progress.
 
-If no scope is named, choose the highest-value surface by checking incomplete
-rows, stale source refs, recent upstream changes, and user-visible risk.
+If no scope is named, choose one scope and state the reason. Priority order:
+fresh upstream SHA movement; user-visible TUI/Telegram/installer/gateway/tool
+regressions; P0/P1 `planned`, `vague`, `missing`, or `stale-upstream` rows with
+source refs and focused tests; docs/progress rows that still describe complete
+behavior as blocked; narrow builder-ready rows that unlock larger lanes.
+
+Do not ask the user to pick unless multiple scopes have equal risk and a wrong
+choice would waste a large implementation pass.
 
 ### 2. Establish Baseline
 
@@ -182,6 +207,12 @@ git -C ../hermes-agent rev-parse --short HEAD || true
 git -C ../honcho rev-parse --short HEAD || true
 git -C ../gbrain rev-parse --short HEAD || true
 ```
+
+If a sibling upstream checkout was just fetched or pulled, record old and new
+SHAs, then inspect only the files relevant to the selected scope. Do not turn a
+large upstream fast-forward into a broad Gormes implementation pass. Use the
+upstream diff to update stale refs, add source-backed rows, or choose one
+builder-ready slice.
 
 Then inspect the relevant feature-map section, upstream coverage ledger,
 matching `progress.json` rows, and current Gormes packages. Use `rg`, `find`,
@@ -403,8 +434,10 @@ Finish with this compact report:
 
 ```text
 scope:
+source_shas:
 upstream_refs:
 gormes_refs:
+evidence_boundary:
 parity_definition:
 classification_summary:
 taxonomy_changes:
@@ -425,6 +458,9 @@ feature map, coverage ledger, progress rows, and validation all support it.
   rows, then use `gormes-builder` and `gormes-tdd-slice` for implementation.
   Exception: when the user asks to continue a concrete parity bug in the same
   turn, use `gormes-tdd-slice` for one focused behavior after source comparison.
+- Do not read live Hermes/OpenClaw/other-agent config or memory as parity
+  evidence except inside explicit `gormes migrate hermes`, `gormes migrate
+  openclaw`, or runtime-home validation rows with temp/sanitized fixtures.
 - Do not treat a passing unit test as parity unless upstream behavior was
   compared and source refs are recorded.
 - When a progress row's focused test command passes with Go's `[no tests to run]`
@@ -452,41 +488,13 @@ feature map, coverage ledger, progress rows, and validation all support it.
 
 ## Recent Failure Patterns To Check
 
-- **TUI looks bad:** inspect current Hermes Ink first. Common Gormes regressions
-  are rounded input cards, repeated prompt glyph rows, idle `phase:` debug
-  chrome, standalone full-width input rules, stale `⚕ model │ ctx` status
-  footers, assistant rows labeled as Hermes, and duplicate assistant output
-  from history plus live draft.
-- **Installer/dev runtime confusion:** route through `gormes-dev-runtime`.
-  Validate whether the user is running `go run ./cmd/gormes`, `bin/gormes`, or
-  installed `~/.gormes/bin/gormes`; keep Gormes independent from Hermes
-  api_server startup; handle `sessions.db` locks with explicit owner/status or
-  in-memory fallback evidence.
-- **Workspace identity drift:** do not let `workspace-mineru`,
-  `workspace-gormes`, `~/.gormes`, `$HOME/.gormes/gormes-agent`, and
-  `../hermes-agent` collapse into one concept. If a test needs a real-ish home,
-  set `GORMES_HOME` or use temp fixtures. If code needs a default, use config
-  APIs and discovery, never a developer's absolute path.
-- **Agent reset/default template drift:** check the existing
-  `Gormes agent template reset command` progress row plus
-  `internal/agenttemplate` and `cmd/gormes/agent_reset_test.go` before opening
-  new work. Follow-ups should refine that behavior, not create duplicate reset
-  rows.
-- **Skills/tool parity:** if platform-visible behavior depends on skills, check
-  both tool registration (`skills_list`, `skill_view`) and the agent persona /
-  template defaults. Hidden channel UX matters as much as CLI output.
-- **Telegram/channel transcript bugs:** preserve the user's before/after
-  transcript as evidence. Count outbound messages, edits, deletes, transient
-  status messages, and final answer text; duplicate final replies and visible
-  hourglass/status messages are regressions even when the final content is
-  correct.
-- **Tool iteration / bad tool-calling reports:** first check the completed
-  `Kernel tool loop` row, `internal/kernel/kernel.go`, and
-  `internal/kernel/tools_test.go`. Hermes defaults to a 90-turn budget and asks
-  for one toolless summary on exhaustion. A raw
-  `tool iteration limit exceeded (10)` reaching Telegram/TUI is either stale
-  binary/runtime evidence or a channel finalization bug unless the kernel
-  fixtures fail.
-- **Progress drift:** `progress.json` is canonical. After editing it, run
-  `go run ./cmd/progress write`; if generated docs change, include them and
-  validate. Never create side queues.
+| Pattern | Check |
+|---|---|
+| TUI looks bad | Inspect current Hermes Ink first. Watch for rounded input cards, repeated glyph rows, idle `phase:` chrome, stale status footers, Hermes labels, and duplicate history/live output. |
+| Installer/dev runtime confusion | Route through `gormes-dev-runtime`; distinguish `go run`, `bin/gormes`, installed `~/.gormes/bin/gormes`, gateway ownership, and `sessions.db` locks. |
+| Workspace identity drift | Keep `workspace-mineru`, `workspace-gormes`, `~/.gormes`, installer source, and `../hermes-agent` separate. Use temp homes or config APIs, not developer paths. |
+| Agent reset/default template drift | Reuse the `Gormes agent template reset command` row plus `internal/agenttemplate` and `cmd/gormes/agent_reset_test.go`; do not create duplicate reset rows. |
+| Skills/tool parity | Check tool registration (`skills_list`, `skill_view`), persona/template defaults, and platform-visible UX. |
+| Telegram/channel transcript bugs | Preserve before/after transcript evidence and count messages, edits, deletes, transient status, and final text. |
+| Tool iteration / bad tool-calling | Check `Kernel tool loop`, `internal/kernel/kernel.go`, and `internal/kernel/tools_test.go`; raw `tool iteration limit exceeded (10)` reaching UI is stale runtime or channel finalization drift unless fixtures fail. |
+| Progress drift | `progress.json` is canonical. Run `go run ./cmd/progress write` after edits, include generated docs, and never create side queues. |

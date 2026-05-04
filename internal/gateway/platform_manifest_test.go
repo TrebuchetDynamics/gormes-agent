@@ -157,6 +157,9 @@ func readHermesGatewayConnectorIDs() ([]string, error) {
 			continue
 		}
 		id := strings.TrimSuffix(name, ".py")
+		if strings.HasPrefix(id, "_") {
+			continue
+		}
 		if ignore[id] {
 			continue
 		}

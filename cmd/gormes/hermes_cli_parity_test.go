@@ -190,6 +190,42 @@ func TestHermesCLIParityManifestCrossLinksSlashRegistry(t *testing.T) {
 	}
 }
 
+func TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals(t *testing.T) {
+	top := requireHermesCLIEntry(t, []string{"kanban"})
+	if top.Status != hermesCLIRowBacked || !strings.Contains(top.Residual, "durable board core") {
+		t.Fatalf("kanban top-level entry = %+v, want row-backed command set with core/residual evidence", top)
+	}
+
+	for _, path := range [][]string{
+		{"kanban", "init"},
+		{"kanban", "create"},
+		{"kanban", "list"},
+		{"kanban", "show"},
+		{"kanban", "claim"},
+		{"kanban", "complete"},
+		{"kanban", "block"},
+		{"kanban", "unblock"},
+		{"kanban", "link"},
+	} {
+		entry := requireHermesCLIEntry(t, path)
+		if entry.Status != hermesCLIImplemented || !strings.Contains(entry.Target, "cmd/gormes kanban") {
+			t.Fatalf("kanban core entry %v = %+v, want implemented cmd/gormes target", path, entry)
+		}
+	}
+
+	for _, path := range [][]string{
+		{"kanban", "boards"},
+		{"kanban", "dispatch"},
+		{"kanban", "comment"},
+		{"kanban", "context"},
+	} {
+		entry := requireHermesCLIEntry(t, path)
+		if entry.Status != hermesCLIRowBacked || entry.Row == "" {
+			t.Fatalf("kanban residual entry %v = %+v, want row-backed residual", path, entry)
+		}
+	}
+}
+
 func TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences(t *testing.T) {
 	for _, path := range [][]string{
 		{"plugins", "dynamic", "memory"},

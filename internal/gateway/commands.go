@@ -90,6 +90,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "history", Description: "Show conversation history", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "image", Description: "Attach a local image file for your next prompt", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "insights", Description: "Show usage insights and analytics", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "kanban", Description: "Manage the durable multi-agent task board", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "model", Description: "Show current model and provider", Kind: EventModel, Aliases: []string{"provider"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "paste", Description: "Attach clipboard image", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "personality", Description: "Set a predefined personality", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},

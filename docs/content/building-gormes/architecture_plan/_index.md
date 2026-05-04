@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 63/92 subphases shipped · 20 in progress · 9 planned
+**Overall:** 62/92 subphases shipped · 21 in progress · 9 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 9/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -751,9 +751,14 @@ classification and row-backed implementation queue.
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
 
-### 5.M — Mixture of Agents ✅
+### 5.M — Mixture of Agents 🔨
 
 - [x] Multi-model coordination
+- [x] Hermes Kanban durable board core
+- [ ] Hermes Kanban dispatcher and worker spawn loop
+- [ ] Hermes Kanban worker tools and prompt gating
+- [ ] Hermes Kanban slash/gateway/dashboard surfaces
+- [ ] Hermes Kanban multi-board, workspace, and run-history parity
 
 ### 5.N — Misc Operator Tools 🔨
 

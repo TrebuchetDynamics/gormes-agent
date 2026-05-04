@@ -72,6 +72,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("mcp", "hermes_cli/main.py:mcp", "ACP server side", "MCP management commands remain row-backed"),
 		hermesImplementedCommand("sessions", "hermes_cli/main.py:sessions", "cmd/gormes session"),
 		hermesRowCommand("insights", "hermes_cli/main.py:insights", "Self-monitoring telemetry", "insights rollup command remains row-backed"),
+		hermesCommandSet("kanban", "hermes_cli/kanban.py:build_parser", "durable board core is implemented in cmd/gormes; multi-board, dispatcher, worker-tool, notification, slash/gateway, and dashboard surfaces remain row-backed", "Hermes Kanban durable board core"),
 		hermesCommandSet("claw", "hermes_cli/claw.py", "OpenClaw migration commands remain row-backed", "OpenClaw migration dry-run manifest"),
 		hermesImplementedCommand("version", "hermes_cli/main.py:version", "cmd/gormes version"),
 		hermesImplementedCommand("retry", "gateway/run.py:_handle_retry_command", "internal/gateway retry"),
@@ -141,6 +142,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesNestedAlias("mcp", "config", "configure", "hermes_cli/main.py:mcp_sub:configure aliases", "ACP server side"),
 	)
 	entries = append(entries, hermesNestedCommands("sessions", "hermes_cli/main.py:sessions_subparsers", "Session shutdown memory transcript handoff", []string{"list", "export", "delete", "prune", "stats", "rename", "browse"})...)
+	entries = append(entries, hermesKanbanCommands()...)
 	entries = append(entries, hermesNestedCommands("claw", "hermes_cli/claw.py", "OpenClaw migration dry-run manifest", []string{"migrate", "cleanup"})...)
 	entries = append(entries, hermesNestedAlias("claw", "clean", "cleanup", "hermes_cli/main.py:claw_subparsers:cleanup aliases", "OpenClaw migration dry-run manifest"))
 	entries = append(entries, hermesNestedCommands("profile", "hermes_cli/main.py:profile_subparsers", "Gormes profile command binding", []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import"})...)
@@ -222,6 +224,51 @@ func hermesGatewayNestedCommands() []hermesCLIParityEntry {
 	return out
 }
 
+func hermesKanbanCommands() []hermesCLIParityEntry {
+	const row = "Hermes Kanban durable board core"
+	const source = "hermes_cli/kanban.py:build_parser"
+	core := []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link"}
+	out := make([]hermesCLIParityEntry, 0, 32)
+	for _, command := range core {
+		entry := hermesRowPath([]string{"kanban", command}, hermesCLICommand, source+":"+command, row, "kanban "+command+" is implemented for the default local Gormes board")
+		entry.Status = hermesCLIImplemented
+		entry.Target = "cmd/gormes kanban " + command
+		out = append(out, entry)
+	}
+
+	alias := hermesRowPath([]string{"kanban", "ls"}, hermesCLIAlias, source+":list aliases", row, "kanban ls alias remains row-backed until the CLI alias is wired")
+	alias.AliasFor = []string{"kanban", "list"}
+	out = append(out, alias)
+
+	residual := []string{
+		"boards",
+		"assign",
+		"unlink",
+		"comment",
+		"archive",
+		"tail",
+		"dispatch",
+		"daemon",
+		"watch",
+		"stats",
+		"notify-subscribe",
+		"notify-list",
+		"notify-unsubscribe",
+		"log",
+		"runs",
+		"heartbeat",
+		"assignees",
+		"context",
+		"gc",
+	}
+	for _, command := range residual {
+		entry := hermesRowPath([]string{"kanban", command}, hermesCLICommand, source+":"+command, row, "kanban "+command+" remains row-backed after the durable board core slice")
+		markHermesCLIEntryFlags(&entry)
+		out = append(out, entry)
+	}
+	return out
+}
+
 func hermesNestedAlias(group, alias, canonical, sourceRef, row string) hermesCLIParityEntry {
 	entry := hermesRowPath([]string{group, alias}, hermesCLIAlias, sourceRef, row, group+" "+alias+" alias resolves to "+group+" "+canonical)
 	entry.AliasFor = []string{group, canonical}
@@ -242,6 +289,7 @@ func markHermesCLIEntryFlags(entry *hermesCLIParityEntry) {
 		"claw cleanup", "claw clean",
 		"cron remove", "cron rm", "cron delete",
 		"hooks revoke", "hooks remove", "hooks rm",
+		"kanban archive", "kanban gc",
 		"mcp remove", "mcp rm",
 		"pairing revoke", "pairing clear-pending",
 		"plugins remove", "plugins rm", "plugins uninstall",
