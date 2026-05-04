@@ -881,7 +881,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 		if isRecognizedUnavailableSlashCommand(name) {
 			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+name+" is recognized but unavailable in this build")
 		} else {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command — no slash command by that name is available")
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, UnknownSlashCommandGuidance(name))
 		}
 		return true
 	}

@@ -182,8 +182,8 @@ func TestLoad_RealFile_Phase4Anthropic(t *testing.T) {
 	}
 
 	adapters := p.Phases["4"].Subphases["4.A"]
-	if got := adapters.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 4.A = %q, want in_progress", got)
+	if got := adapters.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 4.A = %q, want complete", got)
 	}
 	items := itemsByName(adapters.Items)
 	anthropic := items["Anthropic"]

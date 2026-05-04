@@ -179,9 +179,9 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 | M39 | Voice mode persistence per chat | P2 | missing | Not yet row-backed |
 | M40 | Service tier / priority processing config | P2 | missing | Not yet row-backed |
 | M41 | Reasoning effort per-session override command | P1 | planned | `Reasoning effort per-session override command` (4.A) |
-| M42 | Gateway prefill messages from file | P2 | missing | Not yet row-backed |
+| M42 | Gateway prefill messages from file | P2 | planned | `Ephemeral prefill messages file injection` (4.C) |
 | M43 | Nous Portal agent key minting | P1 | planned | `Nous Portal agent key minting` (4.G) |
-| M44 | Hermes CLI alias resolution | P2 | missing | Not yet row-backed |
+| M44 | Hermes CLI alias resolution | P2 | planned | `Hermes CLI alias and suggestion fidelity matrix` (5.O) |
 | M45 | Memory duplicate entry rejection | P2 | missing | Not yet row-backed |
 | M46 | Gateway shutdown notification to active sessions | P2 | planned | `Gateway shutdown notification to active sessions` (2.F.3) |
 
@@ -208,7 +208,9 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 **P2 (Follow-Up):**
 13. 49-file CLI tree port handler closeout + slash autocomplete binding
 14. Telegram typing action, markdown tables, send_voice
-15. Z.AI probing, config check, CLI alias resolution, memory dedup
+15. Hermes CLI alias and suggestion fidelity matrix
+16. Ephemeral prefill messages file injection
+17. Z.AI probing, config check, memory dedup
 
 ## 2026-05-04 Behavioral Fidelity Audit
 
@@ -219,6 +221,8 @@ The audit reclassified several previously partial UX items as covered by complet
 | Active full-screen UI source of truth | Current Hermes Ink `ui-tui/src/components/appLayout.tsx`, `appChrome.tsx`, `messageLine.tsx`, `thinking.tsx`, and `queuedMessages.tsx` now supersede legacy prompt_toolkit as the primary UI parity source. | `Native TUI Ink behavioral transcript golden matrix` |
 | Native TUI slash dispatch | Active Hermes Ink `createSlashHandler` treats slash text as command input first: local commands, native/gateway commands, stale slash output, catalog aliases, skill dispatch, and unavailable commands must route or degrade visibly before any model submission. | `Native TUI Hermes slash dispatch behavioral matrix` |
 | Setup/onboard/help text | Functional setup/onboard rows are complete, but visible copy is spread across tests; a consolidated text matrix is needed for first-run UX regressions. | `CLI setup/onboard/help text fidelity matrix` |
+| CLI alias and suggestion behavior | Hermes central command registry, legacy CLI loop, gateway dispatcher, and active Ink slash handler all define visible alias, prefix, quick-command alias, ambiguous-prefix, and unknown-command guidance that needs fixtures beyond command inventory parity. | `Hermes CLI alias and suggestion fidelity matrix` |
+| Ephemeral prefill messages | Hermes CLI/gateway load `prefill_messages_file` / `HERMES_PREFILL_MESSAGES_FILE` and inject message objects into provider calls after the system prompt but before history, without saving them to sessions or displaying them. | `Ephemeral prefill messages file injection` |
 | Tool-loop exhaustion | Kernel summary behavior and gateway tool progress are covered separately; one cross-surface transcript fixture is still needed. | `Channel/TUI iteration-limit finalization transcript fixture` |
 
 ---
@@ -233,3 +237,5 @@ The audit reclassified several previously partial UX items as covered by complet
 | 2026-04-30 | Rebuilt after subagent deletion, reflecting current progress.json state |
 | 2026-05-04 | Behavioral fidelity audit added UI transcript, setup/onboard/help text, and iteration-limit transcript rows |
 | 2026-05-04 | Behavioral fidelity follow-up added native TUI slash dispatch matrix for known-command non-leak behavior |
+| 2026-05-04 | Behavioral fidelity follow-up row-backed Hermes CLI alias and suggestion behavior |
+| 2026-05-04 | Behavioral fidelity follow-up row-backed gateway/local ephemeral prefill-message injection |

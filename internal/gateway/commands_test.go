@@ -60,6 +60,50 @@ func TestResolveCommand(t *testing.T) {
 	}
 }
 
+func TestGatewayCommandAliasFidelity_CanonicalHooksKeepRawCommand(t *testing.T) {
+	got := ResolveGatewayCommandDispatch("/provider openrouter --global")
+	if !got.Known {
+		t.Fatalf("ResolveGatewayCommandDispatch(/provider ...) Known = false")
+	}
+	if got.RawCommand != "provider" || got.RawArgs != "openrouter --global" {
+		t.Fatalf("raw command/args = %q/%q, want provider/openrouter --global (got=%+v)", got.RawCommand, got.RawArgs, got)
+	}
+	if got.Canonical != "model" || got.Kind != EventModel {
+		t.Fatalf("canonical dispatch = %q/%v, want model/%v (got=%+v)", got.Canonical, got.Kind, EventModel, got)
+	}
+	if !got.Alias {
+		t.Fatalf("Alias = false, want true for /provider -> /model")
+	}
+
+	exact := ResolveGatewayCommandDispatch("/status now")
+	if !exact.Known || exact.RawCommand != "status" || exact.Canonical != "status" || exact.RawArgs != "now" {
+		t.Fatalf("exact /status dispatch = %+v, want canonical status with raw args", exact)
+	}
+}
+
+func TestGatewayCommandAliasFidelity_UnknownSlashGuidance(t *testing.T) {
+	got := ResolveGatewayCommandDispatch("/no-such-command-xyzzy")
+	if got.Known {
+		t.Fatalf("ResolveGatewayCommandDispatch(unknown).Known = true: %+v", got)
+	}
+	if got.RawCommand != "no-such-command-xyzzy" {
+		t.Fatalf("RawCommand = %q, want no-such-command-xyzzy", got.RawCommand)
+	}
+	kind, body := ParseInboundText("/no-such-command-xyzzy")
+	if kind != EventUnknown || body != "" {
+		t.Fatalf("ParseInboundText(unknown) = (%v, %q), want (EventUnknown, empty)", kind, body)
+	}
+	guidance := UnknownSlashCommandGuidance(got.RawCommand)
+	for _, want := range []string{"unknown command", "/no-such-command-xyzzy", "/commands", "resend without the leading slash"} {
+		if !strings.Contains(guidance, want) {
+			t.Fatalf("guidance missing %q: %s", want, guidance)
+		}
+	}
+	if strings.Contains(guidance, "submit") || strings.Contains(guidance, "agent") {
+		t.Fatalf("guidance should not imply provider submission: %s", guidance)
+	}
+}
+
 func TestParseInboundText(t *testing.T) {
 	tests := []struct {
 		name     string

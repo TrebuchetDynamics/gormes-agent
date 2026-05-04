@@ -5,7 +5,8 @@ weight: 70
 
 # Phase 6 — The Learning Loop (Soul)
 
-**Status:** ⏳ planned · 0/6 sub-phases
+**Status:** 🚧 in progress · core skill-learning sub-phases still planned;
+6.K prompt evaluation + optimization rows are validated.
 
 **Completion lane:** Phase 6 is [Lane 6 — Learning Loop](../lane-roadmap/#lane-6--learning-loop).
 It depends on the Phase 5.F skills substrate and should not begin with live LLM
@@ -26,6 +27,8 @@ The Learning Loop is the first Gormes-original core system — not a port. It de
 | 6.D — Skill Retrieval + Matching | ⏳ planned | Hybrid lexical + Phase 3 semantic lookup for relevant reviewed skills at turn start, plus optional Code Cathedral II-style code-context evidence after the base scorer is stable |
 | 6.E — Feedback Loop | ⏳ planned | Persist skill-use outcomes, explicit operator feedback, and auditable weight adjustments |
 | 6.F — Skill Surface (TUI + Telegram) | ⏳ planned | Browse, edit, disable, and review skills from the TUI or messaging edge after store/feedback contracts are stable |
+| 6.K — Self-Evolution Engine (GEPA) | 🚧 partial | Prompt evaluation harness and iterative prompt mutation/scoring loop are validated; behavioral pattern extraction remains planned |
+| 6.L — Composable Skill Execution (Voyager) | ⏳ planned | Sandbox executable skills, dependency resolution, and validation remain future rows |
 
 ## Why this is Phase 6 and not Phase 5.F
 
@@ -70,6 +73,23 @@ Do not begin Phase 6 with live LLM extraction. The dependency order is:
 4. **6.D retrieval scorer** — combine lexical and semantic signals while excluding disabled or unreviewed skills from prompt injection.
 5. **6.E feedback records** — persist outcomes before any automatic promotion/demotion or weight change.
 6. **6.F operator surfaces** — expose review/edit/disable flows only after the underlying store and feedback records are stable.
+
+### 6.K Self-Evolution Row Status
+
+The GEPA lane is now test-backed but remains offline and deterministic:
+
+- **Prompt evaluation harness** is complete. `internal/hermes/prompt_evaluator.go`
+  evaluates prompt variants against injected scenario runners, records
+  `task_success`, `tool_accuracy`, `response_quality` on a 1-5 scale, and
+  aggregates variant scores. `internal/hermes/eval_scenarios.go` provides a
+  10-scenario local corpus.
+- **Iterative prompt mutation and scoring loop** is complete.
+  `internal/hermes/prompt_optimizer.go` generates bounded tool-selection,
+  response-quality, task-decomposition, and command-safety mutations, scores
+  them through the harness, and stops on convergence, perfect score, or budget.
+- **Behavioral pattern extraction from session logs** is still planned. Do not
+  promote prompt mutations from live logs until the extractor row has
+  fixture-backed success/anti-pattern evidence and operator review rules.
 
 ## Go donor pointers
 

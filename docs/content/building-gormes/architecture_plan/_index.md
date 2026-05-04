@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 61/92 subphases shipped · 21 in progress · 10 planned
+**Overall:** 63/92 subphases shipped · 20 in progress · 9 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 7/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 9/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -462,7 +462,7 @@ classification and row-backed implementation queue.
 
 *Native Go agent orchestrator + prompt builder*
 
-### 4.A — Provider Adapters 🔨
+### 4.A — Provider Adapters ✅
 
 - [x] Provider interface + stream fixture harness
 - [x] Hermes provider registry and alias manifest
@@ -486,9 +486,9 @@ classification and row-backed implementation queue.
 - [x] Bedrock SigV4 + credential seam
 - [x] Bedrock stale-client eviction + retry classification
 - [x] Gemini Cloud Code request/stream mapper
-- [ ] OpenRouter compatible-provider routing
+- [x] OpenRouter compatible-provider routing
 - [x] Google Code Assist project/quota resolver
-- [ ] Codex
+- [x] Codex
 - [x] Codex Responses pure conversion harness
 - [x] Codex Responses assistant content role types
 - [x] Codex Responses HTTP client binding
@@ -500,10 +500,10 @@ classification and row-backed implementation queue.
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
 
-### 4.B — Context Engine + Compression 🔨
+### 4.B — Context Engine + Compression ✅
 
-- [ ] Long session management
-- [ ] Context compression
+- [x] Long session management
+- [x] Context compression
 - [x] ContextEngine interface + status tool contract
 - [x] Compression token-budget trigger + summary sizing
 - [x] Aux compression headroom for system and tool schemas
@@ -513,7 +513,7 @@ classification and row-backed implementation queue.
 - [x] Compression protected-tail multimodal length estimator
 - [x] Context compressor image-token budget charge
 - [x] Context references stable-handle store
-- [ ] Manual compression feedback + context references
+- [x] Manual compression feedback + context references
 - [x] ContextEngine compression-boundary callback vocabulary
 - [x] Kernel compression-boundary callback binding
 
@@ -528,6 +528,7 @@ classification and row-backed implementation queue.
 - [x] Gormes self-help skill/docs prompt guidance
 - [x] [SYSTEM:→[IMPORTANT: meta-instruction prefix rename for Azure content filter compatibility
 - [x] Native full prompt assembly
+- [x] Ephemeral prefill messages file injection
 
 ### 4.D — Smart Model Routing 🔨
 
@@ -875,6 +876,7 @@ classification and row-backed implementation queue.
 - [x] Interactive Onboarding
 - [x] Gormes onboard interactive action runner
 - [ ] CLI setup/onboard/help text fidelity matrix
+- [ ] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
 
 ### 5.P — Docker / Packaging 🔨
@@ -912,7 +914,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
 - [x] Native TUI Hermes slash completion helpers
-- [ ] Native TUI Hermes slash dispatch behavioral matrix
+- [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [ ] Native TUI Ink behavioral transcript golden matrix
 - [ ] Channel/TUI iteration-limit finalization transcript fixture
@@ -1008,10 +1010,10 @@ classification and row-backed implementation queue.
 - [ ] Agent-controlled memory retention with importance scoring
 - [ ] Cross-session memory continuity
 
-### 6.K — Self-Evolution Engine (GEPA) ⏳
+### 6.K — Self-Evolution Engine (GEPA) 🔨
 
-- [ ] Prompt evaluation harness
-- [ ] Iterative prompt mutation and scoring loop
+- [x] Prompt evaluation harness
+- [x] Iterative prompt mutation and scoring loop
 - [ ] Behavioral pattern extraction from session logs
 
 ### 6.L — Composable Skill Execution (Voyager) ⏳

@@ -59,4 +59,7 @@ func TestTransactionalExecutor_UncertainRunsWithRollback(t *testing.T) {
 	if !result.Success {
 		t.Fatalf("now tool should succeed, got: %s", result.Error)
 	}
+	if !result.SnapshotTaken {
+		t.Fatalf("uncertain command SnapshotTaken = false, want snapshot wrapper before execution")
+	}
 }

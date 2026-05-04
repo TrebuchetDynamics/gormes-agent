@@ -26,7 +26,7 @@ func TestMemoryToolDescriptorsExposeMCPCompatibleAgentMemoryCatalog(t *testing.T
 
 	assertMemoryToolSchema(t, descriptors, StoreMemoryToolName, []string{"content"}, []string{"content", "tags", "importance", "metadata"})
 	assertMemoryToolSchema(t, descriptors, RetrieveMemoryToolName, []string{"query"}, []string{"query", "limit"})
-	assertMemoryToolSchema(t, descriptors, UpdateMemoryToolName, []string{"id", "content"}, []string{"id", "content"})
+	assertMemoryToolSchema(t, descriptors, UpdateMemoryToolName, []string{"id"}, []string{"id", "content", "importance"})
 	assertMemoryToolSchema(t, descriptors, SummarizeMemoriesToolName, []string{"filter"}, []string{"filter", "max_items"})
 	assertMemoryToolSchema(t, descriptors, ForgetMemoryToolName, []string{"id"}, []string{"id"})
 

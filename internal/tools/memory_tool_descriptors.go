@@ -39,14 +39,15 @@ var memoryToolDescriptors = []ToolDescriptor{
 	},
 	{
 		Name:        UpdateMemoryToolName,
-		Description: "Update an existing memory entry. Use when information has changed or needs correction.",
+		Description: "Update an existing memory entry. Use when information has changed, needs correction, or its importance should be promoted or demoted.",
 		Schema: json.RawMessage(`{
 			"type":"object",
 			"properties":{
 				"id":{"type":"string","description":"Memory entry ID to update"},
-				"content":{"type":"string","description":"New content for the memory entry"}
+				"content":{"type":"string","description":"New content for the memory entry"},
+				"importance":{"type":"number","description":"New importance from 0.0 to 1.0"}
 			},
-			"required":["id","content"]
+			"required":["id"]
 		}`),
 	},
 	{

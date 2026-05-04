@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 	toolmeta "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -51,6 +53,18 @@ func (m *mockMemoryToolStore) Update(ctx context.Context, id string, content str
 		return nil
 	}
 	entry.Content = content
+	m.entries[id] = entry
+	return nil
+}
+
+func (m *mockMemoryToolStore) UpdateImportance(ctx context.Context, id string, importance float64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	entry, ok := m.entries[id]
+	if !ok {
+		return nil
+	}
+	entry.Importance = importance
 	m.entries[id] = entry
 	return nil
 }
@@ -131,6 +145,24 @@ func TestUpdateMemory(t *testing.T) {
 	json.Unmarshal(result, &out)
 	if out["success"] != true {
 		t.Fatal("update_memory did not succeed")
+	}
+}
+
+func TestUpdateMemoryImportance(t *testing.T) {
+	store := newMockToolStore()
+	store.Store(context.Background(), MemoryToolEntry{ID: "mem_1", Content: "old content", Importance: 0.2})
+	tool := &updateMemoryTool{newMemoryToolBase(store)}
+	result, err := tool.Execute(context.Background(), json.RawMessage(`{"id":"mem_1","importance":0.95}`))
+	if err != nil {
+		t.Fatalf("update_memory importance failed: %v", err)
+	}
+	var out map[string]interface{}
+	json.Unmarshal(result, &out)
+	if out["success"] != true {
+		t.Fatal("update_memory importance did not succeed")
+	}
+	if got := store.entries["mem_1"].Importance; got != 0.95 {
+		t.Fatalf("importance = %v, want 0.95", got)
 	}
 }
 
@@ -273,6 +305,21 @@ func TestMemoryToolsStoreRetrieveUpdateSummarizeForgetWithMetadata(t *testing.T)
 		t.Fatalf("updated retrieve results = %+v", results)
 	}
 
+	demoted := executeMemoryTool(t, ctx, updateTool, `{"id":"`+id+`","importance":0.2}`)
+	if demoted["success"] != true {
+		t.Fatalf("importance update result = %+v, want success", demoted)
+	}
+	if err := sqlite.DB().QueryRowContext(ctx, `
+		SELECT importance
+		FROM goncho_memory_items
+		WHERE memory_id = ?
+	`, id).Scan(&importance); err != nil {
+		t.Fatalf("read updated importance: %v", err)
+	}
+	if importance != 0.2 {
+		t.Fatalf("updated importance = %v, want 0.2", importance)
+	}
+
 	summary := executeMemoryTool(t, ctx, summarizeTool, `{"filter":"latency","max_items":10}`)
 	summaryText := stringField(t, summary, "summary")
 	if !strings.Contains(summaryText, "eighty milliseconds") || !strings.Contains(summaryText, id) {
@@ -358,6 +405,44 @@ func TestMemoryToolsKeepAgentMemoryIndependentInSharedStore(t *testing.T) {
 	aResults = memoryResults(t, aView)
 	if len(aResults) != 1 || aResults[0].ID != idA {
 		t.Fatalf("agent B forget removed agent A memory: %+v", aResults)
+	}
+}
+
+func TestImportanceScorer_LocalMarkdownRetrieveRanksRelevanceImportanceAndRecency(t *testing.T) {
+	ctx := context.Background()
+	sqlite, store := newLocalMarkdownToolStore(t, ctx)
+	now := time.Date(2026, 5, 4, 12, 0, 0, 0, time.UTC)
+	entries := []MemoryToolEntry{
+		{ID: "old-high", Content: "Telegram latency budget from an old incident.", Tags: []string{"latency"}, Importance: 0.95, CreatedAt: now.Add(-90 * 24 * time.Hour), UpdatedAt: now.Add(-90 * 24 * time.Hour)},
+		{ID: "fresh-low", Content: "Telegram latency note from this morning.", Tags: []string{"latency"}, Importance: 0.2, CreatedAt: now.Add(-1 * time.Hour), UpdatedAt: now.Add(-1 * time.Hour)},
+		{ID: "fresh-important", Content: "Telegram latency SLO must stay below eighty milliseconds.", Tags: []string{"latency", "slo"}, Importance: 0.8, CreatedAt: now.Add(-2 * time.Hour), UpdatedAt: now.Add(-2 * time.Hour)},
+		{ID: "irrelevant", Content: "Theme preference is dark.", Tags: []string{"theme"}, Importance: 1.0, CreatedAt: now, UpdatedAt: now},
+	}
+	for _, entry := range entries {
+		if err := store.Store(ctx, entry); err != nil {
+			t.Fatalf("store %s: %v", entry.ID, err)
+		}
+	}
+
+	results, err := store.Retrieve(ctx, "Telegram latency", 4)
+	if err != nil {
+		t.Fatalf("Retrieve: %v", err)
+	}
+	var got []string
+	for _, result := range results {
+		got = append(got, result.ID)
+	}
+	want := []string{"fresh-important", "fresh-low", "old-high"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("retrieve ranked IDs = %v, want %v", got, want)
+	}
+
+	var irrelevantActive int
+	if err := sqlite.DB().QueryRowContext(ctx, `SELECT active FROM goncho_memory_items WHERE memory_id = 'irrelevant'`).Scan(&irrelevantActive); err != nil {
+		t.Fatalf("read irrelevant row: %v", err)
+	}
+	if irrelevantActive != 1 {
+		t.Fatalf("irrelevant memory active = %d, want retained but not returned", irrelevantActive)
 	}
 }
 

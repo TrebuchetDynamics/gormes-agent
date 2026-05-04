@@ -11076,9 +11076,9 @@
             },
             {
               "name": "OpenRouter compatible-provider routing",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes OpenRouter as an OpenAI-compatible provider route, not a standalone bespoke adapter: runtime resolution honors explicit openrouter/custom/base-url choices, emits Hermes app attribution headers, preserves model suffixes such as :free and :nitro, detects OpenRouter base URLs for model metadata and pricing, and maps retryable/fatal provider errors through the shared error classifier.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -11232,7 +11232,7 @@
             },
             {
               "name": "Codex",
-              "status": "planned",
+              "status": "complete",
               "slice_size": "umbrella",
               "execution_owner": "provider",
               "not_ready_when": [
@@ -11863,7 +11863,7 @@
           "items": [
             {
               "name": "Long session management",
-              "status": "planned",
+              "status": "complete",
               "slice_size": "umbrella",
               "execution_owner": "provider",
               "not_ready_when": [
@@ -11878,7 +11878,7 @@
             },
             {
               "name": "Context compression",
-              "status": "planned",
+              "status": "complete",
               "note": "Umbrella only: do not execute as one slice. Preserve cache-safe history semantics while the smaller compressor tasks land.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -12497,7 +12497,7 @@
             },
             {
               "name": "Manual compression feedback + context references",
-              "status": "planned",
+              "status": "complete",
               "note": "TDD: port `manual_compression_feedback.py` and the remaining `context_references.py` live expansion/injection contracts as separate read/write contracts. The pure context-reference parser and stable handle store shipped in `Context references stable-handle store`; do not reopen that scope for manual feedback.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -13283,12 +13283,102 @@
                 "All subordinate prompt blocks (context files, memory guidance, session search, skills snapshot, model guidance, self-help) are validated",
                 "Tests can assemble a full prompt from injected block fixtures without provider/model/network calls"
               ]
+            },
+            {
+              "name": "Ephemeral prefill messages file injection",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Port Hermes' ephemeral prefill-message behavior into the native Go turn path. Gormes loads a JSON array of message objects from an explicit prefill file setting, resolves relative paths from the Gormes runtime home while preserving Hermes-compatible env/config aliases, validates the payload without logging content, and injects copies of those messages into provider-bound API messages immediately after the effective system prompt and before conversation history/user input. Prefill messages are API-call-time only: they must not be written to session history, channel transcripts, memory/Goncho stores, debug logs, or visible TUI/gateway output.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing file, unreadable file, malformed JSON, non-array JSON, unsupported role/content shape, or oversized payload returns empty prefill plus typed prefill_messages_unavailable evidence with the redacted path and reason. Gateway and TUI turns continue without prefill instead of failing startup or sending placeholder text to the provider.",
+              "fixture": "internal/hermes/prefill_messages_test.go + internal/gateway/prefill_messages_test.go + internal/kernel/prefill_messages_test.go",
+              "source_refs": [
+                "../hermes-agent/cli.py:_load_prefill_messages",
+                "../hermes-agent/gateway/run.py:GatewayRunner._load_prefill_messages",
+                "../hermes-agent/gateway/run.py:AIAgent(... prefill_messages=self._prefill_messages or None)",
+                "../hermes-agent/run_agent.py:AIAgent.__init__ prefill_messages",
+                "../hermes-agent/run_agent.py:api_messages.insert(sys_offset + idx, pfm.copy())",
+                "../hermes-agent/cron/scheduler.py:prefill_messages_file env/config loader",
+                "../hermes-agent/hermes_cli/config.py:prefill_messages_file",
+                "../hermes-agent/hermes_cli/tips.py:prefill_messages_file tip",
+                "../hermes-agent/website/docs/reference/environment-variables.md:HERMES_PREFILL_MESSAGES_FILE",
+                "internal/hermes/prompt_assembly.go",
+                "internal/gateway/live_turn_prompt.go",
+                "internal/gateway/turn_adapter.go",
+                "internal/kernel/kernel.go"
+              ],
+              "ready_when": [
+                "Native full prompt assembly is complete and provider-bound messages can be inspected through hermetic fake provider/kernel fixtures.",
+                "Gateway live-turn prompt assembly has a single channel-neutral path so prefill injection can be shared by Telegram, Discord, Slack, TUI gateway, and future channels.",
+                "Config/home resolution tests can inject temp Gormes homes and env maps; no live `~/.gormes`, `~/.hermes`, provider credentials, channel SDK, network call, or model call is required."
+              ],
+              "not_ready_when": [
+                "The slice persists prefill messages to sessions, memory, transcript history, debug bundles, logs, or channel-visible text.",
+                "The slice treats prefill messages as system prompt text, prepends them before the system prompt, or appends them after the current user message.",
+                "The slice reads the operator's live home directory in tests, starts a gateway, invokes a provider, or ports batch/cron prefill behavior in the same pass.",
+                "The slice accepts arbitrary objects by silently stringifying them; malformed entries must degrade visibly and safely.",
+                "The slice exposes prompt contents in telemetry or error messages."
+              ],
+              "blocked_by": [
+                "Native full prompt assembly",
+                "Hermes live-turn prompt assembly parity (channel-neutral)",
+                "Python-free normal agent turn e2e harness"
+              ],
+              "unblocks": [
+                "Gateway prefill messages from file",
+                "Provider-tool-memory golden transcript suite",
+                "Cron job prefill-message parity"
+              ],
+              "acceptance": [
+                "TestPrefillMessages_LoadsFromGormesEnvThenHermesEnvThenConfig proves `GORMES_PREFILL_MESSAGES_FILE` wins, `HERMES_PREFILL_MESSAGES_FILE` remains a compatibility fallback, and config `prefill_messages_file` is used only when env is unset.",
+                "TestPrefillMessages_ResolvesRelativePathFromRuntimeHome proves relative paths resolve below the injected Gormes home and never from the current working directory or live `~/.hermes`.",
+                "TestPrefillMessages_DegradesForMissingMalformedOrNonArray proves missing files, invalid JSON, and non-array JSON return empty messages plus redacted prefill_messages_unavailable evidence.",
+                "TestPrefillMessages_RejectsUnsupportedEntriesWithoutLoggingContent proves role/content validation rejects unsafe entries and evidence omits the message body.",
+                "TestProviderMessages_InsertPrefillAfterSystemBeforeHistory proves provider-bound messages are ordered system -> prefill[0..n] -> prior history -> current user for both gateway and local/TUI submissions.",
+                "TestPrefillMessages_AreCopiedPerCall proves mutation of provider-bound message slices does not mutate the loaded prefill cache or config object.",
+                "TestGatewayPrefillMessages_NotPersistedOrVisible proves gateway session history, channel transcript output, memory writes, and tool/debug logs do not contain prefill message content.",
+                "Existing prompt assembly, live-turn prompt, and normal-turn e2e fixtures remain green without prefill configured."
+              ],
+              "write_scope": [
+                "internal/hermes/prefill_messages.go",
+                "internal/hermes/prefill_messages_test.go",
+                "internal/hermes/prompt_assembly.go",
+                "internal/hermes/prompt_assembly_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/prefill_messages_test.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/prefill_messages_test.go",
+                "internal/config/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestPrefillMessages|TestPromptAssembly' -count=1",
+                "go test ./internal/gateway ./internal/kernel -run 'Test.*PrefillMessages|TestLiveTurn|TestNormal' -count=1",
+                "go test ./internal/hermes ./internal/gateway ./internal/kernel -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Prefill fixtures prove env/config precedence, runtime-home path resolution, safe degraded evidence, provider-message insertion order, per-call copying, and no persistence/visibility leaks across gateway, TUI/local, session, memory, transcript, or logs."
+              ],
+              "note": "Added by the 2026-05-04 behavioral parity audit to row-back M42. Hermes treats prefill_messages_file as an operator-visible prompt-control feature that is loaded by CLI/gateway/cron and injected into AIAgent API calls without persistence. Gormes should first port the normal gateway/local turn contract; cron/batch-specific reuse can follow as a dependent row.",
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:cli.py _load_prefill_messages + gateway/run.py _load_prefill_messages + run_agent.py API-message insertion",
+                "note": "Hermes owns the prefill-message load/insert/persistence contract. Gormes owns GORMES_* env naming and home resolution, while preserving HERMES_* compatibility as a migration affordance."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-04-27T12:56:05Z",
-            "origin_decision": "Hermes 920ebd83 adds product self-help guidance into prompt assembly. Gormes still has native prompt-builder slices in flight, so the drift is tracked as a pure Gormes self-help docs/skill guidance row before the broader system+memory+tools assembly is executed. Existing Azure [SYSTEM: to [IMPORTANT:] drift remains complete."
+            "origin_decision": "Hermes 920ebd83 adds product self-help guidance into prompt assembly and existing Hermes CLI/gateway/cron paths expose prefill_messages_file as API-call-time prompt control. Gormes has native prompt-builder slices complete; the remaining prompt-control drift is now tracked by `Ephemeral prefill messages file injection` before cron/batch-specific reuse. Existing Azure [SYSTEM: to [IMPORTANT:] drift remains complete."
           }
         },
         "4.D": {
@@ -16090,7 +16180,7 @@
               "status": "planned",
               "priority": "P1",
               "contract": "Before tool execution, the agent loop invokes a plan-gate safety check. Unsafe plans are refused with explanation. Safe plans proceed. This mirrors MOSAIC (2025) plan->check->act/refuse pattern.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -16133,7 +16223,7 @@
               "status": "planned",
               "priority": "P1",
               "contract": "Each individual tool invocation is checked against intent alignment before execution. This mirrors IntentGuard's two-gate architecture: plan gate (strategic) + tool gate (tactical).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -16175,7 +16265,7 @@
               "status": "planned",
               "priority": "P2",
               "contract": "The agent loop supports 'refuse' as a first-class action in the ReAct cycle. When safety gates reject a planned action, the agent can refuse and explain why, rather than silently failing or hallucinating a different action.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -16214,7 +16304,7 @@
               "status": "planned",
               "priority": "P1",
               "contract": "Integration test proving plan-gate + tool-gate + refusal work together in a complete agent turn. Covers: safe turn passes, unsafe plan blocked, tool drift blocked, multi-step chain with mixed safe/unsafe steps.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -30003,6 +30093,91 @@
               ]
             },
             {
+              "name": "Hermes CLI alias and suggestion fidelity matrix",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes login` and `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unknown command, unsupported alias target, ambiguous prefix, and quick-command alias cycle paths emit deterministic guidance with nonzero/handled status as appropriate; no path submits the raw slash/top-level command to the agent kernel as ordinary prompt text.",
+              "fixture": "cmd/gormes/command_alias_fidelity_test.go::TestHermesCommandAliasFidelity_* + internal/cli/command_alias_test.go + internal/gateway/commands_test.go::TestGatewayCommandAliasFidelity_*",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY,resolve_command,GATEWAY_KNOWN_COMMANDS",
+                "../hermes-agent/cli.py:HermesCLI.process_command alias, quick-command alias, prefix, ambiguous, and unknown handling",
+                "../hermes-agent/gateway/run.py:command alias canonicalization, hook raw_command, quick-command alias rewrite, plugin, and skill command dispatch",
+                "../hermes-agent/ui-tui/src/app/createSlashHandler.ts:catalog exact alias, unique prefix, ambiguous prefix, command.dispatch alias, and skill dispatch",
+                "../hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:typed alias, catalog alias, exact-vs-prefix, ambiguous-prefix, and skill-dispatch fixtures",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "cmd/gormes/login_typo_suggestion_test.go",
+                "cmd/gormes/migrate_openclaw_test.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "internal/gateway/commands.go",
+                "internal/gateway/commands_test.go"
+              ],
+              "ready_when": [
+                "Hermes CLI command-tree parity manifest is current and cross-links slash registry aliases.",
+                "Gateway command registry parity recognizes canonical names and aliases before active-turn queue/busy decisions.",
+                "Native TUI slash-command dispatch and completion rows provide the local slash handler seam for command-dispatch alias and catalog-prefix cases."
+              ],
+              "not_ready_when": [
+                "The slice ports every command body instead of pinning alias/suggestion behavior.",
+                "The slice treats model/provider aliases, config aliases, or deprecated Gormes typo suggestions as Hermes command aliases.",
+                "The slice accepts ambiguous prefixes, unknown commands, or quick-command alias cycles by silently choosing a target.",
+                "The slice submits any slash command token to the provider as ordinary prompt text."
+              ],
+              "blocked_by": [
+                "Hermes CLI command-tree parity manifest",
+                "Native TUI slash-command dispatch table",
+                "Native TUI Hermes slash completion helpers"
+              ],
+              "unblocks": [
+                "CLI setup/onboard/help text fidelity matrix",
+                "Native TUI Hermes slash dispatch behavioral matrix",
+                "49-file CLI tree port"
+              ],
+              "acceptance": [
+                "TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions proves top-level unknown commands, removed `login`, and `migrate ooenclaw` render deterministic guidance, preserve exit semantics, and do not become silent aliases.",
+                "TestHermesCommandAliasFidelity_SlashRegistryAliasAndPrefix proves `/provider` resolves to `/model`, unique prefixes preserve arguments, exact command names win over longer prefix matches, and ambiguous prefixes list bounded candidates.",
+                "TestHermesCommandAliasFidelity_QuickCommandAliasPreservesArgsAndDetectsCycles proves configured quick-command alias targets retain user arguments and report alias cycles/unsupported targets without recursion loops.",
+                "TestGatewayCommandAliasFidelity_CanonicalHooksKeepRawCommand proves gateway alias dispatch fires hooks/handlers against the canonical command while preserving the typed raw_command and raw_args.",
+                "TestGatewayCommandAliasFidelity_UnknownSlashGuidance proves unknown gateway slash commands return bounded help/resend guidance and never queue or submit the slash text to the agent.",
+                "Native TUI slash dispatch fixtures prove catalog aliases, exact-vs-prefix behavior, command.dispatch alias responses, ambiguous prefixes, and skill commands match Hermes Ink behavior."
+              ],
+              "write_scope": [
+                "cmd/gormes/command_alias_fidelity_test.go",
+                "internal/cli/command_alias.go",
+                "internal/cli/command_alias_test.go",
+                "internal/cli/command_registry.go",
+                "internal/gateway/commands.go",
+                "internal/gateway/commands_test.go",
+                "internal/gateway/manager.go",
+                "internal/tui/slash_dispatch.go",
+                "internal/tui/slash_commands_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestHermesCommandAliasFidelity_|TestHermesCLIParityManifest|TestLoginTypoSuggestion|TestMigrateOpenClaw' -count=1",
+                "go test ./internal/cli ./internal/gateway ./internal/tui -run 'CommandAlias|CommandRegistry|GatewayCommand|SlashCommand' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Alias/suggestion fixtures prove CLI, gateway, and TUI slash command resolution follows Hermes-visible canonicalization, prefix, ambiguity, quick-command alias, plugin/skill fallback, and unknown-command guidance without provider submission leaks."
+              ],
+              "note": "Complete: TDD added `internal/cli/command_alias.go` and `internal/cli/command_alias_test.go` to pin exact command, typed alias, unique-prefix, exact-vs-prefix, ambiguous-prefix, unknown-command, and quick-command alias/cycle behavior without provider/config runtime state. `internal/gateway/commands.go` now exposes canonical gateway dispatch evidence with typed `raw_command`/`raw_args` plus bounded unknown-slash guidance reused by `internal/gateway/manager.go`. `internal/tui/slash_dispatch.go` now consumes the shared resolver for default-registry fallbacks; `internal/tui/slash_commands_test.go` proves `/provider -> /model`, unique prefix preservation, exact `/status` precedence over `/statusbar`, bounded ambiguous `/stat`, and unknown slash handling. `cmd/gormes/command_alias_fidelity_test.go` pins top-level unknown command, removed `login`, and `migrate ooenclaw` as explicit guidance paths rather than silent aliases.",
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:hermes_cli/commands.py + cli.py process_command + gateway/run.py command canonicalization + ui-tui createSlashHandler",
+                "note": "Hermes owns visible command alias, prefix, quick-command alias, and unknown/ambiguous guidance behavior. Gormes keeps Cobra/Bubble Tea/native gateway internals but must classify every command alias path explicitly."
+              }
+            },
+            {
               "name": "Logs Command",
               "status": "complete",
               "priority": "P2",
@@ -31878,9 +32053,9 @@
             {
               "name": "Native TUI Hermes slash dispatch behavioral matrix",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Add a deterministic Hermes Ink slash-dispatch matrix for the native Bubble Tea TUI so typed slash commands are classified before normal prompt submission. Registered local commands such as /save, /branch, /browser, and /mouse keep their Go-native handlers; Hermes-known but not locally handled commands such as /model, /provider, /skills, /details, /tools, /history, /status, /title, /rollback, and /queue return explicit command-unavailable or gateway-required evidence instead of entering kernel.Submit; unknown and ambiguous slash prefixes are consumed with bounded guidance; and future gateway-backed handlers have a single table that mirrors active Hermes createSlashHandler route kinds without running Node or Python.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -31917,7 +32092,7 @@
                 "TestHermesSlashDispatchBehavior_MutatingCommandsDoNotFallback proves mutating commands listed in Hermes slashParity.test are not classified as normal prompt submissions while idle or busy.",
                 "Existing slash completion, active-turn verdict, /save, /branch, /browser, and busy input fixtures remain green."
               ],
-              "note": "Added by the 2026-05-04 behavioral fidelity audit after comparing active Hermes Ink createSlashHandler/useSubmission against Gormes' local SlashRegistry. Existing rows cover command inventory, generic dispatch, and completion; this row closes the visible command-dispatch gap where known-but-unhandled slash text can otherwise regress into the model prompt or produce inconsistent local/gateway evidence.",
+              "note": "Complete: TDD added internal/tui/slash_dispatch_behavior_test.go and a default-registry fallback in internal/tui/slash_dispatch.go. Registered local handlers (/save, /branch, /browser, /mouse, /scroll) still run first; known-but-unhandled Hermes commands such as /model, /provider, /skills, /details, /tools, /history, /status, /title, /rollback, and /queue now clear the editor with explicit native-TUI/gateway degraded evidence; unknown and ambiguous slash prefixes are consumed with bounded guidance; mutating Hermes slash commands never fall through to kernel.Submit. internal/cli.CommandRegistry now includes /details so completion and dispatch classify it explicitly.",
               "write_scope": [
                 "internal/tui/slash_dispatch.go",
                 "internal/tui/slash_dispatch_behavior_test.go",
@@ -33070,15 +33245,20 @@
               ],
               "write_scope": [
                 "internal/tools/command_classifier.go",
-                "internal/tools/command_classifier_test.go"
+                "internal/tools/command_classifier_test.go",
+                "internal/tools/transactional_executor.go",
+                "internal/tools/transactional_executor_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools -run TestCommandClassifier -count=1"
+                "go test ./internal/tools -run TestCommandClassifier -count=1",
+                "go test ./internal/tools -run TestTransactionalExecutor -count=1",
+                "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Classifier tests prove safe/unsafe/uncertain classification for representative command sets"
               ],
-              "note": "Research-driven (Fault-Tolerant Sandboxing, arXiv:2512.12806, 2025). The middle path between unsafe local execution and heavyweight VM isolation. 100% high-risk interception, ~14.5% overhead."
+              "note": "Complete: TDD expanded `CommandClassifier` from enum-only raw-string matching into detailed pre-execution decisions with command extraction, audit evidence, per-session configurable safe/unsafe rules, boundary-aware safe-prefix matching, and explicit safe/unsafe/uncertain actions. `ClassifyToolRequest` extracts `command`, `cmd`, `code`, or `script` from JSON tool input before execution, so terminal and execute_code requests are classified on the actual command body. `TransactionalExecutor` now records the classifier audit and marks `SnapshotTaken` before uncertain commands execute; unsafe commands remain blocked without invoking the inner executor."
             },
             {
               "name": "Transactional tool execution with snapshot/rollback",
@@ -33208,15 +33388,17 @@
               "write_scope": [
                 "internal/events/bus.go",
                 "internal/events/bus_test.go",
-                "internal/events/types.go"
+                "internal/events/types.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/events -run TestEventBus -count=1"
+                "go test ./internal/events -run TestEventBus -count=1",
+                "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Event bus tests prove pub/sub routing, backpressure handling, and typed event delivery"
               ],
-              "note": "Research-driven. OpenCode's event-driven architecture is a production reference. Event bus decouples I/O from processing — the terminal is just one subscriber. Unifies TUI, gateway, and agent loop events."
+              "note": "Complete: `internal/events` already contained the in-process, topic-based `EventBus` interface and implementation, plus gateway/hermes turn emitter integration. This pass added row-named `TestEventBusCore_*` coverage so the progress command directly proves typed event provenance (`type`, timestamp, source, payload, trace_id), topic isolation, unsubscribe behavior, and nonblocking publication under slow-subscriber backpressure. The default remains pure in-process with no Kafka/Redis/NATS dependency, while the interface keeps a future backend replaceable."
             },
             {
               "name": "Gateway channel adapters publish to event bus",
@@ -34341,18 +34523,27 @@
                 "Agent can promote/demote importance via update_memory tool"
               ],
               "write_scope": [
+                "internal/goncho/decay.go",
                 "internal/goncho/importance_scorer.go",
                 "internal/goncho/importance_scorer_test.go",
-                "internal/goncho/decay.go"
+                "internal/goncho/local_markdown_memory.go",
+                "internal/goncho/memory_tools.go",
+                "internal/goncho/memory_tools_test.go",
+                "internal/tools/memory_tool_descriptors.go",
+                "internal/tools/memory_tool_descriptors_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/goncho -run TestImportanceScorer -count=1",
-                "go test ./internal/goncho -run TestDecayCurve -count=1"
+                "go test ./internal/goncho -run TestDecayCurve -count=1",
+                "go test ./internal/goncho -run TestUpdateMemoryImportance -count=1",
+                "go test ./internal/tools -run TestMemoryToolDescriptorsExposeMCPCompatibleAgentMemoryCatalog -count=1",
+                "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Importance tests prove scoring affects retrieval ranking and decay reduces old unused memories"
               ],
-              "note": "Research-driven (Generative Agents 2023 + AgeMem 2026). The retrieval formula from Park et al. with agent-controlled importance from AgeMem. Agent decides what matters, not static rules."
+              "note": "Complete: TDD expanded `internal/goncho/importance_scorer.go` so ranking uses `α·recency + β·effective_importance + γ·relevance`, where effective importance is the agent-assigned importance after recency decay. `internal/goncho/decay.go` adds retention review candidates with summarize/forget actions for old low-effective-importance memories. `LocalMarkdownMemoryStore.Retrieve` now ranks active scoped memories through the shared scorer instead of raw SQL importance ordering, while retaining nonmatching memories in storage. `update_memory` now accepts optional `importance` so the agent can promote or demote entries after storage; descriptors expose the same field. Focused tests prove store-time importance, retrieval ranking, decay candidate review, and update-time importance adjustment."
             },
             {
               "name": "Cross-session memory continuity",
@@ -34389,16 +34580,20 @@
               "write_scope": [
                 "internal/goncho/cross_session.go",
                 "internal/goncho/cross_session_test.go",
-                "internal/goncho/contradiction_detector.go"
+                "internal/goncho/contradiction_detector.go",
+                "internal/goncho/local_markdown_memory.go",
+                "internal/goncho/memory_tools.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/goncho -run TestCrossSession -count=1",
-                "go test ./internal/goncho -run TestContradictionDetection -count=1"
+                "go test ./internal/goncho -run TestContradictionDetection -count=1",
+                "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Cross-session tests prove memories survive session boundaries and new sessions auto-load relevant context"
               ],
-              "note": "Research-driven. The Generative Agents memory stream pattern applied to Goncho. Hermes' MEMORY.md is the production reference — a file that grows with usage and is loaded on startup."
+              "note": "Complete: TDD expanded cross-session continuity beyond the placeholder loader. `MemoryToolEntry` now carries `session_id`, `LocalMarkdownMemoryStore.Store` persists explicit or configured session provenance, and retrieval returns session metadata so a new session can load relevant prior-session memories without loading unrelated memories. `CrossSessionMemory.QueryKnowledge` answers cross-session knowledge queries with memory results, per-session counts, and a source-id summary. `contradiction_detector.go` adds deterministic same-subject/same-relation conflict detection while allowing additive facts such as `uses Python` -> `uses Python and Go`. `PlanSessionMemoryDeletion` records preserve-vs-cascade behavior so session deletion can retain memories by default or cascade-forget session-attributed memories explicitly."
             }
           ]
         },
@@ -34406,23 +34601,23 @@
           "name": "Self-Evolution Engine (GEPA)",
           "source": "docs/content/papers/agentic-os-design.md",
           "items": [
-            {
-              "name": "Prompt evaluation harness",
-              "status": "planned",
-              "priority": "P2",
-              "contract": "A harness that evaluates agent prompt/behavior variants against a set of test scenarios. Produces quantitative scores (task success, tool selection accuracy, response quality) for each variant. Enables data-driven prompt optimization without LLM-as-judge circularity.",
-              "contract_status": "draft",
-              "slice_size": "large",
-              "execution_owner": "orchestrator",
-              "trust_class": [
-                "operator"
-              ],
-              "source_refs": [
-                "docs/content/papers/agentic-os-design.md",
-                "Hermes Agent GEPA engine (hermes-agent/agent/)",
-                "internal/hermes/prompt.go",
-                "internal/hermes/agent_loop.go"
-              ],
+	            {
+	              "name": "Prompt evaluation harness",
+	              "status": "complete",
+	              "priority": "P2",
+	              "contract": "A harness that evaluates agent prompt/behavior variants against a set of test scenarios. Produces quantitative scores (task success, tool selection accuracy, response quality) for each variant. Enables data-driven prompt optimization without LLM-as-judge circularity.",
+	              "contract_status": "validated",
+	              "slice_size": "large",
+	              "execution_owner": "orchestrator",
+	              "trust_class": [
+	                "operator"
+	              ],
+	              "source_refs": [
+	                "docs/content/papers/agentic-os-design.md",
+	                "Hermes Agent GEPA engine (hermes-agent/agent/)",
+	                "internal/hermes/prompt_evaluator.go",
+	                "internal/hermes/eval_scenarios.go"
+	              ],
               "ready_when": [
                 "Agent loop is deterministic enough for reproducible evaluation",
                 "Test scenarios exist with known-good outcomes"
@@ -34438,29 +34633,31 @@
                 "Evaluation is deterministic (same variant + scenario = same score)",
                 "Harness runs <60s for 10 scenarios (fast enough for iterative optimization)"
               ],
-              "write_scope": [
-                "internal/hermes/prompt_evaluator.go",
-                "internal/hermes/prompt_evaluator_test.go",
-                "internal/hermes/eval_scenarios.go"
-              ],
-              "test_commands": [
-                "go test ./internal/hermes -run TestPromptEvaluator -count=1"
-              ],
-              "done_signal": [
-                "Evaluator tests prove deterministic scoring of prompt variants against known scenarios"
-              ],
-              "note": "Research-driven (GEPA, Hermes Agent). GEPA achieves policy iteration in 100-500 evaluations vs. 10,000+ for traditional RL. The key enabler is a fast, deterministic evaluation harness."
-            },
-            {
-              "name": "Iterative prompt mutation and scoring loop",
-              "status": "planned",
-              "priority": "P2",
-              "contract": "Given a base prompt and evaluation harness, automatically generate prompt variants (mutations), score them, and select the best. Iterate until convergence or budget. Mutations target: tool selection heuristics, response style, task decomposition strategies.",
-              "contract_status": "draft",
-              "slice_size": "medium",
-              "execution_owner": "orchestrator",
-              "trust_class": [
-                "operator"
+	              "write_scope": [
+	                "internal/hermes/prompt_evaluator.go",
+	                "internal/hermes/prompt_evaluator_test.go",
+	                "internal/hermes/eval_scenarios.go",
+	                "docs/content/building-gormes/architecture_plan/progress.json"
+	              ],
+	              "test_commands": [
+	                "go test ./internal/hermes -run TestPromptEvaluator -count=1",
+	                "go run ./cmd/progress validate"
+	              ],
+	              "done_signal": [
+	                "Evaluator tests prove deterministic scoring of prompt variants against known scenarios"
+	              ],
+	              "note": "Complete: TDD expanded the prompt evaluator into a deterministic, variant-aware harness. `EvaluateVariant` runs one prompt variant against every scenario through an injected runner, records per-scenario task_success, tool_accuracy, response_quality on a 1-5 scale, error evidence, and aggregate scores, while `CompareVariants` returns deterministic aggregate ranking for prompt comparison. `DefaultPromptEvalScenarios` provides a 10-scenario local corpus covering file reads, code search, patching, tests, command safety, memory search/update, and doc refresh; focused tests prove replay determinism and sub-second execution without live LLM judging or provider calls."
+	            },
+	            {
+	              "name": "Iterative prompt mutation and scoring loop",
+	              "status": "complete",
+	              "priority": "P2",
+	              "contract": "Given a base prompt and evaluation harness, automatically generate prompt variants (mutations), score them, and select the best. Iterate until convergence or budget. Mutations target: tool selection heuristics, response style, task decomposition strategies.",
+	              "contract_status": "validated",
+	              "slice_size": "medium",
+	              "execution_owner": "orchestrator",
+	              "trust_class": [
+	                "operator"
               ],
               "source_refs": [
                 "docs/content/papers/agentic-os-design.md",
@@ -34481,18 +34678,20 @@
                 "Final best prompt is at least 10% better than base on aggregate score",
                 "Optimization does not require LLM API calls (uses harness scores)"
               ],
-              "write_scope": [
-                "internal/hermes/prompt_optimizer.go",
-                "internal/hermes/prompt_optimizer_test.go"
-              ],
-              "test_commands": [
-                "go test ./internal/hermes -run TestPromptOptimizer -count=1"
-              ],
-              "done_signal": [
-                "Optimizer tests prove mutation+scoring loop converges to measurably better prompt variants"
-              ],
-              "note": "Research-driven (GEPA). The key insight from GEPA: you don't need gradient descent to optimize prompts. Iterative mutation + fast evaluation works. 100-500 evals vs 10,000+ for RL."
-            },
+	              "write_scope": [
+	                "internal/hermes/prompt_optimizer.go",
+	                "internal/hermes/prompt_optimizer_test.go",
+	                "docs/content/building-gormes/architecture_plan/progress.json"
+	              ],
+	              "test_commands": [
+	                "go test ./internal/hermes -run TestPromptOptimizer -count=1",
+	                "go run ./cmd/progress validate"
+	              ],
+	              "done_signal": [
+	                "Optimizer tests prove mutation+scoring loop converges to measurably better prompt variants"
+	              ],
+	              "note": "Complete: TDD replaced placeholder word-deletion mutation with a deterministic GEPA-style optimizer. `GenerateVariants` creates bounded strategy mutations for exact tool selection, concrete response quality, task decomposition, and command safety. `OptimizeDetailed` scores every variant through the prompt evaluation harness, promotes the best variant as the next iteration base only when it clears the improvement threshold, records per-iteration candidates/evaluations/selected variant, and terminates with explicit converged, perfect_score, or budget_exhausted evidence. Focused tests prove N-variant generation, cumulative next-base improvement, at least 10% aggregate lift over the baseline, and convergence without LLM API calls."
+	            },
             {
               "name": "Behavioral pattern extraction from session logs",
               "status": "planned",

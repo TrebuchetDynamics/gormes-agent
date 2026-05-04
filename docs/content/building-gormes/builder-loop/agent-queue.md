@@ -90,87 +90,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 4. Plan gate hook in agent turn loop
-
-- Phase: 4 / 4.L
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Before tool execution, the agent loop invokes a plan-gate safety check. Unsafe plans are refused with explanation. Safe plans proceed. This mirrors MOSAIC (2025) plan->check->act/refuse pattern.
-- Trust class: operator, system
-- Ready when: Agent turn loop has a hook point before tool dispatch, Tool registry exposes safety-relevant metadata per tool
-- Not ready when: Agent loop is not refactorable to add pre-tool hooks, Tool registry has no permission/safety metadata
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/safety_plan_gate.go`, `internal/hermes/safety_plan_gate_test.go`
-- Test commands: `go test ./internal/hermes -run TestPlanGate -count=1`
-- Done signal: Plan gate tests prove safe plans pass and unsafe plans are refused
-- Acceptance: Plan gate evaluates agent plan before any tool executes, Unsafe plans are refused with structured explanation, Safe plans pass through with zero added latency >10ms P99, Plan gate is testable with mock tool sets
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Tool gate pre-execution validation
-
-- Phase: 4 / 4.L
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Each individual tool invocation is checked against intent alignment before execution. This mirrors IntentGuard's two-gate architecture: plan gate (strategic) + tool gate (tactical).
-- Trust class: operator, system
-- Ready when: Plan gate exists (4.L row 1), Tool registry exposes permission model
-- Not ready when: Plan gate not yet implemented
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/tools/safety_tool_gate.go`, `internal/tools/safety_tool_gate_test.go`
-- Test commands: `go test ./internal/tools -run TestToolGate -count=1`
-- Done signal: Tool gate tests prove intent-aligned calls pass and drift calls are blocked
-- Acceptance: Tool gate evaluates every tool call before execution, Tool calls outside intent scope are blocked, Intent drift across multi-step tool chains is detected, Tool gate adds <5ms P99 overhead
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Refusal-as-action in ReAct cycle
-
-- Phase: 4 / 4.L
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: The agent loop supports 'refuse' as a first-class action in the ReAct cycle. When safety gates reject a planned action, the agent can refuse and explain why, rather than silently failing or hallucinating a different action.
-- Trust class: operator
-- Ready when: Plan gate or tool gate exists (4.L rows 1-2)
-- Not ready when: No safety gate to produce refusal signals
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/refuse_action.go`, `internal/hermes/refuse_action_test.go`
-- Test commands: `go test ./internal/hermes -run TestRefuseAction -count=1`
-- Done signal: Refusal tests prove the agent can refuse, explain, and recover
-- Acceptance: ReAct cycle accepts RefuseAction alongside ToolAction, Refused actions produce user-visible explanation, Agent can recover and try alternative approach after refusal, Refusal does not count as an error in session stats
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Safety loop end-to-end integration
-
-- Phase: 4 / 4.L
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Integration test proving plan-gate + tool-gate + refusal work together in a complete agent turn. Covers: safe turn passes, unsafe plan blocked, tool drift blocked, multi-step chain with mixed safe/unsafe steps.
-- Trust class: operator, system
-- Ready when: Plan gate, tool gate, and refusal all exist (4.L rows 1-3)
-- Not ready when: Any safety component not yet implemented
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/safety_loop_integration_test.go`
-- Test commands: `go test ./internal/hermes -run TestSafetyLoop -count=1`
-- Done signal: Integration tests prove end-to-end safety loop handles safe, unsafe, drift, and recovery scenarios
-- Acceptance: Full turn with safe actions completes successfully, Unsafe plan is caught before any tool executes, Tool drift in multi-step chain is detected mid-chain, Agent recovers after refusal and completes alternative approach
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/safety_plan_gate.go, internal/tools/safety_tool_gate.go, internal/hermes/refuse_action.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. Circuit breaker per provider and API key
+## 4. Circuit breaker per provider and API key
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -190,7 +110,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go, internal/hermes/provider.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. P95 latency-aware failover
+## 5. P95 latency-aware failover
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -210,7 +130,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Capability-based model tier routing
+## 6. Capability-based model tier routing
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -228,6 +148,86 @@ selection.
 - Done signal: Capability router tests prove simple queries hit cheap tier and complex queries hit capable tier
 - Acceptance: Simple queries (greetings, single-file edits) route to cheap tier, Complex queries (multi-file refactor, architecture) route to capable tier, Classifier is fast (<100ms) and does not add LLM call overhead, Operator can override classifier with explicit model selection, Classification failures fall back to capable tier (safe default)
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/provider.go, Beluga AI model-switching docs
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 7. ACP bridge client compatibility
+
+- Phase: 5 / 5.N
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Close the OpenClaw ACP bridge gap by adding Gormes client-side ACP connection/proxy behavior in addition to the existing server-facing package, with status/doctor evidence for connected, unavailable, and unsupported remote ACP endpoints.
+- Trust class: operator, gateway
+- Ready when: Current internal/acp server stubs are audited so the row can distinguish server support from outbound bridge/client support.
+- Not ready when: The slice claims ACP parity from package existence without a client/proxy fixture.
+- Degraded mode: Unavailable ACP endpoints report acp_bridge_unavailable with endpoint and auth source redacted; local Gormes operation continues without pretending ACP is connected.
+- Fixture: `internal/acp/bridge_test.go`
+- Write scope: `internal/acp/`, `cmd/gormes/acp.go`, `cmd/gormes/doctor.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/acp ./cmd/gormes -run 'ACP.*Bridge\|ACP.*Status' -count=1`, `go run ./cmd/progress validate`
+- Done signal: ACP bridge fixtures prove outbound client/proxy behavior or explicitly degraded status.
+- Acceptance: Gormes can configure an outbound ACP endpoint and report connection status., Bridge requests are covered by hermetic fake endpoint tests., Doctor/status distinguishes server-only support from client bridge support.
+- Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 8. Gateway discover/probe command
+
+- Phase: 5 / 5.N
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Add OpenClaw-style gateway discovery/probe commands for Gormes operators: discover local/remote gateway endpoints, probe auth/health/capabilities, and return redacted structured evidence for unavailable, unauthenticated, and mismatched gateways.
+- Trust class: operator, gateway
+- Ready when: Gateway status and doctor endpoints are stable enough to probe without live network dependencies in tests.
+- Not ready when: The slice requires a live Telegram or Discord gateway to pass tests.
+- Degraded mode: Probe failures show endpoint, status code, and auth source classification without leaking bearer tokens or gateway passwords.
+- Fixture: `cmd/gormes/gateway_discover_test.go`
+- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_discover.go`, `cmd/gormes/gateway_discover_test.go`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Discover\|Gateway.*Probe' -count=1`, `go run ./cmd/progress validate`
+- Done signal: Gateway discover/probe gives operators redacted connection evidence without reading source code.
+- Acceptance: gormes gateway discover reports candidate local endpoints and active PID/status evidence., gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, and malformed response., Output redacts tokens/passwords and includes exact probe counts.
+- Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 9. Pre-execution command classification
+
+- Phase: 5 / 5.U
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Classify every tool command as safe (whitelist), unsafe (blacklist), or uncertain (needs sandbox snapshot) before execution. Safe commands run directly. Unsafe commands are blocked. Uncertain commands trigger snapshot/rollback wrapper.
+- Trust class: system
+- Ready when: Tool execution path is interceptable, Sandbox filesystem supports snapshots
+- Not ready when: Tool execution cannot be intercepted, No sandbox filesystem available
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/tools/command_classifier.go`, `internal/tools/command_classifier_test.go`, `internal/tools/transactional_executor.go`, `internal/tools/transactional_executor_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tools -run TestCommandClassifier -count=1`, `go test ./internal/tools -run TestTransactionalExecutor -count=1`, `go run ./cmd/progress validate`
+- Done signal: Classifier tests prove safe/unsafe/uncertain classification for representative command sets
+- Acceptance: Commands classified as safe/unsafe/uncertain before execution, Safe commands execute directly with <1ms overhead, Unsafe commands are blocked with audit log entry, Uncertain commands trigger snapshot before execution, Classification rules are configurable per session
+- Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Transactional tool execution with snapshot/rollback
+
+- Phase: 5 / 5.U
+- Owner: `tools`
+- Size: `large`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Wrap each uncertain tool call as an atomic transaction with ACID properties. Filesystem snapshot before execution; rollback on failure, error, or policy violation. Guarantees system consistency regardless of agent behavior.
+- Trust class: system
+- Ready when: Command classifier exists (5.U row 1), Sandbox filesystem supports snapshot/rollback
+- Not ready when: No snapshot mechanism available on target OS
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/tools/transactional_executor.go`, `internal/tools/transactional_executor_test.go`, `internal/tools/snapshot.go`
+- Test commands: `go test ./internal/tools -run TestTransactionalExecutor -count=1`, `go test ./internal/tools -run TestSnapshot -count=1`
+- Done signal: Transactional executor tests prove rollback on failure and commit on success with filesystem integrity
+- Acceptance: Uncertain tool calls create filesystem snapshot before execution, Failed tool calls roll back to pre-execution state, Successful tool calls commit snapshot changes, Rollback is atomic — no partial state after failure, Snapshot overhead <2s per transaction on typical project, Audit log records snapshot/rollback/commit events
+- Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
