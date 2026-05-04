@@ -138,6 +138,7 @@ Configuration:
 
 Gateway:
   gormes acp client                connect a debug ACP client to Gormes
+  gormes system event "note"        enqueue a system event and heartbeat wake
   gormes gateway                    start the configured gateway
   gormes gateway status             check gateway runtime state
   gormes gateway stop               stop a running gateway
@@ -190,7 +191,7 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newACPCommand(), newAgentCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, sessionCmd, memoryCmd, gonchoCmd, newACPCommand(), newSystemCommand(), newAgentCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
 	return root
 }
 

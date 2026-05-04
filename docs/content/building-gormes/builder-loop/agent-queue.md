@@ -48,28 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 2. System Events, Heartbeat, and Presence
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Port OpenClaw's system event surface: gormes system event enqueues a system event and optionally triggers a heartbeat; gormes system heartbeat shows and controls heartbeat state; gormes system presence lists system presence entries. Events are written to the audit ledger (JSONL) and surfaced in gormes status.
-- Trust class: operator, system
-- Ready when: Audit JSONL ledger (internal/audit/) is operational., Session health monitoring (5.N) provides heartbeat data.
-- Not ready when: The row introduces a new event bus or message queue., The row depends on external monitoring services.
-- Degraded mode: Missing audit ledger, event queue full, or heartbeat disabled reports system_unavailable with ledger path/error details.
-- Fixture: `internal/tools/system_events_test.go`
-- Write scope: `internal/tools/system_events.go`, `internal/tools/system_events_test.go`, `cmd/gormes/system.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestSystemEvents -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes system ships with event, heartbeat, and presence subcommands.
-- Acceptance: gormes system event 'gateway restart' enqueues event with timestamp., gormes system heartbeat shows on/off state and last beat time., gormes system presence lists active components with last-seen times.
-- Source refs: openclaw system event/heartbeat/presence CLI surface, internal/audit/ (JSONL audit log), docs/content/building-gormes/openclaw-platform-parity-audit.md
-- Unblocks: Operator observability, Gateway discover/probe diagnostics
-- Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
-
-## 3. Gateway Discover and Probe
+## 2. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 4. Channels Capabilities Introspection
+## 3. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 5. Prompt Fragment Include System
+## 4. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -132,7 +111,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 6. Plan gate hook in agent turn loop
+## 5. Plan gate hook in agent turn loop
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -152,7 +131,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Tool gate pre-execution validation
+## 6. Tool gate pre-execution validation
 
 - Phase: 4 / 4.L
 - Owner: `tools`
@@ -172,7 +151,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Refusal-as-action in ReAct cycle
+## 7. Refusal-as-action in ReAct cycle
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -192,7 +171,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Safety loop end-to-end integration
+## 8. Safety loop end-to-end integration
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -212,7 +191,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/safety_plan_gate.go, internal/tools/safety_tool_gate.go, internal/hermes/refuse_action.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Circuit breaker per provider and API key
+## 9. Circuit breaker per provider and API key
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -230,6 +209,26 @@ selection.
 - Done signal: Circuit breaker tests prove CLOSED→OPEN→HALF_OPEN→CLOSED transitions with configurable thresholds
 - Acceptance: Circuit breaker trips after N consecutive failures, OPEN state fast-fails without making network calls, Half-open probe succeeds → breaker resets to CLOSED, Half-open probe fails → breaker returns to OPEN, Each API key tracked independently, Breaker state transitions are logged at INFO level
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go, internal/hermes/provider.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. P95 latency-aware failover
+
+- Phase: 4 / 4.M
+- Owner: `provider`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Provider selection considers P95 latency in addition to health status. Degraded-but-not-dead providers get reduced traffic weight rather than full exclusion. Rolling window tracks last N requests.
+- Trust class: system
+- Ready when: Provider interface supports latency tracking, Circuit breaker exists (4.M row 1)
+- Not ready when: No latency data collection from providers
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/latency_router.go`, `internal/hermes/latency_router_test.go`
+- Test commands: `go test ./internal/hermes -run TestLatencyRouter -count=1`
+- Done signal: Latency router tests prove degraded providers get reduced weight while healthy ones get priority
+- Acceptance: P95 latency tracked per provider in rolling window, Degraded providers receive reduced traffic weight, Non-degraded providers prioritized in selection, Latency window configurable (default: last 100 requests)
+- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

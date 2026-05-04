@@ -790,7 +790,7 @@ classification and row-backed implementation queue.
 - [x] Git Delivery Contract Enforcement
 - [x] QMD Hybrid Search
 - [x] Session Rollover Automation
-- [ ] System Events, Heartbeat, and Presence
+- [x] System Events, Heartbeat, and Presence
 - [ ] Gateway Discover and Probe
 - [ ] Channels Capabilities Introspection
 - [ ] Prompt Fragment Include System

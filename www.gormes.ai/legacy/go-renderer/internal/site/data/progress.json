@@ -24665,10 +24665,10 @@
             },
             {
               "name": "System Events, Heartbeat, and Presence",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Port OpenClaw's system event surface: gormes system event enqueues a system event and optionally triggers a heartbeat; gormes system heartbeat shows and controls heartbeat state; gormes system presence lists system presence entries. Events are written to the audit ledger (JSONL) and surfaced in gormes status.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -24676,6 +24676,7 @@
                 "system"
               ],
               "degraded_mode": "Missing audit ledger, event queue full, or heartbeat disabled reports system_unavailable with ledger path/error details.",
+              "note": "Complete 2026-05-04: TDD landed a local SystemEventsManager over GormesHome/system/state.json and the existing audit.JSONLWriter, plus gormes system event/heartbeat/presence commands. Events enqueue with UTC timestamps and audit JSONL records; --mode now records heartbeat when enabled; disabled heartbeat, full queue, and audit/state write failures return system_unavailable with path/reason evidence; gormes status now surfaces heartbeat, queued-event, presence, and audit-ledger state.",
               "fixture": "internal/tools/system_events_test.go",
               "source_refs": [
                 "openclaw system event/heartbeat/presence CLI surface",
@@ -24703,10 +24704,14 @@
                 "internal/tools/system_events.go",
                 "internal/tools/system_events_test.go",
                 "cmd/gormes/system.go",
+                "cmd/gormes/system_command_test.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/status.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run TestSystemEvents -count=1",
+                "go test ./cmd/gormes -run TestSystem -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
