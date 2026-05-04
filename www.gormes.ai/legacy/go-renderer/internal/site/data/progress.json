@@ -22717,7 +22717,9 @@
                 "../hermes-agent/gateway/run.py@54e78cadb:kanban dispatcher integration",
                 "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run",
                 "internal/kanban/dispatcher.go",
-                "internal/kanban/dispatcher_test.go"
+                "internal/kanban/dispatcher_test.go",
+                "internal/gateway/kanban_dispatcher.go",
+                "internal/gateway/kanban_dispatcher_test.go"
               ],
               "ready_when": [
                 "Hermes Kanban durable board core is complete.",
@@ -22743,7 +22745,7 @@
                 "Failure fixtures prove retry counts, timeout handling, crash recovery, and circuit breaker block after the configured failure limit.",
                 "Gateway lifecycle fixtures prove the dispatcher is owned by the gateway loop and can be nudged without starting duplicate daemons."
               ],
-              "note": "Partial TDD slice landed the fakeable dispatcher core: RunOnce reclaims expired running claims, lists ready tasks in priority/created order, respects MaxSpawn across successful and failed claimed attempts, skips unassigned tasks, claims through the existing atomic store path, resolves Gormes-owned workspaces, passes only GORMES_* worker context to the injected spawner, records spawned attempts, records failed spawn attempts, and auto-blocks with circuit-breaker evidence at FailureLimit. Remaining work: gateway-owned tick/nudge lifecycle, real OS process spawner with profile resolution, worker PID/liveness checks, max-runtime termination, worker log rotation, and gateway fixtures proving no duplicate daemons.",
+              "note": "Partial TDD slices landed the fakeable dispatcher core and gateway-owned lifecycle seam: RunOnce reclaims expired running claims, lists ready tasks in priority/created order, respects MaxSpawn across successful and failed claimed attempts, skips unassigned tasks, claims through the existing atomic store path, resolves Gormes-owned workspaces, passes only GORMES_* worker context to the injected spawner, records spawned attempts, records failed spawn attempts, and auto-blocks with circuit-breaker evidence at FailureLimit. The gateway Manager now owns an injectable Kanban dispatcher loop with deterministic tick/nudge channels, runtime status JSON evidence, degraded last_error handling that does not crash the gateway, exact trigger timestamps, clean shutdown, restart-after-stop ownership release, and closed test-channel shutdown protection. Remaining work: real OS process spawner with profile resolution, worker PID/liveness checks, max-runtime termination, worker log rotation, and production config/default wiring.",
               "write_scope": [
                 "internal/kanban/",
                 "internal/gateway/",
@@ -22752,7 +22754,7 @@
               ],
               "test_commands": [
                 "go test ./internal/kanban -run TestKanbanDispatcher -count=1",
-                "go test ./internal/gateway -run TestKanbanDispatcher -count=1",
+                "go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
@@ -22764,22 +22766,29 @@
                 "note": "Hermes defines dispatcher semantics; Gormes should implement them through native process and gateway seams."
               },
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-05-04T16:08:23Z",
-                "last_success": "2026-05-04T16:08:23Z",
+                "attempt_count": 2,
+                "last_attempt": "2026-05-04T18:46:06Z",
+                "last_success": "2026-05-04T18:46:06Z",
                 "evidence": [
                   "RED: go test ./internal/kanban -run TestKanbanDispatcherReclaimsStaleAndSpawnsReadyWithMaxCap -count=1 failed because Dispatcher, DispatchOptions, SpawnRequest, SpawnResult, and SpawnFunc did not exist.",
                   "GREEN: go test ./internal/kanban -run TestKanbanDispatcherReclaimsStaleAndSpawnsReadyWithMaxCap -count=1 passed after adding internal/kanban/dispatcher.go with stale-claim reclaim, ready-task selection, atomic claim, max-spawn cap, Gormes-only worker env, and fake spawner support.",
                   "RED: go test ./internal/kanban -run TestKanbanDispatcherBlocksTaskAfterSpawnFailureLimit -count=1 failed because DispatchOptions.FailureLimit, Store.ListRuns, and run outcome types did not exist.",
                   "GREEN: go test ./internal/kanban -run TestKanbanDispatcherBlocksTaskAfterSpawnFailureLimit -count=1 passed after adding task_runs, spawn_failures/last_spawn_error schema migration, failed-spawn run records, and auto-block circuit-breaker behavior.",
                   "RED: go test ./internal/kanban -run TestKanbanDispatcherMaxSpawnCapsFailedAttempts -count=1 failed because MaxSpawn counted only successful spawns and allowed one failed spawn to cascade into the next ready task.",
-                  "GREEN: go test ./internal/kanban -run TestKanbanDispatcherMaxSpawnCapsFailedAttempts -count=1 passed after counting every claimed spawn attempt, including failures, against MaxSpawn."
+                  "GREEN: go test ./internal/kanban -run TestKanbanDispatcherMaxSpawnCapsFailedAttempts -count=1 passed after counting every claimed spawn attempt, including failures, against MaxSpawn.",
+                  "RED: go test ./internal/gateway -run TestManagerKanbanDispatcherLifecycleRunsTicksNudgesAndStops -count=1 failed because ManagerConfig.KanbanDispatcher, KanbanDispatcherConfig, RuntimeStatus.KanbanDispatcher, and dispatcher lifecycle states did not exist.",
+                  "GREEN: go test ./internal/gateway -run TestManagerKanbanDispatcherLifecycleRunsTicksNudgesAndStops -count=1 passed after adding the gateway-owned dispatcher loop, injected tick/nudge channels, cumulative runtime status counters, and stopped-state shutdown evidence.",
+                  "RED: go test ./internal/gateway -run TestManagerKanbanDispatcherRecordsTriggerTimestamp -count=1 failed because LastTickAt used Manager.Now rather than the triggering tick timestamp.",
+                  "GREEN: go test ./internal/gateway -run TestManagerKanbanDispatcherRecordsTriggerTimestamp -count=1 passed after threading the trigger time through tick dispatches while nudges still use the injected manager clock.",
+                  "RED: go test ./internal/gateway -run TestManagerKanbanDispatcherClosedTickChannelStopsDispatcherLoop -count=1 failed because a closed injected tick channel kept the dispatcher loop from reaching stopped state.",
+                  "GREEN: go test ./internal/gateway -run TestManagerKanbanDispatcherClosedTickChannelStopsDispatcherLoop -count=1 passed after treating closed tick channels as dispatcher shutdown and closed nudge channels as disabled nudges.",
+                  "GREEN: go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1 passed with additional coverage for degraded dispatcher errors that keep the gateway serving commands and for dispatcher ownership release across gateway restarts."
                 ]
               },
               "evidence": {
-                "implementation": "internal/kanban/dispatcher.go; internal/kanban/store.go; internal/kanban/dispatcher_test.go",
-                "tests": "go test ./internal/kanban -run TestKanbanDispatcher -count=1; go test ./internal/kanban -count=1",
-                "note": "Dispatcher core is fakeable and hermetic; no live profile config, Hermes env, gateway loop, or OS worker process is used by the tests."
+                "implementation": "internal/kanban/dispatcher.go; internal/kanban/store.go; internal/kanban/dispatcher_test.go; internal/gateway/kanban_dispatcher.go; internal/gateway/kanban_dispatcher_test.go; internal/gateway/status.go; internal/gateway/manager.go",
+                "tests": "go test ./internal/kanban -run TestKanbanDispatcher -count=1; go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1; go test ./internal/gateway -count=1",
+                "note": "Dispatcher core and gateway lifecycle are fakeable and hermetic; no live profile config, Hermes env, production config, or OS worker process is used by the tests."
               }
             },
             {

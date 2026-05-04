@@ -160,6 +160,9 @@ type ManagerConfig struct {
 	// TypingActionEvidenceSink receives redacted non-fatal typing-action
 	// failures. Nil discards evidence silently.
 	TypingActionEvidenceSink TypingActionEvidenceSink
+	// KanbanDispatcher owns the gateway-managed Kanban worker dispatcher loop.
+	// Nil preserves the legacy gateway behavior with no dispatcher activity.
+	KanbanDispatcher KanbanDispatcherConfig
 }
 
 type KernelSubmitter interface {
@@ -244,6 +247,9 @@ type Manager struct {
 
 	verboseHintMu   sync.Mutex
 	verboseHintSent map[string]bool
+
+	kanbanDispatcherMu      sync.Mutex
+	kanbanDispatcherRunning bool
 }
 
 type channelRunFailure struct {
@@ -617,6 +623,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			})
 		}(ch)
 	}
+	m.startKanbanDispatcher(runCtx, &wg)
 
 	wg.Add(1)
 	go func() {

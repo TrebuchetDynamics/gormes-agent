@@ -52,6 +52,7 @@ type RuntimeStatus struct {
 	ActiveAgents              int                                        `json:"active_agents"`
 	Platforms                 map[string]PlatformRuntimeStatus           `json:"platforms"`
 	Proxy                     ProxyRuntimeStatus                         `json:"proxy"`
+	KanbanDispatcher          KanbanDispatcherStatus                     `json:"kanban_dispatcher"`
 	TokenLocks                []TokenLockEvidence                        `json:"token_locks,omitempty"`
 	DrainTimeouts             []RuntimeDrainTimeoutEvidence              `json:"drain_timeouts,omitempty"`
 	ResumePending             []RuntimeResumePendingEvidence             `json:"resume_pending,omitempty"`
@@ -105,6 +106,23 @@ type ProxyRuntimeStatus struct {
 	URL          string `json:"url,omitempty"`
 	ErrorMessage string `json:"error_message"`
 	UpdatedAt    string `json:"updated_at"`
+}
+
+type KanbanDispatcherState string
+
+const (
+	KanbanDispatcherStateRunning  KanbanDispatcherState = "running"
+	KanbanDispatcherStateDegraded KanbanDispatcherState = "degraded"
+	KanbanDispatcherStateStopped  KanbanDispatcherState = "stopped"
+)
+
+type KanbanDispatcherStatus struct {
+	State       KanbanDispatcherState `json:"state,omitempty"`
+	LastTickAt  string                `json:"last_tick_at,omitempty"`
+	LastError   string                `json:"last_error,omitempty"`
+	Spawned     int                   `json:"spawned,omitempty"`
+	SpawnFailed int                   `json:"spawn_failed,omitempty"`
+	AutoBlocked int                   `json:"auto_blocked,omitempty"`
 }
 
 type RuntimeResumePendingEvidence struct {
@@ -217,6 +235,8 @@ type RuntimeStatusUpdate struct {
 	ProxyState        string
 	ProxyURL          string
 	ProxyErrorMessage string
+
+	KanbanDispatcher *KanbanDispatcherStatus
 
 	DrainTimeoutEvidence              *RuntimeDrainTimeoutEvidence
 	ResumePendingEvidence             *RuntimeResumePendingEvidence
@@ -531,6 +551,22 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 		status.Proxy.ErrorMessage = update.ProxyErrorMessage
 		status.Proxy.UpdatedAt = status.UpdatedAt
 	}
+	if update.KanbanDispatcher != nil {
+		kanbanStatus := status.KanbanDispatcher
+		if update.KanbanDispatcher.State != "" {
+			kanbanStatus.State = update.KanbanDispatcher.State
+		}
+		if update.KanbanDispatcher.LastTickAt != "" {
+			kanbanStatus.LastTickAt = update.KanbanDispatcher.LastTickAt
+		}
+		if update.KanbanDispatcher.LastError != "" || update.KanbanDispatcher.State == KanbanDispatcherStateRunning {
+			kanbanStatus.LastError = update.KanbanDispatcher.LastError
+		}
+		kanbanStatus.Spawned += update.KanbanDispatcher.Spawned
+		kanbanStatus.SpawnFailed += update.KanbanDispatcher.SpawnFailed
+		kanbanStatus.AutoBlocked += update.KanbanDispatcher.AutoBlocked
+		status.KanbanDispatcher = kanbanStatus
+	}
 	if update.DrainTimeoutEvidence != nil {
 		evidence := *update.DrainTimeoutEvidence
 		status.DrainTimeouts = append(status.DrainTimeouts, evidence)
@@ -597,6 +633,10 @@ func applyRuntimeProcessValidation(status RuntimeStatus, validation RuntimeProce
 	switch strings.TrimSpace(strings.ToLower(status.Proxy.State)) {
 	case "starting", "running", "draining":
 		status.Proxy.State = "stopped"
+	}
+	if status.KanbanDispatcher.State == KanbanDispatcherStateRunning ||
+		status.KanbanDispatcher.State == KanbanDispatcherStateDegraded {
+		status.KanbanDispatcher.State = KanbanDispatcherStateStopped
 	}
 	return status
 }
