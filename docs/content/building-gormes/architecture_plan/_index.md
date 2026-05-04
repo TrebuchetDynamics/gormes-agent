@@ -735,7 +735,7 @@ classification and row-backed implementation queue.
 - [x] Filesystem scoping (folder-level read/write restrictions)
 - [x] Permission approval UX (inline y/n/always)
 - [x] Trust-class enforcement in shared tool executor
-- [ ] Secrets Runtime Controls
+- [x] Secrets Runtime Controls
 - [ ] Security Audit Command
 
 ### 5.K — Code Execution ✅

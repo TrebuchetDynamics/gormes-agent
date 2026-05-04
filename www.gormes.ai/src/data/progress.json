@@ -21973,17 +21973,17 @@
             },
             {
               "name": "Secrets Runtime Controls",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Port OpenClaw's secrets runtime control surface: secrets apply for deploying previously generated plans, secrets audit to detect plaintext secrets/unresolved refs/precedence drift, secrets configure for interactive provider setup with SecretRef mapping and preflight validation, and secrets reload to re-resolve secret references and atomically swap the runtime snapshot.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
               "degraded_mode": "Unresolved SecretRef, missing provider, or reload failure reports secrets_unavailable with exact ref path rather than silently falling back or leaking plaintext secrets.",
-              "fixture": "internal/tools/secrets_test.go",
+              "fixture": "internal/tools/secrets_test.go; cmd/gormes/secrets_command_test.go",
               "source_refs": [
                 "openclaw secrets apply/audit/configure/reload CLI surface",
                 "docs/content/building-gormes/openclaw-platform-parity-audit.md",
@@ -22018,7 +22018,8 @@
               ],
               "done_signal": [
                 "gormes secrets ships with audit, configure, and reload commands."
-              ]
+              ],
+              "note": "Validated 2026-05-03: TDD added internal/tools secrets runtime controls with typed SecretRef targets, plaintext/unresolved/precedence-drift audit findings, configure preflight, apply, reload, atomic last-good in-memory snapshots, and redacted JSON-safe evidence. The gormes secrets CLI now ships apply/audit/configure/reload over plan files with a redacted secrets-runtime.json metadata snapshot under GORMES_HOME; failed reloads return secrets_unavailable and preserve the last good snapshot without storing resolved secret values. Focused commands passed: go test ./internal/tools -run TestSecrets -count=1; go test ./cmd/gormes -run TestSecrets -count=1."
             },
             {
               "name": "Security Audit Command",

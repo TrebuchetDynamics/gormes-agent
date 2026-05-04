@@ -8,6 +8,17 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.1.01] - 2026-05-04
+
+### Added
+- `gormes secrets` runtime controls for SecretRef plan apply, audit,
+  configure, and atomic reload flows with redacted evidence.
+- Repo-local `gormes-release` skill for the development-to-main release lane.
+
+### Fixed
+- First-run setup model picker cancellation now exits cleanly without leaking
+  the internal cancellation sentinel.
+
 ## [0.1.0] - 2026-05-01
 
 ### Added
@@ -62,7 +73,8 @@ inside the 0.x compatibility window.
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.01...HEAD
+[0.1.01]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0...v0.1.01
 [0.1.0]: https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.0
 [0.2.0-scout]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0-scout...v0.2.0-scout
 [0.1.0-scout]: https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.0-scout

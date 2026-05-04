@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Secrets Runtime Controls
-
-- Phase: 5 / 5.J
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Port OpenClaw's secrets runtime control surface: secrets apply for deploying previously generated plans, secrets audit to detect plaintext secrets/unresolved refs/precedence drift, secrets configure for interactive provider setup with SecretRef mapping and preflight validation, and secrets reload to re-resolve secret references and atomically swap the runtime snapshot.
-- Trust class: operator
-- Ready when: Hermes credential/oauth store migration (5.O) is validated., SecretRef resolution layer is defined.
-- Not ready when: The row ships without audit/reload atomicity., The row stores secrets in plaintext outside the secrets provider.
-- Degraded mode: Unresolved SecretRef, missing provider, or reload failure reports secrets_unavailable with exact ref path rather than silently falling back or leaking plaintext secrets.
-- Fixture: `internal/tools/secrets_test.go`
-- Write scope: `internal/tools/secrets.go`, `internal/tools/secrets_test.go`, `cmd/gormes/secrets.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestSecrets -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes secrets ships with audit, configure, and reload commands.
-- Acceptance: gormes secrets audit detects plaintext secrets, unresolved refs, and precedence drift., gormes secrets reload atomically swaps runtime snapshot without restart., SecretRef format matches OpenClaw's typed {source, provider, id} object convention.
-- Source refs: openclaw secrets apply/audit/configure/reload CLI surface, docs/content/building-gormes/openclaw-platform-parity-audit.md, docs/content/building-gormes/fleet-operational-patterns.md
-- Unblocks: Security audit (5.J), Provider auth parity
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Security Audit Command
+## 1. Security Audit Command
 
 - Phase: 5 / 5.J
 - Owner: `tools`
@@ -69,7 +48,7 @@ selection.
 - Unblocks: Production security posture
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. ACP Client Bridge Mode
+## 2. ACP Client Bridge Mode
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Multi-agent interoperability, Editor integrations
 - Why now: Unblocks Multi-agent interoperability, Editor integrations.
 
-## 4. Extension Lifecycle Hook System
+## 3. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 5. System Events, Heartbeat, and Presence
+## 4. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -132,7 +111,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 6. Gateway Discover and Probe
+## 5. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -153,7 +132,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 7. Channels Capabilities Introspection
+## 6. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -174,7 +153,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 8. Prompt Fragment Include System
+## 7. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -195,7 +174,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 9. Plan gate hook in agent turn loop
+## 8. Plan gate hook in agent turn loop
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -215,7 +194,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Tool gate pre-execution validation
+## 9. Tool gate pre-execution validation
 
 - Phase: 4 / 4.L
 - Owner: `tools`
@@ -233,6 +212,26 @@ selection.
 - Done signal: Tool gate tests prove intent-aligned calls pass and drift calls are blocked
 - Acceptance: Tool gate evaluates every tool call before execution, Tool calls outside intent scope are blocked, Intent drift across multi-step tool chains is detected, Tool gate adds <5ms P99 overhead
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Refusal-as-action in ReAct cycle
+
+- Phase: 4 / 4.L
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: The agent loop supports 'refuse' as a first-class action in the ReAct cycle. When safety gates reject a planned action, the agent can refuse and explain why, rather than silently failing or hallucinating a different action.
+- Trust class: operator
+- Ready when: Plan gate or tool gate exists (4.L rows 1-2)
+- Not ready when: No safety gate to produce refusal signals
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/refuse_action.go`, `internal/hermes/refuse_action_test.go`
+- Test commands: `go test ./internal/hermes -run TestRefuseAction -count=1`
+- Done signal: Refusal tests prove the agent can refuse, explain, and recover
+- Acceptance: ReAct cycle accepts RefuseAction alongside ToolAction, Refused actions produce user-visible explanation, Agent can recover and try alternative approach after refusal, Refusal does not count as an error in session stats
+- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
