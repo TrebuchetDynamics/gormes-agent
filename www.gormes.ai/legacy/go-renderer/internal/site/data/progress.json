@@ -22023,10 +22023,10 @@
             },
             {
               "name": "Security Audit Command",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Port OpenClaw's security audit: gormes security audit --deep --fix --json. Deep mode includes live gateway probe checks. Fix mode applies safe remediations and file-permission fixes. JSON mode produces machine-readable output. Audit categories: gateway auth status, state integrity, channel security warnings, shell blocklist coverage, filesystem scoping, credential redaction.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -22063,11 +22063,13 @@
               ],
               "test_commands": [
                 "go test ./internal/tools -run TestSecurityAudit -count=1",
+                "go test ./cmd/gormes -run TestSecurityAudit -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "gormes security audit ships with --deep, --fix, and --json modes."
-              ]
+              ],
+              "note": "Validated 2026-05-04: TDD added the pure internal/tools security audit engine plus the gormes security audit CLI. Deep audit now reports gateway auth/probe state, state file integrity, channel scope warnings, shell blocklist coverage, filesystem scoping probes, and credential redaction without requiring a live gateway for baseline checks. --fix applies only safe deterministic remediations through command adapters: config/dotenv/secrets-runtime permission repair and GATEWAY_PROXY_KEY generation into dotenv; unsafe fixes are reported as manual actions. --json returns redacted machine-readable category pass/warn/fail counts, findings, and fix evidence. Focused commands passed: go test ./internal/tools -run TestSecurityAudit -count=1; go test ./cmd/gormes -run TestSecurityAudit -count=1."
             }
           ]
         },

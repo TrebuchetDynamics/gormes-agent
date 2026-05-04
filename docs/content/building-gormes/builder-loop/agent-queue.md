@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Security Audit Command
-
-- Phase: 5 / 5.J
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Port OpenClaw's security audit: gormes security audit --deep --fix --json. Deep mode includes live gateway probe checks. Fix mode applies safe remediations and file-permission fixes. JSON mode produces machine-readable output. Audit categories: gateway auth status, state integrity, channel security warnings, shell blocklist coverage, filesystem scoping, credential redaction.
-- Trust class: operator
-- Ready when: Shell blocklist + filesystem scoping (5.J) is operational., Secrets runtime controls (5.J) is operational.
-- Not ready when: The row performs destructive fixes without --fix flag., The row requires live gateway for basic audit checks.
-- Degraded mode: Unauditable surfaces, missing probes, or unfixable issues report per-category status with severity level and recommended action rather than blocking the entire audit.
-- Fixture: `internal/tools/security_audit_test.go`
-- Write scope: `internal/tools/security_audit.go`, `internal/tools/security_audit_test.go`, `cmd/gormes/security.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestSecurityAudit -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes security audit ships with --deep, --fix, and --json modes.
-- Acceptance: gormes security audit --deep checks gateway auth, state integrity, channel security, shell blocklist, filesystem scoping, and credential redaction., --fix applies safe remediations (file permissions, auth token generation)., --json produces machine-readable output with per-category pass/fail/warn.
-- Source refs: openclaw security audit --deep --fix --json CLI surface, docs/content/building-gormes/openclaw-platform-parity-audit.md, docs/content/building-gormes/must-have-features.md
-- Unblocks: Production security posture
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. ACP Client Bridge Mode
+## 1. ACP Client Bridge Mode
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -69,7 +48,7 @@ selection.
 - Unblocks: Multi-agent interoperability, Editor integrations
 - Why now: Unblocks Multi-agent interoperability, Editor integrations.
 
-## 3. Extension Lifecycle Hook System
+## 2. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 4. System Events, Heartbeat, and Presence
+## 3. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 5. Gateway Discover and Probe
+## 4. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -132,7 +111,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 6. Channels Capabilities Introspection
+## 5. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -153,7 +132,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 7. Prompt Fragment Include System
+## 6. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -174,7 +153,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 8. Plan gate hook in agent turn loop
+## 7. Plan gate hook in agent turn loop
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -194,7 +173,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Tool gate pre-execution validation
+## 8. Tool gate pre-execution validation
 
 - Phase: 4 / 4.L
 - Owner: `tools`
@@ -214,7 +193,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Refusal-as-action in ReAct cycle
+## 9. Refusal-as-action in ReAct cycle
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -232,6 +211,26 @@ selection.
 - Done signal: Refusal tests prove the agent can refuse, explain, and recover
 - Acceptance: ReAct cycle accepts RefuseAction alongside ToolAction, Refused actions produce user-visible explanation, Agent can recover and try alternative approach after refusal, Refusal does not count as an error in session stats
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Safety loop end-to-end integration
+
+- Phase: 4 / 4.L
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Integration test proving plan-gate + tool-gate + refusal work together in a complete agent turn. Covers: safe turn passes, unsafe plan blocked, tool drift blocked, multi-step chain with mixed safe/unsafe steps.
+- Trust class: operator, system
+- Ready when: Plan gate, tool gate, and refusal all exist (4.L rows 1-3)
+- Not ready when: Any safety component not yet implemented
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/safety_loop_integration_test.go`
+- Test commands: `go test ./internal/hermes -run TestSafetyLoop -count=1`
+- Done signal: Integration tests prove end-to-end safety loop handles safe, unsafe, drift, and recovery scenarios
+- Acceptance: Full turn with safe actions completes successfully, Unsafe plan is caught before any tool executes, Tool drift in multi-step chain is detected mid-chain, Agent recovers after refusal and completes alternative approach
+- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/safety_plan_gate.go, internal/tools/safety_tool_gate.go, internal/hermes/refuse_action.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
