@@ -67,7 +67,7 @@ func TestDoctorTUIStatusReportsNativeGoBubbleTeaAvailability(t *testing.T) {
 }
 
 func TestNativeTUIInstallCopyPromisesNoRuntimeNodeOrNPM(t *testing.T) {
-	body, err := os.ReadFile(filepath.Join("..", "..", "www.gormes.ai", "src", "data", "landing.js"))
+	body, err := os.ReadFile(filepath.Join("..", "..", "webpages", "landing", "src", "data", "landing.js"))
 	if err != nil {
 		t.Fatalf("read landing content: %v", err)
 	}

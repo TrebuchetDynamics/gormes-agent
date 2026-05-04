@@ -19,7 +19,7 @@ func TestConfigFromEnvDefaultsToRepoRootPaths(t *testing.T) {
 		t.Fatalf("RepoRoot = %q, want %q", cfg.RepoRoot, root)
 	}
 
-	wantProgressJSON := filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	wantProgressJSON := filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	if cfg.ProgressJSON != wantProgressJSON {
 		t.Fatalf("ProgressJSON = %q, want %q", cfg.ProgressJSON, wantProgressJSON)
 	}
@@ -224,8 +224,8 @@ func TestDefaultPostPromotionVerifyCommandsIncludeLocalE2ESurfaces(t *testing.T)
 	commands := defaultPostPromotionVerifyCommands()
 	for _, want := range []string{
 		"go run ./cmd/progress validate",
-		"(cd docs/www-tests && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
-		"(cd www.gormes.ai && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
+		"(cd webpages/docs/www-tests && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
+		"(cd webpages/landing && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
 	} {
 		var found bool
 		for _, got := range commands {

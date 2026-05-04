@@ -173,6 +173,29 @@ func TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary(t *testing.T) {
 	}
 }
 
+func TestSetupFullWizardOffersGormesLaunchPromptAfterSummary(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	fake.chooseSetupAction = func(_ *cobra.Command, _ []setupMenuOption, _ int) (setupAction, error) {
+		return setupActionFull, nil
+	}
+	input := strings.Repeat("\n", 8) + "n\n"
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), input)
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{"Setup Complete", "Ready to go:", "Launch gormes chat now? [Y/n]: "} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "Launch hermes chat now?") {
+		t.Fatalf("stdout contains Hermes-owned launch prompt:\n%s", stdout)
+	}
+}
+
 func TestSetupModelSectionDelegatesToPicker(t *testing.T) {
 	fake := &setupCommandFakeSeams{isTTY: true}
 	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "model")

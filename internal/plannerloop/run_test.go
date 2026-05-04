@@ -108,7 +108,7 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 		"www.gormes.ai",
 		"Astro/Starlight docs",
 		"landing page",
-		"docs/astro.config.mjs",
+		"webpages/docs/astro.config.mjs",
 		"goncho",
 		"progress.json",
 		"only long-term prompt agent",
@@ -665,7 +665,7 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 		{"run", "./cmd/progress", "write"},
 		{"run", "./cmd/progress", "validate"},
 		{"test", "./internal/progress", "-count=1"},
-		{"test", "./docs", "-count=1"},
+		{"test", "./webpages/docs", "-count=1"},
 		{"test", "./...", "-count=1"},
 	}
 	for i, want := range wantArgs {
@@ -677,7 +677,7 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 			t.Fatalf("validation command %d args = %#v, want %#v", i, command.Args, want)
 		}
 	}
-	if got, want := runner.Commands[8].Dir, filepath.Join(repoRoot, "www.gormes.ai"); got != want {
+	if got, want := runner.Commands[8].Dir, filepath.Join(repoRoot, "webpages", "landing"); got != want {
 		t.Fatalf("landing validation dir = %q, want %q", got, want)
 	}
 	docsEnv := strings.Join(runner.Commands[7].Env, "\n")
@@ -1217,7 +1217,7 @@ func writePlannerFixture(t *testing.T) string {
 	t.Helper()
 
 	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
+	writeFile(t, filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"), `{
   "phases": {
     "2": {
       "name": "Gateway",
@@ -1239,17 +1239,20 @@ func writePlannerFixture(t *testing.T) string {
 		filepath.Join(root, "..", "gbrain", "README.md"),
 		filepath.Join(root, "..", "honcho", ".git", "HEAD"),
 		filepath.Join(root, "..", "honcho", "README.md"),
-		filepath.Join(root, "docs", "content", "upstream-hermes", "_index.md"),
-		filepath.Join(root, "docs", "content", "upstream-gbrain", "_index.md"),
-		filepath.Join(root, "docs", "content", "building-gormes", "_index.md"),
-		filepath.Join(root, "docs", "astro.config.mjs"),
-		filepath.Join(root, "docs", "package.json"),
-		filepath.Join(root, "docs", "src", "styles", "starlight.css"),
-		filepath.Join(root, "www.gormes.ai", "README.md"),
-		filepath.Join(root, "www.gormes.ai", "internal", "site", "server.go"),
-		filepath.Join(root, "www.gormes.ai", "tests", "home.spec.mjs"),
+		filepath.Join(root, "webpages", "docs", "content", "upstream-hermes", "_index.md"),
+		filepath.Join(root, "webpages", "docs", "content", "upstream-gbrain", "_index.md"),
+		filepath.Join(root, "webpages", "docs", "content", "building-gormes", "_index.md"),
+		filepath.Join(root, "webpages", "docs", "astro.config.mjs"),
+		filepath.Join(root, "webpages", "docs", "package.json"),
+		filepath.Join(root, "webpages", "docs", "src", "styles", "starlight.css"),
+		filepath.Join(root, "webpages", "landing", "README.md"),
+		filepath.Join(root, "webpages", "landing", "internal", "site", "server.go"),
+		filepath.Join(root, "webpages", "landing", "tests", "home.spec.mjs"),
 	} {
 		writeFile(t, path, "# fixture\n")
+	}
+	if err := os.Symlink(filepath.Join("webpages", "docs"), filepath.Join(root, "docs")); err != nil {
+		t.Fatalf("symlink docs compatibility path: %v", err)
 	}
 	return root
 }

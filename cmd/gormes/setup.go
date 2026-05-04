@@ -60,6 +60,7 @@ type setupCommandSeams struct {
 	RunSetupGateway    func(*cobra.Command, bool) error
 	RunSetupTools      func(*cobra.Command, bool) error
 	RunGatewayPlatform func(*cobra.Command, string) error
+	LaunchChat         func(*cobra.Command) error
 }
 
 type setupAction string
@@ -111,6 +112,9 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	}
 	if seams.RunGatewayPlatform == nil {
 		seams.RunGatewayPlatform = runSetupGatewayPlatformRowBacked
+	}
+	if seams.LaunchChat == nil {
+		seams.LaunchChat = launchSetupChat
 	}
 	if seams.RunSetupGateway == nil {
 		seams.RunSetupGateway = func(cmd *cobra.Command, nonInteractive bool) error {
@@ -379,7 +383,7 @@ func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteract
 		return err
 	}
 	printSetupSummary(cmd)
-	return nil
+	return offerSetupLaunchChat(cmd, seams)
 }
 
 func printSetupWizardHeader(cmd *cobra.Command) {
@@ -424,6 +428,32 @@ func printSetupSummary(cmd *cobra.Command) {
 	fmt.Fprintln(out, "   gormes gateway      Start messaging gateway")
 	fmt.Fprintln(out, "   gormes doctor       Check for issues")
 	fmt.Fprintln(out)
+}
+
+func offerSetupLaunchChat(cmd *cobra.Command, seams setupCommandSeams) error {
+	answer, err := promptString(cmd, "Launch gormes chat now? [Y/n]: ", "y")
+	if err != nil {
+		return err
+	}
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "", "y", "yes":
+		return seams.LaunchChat(cmd)
+	case "n", "no":
+		return nil
+	default:
+		return newExitCodeError(2, fmt.Errorf("setup_launch_invalid_selection: %s", answer))
+	}
+}
+
+func launchSetupChat(cmd *cobra.Command) error {
+	root := newRootCommand()
+	root.SetArgs([]string{})
+	root.SetIn(cmd.InOrStdin())
+	root.SetOut(cmd.OutOrStdout())
+	root.SetErr(cmd.ErrOrStderr())
+	root.SilenceUsage = true
+	root.SilenceErrors = true
+	return root.ExecuteContext(cmd.Context())
 }
 
 func runSetupProviderSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {

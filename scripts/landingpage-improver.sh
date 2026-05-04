@@ -16,12 +16,12 @@ LOCK_PID_FILE="$LOCK_DIR/pid"
 LOCK_STARTED_FILE="$LOCK_DIR/started_at"
 LOCK_COMMAND_FILE="$LOCK_DIR/command"
 
-SITE_ROOT="$REPO_ROOT/www.gormes.ai"
+SITE_ROOT="$REPO_ROOT/webpages/landing"
 SITE_CONTENT_GO="$SITE_ROOT/internal/site/content.go"
 SITE_TEMPLATES_DIR="$SITE_ROOT/internal/site/templates"
 SITE_STATIC_DIR="$SITE_ROOT/internal/site/static"
 SITE_DATA_DIR="$SITE_ROOT/internal/site/data"
-PROGRESS_JSON="$REPO_ROOT/docs/content/building-gormes/architecture_plan/progress.json"
+PROGRESS_JSON="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
 SITE_PROGRESS_JSON="$SITE_DATA_DIR/progress.json"
 BENCHMARKS_JSON="$SITE_DATA_DIR/benchmarks.json"
 
@@ -299,7 +299,7 @@ Required tasks:
 4) Improve messaging clarity where needed (headlines, feature descriptions, CTAs).
 5) Run validation commands:
    - go test ./internal/site/... -count=1
-   - go test ./... -count=1 (from www.gormes.ai directory)
+   - go test ./... -count=1 (from webpages/landing directory)
    - make build (if Makefile exists)
 
 Required final report sections (exact headings):

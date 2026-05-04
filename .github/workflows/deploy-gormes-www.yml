@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'www.gormes.ai/**'
+      - 'webpages/landing/**'
       - 'benchmarks.json'
-      - 'docs/content/building-gormes/architecture_plan/progress.json'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
       - 'install.sh'
       - 'scripts/install.ps1'
       - 'scripts/install.cmd'
@@ -33,18 +33,18 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: www.gormes.ai/package-lock.json
+          cache-dependency-path: webpages/landing/package-lock.json
 
       - name: Install dependencies
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: npm ci
 
       - name: Build Astro static site
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: npm run build
 
       - name: Verify build artifacts
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: |
           test -f dist/index.html
           test -f dist/install.sh
@@ -56,7 +56,7 @@ jobs:
           test -d dist/_astro
 
       - name: Verify homepage content
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: |
           grep -F 'data-site-runtime="astro-tailwind"' dist/index.html >/dev/null
           grep -F "Run Agents From One Go Binary." dist/index.html >/dev/null
@@ -86,7 +86,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy www.gormes.ai/dist --project-name=gormes-agent-landing --branch=main --commit-dirty=true
+          command: pages deploy webpages/landing/dist --project-name=gormes-agent-landing --branch=main --commit-dirty=true
 
       - name: Attach gormes.ai
         env:

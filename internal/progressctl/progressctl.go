@@ -99,7 +99,7 @@ type pathSet struct {
 }
 
 func progressPaths(root string) pathSet {
-	buildingGormes := filepath.Join(root, "docs", "content", "building-gormes")
+	buildingGormes := filepath.Join(root, "webpages", "docs", "content", "building-gormes")
 	builderLoopDir := filepath.Join(buildingGormes, "builder-loop")
 	return pathSet{
 		progressJSON:       filepath.Join(buildingGormes, "architecture_plan", "progress.json"),
@@ -113,8 +113,8 @@ func progressPaths(root string) pathSet {
 		umbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
 		progressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
 		siteProgress: []string{
-			filepath.Join(root, "www.gormes.ai", "src", "data", "progress.json"),
-			filepath.Join(root, "www.gormes.ai", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
+			filepath.Join(root, "webpages", "landing", "src", "data", "progress.json"),
+			filepath.Join(root, "webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
 		},
 	}
 }

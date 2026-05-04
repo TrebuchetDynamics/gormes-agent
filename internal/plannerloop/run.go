@@ -1006,8 +1006,8 @@ func runValidation(ctx context.Context, runner cmdrunner.Runner, repoRoot, logPa
 		{Name: "go", Args: []string{"run", "./cmd/progress", "write"}, Dir: repoRoot, Env: env},
 		{Name: "go", Args: []string{"run", "./cmd/progress", "validate"}, Dir: repoRoot, Env: env},
 		{Name: "go", Args: []string{"test", "./internal/progress", "-count=1"}, Dir: repoRoot, Env: env},
-		{Name: "go", Args: []string{"test", "./docs", "-count=1"}, Dir: repoRoot, Env: env},
-		{Name: "go", Args: []string{"test", "./...", "-count=1"}, Dir: filepath.Join(repoRoot, "www.gormes.ai"), Env: env},
+		{Name: "go", Args: []string{"test", "./webpages/docs", "-count=1"}, Dir: repoRoot, Env: env},
+		{Name: "go", Args: []string{"test", "./...", "-count=1"}, Dir: filepath.Join(repoRoot, "webpages", "landing"), Env: env},
 	}
 
 	var log strings.Builder

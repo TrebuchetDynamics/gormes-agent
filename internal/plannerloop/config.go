@@ -212,7 +212,7 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 	parent := filepath.Dir(repoRoot)
 	cfg := Config{
 		RepoRoot:                   repoRoot,
-		ProgressJSON:               filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		ProgressJSON:               filepath.Join(repoRoot, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		RunRoot:                    defaultPlannerLoopRunRoot(repoRoot),
 		AutoloopRunRoot:            defaultBuilderLoopRunRootFromPlanner(repoRoot),
 		Backend:                    "codexu",
@@ -450,10 +450,10 @@ func (cfg Config) SourceRoots() []SourceRoot {
 		{Name: "hermes-agent", Path: cfg.HermesDir},
 		{Name: "gbrain", Path: cfg.GBrainDir},
 		{Name: "honcho", Path: cfg.HonchoDir},
-		{Name: "upstream-hermes", Path: filepath.Join(cfg.RepoRoot, "docs", "content", "upstream-hermes")},
-		{Name: "upstream-gbrain", Path: filepath.Join(cfg.RepoRoot, "docs", "content", "upstream-gbrain")},
-		{Name: "building-gormes", Path: filepath.Join(cfg.RepoRoot, "docs", "content", "building-gormes")},
-		{Name: "www.gormes.ai", Path: filepath.Join(cfg.RepoRoot, "www.gormes.ai")},
-		{Name: "astro-docs", Path: filepath.Join(cfg.RepoRoot, "docs")},
+		{Name: "upstream-hermes", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs", "content", "upstream-hermes")},
+		{Name: "upstream-gbrain", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs", "content", "upstream-gbrain")},
+		{Name: "building-gormes", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs", "content", "building-gormes")},
+		{Name: "www.gormes.ai", Path: filepath.Join(cfg.RepoRoot, "webpages", "landing")},
+		{Name: "astro-docs", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs")},
 	}
 }

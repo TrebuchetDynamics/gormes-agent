@@ -167,7 +167,7 @@ func TestRunOnce_NoChangeWorkerCountsAsNoProgressAndSkipsPostVerify(t *testing.T
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
 
-	progressPath := filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	progressPath := filepath.Join(repoRoot, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	if err := os.MkdirAll(filepath.Dir(progressPath), 0o755); err != nil {
 		t.Fatalf("mkdir progress dir: %v", err)
 	}
@@ -436,7 +436,7 @@ func TestRunOnce_CommitsRunHealthAfterPromotedWorker(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
 
-	progressPath := filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	progressPath := filepath.Join(repoRoot, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	if err := os.MkdirAll(filepath.Dir(progressPath), 0o755); err != nil {
 		t.Fatalf("mkdir progress dir: %v", err)
 	}
@@ -536,7 +536,7 @@ func TestRunOnce_PushesMainAfterCompletedRun(t *testing.T) {
 	repoRoot := t.TempDir()
 	initCleanRepo(t, repoRoot)
 
-	progressPath := filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json")
+	progressPath := filepath.Join(repoRoot, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json")
 	if err := os.MkdirAll(filepath.Dir(progressPath), 0o755); err != nil {
 		t.Fatalf("mkdir progress dir: %v", err)
 	}

@@ -38,13 +38,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: docs/package-lock.json
+          cache-dependency-path: webpages/docs/package-lock.json
 
       - name: Download modules
         run: go mod download
 
       - name: Install docs dependencies
-        working-directory: docs
+        working-directory: webpages/docs
         run: npm ci
 
       - name: Run Go tests

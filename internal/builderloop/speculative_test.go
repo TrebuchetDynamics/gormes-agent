@@ -428,7 +428,7 @@ func TestSpeculativeExecution_Integration(t *testing.T) {
 		t.Fatalf("git config failed: %v", err)
 	}
 
-	progressDir := filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan")
+	progressDir := filepath.Join(repoRoot, "webpages", "docs", "content", "building-gormes", "architecture_plan")
 	if err := os.MkdirAll(progressDir, 0755); err != nil {
 		t.Fatalf("mkdir failed: %v", err)
 	}

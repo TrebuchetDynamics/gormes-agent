@@ -21,7 +21,7 @@ func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 	if cfg.RepoRoot != root {
 		t.Fatalf("RepoRoot = %q, want %q", cfg.RepoRoot, root)
 	}
-	if cfg.ProgressJSON != filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json") {
+	if cfg.ProgressJSON != filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json") {
 		t.Fatalf("ProgressJSON = %q", cfg.ProgressJSON)
 	}
 	if cfg.RunRoot != filepath.Join(root, ".codex", "planner-loop") {

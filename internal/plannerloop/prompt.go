@@ -196,7 +196,7 @@ Long-term operating contract:
 - Synchronize landing page, Astro/Starlight docs, generated pages, and progress.json whenever roadmap or implementation reality changes.
 - If upstream moved but Gormes has not, add or refine small TDD-ready progress rows instead of silently accepting drift.
 - If Gormes implementation moved but progress.json is stale, update progress status, notes, acceptance, and source_refs.
-- If www.gormes.ai or docs/astro.config.mjs drift from the roadmap, add planner tasks or docs edits that bring the public surfaces back in line.
+- If www.gormes.ai or webpages/docs/astro.config.mjs drift from the roadmap, add planner tasks or docs edits that bring the public surfaces back in line.
 - Autoloop workers should not have to search or guess; every executable row must carry enough concrete context to start TDD immediately.
 - A row is not worker-ready without row-local test_commands unless no_test_required explains why no focused executable test exists.
 
@@ -222,8 +222,8 @@ Control plane:
 - Current progress items: %d
 
 Required behavior:
-1. Study hermes-agent, gbrain, docs/content/upstream-hermes, docs/content/upstream-gbrain, docs/content/building-gormes, www.gormes.ai, docs/astro.config.mjs, and Honcho/Goncho memory references.
-2. Improve docs/content/building-gormes/architecture_plan/progress.json conservatively so builder skills receive smaller, dependency-aware, TDD-ready slices.
+1. Study hermes-agent, gbrain, webpages/docs/content/upstream-hermes, webpages/docs/content/upstream-gbrain, webpages/docs/content/building-gormes, www.gormes.ai, webpages/docs/astro.config.mjs, and Honcho/Goncho memory references.
+2. Improve webpages/docs/content/building-gormes/architecture_plan/progress.json conservatively so builder skills receive smaller, dependency-aware, TDD-ready slices.
 3. Keep GONCHO as the internal implementation name while preserving honcho_* external compatibility where the public tool contract requires it.
 4. Include Goncho/Honcho tasks when they affect the full Gormes architecture.
 5. Compare synchronized upstream repos against current Gormes implementation inventory before changing any roadmap row.
@@ -239,8 +239,8 @@ After edits, run:
 - go run ./cmd/progress write
 - go run ./cmd/progress validate
 - go test ./internal/progress -count=1
-- go test ./docs -count=1
-- (cd www.gormes.ai && go test ./... -count=1)
+- go test ./webpages/docs -count=1
+- (cd webpages/landing && go test ./... -count=1)
 
 Required final report sections:
 1. Scope scanned

@@ -16,10 +16,10 @@ LOCK_PID_FILE="$LOCK_DIR/pid"
 LOCK_STARTED_FILE="$LOCK_DIR/started_at"
 LOCK_COMMAND_FILE="$LOCK_DIR/command"
 
-PROGRESS_JSON="$REPO_ROOT/docs/content/building-gormes/architecture_plan/progress.json"
-ARCH_PLAN_DIR="$REPO_ROOT/docs/content/building-gormes/architecture_plan"
-CORE_DOCS_DIR="$REPO_ROOT/docs/content/building-gormes/core-systems"
-SITE_ROOT="$REPO_ROOT/www.gormes.ai"
+PROGRESS_JSON="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
+ARCH_PLAN_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan"
+CORE_DOCS_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/core-systems"
+SITE_ROOT="$REPO_ROOT/webpages/landing"
 SITE_PROGRESS_JSON="$SITE_ROOT/src/data/progress.json"
 
 RUN_AT_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -330,7 +330,7 @@ Required tasks:
    - go run ./cmd/progress write
    - go run ./cmd/progress validate
    - go test ./internal/progress -count=1
-   - go test ./docs -count=1
+   - go test ./webpages/docs -count=1
 
 Required final report sections (exact headings):
 1) Scope and baseline
@@ -408,13 +408,13 @@ run_validation() {
   log "Validation command: go run ./cmd/progress write"
   log "Validation command: go run ./cmd/progress validate"
   log "Validation command: go test ./internal/progress -count=1"
-  log "Validation command: go test ./docs -count=1"
+  log "Validation command: go test ./webpages/docs -count=1"
   (
     cd "$REPO_ROOT"
     go run ./cmd/progress write
     go run ./cmd/progress validate
     go test ./internal/progress -count=1
-    go test ./docs -count=1
+    go test ./webpages/docs -count=1
   ) >>"$VALIDATION_LOG" 2>&1 || {
     cat "$VALIDATION_LOG" >&2
     fail "validation failed"
