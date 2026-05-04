@@ -22698,9 +22698,9 @@
             {
               "name": "Hermes Kanban dispatcher and worker spawn loop",
               "priority": "P1",
-              "status": "planned",
+              "status": "in_progress",
               "contract": "Gormes ports the Hermes Kanban dispatcher as a native gateway-managed loop that periodically reclaims stale claims, promotes dependency-ready tasks, spawns named profile workers as independent OS processes, records run attempts and worker logs, applies per-task runtime caps, and blocks tasks behind a circuit breaker after repeated spawn/runtime failures.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "large",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -22715,7 +22715,9 @@
                 "../hermes-agent/hermes_cli/kanban.py@54e78cadb:dispatch/daemon",
                 "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:runs/events/claim_ttl",
                 "../hermes-agent/gateway/run.py@54e78cadb:kanban dispatcher integration",
-                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run"
+                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run",
+                "internal/kanban/dispatcher.go",
+                "internal/kanban/dispatcher_test.go"
               ],
               "ready_when": [
                 "Hermes Kanban durable board core is complete.",
@@ -22741,7 +22743,7 @@
                 "Failure fixtures prove retry counts, timeout handling, crash recovery, and circuit breaker block after the configured failure limit.",
                 "Gateway lifecycle fixtures prove the dispatcher is owned by the gateway loop and can be nudged without starting duplicate daemons."
               ],
-              "note": "Planned after default-board core. Keep this row separate because dispatcher correctness is about process ownership, crash recovery, and circuit breaking rather than CRUD.",
+              "note": "Partial TDD slice landed the fakeable dispatcher core: RunOnce reclaims expired running claims, lists ready tasks in priority/created order, respects MaxSpawn across successful and failed claimed attempts, skips unassigned tasks, claims through the existing atomic store path, resolves Gormes-owned workspaces, passes only GORMES_* worker context to the injected spawner, records spawned attempts, records failed spawn attempts, and auto-blocks with circuit-breaker evidence at FailureLimit. Remaining work: gateway-owned tick/nudge lifecycle, real OS process spawner with profile resolution, worker PID/liveness checks, max-runtime termination, worker log rotation, and gateway fixtures proving no duplicate daemons.",
               "write_scope": [
                 "internal/kanban/",
                 "internal/gateway/",
@@ -22760,6 +22762,24 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:54e78cadb hermes_cli/kanban.py + gateway/run.py",
                 "note": "Hermes defines dispatcher semantics; Gormes should implement them through native process and gateway seams."
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-04T16:08:23Z",
+                "last_success": "2026-05-04T16:08:23Z",
+                "evidence": [
+                  "RED: go test ./internal/kanban -run TestKanbanDispatcherReclaimsStaleAndSpawnsReadyWithMaxCap -count=1 failed because Dispatcher, DispatchOptions, SpawnRequest, SpawnResult, and SpawnFunc did not exist.",
+                  "GREEN: go test ./internal/kanban -run TestKanbanDispatcherReclaimsStaleAndSpawnsReadyWithMaxCap -count=1 passed after adding internal/kanban/dispatcher.go with stale-claim reclaim, ready-task selection, atomic claim, max-spawn cap, Gormes-only worker env, and fake spawner support.",
+                  "RED: go test ./internal/kanban -run TestKanbanDispatcherBlocksTaskAfterSpawnFailureLimit -count=1 failed because DispatchOptions.FailureLimit, Store.ListRuns, and run outcome types did not exist.",
+                  "GREEN: go test ./internal/kanban -run TestKanbanDispatcherBlocksTaskAfterSpawnFailureLimit -count=1 passed after adding task_runs, spawn_failures/last_spawn_error schema migration, failed-spawn run records, and auto-block circuit-breaker behavior.",
+                  "RED: go test ./internal/kanban -run TestKanbanDispatcherMaxSpawnCapsFailedAttempts -count=1 failed because MaxSpawn counted only successful spawns and allowed one failed spawn to cascade into the next ready task.",
+                  "GREEN: go test ./internal/kanban -run TestKanbanDispatcherMaxSpawnCapsFailedAttempts -count=1 passed after counting every claimed spawn attempt, including failures, against MaxSpawn."
+                ]
+              },
+              "evidence": {
+                "implementation": "internal/kanban/dispatcher.go; internal/kanban/store.go; internal/kanban/dispatcher_test.go",
+                "tests": "go test ./internal/kanban -run TestKanbanDispatcher -count=1; go test ./internal/kanban -count=1",
+                "note": "Dispatcher core is fakeable and hermetic; no live profile config, Hermes env, gateway loop, or OS worker process is used by the tests."
               }
             },
             {

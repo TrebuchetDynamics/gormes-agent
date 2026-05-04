@@ -88,9 +88,27 @@ type BlockTaskInput struct {
 	Reason string
 }
 
+type RunOutcome string
+
+const (
+	RunOutcomeSpawned     RunOutcome = "spawned"
+	RunOutcomeSpawnFailed RunOutcome = "spawn_failed"
+	RunOutcomeGaveUp      RunOutcome = "gave_up"
+)
+
+type TaskRun struct {
+	ID        int64      `json:"id"`
+	TaskID    string     `json:"task_id"`
+	Outcome   RunOutcome `json:"outcome"`
+	Error     string     `json:"error,omitempty"`
+	StartedAt time.Time  `json:"started_at"`
+	EndedAt   time.Time  `json:"ended_at"`
+}
+
 type Store struct {
-	db  *sql.DB
-	now func() time.Time
+	db     *sql.DB
+	dbPath string
+	now    func() time.Time
 }
 
 func Open(ctx context.Context, path string) (*Store, error) {
@@ -104,7 +122,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open kanban db: %w", err)
 	}
-	store := &Store{db: db, now: time.Now}
+	store := &Store{db: db, dbPath: path, now: time.Now}
 	if err := store.Init(ctx); err != nil {
 		db.Close()
 		return nil, err
@@ -131,6 +149,9 @@ func (s *Store) Init(ctx context.Context) error {
 	}
 	if _, err := s.db.ExecContext(ctx, kanbanSchema); err != nil {
 		return fmt.Errorf("init kanban schema: %w", err)
+	}
+	if err := s.migrateSchema(ctx); err != nil {
+		return err
 	}
 	return nil
 }
@@ -246,6 +267,35 @@ FROM tasks`
 		return nil, fmt.Errorf("list kanban tasks rows: %w", err)
 	}
 	return tasks, nil
+}
+
+func (s *Store) ListRuns(ctx context.Context, taskID string) ([]TaskRun, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, task_id, outcome, error, started_at, ended_at
+FROM task_runs
+WHERE task_id = ?
+ORDER BY id ASC`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list kanban task runs: %w", err)
+	}
+	defer rows.Close()
+	var runs []TaskRun
+	for rows.Next() {
+		var run TaskRun
+		var outcome string
+		var startedAt, endedAt int64
+		if err := rows.Scan(&run.ID, &run.TaskID, &outcome, &run.Error, &startedAt, &endedAt); err != nil {
+			return nil, fmt.Errorf("scan kanban task run: %w", err)
+		}
+		run.Outcome = RunOutcome(outcome)
+		run.StartedAt = millisToTime(startedAt)
+		run.EndedAt = millisToTime(endedAt)
+		runs = append(runs, run)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan kanban task runs: %w", err)
+	}
+	return runs, nil
 }
 
 func (s *Store) CompleteTask(ctx context.Context, id string, input CompleteTaskInput) error {
@@ -620,6 +670,44 @@ func insertEvent(ctx context.Context, tx *sql.Tx, taskID, kind, payload string) 
 	return nil
 }
 
+func (s *Store) migrateSchema(ctx context.Context) error {
+	if err := s.ensureTaskColumn(ctx, "spawn_failures", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := s.ensureTaskColumn(ctx, "last_spawn_error", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) ensureTaskColumn(ctx context.Context, name, definition string) error {
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(tasks)`)
+	if err != nil {
+		return fmt.Errorf("inspect kanban tasks schema: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var columnName, columnType string
+		var notNull int
+		var defaultValue any
+		var pk int
+		if err := rows.Scan(&cid, &columnName, &columnType, &notNull, &defaultValue, &pk); err != nil {
+			return fmt.Errorf("scan kanban tasks schema: %w", err)
+		}
+		if columnName == name {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("scan kanban tasks schema: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE tasks ADD COLUMN %s %s", name, definition)); err != nil {
+		return fmt.Errorf("migrate kanban tasks.%s: %w", name, err)
+	}
+	return nil
+}
+
 func validWorkspaceKind(kind WorkspaceKind) bool {
 	switch kind {
 	case WorkspaceScratch, WorkspaceWorktree, WorkspaceDir:
@@ -669,7 +757,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 	completed_at INTEGER NOT NULL DEFAULT 0,
 	result TEXT NOT NULL DEFAULT '',
 	claim_lock TEXT NOT NULL DEFAULT '',
-	claim_expires INTEGER NOT NULL DEFAULT 0
+	claim_expires INTEGER NOT NULL DEFAULT 0,
+	spawn_failures INTEGER NOT NULL DEFAULT 0,
+	last_spawn_error TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS task_links (
@@ -692,5 +782,14 @@ CREATE TABLE IF NOT EXISTS task_events (
 	kind TEXT NOT NULL,
 	payload TEXT NOT NULL DEFAULT '',
 	created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS task_runs (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+	outcome TEXT NOT NULL,
+	error TEXT NOT NULL DEFAULT '',
+	started_at INTEGER NOT NULL,
+	ended_at INTEGER NOT NULL
 );
 `
