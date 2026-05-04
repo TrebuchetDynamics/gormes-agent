@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: #090b0f;
+    color: #eeece5;
+    font-family: var(--font-sans);
+    font-feature-settings: "kern", "liga", "calt";
+    line-height: 1.55;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid #f0c84b;
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: rgba(240, 200, 75, 0.28);
+  }
+}
+
+@layer components {
+  .copy-btn.copied {
+    border-color: rgba(91, 231, 154, 0.8);
+    color: #5be79a;
+  }
+}

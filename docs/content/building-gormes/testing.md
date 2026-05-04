@@ -43,13 +43,12 @@ go test -tags=live ./...         # requires local Ollama
 `npm run test:e2e` from `www.gormes.ai/` and `docs/www-tests/`. Parametrized over mobile viewports (320 / 360 / 390 / 430 / 768 / 1024 px). Asserts:
 
 - No horizontal overflow
-- Copy buttons tappable (≥28×28 px bounding box)
 - Section copy matches the locked strings in `content.go`
-- Drawer opens/closes on mobile (docs only)
+- Starlight navigation, TOC, and prev/next links render on mobile and desktop
 
-## Hugo build
+## Astro/Starlight build
 
-`go test ./docs/... -run TestHugoBuild`. Shells out to `hugo --minify`, verifies every `_index.md` produces a rendered page, checks for broken internal links.
+`go test ./docs/... -run TestAstroBuild`. Shells out to `npm run build`, verifies generated Starlight pages and redirect aliases, checks for broken internal links, and confirms the canonical `progress.json` is copied into the static export.
 
 ## Architecture fixtures
 

@@ -4,6 +4,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await page.goto('/');
 
   await expect(page).toHaveTitle('Gormes — AI Agents From One Go Binary');
+  await expect(page.locator('html[data-site-runtime="astro-tailwind"]')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Run Agents From One Go Binary.' })).toBeVisible();
   await expect(page.getByText('Gormes runs AI agents as a single static binary.')).toBeVisible();
   await expect(page.getByText('No Python runtime. No virtualenv repair. No backend service just to open the UI.')).toBeVisible();
@@ -11,8 +12,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Scout release. Useful today, still early.')).toBeVisible();
   await expect(page.getByText('Offline TUI, doctor diagnostics, provider one-shots, Goncho memory, dashboard, and configured Telegram/Discord/Slack paths are covered. Full parity is still hardening.')).toBeVisible();
   await expect(page.locator('.topnav a')).toHaveText(['Docs', 'Roadmap', 'GitHub']);
-  await expect(page.locator('.hero-image')).toHaveCount(0);
-  await expect(page.locator('img[src="/static/go-gopher-bear-lowpoly.png"]')).toHaveCount(0);
+  await expect(page.locator('img[src="/static/go-gopher-bear-lowpoly.png"]')).toHaveCount(1);
   await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Build from source');
   await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('View on GitHub');
   await expect(page.getByRole('heading', { name: 'What works today' })).toBeVisible();
@@ -52,7 +52,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Full Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity')).toBeVisible();
   await expect(page.getByText('Read the install docs ->')).toBeVisible();
   // New conversion sections
-  await expect(page.getByText('~22.0 MB static binary')).toBeVisible();
+  await expect(page.getByText(/~22\.\d MB static binary/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Start offline. Add credentials later.' })).toBeVisible();
   await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toHaveCount(0);
@@ -61,7 +61,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('irm https://gormes.ai/install.ps1 | iex')).toHaveCount(0);
   await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
-  await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(1);
+  await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
   // Copy buttons require a tiny inline clipboard script — bounded to the three-step offline proof.
   await expect(page.locator('button.copy-btn')).toHaveCount(3);
 });

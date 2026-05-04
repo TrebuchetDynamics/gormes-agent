@@ -57,7 +57,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | README/public repo messaging | `gormes-readme` | Covered by the periodic README evidence workflow. |
 | Landing page content/UI | `gormes-landing-web` | Covered by the focused public homepage workflow. |
 | Git green/commit/push loop | `gormes-git` | Covered for dirty `development` commits, green gates, and push recovery. |
-| Docs/Hugo/site sync | `gormes-planner` | Add `gormes-docs-web-sync` if progress docs and broader site data updates keep drifting. |
+| Docs/Astro/site sync | `gormes-planner` | Add `gormes-docs-web-sync` if progress docs and broader site data updates keep drifting. |
 | Dev run/install/runtime operations | `gormes-dev-runtime` | Covered for local `go run`, `bin/gormes`, install.sh, PATH, gateway, and session DB ownership decisions. |
 | Release/install packaging | `gormes-planner` -> future release rows | Add `gormes-release-packager` when service, OCI, version gates, and public release publishing go beyond the local/source-backed installer loop. |
 
@@ -85,7 +85,7 @@ Create these only when repeated work proves the need:
 - `gormes-goncho-compat`: Honcho request/response compatibility fixtures, migration expectations, public `honcho_*` tool behavior.
 - `gormes-provider-parity`: model/provider routing, provider-specific errors, streaming, token accounting, hermetic provider fixtures.
 - `gormes-channel-adapter`: Telegram/Discord/Slack adapter contracts, gateway handoff, platform webhook fixtures.
-- `gormes-docs-web-sync`: progress docs, Hugo docs, `www.gormes.ai` data and public progress messaging.
+- `gormes-docs-web-sync`: progress docs, Astro/Starlight docs, `www.gormes.ai` data and public progress messaging.
 - `gormes-e2e-operator`: Playwright, CLI e2e, long-running loop smoke tests, local service orchestration.
 - `gormes-release-packager`: install scripts, service units, binaries, versioning, release verification.
 

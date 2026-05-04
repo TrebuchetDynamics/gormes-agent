@@ -62,19 +62,20 @@ func resetGonchoDoctorFlags() {
 }
 
 type gonchoDoctorReport struct {
-	Service                string                 `json:"service"`
-	Status                 string                 `json:"status"`
-	ExitCode               int                    `json:"exit_code"`
-	Config                 gonchoDoctorConfig     `json:"config"`
-	Schema                 memory.SchemaStatus    `json:"schema"`
-	SessionCatalog         sessionCatalogStatus   `json:"session_catalog"`
-	ToolRegistration       toolRegistrationStatus `json:"tool_registration"`
-	ContextDryRun          contextDryRunStatus    `json:"context_dry_run"`
-	QueueStatus            doctorQueueStatus      `json:"queue_status"`
-	ConclusionAvailability conclusionAvailability `json:"conclusion_availability"`
-	SummaryAvailability    summaryAvailability    `json:"summary_availability"`
-	ProviderReadiness      providerReadiness      `json:"provider_readiness"`
-	DegradedModes          []degradedMode         `json:"degraded_modes"`
+	Service                string                      `json:"service"`
+	Status                 string                      `json:"status"`
+	ExitCode               int                         `json:"exit_code"`
+	Config                 gonchoDoctorConfig          `json:"config"`
+	Schema                 memory.SchemaStatus         `json:"schema"`
+	MemoryContract         memory.GonchoMemoryV1Status `json:"memory_contract"`
+	SessionCatalog         sessionCatalogStatus        `json:"session_catalog"`
+	ToolRegistration       toolRegistrationStatus      `json:"tool_registration"`
+	ContextDryRun          contextDryRunStatus         `json:"context_dry_run"`
+	QueueStatus            doctorQueueStatus           `json:"queue_status"`
+	ConclusionAvailability conclusionAvailability      `json:"conclusion_availability"`
+	SummaryAvailability    summaryAvailability         `json:"summary_availability"`
+	ProviderReadiness      providerReadiness           `json:"provider_readiness"`
+	DegradedModes          []degradedMode              `json:"degraded_modes"`
 }
 
 type gonchoDoctorConfig struct {
@@ -237,6 +238,10 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 		}
 		return report, 2, nil
 	}
+	memoryContract, err := memory.ReadGonchoMemoryV1Status(ctx, db)
+	if err != nil {
+		return gonchoDoctorReport{}, 2, err
+	}
 
 	gonchoCfg := cfg.Goncho.RuntimeConfig()
 	extractor, err := memory.ReadExtractorStatus(ctx, db, 5)
@@ -301,6 +306,7 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 		ExitCode:         exitCode,
 		Config:           currentGonchoDoctorConfig(cfg),
 		Schema:           schema,
+		MemoryContract:   memoryContract,
 		SessionCatalog:   sessionCatalog,
 		ToolRegistration: toolStatus,
 		ContextDryRun:    contextStatus,
@@ -616,6 +622,20 @@ func formatGonchoDoctorReport(report gonchoDoctorReport) string {
 	fmt.Fprintf(&b, "current_schema_version: %s\n", report.Schema.CurrentVersion)
 	for _, table := range []string{"turns", "turns_fts", "goncho_peer_cards", "goncho_conclusions", "goncho_conclusions_fts"} {
 		fmt.Fprintf(&b, "%s: %s\n", table, presentWord(report.Schema.Tables[table]))
+	}
+	b.WriteString("\n")
+
+	b.WriteString("Memory contract\n")
+	fmt.Fprintf(&b, "contract_version: %s\n", report.MemoryContract.ContractVersion)
+	fmt.Fprintf(&b, "markdown_format_version: %s\n", report.MemoryContract.MarkdownFormatVersion)
+	fmt.Fprintf(&b, "mcp_tool_contract_version: %s\n", report.MemoryContract.MCPToolContractVersion)
+	fmt.Fprintf(&b, "private_agent_memory_default: %t\n", report.MemoryContract.PrivateAgentMemoryDefault)
+	fmt.Fprintf(&b, "self_improvement_per_agent_default: %t\n", report.MemoryContract.SelfImprovementPerAgentDefault)
+	fmt.Fprintf(&b, "foreign_config_runtime_reads: %s\n", report.MemoryContract.ForeignConfigRuntimeReads)
+	fmt.Fprintf(&b, "fast_recall_path: %s\n", strings.Join(report.MemoryContract.FastRecallPath, ", "))
+	fmt.Fprintf(&b, "optional_quality_layers: %s\n", strings.Join(report.MemoryContract.OptionalQualityLayers, ", "))
+	for _, table := range []string{"goncho_memory_items", "goncho_memory_items_fts", "goncho_memory_eval_artifacts"} {
+		fmt.Fprintf(&b, "%s: %s\n", table, presentWord(report.MemoryContract.Tables[table]))
 	}
 	b.WriteString("\n")
 

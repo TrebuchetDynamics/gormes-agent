@@ -100,6 +100,41 @@ func TestTUIStartupDoesNotProbeProviderHealth(t *testing.T) {
 	}
 }
 
+func TestTUIStartupMissingProviderRendersActionableSetupError(t *testing.T) {
+	setupNativeTUITestEnv(t)
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeNativeTUICommand(cmd)
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want provider setup failure\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty provider setup failure output", stdout)
+	}
+	for _, want := range []string{
+		"Gormes provider setup needed",
+		"provider: missing",
+		"gormes setup model",
+		"gormes setup provider",
+		"gormes --offline",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr missing %q:\n%s", want, stderr)
+		}
+	}
+	for _, forbidden := range []string{
+		"provider setup failed:",
+		"hermes endpoint unconfigured",
+	} {
+		if strings.Contains(stderr, forbidden) {
+			t.Fatalf("stderr contains raw setup text %q:\n%s", forbidden, stderr)
+		}
+	}
+	if count := strings.Count(stderr, "Gormes provider setup needed"); count != 1 {
+		t.Fatalf("provider setup heading count = %d, want 1:\n%s", count, stderr)
+	}
+}
+
 func TestTUIStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 	setupNativeTUITestEnv(t)
 

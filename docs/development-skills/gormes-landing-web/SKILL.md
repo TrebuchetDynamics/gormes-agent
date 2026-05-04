@@ -19,11 +19,21 @@ for landing-page content and UI passes, not runtime feature implementation or
 roadmap invention.
 
 ## Source Files
-- `www.gormes.ai/internal/site/content.go` - landing copy, CTAs, links, proof.
-- `www.gormes.ai/internal/site/templates/` - HTML structure.
-- `www.gormes.ai/internal/site/static/` - CSS and static assets.
+- `www.gormes.ai/src/data/landing.js` - landing copy, CTAs, links, proof, and
+  progress/benchmark projection.
+- `www.gormes.ai/src/pages/index.astro` - HTML structure, metadata, and bounded
+  copy-button behavior.
+- `www.gormes.ai/src/styles/global.css` - Tailwind import, theme, and base
+  states.
+- `www.gormes.ai/public/static/` - favicon, social-card, and landing visual
+  assets.
+- `www.gormes.ai/scripts/sync-assets.mjs` - canonical installer/progress/static
+  asset mirror used before dev/build.
 - `www.gormes.ai/tests/home.spec.mjs` - Playwright homepage expectations.
-- `www.gormes.ai/internal/site/data/progress.json` - embedded roadmap mirror.
+- `www.gormes.ai/src/data/progress.json` - roadmap mirror generated from the
+  canonical progress file.
+- `www.gormes.ai/legacy/go-renderer/` - deprecated former Go-rendered site;
+  reference/rollback only.
 - `benchmarks.json` and `docs/content/building-gormes/architecture_plan/progress.json` - canonical proof inputs.
 
 ## Workflow
@@ -46,7 +56,8 @@ Start with:
 ```sh
 git status --short
 sed -n '1,220p' www.gormes.ai/README.md
-sed -n '1,260p' www.gormes.ai/internal/site/content.go
+sed -n '1,260p' www.gormes.ai/src/data/landing.js
+sed -n '1,260p' www.gormes.ai/src/pages/index.astro
 go run ./cmd/progress validate
 rg -n "Hermes|backend|install|doctor|offline|oneshot|Goncho|No Python|progress|benchmark|production" README.md docs www.gormes.ai
 ```
@@ -60,19 +71,21 @@ needs to understand what Gormes is, why it matters, what works today, how to try
 it, and why the claims are trustworthy.
 
 ### 4. Edit In Scope
-Prefer direct edits to the existing Go-rendered site:
-- copy and link data in `content.go`;
-- page structure in `templates/`;
-- presentation in `static/site.css`;
+Prefer direct edits to the active Astro + Tailwind site:
+- copy and link data in `src/data/landing.js`;
+- page structure in `src/pages/index.astro`;
+- presentation through Tailwind utility classes and `src/styles/global.css`;
+- installer/progress/static mirroring in `scripts/sync-assets.mjs`;
 - Playwright assertions in `tests/home.spec.mjs` when user-facing behavior changes.
 
 Keep the page fast, static-exportable, and readable without client-side
-JavaScript except the existing bounded install-copy behavior.
+JavaScript except the existing bounded install-copy behavior. Do not add new
+work to `legacy/go-renderer/` unless the old renderer is explicitly restored.
 
 ### 5. Validate
 Run focused checks:
 ```sh
-(cd www.gormes.ai && go test ./... -count=1)
+(cd www.gormes.ai && npm run build)
 (cd www.gormes.ai && npm run test:e2e)
 go run ./cmd/progress validate
 ```

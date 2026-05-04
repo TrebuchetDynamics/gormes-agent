@@ -465,8 +465,7 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		c, err = newProviderHTTPClient(cfg, providerName)
 		if err != nil {
 			redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-			fmt.Fprintf(os.Stderr, "provider setup failed: %s\n", redactedErr)
-			return errors.New(redactedErr)
+			return newExitCodeError(1, errors.New(formatTUIProviderSetupError(redactedErr, cfg, providerName, modelName)))
 		}
 	}
 
@@ -582,6 +581,59 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	_, err = prog.Run()
 	close(programDone)
 	return err
+}
+
+func formatTUIProviderSetupError(detail string, cfg config.Config, providerName, modelName string) string {
+	providerName = strings.TrimSpace(providerName)
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		modelName = strings.TrimSpace(cfg.Hermes.Model)
+	}
+	return strings.Join([]string{
+		"Gormes provider setup needed",
+		"",
+		"Startup cannot contact a model because provider settings are incomplete.",
+		"",
+		"Detected:",
+		"  home:     " + config.GormesHome(),
+		"  provider: " + setupDisplayValue(providerName),
+		"  model:    " + setupDisplayValue(modelName),
+		"",
+		"Fix:",
+		"  gormes setup model        choose provider/model defaults",
+		"  gormes setup provider     add endpoint and API key",
+		"  gormes auth add <provider>  add OAuth/API credentials when supported",
+		"",
+		"Smoke test without a provider:",
+		"  gormes --offline",
+		"",
+		"Advanced config/env:",
+		"  hermes.endpoint, hermes.provider, GORMES_ENDPOINT, GORMES_API_KEY",
+		"",
+		"Details:",
+		"  " + friendlyProviderSetupDetail(detail),
+	}, "\n")
+}
+
+func setupDisplayValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "missing"
+	}
+	return value
+}
+
+func friendlyProviderSetupDetail(detail string) string {
+	detail = strings.TrimSpace(detail)
+	lower := strings.ToLower(detail)
+	switch {
+	case strings.Contains(lower, "endpoint unconfigured and no provider declared"):
+		return "No provider endpoint or credential-backed provider is configured."
+	case strings.Contains(lower, "endpoint unconfigured for provider"):
+		return strings.ReplaceAll(detail, "hermes endpoint", "provider endpoint")
+	default:
+		return strings.ReplaceAll(detail, "hermes endpoint", "provider endpoint")
+	}
 }
 
 func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, error) {

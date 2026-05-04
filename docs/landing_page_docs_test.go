@@ -88,20 +88,20 @@ func TestTargetsIncludePhase2CPersistenceDocs(t *testing.T) {
 }
 
 func TestDocsHarnessAllowsNativeGormesManifestoPage(t *testing.T) {
-	if _, ok := nativeHugoPages["why-gormes.md"]; !ok {
-		t.Fatalf("nativeHugoPages should explicitly allow why-gormes.md")
+	if _, ok := nativeDocsPages["why-gormes.md"]; !ok {
+		t.Fatalf("nativeDocsPages should explicitly allow why-gormes.md")
 	}
 	// Native Gormes pages live under why-gormes.md OR the building-gormes/
 	// (contributor-facing) and using-gormes/ (operator-facing) sections.
 	// Everything else is a mirrored upstream doc under upstream-hermes/.
-	for page := range nativeHugoPages {
+	for page := range nativeDocsPages {
 		if page == "_index.md" || page == "why-gormes.md" {
 			continue
 		}
 		if strings.HasPrefix(page, "building-gormes/") || strings.HasPrefix(page, "using-gormes/") {
 			continue
 		}
-		t.Fatalf("nativeHugoPages contains unexpected entry (must be _index.md, why-gormes.md, or under building-gormes/ or using-gormes/): %q", page)
+		t.Fatalf("nativeDocsPages contains unexpected entry (must be _index.md, why-gormes.md, or under building-gormes/ or using-gormes/): %q", page)
 	}
 }
 
@@ -265,14 +265,15 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 	raw := readDoc(t, "superpowers/plans/2026-04-19-gormes-landing-page.md")
 	wants := []string{
 		"# Gormes.ai Landing Page Implementation Plan",
-		"www.gormes.ai/internal/site/assets.go",
-		"www.gormes.ai/internal/site/content.go",
-		"www.gormes.ai/internal/site/server.go",
-		"www.gormes.ai/internal/site/templates/*.tmpl",
-		"www.gormes.ai/internal/site/static/*",
+		"www.gormes.ai/src/pages/index.astro",
+		"www.gormes.ai/src/data/landing.js",
+		"www.gormes.ai/src/styles/global.css",
+		"www.gormes.ai/scripts/sync-assets.mjs",
+		"www.gormes.ai/legacy/go-renderer/",
 		"www.gormes.ai/README.md",
 		"www.gormes.ai/tests/home.spec.mjs",
 		"go test ./docs",
+		"npm run build",
 		"npm run test:e2e",
 	}
 	for _, want := range wants {
@@ -286,15 +287,12 @@ func TestLandingPagePlanDocDocumentsCurrentAICutoverImplementation(t *testing.T)
 	}
 
 	for _, rel := range []string{
-		"../www.gormes.ai/internal/site/assets.go",
-		"../www.gormes.ai/internal/site/content.go",
-		"../www.gormes.ai/internal/site/server.go",
-		"../www.gormes.ai/internal/site/templates/index.tmpl",
-		"../www.gormes.ai/internal/site/templates/layout.tmpl",
-		"../www.gormes.ai/internal/site/templates/partials/feature_card.tmpl",
-		"../www.gormes.ai/internal/site/templates/partials/install_step.tmpl",
-		"../www.gormes.ai/internal/site/templates/partials/roadmap_phase.tmpl",
-		"../www.gormes.ai/internal/site/static/site.css",
+		"../www.gormes.ai/src/data/landing.js",
+		"../www.gormes.ai/src/pages/index.astro",
+		"../www.gormes.ai/src/styles/global.css",
+		"../www.gormes.ai/src/data/progress.json",
+		"../www.gormes.ai/legacy/go-renderer/internal/site/content.go",
+		"../www.gormes.ai/legacy/go-renderer/internal/site/assets.go",
 		"../www.gormes.ai/tests/home.spec.mjs",
 	} {
 		if _, err := os.Stat(filepath.Join(".", rel)); err != nil {

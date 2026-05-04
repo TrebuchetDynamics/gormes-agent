@@ -16,5 +16,5 @@ High-level map:
 | `internal/gateway` | Shared command, event, session, and rendering logic for channels. |
 | `internal/tools` | Tool registry and tool implementations. |
 | `internal/goncho` | Honcho-compatible memory facade. |
-| `docs/content` | Hugo documentation content. |
-| `docs/layouts` | Custom Hugo templates. |
+| `docs/content` | Canonical documentation content consumed by the Astro/Starlight docs site. |
+| `docs/src/content/docs` | Generated Starlight content tree, recreated by `npm run sync:content`. |

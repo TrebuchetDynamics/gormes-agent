@@ -1,12 +1,14 @@
-# ── Hugo build outputs ───────────────────────────────
-# Hugo renders the site into public/ and caches artifacts under
-# resources/ and .hugo_build.lock. None of those are source.
+# Astro/Starlight dependencies and generated files.
+node_modules/
+.astro/
+dist/
+
+# Starlight reads from src/content/docs, but docs/content remains the
+# canonical repository docs source. The sync script regenerates this tree.
+src/content/docs/
+
+# Historical Hugo output/cache directories may exist locally.
 public/
 resources/
 .hugo_build.lock
-
-# ── Hugo local cache / compiled themes ───────────────
 .cache/
-
-# ── Deploy artifacts ─────────────────────────────────
-dist/

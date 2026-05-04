@@ -470,6 +470,7 @@ func TestDocumentationImproverRunsAndWritesState(t *testing.T) {
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "_index.md"), []byte("# Architecture Plan\n"), 0o644)
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "docs", "content", "building-gormes", "core-systems", "gateway.md"), []byte("# Gateway\n"), 0o644)
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "www.gormes.ai", "content", "_index.md"), []byte("# Gormes site\n"), 0o644)
+	writePlannerTestFile(t, filepath.Join(gormesRepo, "www.gormes.ai", "src", "data", "progress.json"), []byte("{}\n"), 0o644)
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "www.gormes.ai", "internal", "site", "data", "progress.json"), []byte("{}\n"), 0o644)
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "cmd", "autoloop", "progress.go"), []byte("package main\nfunc main() {}\n"), 0o644)
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "internal", "progress", "doc.go"), []byte("package progress\n"), 0o644)

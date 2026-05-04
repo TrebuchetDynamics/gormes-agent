@@ -74,7 +74,7 @@ gormes config env-path   # prints ~/.gormes/.env
 
 Example `.env`:
 
-```env
+```dotenv
 GORMES_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 TELEGRAM_BOT_TOKEN=123:abc

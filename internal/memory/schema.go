@@ -3,7 +3,7 @@ package memory
 // schemaVersion is the canonical target version for this binary. OpenSqlite
 // migrates any earlier supported version up to this value, and refuses to
 // open DBs with an unknown version (future schemas).
-const schemaVersion = "3i"
+const schemaVersion = "3j"
 
 // schemaV3a is the baseline schema installed on a fresh DB. It matches
 // exactly what Phase 3.A shipped — any change to this string is a schema
@@ -292,4 +292,137 @@ CREATE INDEX IF NOT EXISTS idx_goncho_dreams_status
 	ON goncho_dreams(workspace_id, observer_peer_id, status, updated_at DESC);
 
 UPDATE schema_meta SET v = '3i' WHERE k = 'version' AND v = '3h';
+`
+
+// migration3iTo3j freezes the Goncho Memory V1 compatibility substrate:
+//   - goncho_memory_items is the stable-ID, revisioned, tombstone-first memory
+//     ABI for future V2+ migrations and editable markdown round-trips
+//   - goncho_memory_items_fts keeps fast local recall available without QMD,
+//     embeddings, hosted Honcho, or model calls
+//   - goncho_memory_eval_artifacts stores per-agent recall misses, quality
+//     scores, and reviewed proposals so self-improvement cannot leak across
+//     independent agents by default
+//   - existing processed goncho_conclusions are backfilled as private V1
+//     memory items with deterministic stable IDs.
+const migration3iTo3j = `
+CREATE TABLE IF NOT EXISTS goncho_memory_items (
+	memory_id        TEXT    PRIMARY KEY,
+	contract_version TEXT    NOT NULL DEFAULT '1',
+	agent_id         TEXT    NOT NULL,
+	workspace_id     TEXT    NOT NULL,
+	observer_peer_id TEXT    NOT NULL,
+	peer_id          TEXT    NOT NULL,
+	session_key      TEXT    NOT NULL DEFAULT '',
+	source_turn_id   INTEGER,
+	source_kind      TEXT    NOT NULL CHECK(source_kind IN (
+	                    'manual','tool','import','runtime','reviewed_proposal','derived'
+	                )),
+	content          TEXT    NOT NULL,
+	revision         INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0),
+	active           INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+	tombstoned_at    INTEGER,
+	tombstone_reason TEXT,
+	scope            TEXT    NOT NULL DEFAULT 'private' CHECK(scope IN ('private','shared')),
+	provenance_json  TEXT    NOT NULL DEFAULT '{}',
+	tags_json        TEXT    NOT NULL DEFAULT '[]',
+	importance       REAL    NOT NULL DEFAULT 0.5 CHECK(importance >= 0 AND importance <= 1),
+	created_at       INTEGER NOT NULL,
+	updated_at       INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goncho_memory_items_agent_scope
+	ON goncho_memory_items(agent_id, workspace_id, peer_id, active, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_goncho_memory_items_workspace_scope
+	ON goncho_memory_items(workspace_id, scope, active, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_goncho_memory_items_session
+	ON goncho_memory_items(workspace_id, session_key, active, updated_at DESC);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS goncho_memory_items_fts USING fts5(
+	content,
+	memory_id UNINDEXED,
+	content='goncho_memory_items',
+	content_rowid='rowid'
+);
+
+CREATE TRIGGER IF NOT EXISTS goncho_memory_items_ai AFTER INSERT ON goncho_memory_items BEGIN
+	INSERT INTO goncho_memory_items_fts(rowid, content, memory_id) VALUES (new.rowid, new.content, new.memory_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS goncho_memory_items_ad AFTER DELETE ON goncho_memory_items BEGIN
+	INSERT INTO goncho_memory_items_fts(goncho_memory_items_fts, rowid, content, memory_id) VALUES('delete', old.rowid, old.content, old.memory_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS goncho_memory_items_au AFTER UPDATE ON goncho_memory_items BEGIN
+	INSERT INTO goncho_memory_items_fts(goncho_memory_items_fts, rowid, content, memory_id) VALUES('delete', old.rowid, old.content, old.memory_id);
+	INSERT INTO goncho_memory_items_fts(rowid, content, memory_id) VALUES (new.rowid, new.content, new.memory_id);
+END;
+
+CREATE TABLE IF NOT EXISTS goncho_memory_eval_artifacts (
+	id               INTEGER PRIMARY KEY AUTOINCREMENT,
+	artifact_id      TEXT    NOT NULL UNIQUE,
+	agent_id         TEXT    NOT NULL,
+	workspace_id     TEXT    NOT NULL,
+	peer_id          TEXT    NOT NULL DEFAULT '',
+	session_key      TEXT    NOT NULL DEFAULT '',
+	artifact_type    TEXT    NOT NULL CHECK(artifact_type IN ('recall_miss','quality_score','proposal')),
+	status           TEXT    NOT NULL CHECK(status IN ('observed','proposed','reviewed','applied','rejected')),
+	shared           INTEGER NOT NULL DEFAULT 0 CHECK(shared IN (0,1)),
+	source_memory_id TEXT,
+	payload_json     TEXT    NOT NULL DEFAULT '{}',
+	created_at       INTEGER NOT NULL,
+	FOREIGN KEY(source_memory_id) REFERENCES goncho_memory_items(memory_id)
+);
+CREATE INDEX IF NOT EXISTS idx_goncho_memory_eval_agent
+	ON goncho_memory_eval_artifacts(agent_id, workspace_id, artifact_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_goncho_memory_eval_shared
+	ON goncho_memory_eval_artifacts(workspace_id, shared, status, created_at DESC);
+
+INSERT OR IGNORE INTO goncho_memory_items(
+	memory_id,
+	contract_version,
+	agent_id,
+	workspace_id,
+	observer_peer_id,
+	peer_id,
+	session_key,
+	source_kind,
+	content,
+	revision,
+	active,
+	scope,
+	provenance_json,
+	tags_json,
+	importance,
+	created_at,
+	updated_at
+)
+SELECT
+	'gmem_conclusion_' || id,
+	'1',
+	observer_peer_id,
+	workspace_id,
+	observer_peer_id,
+	peer_id,
+	COALESCE(session_key, ''),
+	CASE source
+		WHEN 'manual' THEN 'manual'
+		WHEN 'tool' THEN 'tool'
+		WHEN 'import' THEN 'import'
+		WHEN 'runtime' THEN 'runtime'
+		WHEN 'reviewed_proposal' THEN 'reviewed_proposal'
+		WHEN 'derived' THEN 'derived'
+		ELSE 'manual'
+	END,
+	content,
+	1,
+	1,
+	'private',
+	'{"source_table":"goncho_conclusions","source_id":' || id || '}',
+	'[]',
+	0.5,
+	created_at,
+	updated_at
+FROM goncho_conclusions
+WHERE status != 'dead_letter';
+
+UPDATE schema_meta SET v = '3j' WHERE k = 'version' AND v = '3i';
 `

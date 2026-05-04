@@ -45,7 +45,7 @@ func TestPhase5DocsTrackExecuteCodeCloseout(t *testing.T) {
 		}
 	}
 
-	siteProgress, err := os.ReadFile("../www.gormes.ai/internal/site/data/progress.json")
+	siteProgress, err := os.ReadFile("../www.gormes.ai/src/data/progress.json")
 	if err != nil {
 		t.Fatalf("read site progress copy: %v", err)
 	}

@@ -290,7 +290,7 @@ func collectImplementationInventory(cfg Config) (ImplementationInventory, error)
 		return ImplementationInventory{}, err
 	}
 
-	hugoDocs := SourceRoot{Name: "Hugo docs", Path: filepath.Join(cfg.RepoRoot, "docs")}
+	hugoDocs := SourceRoot{Name: "Astro/Starlight docs", Path: filepath.Join(cfg.RepoRoot, "docs")}
 	if err := enrichSourceRoot(&hugoDocs); err != nil {
 		return ImplementationInventory{}, err
 	}

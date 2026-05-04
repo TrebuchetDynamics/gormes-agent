@@ -172,7 +172,7 @@ func BuildPrompt(bundle ContextBundle, keywords []string) string {
 		syncLines = append(syncLines, line)
 	}
 	landingSite := formatInventorySurface(bundle.ImplementationInventory.LandingSite)
-	hugoDocs := formatInventorySurface(bundle.ImplementationInventory.HugoDocs)
+	docsSite := formatInventorySurface(bundle.ImplementationInventory.HugoDocs)
 	auditBlock := formatAutoloopAudit(bundle.AutoloopAudit)
 	quarantineBlock := formatQuarantinedRows(bundle.QuarantinedRows)
 	reshapeBlock := formatPreviousReshapes(bundle.PreviousReshapes)
@@ -186,17 +186,17 @@ func BuildPrompt(bundle ContextBundle, keywords []string) string {
 	return fmt.Sprintf(`You are the Gormes Architecture Planner Loop.
 
 Mission:
-Improve the architecture plan for building full Gormes, the Go port of Hermes, while preserving the internal goncho package direction for Honcho-compatible memory. You also own the www.gormes.ai landing page and the Hugo docs webpage.
+Improve the architecture plan for building full Gormes, the Go port of Hermes, while preserving the internal goncho package direction for Honcho-compatible memory. You also own the www.gormes.ai landing page and the Astro/Starlight docs webpage.
 
 Long-term operating contract:
 - You are the only long-term prompt agent responsible for architecture planning from now on.
 - Design the complete Gormes architecture surface: CLI, TUI, API/server, gateway, channels, cron/scheduling, provider/tooling integration, Goncho memory, persistence, docs, web, packaging, release, observability, and operations.
 - Every run must detect upstream Hermes, Honcho, and GBrain changes from the synchronized sibling repos.
 - Synchronize progress.json with the current Gormes implementation and the latest upstream behavior.
-- Synchronize landing page, Hugo docs, generated pages, and progress.json whenever roadmap or implementation reality changes.
+- Synchronize landing page, Astro/Starlight docs, generated pages, and progress.json whenever roadmap or implementation reality changes.
 - If upstream moved but Gormes has not, add or refine small TDD-ready progress rows instead of silently accepting drift.
 - If Gormes implementation moved but progress.json is stale, update progress status, notes, acceptance, and source_refs.
-- If www.gormes.ai or docs/hugo.toml drift from the roadmap, add planner tasks or docs edits that bring the public surfaces back in line.
+- If www.gormes.ai or docs/astro.config.mjs drift from the roadmap, add planner tasks or docs edits that bring the public surfaces back in line.
 - Autoloop workers should not have to search or guess; every executable row must carry enough concrete context to start TDD immediately.
 - A row is not worker-ready without row-local test_commands unless no_test_required explains why no focused executable test exists.
 
@@ -211,7 +211,7 @@ Current Gormes implementation inventory:
 - internal packages: %s
 - building-gormes docs: %s
 - landing page: %s
-- Hugo docs: %s
+- docs site: %s
 
 Autoloop audit (last 7 days):
 %s
@@ -222,13 +222,13 @@ Control plane:
 - Current progress items: %d
 
 Required behavior:
-1. Study hermes-agent, gbrain, docs/content/upstream-hermes, docs/content/upstream-gbrain, docs/content/building-gormes, www.gormes.ai, docs/hugo.toml, and Honcho/Goncho memory references.
+1. Study hermes-agent, gbrain, docs/content/upstream-hermes, docs/content/upstream-gbrain, docs/content/building-gormes, www.gormes.ai, docs/astro.config.mjs, and Honcho/Goncho memory references.
 2. Improve docs/content/building-gormes/architecture_plan/progress.json conservatively so builder skills receive smaller, dependency-aware, TDD-ready slices.
 3. Keep GONCHO as the internal implementation name while preserving honcho_* external compatibility where the public tool contract requires it.
 4. Include Goncho/Honcho tasks when they affect the full Gormes architecture.
 5. Compare synchronized upstream repos against current Gormes implementation inventory before changing any roadmap row.
 6. Synchronize progress.json with the current Gormes implementation; do not let docs, generated pages, web surfaces, and source drift apart.
-7. Synchronize the www.gormes.ai landing page and Hugo docs when public messaging, installation flows, architecture milestones, or progress totals change.
+7. Synchronize the www.gormes.ai landing page and Astro/Starlight docs when public messaging, installation flows, architecture milestones, or progress totals change.
 8. For every new or refined executable row, include concrete source_refs, write_scope, test_commands, acceptance, ready_when, not_ready_when, and done_signal fields wherever the schema allows them. If a row truly cannot have a focused row-local command, set no_test_required with a concrete reason instead of leaving test_commands absent.
 9. Prefer exact file paths, function/type names, upstream commits, fixture names, dependency ordering, and validation commands over generic notes.
 10. Split broad goals into small rows with explicit blocked_by/unblocks relationships so builder skills can pick the next safe slice without rediscovering architecture.
@@ -252,7 +252,7 @@ Required final report sections:
 7. Skill handoff completeness
 8. Risks and ambiguities
 %s%s%s%s%s%s%s%s%s%s%s
-`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, hugoDocs, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, runtimeSourceBoundaryClause, quarantinePriorityClause, quarantineBlock, selfEvaluationClause, reshapeBlock, triggerBlock, topicalBlock, provenanceAwarenessClause, driftStateClause, implInventoryBlock)
+`, strings.Join(roots, "\n"), strings.Join(syncLines, "\n"), strings.Join(bundle.ImplementationInventory.Commands, ", "), strings.Join(bundle.ImplementationInventory.InternalPackages, ", "), strings.Join(bundle.ImplementationInventory.BuildingDocs, ", "), landingSite, docsSite, auditBlock, bundle.ProgressJSON, bundle.RepoRoot, bundle.ProgressStats.Items, healthPreservationClause, runtimeSourceBoundaryClause, quarantinePriorityClause, quarantineBlock, selfEvaluationClause, reshapeBlock, triggerBlock, topicalBlock, provenanceAwarenessClause, driftStateClause, implInventoryBlock)
 }
 
 // formatTriggerEvents renders the autoloop signals consumed by this run as

@@ -446,6 +446,7 @@ classification and row-backed implementation queue.
 - [x] Goncho empty peer-card hint contract
 - [x] Hermes memory tool over Goncho/local durable store
 - [x] Goncho memory provider lifecycle adapter
+- [x] Goncho Memory V1 compatibility contract and migration harness
 - [ ] GONCHO local-first markdown MCP memory requirement
 
 ### 3.G — Goncho Drop-In Compatibility Closure ✅

@@ -10,7 +10,7 @@ const VIEWPORTS = [
 ];
 
 for (const vp of VIEWPORTS) {
-  test(`docs home (${vp.label} ${vp.width}×${vp.height}) has no horizontal overflow`, async ({ page }) => {
+  test(`docs home (${vp.label} ${vp.width}x${vp.height}) has no horizontal overflow`, async ({ page }) => {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('/');
 
@@ -20,7 +20,7 @@ for (const vp of VIEWPORTS) {
     expect(overflow, `page overflows at ${vp.width}px`).toBeFalsy();
   });
 
-  test(`docs article page (${vp.label}) — Phase 6 — has no overflow and renders TOC correctly`, async ({ page }) => {
+  test(`docs article page (${vp.label}) has no overflow and renders Starlight TOC`, async ({ page }) => {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('/building-gormes/architecture_plan/phase-6-learning-loop/');
 
@@ -29,43 +29,23 @@ for (const vp of VIEWPORTS) {
     );
     expect(overflow, `article overflows at ${vp.width}px`).toBeFalsy();
 
-    // Every code block has a tappable copy button
-    const copyBoxes = await page.locator('button.copy-btn').evaluateAll(btns =>
-      btns.map(b => b.getBoundingClientRect()).map(r => ({ h: r.height, w: r.width }))
-    );
-    for (const box of copyBoxes) {
-      expect(box.h).toBeGreaterThanOrEqual(28);
-      expect(box.w).toBeGreaterThanOrEqual(28);
-    }
+    await expect(page.getByRole('heading', { name: 'Phase 6 — The Learning Loop' }).first()).toBeVisible();
+    await expect(page.locator('mobile-starlight-toc')).toHaveCount(1);
 
-    // TOC is visible either as right-side panel (≥1024) or collapsed details (<1024)
-    if (vp.width >= 1024) {
-      await expect(page.locator('aside.docs-toc')).toBeVisible();
-    } else {
-      await expect(page.locator('.docs-toc-details')).toBeVisible();
+    if (vp.width >= 1280) {
+      await expect(page.locator('.right-sidebar-panel')).toBeVisible();
+      await expect(page.locator('.right-sidebar-panel a[href^="#"]').first()).toBeVisible();
     }
   });
 }
 
-test('collapsible sidebar group: current auto-opens, others closed, click toggles', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
+test('mobile menu button is accessible and desktop hides it', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 760 });
   await page.goto('/getting-started/first-run/');
 
-  // Getting Started contains First Run, so that group is open.
-  const startGroup = page.locator('details.docs-nav-group[data-section="getting-started"]');
-  await expect(startGroup).toHaveAttribute('open', '');
+  await expect(page.getByRole('button', { name: 'Menu' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(1);
 
-  // Operate is closed by default (not current).
-  const operateGroup = page.locator('details.docs-nav-group[data-section="guides"]');
-  const openAttr = await operateGroup.getAttribute('open');
-  expect(openAttr).toBeNull();
-
-  // Clicking the operate summary expands it.
-  await operateGroup.locator('summary').click();
-  await page.waitForTimeout(100);
-  await expect(operateGroup).toHaveAttribute('open', '');
-
-  // Reload — persisted via localStorage.
-  await page.reload();
-  await expect(page.locator('details.docs-nav-group[data-section="guides"]')).toHaveAttribute('open', '');
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(page.getByRole('button', { name: 'Menu' })).toBeHidden();
 });

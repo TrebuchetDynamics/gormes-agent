@@ -24,32 +24,34 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: peaceiris/actions-hugo@v3
+      - uses: actions/setup-node@v4
         with:
-          hugo-version: '0.140.0'
-          extended: true
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
 
-      - name: Build Hugo site
+      - name: Install docs dependencies
         working-directory: docs
-        run: hugo --minify
+        run: npm ci
 
-      - name: Generate Pagefind search index
+      - name: Build Astro site
         working-directory: docs
-        run: npx --yes pagefind --site public
+        run: npm run build
 
       - name: Verify build artifacts
         working-directory: docs
         run: |
-          test -f public/index.html
-          test -d public/pagefind
-          test -f public/pagefind/pagefind-ui.js
+          test -f dist/index.html
+          test -d dist/pagefind
+          test -f dist/pagefind/pagefind-ui.js
+          test -f dist/building-gormes/architecture_plan/progress.json
 
       - name: Verify homepage content
         working-directory: docs
         run: |
-          grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" public/index.html >/dev/null
-          ! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" public/index.html >/dev/null
-          ! grep -F "brew install trebuchet/gormes" public/index.html >/dev/null
+          grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" dist/index.html >/dev/null
+          ! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" dist/index.html >/dev/null
+          ! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null
 
       - name: Ensure Pages project exists
         uses: cloudflare/wrangler-action@v3
@@ -64,7 +66,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy docs/public --project-name=gormes-docs --branch=main --commit-dirty=true
+          command: pages deploy docs/dist --project-name=gormes-docs --branch=main --commit-dirty=true
 
       - name: Attach docs.gormes.ai
         env:

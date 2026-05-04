@@ -94,6 +94,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 			pickerCmd.SetOut(cmd.OutOrStdout())
 			pickerCmd.SetErr(cmd.ErrOrStderr())
 			pickerCmd.SetIn(cmd.InOrStdin())
+			pickerCmd.SetArgs([]string{})
 			pickerCmd.SilenceUsage = true
 			pickerCmd.SilenceErrors = true
 			return pickerCmd.ExecuteContext(cmd.Context())
@@ -249,7 +250,7 @@ func setupTopLevelOptions() []setupMenuOption {
 func printSetupTopLevelMenu(cmd *cobra.Command, options []setupMenuOption, defaultOption int) {
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "What would you like to do?")
-	fmt.Fprintln(out, "  ↑↓ navigate  ENTER/SPACE select  ESC cancel")
+	fmt.Fprintln(out, "  Enter a number/name, or q to cancel.")
 	fmt.Fprintln(out)
 	for i, option := range options {
 		prefix := "   (○)"
@@ -267,7 +268,7 @@ func promptSetupAction(cmd *cobra.Command, options []setupMenuOption, defaultOpt
 	if err != nil {
 		return "", err
 	}
-	answer = strings.ToLower(strings.TrimSpace(answer))
+	answer = strings.ToLower(strings.TrimSpace(stripSetupInputNoise(answer)))
 	if answer == "" {
 		return options[defaultOption].Action, nil
 	}
@@ -283,6 +284,38 @@ func promptSetupAction(cmd *cobra.Command, options []setupMenuOption, defaultOpt
 		}
 	}
 	return "", newExitCodeError(2, fmt.Errorf("setup_menu_invalid_selection: %s", answer))
+}
+
+func stripSetupInputNoise(answer string) string {
+	var b strings.Builder
+	for i := 0; i < len(answer); {
+		ch := answer[i]
+		if ch == 0x1b {
+			i++
+			if i < len(answer) && answer[i] == '[' {
+				i++
+				for i < len(answer) {
+					final := answer[i]
+					i++
+					if final >= 0x40 && final <= 0x7e {
+						break
+					}
+				}
+				continue
+			}
+			if i < len(answer) {
+				i++
+			}
+			continue
+		}
+		if ch < 0x20 || ch == 0x7f {
+			i++
+			continue
+		}
+		b.WriteByte(ch)
+		i++
+	}
+	return b.String()
 }
 
 func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {

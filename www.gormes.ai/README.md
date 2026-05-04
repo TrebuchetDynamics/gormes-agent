@@ -1,22 +1,35 @@
 # Gormes.ai
 
-Server-rendered landing page for current Gormes trunk.
+Astro + Tailwind landing page for current Gormes trunk.
 
-The site should reflect the shipped moat layers truthfully: the zero-CGO Go shell, the Go-native tool registry, Telegram/Discord on the shared gateway, Route-B resilience, and the progress-driven Phase-2 shipping boundary. It should not regress into a Phase-1-only story or hardcode stale proof claims.
+The site should reflect the shipped moat layers truthfully: the zero-CGO Go
+shell, the Go-native tool registry, Telegram/Discord on the shared gateway,
+Route-B resilience, and the progress-driven Phase-2 shipping boundary. It
+should not regress into a Phase-1-only story or hardcode stale proof claims.
 
-The site is built in Go and serves the public homepage at `/` plus embedded static assets at `/static/*`. In this monorepo, the implementation lives under `www.gormes.ai/internal/site` so the templates and CSS can be embedded with `//go:embed`.
+Astro owns the public homepage at `/`, static assets at `/static/*`, and
+installer aliases at `/install.sh`, `/install.ps1`, and `/install.cmd`.
+Tailwind is wired through the Tailwind v4 Vite plugin in `astro.config.mjs`.
+The former Go-rendered site is deprecated and preserved under
+`legacy/go-renderer/` for reference only.
 
 ## Layout
 
-- `cmd/www-gormes` - HTTP and static-export entrypoint.
-- `internal/site/content.go` - landing-page copy and link data.
-- `internal/site/data/progress.json` - embedded roadmap copy of `../docs/content/building-gormes/architecture_plan/progress.json`.
-- `internal/site/server.go` - route wiring and template execution.
-- `internal/site/templates/*.tmpl` - HTML templates.
-- `internal/site/static/*` - embedded CSS and other static assets.
-- `../install.sh` - canonical Unix installer served at `/install.sh`.
-- `internal/site/installers/install.{ps1,cmd}` - embedded Windows installer assets served at `/install.ps1` and `/install.cmd`.
+- `src/pages/index.astro` - homepage route, structure, metadata, and inline
+  copy-button behavior.
+- `src/data/landing.js` - landing-page copy, benchmark/progress helpers, and
+  roadmap derivation.
+- `src/data/progress.json` - generated mirror of
+  `../docs/content/building-gormes/architecture_plan/progress.json`.
+- `src/data/benchmarks.json` - generated mirror of `../benchmarks.json`.
+- `src/styles/global.css` - Tailwind import, theme fonts, and base focus/copy
+  states.
+- `public/static/*` - favicon, social card, and landing visual assets.
+- `public/install.*` - generated installer aliases served as static files.
+- `scripts/sync-assets.mjs` - copies canonical installers, progress, benchmark,
+  and static assets before dev/build.
 - `tests/home.spec.mjs` - Playwright smoke test for the homepage.
+- `legacy/go-renderer/` - deprecated Go renderer retained for rollback only.
 
 ## Installer Surface
 
@@ -25,8 +38,8 @@ The site serves three installer assets, one per supported user shell:
 | Path | Source | Audience |
 |------|--------|----------|
 | `/install.sh` | `../install.sh` | Linux, macOS, Termux, WSL |
-| `/install.ps1` | `installers/install.ps1` (mirror of `../scripts/install.ps1`) | Windows PowerShell 5.1+ / pwsh 7+ |
-| `/install.cmd` | `installers/install.cmd` (mirror of `../scripts/install.cmd`) | CMD wrapper that launches the PowerShell installer |
+| `/install.ps1` | `../scripts/install.ps1` | Windows PowerShell 5.1+ / pwsh 7+ |
+| `/install.cmd` | `../scripts/install.cmd` | CMD wrapper that launches the PowerShell installer |
 
 The Unix installer is release-first: it downloads the latest compatible
 `gormes-${version}-${os}-${arch}.tar.gz` archive, verifies the `.sha256`, and
@@ -44,31 +57,23 @@ The `/install.*` URLs remain convenience aliases, not the primary trust story.
 
 ```bash
 cd www.gormes.ai
-make build
-./bin/www-gormes -listen :8080
+npm install
+npm run dev
 ```
 
-Or run the server directly:
+Build the static site:
 
 ```bash
-go run ./cmd/www-gormes -listen :8080
+npm run build
 ```
 
-`make run` uses the same command.
-
-Export the static site with the same command:
+Preview the production build:
 
 ```bash
-go run ./cmd/www-gormes export --out dist
+npm run preview
 ```
 
 ## Verification
-
-Run the Go test suite:
-
-```bash
-go test ./...
-```
 
 Install the browser-test dependency once per checkout:
 
@@ -82,13 +87,19 @@ Run the browser smoke test:
 npm run test:e2e
 ```
 
-The Playwright config launches the Go server with `go run ./cmd/www-gormes -listen :8080`, so no separate app process is needed for the smoke test.
+The Playwright config launches the Astro dev server, so no separate app process
+is needed for the smoke test.
 
 ## Content Updates
 
-- Edit `internal/site/content.go` to change copy, CTAs, or roadmap text.
-- Edit `internal/site/templates/*.tmpl` to change structure.
-- Edit `internal/site/static/site.css` to change presentation.
-- Run `make build` from `www.gormes.ai/` or copy the canonical architecture progress file into `internal/site/data/progress.json` when roadmap status changes. There is no `www.gormes.ai/content/` Markdown tree in this module; the homepage roadmap comes from the embedded JSON data.
+- Edit `src/data/landing.js` to change copy, CTAs, or roadmap framing.
+- Edit `src/pages/index.astro` to change structure.
+- Edit `src/styles/global.css` for Tailwind theme/base states; prefer Tailwind
+  utility classes in `.astro` components for page layout.
+- Run `npm run build` to sync installer/progress/benchmark mirrors and compile
+  the static site. There is no `www.gormes.ai/content/` Markdown tree in this
+  module; the homepage roadmap comes from the mirrored JSON data.
 
-The page intentionally avoids client-side JavaScript. The homepage should remain readable and useful with scripts disabled.
+The page intentionally avoids client-side JavaScript except for the bounded
+copy-button behavior. The homepage should remain readable and useful with
+scripts disabled.
