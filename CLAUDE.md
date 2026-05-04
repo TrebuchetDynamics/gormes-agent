@@ -106,3 +106,16 @@ Tradeoff: they bias toward caution over speed for non-trivial work; use judgment
 - For multi-step work, state a short plan with a verification check for each step.
 - Loop until the relevant tests, builds, or manual checks prove the goal is met.
 <!-- karpathy-guidelines:end -->
+
+<!-- karpathy-project-adjustment:start -->
+## Project-Specific Karpathy Adjustment
+
+This section localizes the Karpathy guardrails for `workspace-mineru/gormes-agent`. Source inspiration: https://github.com/forrestchang/andrej-karpathy-skills at commit `2c60614`.
+
+- Project family: Gormes Go-native Hermes-compatible agent runtime.
+- Local focus: Go-native agent runtime, TUI, gateway, tools, sessions, local memory, installer, docs, and progress.json delivery tracking.
+- Stack cues: Go.
+- Evidence to prefer: go test output, CLI smoke checks, doctor/onboard output, exact branch, progress.json updates, and compatibility notes against Hermes behavior.
+- Surgical boundary: work from development rules in the repo; avoid Python/venv assumptions and avoid changing public CLI/runtime contracts without tests.
+- Stop and ask when: a change affects agent behavior, persistence, gateway routing, provider config, install flow, or compatibility promises.
+<!-- karpathy-project-adjustment:end -->
