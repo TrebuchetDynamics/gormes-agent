@@ -38,6 +38,9 @@ git fetch origin main development --tags
    - update `cmd/gormes/version.go`;
    - add a dated section to `CHANGELOG.md`;
    - regenerate progress docs if progress files changed;
+   - keep `.github/workflows/release.yml` validate prerequisites aligned with
+     `.github/workflows/ci.yml`; `go test ./...` includes docs tests that need
+     `docs` npm dependencies installed;
    - include any current dirty runtime/docs/skill changes after scanning for
      credentials or accidental artifacts.
 4. Run local gates one at a time:
@@ -71,6 +74,9 @@ git push origin "v<version>"
 
 8. Watch the tag-triggered `Release Binaries` workflow with bounded polling.
    Confirm the GitHub release exists and contains archives plus checksums.
+   If the tag workflow fails before a GitHub release is created, fix through
+   the `development` PR path, delete the failed local and remote tag, and
+   recreate the same tag only after the fixed `main` commit is green.
 9. Sync `development` with `origin/main`, push `development`, and leave the
    local checkout on `development`.
 
