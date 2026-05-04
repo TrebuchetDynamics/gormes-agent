@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-// TestHugoBuild_HeadMetaAndFavicons builds the docs site with Hugo and
+// TestAstroBuild_HeadMetaAndFavicons builds the docs site with Astro and
 // asserts that the favicon link tags and Open Graph / Twitter card meta
 // tags are present on the home page. Guards against regressions in
-// docs/layouts/_default/baseof.html that would silently break browser
-// tab icons or social previews.
-func TestHugoBuild_HeadMetaAndFavicons(t *testing.T) {
+// Starlight config that would silently break browser tab icons or social
+// previews.
+func TestAstroBuild_HeadMetaAndFavicons(t *testing.T) {
 	tmp := t.TempDir()
-	runDocsHugoBuild(t, tmp)
+	runDocsAstroBuild(t, tmp)
 
 	home, err := os.ReadFile(filepath.Join(tmp, "index.html"))
 	if err != nil {
@@ -22,14 +22,11 @@ func TestHugoBuild_HeadMetaAndFavicons(t *testing.T) {
 	}
 	body := string(home)
 
-	// Hugo --minify strips attribute quotes for simple values, so the
-	// favicon hrefs render unquoted (e.g. href=/favicon.ico). Open Graph
-	// content values keep their quotes because they contain spaces.
 	wants := []string{
-		`href=/favicon.ico`,
-		`href=/favicon-16x16.png`,
-		`href=/favicon-32x32.png`,
-		`href=/apple-touch-icon.png`,
+		`href="/favicon.ico"`,
+		`href="/favicon-16x16.png"`,
+		`href="/favicon-32x32.png"`,
+		`href="/apple-touch-icon.png"`,
 		// Open Graph + Twitter cards. Permalink + image must be absolute
 		// because social crawlers won't resolve relative URLs.
 		`property="og:type"`,
@@ -38,8 +35,8 @@ func TestHugoBuild_HeadMetaAndFavicons(t *testing.T) {
 		`property="og:image" content="https://docs.gormes.ai/social-card.png"`,
 		`property="og:image:width" content="1200"`,
 		`property="og:image:height" content="630"`,
-		`name=twitter:card content="summary_large_image"`,
-		`name=twitter:image content="https://docs.gormes.ai/social-card.png"`,
+		`name="twitter:card" content="summary_large_image"`,
+		`name="twitter:image" content="https://docs.gormes.ai/social-card.png"`,
 	}
 	for _, want := range wants {
 		if !strings.Contains(body, want) {

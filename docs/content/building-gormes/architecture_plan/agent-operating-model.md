@@ -87,8 +87,8 @@ write`. They must not edit content between `PROGRESS` markers by hand.
 When a planner pass adds a phase, subphase, or closure row, it must also update
 the hand-written planning pages that explain why the structure exists:
 `completion-plan.md`, `lane-roadmap.md`, and any subsystem study page that owns
-the new rows. A phase restructure is not complete until Hugo-generated pages
-and the human-readable plan tell the same story.
+the new rows. A phase restructure is not complete until generated Starlight
+pages and the human-readable plan tell the same story.
 
 ## Builder Pass
 

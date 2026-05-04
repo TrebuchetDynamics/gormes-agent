@@ -186,6 +186,54 @@ func TestSetupModelSectionDelegatesToPicker(t *testing.T) {
 	}
 }
 
+func TestSetupModelDefaultPickerDoesNotInheritParentSetupArg(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	oldArgs := os.Args
+	os.Args = []string{"gormes", "setup"}
+	t.Cleanup(func() { os.Args = oldArgs })
+
+	stdout, stderr, err := runSetupTestCommand(t, setupCommandSeams{
+		IsTTY: func() bool { return true },
+	}, "model")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want model picker TTY failure in test process stdout=%s stderr=%s", stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr+err.Error(), `unknown command "setup" for "model"`) {
+		t.Fatalf("setup model leaked parent argv into model command stdout=%s stderr=%s err=%v", stdout, stderr, err)
+	}
+	if !strings.Contains(err.Error(), cli.ErrModelPickerRequiresTTY.Error()) {
+		t.Fatalf("error = %v, want model picker TTY failure after argv isolation stdout=%s stderr=%s", err, stdout, stderr)
+	}
+}
+
+func TestSetupMenuIgnoresArrowEscapeNoiseBeforeSelection(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	gatewayCalls := 0
+	fake := &setupCommandFakeSeams{isTTY: true}
+	fake.runSetupGateway = func(_ *cobra.Command, nonInteractive bool) error {
+		gatewayCalls++
+		if nonInteractive {
+			t.Fatal("interactive gateway menu selection was marked non-interactive")
+		}
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "\x1b[B\x1b[A5\n")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if gatewayCalls != 1 {
+		t.Fatalf("gateway setup calls = %d, want 1 after selecting option 5", gatewayCalls)
+	}
+	if strings.Contains(stdout, "↑↓ navigate") {
+		t.Fatalf("line-prompt setup menu advertised unsupported arrow navigation:\n%s", stdout)
+	}
+}
+
 func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	home := t.TempDir()
 	secret := "sk-test-secret-7890"

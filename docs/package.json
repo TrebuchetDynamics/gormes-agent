@@ -1,0 +1,21 @@
+{
+  "name": "gormes-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync:content": "node ./scripts/sync-starlight-content.mjs",
+    "predev": "npm run sync:content",
+    "dev": "astro dev",
+    "prebuild": "npm run sync:content",
+    "build": "astro build",
+    "postbuild": "node ./scripts/copy-progress-json.mjs",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "latest",
+    "astro": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}

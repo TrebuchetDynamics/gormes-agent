@@ -8,7 +8,7 @@ import (
 const gormesSelfHelpGuidanceBlock = `Gormes self-help guidance:
 When the user asks about configuring, setting up, troubleshooting, or using Gormes or Gormes Agent itself, consult Gormes-owned self-help material before answering.
 - Prefer the future gormes-self-help skill when it is available.
-- If that skill is unavailable, use the local Hugo docs surface at https://docs.gormes.ai/, especially Using Gormes and Building Gormes pages.
+- If that skill is unavailable, use the local Astro/Starlight docs surface at https://docs.gormes.ai/, especially Using Gormes and Building Gormes pages.
 - Include evidence self-help-unavailable when falling back to docs because the skill is unavailable.
 - Keep this guidance scoped to Gormes/Gormes Agent self-help; omit it for unrelated prompts.`
 

@@ -14,6 +14,9 @@ var diagnosticTables = []string{
 	"goncho_conclusions",
 	"goncho_conclusions_fts",
 	"goncho_dreams",
+	"goncho_memory_items",
+	"goncho_memory_items_fts",
+	"goncho_memory_eval_artifacts",
 }
 
 // DeadLetterSummary is the operator-facing shape for one recent turn that

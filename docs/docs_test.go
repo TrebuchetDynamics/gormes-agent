@@ -3,7 +3,6 @@ package docs_test
 import (
 	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -16,7 +15,7 @@ import (
 
 const (
 	sourceDocsRoot  = "../../website/docs"
-	hugoContentRoot = "./content"
+	docsContentRoot = "./content"
 )
 
 var (
@@ -75,7 +74,7 @@ var targets = []string{
 	"superpowers/plans/2026-04-19-gormes-phase2c-persistence.md",
 }
 
-var nativeHugoPages = map[string]struct{}{
+var nativeDocsPages = map[string]struct{}{
 	"_index.md":                                                            {},
 	"why-gormes.md":                                                        {},
 	"building-gormes/_index.md":                                            {},
@@ -163,7 +162,7 @@ func TestMirroredDocsCoverage(t *testing.T) {
 		if _, ok := expected[rel]; ok {
 			continue
 		}
-		if _, ok := nativeHugoPages[rel]; ok {
+		if _, ok := nativeDocsPages[rel]; ok {
 			continue
 		}
 		t.Fatalf("unexpected content file %s", rel)
@@ -171,7 +170,7 @@ func TestMirroredDocsCoverage(t *testing.T) {
 }
 
 func TestProgressJsonHasSingleCanonicalDocsCopy(t *testing.T) {
-	canonical := filepath.Join(hugoContentRoot, "building-gormes", "architecture_plan", "progress.json")
+	canonical := filepath.Join(docsContentRoot, "building-gormes", "architecture_plan", "progress.json")
 	if _, err := os.Stat(canonical); err != nil {
 		t.Fatalf("canonical progress.json missing: %v", err)
 	}
@@ -184,12 +183,12 @@ func TestProgressJsonHasSingleCanonicalDocsCopy(t *testing.T) {
 	}
 }
 
-func TestHugoContentRendersViaGoldmark(t *testing.T) {
+func TestDocsContentRendersViaGoldmark(t *testing.T) {
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, extension.Table, extension.Strikethrough))
 
 	for _, rel := range collectContentDocs(t) {
 		t.Run(rel, func(t *testing.T) {
-			raw, err := os.ReadFile(filepath.Join(hugoContentRoot, rel))
+			raw, err := os.ReadFile(filepath.Join(docsContentRoot, rel))
 			if err != nil {
 				t.Fatalf("read %s: %v", rel, err)
 			}
@@ -205,10 +204,10 @@ func TestHugoContentRendersViaGoldmark(t *testing.T) {
 	}
 }
 
-func TestHugoContentAvoidsPortabilityHazards(t *testing.T) {
+func TestDocsContentAvoidsPortabilityHazards(t *testing.T) {
 	for _, rel := range collectContentDocs(t) {
 		t.Run(rel, func(t *testing.T) {
-			raw, err := os.ReadFile(filepath.Join(hugoContentRoot, rel))
+			raw, err := os.ReadFile(filepath.Join(docsContentRoot, rel))
 			if err != nil {
 				t.Fatalf("read %s: %v", rel, err)
 			}
@@ -218,9 +217,9 @@ func TestHugoContentAvoidsPortabilityHazards(t *testing.T) {
 	}
 }
 
-func TestHugoInternalLinksResolve(t *testing.T) {
+func TestDocsInternalLinksResolve(t *testing.T) {
 	for _, rel := range collectContentDocs(t) {
-		raw, err := os.ReadFile(filepath.Join(hugoContentRoot, rel))
+		raw, err := os.ReadFile(filepath.Join(docsContentRoot, rel))
 		if err != nil {
 			t.Fatalf("read %s: %v", rel, err)
 		}
@@ -385,7 +384,7 @@ func collectContentDocs(t *testing.T) []string {
 	t.Helper()
 
 	var paths []string
-	err := filepath.WalkDir(hugoContentRoot, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(docsContentRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -395,7 +394,7 @@ func collectContentDocs(t *testing.T) []string {
 		if filepath.Ext(path) != ".md" {
 			return nil
 		}
-		rel, err := filepath.Rel(hugoContentRoot, path)
+		rel, err := filepath.Rel(docsContentRoot, path)
 		if err != nil {
 			return err
 		}
@@ -403,7 +402,7 @@ func collectContentDocs(t *testing.T) []string {
 		return nil
 	})
 	if err != nil {
-		t.Fatalf("walk hugo content: %v", err)
+		t.Fatalf("walk docs content: %v", err)
 	}
 	sort.Strings(paths)
 
@@ -497,7 +496,7 @@ func resolveContentLink(sourceRel, link string) error {
 	}
 
 	candidateRel := filepath.Clean(filepath.Join(renderedDir, target))
-	candidate := filepath.Join(hugoContentRoot, candidateRel)
+	candidate := filepath.Join(docsContentRoot, candidateRel)
 	checks := []string{
 		candidate + ".md",
 		filepath.Join(candidate, "_index.md"),
@@ -516,32 +515,23 @@ func resolveContentLink(sourceRel, link string) error {
 	return os.ErrNotExist
 }
 
-func TestHugoBuildProducesRenderedContent(t *testing.T) {
+func TestAstroBuildProducesRenderedContent(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip Hugo build in short mode")
+		t.Skip("skip Astro build in short mode")
 	}
 
 	dest := t.TempDir()
-	cmd := exec.Command("go", "run", "github.com/gohugoio/hugo@v0.160.1", "--panicOnWarning", "--cleanDestinationDir", "--destination", dest)
-	cmd.Dir = "."
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("hugo build failed: %v\n%s", err, output)
-	}
+	runDocsAstroBuild(t, dest)
 
-	// Hugo's default filename-based routing preserves section directories:
+	// Starlight's filename-based routing preserves section directories:
 	// content/upstream-hermes/user-guide/cli.md -> /upstream-hermes/user-guide/cli/.
-	// Tests previously expected the flattened (/upstream-hermes/:slug/)
-	// form from the old [permalinks] override; that override was removed
-	// because it clashed with the nested building-gormes/architecture_plan/
-	// routes asserted by TestHugoBuild.
 	checks := map[string][]string{
 		"index.html": {
-			"START",
-			"OPERATE",
-			"REFERENCE",
-			"ARCHITECTURE",
-			"ROADMAP",
+			"Getting Started",
+			"Operate",
+			"Reference",
+			"Architecture",
+			"Building Gormes",
 		},
 		filepath.Join("why-gormes", "index.html"): {
 			"Operational Moat",

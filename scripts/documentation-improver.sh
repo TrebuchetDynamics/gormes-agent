@@ -20,7 +20,7 @@ PROGRESS_JSON="$REPO_ROOT/docs/content/building-gormes/architecture_plan/progres
 ARCH_PLAN_DIR="$REPO_ROOT/docs/content/building-gormes/architecture_plan"
 CORE_DOCS_DIR="$REPO_ROOT/docs/content/building-gormes/core-systems"
 SITE_ROOT="$REPO_ROOT/www.gormes.ai"
-SITE_PROGRESS_JSON="$SITE_ROOT/internal/site/data/progress.json"
+SITE_PROGRESS_JSON="$SITE_ROOT/src/data/progress.json"
 
 RUN_AT_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 RUN_STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"

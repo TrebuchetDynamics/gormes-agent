@@ -29,30 +29,19 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-node@v4
         with:
-          go-version: '1.25'
-          cache: true
-          cache-dependency-path: www.gormes.ai/go.sum
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: www.gormes.ai/package-lock.json
 
-      - name: Refresh embedded data from canonical sources
-        # Force-copy benchmarks.json + progress.json into the embed
-        # directory. The Makefile does the same, but its mtime-based
-        # rule no-ops on fresh CI checkouts where both files share
-        # the same timestamp — so we copy unconditionally here.
+      - name: Install dependencies
         working-directory: www.gormes.ai
-        run: |
-          mkdir -p internal/site/data
-          cp ../benchmarks.json internal/site/data/benchmarks.json
-          cp ../docs/content/building-gormes/architecture_plan/progress.json internal/site/data/progress.json
+        run: npm ci
 
-      - name: Build www-gormes binary
+      - name: Build Astro static site
         working-directory: www.gormes.ai
-        run: make build
-
-      - name: Export static site
-        working-directory: www.gormes.ai
-        run: ./bin/www-gormes export --out dist
+        run: npm run build
 
       - name: Verify build artifacts
         working-directory: www.gormes.ai
@@ -61,17 +50,20 @@ jobs:
           test -f dist/install.sh
           test -f dist/install.ps1
           test -f dist/install.cmd
-          test -f dist/static/site.css
           test -f dist/static/favicon.ico
           test -f dist/static/social-card.png
+          test -f dist/static/go-gopher-bear-lowpoly.png
+          test -d dist/_astro
 
       - name: Verify homepage content
         working-directory: www.gormes.ai
         run: |
+          grep -F 'data-site-runtime="astro-tailwind"' dist/index.html >/dev/null
           grep -F "Run Agents From One Go Binary." dist/index.html >/dev/null
           grep -F "Gormes runs AI agents as a single static binary." dist/index.html >/dev/null
           grep -F 'href="/static/favicon.ico"' dist/index.html >/dev/null
           grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
+          grep -F '/static/go-gopher-bear-lowpoly.png' dist/index.html >/dev/null
           ! grep -F "Run AI Agents as One Go Binary." dist/index.html >/dev/null
           ! grep -F "One static binary. No Python runtime. No Hermes process." dist/index.html >/dev/null
           ! grep -F "One Go Binary. No Python. No Drift." dist/index.html >/dev/null

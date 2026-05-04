@@ -4,18 +4,18 @@ on:
   pull_request:
     paths:
       - 'docs/content/building-gormes/architecture_plan/progress.json'
-      - 'www.gormes.ai/internal/site/data/progress.json'
-      - 'www.gormes.ai/Makefile'
+      - 'www.gormes.ai/src/data/progress.json'
+      - 'www.gormes.ai/scripts/sync-assets.mjs'
       - 'benchmarks.json'
-      - 'www.gormes.ai/internal/site/data/benchmarks.json'
+      - 'www.gormes.ai/src/data/benchmarks.json'
   push:
     branches: [main, development]
     paths:
       - 'docs/content/building-gormes/architecture_plan/progress.json'
-      - 'www.gormes.ai/internal/site/data/progress.json'
-      - 'www.gormes.ai/Makefile'
+      - 'www.gormes.ai/src/data/progress.json'
+      - 'www.gormes.ai/scripts/sync-assets.mjs'
       - 'benchmarks.json'
-      - 'www.gormes.ai/internal/site/data/benchmarks.json'
+      - 'www.gormes.ai/src/data/benchmarks.json'
 
 permissions:
   contents: read
@@ -33,19 +33,24 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-node@v4
         with:
-          go-version: '1.25'
-          cache: true
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: www.gormes.ai/package-lock.json
+
+      - name: Install dependencies
+        working-directory: www.gormes.ai
+        run: npm ci
 
       - name: Run www mirror sync
         run: |
           cd www.gormes.ai
-          make build
+          npm run prebuild
 
       - name: Verify mirror matches canonical
         env:
           GIT_PAGER: cat
         run: |
-          git diff --exit-code www.gormes.ai/internal/site/data/progress.json
-          git diff --exit-code www.gormes.ai/internal/site/data/benchmarks.json
+          git diff --exit-code www.gormes.ai/src/data/progress.json
+          git diff --exit-code www.gormes.ai/src/data/benchmarks.json

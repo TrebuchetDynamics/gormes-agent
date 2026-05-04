@@ -8,14 +8,14 @@ import (
 	"testing"
 )
 
-// TestHugoBuild runs `hugo --minify` in a temp directory and asserts
+// TestAstroBuild runs `npm run build` in a temp directory and asserts
 // the full set of expected pages are emitted. Guards against:
-//   - Theme regressions (build fails silently)
+//   - Starlight regressions (build fails silently)
 //   - Broken front-matter (page doesn't render)
 //   - Missing content files (section landing without children)
-func TestHugoBuild(t *testing.T) {
+func TestAstroBuild(t *testing.T) {
 	tmp := t.TempDir()
-	runDocsHugoBuild(t, tmp)
+	runDocsAstroBuild(t, tmp)
 
 	wantPages := []string{
 		"index.html",
@@ -127,32 +127,32 @@ func TestHugoBuild(t *testing.T) {
 	}
 }
 
-// TestHugoBuild_IndexHasSidebarSections asserts the rendered home page
+// TestAstroBuild_IndexHasSidebarSections asserts the rendered home page
 // prioritizes user/operator docs before roadmap and upstream archives.
-func TestHugoBuild_IndexHasSidebarSections(t *testing.T) {
+func TestAstroBuild_IndexHasSidebarSections(t *testing.T) {
 	tmp := t.TempDir()
-	runDocsHugoBuild(t, tmp)
+	runDocsAstroBuild(t, tmp)
 	body, err := os.ReadFile(filepath.Join(tmp, "index.html"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(body)
 	for _, want := range []string{
-		"START",
-		"OPERATE",
-		"REFERENCE",
-		"ARCHITECTURE",
-		"DEVELOP",
-		"ROADMAP",
-		"docs-nav-group-label-shipped",
-		"docs-nav-group-label-progress",
-		"docs-nav-group-label-next",
-		`href=/getting-started/`,
-		`href=/guides/`,
-		`href=/reference/`,
-		`href=/architecture/`,
-		`href=/development/`,
-		`href=/parity/`,
+		"Getting Started",
+		"Operate",
+		"Using Gormes",
+		"Reference",
+		"Architecture",
+		"Development",
+		"Parity",
+		"Building Gormes",
+		`href="/getting-started/"`,
+		`href="/guides/"`,
+		`href="/using-gormes/"`,
+		`href="/reference/"`,
+		`href="/architecture/"`,
+		`href="/development/"`,
+		`href="/parity/"`,
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("built index.html missing %q", want)
@@ -160,9 +160,9 @@ func TestHugoBuild_IndexHasSidebarSections(t *testing.T) {
 	}
 }
 
-func TestHugoBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
+func TestAstroBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	tmp := t.TempDir()
-	runDocsHugoBuild(t, tmp)
+	runDocsAstroBuild(t, tmp)
 
 	body, err := os.ReadFile(filepath.Join(tmp, "index.html"))
 	if err != nil {
@@ -181,9 +181,9 @@ func TestHugoBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	}
 }
 
-func TestHugoBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
+func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	tmp := t.TempDir()
-	runDocsHugoBuild(t, tmp)
+	runDocsAstroBuild(t, tmp)
 
 	body, err := os.ReadFile(filepath.Join(tmp, "index.html"))
 	if err != nil {
@@ -191,22 +191,17 @@ func TestHugoBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	}
 	text := string(body)
 	for _, want := range []string{
-		"Run agents from one Go-native runtime.",
-		"Primary documentation paths",
-		"Get Started",
-		"Run Doctor",
-		"Operate Gateways",
+		"Gormes runs AI agents as one Go-native agent runtime.",
+		"Start offline, prove the machine works",
 		"What is Gormes?",
-		"A self-hosted agent runtime for machines that need to keep working.",
-		"Gormes Runtime",
-		"Build, diagnose, then run offline",
-		"./bin/gormes doctor --offline",
-		"./bin/gormes --offline",
-		"Current operator surface",
-		"Dashboard",
-		"Configuration",
-		"Docs by job",
-		"Architecture and parity stay visible.",
+		"Go-native runtime",
+		"Offline proof path",
+		"What you can do today",
+		"Browse sessions, config, skills, and logs",
+		"What lives here?",
+		"Start here",
+		"Getting Started",
+		"Roadmap &amp; Parity",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("built index.html missing operator-first docs token %q", want)
@@ -223,12 +218,16 @@ func TestHugoBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	}
 }
 
-func runDocsHugoBuild(t *testing.T, dest string) {
+func runDocsAstroBuild(t *testing.T, dest string) {
 	t.Helper()
-	cmd := exec.Command("go", "run", "github.com/gohugoio/hugo@v0.160.1", "--minify", "-d", dest)
+	cmd := exec.Command("npm", "run", "build")
 	cmd.Dir = "."
+	cmd.Env = append(os.Environ(),
+		"ASTRO_OUT_DIR="+dest,
+		"ASTRO_TELEMETRY_DISABLED=1",
+	)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("hugo build failed: %v\noutput:\n%s", err, string(out))
+		t.Fatalf("astro build failed: %v\noutput:\n%s", err, string(out))
 	}
 }
 
@@ -244,18 +243,47 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		"paths:",
 		"- 'docs/**'",
 		"workflow_dispatch:",
+		"actions/setup-node@v4",
+		"npm ci",
+		"npm run build",
 		"Verify homepage content",
-		`grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" public/index.html >/dev/null`,
-		`! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" public/index.html >/dev/null`,
-		`! grep -F "brew install trebuchet/gormes" public/index.html >/dev/null`,
+		`grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" dist/index.html >/dev/null`,
+		`! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" dist/index.html >/dev/null`,
+		`! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null`,
 		"cloudflare/wrangler-action@v3",
 		"command: pages project create gormes-docs --production-branch=main",
-		"command: pages deploy docs/public --project-name=gormes-docs --branch=main --commit-dirty=true",
+		"command: pages deploy docs/dist --project-name=gormes-docs --branch=main --commit-dirty=true",
 		"domain=docs.gormes.ai",
 	}
 	for _, want := range wants {
 		if !strings.Contains(text, want) {
 			t.Fatalf("deploy workflow missing %q", want)
 		}
+	}
+}
+
+func TestCIWorkflowInstallsDocsNodeDependenciesBeforeGoTests(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatalf("read CI workflow: %v", err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"actions/setup-node@v4",
+		"node-version: '22'",
+		"name: Install docs dependencies",
+		"working-directory: docs",
+		"npm ci",
+		"name: Run Go tests",
+		"go test ./... -count=1",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("CI workflow missing %q", want)
+		}
+	}
+	installIdx := strings.Index(text, "name: Install docs dependencies")
+	testIdx := strings.Index(text, "name: Run Go tests")
+	if installIdx < 0 || testIdx < 0 || installIdx > testIdx {
+		t.Fatalf("CI workflow must install docs dependencies before Go tests")
 	}
 }

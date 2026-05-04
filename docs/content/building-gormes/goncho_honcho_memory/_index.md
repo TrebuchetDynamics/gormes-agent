@@ -70,6 +70,60 @@ The extraction-ready boundary is:
 
 If Goncho is extracted later, the public module should expose library packages only. Optional HTTP support remains an adapter package that Gormes can mount from inside the same process.
 
+### 0.2 Memory Compatibility Decision: V1 Before V2
+
+> **Decision (2026-05-03):** Freeze a Goncho Memory V1 compatibility
+> contract before adding V2+ memory behavior. Goncho is Honcho-compatible at
+> the public edge, but it is allowed to be better and faster because it runs
+> inside the Gormes binary on the local SQLite memory substrate. That advantage
+> cannot come at the cost of breaking user memory.
+
+V1 is the user-memory ABI. Future Goncho versions may improve ranking,
+summaries, embeddings, QMD-assisted deep search, dialectic reasoning, async
+consolidation, markdown tooling, storage internals, and self-improving memory
+loops, but they must keep V1 memory readable, migratable, recallable,
+auditable, and isolated across independent agents.
+
+The V1 freeze must define and test:
+
+- stable memory IDs that survive restart, export/import, markdown reload, and
+  schema migration;
+- provenance for source workspace, peer, session, turn, artifact, import, or
+  manual edit;
+- scope rules that preserve independent per-agent memory by default, the
+  same-chat default inside an agent, and opt-in cross-chat/user/shared-workspace
+  widening;
+- a versioned editable markdown format that V2+ binaries keep reading;
+- MCP/tool semantics for `store_memory`, `retrieve_memory`, `update_memory`,
+  `summarize_memories`, `forget_memory`, and an explicit destructive purge
+  path;
+- tombstone-first deletion, where `forget` removes memory from active recall
+  without physically erasing the historical record;
+- a checked-in V1 golden corpus covering SQLite rows, markdown export,
+  MCP/tool transcripts, tombstones, revisions, provenance, scopes, and expected
+  recall results.
+
+Multi-agent memory is private unless the operator or agent explicitly chooses a
+shared workspace/peer/session scope. Agent A must not read Agent B's config or
+private memory during normal runtime. The only cross-product import paths are
+`gormes migrate hermes` and `gormes migrate openclaw`, and those import into
+Gormes-owned namespaces rather than live-reading foreign agent state. Shared
+memory writes and reads must carry the creating `agent_id`, `workspace_id`,
+`peer_id`, `session_id`, and source evidence so collaboration remains
+auditable.
+
+The self-improving memory loop follows the same isolation rule. Recall misses,
+quality scores, eval artifacts, proposed ranking changes, and proposed memory
+edits are per-agent by default. Shared-memory improvements are reviewed,
+provenance-tagged proposals, not silent writes into another agent's memory.
+
+The normal-turn recall path must remain local and fast. Embeddings, QMD,
+reranking, dialectic, and dream/consolidation workers are optional quality
+layers; they must not become required to read or recall V1 memory. The default
+compatibility gate for every V2+ change is: open the V1 corpus, migrate it
+transactionally, preserve IDs/provenance/tombstones/scopes, keep golden recall
+working, and refuse unknown future schema versions without writing.
+
 ### Coverage / TODO
 
 - [x] Add a one-paragraph "why a Go port at all, instead of calling Honcho over HTTP" answer citing the Phase 2→3 decision record. Replaced with the stronger one-binary packaging decision above.
