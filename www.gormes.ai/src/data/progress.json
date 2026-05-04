@@ -10657,9 +10657,9 @@
             },
             {
               "name": "Bedrock provider runtime binding",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes closes the Bedrock provider plan by binding the already validated Converse request mapper, ConverseStream decoder, SigV4 credential seam, and stale-client retry classifier into a fakeable provider runtime: config/env choose bedrock_converse, region/auth evidence is redacted, fake signed requests route through the shared ProviderTransport harness, stream fixtures normalize through internal/hermes.Event, and runtime status distinguishes unavailable credentials from provider transport failures.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -30874,10 +30874,12 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Unknown slash commands are still submitted to the model (current behavior); registered slashes that return handled=false continue submission so a buggy handler can never silently drop a turn.",
+              "degraded_mode": "At this prerequisite layer, unregistered slashes still fall through to the caller; the dependent `Native TUI Hermes slash dispatch behavioral matrix` row owns Hermes-known/unknown slash non-leak behavior. Registered slashes that return handled=false continue submission so a buggy handler can never silently drop a turn.",
               "fixture": "internal/tui/slash_dispatch_test.go",
               "source_refs": [
-                "../hermes-agent/ui-tui/src/app/slash/commands/core.ts@2536a36f",
+                "../hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
+                "../hermes-agent/ui-tui/src/app/slash/registry.ts:SLASH_COMMANDS",
+                "../hermes-agent/ui-tui/src/app/slash/commands/core.ts",
                 "internal/tui/update.go:Update,parseMouseTrackingSlash",
                 "internal/tui/mouse_tracking.go",
                 "internal/tui/mouse_tracking_test.go"
@@ -30903,7 +30905,7 @@
                 "TestSlashRegistry_MouseHandlerMigrationParity proves invoking `/mouse on`, `/mouse off`, and an invalid `/mouse foo` through the registry produces the same StatusMessage values that parseMouseTrackingSlash returned in the existing mouse_tracking_test.go cases.",
                 "internal/tui/update.go's tea.KeyEnter branch calls registry.Dispatch BEFORE m.submitCmd; only handler-returning Handled=false reaches submitCmd."
               ],
-              "note": "Reshaped 2026-04-26 (split from `Native TUI /save canonical session export`). Original /save row was quarantined no_progress x3 because Gormes TUI has no slash-command dispatch at all — only parseMouseTrackingSlash hardcoded in update.go. Workers couldn't decide where to register a new handler. This prerequisite row introduces a generic registry and a /save no-op stub; the follow-up row replaces the stub with the export call.",
+              "note": "Reshaped 2026-04-26 (split from `Native TUI /save canonical session export`). Original /save row was quarantined no_progress x3 because Gormes TUI had no slash-command dispatch at all — only parseMouseTrackingSlash hardcoded in update.go. Workers couldn't decide where to register a new handler. This prerequisite row introduced a generic registry and a /save no-op stub; follow-up rows replaced the stub with export behavior and added /branch/browser handlers. 2026-05-04 behavioral audit refreshed active source refs to Hermes Ink createSlashHandler/SLASH_COMMANDS and split exact known-command non-leak semantics into `Native TUI Hermes slash dispatch behavioral matrix`.",
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json",
                 "internal/tui/model.go",
@@ -31511,7 +31513,7 @@
               "name": "Native TUI Hermes skin token renderer",
               "priority": "P2",
               "status": "complete",
-              "contract": "internal/tui exposes a HermesSkin value model and renderer tokens that mirror Hermes prompt_toolkit skin defaults for the interactive TUI: prompt symbol, Hermes-style response label shape, status bar colors, input-rule color, placeholder style, and width-aware minimal-chrome thresholds. The response label is an owned Gormes product-identity divergence (`⚕ Gormes`) while preserving the upstream chrome shape. This is a pure helper slice; it does not change Bubble Tea runtime layout yet.",
+              "contract": "internal/tui exposes a HermesSkin value model and renderer tokens that mirror active Hermes Ink theme/skin defaults for the interactive TUI: prompt symbol, Hermes-style response label shape, status bar colors, input-rule color, placeholder style, and width-aware minimal-chrome thresholds. The response label is an owned Gormes product-identity divergence (`⚕ Gormes`) while preserving the upstream chrome shape. Legacy prompt_toolkit skin refs remain fallback evidence for older color-key compatibility only. This is a pure helper slice; it does not change Bubble Tea runtime layout yet.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -31522,6 +31524,11 @@
               "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
               "fixture": "internal/tui/hermes_skin_test.go::TestHermesSkin_*",
               "source_refs": [
+                "../hermes-agent/ui-tui/src/theme.ts:DEFAULT_THEME,fromSkin",
+                "../hermes-agent/ui-tui/src/__tests__/theme.test.ts",
+                "../hermes-agent/ui-tui/src/components/appLayout.tsx:PromptPrefix,StatusRulePane",
+                "../hermes-agent/ui-tui/src/components/appChrome.tsx:StatusRule",
+                "../hermes-agent/ui-tui/src/app/createGatewayEventHandler.ts:skin.changed",
                 "../hermes-agent/hermes_cli/skin_engine.py:_BUILTIN_SKINS default/mono/slate",
                 "../hermes-agent/hermes_cli/skin_engine.py:get_active_prompt_symbol",
                 "../hermes-agent/hermes_cli/skin_engine.py:get_prompt_toolkit_style_overrides",
@@ -31544,7 +31551,7 @@
                 "TestHermesSkin_ProfilePromptPrefix proves a non-default profile name prepends the prompt symbol without changing the state suffix.",
                 "Helper has no filesystem, config, terminal, or provider side effects."
               ],
-              "note": "Complete: TDD landed internal/tui/hermes_skin.go and hermes_skin_test.go. Fixtures prove the default Hermes prompt symbol, Gormes-owned response label inside the Hermes-style chrome, bronze input rule, status-bar token fallbacks, width <64 minimal-chrome breakpoint, and profile-prefixed prompt suffix behavior without changing Bubble Tea runtime layout, config persistence, kernel frames, or provider behavior. 2026-04-30 parity follow-up: the response label is intentionally `⚕ Gormes`, not `⚕ Hermes`, because Gormes must preserve its product identity while matching Hermes UX mechanics.",
+              "note": "Complete: TDD landed internal/tui/hermes_skin.go and hermes_skin_test.go. Fixtures prove the default Hermes prompt symbol, Gormes-owned response label inside the Hermes-style chrome, bronze input rule, status-bar token fallbacks, width <64 minimal-chrome breakpoint, and profile-prefixed prompt suffix behavior without changing Bubble Tea runtime layout, config persistence, kernel frames, or provider behavior. 2026-04-30 parity follow-up: the response label is intentionally `⚕ Gormes`, not `⚕ Hermes`, because Gormes must preserve its product identity while matching Hermes UX mechanics. 2026-05-04 behavioral audit refreshed the primary source refs to active Hermes Ink theme/fromSkin/appLayout/appChrome skin usage and retained hermes_cli skin_engine only as compatibility evidence for legacy skin-key inputs.",
               "write_scope": [
                 "internal/tui/hermes_skin.go",
                 "internal/tui/hermes_skin_test.go",
@@ -31560,8 +31567,8 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes defines the operator-visible TUI tokens; Gormes ports them as Go-native renderer data before applying them to Bubble Tea, with product label text owned by Gormes."
+                "upstream_ref": "hermes:ui-tui theme/fromSkin plus hermes_cli skin_engine compatibility",
+                "note": "Current Hermes Ink defines the operator-visible TUI tokens and skin mapping; Gormes ports them as Go-native renderer data before applying them to Bubble Tea, with product label text owned by Gormes. Legacy prompt_toolkit skin_engine remains compatibility evidence for older skin-key inputs."
               },
               "unblocks": [
                 "Native TUI Hermes status bar renderer",
@@ -31722,7 +31729,7 @@
               "name": "Native TUI Hermes input keybinding semantics",
               "priority": "P1",
               "status": "complete",
-              "contract": "Gormes TUI key handling matches Hermes prompt_toolkit behavior for normal input and active turns: Enter submits/reroutes by state, Alt+Enter and Ctrl+J insert newlines, Up/Down browse history only at line boundaries, Ctrl+C cancels modal/active turn or clears idle draft before exiting on empty input, Ctrl+D deletes under cursor and exits only when input is empty, Ctrl+L forces a clean redraw, and running-agent text honors busy_input_mode interrupt/queue/steer semantics.",
+              "contract": "Gormes TUI key handling matches the active Hermes Ink behavior for normal input and active turns: Enter submits/reroutes by state, newline chords insert newlines, Up/Down browse history or queued messages only at line boundaries, Ctrl+C cancels modal/active turn or clears idle draft before exiting on empty input, Ctrl+D/action-D exits only when input is empty, Ctrl+L/action-L forces a clean redraw, and running-agent text honors busy_input_mode interrupt/queue/steer semantics. Legacy prompt_toolkit refs remain fallback evidence only for behavior not represented in ui-tui.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -31733,6 +31740,13 @@
               "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
               "fixture": "internal/tui/hermes_keybindings_test.go::TestHermesKeybindings_*",
               "source_refs": [
+                "../hermes-agent/ui-tui/src/app/useInputHandlers.ts:useInputHandlers",
+                "../hermes-agent/ui-tui/src/components/textInput.tsx:TextInput",
+                "../hermes-agent/ui-tui/src/app/useSubmission.ts:slashRef,submit",
+                "../hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts",
+                "../hermes-agent/ui-tui/src/__tests__/terminalSetup.test.ts",
+                "../hermes-agent/ui-tui/src/__tests__/textInputWrap.test.ts",
+                "../hermes-agent/ui-tui/src/__tests__/createGatewayEventHandler.test.ts:late event after ctrl-c",
                 "../hermes-agent/cli.py:HermesCLI.run handle_enter",
                 "../hermes-agent/cli.py:HermesCLI.run handle_ctrl_c,handle_ctrl_d,handle_ctrl_l,handle_alt_enter,handle_ctrl_enter",
                 "../hermes-agent/cli.py:_get_placeholder",
@@ -31759,7 +31773,7 @@
                 "TestHermesKeybindings_CtrlDDeletesCharOrExitsOnlyWhenEmpty proves readline-style EOF behavior.",
                 "TestHermesKeybindings_BusyModeUnavailableDoesNotSubmitSlash proves unported busy slash text is consumed with evidence and never reaches kernel.Submit."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_keybindings_test.go covering Alt+Enter / Ctrl+J newline insertion, idle draft clearing then exit on Ctrl+C, in-flight cancel with double-press force-quit windowed at 2s, Ctrl+D delete-or-EOF, Ctrl+L forced redraw, busy_input_mode interrupt/queue/steer routing, modal Ctrl+C cancel ahead of process exit, history boundary Up/Down, and HermesHistory ring; pure helpers ResolveHermesKey + HermesHistory landed in internal/tui/update.go and internal/tui/history.go. Locked invariants: ResolveHermesKey is pure (no IO, no goroutines, no kernel mutation); unported slash text resolves to HermesActionConsumeWithEvidence via cli.EvaluateActiveTurnVerdict so the model never sees the slash body; Ctrl+C never exits while a draft is present or a turn is in flight on the first press.",
+              "note": "Complete: TDD added internal/tui/hermes_keybindings_test.go covering Alt+Enter / Ctrl+J newline insertion, idle draft clearing then exit on Ctrl+C, in-flight cancel with double-press force-quit windowed at 2s, Ctrl+D delete-or-EOF, Ctrl+L forced redraw, busy_input_mode interrupt/queue/steer routing, modal Ctrl+C cancel ahead of process exit, history boundary Up/Down, and HermesHistory ring; pure helpers ResolveHermesKey + HermesHistory landed in internal/tui/update.go and internal/tui/history.go. 2026-05-04 behavioral audit refreshed the primary source refs to active Hermes Ink useInputHandlers/TextInput/useSubmission and retained cli.py only as legacy fallback for prompt_toolkit-only behavior. Locked invariants: ResolveHermesKey is pure (no IO, no goroutines, no kernel mutation); unported slash text resolves to HermesActionConsumeWithEvidence via cli.EvaluateActiveTurnVerdict so the model never sees the slash body; Ctrl+C never exits while a draft is present or a turn is in flight on the first press.",
               "write_scope": [
                 "internal/tui/update.go",
                 "internal/tui/model.go",
@@ -31777,8 +31791,8 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes defines the keyboard contract; Gormes ports it onto Bubble Tea Update."
+                "upstream_ref": "hermes:ui-tui useInputHandlers/TextInput plus legacy cli.py fallback",
+                "note": "Current Hermes Ink defines the keyboard contract; Gormes ports it onto Bubble Tea Update. Legacy cli.py remains evidence only for older prompt_toolkit paths not represented in ui-tui."
               },
               "blocked_by": [
                 "Native TUI Hermes bottom-pinned chrome layout"
@@ -31804,6 +31818,12 @@
               "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
               "fixture": "internal/tui/slash_completion_test.go::TestHermesSlashCompletion_*",
               "source_refs": [
+                "../hermes-agent/ui-tui/src/app/slash/registry.ts:SLASH_COMMANDS,findSlashCommand",
+                "../hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
+                "../hermes-agent/ui-tui/src/app/useSubmission.ts:slashRef",
+                "../hermes-agent/ui-tui/src/components/appOverlays.tsx:completion menu",
+                "../hermes-agent/ui-tui/src/__tests__/slashParity.test.ts",
+                "../hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts",
                 "../hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY",
                 "../hermes-agent/hermes_cli/commands.py:SlashCommandCompleter",
                 "../hermes-agent/hermes_cli/commands.py:SlashCommandAutoSuggest",
@@ -31826,7 +31846,7 @@
                 "TestHermesSlashCompletion_AutoSuggest returns the suffix Hermes would ghost for a unique command or subcommand prefix.",
                 "Helper is deterministic and has no provider/config/plugin filesystem dependency."
               ],
-              "note": "Complete: TDD added internal/tui/slash_completion.go and internal/tui/slash_completion_test.go covering command-prefix completion, alias surfacing, recognized-but-unavailable commands, Hermes-ordered /reasoning subcommand completion, and unique-prefix autosuggest, all driven by internal/cli.CommandRegistry; the registry now carries an ordered Subcommands slice with a parity test in internal/cli/command_registry_policy_test.go pinning the Hermes order. Locked invariants: HermesSlashCommandCompletions / HermesSlashSubcommandCompletions / HermesSlashAutoSuggest are pure (no IO, no goroutines, no provider/config/plugin filesystem dependency); recognized-but-unavailable commands complete with Available=false while still dispatching as ActiveTurnPolicyUnavailable so /model and friends never leak to kernel.Submit; subcommand suggestions only resolve on the first sub-token of registry-defined inventories — dynamic /model, /skin, /personality menus stay out of this slice.",
+              "note": "Complete: TDD added internal/tui/slash_completion.go and internal/tui/slash_completion_test.go covering command-prefix completion, alias surfacing, recognized-but-unavailable commands, Hermes-ordered /reasoning subcommand completion, and unique-prefix autosuggest, all driven by internal/cli.CommandRegistry; the registry now carries an ordered Subcommands slice with a parity test in internal/cli/command_registry_policy_test.go pinning the Hermes order. 2026-05-04 behavioral audit refreshed active source refs to Hermes Ink slash registry/createSlashHandler/useSubmission/completion overlay tests while keeping hermes_cli COMMAND_REGISTRY as inventory evidence. Locked invariants: HermesSlashCommandCompletions / HermesSlashSubcommandCompletions / HermesSlashAutoSuggest are pure (no IO, no goroutines, no provider/config/plugin filesystem dependency); recognized-but-unavailable commands complete with Available=false while still dispatching as ActiveTurnPolicyUnavailable so /model and friends never leak to kernel.Submit; subcommand suggestions only resolve on the first sub-token of registry-defined inventories — dynamic /model, /skin, /personality menus stay out of this slice.",
               "write_scope": [
                 "internal/tui/slash_completion.go",
                 "internal/tui/slash_completion_test.go",
@@ -31844,14 +31864,87 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes defines slash completion behavior; Gormes adapts it to Go helper functions before UI menu binding."
+                "upstream_ref": "hermes:ui-tui slash registry/createSlashHandler plus hermes_cli command inventory",
+                "note": "Current Hermes Ink owns slash dispatch/completion behavior; hermes_cli remains useful as command-tree inventory. Gormes adapts both into Go helper functions before UI menu binding."
               },
               "blocked_by": [
                 "Native TUI Hermes input keybinding semantics"
               ],
               "unblocks": [
-                "Native TUI Hermes completion menu binding"
+                "Native TUI Hermes completion menu binding",
+                "Native TUI Hermes slash dispatch behavioral matrix"
+              ]
+            },
+            {
+              "name": "Native TUI Hermes slash dispatch behavioral matrix",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Add a deterministic Hermes Ink slash-dispatch matrix for the native Bubble Tea TUI so typed slash commands are classified before normal prompt submission. Registered local commands such as /save, /branch, /browser, and /mouse keep their Go-native handlers; Hermes-known but not locally handled commands such as /model, /provider, /skills, /details, /tools, /history, /status, /title, /rollback, and /queue return explicit command-unavailable or gateway-required evidence instead of entering kernel.Submit; unknown and ambiguous slash prefixes are consumed with bounded guidance; and future gateway-backed handlers have a single table that mirrors active Hermes createSlashHandler route kinds without running Node or Python.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If a Hermes-known slash command cannot run in the local Go TUI yet, the editor is cleared and the status line reports unavailable/gateway-required evidence; no slash command text is submitted to the model as ordinary prompt content.",
+              "fixture": "internal/tui/slash_dispatch_behavior_test.go::TestHermesSlashDispatchBehavior_*",
+              "source_refs": [
+                "../hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
+                "../hermes-agent/ui-tui/src/app/useSubmission.ts:looksLikeSlashCommand slashRef",
+                "../hermes-agent/ui-tui/src/app/slash/registry.ts:SLASH_COMMANDS,findSlashCommand",
+                "../hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:local/native/fallback/stale dispatch",
+                "../hermes-agent/ui-tui/src/__tests__/slashParity.test.ts:mutating command route classification",
+                "../hermes-agent/hermes_cli/commands.py:COMMAND_REGISTRY,GATEWAY_KNOWN_COMMANDS",
+                "internal/cli/command_registry.go:CommandRegistry,EvaluateActiveTurnVerdict",
+                "internal/tui/slash_dispatch.go:SlashRegistry.Dispatch",
+                "internal/tui/update.go:tea.KeyEnter slash dispatch path"
+              ],
+              "ready_when": [
+                "Native TUI slash-command dispatch table and Native TUI Hermes slash completion helpers are complete.",
+                "Hermes CLI command-tree parity manifest is complete so every slash name can be classified as local, gateway-backed, unavailable, owned, or unknown.",
+                "The worker can add pure TUI dispatch-decision fixtures without starting Bubble Tea, a provider, a gateway process, Node, Python, or a live terminal."
+              ],
+              "not_ready_when": [
+                "The slice ports every Hermes slash handler body; this row only prevents slash text leakage and freezes dispatch decisions.",
+                "The slice opens a gateway socket, mutates persisted config, runs skills, starts a provider turn, or shells out to Hermes/Node/Python.",
+                "The slice treats unknown slash text as a normal user prompt or leaves known-unavailable slash commands in DraftText after Enter."
+              ],
+              "acceptance": [
+                "TestHermesSlashDispatchBehavior_LocalHandlersStillRun proves /save, /branch, /browser, /mouse, and /scroll continue through SlashRegistry and never reach Submitter.",
+                "TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit proves Hermes-known commands without a local handler, including /model, /provider, /skills, /details, /tools, /history, /status, /title, /rollback, and /queue, consume the draft with explicit evidence instead of entering kernel.Submit.",
+                "TestHermesSlashDispatchBehavior_UnknownAndAmbiguousSlashGuidance proves unknown slashes and ambiguous prefixes are consumed with bounded guidance matching Hermes createSlashHandler/catalog behavior.",
+                "TestHermesSlashDispatchBehavior_MutatingCommandsDoNotFallback proves mutating commands listed in Hermes slashParity.test are not classified as normal prompt submissions while idle or busy.",
+                "Existing slash completion, active-turn verdict, /save, /branch, /browser, and busy input fixtures remain green."
+              ],
+              "note": "Added by the 2026-05-04 behavioral fidelity audit after comparing active Hermes Ink createSlashHandler/useSubmission against Gormes' local SlashRegistry. Existing rows cover command inventory, generic dispatch, and completion; this row closes the visible command-dispatch gap where known-but-unhandled slash text can otherwise regress into the model prompt or produce inconsistent local/gateway evidence.",
+              "write_scope": [
+                "internal/tui/slash_dispatch.go",
+                "internal/tui/slash_dispatch_behavior_test.go",
+                "internal/tui/update.go",
+                "internal/cli/command_registry.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run '^TestHermesSlashDispatchBehavior_' -count=1",
+                "go test ./internal/cli ./internal/tui -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Slash dispatch behavior fixtures prove registered local commands still run, known unhandled commands and aliases never reach Submitter, unknown/ambiguous slashes show guidance, and mutating Hermes commands never fall back to prompt submission."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:ui-tui createSlashHandler/useSubmission/slashParity",
+                "note": "Active Hermes Ink owns the slash-dispatch behavior; Gormes keeps local Bubble Tea handlers but must match the operator contract that slash commands route or degrade visibly rather than becoming model prompt text."
+              },
+              "blocked_by": [
+                "Native TUI slash-command dispatch table",
+                "Native TUI Hermes slash completion helpers",
+                "Hermes CLI command-tree parity manifest"
+              ],
+              "unblocks": [
+                "Native TUI Ink behavioral transcript golden matrix"
               ]
             },
             {
@@ -31869,6 +31962,12 @@
               "degraded_mode": "The TUI reports explicit degraded/unavailable evidence instead of silently dropping input, hiding status, or leaking slash text to the model.",
               "fixture": "internal/tui/hermes_panels_test.go::TestHermesPanels_*",
               "source_refs": [
+                "../hermes-agent/ui-tui/src/components/appOverlays.tsx:FloatingOverlays,PromptZone",
+                "../hermes-agent/ui-tui/src/components/prompts.tsx:ApprovalPrompt,ClarifyPrompt,ConfirmPrompt",
+                "../hermes-agent/ui-tui/src/components/thinking.tsx:ToolTrail,Thinking",
+                "../hermes-agent/ui-tui/src/app/createGatewayEventHandler.ts:approval.request,clarify.request,sudo.request,secret.request",
+                "../hermes-agent/ui-tui/src/__tests__/createGatewayEventHandler.test.ts:approval and late tool/reasoning handling",
+                "../hermes-agent/ui-tui/src/__tests__/text.test.ts:ToolTrail",
                 "../hermes-agent/cli.py:_render_spinner_text",
                 "../hermes-agent/cli.py:_on_tool_progress",
                 "../hermes-agent/cli.py:_get_approval_display_fragments",
@@ -31896,7 +31995,7 @@
                 "TestHermesPanels_ClarifyPanelRendersNumberedChoicesAndOther proves numbered choices, selected marker, Other option, and timeout hint fit the available height.",
                 "TestHermesPanels_SecretAndSudoPanelsNeverRenderSecretValue proves hidden input panels show prompts/countdowns but no secret contents."
               ],
-              "note": "Marked draft because runtime event interfaces may need a gormes-interface-designer pass after renderer fixtures. It is still important to pin exact Hermes panel shapes so later tool/approval work does not invent a separate TUI language.",
+              "note": "Complete: TDD added internal/tui/hermes_panels.go and internal/tui/hermes_panels_test.go covering spinner elapsed text, stacked tool scrollback with all/new modes, dangerous-command approval choices, clarify numbered choices plus Other, and sudo/secret hidden-input panels. 2026-05-04 behavioral audit refreshed the primary source refs to active Hermes Ink appOverlays/prompts/thinking/createGatewayEventHandler and retained cli.py only as legacy fallback for older prompt_toolkit panel details. Runtime event interfaces and live approval/tool wiring remain dependent work, but renderer fixtures are validated so later work cannot invent a separate TUI language.",
               "write_scope": [
                 "internal/tui/hermes_panels.go",
                 "internal/tui/hermes_panels_test.go",
@@ -31914,8 +32013,8 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "hermes:cli.py prompt_toolkit TUI",
-                "note": "Hermes defines modal/tool progress UI; Gormes should port renderer contracts before live approval/tool wiring."
+                "upstream_ref": "hermes:ui-tui appOverlays/prompts/thinking plus legacy cli.py fallback",
+                "note": "Current Hermes Ink defines modal/tool-progress UI; Gormes ports renderer contracts before live approval/tool wiring. Legacy cli.py remains evidence only for older prompt_toolkit fragments not represented in ui-tui."
               },
               "blocked_by": [
                 "Native TUI Hermes bottom-pinned chrome layout"
@@ -31991,7 +32090,8 @@
               "blocked_by": [
                 "Native TUI Hermes bottom-pinned chrome layout",
                 "Native TUI Hermes tool progress + modal panel renderers",
-                "Native TUI Hermes slash completion helpers"
+                "Native TUI Hermes slash completion helpers",
+                "Native TUI Hermes slash dispatch behavioral matrix"
               ]
             },
             {
@@ -32741,8 +32841,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-28T21:10:00Z",
-            "origin_decision": "Hermes prompt_toolkit TUI parity now treats ../hermes-agent/cli.py as the source of truth for local interactive behavior, not only tui_gateway/ui-tui donor files. Exact Gormes TUI parity is split into skin tokens, status bar, bottom-pinned chrome, input keybindings, slash completion, and tool/modal renderer rows. Gormes keeps the Go-native Bubble Tea/kernel boundary but should remove the default dashboard/sidebar chrome when these rows land."
+            "last_upstream_check": "2026-05-04T00:00:00Z",
+            "origin_decision": "Current Hermes Ink (`ui-tui/src/components` and `ui-tui/src/app`) is the source of truth for local full-screen interactive behavior. Legacy prompt_toolkit `cli.py` refs are fallback evidence only when the active Ink implementation lacks an equivalent source. Exact Gormes TUI parity is split into skin tokens, status bar, bottom-pinned chrome, input keybindings, slash completion, tool/modal renderer rows, plus the new Ink behavioral transcript and iteration-limit transcript fixture rows. Gormes keeps the Go-native Bubble Tea/kernel boundary while matching the active Hermes Ink operator contract."
           }
         },
         "5.R": {
@@ -34166,9 +34266,11 @@
               "source_refs": [
                 "docs/content/papers/agent-memory-systems.md",
                 "arXiv:2601.01885 (AgeMem 2026)",
-                "internal/goncho/store.go",
-                "internal/goncho/retrieve.go",
-                "internal/tools/registry.go"
+                "internal/goncho/memory_tools.go",
+                "internal/goncho/local_markdown_memory.go",
+                "internal/gonchotools/memory_v1_mcp_catalog.go",
+                "internal/tools/memory_tool_descriptors.go",
+                "internal/tools/tool.go"
               ],
               "ready_when": [
                 "Goncho store supports CRUD operations with metadata",
@@ -34178,27 +34280,34 @@
                 "Goncho store is read-only or has no metadata support"
               ],
               "acceptance": [
-                "store_memory(content, tags, importance) persists to Goncho",
+                "store_memory(content, tags, importance, metadata) persists to Goncho with provenance",
                 "retrieve_memory(query, limit) returns ranked results",
                 "update_memory(id, content) modifies existing entry",
                 "summarize_memories(filter) compresses related entries",
                 "forget_memory(id) removes from active index (soft delete)",
                 "All operations are tool-descriptor compatible (MCP-style schema)",
-                "Agent can chain operations (retrieve → summarize → store)"
+                "Agent can chain operations (retrieve → summarize → store)",
+                "Agent memory is isolated by agent/workspace/peer in shared local stores"
               ],
+              "fixture": "internal/goncho/memory_tools_test.go; internal/tools/memory_tool_descriptors_test.go",
               "write_scope": [
+                "internal/goncho/local_markdown_memory.go",
                 "internal/goncho/memory_tools.go",
                 "internal/goncho/memory_tools_test.go",
-                "internal/tools/memory_tool_descriptors.go"
+                "internal/tools/memory_tool_descriptors.go",
+                "internal/tools/memory_tool_descriptors_test.go",
+                "internal/tools/mcp_config_test.go"
               ],
               "test_commands": [
                 "go test ./internal/goncho -run TestMemoryTools -count=1",
                 "go test ./internal/tools -run TestMemoryToolDescriptors -count=1"
               ],
               "done_signal": [
-                "Memory tool tests prove agent can store/retrieve/update/summarize/forget via tool calls with correct metadata"
+                "Memory tool tests prove agent can store/retrieve/update/summarize/forget via tool calls with correct metadata",
+                "Descriptor tests prove MCP-style schemas and tools.OperationSpec metadata for all agent-callable memory operations",
+                "Shared-store independence test proves one agent cannot retrieve, update, or forget another agent's memory"
               ],
-              "note": "Research-driven (AgeMem 2026). The shift from passive storage to agentic memory. Memory management becomes a learned behavior, not engineered heuristics. This is the single biggest research-identified gap in Gormes."
+              "note": "Complete: store_memory now persists metadata into Goncho provenance; retrieve/update/summarize/forget are proven through tool calls; summarize_memories returns deterministic chainable summary text; all five tools expose MCP-compatible descriptors plus tools.OperationSpec memory audit metadata; local stores scope active retrieval and mutation by agent/workspace/peer so multi-agent memory remains independent."
             },
             {
               "name": "Agent-controlled memory retention with importance scoring",

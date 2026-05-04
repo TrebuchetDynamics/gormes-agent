@@ -133,10 +133,13 @@ func (s *LocalMarkdownMemoryStore) Retrieve(ctx context.Context, query string, l
 		SELECT memory_id, content, tags_json, importance, created_at, updated_at
 		FROM goncho_memory_items
 		WHERE active = 1
+		  AND agent_id = ?
+		  AND workspace_id = ?
+		  AND peer_id = ?
 		  AND (? = '%%' OR lower(content) LIKE ? OR lower(tags_json) LIKE ?)
 		ORDER BY importance DESC, updated_at DESC, memory_id ASC
 		LIMIT ?
-	`, like, like, like, limit)
+	`, s.agentID(), s.workspaceID(), s.peerID(), like, like, like, limit)
 	if err != nil {
 		return nil, fmt.Errorf("goncho: retrieve local markdown memory: %w", err)
 	}
@@ -273,7 +276,10 @@ func (s *LocalMarkdownMemoryStore) readItem(ctx context.Context, id string) (mem
 		       provenance_json, tags_json, importance, created_at, updated_at
 		FROM goncho_memory_items
 		WHERE memory_id = ?
-	`, id).Scan(&item.MemoryID, &item.AgentID, &item.WorkspaceID, &item.PeerID, &item.SessionID, &item.SourceKind, &item.Content, &item.Revision, &active, &tombstonedAt, &tombstoneReason, &item.Scope, &item.ProvenanceJSON, &tagsRaw, &item.Importance, &createdAt, &updatedAt)
+		  AND agent_id = ?
+		  AND workspace_id = ?
+		  AND peer_id = ?
+	`, id, s.agentID(), s.workspaceID(), s.peerID()).Scan(&item.MemoryID, &item.AgentID, &item.WorkspaceID, &item.PeerID, &item.SessionID, &item.SourceKind, &item.Content, &item.Revision, &active, &tombstonedAt, &tombstoneReason, &item.Scope, &item.ProvenanceJSON, &tagsRaw, &item.Importance, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return memory.GonchoMemoryV1Item{}, false, nil
 	}

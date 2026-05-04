@@ -480,7 +480,7 @@ classification and row-backed implementation queue.
 - [x] Azure Foundry runtime env/config read model
 - [x] Azure Foundry CLI setup/status manual fallback
 - [x] Azure Foundry Responses-only model-family API mode
-- [ ] Bedrock provider runtime binding
+- [x] Bedrock provider runtime binding
 - [x] Bedrock Converse payload mapping (no AWS SDK)
 - [x] Bedrock stream event decoding (SSE fixtures)
 - [x] Bedrock SigV4 + credential seam
@@ -912,6 +912,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
 - [x] Native TUI Hermes slash completion helpers
+- [ ] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [ ] Native TUI Ink behavioral transcript golden matrix
 - [ ] Channel/TUI iteration-limit finalization transcript fixture

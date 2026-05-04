@@ -108,6 +108,7 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 |---|----------|----------|--------|-------------|
 | 8.1 | CLI command registry inventory | P1 | parity | `Hermes CLI command-tree parity manifest` (5.O) |
 | 8.1b | CLI setup/onboard/help visible text fidelity | P1 | planned | `CLI setup/onboard/help text fidelity matrix` (5.O) |
+| 8.1c | Native TUI slash dispatch visible behavior — known commands never become prompt text | P1 | planned | `Native TUI Hermes slash dispatch behavioral matrix` (5.Q) |
 | 8.2 | Config edit/check/migrate | P1 | partial | `Gormes config edit/check/native schema-migrate closeout` (5.O) |
 | 8.3 | Diagnostics CLI (doctor/backup/logs) | P1 | partial | `Diagnostics, backup, logs, and status CLI` (5.O) |
 | 8.4 | Gateway status CLI | — | parity | Complete |
@@ -194,27 +195,29 @@ Observable behavioral differences between Hermes and Gormes. The [parity matrix]
 
 **P1 (Next 2-3 Planner Passes):**
 3. Native TUI Ink behavioral transcript golden matrix
-4. CLI setup/onboard/help text fidelity matrix
-5. Channel/TUI iteration-limit finalization transcript fixture
-6. Gateway conversational session metadata refresh
-7. Telegram reply_to_mode and reply-context parity
-8. Telegram inline approval buttons + model picker
-9. Telegram webhook mode + polling conflict + network backoff
-10. Memory file locking + atomic writes
-11. Auth cross-process lock
+4. Native TUI Hermes slash dispatch behavioral matrix
+5. CLI setup/onboard/help text fidelity matrix
+6. Channel/TUI iteration-limit finalization transcript fixture
+7. Gateway conversational session metadata refresh
+8. Telegram reply_to_mode and reply-context parity
+9. Telegram inline approval buttons + model picker
+10. Telegram webhook mode + polling conflict + network backoff
+11. Memory file locking + atomic writes
+12. Auth cross-process lock
 
 **P2 (Follow-Up):**
-12. 49-file CLI tree port handler closeout + slash autocomplete binding
-13. Telegram typing action, markdown tables, send_voice
-14. Z.AI probing, config check, CLI alias resolution, memory dedup
+13. 49-file CLI tree port handler closeout + slash autocomplete binding
+14. Telegram typing action, markdown tables, send_voice
+15. Z.AI probing, config check, CLI alias resolution, memory dedup
 
 ## 2026-05-04 Behavioral Fidelity Audit
 
-The audit reclassified several previously partial UX items as covered by completed rows and added three source-backed rows for the remaining visible fidelity risk:
+The audit reclassified several previously partial UX items as covered by completed rows and added source-backed rows for the remaining visible fidelity risk:
 
 | Area | Audit result | Progress row |
 |---|---|---|
 | Active full-screen UI source of truth | Current Hermes Ink `ui-tui/src/components/appLayout.tsx`, `appChrome.tsx`, `messageLine.tsx`, `thinking.tsx`, and `queuedMessages.tsx` now supersede legacy prompt_toolkit as the primary UI parity source. | `Native TUI Ink behavioral transcript golden matrix` |
+| Native TUI slash dispatch | Active Hermes Ink `createSlashHandler` treats slash text as command input first: local commands, native/gateway commands, stale slash output, catalog aliases, skill dispatch, and unavailable commands must route or degrade visibly before any model submission. | `Native TUI Hermes slash dispatch behavioral matrix` |
 | Setup/onboard/help text | Functional setup/onboard rows are complete, but visible copy is spread across tests; a consolidated text matrix is needed for first-run UX regressions. | `CLI setup/onboard/help text fidelity matrix` |
 | Tool-loop exhaustion | Kernel summary behavior and gateway tool progress are covered separately; one cross-surface transcript fixture is still needed. | `Channel/TUI iteration-limit finalization transcript fixture` |
 
@@ -229,3 +232,4 @@ The audit reclassified several previously partial UX items as covered by complet
 | 2026-04-30 | M1-M50 gaps documented and row-backed across all passes |
 | 2026-04-30 | Rebuilt after subagent deletion, reflecting current progress.json state |
 | 2026-05-04 | Behavioral fidelity audit added UI transcript, setup/onboard/help text, and iteration-limit transcript rows |
+| 2026-05-04 | Behavioral fidelity follow-up added native TUI slash dispatch matrix for known-command non-leak behavior |

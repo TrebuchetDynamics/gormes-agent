@@ -1,4 +1,4 @@
-package tools
+package tools_test
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	. "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func TestMCPConfigParsesStdioServerDefaultsAndSampling(t *testing.T) {
@@ -289,8 +289,8 @@ mcp_servers:
 		t.Fatalf("config.Load: %v", err)
 	}
 	runtime := cfg.Goncho.RuntimeConfig()
-	if runtime.WorkspaceID != goncho.DefaultWorkspaceID {
-		t.Fatalf("Goncho workspace = %q, want default %q", runtime.WorkspaceID, goncho.DefaultWorkspaceID)
+	if runtime.WorkspaceID != "gormes" {
+		t.Fatalf("Goncho workspace = %q, want default %q", runtime.WorkspaceID, "gormes")
 	}
 	if strings.Contains(strings.ToLower(runtime.WorkspaceID), "honcho") {
 		t.Fatalf("Goncho workspace unexpectedly reflected Honcho MCP env: %#v", runtime)
