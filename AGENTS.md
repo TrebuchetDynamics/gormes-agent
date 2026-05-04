@@ -137,3 +137,37 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Driving red-green-refactor | `docs/development-skills/gormes-tdd-slice/SKILL.md` |
 | Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `docs/content/building-gormes/builder-loop/progress-schema.md` |
 | Onboarding to the architecture with no prior context | this file, then `docs/content/building-gormes/_index.md` |
+
+<!-- karpathy-guidelines:start -->
+## Karpathy-Inspired Agent Guardrails
+
+Source: https://github.com/forrestchang/andrej-karpathy-skills at commit `2c60614`.
+
+These guardrails supplement the local instructions above. Local project, safety, and user-specific rules win on conflict.
+
+Tradeoff: they bias toward caution over speed for non-trivial work; use judgment for obvious one-line fixes.
+
+### Think Before Coding
+
+- State assumptions before implementing; ask when uncertainty would change the solution.
+- Surface multiple interpretations and tradeoffs instead of silently picking one.
+- Push back when a simpler approach meets the goal.
+
+### Simplicity First
+
+- Build the minimum code that solves the requested problem.
+- Avoid speculative features, single-use abstractions, and unnecessary configurability.
+- If the solution is growing large, stop and simplify before continuing.
+
+### Surgical Changes
+
+- Touch only files and lines required by the request.
+- Preserve existing style, comments, and nearby code unless the task requires changing them.
+- Clean up only dead code introduced by your own change; mention unrelated dead code instead of deleting it.
+
+### Goal-Driven Execution
+
+- Convert the request into verifiable success criteria before editing.
+- For multi-step work, state a short plan with a verification check for each step.
+- Loop until the relevant tests, builds, or manual checks prove the goal is met.
+<!-- karpathy-guidelines:end -->
