@@ -736,7 +736,7 @@ classification and row-backed implementation queue.
 - [x] Permission approval UX (inline y/n/always)
 - [x] Trust-class enforcement in shared tool executor
 - [x] Secrets Runtime Controls
-- [ ] Security Audit Command
+- [x] Security Audit Command
 
 ### 5.K — Code Execution ✅
 
