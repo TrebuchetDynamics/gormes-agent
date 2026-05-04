@@ -22698,9 +22698,9 @@
             {
               "name": "Hermes Kanban dispatcher and worker spawn loop",
               "priority": "P1",
-              "status": "in_progress",
-              "contract": "Gormes ports the Hermes Kanban dispatcher as a native gateway-managed loop that periodically reclaims stale claims, promotes dependency-ready tasks, spawns named profile workers as independent OS processes, records run attempts and worker logs, applies per-task runtime caps, and blocks tasks behind a circuit breaker after repeated spawn/runtime failures.",
-              "contract_status": "fixture_ready",
+              "status": "complete",
+              "contract": "Gormes ports the Hermes Kanban dispatcher core as a native gateway-managed loop with a fakeable worker-spawner seam: each tick reclaims stale claims, selects ready assigned tasks, claims through the store, records spawn attempts and spawn failures, passes GORMES_* worker context, respects max-spawn caps across successful and failed attempts, and blocks tasks behind a circuit breaker after repeated failures. Real OS process spawning, PID/crash detection, max-runtime termination, worker log rotation, and production config wiring remain a separate row.",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -22742,10 +22742,10 @@
                 "Dispatcher fixtures prove dry-run output, ready-task selection, max-spawn caps, and no-op behavior when no ready tasks exist.",
                 "Stale-claim fixtures prove expired running tasks return to ready with reclaim evidence.",
                 "Spawn fixtures prove worker env includes the Gormes task id, board path, assignee/profile, and workspace details without leaking other agents' config.",
-                "Failure fixtures prove retry counts, timeout handling, crash recovery, and circuit breaker block after the configured failure limit.",
+                "Failure fixtures prove retry counts, failed-spawn recovery, and circuit breaker block after the configured failure limit.",
                 "Gateway lifecycle fixtures prove the dispatcher is owned by the gateway loop and can be nudged without starting duplicate daemons."
               ],
-              "note": "Partial TDD slices landed the fakeable dispatcher core and gateway-owned lifecycle seam: RunOnce reclaims expired running claims, lists ready tasks in priority/created order, respects MaxSpawn across successful and failed claimed attempts, skips unassigned tasks, claims through the existing atomic store path, resolves Gormes-owned workspaces, passes only GORMES_* worker context to the injected spawner, records spawned attempts, records failed spawn attempts, and auto-blocks with circuit-breaker evidence at FailureLimit. The gateway Manager now owns an injectable Kanban dispatcher loop with deterministic tick/nudge channels, runtime status JSON evidence, degraded last_error handling that does not crash the gateway, exact trigger timestamps, clean shutdown, restart-after-stop ownership release, and closed test-channel shutdown protection. Remaining work: real OS process spawner with profile resolution, worker PID/liveness checks, max-runtime termination, worker log rotation, and production config/default wiring.",
+              "note": "Complete: TDD landed the fakeable dispatcher core and gateway-owned lifecycle seam. RunOnce reclaims expired running claims, lists ready tasks in priority/created order, respects MaxSpawn across successful and failed claimed attempts, skips unassigned tasks, claims through the existing atomic store path, resolves Gormes-owned workspaces, passes only GORMES_* worker context to the injected spawner, records spawned attempts, records failed spawn attempts, and auto-blocks with circuit-breaker evidence at FailureLimit. The gateway Manager owns an injectable Kanban dispatcher loop with deterministic tick/nudge channels, runtime status JSON evidence, degraded last_error handling that does not crash the gateway, exact trigger timestamps, clean shutdown, restart-after-stop ownership release, and closed test-channel shutdown protection. Follow-up row `Hermes Kanban production worker process binding` owns the real OS process spawner, profile resolution, PID/liveness checks, max-runtime termination, worker log rotation, and production config/default wiring.",
               "write_scope": [
                 "internal/kanban/",
                 "internal/gateway/",
@@ -22758,7 +22758,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Gateway-managed dispatcher fixtures prove spawn, reclaim, promotion, retry, timeout, and circuit-breaker behavior without live Hermes or real worker processes."
+                "Gateway-managed dispatcher fixtures prove fakeable spawn, stale-claim reclaim, ready-task selection, retry/failure recording, and circuit-breaker behavior without live Hermes or real worker processes."
               ],
               "provenance": {
                 "origin_type": "upstream",
@@ -22789,6 +22789,76 @@
                 "implementation": "internal/kanban/dispatcher.go; internal/kanban/store.go; internal/kanban/dispatcher_test.go; internal/gateway/kanban_dispatcher.go; internal/gateway/kanban_dispatcher_test.go; internal/gateway/status.go; internal/gateway/manager.go",
                 "tests": "go test ./internal/kanban -run TestKanbanDispatcher -count=1; go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1; go test ./internal/gateway -count=1",
                 "note": "Dispatcher core and gateway lifecycle are fakeable and hermetic; no live profile config, Hermes env, production config, or OS worker process is used by the tests."
+              }
+            },
+            {
+              "name": "Hermes Kanban production worker process binding",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes binds the fakeable Kanban dispatcher spawner to a production worker launcher that resolves Gormes profiles, builds the native gormes worker argv/env with Kanban context pins and the kanban-worker skill, redirects stdout/stderr to per-task logs with bounded rotation, records worker PID/run metadata, detects crashed worker PIDs, enforces per-task max-runtime caps through injected process controls, and reports worker_spawn_failed, worker_crashed, worker_timed_out, or task_circuit_open evidence without reading live Hermes config.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing gormes binaries, invalid profile names, unwritable workspaces/log paths, stale PIDs, process-kill failures, and max-runtime expiry return typed evidence and release or block the task according to the dispatcher failure policy without spawning Hermes Python or killing unrelated processes.",
+              "fixture": "internal/kanban/process_spawner_test.go; internal/kanban/worker_lifecycle_test.go; internal/gateway/kanban_dispatcher_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:_default_spawn",
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:detect_crashed_workers",
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:enforce_max_runtime",
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:worker_logs_dir",
+                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:heartbeat_worker",
+                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run",
+                "internal/kanban/dispatcher.go",
+                "internal/kanban/store.go",
+                "internal/cli/profile_root.go",
+                "cmd/gormes/profile.go"
+              ],
+              "ready_when": [
+                "Hermes Kanban dispatcher and worker spawn loop is complete.",
+                "The builder can inject fake process start, PID liveness, signal/kill, log filesystem, and clock seams; no unit test starts or kills a real worker process.",
+                "Gormes profile name/root helpers are available for profile resolution without importing Hermes config."
+              ],
+              "not_ready_when": [
+                "The implementation shells out to `hermes`, reads HERMES_HOME or ~/.hermes as live config, or uses Hermes Python helpers.",
+                "Unit tests depend on a real subprocess, real PID table, real signal delivery, or the operator's PATH.",
+                "The slice changes Kanban worker tools, dashboard routes, board registry semantics, or slash-command parsing instead of only production worker process binding."
+              ],
+              "unblocks": [
+                "Hermes Kanban multi-board, workspace, and run-history parity",
+                "Hermes Kanban slash/gateway/dashboard surfaces"
+              ],
+              "acceptance": [
+                "Spawner fixtures prove the production launcher builds native `gormes -p <profile> --skills kanban-worker chat -q ...` argv, GORMES_KANBAN_* env, cwd, and redacted logs without any HERMES_* leak.",
+                "Log fixtures prove per-task stdout/stderr paths are under the Gormes Kanban log root and rotate before spawn when over the configured limit.",
+                "PID fixtures prove spawned PIDs are recorded on task and run rows, crashed workers are reclaimed with worker_crashed evidence, and stale or reused PID evidence does not kill unrelated processes.",
+                "Runtime-cap fixtures prove expired tasks receive injected TERM/KILL-style process controls, record worker_timed_out evidence, and return to ready or blocked according to the failure policy.",
+                "Gateway wiring fixtures prove production dispatcher config can use the process spawner while tests keep using the fake spawner seam."
+              ],
+              "write_scope": [
+                "internal/kanban/",
+                "internal/gateway/",
+                "internal/cli/",
+                "cmd/gormes/kanban.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run 'TestKanban(ProcessSpawner|WorkerLifecycle)' -count=1",
+                "go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Kanban dispatcher production binding launches native Gormes workers through fakeable process seams, records PID/log/runtime evidence, reclaims crashed or timed-out workers, and never depends on Hermes Python or live subprocesses in tests."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:54e78cadb hermes_cli/kanban_db.py _default_spawn + detect_crashed_workers + enforce_max_runtime",
+                "note": "Hermes defines the production process, PID, runtime-cap, and log semantics; Gormes ports them through native fakeable process seams."
               }
             },
             {
@@ -22892,6 +22962,7 @@
               "blocked_by": [
                 "Hermes Kanban durable board core",
                 "Hermes Kanban dispatcher and worker spawn loop",
+                "Hermes Kanban production worker process binding",
                 "Hermes Kanban worker tools and prompt gating"
               ],
               "acceptance": [
@@ -22958,7 +23029,8 @@
               ],
               "blocked_by": [
                 "Hermes Kanban durable board core",
-                "Hermes Kanban dispatcher and worker spawn loop"
+                "Hermes Kanban dispatcher and worker spawn loop",
+                "Hermes Kanban production worker process binding"
               ],
               "acceptance": [
                 "Board fixtures prove list/create/switch/rename/remove behavior under temp GORMES_KANBAN_HOME roots with no Hermes state reads.",

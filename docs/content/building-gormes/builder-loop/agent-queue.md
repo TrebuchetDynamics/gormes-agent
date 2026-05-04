@@ -48,7 +48,28 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 2. Channels Capabilities Introspection
+## 2. Hermes Kanban production worker process binding
+
+- Phase: 5 / 5.M
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes binds the fakeable Kanban dispatcher spawner to a production worker launcher that resolves Gormes profiles, builds the native gormes worker argv/env with Kanban context pins and the kanban-worker skill, redirects stdout/stderr to per-task logs with bounded rotation, records worker PID/run metadata, detects crashed worker PIDs, enforces per-task max-runtime caps through injected process controls, and reports worker_spawn_failed, worker_crashed, worker_timed_out, or task_circuit_open evidence without reading live Hermes config.
+- Trust class: operator, gateway, child-agent, system
+- Ready when: Hermes Kanban dispatcher and worker spawn loop is complete., The builder can inject fake process start, PID liveness, signal/kill, log filesystem, and clock seams; no unit test starts or kills a real worker process., Gormes profile name/root helpers are available for profile resolution without importing Hermes config.
+- Not ready when: The implementation shells out to `hermes`, reads HERMES_HOME or ~/.hermes as live config, or uses Hermes Python helpers., Unit tests depend on a real subprocess, real PID table, real signal delivery, or the operator's PATH., The slice changes Kanban worker tools, dashboard routes, board registry semantics, or slash-command parsing instead of only production worker process binding.
+- Degraded mode: Missing gormes binaries, invalid profile names, unwritable workspaces/log paths, stale PIDs, process-kill failures, and max-runtime expiry return typed evidence and release or block the task according to the dispatcher failure policy without spawning Hermes Python or killing unrelated processes.
+- Fixture: `internal/kanban/process_spawner_test.go; internal/kanban/worker_lifecycle_test.go; internal/gateway/kanban_dispatcher_test.go`
+- Write scope: `internal/kanban/`, `internal/gateway/`, `internal/cli/`, `cmd/gormes/kanban.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/kanban -run 'TestKanban(ProcessSpawner\|WorkerLifecycle)' -count=1`, `go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1`, `go run ./cmd/progress validate`
+- Done signal: Kanban dispatcher production binding launches native Gormes workers through fakeable process seams, records PID/log/runtime evidence, reclaims crashed or timed-out workers, and never depends on Hermes Python or live subprocesses in tests.
+- Acceptance: Spawner fixtures prove the production launcher builds native `gormes -p <profile> --skills kanban-worker chat -q ...` argv, GORMES_KANBAN_* env, cwd, and redacted logs without any HERMES_* leak., Log fixtures prove per-task stdout/stderr paths are under the Gormes Kanban log root and rotate before spawn when over the configured limit., PID fixtures prove spawned PIDs are recorded on task and run rows, crashed workers are reclaimed with worker_crashed evidence, and stale or reused PID evidence does not kill unrelated processes., Runtime-cap fixtures prove expired tasks receive injected TERM/KILL-style process controls, record worker_timed_out evidence, and return to ready or blocked according to the failure policy., Gateway wiring fixtures prove production dispatcher config can use the process spawner while tests keep using the fake spawner seam.
+- Source refs: ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:_default_spawn, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:detect_crashed_workers, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:enforce_max_runtime, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:worker_logs_dir, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:heartbeat_worker, ../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run, internal/kanban/dispatcher.go, internal/kanban/store.go, internal/cli/profile_root.go, cmd/gormes/profile.go
+- Unblocks: Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces
+- Why now: Unblocks Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces.
+
+## 3. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -69,7 +90,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 3. Prompt Fragment Include System
+## 4. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +111,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 4. Circuit breaker per provider and API key
+## 5. Circuit breaker per provider and API key
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -110,7 +131,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go, internal/hermes/provider.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. P95 latency-aware failover
+## 6. P95 latency-aware failover
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -130,7 +151,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Capability-based model tier routing
+## 7. Capability-based model tier routing
 
 - Phase: 4 / 4.M
 - Owner: `provider`
@@ -150,7 +171,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/provider.go, Beluga AI model-switching docs
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. ACP bridge client compatibility
+## 8. ACP bridge client compatibility
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -170,7 +191,7 @@ selection.
 - Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Gateway discover/probe command
+## 9. Gateway discover/probe command
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -190,7 +211,7 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Pre-execution command classification
+## 10. Pre-execution command classification
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -208,26 +229,6 @@ selection.
 - Done signal: Classifier tests prove safe/unsafe/uncertain classification for representative command sets
 - Acceptance: Commands classified as safe/unsafe/uncertain before execution, Safe commands execute directly with <1ms overhead, Unsafe commands are blocked with audit log entry, Uncertain commands trigger snapshot before execution, Classification rules are configurable per session
 - Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Transactional tool execution with snapshot/rollback
-
-- Phase: 5 / 5.U
-- Owner: `tools`
-- Size: `large`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Wrap each uncertain tool call as an atomic transaction with ACID properties. Filesystem snapshot before execution; rollback on failure, error, or policy violation. Guarantees system consistency regardless of agent behavior.
-- Trust class: system
-- Ready when: Command classifier exists (5.U row 1), Sandbox filesystem supports snapshot/rollback
-- Not ready when: No snapshot mechanism available on target OS
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/tools/transactional_executor.go`, `internal/tools/transactional_executor_test.go`, `internal/tools/snapshot.go`
-- Test commands: `go test ./internal/tools -run TestTransactionalExecutor -count=1`, `go test ./internal/tools -run TestSnapshot -count=1`
-- Done signal: Transactional executor tests prove rollback on failure and commit on success with filesystem integrity
-- Acceptance: Uncertain tool calls create filesystem snapshot before execution, Failed tool calls roll back to pre-execution state, Successful tool calls commit snapshot changes, Rollback is atomic — no partial state after failure, Snapshot overhead <2s per transaction on typical project, Audit log records snapshot/rollback/commit events
-- Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
