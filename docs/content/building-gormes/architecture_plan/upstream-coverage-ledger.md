@@ -96,7 +96,7 @@ executable when sibling upstream checkouts are present.
 | `tinker-atropos/**` | RL tinker submodule placeholder (currently empty; reserves slot for atropos environment integration) | future research packages, `internal/subagent` | Phase 5.M | owned (excluded until populated) |
 | `Dockerfile`, `docker/entrypoint.sh`, `docker-compose.yml`, `packaging/homebrew/hermes-agent.rb`, `packaging/**`, `nix/**`, `flake.*`, `setup-hermes.sh`, `package.json`, `package-lock.json`, `pyproject.toml`, `uv.lock`, `scripts/release.py`, `scripts/**` | Packaging and release | installers, service units, OCI image, Homebrew formula, `Makefile`, `cmd/gormes` | Phase 5.P rows `OCI image` and `Homebrew` | planned |
 | `environments/hermes_base_env.py`, `environments/agentic_opd_env.py`, `environments/web_research_env.py`, `environments/tool_call_parsers/*.py` | Root eval/research environments and raw tool-call parser fixtures distinct from `tools/environments/**` sandboxes; current parser inventory includes Hermes, DeepSeek, GLM, Kimi, Llama, LongCat, Mistral, Qwen, and Qwen3-Coder families | `internal/tools`, `internal/cmdrunner`, `internal/hermes` parser fixtures | Phase 5.B row `Environment interface + file sync contract`; Phase 5.M row `Raw tool-call parser fixture matrix` | planned |
-| `tests/**`, `.plans/**`, `plans/**`, release notes, `AGENTS.md`, README/SECURITY/CONTRIBUTING, `hermes-already-has-routines.md` | Fixture and documentation donors | docs, fixtures, progress source refs | Rows that cite the fixture | covered as evidence |
+| `tests/**`, `.plans/**`, `plans/**`, release notes, `AGENTS.md`, `CLAUDE.md`, README/SECURITY/CONTRIBUTING, `hermes-already-has-routines.md` | Fixture and documentation donors | docs, fixtures, progress source refs | Rows that cite the fixture | covered as evidence |
 
 ## Honcho Source Coverage
 
@@ -115,7 +115,7 @@ executable when sibling upstream checkouts are present.
 | `honcho-cli/src/honcho_cli/{main,config,output,validation,_help,branding}.py`, `honcho-cli/src/honcho_cli/commands/{workspace,peer,session,message,conclusion,config_cmd,setup}.py`, `.env.template`, `config.toml.example`, `alembic.ini` | CLI/self-hosting docs | `cmd/gormes`, `internal/config`, `internal/doctor` | Phase 3.G row `Goncho CLI command-tree parity`, Phase 5.O | planned |
 | `database/init.sql` | Hosted Postgres bootstrap (`CREATE EXTENSION IF NOT EXISTS vector;`) | `cmd/gormes`, `internal/config`, `internal/doctor`, release docs | Phase 3.G, 5.P | owned (hosted-only divergence; replacement is local SQLite goncho store) |
 | `Dockerfile`, `docker-compose.yml.example`, `docker/entrypoint.sh`, `docker/prometheus.yml`, `docker/grafana-datasource.yml`, `docker/**`, `fly.toml`, `pyproject.toml`, `uv.lock`, `scripts/**` | Self-hosting, deploy, observability adjuncts, and maintenance tooling | `cmd/gormes`, `internal/doctor`, installer/release docs | Phase 3.G, 5.P | owned/planned divergence |
-| `examples/**`, `tests/**`, `CHANGELOG.md`, README/CLAUDE/CONTRIBUTING | Compatibility fixture and documentation donors | Goncho testdata and progress refs | Phase 3.G, 6 | covered as evidence |
+| `examples/**`, `tests/**`, `CHANGELOG.md`, README/AGENTS/CLAUDE/CONTRIBUTING | Compatibility fixture and documentation donors | Goncho testdata and progress refs | Phase 3.G, 6 | covered as evidence |
 | `.claude/skills/**` | Development workflow donor | `docs/development-skills` when useful | Phase 1.D/6 | owned |
 
 ## What Counts As Unmapped

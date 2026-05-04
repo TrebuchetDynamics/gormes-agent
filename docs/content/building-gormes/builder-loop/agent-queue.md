@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. ACP Client Bridge Mode
-
-- Phase: 5 / 5.H
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Complete the ACP integration with client bridge mode: gormes acp client connects to the Go-native ACP server (5.H server side is validated) with session key/label resolution, reset-session capability, require-existing guard, provenance modes (off/meta/meta+receipt), and --no-prefix-cwd flag. Match OpenClaw's ACP bridge surface.
-- Trust class: operator, system
-- Ready when: ACP server side (5.H) is validated — server manifest, auth, session, tools, permissions, events., Gateway session store supports key/label resolution.
-- Not ready when: The row requires a running Hermes Python process., The row exposes unauthenticated ACP endpoints.
-- Degraded mode: Unsupported ACP provider, missing auth, session key not found, or permission prompt timeout returns explicit acp_client_row_backed evidence with available fallback modes.
-- Fixture: `internal/acp/client_test.go`
-- Write scope: `internal/acp/client.go`, `internal/acp/client_test.go`, `cmd/gormes/acp.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/acp -run TestClient -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes acp client ships with session key/label resolution and provenance modes.
-- Acceptance: gormes acp client --session agent:main:main connects to local ACP server., Provenance mode meta+receipt writes signed receipts., --reset-session clears and reinitializes the session key., --require-existing fails when session does not exist.
-- Source refs: openclaw acp client CLI surface, internal/acp/server_manifest_test.go, docs/content/building-gormes/openclaw-platform-parity-audit.md
-- Unblocks: Multi-agent interoperability, Editor integrations
-- Why now: Unblocks Multi-agent interoperability, Editor integrations.
-
-## 2. Extension Lifecycle Hook System
+## 1. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -69,7 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 3. System Events, Heartbeat, and Presence
+## 2. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 4. Gateway Discover and Probe
+## 3. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 5. Channels Capabilities Introspection
+## 4. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -132,7 +111,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 6. Prompt Fragment Include System
+## 5. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -153,7 +132,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 7. Plan gate hook in agent turn loop
+## 6. Plan gate hook in agent turn loop
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -173,7 +152,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Tool gate pre-execution validation
+## 7. Tool gate pre-execution validation
 
 - Phase: 4 / 4.L
 - Owner: `tools`
@@ -193,7 +172,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Refusal-as-action in ReAct cycle
+## 8. Refusal-as-action in ReAct cycle
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -213,7 +192,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Safety loop end-to-end integration
+## 9. Safety loop end-to-end integration
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -231,6 +210,26 @@ selection.
 - Done signal: Integration tests prove end-to-end safety loop handles safe, unsafe, drift, and recovery scenarios
 - Acceptance: Full turn with safe actions completes successfully, Unsafe plan is caught before any tool executes, Tool drift in multi-step chain is detected mid-chain, Agent recovers after refusal and completes alternative approach
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/safety_plan_gate.go, internal/tools/safety_tool_gate.go, internal/hermes/refuse_action.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Circuit breaker per provider and API key
+
+- Phase: 4 / 4.M
+- Owner: `provider`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Each provider connection gets an independent circuit breaker tracking consecutive failures. After threshold (default 5), breaker trips to OPEN and all calls fast-fail for cooldown period (default 30s). Half-open state allows single probe request.
+- Trust class: system
+- Ready when: Provider interface supports health status reporting
+- Not ready when: No per-provider error tracking
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/circuit_breaker.go`, `internal/hermes/circuit_breaker_test.go`
+- Test commands: `go test ./internal/hermes -run TestCircuitBreaker -count=1`
+- Done signal: Circuit breaker tests prove CLOSED→OPEN→HALF_OPEN→CLOSED transitions with configurable thresholds
+- Acceptance: Circuit breaker trips after N consecutive failures, OPEN state fast-fails without making network calls, Half-open probe succeeds → breaker resets to CLOSED, Half-open probe fails → breaker returns to OPEN, Each API key tracked independently, Breaker state transitions are logged at INFO level
+- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go, internal/hermes/provider.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

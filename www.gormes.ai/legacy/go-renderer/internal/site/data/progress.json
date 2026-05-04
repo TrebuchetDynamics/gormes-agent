@@ -20566,10 +20566,10 @@
             },
             {
               "name": "ACP Client Bridge Mode",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Complete the ACP integration with client bridge mode: gormes acp client connects to the Go-native ACP server (5.H server side is validated) with session key/label resolution, reset-session capability, require-existing guard, provenance modes (off/meta/meta+receipt), and --no-prefix-cwd flag. Match OpenClaw's ACP bridge surface.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -20577,6 +20577,7 @@
                 "system"
               ],
               "degraded_mode": "Unsupported ACP provider, missing auth, session key not found, or permission prompt timeout returns explicit acp_client_row_backed evidence with available fallback modes.",
+              "note": "Complete 2026-05-04: TDD landed internal/acp ClientBridge, session key/title resolution over the existing session map, --require-existing row-backed failures, --reset-session reinitialization, off/meta/meta+receipt provenance with sha256 source receipts, --no-prefix-cwd propagation, LocalClientConnector against the Go-native ACP server manifest, and gormes acp client JSON/text output.",
               "fixture": "internal/acp/client_test.go",
               "source_refs": [
                 "openclaw acp client CLI surface",
@@ -20605,10 +20606,13 @@
                 "internal/acp/client.go",
                 "internal/acp/client_test.go",
                 "cmd/gormes/acp.go",
+                "cmd/gormes/acp_command_test.go",
+                "cmd/gormes/main.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/acp -run TestClient -count=1",
+                "go test ./cmd/gormes -run TestACPClient -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [

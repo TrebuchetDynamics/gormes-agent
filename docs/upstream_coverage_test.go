@@ -30,6 +30,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 			represented: map[string]string{
 				".plans":                         "`.plans/**`",
 				"AGENTS.md":                      "`AGENTS.md`",
+				"CLAUDE.md":                      "`CLAUDE.md`",
 				"CONTRIBUTING.md":                "CONTRIBUTING",
 				"Dockerfile":                     "`Dockerfile`",
 				"README.md":                      "README",
@@ -95,6 +96,7 @@ func TestUpstreamCoverageLedgerMatchesSourceClasses(t *testing.T) {
 			root: filepath.Join("..", "..", "honcho"),
 			represented: map[string]string{
 				".claude":                    "`.claude/skills/**`",
+				"AGENTS.md":                  "`AGENTS.md`",
 				"CHANGELOG.md":               "CHANGELOG",
 				"CLAUDE.md":                  "CLAUDE",
 				"CONTRIBUTING.md":            "CONTRIBUTING",
