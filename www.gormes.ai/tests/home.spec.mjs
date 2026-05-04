@@ -12,6 +12,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Scout release. Useful today, still early.')).toBeVisible();
   await expect(page.getByText('Offline TUI, doctor diagnostics, provider one-shots, Goncho memory, dashboard, and configured Telegram/Discord/Slack paths are covered. Full parity is still hardening.')).toBeVisible();
   await expect(page.locator('.topnav a')).toHaveText(['Docs', 'Roadmap', 'GitHub']);
+  await expect(page.getByRole('img', { name: 'GORMES-AGENT' })).toHaveAttribute('src', '/static/gormes-agent-logo-blue.svg');
   await expect(page.locator('img[src="/static/go-gopher-bear-lowpoly.png"]')).toHaveCount(1);
   await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Build from source');
   await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('View on GitHub');

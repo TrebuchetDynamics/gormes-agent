@@ -114,7 +114,19 @@ done
 printf '\n' >> "$GORMES_FAKE_LOG"
 
 case "$1" in
+  --version)
+    printf 'git version 2.53.0\n'
+    ;;
   clone)
+    if [ "${GORMES_FAKE_FAIL_SSH_CLONE:-}" = "1" ]; then
+      for arg in "$@"; do
+        case "$arg" in
+          git@github.com:*)
+            exit 1
+            ;;
+        esac
+      done
+    fi
     target=
     for arg in "$@"; do target=$arg; done
     mkdir -p "$target/.git" "$target/cmd/gormes"
@@ -236,10 +248,21 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 	linkBasicUnixTools(t, bin)
 	writeExecutable(t, filepath.Join(bin, "git"), fakeGitScript())
 	writeExecutable(t, filepath.Join(bin, "go"), fakeGoScript("go", "go1.25.0"))
+	writeVersionTool(t, filepath.Join(bin, "node"), "v22.22.0")
+	writeVersionTool(t, filepath.Join(bin, "rg"), "ripgrep 14.1.1")
+	writeVersionTool(t, filepath.Join(bin, "ffmpeg"), "ffmpeg version 7.1.1 Copyright")
 	writeExecutable(t, filepath.Join(bin, "curl"), fakeNoReleaseCurlScript())
 	writeExecutable(t, filepath.Join(bin, "tar"), fakeTarScript())
 
 	return bin, logPath
+}
+
+func writeVersionTool(t *testing.T, path string, version string) {
+	t.Helper()
+	writeExecutable(t, path, `#!/bin/sh
+set -eu
+printf '`+version+`\n'
+`)
 }
 
 func linkBasicUnixTools(t *testing.T, bin string) {
@@ -626,17 +649,135 @@ func TestInstallSH_WindowsShellHintMentionsPowerShell(t *testing.T) {
 	}
 }
 
-func TestInstallSH_InstallsReleaseBinaryWhenAvailable(t *testing.T) {
+func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
-	fakebin, logPath, releaseTemplate := writeFakeReleaseToolchain(t, root)
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
 
 	out, err := runInstallScript(t,
 		"HOME="+home,
 		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
-		"GORMES_FAKE_RELEASE_TAG=v1.2.3",
-		"GORMES_FAKE_RELEASE_BIN_TEMPLATE="+releaseTemplate,
+		"GORMES_FAKE_FAIL_SSH_CLONE=1",
+		"GORMES_INSTALL_TEST_DISTRO=fedora",
+		"GORMES_INSTALL_TEST_HAS_TTY=0",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
+	}
+
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	for _, want := range []string{
+		"\x1b[1;34m",
+		"██████╗  ██████╗ ██████╗",
+		"Gormes Agent Installer",
+		"An open source AI agent",
+		"✓ Detected: linux (fedora)",
+		"→ Checking Go",
+		"✓ Go go1.25.0 found",
+		"→ Checking Git",
+		"✓ Git 2.53.0 found",
+		"→ Checking Node.js (for browser tools)",
+		"✓ Node.js v22.22.0 found",
+		"→ Checking ripgrep (fast file search)",
+		"✓ ripgrep 14.1.1 found",
+		"→ Checking ffmpeg (TTS voice messages)",
+		"✓ ffmpeg 7.1.1 found",
+		"→ Installing to " + checkout,
+		"→ Trying SSH clone",
+		"→ SSH failed, trying HTTPS",
+		"✓ Cloned via HTTPS",
+		"✓ Repository ready",
+		"→ Building gormes",
+		"✓ Gormes binary ready",
+		"→ Setting up gormes command",
+		"✓ gormes command ready",
+		"→ Setup wizard skipped (no terminal available).",
+		"Run 'gormes setup' after install.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("install output missing %q\n%s", want, out)
+		}
+	}
+
+	for _, reject := range []string{
+		"Checking for uv package manager",
+		"Checking Python 3.11",
+		"Creating virtual environment",
+		"Installing dependencies",
+		"Installing Node.js dependencies",
+		"hermes setup",
+	} {
+		if strings.Contains(out, reject) {
+			t.Fatalf("Gormes installer should not include Hermes Python runtime step %q\n%s", reject, out)
+		}
+	}
+}
+
+func TestInstallSH_DefaultInstallRunsSetupWizardWhenTerminalAvailable(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_TEST_HAS_TTY=1",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
+	}
+
+	if !strings.Contains(out, "→ Starting setup wizard") {
+		t.Fatalf("default install did not announce setup wizard:\n%s", out)
+	}
+	if strings.Contains(out, "Setup wizard skipped") {
+		t.Fatalf("interactive install skipped setup wizard:\n%s", out)
+	}
+	log := readTextFile(t, logPath)
+	if !strings.Contains(log, "built-gormes setup") {
+		t.Fatalf("default install did not invoke gormes setup:\n%s", log)
+	}
+}
+
+func TestInstallSH_SkipSetupFlagAvoidsWizardEvenWithTerminal(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScriptWithArgs(t,
+		[]string{"--skip-setup"},
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_TEST_HAS_TTY=1",
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
+	}
+
+	if !strings.Contains(out, "→ Skipping setup wizard (--skip-setup)") {
+		t.Fatalf("--skip-setup did not explain setup skip:\n%s", out)
+	}
+	log := readTextFile(t, logPath)
+	if strings.Contains(log, "built-gormes setup") {
+		t.Fatalf("--skip-setup still invoked gormes setup:\n%s", log)
+	}
+}
+
+func TestInstallSH_DefaultInstallUsesManagedSourceCheckout(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin, logPath := writeFakeUnixToolchain(t, root)
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
 		"UNAME=Linux",
 	)
 	if err != nil {
@@ -646,40 +787,39 @@ func TestInstallSH_InstallsReleaseBinaryWhenAvailable(t *testing.T) {
 	managed := filepath.Join(home, ".gormes", "bin", "gormes")
 	body, err := os.ReadFile(managed)
 	if err != nil {
-		t.Fatalf("read managed release binary: %v", err)
+		t.Fatalf("read managed binary: %v", err)
 	}
-	if !strings.Contains(string(body), "release-gormes") {
-		t.Fatalf("managed binary was not the release binary:\n%s", body)
+	if !strings.Contains(string(body), "built-gormes") {
+		t.Fatalf("managed binary was not built from source:\n%s", body)
 	}
 	published := filepath.Join(home, ".local", "bin", "gormes")
 	if _, err := os.Stat(published); err != nil {
 		t.Fatalf("published command missing: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(home, ".gormes", "gormes-agent")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("release install should not create a source checkout: err=%v", err)
+	checkout := filepath.Join(home, ".gormes", "gormes-agent")
+	if _, err := os.Stat(filepath.Join(checkout, ".git")); err != nil {
+		t.Fatalf("managed source checkout missing: %v", err)
 	}
 	log := readTextFile(t, logPath)
 	for _, want := range []string{
-		"curl -fsSL https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest -o",
-		"curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/download/v1.2.3/gormes-1.2.3-",
-		"tar -C",
-		"release-gormes version",
+		"git clone --branch main",
+		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
 		}
 	}
-	for _, reject := range []string{"git clone", "go build"} {
+	for _, reject := range []string{"api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest", "releases/download", "release-gormes"} {
 		if strings.Contains(log, reject) {
-			t.Fatalf("release install should not use %q\n%s", reject, log)
+			t.Fatalf("source-backed install should not use %q\n%s", reject, log)
 		}
 	}
-	if !strings.Contains(out, "installed release v1.2.3") {
-		t.Fatalf("release install output missing release evidence:\n%s", out)
+	if !strings.Contains(out, "source: "+checkout) {
+		t.Fatalf("summary did not name managed source checkout:\n%s", out)
 	}
 }
 
-func TestInstallSH_NoReleaseClonesTemporarySourceAndBuilds(t *testing.T) {
+func TestInstallSH_DefaultInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
@@ -695,9 +835,9 @@ func TestInstallSH_NoReleaseClonesTemporarySourceAndBuilds(t *testing.T) {
 		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
 	}
 
-	persistentCheckout := filepath.Join(home, ".gormes", "gormes-agent")
-	if _, err := os.Stat(persistentCheckout); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("source fallback should not leave a managed checkout: err=%v", err)
+	managedCheckout := filepath.Join(home, ".gormes", "gormes-agent")
+	if _, err := os.Stat(filepath.Join(managedCheckout, ".git")); err != nil {
+		t.Fatalf("managed checkout missing: %v", err)
 	}
 	published := filepath.Join(home, ".local", "bin", "gormes")
 	if _, err := os.Stat(published); err != nil {
@@ -712,7 +852,6 @@ func TestInstallSH_NoReleaseClonesTemporarySourceAndBuilds(t *testing.T) {
 	}
 	log := string(logBody)
 	for _, want := range []string{
-		"curl -fsSL https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest -o",
 		"git clone --branch main",
 		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
@@ -720,15 +859,20 @@ func TestInstallSH_NoReleaseClonesTemporarySourceAndBuilds(t *testing.T) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
 		}
 	}
-	if strings.Contains(log, persistentCheckout) {
-		t.Fatalf("source fallback used persistent checkout instead of temporary clone:\n%s", log)
+	for _, reject := range []string{
+		"api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest",
+		"releases/download",
+	} {
+		if strings.Contains(log, reject) {
+			t.Fatalf("managed source install should not probe release endpoint %q:\n%s", reject, log)
+		}
 	}
-	if !strings.Contains(out, "no release binary found; building from source") {
-		t.Fatalf("fallback output missing no-release evidence:\n%s", out)
+	if !strings.Contains(out, "source: "+managedCheckout) {
+		t.Fatalf("summary missing managed checkout evidence:\n%s", out)
 	}
 }
 
-func TestInstallSH_BranchOverrideBuildsTemporarySourceInsteadOfLatestRelease(t *testing.T) {
+func TestInstallSH_BranchOverrideBuildsManagedSourceCheckout(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
@@ -754,12 +898,12 @@ func TestInstallSH_BranchOverrideBuildsTemporarySourceInsteadOfLatestRelease(t *
 	if !strings.Contains(log, "git clone --branch development") {
 		t.Fatalf("branch override did not build requested source branch:\n%s", log)
 	}
-	for _, reject := range []string{"releases/download/v9.9.9", "release-gormes version"} {
+	for _, reject := range []string{"releases/download/v9.9.9", "release-gormes version", "api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest"} {
 		if strings.Contains(log, reject) {
-			t.Fatalf("branch override should skip latest release path %q:\n%s", reject, log)
+			t.Fatalf("branch override should skip release path %q:\n%s", reject, log)
 		}
 	}
-	if !strings.Contains(out, "branch development requested; building from source") {
+	if !strings.Contains(out, "source: "+filepath.Join(home, ".gormes", "gormes-agent")) {
 		t.Fatalf("branch override output missing source evidence:\n%s", out)
 	}
 }
@@ -800,7 +944,7 @@ func TestInstallSH_UpdatesExistingCommandEarlierOnPATH(t *testing.T) {
 	}
 }
 
-func TestInstallSH_SourceFallbackDoesNotUpdatePersistentCheckout(t *testing.T) {
+func TestInstallSH_RerunUpdatesPersistentManagedCheckout(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	checkout := filepath.Join(home, ".gormes", "gormes-agent")
@@ -831,12 +975,20 @@ func TestInstallSH_SourceFallbackDoesNotUpdatePersistentCheckout(t *testing.T) {
 		t.Fatalf("read fake log: %v", err)
 	}
 	log := string(logBody)
-	if !strings.Contains(log, "git clone --branch main") {
-		t.Fatalf("source fallback did not clone a fresh temporary checkout:\n%s", log)
+	for _, want := range []string{
+		"git status --porcelain",
+		"git fetch origin",
+		"git checkout main",
+		"git pull --ff-only origin main",
+		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("managed checkout rerun missing %q:\n%s", want, log)
+		}
 	}
-	for _, reject := range []string{"git status --porcelain", "git fetch origin main", "git pull --ff-only origin main", checkout} {
+	for _, reject := range []string{"git clone --branch main", "api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest", "releases/download"} {
 		if strings.Contains(log, reject) {
-			t.Fatalf("source fallback should not update persistent checkout %q:\n%s", reject, log)
+			t.Fatalf("managed checkout rerun should not use %q:\n%s", reject, log)
 		}
 	}
 }
@@ -1008,8 +1160,8 @@ func TestInstallSH_VerboseDryRunShowsResolvedPlan(t *testing.T) {
 		"verbose: true",
 		"platform:",
 		"install_home: " + home,
-		"source_mode: release",
-		"source_fallback: temporary git clone of development",
+		"source_mode: managed-checkout",
+		"checkout: " + filepath.Join(home, "gormes-agent"),
 		"managed_binary: " + filepath.Join(home, "bin", "gormes"),
 		"published_binary: " + filepath.Join(binDir, "gormes"),
 		"restart_gateway: never",

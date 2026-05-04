@@ -1,13 +1,13 @@
 ---
 name: gormes-git
-description: Commit, validate, push, and PR-merge the existing Gormes development branch safely without crashing the agent session. Use when the user asks Codex to commit all current changes, push development, make the branch green, finish/publish the dirty worktree, open/update/merge the development-to-main PR, or recover a rejected development push without creating branches or worktrees.
+description: Use when the user asks Codex to commit current Gormes changes, push development, make the branch green, finish or publish a dirty worktree, open/update/merge the development-to-main PR, or recover a rejected development push without creating branches or worktrees.
 ---
 
 # Gormes Git
 
 ## Overview
 
-Use this skill for the exact "make development green, commit everything, push it, and handle the development-to-main PR" lane. It is not a feature-building workflow and it must not create branches, worktrees, or unbounded command sessions.
+Use this skill for the exact "make development green, commit everything, push it, and handle the development-to-main PR" lane. It is not a feature-building workflow and it must not create branches, worktrees, or unbounded command sessions. It also owns generated-surface reconciliation before commit so progress/docs/site mirrors do not drift.
 
 ## Branch Rule
 
@@ -30,6 +30,16 @@ Keep the agent session responsive while still preserving validation integrity.
 - If a command times out, report it as timed out. Do not claim the gate passed, do not keep retrying the same full command, and do not continue to commit or merge until the timeout is understood.
 - If remote checks are pending, report the pending state or poll in a small bounded loop. Do not leave a watch command running.
 
+## Dirty Worktree Policy
+
+Treat the worktree as shared state.
+
+- If the user says "commit all changes", include tracked and untracked dirty files after the safety scan. Do not silently omit unrelated files.
+- If the user asks for a narrower commit, do not stage unrelated dirty files. Leave them in place and report them.
+- Never revert, checkout, delete, or rewrite user/parallel-agent changes to simplify the diff.
+- Before staging untracked files, scan names and quick content for secrets, credentials, home-directory dumps, vendored dependency trees, and accidental large binaries. Stop and report unsafe artifacts.
+- If generated files changed, identify the source file that caused them. Generated mirror changes with no matching source change require inspection before commit.
+
 ## Workflow
 
 ### 1. Inspect The Worktree
@@ -44,7 +54,22 @@ git worktree list
 
 If the user says "commit all changes", include tracked and untracked dirty files. Still scan for obvious generated secrets, credentials, or accidental large binary artifacts before staging; report and stop if committing them would be unsafe.
 
-### 2. Make It Green Before Commit
+### 2. Reconcile Generated Surfaces
+
+Run this before validation whenever the relevant source files changed:
+
+```sh
+go run ./cmd/progress write
+node www.gormes.ai/scripts/sync-assets.mjs
+```
+
+Use `go run ./cmd/progress write` when `docs/content/building-gormes/architecture_plan/progress.json` changed. It refreshes the progress-driven docs and site progress data.
+
+Use `node www.gormes.ai/scripts/sync-assets.mjs` when installer scripts, `benchmarks.json`, progress data, or site-served assets changed. It refreshes `www.gormes.ai/public/install.*` and generated site mirrors.
+
+After either command, rerun `git status --short --untracked-files=all` and review the newly changed files. Do not hand-edit generated mirrors unless the generator is broken and that blocker is reported.
+
+### 3. Make It Green Before Commit
 
 Run the repository green gate one command at a time with timeouts:
 
@@ -57,14 +82,15 @@ git diff --check
 Run focused public-surface gates when relevant:
 
 ```sh
-timeout 20m sh -c 'cd www.gormes.ai && go test ./... -count=1'
+timeout 20m sh -c 'cd www.gormes.ai/legacy/go-renderer && go test ./... -count=1'
+timeout 20m sh -c 'cd www.gormes.ai && npm run build'
 timeout 30m sh -c 'cd www.gormes.ai && npm run test:e2e'
 timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
 ```
 
 Use the public-surface gates when `README.md`, `docs/`, `www.gormes.ai/`, `benchmarks.json`, or `docs/content/building-gormes/architecture_plan/progress.json` changed. If a gate fails, inspect the failing test or command output, fix the real issue in the current worktree, then rerun the failing gate and any affected higher-level gate.
 
-### 3. Stage And Recheck
+### 4. Stage And Recheck
 
 After the worktree is green:
 
@@ -76,7 +102,7 @@ git diff --cached --check
 
 Confirm the staged diff matches the user's request. Do not drop unrelated dirty files when the user explicitly asked to commit all changes.
 
-### 4. Commit
+### 5. Commit
 
 Use a concise commit subject that reflects the staged diff. Prefer a broad `chore:` subject when the commit spans docs, runtime, tests, and skills. Example:
 
@@ -86,7 +112,7 @@ git commit -m "chore: update gormes docs and workflow"
 
 If hooks fail, fix the failure, restage, rerun the relevant green gate, and commit again.
 
-### 5. Push Development
+### 6. Push Development
 
 Push only `development`:
 
@@ -103,7 +129,7 @@ git merge --no-edit origin/development
 
 Resolve any conflicts without discarding local work, rerun the green gate, then push `origin development` again. If the merge becomes unsafe or ambiguous, stop and report the blocker instead of forcing.
 
-### 6. PR Merge Rules
+### 7. PR Merge Rules
 
 Use this section only when the user asks to open, update, or merge the PR to `main`.
 
@@ -128,7 +154,7 @@ If `gh pr checks` exits with code 8, checks are pending. That is not a crash and
 6. Merge only after required checks pass and the PR is mergeable. Prefer the repository's configured merge method. Do not force-merge, bypass branch protection, delete `development`, or push directly to `main`.
 7. After merge, fetch refs and confirm `origin/main` contains the merged `development` head. Leave the local worktree on `development`.
 
-### 7. Final Evidence
+### 8. Final Evidence
 
 Report:
 

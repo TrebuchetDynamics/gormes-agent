@@ -218,6 +218,29 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	}
 }
 
+func TestAstroBuild_IndexShowsBlueGormesAgentLogo(t *testing.T) {
+	tmp := t.TempDir()
+	runDocsAstroBuild(t, tmp)
+
+	body, err := os.ReadFile(filepath.Join(tmp, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(body)
+	for _, want := range []string{
+		`src="/gormes-agent-logo-blue.svg"`,
+		`alt="GORMES-AGENT"`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("built index.html missing blue GORMES-AGENT logo token %q", want)
+		}
+	}
+
+	if _, err := os.Stat(filepath.Join(tmp, "gormes-agent-logo-blue.svg")); err != nil {
+		t.Fatalf("built docs output missing blue GORMES-AGENT logo asset: %v", err)
+	}
+}
+
 func runDocsAstroBuild(t *testing.T, dest string) {
 	t.Helper()
 	if err := os.RemoveAll(filepath.Join(".astro", ".prerender")); err != nil {

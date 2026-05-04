@@ -41,12 +41,11 @@ The site serves three installer assets, one per supported user shell:
 | `/install.ps1` | `../scripts/install.ps1` | Windows PowerShell 5.1+ / pwsh 7+ |
 | `/install.cmd` | `../scripts/install.cmd` | CMD wrapper that launches the PowerShell installer |
 
-The Unix installer is release-first: it downloads the latest compatible
-`gormes-${version}-${os}-${arch}.tar.gz` archive, verifies the `.sha256`, and
-publishes a stable global `gormes` command. If no compatible release exists, it
-clones the requested branch into a temporary directory, builds from source, and
-removes the temporary checkout. Termux falls back to source when a release
-artifact cannot run on the host. Root Linux publishes to `/usr/local/bin`;
+The Unix installer is source-backed like Hermes Agent: it clones or updates a
+managed checkout, builds `gormes`, publishes a stable global command, verifies
+the binary, starts `gormes setup` when a terminal is available, and reruns as an
+update flow. Use `--skip-setup` or `GORMES_SKIP_SETUP=1` to defer that wizard.
+Termux publishes to `$PREFIX/bin`. Root Linux publishes to `/usr/local/bin`;
 non-root installs publish to a user-scoped bin directory unless overridden.
 
 The landing page should keep the inspect-first installer and source build paths

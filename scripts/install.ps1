@@ -75,6 +75,23 @@ function Stop-GormesWithError([string]$Message) {
     throw $Message
 }
 
+function Write-Banner {
+    Write-Host ""
+    foreach ($line in @(
+        ' ██████╗  ██████╗ ██████╗ ███╗   ███╗███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗',
+        '██╔════╝ ██╔═══██╗██╔══██╗████╗ ████║██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝',
+        '██║  ███╗██║   ██║██████╔╝██╔████╔██║█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║',
+        '██║   ██║██║   ██║██╔══██╗██║╚██╔╝██║██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║',
+        '╚██████╔╝╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║',
+        ' ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝',
+        'Gormes Agent Installer',
+        'An open source AI agent for Hermes-compatible runtime.'
+    )) {
+        Write-Host $line -ForegroundColor Blue
+    }
+    Write-Host ""
+}
+
 function Get-ManagedHome { $Script:GormesInstallHome }
 function Get-ManagedCheckoutDir { $Script:GormesInstallDir }
 function Get-PublishedBinDir { $Script:GormesBinDir }
@@ -653,6 +670,7 @@ function Invoke-Main {
         return
     }
 
+    Write-Banner
     Acquire-InstallLock
     try {
         $Script:PreviousGatewayPid = Get-RunningGatewayPid

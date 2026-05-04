@@ -5,6 +5,10 @@ weight: 0
 slug: "/"
 ---
 
+<p align="center">
+  <img src="/gormes-agent-logo-blue.svg" alt="GORMES-AGENT" width="720">
+</p>
+
 # Gormes
 
 Gormes runs AI agents as one Go-native agent runtime.

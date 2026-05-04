@@ -11,8 +11,11 @@ func TestBannerLogo_NonEmpty(t *testing.T) {
 	if strings.TrimSpace(logo) == "" {
 		t.Fatal("banner logo is empty")
 	}
-	if !strings.Contains(logo, "HERMES") && !strings.Contains(logo, "████") {
-		t.Fatal("banner logo missing expected content")
+	if !strings.Contains(logo, "██████╗  ██████╗ ██████╗") {
+		t.Fatal("banner logo missing GORMES-AGENT block art")
+	}
+	if strings.Contains(logo, "██╗  ██╗███████╗██████╗") {
+		t.Fatal("banner logo still contains upstream HERMES-AGENT block art")
 	}
 }
 

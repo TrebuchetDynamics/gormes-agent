@@ -6,6 +6,18 @@ weight: 10
 
 # Installation
 
+## Quick Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
+```
+
+The installer mirrors Hermes' source-backed user flow for Gormes: it clones or
+updates a managed checkout, builds `gormes`, publishes the command, verifies
+`gormes version`, runs `gormes doctor --offline`, and starts `gormes setup`
+when a terminal is available. Rerun the same command to update. To defer setup,
+run `curl -fsSL ... | bash -s -- --skip-setup`.
+
 ## Source Build
 
 ```bash
@@ -26,14 +38,15 @@ less install.sh
 sh install.sh
 ```
 
-The installer downloads the latest compatible release archive and publishes a
-user-scoped `gormes` command. If no release exists yet, or no compatible Unix
-archive is available, it clones the requested branch into a temporary directory,
-builds from source, publishes the binary, and removes the temporary checkout.
+Use the inspectable form when you want to read the script before running it. By
+default it keeps code under `~/.gormes/gormes-agent`, publishes to
+`~/.local/bin/gormes`, and uses `/usr/local/lib/gormes-agent` plus
+`/usr/local/bin/gormes` for new root Linux installs. If no terminal is
+available, the setup wizard is skipped with guidance to run `gormes setup`
+later.
 
 ## Requirements
 
-Release installs need `curl` or `wget` plus `tar`. Source fallback needs Git and
-Go 1.25+; the installer can download a managed Go toolchain when local Go is
-missing. Prefer `./bin/gormes` while validating a source checkout so PATH
-shadowing cannot hide an older binary.
+Installs need Git and Go 1.25+; the installer can download a managed Go
+toolchain when local Go is missing. Prefer `./bin/gormes` while validating a
+development checkout so PATH shadowing cannot hide an older installed binary.

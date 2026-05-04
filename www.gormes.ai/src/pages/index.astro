@@ -54,8 +54,13 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
   <body class="min-h-screen overflow-x-hidden bg-[#090b0f] text-[#eeece5]">
     <header class="topbar border-b border-white/10">
       <div class={`${sectionShell} topbar-inner flex items-center justify-between gap-5 py-4`}>
-        <a class="brand border-0 text-lg font-bold text-[#eeece5] hover:text-[#f0c84b]" href="#top">
-          Gormes
+        <a class="brand inline-flex min-w-0 items-center border-0 hover:opacity-90" href="#top" aria-label="GORMES-AGENT">
+          <img
+            class="h-auto w-[168px] max-w-[44vw] sm:w-[220px]"
+            src="/static/gormes-agent-logo-blue.svg"
+            alt=""
+            aria-hidden="true"
+          />
         </a>
         <nav class="topnav flex flex-wrap justify-end gap-4 text-xs font-bold uppercase text-[#eeece5]/65" aria-label="Primary">
           {page.nav.map((link) => (
@@ -75,6 +80,11 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
         />
         <div class={`${sectionShell} hero-inner relative z-10 py-20 sm:py-24`}>
           <div class="hero-content max-w-3xl">
+            <img
+              class="hero-logo mb-8 block w-full max-w-[720px]"
+              src="/static/gormes-agent-logo-blue.svg"
+              alt="GORMES-AGENT"
+            />
             <p class="kicker mb-4 text-xs font-bold uppercase text-[#eeece5]/50">{page.heroKicker}</p>
             <h1 class="hero-title mb-6 max-w-[740px] break-words font-serif text-[clamp(2.25rem,8vw,4.75rem)] font-black leading-[0.98] text-white">
               <span class="hero-prompt align-[0.14em] font-mono text-[0.48em] font-bold text-[#f0c84b]" aria-hidden="true">$</span>

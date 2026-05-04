@@ -160,33 +160,32 @@ model = "claude-sonnet-4-20250514"
 | `GORMES_INFERENCE_MODEL` | Default model name. |
 | `GORMES_INFERENCE_PROVIDER` | Default provider name. |
 | `GORMES_SKILLS_ROOT` | Custom skills directory. |
-| `GORMES_BRANCH` | Installer source-fallback branch (default `main`). |
-| `GORMES_RELEASE_TAG` | Installer release tag override; defaults to the latest GitHub release. |
+| `GORMES_BRANCH` | Installer managed-checkout branch (default `main`). |
 | `GORMES_RESTART_GATEWAY` | Restart policy for install.sh (`auto`, `always`, `never`). |
+| `GORMES_SKIP_SETUP` | Set to `1`, `true`, `yes`, or `on` to skip the post-install setup wizard. |
 
 ## Installer
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
-less install.sh
-sh install.sh
+curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
 ```
 
 Key installer options:
 
 | Flag | Purpose |
 |---|---|
-| `--branch <name>` | Git branch used when release install falls back to source (default `main`). |
+| `--branch <name>` | Git branch cloned or updated in the managed checkout (default `main`). |
 | `--home <dir>` | Managed install home (default `~/.gormes`). |
-| `--local` | Build from the current checkout instead of installing a release artifact. |
+| `--local` | Build from the current checkout instead of the managed installer checkout. |
 | `--dry-run` | Preview without making changes. |
+| `--skip-setup` | Install and verify without starting `gormes setup`. |
 | `--restart-gateway auto\|always\|never` | Gateway restart policy. |
 | `--no-restart` | Skip gateway restart. |
 
-By default, `install.sh` installs the latest compatible release archive and
-falls back to a temporary source clone only when no compatible release is
-available. For development, use `sh install.sh --local` from the repo root to
-build and install from the current checkout.
+By default, `install.sh` clones or updates a managed source checkout, builds
+`./cmd/gormes`, publishes the command, verifies it, and starts `gormes setup`
+when a terminal is available. For development, use `sh install.sh --local` from
+the repo root to build and install from the current checkout.
 
 ## Self-Restart
 

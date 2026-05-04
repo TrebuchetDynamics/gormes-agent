@@ -91,9 +91,13 @@ func TestServer_ServesInstallScript(t *testing.T) {
 	for _, want := range []string{
 		"git@github.com:TrebuchetDynamics/gormes-agent.git",
 		"https://github.com/TrebuchetDynamics/gormes-agent.git",
-		"https://api.github.com/repos/${RELEASE_REPO}/releases/latest",
-		"https://github.com/${RELEASE_REPO}/releases/download",
+		"managed_checkout_dir()",
+		"update_checkout()",
+		"git pull --ff-only origin \"$BRANCH\"",
 		`go build -o "$build_bin" ./cmd/gormes`,
+		"run_setup_wizard()",
+		"--skip-setup",
+		"GORMES_SKIP_SETUP",
 		"GORMES_INSTALL_HOME",
 	} {
 		if !strings.Contains(body, want) {
@@ -104,6 +108,8 @@ func TestServer_ServesInstallScript(t *testing.T) {
 		"XelHaku/golang-hermes-agent",
 		"XelHaku/gormes-agent",
 		`go install "${MODULE}@${VERSION}"`,
+		"api.github.com/repos/${RELEASE_REPO}/releases/latest",
+		"github.com/${RELEASE_REPO}/releases/download",
 	} {
 		if strings.Contains(body, reject) {
 			t.Fatalf("install.sh contains stale installer path %q\n%s", reject, body)

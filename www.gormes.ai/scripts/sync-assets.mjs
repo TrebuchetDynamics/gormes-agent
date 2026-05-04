@@ -60,6 +60,11 @@ const copies = [
     resolve(legacyStatic, 'go-gopher-bear-lowpoly.png'),
     resolve(siteRoot, 'public/static/go-gopher-bear-lowpoly.png'),
   ],
+  [
+    'gormes-agent-logo-blue.svg',
+    resolve(repoRoot, 'assets/gormes-agent-logo-blue.svg'),
+    resolve(siteRoot, 'public/static/gormes-agent-logo-blue.svg'),
+  ],
 ];
 
 for (const [, source, target] of copies) {

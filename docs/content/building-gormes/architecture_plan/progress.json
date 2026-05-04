@@ -30819,17 +30819,71 @@
             },
             {
               "name": "Unix installer (install.sh) source-backed update flow",
-              "status": "planned",
-              "note": "TDD slice 1 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): port upstream Unix installer semantics into canonical repo-root `install.sh`, with the site loading that same root file for `/install.sh` instead of carrying a second copy. The installer uses user-scoped PATH publication, a managed checkout under a Hermes-analogy install home, rerun-as-update behavior, and no root-owned target paths. Cover path selection, managed checkout, update-on-rerun, and publish+verify flow via a new `install_unix_test.go` Go test that executes the script under a temporary fake toolchain — no network calls in unit tests. Do not install Hermes/Python/Node: Gormes' current feature set does not require them.",
-              "slice_size": "umbrella",
+              "status": "complete",
+              "contract": "The Unix installer mirrors Hermes' source-backed user install experience for Gormes: curl-pipe runs clone or update a managed checkout, build the Go binary, publish the command, verify it, and rerun as an update flow without Python/Node runtime installs.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "If the managed checkout already exists, install.sh updates it in place with git fetch/checkout/pull and reports the checkout as the install source instead of silently downloading a release artifact or cloning a temporary tree.",
+              "fixture": "www.gormes.ai/legacy/go-renderer/internal/site/install_unix_test.go",
+              "source_refs": [
+                "../hermes-agent/scripts/install.sh@54e78cadb:clone_repo",
+                "../hermes-agent/scripts/install.sh@main:run_setup_wizard",
+                "install.sh",
+                "www.gormes.ai/legacy/go-renderer/internal/site/assets_test.go",
+                "www.gormes.ai/legacy/go-renderer/internal/site/install_unix_test.go",
+                "README.md",
+                "docs/content/getting-started/installation.md",
+                "docs/content/reference/cli.md",
+                "docs/content/reference/environment.md",
+                "docs/content/using-gormes/install.md",
+                "www.gormes.ai/README.md"
+              ],
+              "ready_when": [
+                "The canonical repo-root install.sh is served by the site and can be tested under fake git/go/download tools without network or root writes."
+              ],
+              "not_ready_when": [
+                "The slice adds Python, Node, Hermes runtime dependencies, live network calls in tests, or package-manager release publication."
+              ],
+              "acceptance": [
+                "Default Unix install clones the requested branch into the managed checkout and builds ~/.gormes/bin/gormes from that checkout.",
+                "Default install does not probe GitHub release endpoints or depend on precompiled release artifacts.",
+                "--branch selects the managed checkout branch and still skips release endpoints.",
+                "Rerunning install.sh against an existing managed checkout uses git status, fetch, checkout, and pull instead of recloning or touching a temporary source tree.",
+                "Dry-run and verbose output report managed-checkout source mode and resolved checkout, managed binary, published binary, restart policy, and setup-wizard policy.",
+                "Default install output mirrors the Hermes installer cadence: banner, detected OS/distro, Go/Git/Node/ripgrep/ffmpeg checks, install target, SSH clone attempt, HTTPS fallback, repository ready, build ready, command setup, and no uv/Python/venv/dependency-install steps.",
+                "Default install starts `gormes setup` after verification when a terminal is available, skips with `Run 'gormes setup' after install.` guidance when no terminal is available, and honors `--skip-setup` plus `GORMES_SKIP_SETUP`."
+              ],
+              "note": "Complete: TDD changed repo-root install.sh from release-first temporary fallback to Hermes-style source-backed installation. The default path now clones or updates the managed checkout at $GORMES_INSTALL_HOME/gormes-agent (or the root/FHS checkout), builds ./cmd/gormes into $GORMES_INSTALL_HOME/bin/gormes, publishes the command, verifies version and offline doctor, and reports the checkout as source. The release-download probe path was removed from the Unix installer; release artifacts remain package-manager/manual distribution inputs, not the curl-pipe bootstrap path. Docs and README now advertise curl -fsSL ... | bash plus an inspect-first form. 2026-05-04 UX parity update: install.sh now prints the Hermes-style banner and step cadence from the user transcript, including detected OS/distro, Go/Git/Node/ripgrep/ffmpeg checks, SSH clone attempt, HTTPS fallback, repository ready, build ready, and command setup ready, while explicitly avoiding Hermes' uv/Python/venv/dependency-install runtime steps. 2026-05-04 setup-handoff update: install.sh now mirrors Hermes' post-install setup handoff by invoking the installed `gormes setup` when /dev/tty is available, skipping with `Run 'gormes setup' after install.` guidance when no terminal exists, and honoring `--skip-setup`/`GORMES_SKIP_SETUP`.",
+              "write_scope": [
+                "install.sh",
+                "www.gormes.ai/legacy/go-renderer/internal/site/assets_test.go",
+                "www.gormes.ai/legacy/go-renderer/internal/site/install_unix_test.go",
+                "README.md",
+                "docs/content/getting-started/installation.md",
+                "docs/content/reference/cli.md",
+                "docs/content/reference/environment.md",
+                "docs/content/using-gormes/install.md",
+                "www.gormes.ai/README.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "(cd www.gormes.ai/legacy/go-renderer && go test ./internal/site -run TestInstallSH -count=1)",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Unix installer tests and docs prove curl-pipe managed-checkout install, branch override, rerun-as-update, publish, verify, setup-wizard handoff/skip behavior, and dry-run behavior without release endpoint probes."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:54e78cadb scripts/install.sh",
+                "note": "Hermes defines the managed checkout and rerun-as-update install experience; Gormes preserves that user contract while building a single Go binary and intentionally not installing Hermes' Python/Node dependencies."
+              }
             },
             {
               "name": "Unix installer root/FHS layout policy",

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/gormes-agent-logo.png" alt="GORMES-AGENT" width="600">
+  <img src="assets/gormes-agent-logo-blue.svg" alt="GORMES-AGENT" width="720">
 </p>
 
 <p align="center">
@@ -24,10 +24,10 @@ Gormes is a Go-native runtime for Hermes-Agent, with upstream Git history preser
 ## Install
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh && sh install.sh
+curl -fsSL https://gormes.ai/install.sh | bash
 ```
 
-The installer downloads the latest release asset for your machine, publishes the `gormes` command, verifies `gormes version`, runs `gormes doctor --offline`, and prints the exact PATH fix if your shell needs one.
+The installer clones or updates a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Use `--skip-setup` to defer that wizard.
 
 Prefer to inspect first?
 
@@ -86,7 +86,7 @@ The default agent is ready after install. Add more when you need separate worksp
 
 | Surface | Current path |
 |---|---|
-| Install | Release-first `curl \| sh`, with source fallback and no Python runtime. |
+| Install | Hermes-style source-backed `curl \| bash`, with one Go binary and no Python runtime. |
 | Setup | `gormes onboard` for state, `gormes setup provider` for the missing model/API key path. |
 | Providers | OpenAI-compatible providers, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, and custom endpoints. |
 | Memory | Goncho local memory and sessions backed by SQLite inside `~/.gormes`. |
