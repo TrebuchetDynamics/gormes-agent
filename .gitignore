@@ -24,6 +24,7 @@ gormes.log
 crash-*.log
 
 # ── Local state directories (when run in-repo) ───────
+.env
 .gormes/
 .hermes/
 .codex/
