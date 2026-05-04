@@ -35,7 +35,7 @@ func Validate(stdout io.Writer, root, format string) error {
 }
 
 // Write regenerates every markered section in the docs tree from
-// progress.json and mirrors the JSON into the www.gormes.ai data directory.
+// progress.json and mirrors the JSON into the www.gormes.ai data directories.
 // Errors from individual rewrites are collected, surfaced one per line, and
 // returned via errors.Join so the caller fails the whole run while still
 // telling the operator which markers updated and which did not.
@@ -66,9 +66,12 @@ func Write(stdout io.Writer, root string) error {
 			fmt.Fprintln(stdout, "progress:", m.label)
 		}
 	}
-	if err := syncFile(paths.progressJSON, paths.siteProgress); err != nil {
-		errs = append(errs, err)
-	} else {
+	for _, siteProgress := range paths.siteProgress {
+		if err := syncFile(paths.progressJSON, siteProgress); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) == 0 {
 		fmt.Fprintln(stdout, "progress: site progress data refreshed")
 	}
 	return joinErrors(stdout, errs)
@@ -92,7 +95,7 @@ type pathSet struct {
 	blockedSlices      string
 	umbrellaCleanup    string
 	progressSchema     string
-	siteProgress       string
+	siteProgress       []string
 }
 
 func progressPaths(root string) pathSet {
@@ -109,7 +112,10 @@ func progressPaths(root string) pathSet {
 		blockedSlices:      filepath.Join(builderLoopDir, "blocked-slices.md"),
 		umbrellaCleanup:    filepath.Join(builderLoopDir, "umbrella-cleanup.md"),
 		progressSchema:     filepath.Join(builderLoopDir, "progress-schema.md"),
-		siteProgress:       filepath.Join(root, "www.gormes.ai", "internal", "site", "data", "progress.json"),
+		siteProgress: []string{
+			filepath.Join(root, "www.gormes.ai", "src", "data", "progress.json"),
+			filepath.Join(root, "www.gormes.ai", "legacy", "go-renderer", "internal", "site", "data", "progress.json"),
+		},
 	}
 }
 

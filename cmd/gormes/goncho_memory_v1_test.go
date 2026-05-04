@@ -2,8 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
 func TestGonchoDoctorCommand_TextReportsMemoryV1Contract(t *testing.T) {
@@ -29,6 +33,82 @@ func TestGonchoDoctorCommand_TextReportsMemoryV1Contract(t *testing.T) {
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestGonchoDoctorCommandReportsLocalMarkdownMCPMemory(t *testing.T) {
+	seedGonchoDoctorZeroStateDB(t)
+
+	stdout, stderr, err := runGonchoDoctorCommand(t, "goncho", "doctor")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+	for _, want := range []string{
+		"Local markdown memory",
+		"path: " + filepath.Join(config.GormesHome(), "memory", "GONCHO_MEMORY.md"),
+		"enabled: true",
+		"sqlite_backed: true",
+		"markdown_backed: true",
+		"network_required: false",
+		"ollama_required: false",
+		"mcp_tools: forget_memory, retrieve_memory, store_memory, summarize_memories, update_memory",
+		"store_memory",
+		"retrieve_memory",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestGonchoDoctorCommandJSONReportsLocalMarkdownMCPMemory(t *testing.T) {
+	seedGonchoDoctorZeroStateDB(t)
+
+	stdout, stderr, err := runGonchoDoctorCommand(t, "goncho", "doctor", "--json")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
+	}
+
+	var got struct {
+		LocalMarkdownMemory struct {
+			Enabled         bool     `json:"enabled"`
+			Path            string   `json:"path"`
+			SQLiteBacked    bool     `json:"sqlite_backed"`
+			MarkdownBacked  bool     `json:"markdown_backed"`
+			NetworkRequired bool     `json:"network_required"`
+			OllamaRequired  bool     `json:"ollama_required"`
+			MCPTools        []string `json:"mcp_tools"`
+		} `json:"local_markdown_memory"`
+		ToolRegistration struct {
+			Registered []string `json:"registered"`
+		} `json:"tool_registration"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("json.Unmarshal: %v\nstdout=%s", err, stdout)
+	}
+	if !got.LocalMarkdownMemory.Enabled ||
+		!got.LocalMarkdownMemory.SQLiteBacked ||
+		!got.LocalMarkdownMemory.MarkdownBacked ||
+		got.LocalMarkdownMemory.NetworkRequired ||
+		got.LocalMarkdownMemory.OllamaRequired {
+		t.Fatalf("local markdown memory = %+v, want enabled local-only markdown status", got.LocalMarkdownMemory)
+	}
+	if got.LocalMarkdownMemory.Path != filepath.Join(config.GormesHome(), "memory", "GONCHO_MEMORY.md") {
+		t.Fatalf("local markdown path = %q", got.LocalMarkdownMemory.Path)
+	}
+	for _, want := range []string{"store_memory", "retrieve_memory", "update_memory", "summarize_memories", "forget_memory"} {
+		if !slices.Contains(got.LocalMarkdownMemory.MCPTools, want) {
+			t.Fatalf("local markdown mcp_tools = %#v, missing %s", got.LocalMarkdownMemory.MCPTools, want)
+		}
+		if !slices.Contains(got.ToolRegistration.Registered, want) {
+			t.Fatalf("registered tools = %#v, missing %s", got.ToolRegistration.Registered, want)
 		}
 	}
 }

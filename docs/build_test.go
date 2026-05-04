@@ -261,3 +261,29 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		}
 	}
 }
+
+func TestCIWorkflowInstallsDocsNodeDependenciesBeforeGoTests(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatalf("read CI workflow: %v", err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"actions/setup-node@v4",
+		"node-version: '22'",
+		"name: Install docs dependencies",
+		"working-directory: docs",
+		"npm ci",
+		"name: Run Go tests",
+		"go test ./... -count=1",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("CI workflow missing %q", want)
+		}
+	}
+	installIdx := strings.Index(text, "name: Install docs dependencies")
+	testIdx := strings.Index(text, "name: Run Go tests")
+	if installIdx < 0 || testIdx < 0 || installIdx > testIdx {
+		t.Fatalf("CI workflow must install docs dependencies before Go tests")
+	}
+}

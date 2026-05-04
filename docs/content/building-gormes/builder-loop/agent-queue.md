@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. GONCHO local-first markdown MCP memory requirement
-
-- Phase: 3 / 3.F
-- Owner: `memory`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: GONCHO must support a local-first memory mode that answers the OpenClaw community pain point: no cloud dependency, no mandatory API key, user-readable/editable markdown memory files, MCP-compatible access from any agent framework, optional local embeddings via Ollama, and restart-persistent storage.
-- Trust class: operator, system
-- Ready when: Goncho Memory V1 compatibility contract and migration harness has frozen stable IDs, provenance, markdown format version, MCP/tool semantics, forget/purge behavior, and golden corpus migration gates., Existing Goncho service/tool contracts are audited for where markdown export/import, local embedding configuration, and MCP tool catalog behavior should attach., The implementation plan preserves Honcho-compatible external tool names while branding the internal subsystem as GONCHO.
-- Not ready when: The design requires mem0, Zep, a hosted vector database, a cloud API key, or an opaque-only binary store to start., Markdown files are treated only as one-way exports instead of user-editable source material that can be reloaded safely.
-- Degraded mode: If Ollama or embeddings are unavailable, GONCHO still persists and serves markdown-backed lexical/SQLite recall locally without requiring network access or a hosted memory provider.
-- Fixture: `internal/goncho/local_markdown_mcp_test.go; internal/gonchotools/mcp_catalog_test.go; internal/memory/markdown_store_test.go`
-- Write scope: `internal/goncho/`, `internal/gonchotools/`, `internal/memory/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/`, `docs/superpowers/specs/`
-- Test commands: `go test ./internal/goncho ./internal/gonchotools ./internal/memory -count=1`, `go test ./cmd/gormes -run Goncho -count=1`, `go run ./cmd/progress validate`
-- Done signal: Docs and tests demonstrate local markdown-backed GONCHO memory over MCP with no cloud/API-key dependency and restart persistence.
-- Acceptance: A fresh local Gormes install can enable GONCHO memory without cloud credentials or a paid API key., Memories can be stored, inspected, edited, and reloaded as plain markdown files with deterministic conflict handling against SQLite/source-of-truth state., Markdown reload/export preserves the V1 compatibility contract: stable memory IDs, provenance, revision history, tombstones, scopes, and golden recall fixtures survive future schema changes., GONCHO exposes MCP-compatible memory tools/catalog entries usable by non-Gormes agent frameworks while keeping Honcho-compatible tool contracts where parity requires them., Optional Ollama embeddings are configurable and never required for basic persistence/recall., Memory survives process and machine restarts with documented on-disk paths and read-only diagnostics.
-- Source refs: User-provided Reddit r/openclaw post, 2026-05-03: frustration with mem0/Zep/cloud-hosted/heavy/API-key memory; requested fully local markdown MCP memory for GONCHO., Goncho Memory V1 compatibility contract and migration harness, internal/goncho/, internal/gonchotools/, docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md, docs/content/building-gormes/architecture_plan/progress.json, Phase 5.G MCP Integration / Goncho MCP tool catalog
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Secrets Runtime Controls
+## 1. Secrets Runtime Controls
 
 - Phase: 5 / 5.J
 - Owner: `tools`
@@ -68,7 +48,7 @@ selection.
 - Unblocks: Security audit (5.J), Provider auth parity
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Security Audit Command
+## 2. Security Audit Command
 
 - Phase: 5 / 5.J
 - Owner: `tools`
@@ -89,7 +69,7 @@ selection.
 - Unblocks: Production security posture
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 4. ACP Client Bridge Mode
+## 3. ACP Client Bridge Mode
 
 - Phase: 5 / 5.H
 - Owner: `tools`
@@ -110,7 +90,7 @@ selection.
 - Unblocks: Multi-agent interoperability, Editor integrations
 - Why now: Unblocks Multi-agent interoperability, Editor integrations.
 
-## 5. Extension Lifecycle Hook System
+## 4. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -131,7 +111,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 6. System Events, Heartbeat, and Presence
+## 5. System Events, Heartbeat, and Presence
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -152,7 +132,7 @@ selection.
 - Unblocks: Operator observability, Gateway discover/probe diagnostics
 - Why now: Unblocks Operator observability, Gateway discover/probe diagnostics.
 
-## 7. Gateway Discover and Probe
+## 6. Gateway Discover and Probe
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -173,7 +153,7 @@ selection.
 - Unblocks: Multi-instance fleet management
 - Why now: Unblocks Multi-instance fleet management.
 
-## 8. Channels Capabilities Introspection
+## 7. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -194,7 +174,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 9. Prompt Fragment Include System
+## 8. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -215,7 +195,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 10. Plan gate hook in agent turn loop
+## 9. Plan gate hook in agent turn loop
 
 - Phase: 4 / 4.L
 - Owner: `orchestrator`
@@ -233,6 +213,26 @@ selection.
 - Done signal: Plan gate tests prove safe plans pass and unsafe plans are refused
 - Acceptance: Plan gate evaluates agent plan before any tool executes, Unsafe plans are refused with structured explanation, Safe plans pass through with zero added latency >10ms P99, Plan gate is testable with mock tool sets
 - Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/turn.go, internal/hermes/agent_loop.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Tool gate pre-execution validation
+
+- Phase: 4 / 4.L
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Each individual tool invocation is checked against intent alignment before execution. This mirrors IntentGuard's two-gate architecture: plan gate (strategic) + tool gate (tactical).
+- Trust class: operator, system
+- Ready when: Plan gate exists (4.L row 1), Tool registry exposes permission model
+- Not ready when: Plan gate not yet implemented
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/tools/safety_tool_gate.go`, `internal/tools/safety_tool_gate_test.go`
+- Test commands: `go test ./internal/tools -run TestToolGate -count=1`
+- Done signal: Tool gate tests prove intent-aligned calls pass and drift calls are blocked
+- Acceptance: Tool gate evaluates every tool call before execution, Tool calls outside intent scope are blocked, Intent drift across multi-step tool chains is detected, Tool gate adds <5ms P99 overhead
+- Source refs: docs/content/papers/safety-and-deployment.md, internal/tools/registry.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

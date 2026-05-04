@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
 // MemoryToolStore abstracts the storage backend for agent-controlled memory
@@ -39,6 +41,14 @@ func newMemoryToolBase(store MemoryToolStore) memoryToolBase {
 
 type storeMemoryTool struct {
 	memoryToolBase
+}
+
+type StoreMemoryTool struct {
+	storeMemoryTool
+}
+
+func NewStoreMemoryTool(store MemoryToolStore) *StoreMemoryTool {
+	return &StoreMemoryTool{storeMemoryTool{newMemoryToolBase(store)}}
 }
 
 func (t *storeMemoryTool) Name() string           { return "store_memory" }
@@ -76,14 +86,27 @@ func (t *storeMemoryTool) Execute(ctx context.Context, args json.RawMessage) (js
 		return nil, fmt.Errorf("store_memory: %w", err)
 	}
 	return json.Marshal(map[string]interface{}{
-		"success": true,
-		"id":      entry.ID,
-		"message": "Memory stored.",
+		"success":          true,
+		"id":               entry.ID,
+		"message":          "Memory stored.",
+		"contract_version": memory.GonchoMemoryV1ContractVersion,
+		"local_first":      true,
+		"markdown_backed":  true,
+		"network_required": false,
+		"ollama_required":  false,
 	})
 }
 
 type retrieveMemoryTool struct {
 	memoryToolBase
+}
+
+type RetrieveMemoryTool struct {
+	retrieveMemoryTool
+}
+
+func NewRetrieveMemoryTool(store MemoryToolStore) *RetrieveMemoryTool {
+	return &RetrieveMemoryTool{retrieveMemoryTool{newMemoryToolBase(store)}}
 }
 
 func (t *retrieveMemoryTool) Name() string           { return "retrieve_memory" }
@@ -119,13 +142,26 @@ func (t *retrieveMemoryTool) Execute(ctx context.Context, args json.RawMessage) 
 		entries = []MemoryToolEntry{}
 	}
 	return json.Marshal(map[string]interface{}{
-		"results": entries,
-		"count":   len(entries),
+		"results":          entries,
+		"count":            len(entries),
+		"contract_version": memory.GonchoMemoryV1ContractVersion,
+		"local_first":      true,
+		"markdown_backed":  true,
+		"network_required": false,
+		"ollama_required":  false,
 	})
 }
 
 type updateMemoryTool struct {
 	memoryToolBase
+}
+
+type UpdateMemoryTool struct {
+	updateMemoryTool
+}
+
+func NewUpdateMemoryTool(store MemoryToolStore) *UpdateMemoryTool {
+	return &UpdateMemoryTool{updateMemoryTool{newMemoryToolBase(store)}}
 }
 
 func (t *updateMemoryTool) Name() string           { return "update_memory" }
@@ -154,13 +190,26 @@ func (t *updateMemoryTool) Execute(ctx context.Context, args json.RawMessage) (j
 		return nil, fmt.Errorf("update_memory: %w", err)
 	}
 	return json.Marshal(map[string]interface{}{
-		"success": true,
-		"message": "Memory updated.",
+		"success":          true,
+		"message":          "Memory updated.",
+		"contract_version": memory.GonchoMemoryV1ContractVersion,
+		"local_first":      true,
+		"markdown_backed":  true,
+		"network_required": false,
+		"ollama_required":  false,
 	})
 }
 
 type summarizeMemoryTool struct {
 	memoryToolBase
+}
+
+type SummarizeMemoryTool struct {
+	summarizeMemoryTool
+}
+
+func NewSummarizeMemoryTool(store MemoryToolStore) *SummarizeMemoryTool {
+	return &SummarizeMemoryTool{summarizeMemoryTool{newMemoryToolBase(store)}}
 }
 
 func (t *summarizeMemoryTool) Name() string           { return "summarize_memories" }
@@ -196,14 +245,27 @@ func (t *summarizeMemoryTool) Execute(ctx context.Context, args json.RawMessage)
 		entries = []MemoryToolEntry{}
 	}
 	return json.Marshal(map[string]interface{}{
-		"summarized": len(entries),
-		"filter":     in.Filter,
-		"message":    "Memories retrieved for summarization.",
+		"summarized":       len(entries),
+		"filter":           in.Filter,
+		"message":          "Memories retrieved for summarization.",
+		"contract_version": memory.GonchoMemoryV1ContractVersion,
+		"local_first":      true,
+		"markdown_backed":  true,
+		"network_required": false,
+		"ollama_required":  false,
 	})
 }
 
 type forgetMemoryTool struct {
 	memoryToolBase
+}
+
+type ForgetMemoryTool struct {
+	forgetMemoryTool
+}
+
+func NewForgetMemoryTool(store MemoryToolStore) *ForgetMemoryTool {
+	return &ForgetMemoryTool{forgetMemoryTool{newMemoryToolBase(store)}}
 }
 
 func (t *forgetMemoryTool) Name() string           { return "forget_memory" }
@@ -231,8 +293,13 @@ func (t *forgetMemoryTool) Execute(ctx context.Context, args json.RawMessage) (j
 		return nil, fmt.Errorf("forget_memory: %w", err)
 	}
 	return json.Marshal(map[string]interface{}{
-		"success": true,
-		"message": "Memory forgotten (soft delete).",
+		"success":          true,
+		"message":          "Memory forgotten (soft delete).",
+		"contract_version": memory.GonchoMemoryV1ContractVersion,
+		"local_first":      true,
+		"markdown_backed":  true,
+		"network_required": false,
+		"ollama_required":  false,
 	})
 }
 

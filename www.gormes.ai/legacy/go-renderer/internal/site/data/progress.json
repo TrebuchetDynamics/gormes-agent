@@ -9063,9 +9063,9 @@
             {
               "name": "Goncho Memory V1 compatibility contract and migration harness",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "Freeze the first public Goncho memory compatibility contract so future V2+ memory work can improve ranking, summaries, embeddings, QMD-assisted deep search, dialectic, storage internals, and self-improving memory loops without breaking existing user memory or leaking memory across independent agents. V1 must define stable memory IDs, provenance, agent/workspace/peer/session scopes, markdown format, MCP/tool semantics, forget-versus-purge behavior, per-agent eval artifacts, and no-loss upgrade tests before additional local-first memory features build on top.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
@@ -9125,15 +9125,15 @@
               "done_signal": [
                 "Builder reports the V1 corpus paths, contract/format version constants, migration tests, markdown round-trip tests, MCP/tool transcript fixtures, multi-agent isolation fixtures, per-agent self-improvement fixtures, and doctor output proving future Goncho upgrades cannot silently lose, leak, or re-key user memory."
               ],
-              "note": "Product rule: Goncho is Honcho-compatible at the public edge but better and faster inside the Gormes binary. V1 freezes user-memory compatibility first; V2+ may add smarter/faster retrieval only when the V1 no-loss corpus stays green.",
+              "note": "Validated 2026-05-03: TDD added the Goncho Memory V1 contract constants/read model, schema v3j with stable-ID goncho_memory_items, FTS recall index, per-agent eval artifacts, migration backfill from goncho_conclusions, versioned markdown parser/renderer with checksum validation, MCP/tool transcript fixture checks, multi-agent private/shared recall isolation fixtures, per-agent self-improvement artifact fixture checks, unknown-future-version no-write evidence, and goncho doctor JSON/text contract reporting. Focused commands passed: go test ./internal/memory -run 'TestMigrate|TestGonchoMemoryV1' -count=1; go test ./internal/goncho ./internal/gonchotools -run 'TestMemoryV1|TestMemoryTools|TestHonchoMCP' -count=1; go test ./cmd/gormes -run 'TestGoncho.*Doctor|TestGoncho.*MemoryV1' -count=1.",
               "fixture": "internal/memory/testdata/goncho_v1/; internal/goncho/memory_v1_contract_test.go; internal/gonchotools/memory_v1_mcp_test.go; cmd/gormes/goncho_memory_v1_test.go"
             },
             {
               "name": "GONCHO local-first markdown MCP memory requirement",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "contract": "GONCHO must support a local-first memory mode that answers the OpenClaw community pain point: no cloud dependency, no mandatory API key, user-readable/editable markdown memory files, MCP-compatible access from any agent framework, optional local embeddings via Ollama, and restart-persistent storage.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
@@ -9183,7 +9183,7 @@
               "done_signal": [
                 "Docs and tests demonstrate local markdown-backed GONCHO memory over MCP with no cloud/API-key dependency and restart persistence."
               ],
-              "note": "Captured from Juan-provided Reddit r/openclaw requirement on 2026-05-03. Product pain: existing agent memory options such as mem0/Zep feel cloud-hosted, heavy, opaque, or API-key-gated; GONCHO should make the local markdown + MCP path a first-class feature.",
+              "note": "Validated 2026-05-03: TDD added a local-first Goncho markdown memory store over the V1 SQLite tables, editable markdown reload/export that accepts same-revision human edits while rejecting stale files after newer DB revisions, restart-persistent retrieval, MCP-compatible store/retrieve/update/summarize/forget tool registration and catalog metadata, V1 tool result contract fields proving local_first/markdown_backed/no network/no Ollama requirement, and goncho doctor JSON/text diagnostics for the default on-disk GONCHO_MEMORY.md path plus registered MCP tools. Focused commands passed: go test ./internal/memory -run TestGonchoMarkdownStoreReloadExportAndConflictHandling -count=1; go test ./internal/goncho ./internal/gonchotools -run 'TestLocalMarkdownMemoryStore|TestMemoryV1MCP' -count=1; go test ./cmd/gormes -run 'TestGonchoDoctorCommand.*LocalMarkdown|TestGonchoDoctorCommand.*MemoryV1' -count=1.",
               "fixture": "internal/goncho/local_markdown_mcp_test.go; internal/gonchotools/mcp_catalog_test.go; internal/memory/markdown_store_test.go"
             }
           ],

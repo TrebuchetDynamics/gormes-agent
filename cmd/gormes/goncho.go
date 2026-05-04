@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -62,20 +63,21 @@ func resetGonchoDoctorFlags() {
 }
 
 type gonchoDoctorReport struct {
-	Service                string                      `json:"service"`
-	Status                 string                      `json:"status"`
-	ExitCode               int                         `json:"exit_code"`
-	Config                 gonchoDoctorConfig          `json:"config"`
-	Schema                 memory.SchemaStatus         `json:"schema"`
-	MemoryContract         memory.GonchoMemoryV1Status `json:"memory_contract"`
-	SessionCatalog         sessionCatalogStatus        `json:"session_catalog"`
-	ToolRegistration       toolRegistrationStatus      `json:"tool_registration"`
-	ContextDryRun          contextDryRunStatus         `json:"context_dry_run"`
-	QueueStatus            doctorQueueStatus           `json:"queue_status"`
-	ConclusionAvailability conclusionAvailability      `json:"conclusion_availability"`
-	SummaryAvailability    summaryAvailability         `json:"summary_availability"`
-	ProviderReadiness      providerReadiness           `json:"provider_readiness"`
-	DegradedModes          []degradedMode              `json:"degraded_modes"`
+	Service                string                           `json:"service"`
+	Status                 string                           `json:"status"`
+	ExitCode               int                              `json:"exit_code"`
+	Config                 gonchoDoctorConfig               `json:"config"`
+	Schema                 memory.SchemaStatus              `json:"schema"`
+	MemoryContract         memory.GonchoMemoryV1Status      `json:"memory_contract"`
+	LocalMarkdownMemory    goncho.LocalMarkdownMemoryStatus `json:"local_markdown_memory"`
+	SessionCatalog         sessionCatalogStatus             `json:"session_catalog"`
+	ToolRegistration       toolRegistrationStatus           `json:"tool_registration"`
+	ContextDryRun          contextDryRunStatus              `json:"context_dry_run"`
+	QueueStatus            doctorQueueStatus                `json:"queue_status"`
+	ConclusionAvailability conclusionAvailability           `json:"conclusion_availability"`
+	SummaryAvailability    summaryAvailability              `json:"summary_availability"`
+	ProviderReadiness      providerReadiness                `json:"provider_readiness"`
+	DegradedModes          []degradedMode                   `json:"degraded_modes"`
 }
 
 type gonchoDoctorConfig struct {
@@ -270,7 +272,19 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 
 	gonchoCfg.SessionDirectory = sessionDir
 	svc := goncho.NewService(db, gonchoCfg, nil)
-	toolStatus := readToolRegistration(svc)
+	localMemory := goncho.NewLocalMarkdownMemoryStore(db, goncho.LocalMarkdownMemoryConfig{
+		Path:           defaultGonchoMarkdownMemoryPath(),
+		AgentID:        gonchoCfg.ObserverPeerID,
+		WorkspaceID:    gonchoCfg.WorkspaceID,
+		ObserverPeerID: gonchoCfg.ObserverPeerID,
+		PeerID:         peer,
+		SessionID:      sessionKey,
+	})
+	localMemoryStatus, err := localMemory.Status(ctx)
+	if err != nil {
+		return gonchoDoctorReport{}, 2, err
+	}
+	toolStatus := readToolRegistration(svc, localMemory)
 	contextStatus, err := readContextDryRun(ctx, svc, peer, sessionKey, scope, sources)
 	if err != nil {
 		return gonchoDoctorReport{}, 2, err
@@ -301,15 +315,16 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 	}
 
 	report := gonchoDoctorReport{
-		Service:          "goncho",
-		Status:           status,
-		ExitCode:         exitCode,
-		Config:           currentGonchoDoctorConfig(cfg),
-		Schema:           schema,
-		MemoryContract:   memoryContract,
-		SessionCatalog:   sessionCatalog,
-		ToolRegistration: toolStatus,
-		ContextDryRun:    contextStatus,
+		Service:             "goncho",
+		Status:              status,
+		ExitCode:            exitCode,
+		Config:              currentGonchoDoctorConfig(cfg),
+		Schema:              schema,
+		MemoryContract:      memoryContract,
+		LocalMarkdownMemory: localMemoryStatus,
+		SessionCatalog:      sessionCatalog,
+		ToolRegistration:    toolStatus,
+		ContextDryRun:       contextStatus,
 		QueueStatus: doctorQueueStatus{
 			Status:            queue.Status,
 			ObservabilityOnly: queue.ObservabilityOnly,
@@ -375,9 +390,12 @@ func requiredSchemaTablesPresent(tables map[string]bool) bool {
 	return true
 }
 
-func readToolRegistration(svc *goncho.Service) toolRegistrationStatus {
+func readToolRegistration(svc *goncho.Service, localMemory goncho.MemoryToolStore) toolRegistrationStatus {
 	reg := tools.NewRegistry()
 	gonchotools.RegisterHonchoTools(reg, svc)
+	if localMemory != nil {
+		gonchotools.RegisterMemoryV1Tools(reg, localMemory)
+	}
 	result := doctor.CheckTools(reg)
 
 	out := toolRegistrationStatus{
@@ -394,6 +412,10 @@ func readToolRegistration(svc *goncho.Service) toolRegistrationStatus {
 		}
 	}
 	return out
+}
+
+func defaultGonchoMarkdownMemoryPath() string {
+	return filepath.Join(config.GormesHome(), "memory", "GONCHO_MEMORY.md")
 }
 
 func readContextDryRun(ctx context.Context, svc *goncho.Service, peer, sessionKey, scope string, sources []string) (contextDryRunStatus, error) {
@@ -636,6 +658,20 @@ func formatGonchoDoctorReport(report gonchoDoctorReport) string {
 	fmt.Fprintf(&b, "optional_quality_layers: %s\n", strings.Join(report.MemoryContract.OptionalQualityLayers, ", "))
 	for _, table := range []string{"goncho_memory_items", "goncho_memory_items_fts", "goncho_memory_eval_artifacts"} {
 		fmt.Fprintf(&b, "%s: %s\n", table, presentWord(report.MemoryContract.Tables[table]))
+	}
+	b.WriteString("\n")
+
+	b.WriteString("Local markdown memory\n")
+	fmt.Fprintf(&b, "path: %s\n", report.LocalMarkdownMemory.Path)
+	fmt.Fprintf(&b, "enabled: %t\n", report.LocalMarkdownMemory.Enabled)
+	fmt.Fprintf(&b, "local_first: %t\n", report.LocalMarkdownMemory.LocalFirst)
+	fmt.Fprintf(&b, "sqlite_backed: %t\n", report.LocalMarkdownMemory.SQLiteBacked)
+	fmt.Fprintf(&b, "markdown_backed: %t\n", report.LocalMarkdownMemory.MarkdownBacked)
+	fmt.Fprintf(&b, "network_required: %t\n", report.LocalMarkdownMemory.NetworkRequired)
+	fmt.Fprintf(&b, "ollama_required: %t\n", report.LocalMarkdownMemory.OllamaRequired)
+	fmt.Fprintf(&b, "mcp_tools: %s\n", strings.Join(report.LocalMarkdownMemory.MCPTools, ", "))
+	if len(report.LocalMarkdownMemory.Evidence) > 0 {
+		fmt.Fprintf(&b, "evidence: %s\n", strings.Join(report.LocalMarkdownMemory.Evidence, ", "))
 	}
 	b.WriteString("\n")
 

@@ -67,10 +67,10 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["2"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 2 = %q, want complete", got)
 	}
-	// Phase 3 is back in progress while the local-first markdown MCP memory
-	// requirement is planned; existing durable-memory parity remains validated.
-	if got := p.Phases["3"].DerivedStatus(); got != StatusInProgress {
-		t.Errorf("Phase 3 = %q, want in_progress", got)
+	// Phase 3 is complete once the local-first markdown MCP memory requirement
+	// joins the existing durable-memory parity rows as validated.
+	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
+		t.Errorf("Phase 3 = %q, want complete", got)
 	}
 	// Phase 4 has the Anthropic adapter landed while the rest stays planned.
 	if got := p.Phases["4"].DerivedStatus(); got != StatusInProgress {
