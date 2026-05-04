@@ -133,6 +133,8 @@ jobs:
           path: .
           output-file: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.sbom.json
           format: spdx-json
+          upload-artifact: false
+          upload-release-assets: false
 
       - uses: actions/upload-artifact@v4
         with:

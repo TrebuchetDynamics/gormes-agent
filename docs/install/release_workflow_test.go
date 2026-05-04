@@ -72,6 +72,24 @@ func TestReleaseWorkflowContract(t *testing.T) {
 	}
 }
 
+func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")
+
+	wantAll := []string{
+		"uses: anchore/sbom-action@v0",
+		"output-file: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.sbom.json",
+		"format: spdx-json",
+		"upload-artifact: false",
+		"upload-release-assets: false",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(sbomStep, want) {
+			t.Errorf("Generate SBOM step missing %q", want)
+		}
+	}
+}
+
 func readRepoFileRelease(t *testing.T, rel string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", rel))
@@ -79,4 +97,18 @@ func readRepoFileRelease(t *testing.T, rel string) string {
 		t.Fatalf("read %s: %v", rel, err)
 	}
 	return string(raw)
+}
+
+func workflowStepBlock(t *testing.T, workflow, stepName string) string {
+	t.Helper()
+	start := strings.Index(workflow, stepName)
+	if start < 0 {
+		t.Fatalf("workflow missing step %q", stepName)
+	}
+	rest := workflow[start+len(stepName):]
+	end := strings.Index(rest, "\n      - ")
+	if end < 0 {
+		return workflow[start:]
+	}
+	return workflow[start : start+len(stepName)+end]
 }
