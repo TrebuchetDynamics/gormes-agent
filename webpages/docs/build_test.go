@@ -262,8 +262,28 @@ func TestAstroBuild_IndexShowsBlueGormesAgentLogo(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(tmp, "gormes-agent-logo-blue.svg")); err != nil {
+	logoPath := filepath.Join(tmp, "gormes-agent-logo-blue.svg")
+	if _, err := os.Stat(logoPath); err != nil {
 		t.Fatalf("built docs output missing blue GORMES-AGENT logo asset: %v", err)
+	}
+	logo, err := os.ReadFile(logoPath)
+	if err != nil {
+		t.Fatalf("read built blue GORMES-AGENT logo asset: %v", err)
+	}
+	logoText := string(logo)
+	for _, want := range []string{
+		`fill="#73cedd"`,
+		`shape-rendering="crispEdges"`,
+		"Straight block-grid GORMES-AGENT logo",
+	} {
+		if !strings.Contains(logoText, want) {
+			t.Fatalf("built logo asset missing %q", want)
+		}
+	}
+	for _, reject := range []string{"<text", "<tspan", "font-family"} {
+		if strings.Contains(logoText, reject) {
+			t.Fatalf("built logo asset still depends on font-rendered text token %q", reject)
+		}
 	}
 }
 

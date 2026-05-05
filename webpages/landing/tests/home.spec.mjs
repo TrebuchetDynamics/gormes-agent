@@ -16,8 +16,12 @@ function escapeRegExp(value) {
 test('homepage renders the redesigned landing', async ({ page }) => {
   expect(landingBenchmarks.binary.size_mb).toBe(rootBenchmarks.binary.size_mb);
   expect(landingBenchmarks.binary.last_measured).toBe(rootBenchmarks.binary.last_measured);
-  expect(logoSvg).toContain('<tspan x="24" dy="0"> ██████');
-  expect(logoSvg).toContain('<tspan x="24" dy="20"> ╚═════╝');
+  expect(logoSvg).toContain('fill="#73cedd"');
+  expect(logoSvg).toContain('shape-rendering="crispEdges"');
+  expect(logoSvg).toContain('Straight block-grid GORMES-AGENT logo');
+  expect(logoSvg).not.toContain('<text');
+  expect(logoSvg).not.toContain('<tspan');
+  expect(logoSvg).not.toContain('font-family');
 
   await page.goto('/');
 
