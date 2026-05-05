@@ -1,7 +1,7 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "960dcfdc0",
+    "commit": "530e7f3db",
     "go_version": "1.25+",
     "last_measured": "2026-05-05",
     "linker": "static",
@@ -12,10 +12,10 @@
     "stripped": true
   },
   "code": {
-    "dependencies": 135,
-    "go_files": 651,
-    "go_lines": 154498,
-    "test_count": 4003
+    "dependencies": 139,
+    "go_files": 656,
+    "go_lines": 155583,
+    "test_count": 4026
   },
   "history": [
     {
