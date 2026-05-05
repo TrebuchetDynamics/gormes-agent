@@ -231,6 +231,15 @@ classification and row-backed implementation queue.
 - [ ] Slack Block Kit approval buttons + action callback
 - [ ] Discord thread participation persistence
 - [ ] Cross-platform image/document MEDIA delivery routing
+- [ ] Telegram inline approval buttons + callback auth
+- [ ] Telegram polling conflict + webhook secret startup guard
+- [ ] Slack mention/free-response gating + strict thread-memory guard
+- [ ] Discord interaction authorization + mention safety guards
+- [ ] Gateway processing lifecycle reactions for Telegram and Discord
+- [ ] Telegram text batching + caption merge parity
+- [ ] Cross-platform multi-image native batching
+- [ ] Discord message admission + reply-mode policy
+- [ ] Webhook dynamic route reload + signed rate-limit order
 
 ### 2.B.10 — WeChat Adapter ✅
 

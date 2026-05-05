@@ -4883,12 +4883,644 @@
                 ],
                 "note": "Gormes currently extracts only audio MEDIA extensions; Hermes routes screenshots, documents, and video files through native channel upload APIs."
               }
+            },
+            {
+              "name": "Telegram inline approval buttons + callback auth",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Telegram execution approvals use Hermes-compatible inline keyboard buttons for once, session, always, and deny decisions; callback queries resolve the stored gateway approval exactly once, enforce Telegram/global allowlists, and leave unrelated callback families such as model picker or update prompts untouched.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If inline keyboards, callback routing, or approval storage is unavailable, Gormes returns telegram_approval_unavailable evidence and keeps the pending command blocked rather than silently approving or falling through to text-only execution.",
+              "fixture": "internal/channels/telegram/approval_buttons_test.go; internal/gateway/hook_consent_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_exec_approval",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_handle_callback_query",
+                "../hermes-agent/tests/gateway/test_telegram_approval_buttons.py@b816fd4e2",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go",
+                "internal/gateway/hook_consent.go"
+              ],
+              "ready_when": [
+                "Telegram MarkdownV2 parse-mode rendering and dynamic BotCommand menu wiring are complete, so approval prompt text and command surfaces can reuse existing Telegram channel seams.",
+                "Tests can drive fake Telegram send/callback objects, fake global auth checks, and fake approval resolvers; no live Bot API token or webhook/polling loop is required."
+              ],
+              "not_ready_when": [
+                "The slice ports a new generic approval engine, changes non-Telegram hook-consent semantics, or permits unauthorized callback users to clear approval state.",
+                "Approval callback parsing captures model-picker or update-prompt callback data, approval IDs are guessable without stored state, or double-clicks resolve the same approval twice."
+              ],
+              "acceptance": [
+                "Telegram approval prompts send inline keyboard markup with once, session, always, and deny decisions and store an approval ID to session-key mapping.",
+                "Approval prompts honor forum thread metadata via message_thread_id and truncate long command/description text without losing the decision buttons.",
+                "Callback data for `ea:once`, `ea:session`, `ea:always`, and `ea:deny` resolves the matching gateway approval exactly once and removes stored state only after an authorized resolution.",
+                "Unauthorized callback users receive an ephemeral not-authorized answer, do not edit the prompt, and leave the stored approval pending.",
+                "Model picker and update-prompt callback prefixes continue to route to their existing handlers and never call the approval resolver."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go",
+                "internal/channels/telegram/approval_buttons.go",
+                "internal/channels/telegram/approval_buttons_test.go",
+                "internal/gateway/hook_consent.go",
+                "internal/gateway/hook_consent_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestTelegramApproval|TestApprovalButtons|TestCallback' -count=1",
+                "go test ./internal/gateway ./internal/channels/telegram -run 'Approval|HookConsent' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram fake-client fixtures prove inline approval prompt shape, thread metadata, callback authorization, exactly-once resolution, unrelated callback isolation, and blocked unavailable behavior."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_approval_buttons.py"
+                ],
+                "note": "Gormes has generic hook-consent state but no Telegram-specific inline approval UI or callback authorization contract."
+              }
+            },
+            {
+              "name": "Telegram polling conflict + webhook secret startup guard",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Telegram startup matches Hermes' safety behavior: polling mode clears stale webhooks before getUpdates, repeated 409 polling conflicts retry before becoming a typed fatal error, startup network failures are marked retryable, token-scoped locks prevent same-host double polling, and webhook mode refuses to start without an explicit secret token.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Startup failures surface telegram_bot_token_lock, telegram_polling_conflict, telegram_connect_error_retryable, or telegram_webhook_secret_missing evidence; Gormes never starts an unauthenticated webhook endpoint or runs two same-token polling loops on the same host.",
+              "fixture": "internal/channels/telegram/startup_lifecycle_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:connect",
+                "../hermes-agent/tests/gateway/test_telegram_conflict.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_telegram_webhook_secret.py@b816fd4e2",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/real_client.go",
+                "cmd/gormes/gateway.go"
+              ],
+              "ready_when": [
+                "Telegram long-poll ingress is complete, so the row only hardens startup and fatal-error behavior around the existing update loop.",
+                "Tests can use fake Telegram clients/builders, fake token locks, fake clocks, and fake env/config values; no live Telegram token, webhook server, or network access is required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites normal message ingress, topic-mode routing, or BotCommand registration instead of only hardening startup lifecycle.",
+                "Webhook mode accepts an empty secret, polling mode requires a webhook secret, deleteWebhook uses drop_pending_updates=true, or a single 409 conflict permanently kills the adapter."
+              ],
+              "acceptance": [
+                "Polling startup clears any existing webhook with drop_pending_updates=false before consuming updates.",
+                "A same-host token lock conflict fails startup with typed fatal evidence and releases owned locks on disconnect.",
+                "The first polling conflict schedules a retry and does not mark the adapter fatal; conflicts beyond the capped retry count produce telegram_polling_conflict fatal evidence.",
+                "Startup DNS/network failures return telegram_connect_error with retryable=true and redacted error text.",
+                "Webhook mode with a configured webhook URL and empty secret refuses startup with operator guidance; polling mode never requires TELEGRAM_WEBHOOK_SECRET."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go",
+                "internal/channels/telegram/real_client.go",
+                "internal/channels/telegram/startup_lifecycle.go",
+                "internal/channels/telegram/startup_lifecycle_test.go",
+                "cmd/gormes/gateway.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestTelegramStartup|TestPollingConflict|TestWebhookSecret' -count=1",
+                "go test ./cmd/gormes ./internal/channels/telegram -run 'Telegram|Gateway' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram startup fixtures prove webhook cleanup, token-lock conflict evidence, bounded polling-conflict retries, retryable network failures, and webhook-secret fail-closed behavior without live Telegram."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_conflict.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_webhook_secret.py"
+                ],
+                "note": "Gormes has a basic long-poll adapter, but Hermes now treats polling conflicts and webhook-secret enforcement as explicit operator-visible startup contracts."
+              }
+            },
+            {
+              "name": "Slack mention/free-response gating + strict thread-memory guard",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Slack ingress honors Hermes' require_mention, strict_mention, and free_response_channels policy: channel messages default to mention-gated, configured channels can opt into free responses, active-session thread replies continue without a fresh mention, DMs always pass, and strict mention mode does not persist mentioned threads for future automatic replies.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Malformed Slack mention settings fail closed for require_mention, fail open only for strict_mention legacy compatibility, and emit slack_mention_policy_unavailable evidence instead of silently widening channel access.",
+              "fixture": "internal/slack/mention_gate_test.go; internal/config/slack_config_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:_slack_require_mention",
+                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:_slack_strict_mention",
+                "../hermes-agent/tests/gateway/test_slack_mention.py@b816fd4e2",
+                "internal/slack/bot.go",
+                "internal/slack/client.go",
+                "internal/config/config.go"
+              ],
+              "ready_when": [
+                "Slack Socket Mode adapter and Slack thread-parent context are complete, so the row can add mention policy without changing rich-text or thread-context parsing.",
+                "Tests can build fake Slack events, fake bot user IDs, and config/env fixtures; no live Slack workspace, Socket Mode token, or conversations.replies call is required."
+              ],
+              "not_ready_when": [
+                "The slice changes Slack Block Kit approval handling, rich-text rendering, or generic gateway command parsing.",
+                "A malformed require_mention value disables gating, strict mode remembers mentioned threads, or free_response_channels bypasses every channel instead of only configured channel IDs."
+              ],
+              "acceptance": [
+                "Slack require_mention defaults true, accepts explicit true/false strings and env/config values, and keeps gating on for empty or malformed strings.",
+                "free_response_channels accepts CSV, list, and scalar config forms; only configured channels bypass mention gating.",
+                "DMs always process, directly mentioned channel messages process, unmentioned channel messages are ignored, and active-session thread replies process without a fresh mention.",
+                "strict_mention defaults false, accepts env/config true values, and prevents mentioned thread IDs from being persisted into the auto-response set.",
+                "Top-level Slack config fields such as require_mention, strict_mention, reply_in_thread, and free_response_channels do not disable env-token based Slack startup."
+              ],
+              "write_scope": [
+                "internal/slack/bot.go",
+                "internal/slack/client.go",
+                "internal/slack/mention_gate.go",
+                "internal/slack/mention_gate_test.go",
+                "internal/config/config.go",
+                "internal/config/slack_config_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/slack -run 'TestSlackMention|TestMentionGate|TestStrictMention' -count=1",
+                "go test ./internal/config ./internal/slack -run 'Slack.*Mention|Slack.*Config|Slack.*Enabled' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Slack mention-gate fixtures prove default gating, free-response channel overrides, active-thread reply allowance, strict-mode thread-memory suppression, and config/env bridging without live Slack."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/slack.py",
+                  "hermes:b816fd4e2 tests/gateway/test_slack_mention.py"
+                ],
+                "note": "Gormes currently gates Slack mainly by one allowed channel ID; Hermes has finer mention/free-response/strict-thread policy that prevents noisy channel loops."
+              }
+            },
+            {
+              "name": "Discord interaction authorization + mention safety guards",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Discord native interaction surfaces use the same admission policy as message ingress and default to safe mention behavior: allowed_mentions blocks everyone/here and role pings unless explicitly opted in, slash commands honor user, role, allowed-channel, ignored-channel, and thread-parent gates, component buttons honor user-or-role allowlists, and unauthorized skill autocomplete cannot leak the installed skill catalog.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If Discord native interaction auth helpers are unavailable, Gormes hides or rejects native interactions with discord_interaction_auth_unavailable evidence and keeps plain message-command handling as the only active path.",
+              "fixture": "internal/channels/discord/interaction_auth_test.go; internal/channels/discord/allowed_mentions_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_build_allowed_mentions",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_check_slash_authorization",
+                "../hermes-agent/tests/gateway/test_discord_allowed_mentions.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_slash_auth.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_component_auth.py@b816fd4e2",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/real_client.go",
+                "internal/gateway/agent_router.go"
+              ],
+              "ready_when": [
+                "Discord shared-chassis adapter and Discord SessionSource guild/parent/message evidence are complete, so fake interactions can share existing channel, guild, thread, and user metadata helpers.",
+                "Tests can use fake Discord messages/interactions, fake guild roles, and env/config allowlist values; no live Discord app command registration or REST call is required."
+              ],
+              "not_ready_when": [
+                "The slice ports every Discord slash handler body, Discord REST admin tool, or live application-command sync instead of only freezing authorization and mention-safety helpers.",
+                "A guild interaction missing user/channel data passes despite active allowlists, role-only policies allow everyone, ignored channels lose to allowed channels, or unauthorized autocomplete reveals known skill names."
+              ],
+              "acceptance": [
+                "Discord send options default to blocking everyone/here and role mentions while allowing user and replied-user mentions; four explicit allow env/config knobs override only their own defaults.",
+                "Slash authorization passes with no policies for backward compatibility, but enforces allowed users, allowed roles, allowed channels, ignored channels, thread-parent channel matching, and fail-closed behavior for missing user/channel when a relevant policy exists.",
+                "Ignored-channel entries win over allowed-channel entries and wildcard channel policy behavior matches Hermes.",
+                "Component authorization for exec approval, slash confirmation, update prompt, and model picker applies user-or-role OR semantics and fails closed when role data is unavailable under a role policy.",
+                "Unauthorized skill autocomplete and handler paths return the same generic auth rejection for known and unknown skill names and never dispatch or leak catalog entries."
+              ],
+              "write_scope": [
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/client.go",
+                "internal/channels/discord/interaction_auth.go",
+                "internal/channels/discord/interaction_auth_test.go",
+                "internal/channels/discord/allowed_mentions.go",
+                "internal/channels/discord/allowed_mentions_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/discord -run 'TestDiscordAllowedMentions|TestDiscordInteractionAuth|TestDiscordComponentAuth' -count=1",
+                "go test ./internal/channels/discord ./internal/gateway -run 'Discord|AgentRouter|Skill' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Discord fake-interaction fixtures prove safe allowed_mentions defaults, slash auth parity, component role/user auth, fail-closed malformed contexts, and no unauthorized skill catalog leaks."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/discord.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_allowed_mentions.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_slash_auth.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_component_auth.py"
+                ],
+                "note": "Gormes has Discord message routing but no source-backed row for Hermes' native interaction authorization and safe mention defaults."
+              }
+            },
+            {
+              "name": "Gateway processing lifecycle reactions for Telegram and Discord",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Gateway processing lifecycle hooks drive channel-native reactions for supported platforms: in-progress reactions are set when a turn starts, success/failure terminal reactions are set when the turn completes, cancellation suppresses terminal success/failure, and reaction failures never break message processing or final delivery.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Channels without reaction support, disabled reaction config, missing message IDs, or platform API failures emit reaction_unavailable evidence at debug level and continue processing without changing user-visible response delivery.",
+              "fixture": "internal/gateway/reaction_lifecycle_test.go; internal/channels/telegram/reactions_test.go; internal/channels/discord/reactions_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/gateway/test_telegram_reactions.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_reactions.py@b816fd4e2",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:on_processing_start",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:on_processing_complete",
+                "internal/gateway/channel.go:ReactionCapable",
+                "internal/channels/discord/bot.go:ReactToMessage",
+                "internal/channels/telegram/bot.go"
+              ],
+              "ready_when": [
+                "gateway.ReactionCapable already exists and Discord implements a basic ReactToMessage helper, so the row can focus on manager lifecycle binding and Telegram parity.",
+                "Tests can use fake channels, fake Telegram Bot API clients, fake Discord sessions, and env/config flags; no live platform permissions or network calls are required."
+              ],
+              "not_ready_when": [
+                "The slice changes provider execution semantics, final-response rendering, or retry/queue behavior instead of only adding best-effort reaction lifecycle hooks.",
+                "Reaction API failures abort the user turn, Telegram reactions are enabled by default, Discord reactions cannot be disabled, or cancelled turns display success/failure reactions."
+              ],
+              "acceptance": [
+                "Gateway manager calls a reaction-capable channel at processing start and terminal completion with a stable ProcessingOutcome enum for success, failure, and cancellation.",
+                "Telegram reactions default disabled, are enabled by TELEGRAM_REACTIONS/config, set an in-progress reaction on start, set success/failure terminal reactions on completion, skip cancelled terminal changes, and ignore missing IDs/API errors.",
+                "Discord reactions default enabled, can be disabled by DISCORD_REACTIONS=false/0, add an in-progress reaction on start, replace/remove it appropriately on success/failure/cancelled, and skip interaction-backed events that do not have raw messages.",
+                "Reaction failures are logged or recorded as redacted evidence but final text/media delivery still occurs.",
+                "Channels that do not implement reaction support continue through the existing manager path unchanged."
+              ],
+              "write_scope": [
+                "internal/gateway/channel.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/reaction_lifecycle.go",
+                "internal/gateway/reaction_lifecycle_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/reactions_test.go",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/reactions_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestReactionLifecycle|TestManager.*Reaction' -count=1",
+                "go test ./internal/channels/telegram ./internal/channels/discord -run 'Test.*Reaction' -count=1",
+                "go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway and fake-channel fixtures prove best-effort processing reactions across Telegram and Discord, including disabled configs, missing IDs, API failures, cancellation suppression, and unchanged non-reaction channels."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_reactions.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_reactions.py"
+                ],
+                "note": "Gormes exposes a ReactionCapable interface but the manager does not yet bind processing lifecycle outcomes to Telegram/Discord reaction behavior."
+              }
+            },
+            {
+              "name": "Telegram text batching + caption merge parity",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Telegram ingress matches Hermes' delayed text batching and caption merge behavior: rapid text updates from the same session are coalesced before gateway dispatch, different chats stay isolated, pending batch state is cleaned after flush/disconnect, and media captions merge by exact duplicate only without substring loss.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the text batcher is unavailable, Gormes emits telegram_text_batch_unavailable evidence and falls back to immediate per-message dispatch without dropping messages, mixing chats, or widening group mention access.",
+              "fixture": "internal/channels/telegram/text_batch_test.go; internal/channels/telegram/caption_merge_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_enqueue_text_event",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_flush_text_batch",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_merge_caption",
+                "../hermes-agent/tests/gateway/test_telegram_text_batching.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_telegram_caption_merge.py@b816fd4e2",
+                "internal/channels/telegram/bot.go"
+              ],
+              "ready_when": [
+                "Telegram long-poll ingress, group mention gating, voice/audio markers, and photo album batching already have local test seams.",
+                "Tests can use fake Telegram updates, fake clocks/timers, and a fake inbox channel; no live Bot API token or network is required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites media-group album buffering, Telegram startup lifecycle, or generic gateway deduplication instead of only adding the text/caption batching seam.",
+                "Group mention filtering runs after batching, unauthorized group messages can be buffered, or timer cleanup requires real sleeps in tests."
+              ],
+              "acceptance": [
+                "A single Telegram text message dispatches once after the configured batch delay.",
+                "Two or more rapid text messages from the same chat/session merge with newline separation and dispatch as one gateway event.",
+                "Different chats, groups, and forum/thread sessions maintain independent pending batches and never cross-merge.",
+                "Batch timers and pending map entries are removed after flush and disconnect drains pending batches without leaks.",
+                "Caption merge drops exact duplicate captions only and preserves shorter/longer substring captions as distinct text blocks."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/text_batch.go",
+                "internal/channels/telegram/text_batch_test.go",
+                "internal/channels/telegram/caption_merge.go",
+                "internal/channels/telegram/caption_merge_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestTelegramTextBatch|TestTelegramCaptionMerge' -count=1",
+                "go test ./internal/channels/telegram -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram fake-update fixtures prove delayed same-chat text batching, chat/thread isolation, cleanup/drain behavior, exact caption deduplication, and unchanged group mention gating."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_text_batching.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_caption_merge.py"
+                ],
+                "note": "Gormes currently emits each Telegram update immediately and only has separate media-group album buffering; Hermes also coalesces rapid plain-text updates and applies exact-only caption merging."
+              }
+            },
+            {
+              "name": "Cross-platform multi-image native batching",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Gateway media delivery exposes Hermes-compatible multi-image batching for platforms with native batch APIs: Telegram sends media groups in chunks of ten with animation fallback, Discord sends up to ten files per message, Slack uses files_upload_v2 file_uploads chunks of ten, email can build one multipart reply with all local images, and unsupported channels retain per-image fallback delivery.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If native batch delivery fails or a channel lacks a batch capability, Gormes falls back to existing per-file media delivery with redacted media_batch_unavailable evidence and never leaks local paths, raw MEDIA tags, or upload credentials.",
+              "fixture": "internal/gateway/media_batch_test.go; internal/channels/telegram/media_batch_test.go; internal/channels/discord/media_batch_test.go; internal/slack/media_batch_test.go; internal/channels/email/media_batch_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/base.py@b816fd4e2:send_multiple_images",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_multiple_images",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:send_multiple_images",
+                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:send_multiple_images",
+                "../hermes-agent/gateway/platforms/email.py@b816fd4e2:send_multiple_images",
+                "../hermes-agent/tests/gateway/test_send_multiple_images.py@b816fd4e2",
+                "internal/gateway/media_delivery.go",
+                "internal/gateway/channel.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/discord/bot.go",
+                "internal/slack/bot.go",
+                "internal/channels/email/contract.go"
+              ],
+              "ready_when": [
+                "Cross-platform image/document MEDIA delivery routing is implemented or being completed in the same dependent slice, so image files already reach a typed gateway media list.",
+                "Tests can use temp files and fake Telegram, Discord, Slack, and email clients/builders; no live channel credentials, upload APIs, or SMTP server are required."
+              ],
+              "not_ready_when": [
+                "The slice broadens MEDIA tag parsing, adds live Mattermost runtime work, or rewrites channel send semantics beyond an optional batch capability and per-file fallback.",
+                "A native batch failure drops remaining images, mixes reply/thread metadata, or exposes local file paths in user-visible fallback text."
+              ],
+              "blocked_by": [
+                "Cross-platform image/document MEDIA delivery routing"
+              ],
+              "acceptance": [
+                "Gateway detects consecutive image media items for the same final response and calls an optional multi-image sender once per platform when available.",
+                "Channels without multi-image support or failed native batch calls fall back to existing SendMedia behavior for every image with redacted evidence.",
+                "Telegram batches photos/videos in chunks of ten, routes GIF/animation images outside send_media_group, preserves caption/reply/thread metadata, and falls back per-image on media group failure.",
+                "Discord and Slack batch up to ten local image files per call while preserving channel/thread metadata and remote/missing-file fallback behavior.",
+                "Email contract helpers build one outbound message with all local image attachments and render remote image URLs in the body without attaching them."
+              ],
+              "write_scope": [
+                "internal/gateway/channel.go",
+                "internal/gateway/media_delivery.go",
+                "internal/gateway/media_batch_test.go",
+                "internal/gateway/manager.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/media_batch_test.go",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/media_batch_test.go",
+                "internal/slack/bot.go",
+                "internal/slack/media_batch_test.go",
+                "internal/channels/email/contract.go",
+                "internal/channels/email/media_batch_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestMediaBatch|TestManager.*MultiImage' -count=1",
+                "go test ./internal/channels/telegram ./internal/channels/discord ./internal/slack ./internal/channels/email -run 'Test.*MultiImage|Test.*MediaBatch' -count=1",
+                "go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord ./internal/slack ./internal/channels/email -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway and fake-channel fixtures prove native multi-image batching, chunk limits, fallback-on-failure, caption/reply/thread preservation, email multi-attachment shaping, and redacted degraded evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/base.py",
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 gateway/platforms/discord.py",
+                  "hermes:b816fd4e2 gateway/platforms/slack.py",
+                  "hermes:b816fd4e2 gateway/platforms/email.py",
+                  "hermes:b816fd4e2 tests/gateway/test_send_multiple_images.py"
+                ],
+                "note": "The existing Gormes media row covers individual native file routing; Hermes additionally optimizes and validates multi-image batch sends across channel-specific native APIs."
+              }
+            },
+            {
+              "name": "Discord message admission + reply-mode policy",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Discord message ingress applies Hermes' channel admission policy before gateway dispatch and outbound sends honor Discord reply_to_mode: allowed, ignored, and free-response channel lists support wildcards and parent-thread matching; require_mention defaults on for guild channels; DMs and known bot-participated threads bypass fresh mentions; bot authors obey DISCORD_ALLOW_BOTS none/mentions/all; auto-threading is skipped for replies and free-response channels; and reply references can be off, first chunk only, or all chunks.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Malformed Discord admission settings fail closed for allow/ignore policy, keep require_mention enabled, and emit discord_admission_policy_unavailable evidence instead of silently widening server-channel access.",
+              "fixture": "internal/channels/discord/admission_policy_test.go; internal/channels/discord/reply_mode_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_handle_message",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_discord_free_response_channels",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:send",
+                "../hermes-agent/tests/gateway/test_discord_allowed_channels.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_bot_filter.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_free_response.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_reply_mode.py@b816fd4e2",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/forum_test.go",
+                "internal/channels/discord/session_source_metadata_test.go"
+              ],
+              "ready_when": [
+                "Discord forum channel ingress and SessionSource guild/parent/message metadata are complete, and the pending thread participation persistence row defines the known-thread tracker seam.",
+                "Tests can use fake discordgo messages, fake channels/threads, fake client user IDs, and env/config values; no live Discord app, gateway socket, or REST call is required."
+              ],
+              "not_ready_when": [
+                "The slice ports slash-command interaction authorization, component auth, or attachment download behavior already covered by separate rows.",
+                "Allowed-channel wildcards are treated as literal channel IDs, bot messages are always dropped even when allow_bots permits them, or reply_to_mode fetch failures abort final delivery."
+              ],
+              "blocked_by": [
+                "Discord thread participation persistence"
+              ],
+              "acceptance": [
+                "Allowed, ignored, and free-response channel policies accept CSV, list/scalar config, and wildcard `*`; ignored channels win over allowed/free-response policies.",
+                "Guild messages require a bot mention by default, DMs bypass mention gating, configured free-response channels bypass it, and unknown threads still require a mention unless the bot has participated.",
+                "DISCORD_ALLOW_BOTS defaults to none, always ignores the bot's own messages, permits all bot authors in all mode, and permits mentioned bot authors only in mentions mode.",
+                "Auto-thread creation defaults on for mentioned top-level guild messages but is skipped for reply messages, free-response channels, and already-threaded conversations.",
+                "Outbound Discord reply_to_mode values off, first, all, empty/default, and invalid values match Hermes' chunk reference behavior and deleted reference fallback."
+              ],
+              "write_scope": [
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/admission_policy.go",
+                "internal/channels/discord/admission_policy_test.go",
+                "internal/channels/discord/reply_mode.go",
+                "internal/channels/discord/reply_mode_test.go",
+                "internal/channels/discord/thread_participation.go",
+                "internal/config/config.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/discord -run 'TestDiscordAdmission|TestDiscordAllowedChannels|TestDiscordBotFilter|TestDiscordReplyMode' -count=1",
+                "go test ./internal/channels/discord ./internal/config -run 'Discord' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Discord fake-message fixtures prove allow/ignore/free-response wildcard handling, mention/default gating, bot-author policy, auto-thread skips, known-thread bypass, and reply_to_mode chunk references without live Discord."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/discord.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_allowed_channels.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_bot_filter.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_free_response.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_reply_mode.py"
+                ],
+                "note": "Gormes Discord ingress currently has one allowed-channel ID and drops all bot authors before event conversion; Hermes has a broader server admission and reply-reference policy surface."
+              }
+            },
+            {
+              "name": "Webhook dynamic route reload + signed rate-limit order",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Generic webhook ingress matches Hermes runtime safety around dynamic subscriptions and request admission: static routes and agent-created webhook_subscriptions.json routes are merged with static precedence and mtime-gated reloads, file removal clears dynamic routes, corrupt dynamic JSON degrades without deleting static routes, HMAC signature validation happens before rate limiting, invalid signatures never consume quota, and valid signed requests still enforce per-route rate limits.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If dynamic route reload or runtime admission is unavailable, Gormes starts only the validated static webhook routes, reports webhook_dynamic_routes_unavailable or webhook_rate_limit_unavailable evidence, and refuses unsigned protected routes instead of widening ingress access.",
+              "fixture": "internal/channels/webhook/runtime_test.go; internal/channels/webhook/dynamic_routes_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/webhook.py@b816fd4e2:_reload_dynamic_routes",
+                "../hermes-agent/gateway/platforms/webhook.py@b816fd4e2:_handle_webhook",
+                "../hermes-agent/tests/gateway/test_webhook_dynamic_routes.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_webhook_signature_rate_limit.py@b816fd4e2",
+                "internal/channels/webhook/inbound.go",
+                "internal/channels/webhook/bridge.go",
+                "internal/channels/webhook/inbound_test.go",
+                "internal/channels/webhook/bridge_test.go"
+              ],
+              "ready_when": [
+                "Signed event parsing + auth gates and Prompt-to-delivery routing bridge are complete, so the row can bind runtime request ordering without changing prompt rendering semantics.",
+                "Tests can use httptest/fake clocks/temp Gormes home files and do not need public webhook exposure, live providers, or external network access."
+              ],
+              "not_ready_when": [
+                "The slice ports webhook management CLI commands, deliver_only direct delivery, GitHub comment delivery, or cross-platform delivery workers in the same change.",
+                "Invalid signatures increment the rate-limit bucket, dynamic route conflicts override static routes, or a corrupt dynamic route file removes working static routes."
+              ],
+              "blocked_by": [
+                "Signed event parsing + auth gates",
+                "Prompt-to-delivery routing bridge"
+              ],
+              "acceptance": [
+                "Runtime route loading starts with static routes, loads webhook_subscriptions.json from the configured Gormes/Hermes-compatible home directory, and gives static route names precedence over dynamic conflicts.",
+                "Dynamic route reload is mtime-gated, reloads changed files, clears dynamic routes after file removal, and leaves static routes intact after malformed JSON or non-object data.",
+                "Webhook POST handling checks unknown route, content length, body read, HMAC signature, rate limit, payload parse, event filter, idempotency key, prompt bridge, and 202 response order without live network calls.",
+                "Requests with invalid GitHub/GitLab/generic HMAC signatures return 401 and do not consume per-route quota; interleaved valid signed requests still succeed until the rate limit is reached.",
+                "Valid signed requests over the configured per-route limit return 429 while accepted requests return the same bounded accepted/ignored/duplicate response envelope as Hermes."
+              ],
+              "write_scope": [
+                "internal/channels/webhook/inbound.go",
+                "internal/channels/webhook/bridge.go",
+                "internal/channels/webhook/runtime.go",
+                "internal/channels/webhook/dynamic_routes.go",
+                "internal/channels/webhook/runtime_test.go",
+                "internal/channels/webhook/dynamic_routes_test.go",
+                "cmd/gormes/gateway.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/webhook -run 'TestWebhookDynamicRoutes|TestWebhookSignatureBeforeRateLimit|TestWebhookRuntime' -count=1",
+                "go test ./internal/channels/webhook ./cmd/gormes -run 'Webhook|Gateway' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Webhook runtime fixtures prove static/dynamic route merge and reload behavior, signature-before-rate-limit ordering, quota semantics, event filtering, idempotency envelope, and static-route safety under corrupt dynamic files."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/webhook.py",
+                  "hermes:b816fd4e2 tests/gateway/test_webhook_dynamic_routes.py",
+                  "hermes:b816fd4e2 tests/gateway/test_webhook_signature_rate_limit.py"
+                ],
+                "note": "Gormes already has pure signed parsing and prompt-delivery helpers, but no row for Hermes' runtime dynamic subscription reload or auth-before-rate-limit admission ordering; the row lives in this open drift lane to keep Phase 7.D complete."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T14:29:20Z",
-            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval surfaces found in the May 2026 channel sweep. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweep keeps Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, and cross-platform image/document MEDIA delivery in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline."
+            "last_upstream_check": "2026-05-05T16:08:51Z",
+            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. The latest follow-up sweep adds row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, and webhook dynamic-route/rate-limit runtime behavior after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D."
           }
         },
         "2.B.10": {
