@@ -87,15 +87,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 62/92 subphases shipped · 25 in progress · 5 planned
+**Overall:** 60/92 subphases shipped · 27 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 10/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 9/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 4/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -623,9 +623,10 @@ classification and row-backed implementation queue.
 
 - [x] Shell blocklist + filesystem scoping + permission approval
 
-### 4.K — Provider Fallback Chain ✅
+### 4.K — Provider Fallback Chain 🔨
 
 - [x] Resilient provider chain dispatch
+- [ ] Hermes fallback activation + classifier carve-outs
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 
@@ -721,7 +722,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration ✅
+### 5.G — MCP Integration 🔨
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -732,6 +733,7 @@ classification and row-backed implementation queue.
 - [x] MCP OAuth state store + noninteractive auth errors
 - [x] MCP OAuth refresh + 401 session-expired recovery
 - [x] Managed tool gateway bridge
+- [ ] MCP circuit breaker cooldown + reconnect reset
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
 
@@ -784,6 +786,7 @@ classification and row-backed implementation queue.
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
+- [ ] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
 - [ ] search_files hidden-root and context-line parsing drift
 
@@ -916,6 +919,7 @@ classification and row-backed implementation queue.
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
 - [x] Backup/update opt-in and exclusion policy
+- [ ] Self-update command lifecycle safety
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
@@ -972,6 +976,7 @@ classification and row-backed implementation queue.
 - [ ] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
+- [ ] API server multimodal content preservation
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence
 - [x] Gateway proxy mode forwarding contract
@@ -981,6 +986,7 @@ classification and row-backed implementation queue.
 - [x] API server detailed health endpoint
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
+- [ ] API server legacy jobs routes + default toolset
 
 ### 5.R — Code Execution Mode Policy ⏳
 

@@ -18138,6 +18138,82 @@
                   "go run ./cmd/progress validate -> 7 phases validated"
                 ]
               }
+            },
+            {
+              "name": "Hermes fallback activation + classifier carve-outs",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes extends the existing provider fallback chain from generic dispatch into Hermes' current agent-loop behavior: fallback_model accepts a single object or ordered list, ignores missing provider/model entries without panics, normalizes supported fallback providers through the provider registry, activates fallback after empty-response retry exhaustion, updates compressor/model context after activation, and treats malformed provider JSON as retryable transport corruption rather than a local validation error.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Fallback status reports fallback_config_invalid, fallback_unavailable, fallback_activated, fallback_jsondecode_retryable, or compressor_fallback_updated evidence without exposing provider credentials or silently retrying a non-retryable local validation error.",
+              "fixture": "internal/hermes/fallback_activation_test.go; internal/kernel/provider_fallback_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/run_agent/test_provider_fallback.py@b816fd4e2",
+                "../hermes-agent/tests/run_agent/test_fallback_model.py@b816fd4e2",
+                "../hermes-agent/tests/run_agent/test_jsondecodeerror_retryable.py@b816fd4e2",
+                "../hermes-agent/tests/run_agent/test_compressor_fallback_update.py@b816fd4e2",
+                "../hermes-agent/tests/run_agent/test_run_agent.py@b816fd4e2:TestEmptyResponseRetriesThenFallback",
+                "internal/hermes/fallback_chain.go",
+                "internal/hermes/model_routing.go",
+                "internal/hermes/context_compressor_budget.go",
+                "internal/kernel/retry.go"
+              ],
+              "ready_when": [
+                "Provider registry and alias manifest can resolve fallback providers such as openrouter, zai, kimi-coding, minimax, openai-codex, and nous without live credentials.",
+                "Existing provider fallback chain and model-router helpers are complete, so this slice can adapt loop activation without inventing a second fallback dispatcher.",
+                "Context compressor budget helpers expose an update path for the active provider/model after route changes."
+              ],
+              "not_ready_when": [
+                "The slice reintroduces the removed/stale Hermes fallback CLI command surface instead of implementing runtime fallback behavior.",
+                "Fallback activation hides malformed JSON under generic ValueError/non-retryable evidence.",
+                "Tests require live provider keys, models.dev network access, or a real compressor/provider call."
+              ],
+              "blocked_by": [
+                "Resilient provider chain dispatch",
+                "Hermes provider registry and alias manifest",
+                "Smart Model Routing",
+                "Context compressor provider-cap boundary"
+              ],
+              "unblocks": [
+                "Provider-tool-memory golden transcript suite",
+                "Release readiness e2e gate"
+              ],
+              "acceptance": [
+                "TestFallbackConfigNormalizesOrderedList accepts one fallback object or an ordered list, drops incomplete entries, preserves first valid fallback_model, and stores the full fallback_chain for iteration.",
+                "TestFallbackActivationAfterEmptyResponses exhausts the Hermes empty-response retry budget, switches to the first valid fallback route, and returns the fallback response with visible fallback_activated evidence.",
+                "TestFallbackJSONDecodeErrorRetryable proves provider JSONDecodeError/malformed response corruption is excluded from local validation and can trigger retry/fallback instead of immediate abort.",
+                "TestCompressorBudgetUpdatesAfterFallback proves the active compressor/model context reflects the fallback provider/model after activation.",
+                "Existing TestProviderChain_* and provider error classifier fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/hermes/fallback_chain.go",
+                "internal/hermes/model_routing.go",
+                "internal/hermes/error_classifier.go",
+                "internal/hermes/context_compressor_budget.go",
+                "internal/kernel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestFallback|TestModelRouter|TestContextCompressor' -count=1",
+                "go test ./internal/kernel -run 'Test.*Fallback|Test.*Retry' -count=1",
+                "go test ./internal/hermes ./internal/kernel -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Provider fallback fixtures prove Hermes-compatible config parsing, fallback activation, JSONDecodeError retryability, compressor budget update, and no stale fallback CLI resurrection."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:b816fd4e2 tests/run_agent/test_provider_fallback.py + test_fallback_model.py + test_jsondecodeerror_retryable.py + test_compressor_fallback_update.py",
+                "note": "The existing complete row proves generic chain dispatch. This row tracks the current Hermes agent-loop semantics still absent from that broad fallback slice."
+              }
             }
           ]
         },
@@ -22717,6 +22793,83 @@
               }
             },
             {
+              "name": "MCP circuit breaker cooldown + reconnect reset",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "MCP tool calls maintain Hermes-compatible per-server recovery state: repeated call failures trip a circuit breaker, calls before cooldown short-circuit without touching the session, the first call after cooldown is a half-open probe, probe success closes the breaker, probe failure reopens it, and a successful OAuth reconnect clears stale breaker counts even if the immediate post-reconnect retry still fails.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Tool call results report mcp_server_unreachable, mcp_breaker_open, mcp_half_open_failed, mcp_reconnect_required, or mcp_reconnect_reset evidence instead of hanging, hammering a broken server, or leaving a recovered server permanently disabled.",
+              "fixture": "internal/tools/mcp_circuit_breaker_test.go; internal/tools/mcp_reconnect_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/tools/test_mcp_circuit_breaker.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_mcp_reconnect_signal.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_mcp_probe.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_mcp_tool_401_handling.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_mcp_tool_session_expired.py@b816fd4e2",
+                "../hermes-agent/tools/mcp_tool.py@b816fd4e2",
+                "../hermes-agent/tools/mcp_oauth_manager.py@b816fd4e2",
+                "internal/tools/managed_tool_gateway.go",
+                "internal/tools/mcp_oauth_refresh.go",
+                "internal/tools/mcp_stdio.go",
+                "internal/tools/mcp_http.go"
+              ],
+              "ready_when": [
+                "MCP stdio/HTTP discovery, schema normalization, OAuth refresh, browser login, and managed gateway bridge rows are complete.",
+                "The tool-call execution path has a fake session seam where tests can inject success/failure without live MCP servers or subprocesses.",
+                "A fake clock can drive cooldown and half-open behavior deterministically."
+              ],
+              "not_ready_when": [
+                "The slice opens real MCP stdio subprocesses, HTTP servers, browser OAuth, or token endpoints in unit tests.",
+                "Breaker reset waits for a successful post-reconnect tool call instead of resetting on the successful reconnect signal.",
+                "Shutdown and reconnect events race so reconnect wins over shutdown when both are set."
+              ],
+              "blocked_by": [
+                "Managed tool gateway bridge",
+                "MCP OAuth refresh + 401 session-expired recovery",
+                "Gormes mcp login browser callback flow"
+              ],
+              "unblocks": [
+                "Release readiness e2e gate",
+                "Long-running MCP server stability"
+              ],
+              "acceptance": [
+                "TestMCPCircuitBreakerShortCircuitsBeforeCooldown trips the breaker at threshold and proves calls before cooldown return mcp_breaker_open without invoking the fake session.",
+                "TestMCPCircuitBreakerHalfOpenSuccessCloses advances fake time beyond cooldown, lets exactly one probe call through, and resets the error count on success.",
+                "TestMCPCircuitBreakerHalfOpenFailureReopens proves a failed half-open probe re-arms cooldown and the next immediate call short-circuits.",
+                "TestMCPReconnectResetClearsBreakerOnRecoveredOAuth proves successful reconnect clears stale breaker state before the retry result is counted.",
+                "TestMCPServerLifecycleEventShutdownWins proves shutdown has precedence over reconnect and reconnect events are cleared after use.",
+                "TestMCPProbeSkipsDisabledAndCleansUp proves the probe helper skips disabled servers and still closes loop/session resources on failures."
+              ],
+              "write_scope": [
+                "internal/tools/mcp_client.go",
+                "internal/tools/managed_tool_gateway.go",
+                "internal/tools/mcp_oauth_refresh.go",
+                "internal/tools/mcp_circuit_breaker_test.go",
+                "internal/tools/mcp_reconnect_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestMCP(CircuitBreaker|Reconnect|Probe)' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "MCP fixtures prove cooldown/half-open/reopen behavior, reconnect reset, shutdown precedence, probe cleanup, and no live MCP/OAuth dependency."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:b816fd4e2 tests/tools/test_mcp_circuit_breaker.py + test_mcp_reconnect_signal.py + test_mcp_probe.py",
+                "note": "Gormes has the MCP config/discovery/OAuth seams, but current progress did not track Hermes' call-level recovery state. This row closes that operational stability gap."
+              }
+            },
+            {
               "name": "MCP stdio orphan cleanup after cron ticks",
               "priority": "P2",
               "status": "complete",
@@ -22851,8 +23004,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T03:17:39Z",
-            "origin_decision": "Hermes 930494d6 added MCP stdio orphan cleanup after cron ticks, so this subphase is no longer fully converged. Gormes already has validated Go-native MCP config/env parsing, stdio and HTTP tool/list discovery, schema normalization/structured content, OAuth state/refresh recovery, and managed gateway bridge slices; the remaining drift is a small process-tracker/reaper seam shared with native cron. Honcho MCP HONCHO_API_URL remains server-local MCP config and does not change internal Goncho memory naming."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 MCP tests add call-level circuit-breaker cooldown, half-open probe, reconnect reset, lifecycle-event precedence, and probe-cleanup coverage beyond Gormes' validated config/discovery/OAuth/browser-login/managed-gateway/orphan-cleanup rows. The next drift is a fake-clock MCP tool-call recovery seam, not another OAuth store or live MCP transport. Honcho MCP HONCHO_API_URL remains server-local MCP config and does not change internal Goncho memory naming."
           }
         },
         "5.H": {
@@ -24829,6 +24982,83 @@
               }
             },
             {
+              "name": "File write/patch staleness registry + cwd tracking",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes write_file and patch match Hermes' stateful file-edit safety: every read records a per-root path token, hash/mtime/size evidence, and live cwd/task context; write_file and patch reject stale edits when the file changed since the last read token; relative paths use the active terminal cwd/task cwd at operation time; successful writes update the registry; missing files, first writes, and external deletions return deterministic evidence without corrupting content.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Stale edits return file_stale, file_deleted, file_state_missing, or file_state_cwd_mismatch evidence with redacted paths and no mutation; successful edits update registry state so a later patch does not falsely fail on the agent's own write.",
+              "fixture": "internal/tools/file_staleness_test.go; internal/tools/file_state_registry_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/tools/test_file_staleness.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_file_state_registry.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_file_ops_cwd_tracking.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_resolve_path.py@b816fd4e2",
+                "../hermes-agent/tools/file_tools.py@b816fd4e2",
+                "../hermes-agent/tools/file_operations.py@b816fd4e2",
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_guard.go",
+                "internal/tools/stateful_migration_queue_test.go",
+                "internal/tools/terminal_tool.go"
+              ],
+              "ready_when": [
+                "Native file task tool surface is complete, including root-confined read_file, write_file, patch, and search_files.",
+                "Terminal cwd config bridge is complete enough to provide a deterministic active cwd for relative path resolution.",
+                "Tests can run entirely in t.TempDir with injected clocks and fake cwd/task IDs; no shell, provider, checkpoint, or live Hermes process is required."
+              ],
+              "not_ready_when": [
+                "The slice implements checkpoint restore, syntax lint, PTY/background terminal process state, or whole-file sync-back in the same pass.",
+                "write_file or patch proceeds after stale evidence is detected.",
+                "Relative paths are resolved against the test process cwd instead of the injected active terminal/task cwd."
+              ],
+              "blocked_by": [
+                "Native file task tool surface",
+                "Terminal cwd config bridge"
+              ],
+              "unblocks": [
+                "Checkpoint restore tool parity",
+                "Terminal backend config parity",
+                "Safe multi-agent file editing"
+              ],
+              "acceptance": [
+                "TestFileStateRegistryReadWriteRoundTrip records path, cwd, hash, size, mtime, and read token for a root-confined file without leaking outside-root paths.",
+                "TestWriteFileRejectsStaleAfterExternalChange reads a file, mutates it externally, then proves write_file returns file_stale and preserves the external content.",
+                "TestPatchRejectsStaleAfterExternalChange proves patch uses the same stale-check path and does not apply partial replacements to a changed file.",
+                "TestSuccessfulWriteRefreshesState proves an agent write updates the registry so the next patch with the new token can proceed.",
+                "TestRelativePathUsesLiveTaskCWD proves relative read/write/patch calls resolve against the injected cwd/task context rather than the process cwd.",
+                "Existing read_file symlink/outside-root and duplicate-read tests remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_state_registry.go",
+                "internal/tools/file_staleness_test.go",
+                "internal/tools/file_state_registry_test.go",
+                "internal/tools/terminal_tool.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestFileStateRegistry|Test.*Stale|TestRelativePathUsesLiveTaskCWD|TestWriteFileAndPatchTools' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "File tool fixtures prove stale write/patch rejection, registry refresh after successful edits, live cwd path resolution, and preservation of existing root/symlink guards."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:b816fd4e2 tests/tools/test_file_staleness.py + test_file_state_registry.py + test_file_ops_cwd_tracking.py",
+                "note": "The completed native file task row deliberately deferred full Hermes stateful edit safety. These upstream tests identify the next builder-ready weakness."
+              }
+            },
+            {
               "name": "Terminal cwd config bridge",
               "priority": "P1",
               "status": "complete",
@@ -24969,8 +25199,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T12:56:05Z",
-            "origin_decision": "Hermes 478444c2 adds checkpoint shadow-repo GC, a32b325d/977d5f56/ced8f44c tighten read dedup/cache guards, and a32d0752 escalates repeated read_file dedup stubs to BLOCKED. Gormes has checkpoint cleanup and the read-dedup guard validated, so the new drift is a follow-on blocked-stub helper before write_file/patch/restore tools become executable."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 file-state tests show the remaining File Ops + Patches weakness has moved from read guards into stateful edit safety: write_file and patch need read-token staleness checks, registry refresh after successful writes, and live cwd/task cwd path resolution. Gormes has native file task tools, read guards, and terminal.cwd validated, so the new builder-ready drift is the file staleness registry slice rather than broad checkpoint restore."
           }
         },
         "5.M": {
@@ -32889,6 +33119,92 @@
               }
             },
             {
+              "name": "Self-update command lifecycle safety",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "`gormes update` becomes a native, source-checkout-safe update command over the existing installer/runtime helpers: it detects managed checkout state, autostashes dirty local changes, switches back to the configured update branch when safe, prefers fast-forward pull with reset fallback evidence, restores or preserves stash state deterministically, mirrors output to an update log while ignoring SIGHUP on POSIX, restarts or reloads a live gateway only through validated service/runtime seams, and warns or kills stale dashboard processes before updated assets are served.",
+              "contract_status": "validated",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Update output reports update_not_managed_checkout, update_autostash_preserved, update_branch_switch_failed, update_network_error, update_auth_error, update_gateway_restart_unavailable, update_gateway_restart_timeout, update_hangup_log_unavailable, or update_stale_dashboard_detected without deleting user changes or claiming a restarted service that failed.",
+              "fixture": "cmd/gormes/update_command_test.go; internal/cli/update_lifecycle_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py@b816fd4e2:cmd_update",
+                "../hermes-agent/tests/hermes_cli/test_update_autostash.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_update_gateway_restart.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_update_hangup_protection.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_update_stale_dashboard.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_update_yes_flag.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_update_check.py@b816fd4e2",
+                "install.sh:update_checkout",
+                "scripts/install.ps1",
+                "internal/cli/service_restart.go",
+                "internal/cli/backup_policy.go",
+                "cmd/gormes/hermes_cli_parity.go:update"
+              ],
+              "ready_when": [
+                "Source-backed installer update_checkout logic is validated and can be reused or wrapped without changing curl-pipe install semantics.",
+                "Backup/update opt-in policy, Service RestartSec parser helper, and Service restart active-status poller rows are complete.",
+                "Tests can fake git, service-manager, dashboard-process, clock, signal, and log sinks; no network, root service manager, live gateway, or real checkout mutation is required."
+              ],
+              "not_ready_when": [
+                "The slice edits main/release branch policy, invokes live git remotes in tests, or deletes a failed autostash automatically.",
+                "Gateway restart is implemented by killing process names instead of validated runtime/service evidence.",
+                "Update command output can be lost on SIGHUP or broken stdout before the log mirror is flushed.",
+                "The row is combined with package-manager release publishing or installer distribution changes."
+              ],
+              "blocked_by": [
+                "Backup/update opt-in and exclusion policy",
+                "Service RestartSec parser helper",
+                "Service restart active-status poller",
+                "Gateway mutating-subcommand unavailability stub"
+              ],
+              "unblocks": [
+                "Hermes CLI update parity",
+                "Installed-runtime self-healing smoke",
+                "Release readiness e2e gate"
+              ],
+              "acceptance": [
+                "TestUpdateCommandAutostashDirtyCheckout uses a fake git runner to prove dirty changes are stashed before pull and restored after success, with manual recovery guidance if restore conflicts.",
+                "TestUpdateCommandBranchAndDetachedHeadRecovery proves feature-branch and detached-HEAD states switch to the configured update branch only through fake git commands and preserve the previous branch in evidence.",
+                "TestUpdateCommandNetworkAndAuthErrorsRenderFriendlyFailures proves fetch/pull auth and network failures return typed evidence without dropping stashed changes.",
+                "TestUpdateCommandHangupProtectionMirrorsOutput proves stdout/stderr writes are mirrored to update.log and SIGHUP is ignored or safely unavailable on platforms without SIGHUP.",
+                "TestUpdateCommandGatewayRestartUsesValidatedServiceSeam proves gateway restart/reload consumes the existing service restart poller and reports timeout/crash evidence without live systemd/launchd/sc.exe.",
+                "TestUpdateCommandStaleDashboardWarning proves stale dashboard PIDs are detected through an injected process table and are warned or killed according to explicit flags."
+              ],
+              "write_scope": [
+                "cmd/gormes/update.go",
+                "cmd/gormes/update_command_test.go",
+                "cmd/gormes/main.go",
+                "internal/cli/update_lifecycle.go",
+                "internal/cli/update_lifecycle_test.go",
+                "internal/cli/service_restart.go",
+                "internal/cli/backup_policy.go",
+                "install.sh",
+                "scripts/install.ps1",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestUpdateCommand' -count=1",
+                "go test ./internal/cli -run 'TestUpdate|TestServiceRestart|TestBackupPolicy' -count=1",
+                "go test ./cmd/gormes ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Update fixtures prove autostash/branch recovery, friendly git failures, SIGHUP/log mirroring, validated gateway restart, stale dashboard handling, and no live git/service/network dependency."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/main.py cmd_update + tests/hermes_cli/test_update_*.py",
+                "note": "The existing Gormes installer has rerun-as-update helpers and CLI parity marks update row-backed. This row splits the operator-facing `gormes update` lifecycle from backup policy and service parser helpers."
+              }
+            },
+            {
               "name": "doctorCustomEndpointReadiness check function",
               "priority": "P2",
               "status": "complete",
@@ -33808,8 +34124,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T12:07:47Z",
-            "origin_decision": "Hermes ee1a07f9 is current after sync; no newer CLI custom-provider drift supersedes the 8258f4dc key_env write-shape guard. Hermes 25ba6a4a moved /reasoning to session-scoped-by-default gateway state with --global persistence; b2d3308f fixed doctor so bare custom provider config is accepted; 2c56dce0/1fdc31b2/8bbeaea6 fixed custom-provider model switching; e63929d4 OpenClaw residue onboarding is now split into detection/hint and seen-state helpers so workers avoid mixing HOME probing with config-shape helpers. Gormes has native oneshot/model override helpers, credential preservation, and backend health bypass validated."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. Keep update as one dedicated lifecycle slice instead of mixing it into backup policy, installer distribution, or service-manager implementation."
           }
         },
         "5.P": {
@@ -36165,6 +36481,82 @@
               }
             },
             {
+              "name": "API server multimodal content preservation",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Native API server request normalization preserves Hermes' multimodal payload semantics instead of flattening images away: text-only arrays collapse to text, image_url and input_image parts survive into the native turn/message content-part model for chat.completions and responses, data:image URLs are accepted, non-image data URLs and file/input_file parts fail with OpenAI-compatible 400 errors, and visible-payload checks treat image-only messages as non-empty.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unsupported parts return unsupported_content_type or invalid_image_url envelopes before a turn starts; supported image parts are preserved for providers that can consume native image input, while providers without image support return provider-visible image_input_unavailable evidence rather than silently dropping the image.",
+              "fixture": "internal/apiserver/multimodal_content_test.go; internal/kernel/multimodal_turn_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/gateway/test_api_server_multimodal.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_api_server_normalize.py@b816fd4e2",
+                "../hermes-agent/gateway/platforms/api_server.py@b816fd4e2",
+                "internal/apiserver/server.go:normalizeChatContent",
+                "internal/apiserver/chat_completions_test.go",
+                "internal/hermes/image_routing.go",
+                "internal/hermes/client.go:MessageContentPart",
+                "internal/kernel/"
+              ],
+              "ready_when": [
+                "OpenAI-compatible chat-completions API server is complete and already has content-normalization error envelopes.",
+                "Image input mode router + native content parts is complete or fixture-ready so the turn loop can carry image parts beyond HTTP parsing.",
+                "Tests can use httptest/fake turn loops and do not need live image downloads, providers, or network access."
+              ],
+              "not_ready_when": [
+                "The implementation drops image_url/input_image parts while claiming success.",
+                "The slice downloads remote images, decodes base64 data, or calls vision providers in API server unit tests.",
+                "Responses and chat.completions use different validation rules for the same content part shape."
+              ],
+              "blocked_by": [
+                "OpenAI-compatible chat-completions API server",
+                "Image input mode router + native content parts"
+              ],
+              "unblocks": [
+                "Dashboard API client contract",
+                "Provider-tool-memory golden transcript suite",
+                "Release readiness e2e gate"
+              ],
+              "acceptance": [
+                "TestAPIServerNormalizeMultimodal_TextOnlyCollapses proves text/input_text arrays become the same plain text used by existing logging and history fixtures.",
+                "TestAPIServerNormalizeMultimodal_ImageURLPreserved proves chat.completions user content containing text plus image_url reaches the fake turn loop as content parts, including detail metadata.",
+                "TestAPIServerNormalizeMultimodal_InputImageCanonicalized proves responses-style input_image parts convert to the same internal image_url content-part shape.",
+                "TestAPIServerNormalizeMultimodal_ImageOnlyVisiblePayload proves an image-only user message is accepted and does not fail as empty content.",
+                "TestAPIServerNormalizeMultimodal_RejectsFilesAndBadSchemes proves file/input_file, non-image data URLs, missing URL, ftp URL, and unknown part types return 400 envelopes without starting a turn.",
+                "Existing chat-completions body-limit, auth, session-header, and text-only normalization fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/apiserver/server.go",
+                "internal/apiserver/chat_completions_test.go",
+                "internal/apiserver/multimodal_content_test.go",
+                "internal/kernel/",
+                "internal/hermes/client.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/apiserver -run 'TestAPIServerNormalizeMultimodal|TestChatCompletions' -count=1",
+                "go test ./internal/kernel ./internal/hermes -run 'Test.*Multimodal|Test.*Image' -count=1",
+                "go test ./internal/apiserver ./internal/kernel ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "API server fixtures prove image content parts survive HTTP normalization, unsupported parts fail before turn start, image-only payloads are visible, and existing text/session envelopes remain compatible."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:b816fd4e2 tests/gateway/test_api_server_multimodal.py",
+                "note": "Current Gormes normalization has text-part coverage but drops image parts from the user message. This row reopens that narrow API-server weakness without changing provider image execution in the same slice."
+              }
+            },
+            {
               "name": "Responses API store + run event stream",
               "status": "complete",
               "contract": "Stateful OpenAI Responses and runs APIs over the same native session chain as chat completions",
@@ -36704,12 +37096,92 @@
                 "last_attempt": "2026-04-29T00:00:00Z",
                 "last_success": "2026-04-29T00:00:00Z"
               }
+            },
+            {
+              "name": "API server legacy jobs routes + default toolset",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Native API server keeps Hermes' platform-facing job/toolset contract while using Gormes' cron/admin internals: `/api/jobs` and `/api/jobs/{id}` compatibility routes map to the validated cron admin list/create/get/update/delete/pause/resume/run behavior with the same auth/body/error guardrails, and platform api_server resolves the default `hermes-api-server` toolset unless platform_toolsets.api_server overrides it.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Cron module/store unavailability returns api_jobs_unavailable or cron_store_unavailable through the shared API error envelope; invalid IDs, missing names, oversized prompts, invalid repeat counts, auth failures, and unsupported toolsets return typed evidence without starting a scheduler or provider turn.",
+              "fixture": "internal/apiserver/jobs_compat_test.go; internal/cli/api_server_toolset_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/gateway/test_api_server_jobs.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_api_server_toolset.py@b816fd4e2",
+                "../hermes-agent/gateway/platforms/api_server.py@b816fd4e2",
+                "../hermes-agent/toolsets.py@b816fd4e2:hermes-api-server",
+                "../hermes-agent/hermes_cli/tools_config.py@b816fd4e2:PLATFORMS api_server",
+                "internal/apiserver/cron_admin_read_test.go",
+                "internal/apiserver/cron_admin_mutation_test.go",
+                "internal/cli/toolset_config.go",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json"
+              ],
+              "ready_when": [
+                "API server cron admin read-only and mutating endpoints are complete over native cron stores.",
+                "Platform toolset config persistence + MCP sentinel and setup tools checklist rows are complete enough to resolve platform defaults and overrides.",
+                "Tests can use fake cron stores, fake mutators, and in-memory toolset configs; no live scheduler, gateway adapter, provider, or platform credential is required."
+              ],
+              "not_ready_when": [
+                "The slice creates a second cron store or second scheduler only for `/api/jobs`.",
+                "Compatibility routes bypass the shared auth, body-size, and OpenAI-style error envelope middleware.",
+                "api_server toolset defaults are hardcoded in the adapter while platform_toolsets.api_server overrides are ignored."
+              ],
+              "blocked_by": [
+                "API server cron admin read-only endpoints",
+                "API server cron admin mutating endpoints",
+                "Platform toolset config persistence + MCP sentinel"
+              ],
+              "unblocks": [
+                "Dashboard API client contract",
+                "Hermes API server operator parity",
+                "Release readiness e2e gate"
+              ],
+              "acceptance": [
+                "TestAPIServerJobsCompatListAndIncludeDisabled proves GET /api/jobs forwards include_disabled semantics to the native cron reader and returns stable job JSON.",
+                "TestAPIServerJobsCompatCreateUpdateDeletePauseResumeRun proves the legacy route family reuses the native cron mutator/trigger/audit seams and returns the same validation errors as /v1/admin/cron/jobs.",
+                "TestAPIServerJobsCompatAuthAndBodyLimits proves API keys, oversized bodies, invalid IDs, missing name, prompt length, and repeat validation use the shared envelope and never start a scheduler.",
+                "TestAPIServerToolsetDefaultIncludesHermesAPIServerTools proves api_server default resolves web/core/browser/homeassistant/file/code/delegation/todo/memory/session_search/cronjob tools while excluding clarify, send_message, and text_to_speech.",
+                "TestAPIServerToolsetOverride proves platform_toolsets.api_server = [web, terminal] overrides the default and survives deterministic sorting.",
+                "Existing cron admin endpoint fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/apiserver/server.go",
+                "internal/apiserver/cron_admin_read.go",
+                "internal/apiserver/cron_admin_mutate.go",
+                "internal/apiserver/jobs_compat_test.go",
+                "internal/cli/toolset_config.go",
+                "internal/cli/api_server_toolset_test.go",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/apiserver -run 'TestAPIServerJobsCompat|TestAPIServerCronAdmin' -count=1",
+                "go test ./internal/cli ./internal/tools -run 'TestAPIServerToolset|TestPlatformToolset' -count=1",
+                "go test ./internal/apiserver ./internal/cli ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "API server fixtures prove legacy /api/jobs compatibility over native cron admin seams plus Hermes-compatible api_server default toolset and platform override behavior."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:b816fd4e2 tests/gateway/test_api_server_jobs.py + test_api_server_toolset.py",
+                "note": "Gormes has native cron admin endpoints and an api_server default name, but the Hermes legacy route family and full toolset assertions were not tracked in progress."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-04T00:00:00Z",
-            "origin_decision": "Current Hermes Ink (`ui-tui/src/components` and `ui-tui/src/app`) is the source of truth for local full-screen interactive behavior. Legacy prompt_toolkit `cli.py` refs are fallback evidence only when the active Ink implementation lacks an equivalent source. Exact Gormes TUI parity is split into skin tokens, status bar, bottom-pinned chrome, input keybindings, slash completion, tool/modal renderer rows, plus the new Ink behavioral transcript and iteration-limit transcript fixture rows. Gormes keeps the Go-native Bubble Tea/kernel boundary while matching the active Hermes Ink operator contract."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Current Hermes Ink (`ui-tui/src/components` and `ui-tui/src/app`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server rows rather than reopening the completed chat-completions or cron-admin rows."
           }
         },
         "5.R": {
