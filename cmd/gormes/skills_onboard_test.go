@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
 func TestRootSkillsListUsesRuntimeSkillsRoot(t *testing.T) {
@@ -128,6 +130,103 @@ func TestOnboardShowsProviderDetailsWhenCodexAuthMissing(t *testing.T) {
 	}
 	if strings.Contains(output, "No provider configured yet") {
 		t.Fatalf("onboard treated selected Codex provider as missing:\n%s", output)
+	}
+}
+
+func TestOnboardShowsCodexCredentialPoolAuthConfigured(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'openai-codex'\nendpoint = 'https://chatgpt.com/backend-api/codex'\nmodel = 'gpt-5.2'\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:           "codex-import",
+		Label:        "Imported Codex CLI",
+		AuthType:     config.CredentialAuthOAuth,
+		Source:       config.CodexOAuthSourceCodexCLIImport,
+		AccessToken:  "codex-access-secret",
+		RefreshToken: "codex-refresh-secret",
+		LastStatus:   config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"onboard"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"Provider: openai-codex",
+		"Auth: configured",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("onboard output missing %q:\n%s", want, output)
+		}
+	}
+	for _, forbidden := range []string{"Auth: missing", "codex-access-secret", "codex-refresh-secret"} {
+		if strings.Contains(output, forbidden) {
+			t.Fatalf("onboard output contained forbidden %q:\n%s", forbidden, output)
+		}
+	}
+}
+
+func TestOnboardWizardShowsCodexCredentialPoolAuthConfigured(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'openai-codex'\nendpoint = 'https://chatgpt.com/backend-api/codex'\nmodel = 'gpt-5.2'\n[telegram]\nallowed_user_ids = [6586915095]\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".env"), []byte("GORMES_TELEGRAM_TOKEN=telegram-secret\n"), 0o600); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:           "codex-import",
+		Label:        "Imported Codex CLI",
+		AuthType:     config.CredentialAuthOAuth,
+		Source:       config.CodexOAuthSourceCodexCLIImport,
+		AccessToken:  "codex-access-secret",
+		RefreshToken: "codex-refresh-secret",
+		LastStatus:   config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"onboard", "--wizard", "--non-interactive"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"Provider: configured",
+		"openai-codex",
+		"Auth: configured",
+		"Provider credential present",
+		"Gateway: configured",
+		"telegram",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("onboard wizard output missing %q:\n%s", want, output)
+		}
+	}
+	for _, forbidden := range []string{"Auth: missing", "codex-access-secret", "codex-refresh-secret"} {
+		if strings.Contains(output, forbidden) {
+			t.Fatalf("onboard wizard output contained forbidden %q:\n%s", forbidden, output)
+		}
 	}
 }
 

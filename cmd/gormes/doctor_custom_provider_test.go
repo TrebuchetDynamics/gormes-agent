@@ -69,6 +69,7 @@ func TestDoctorCustomEndpointMissingAPIKey(t *testing.T) {
 }
 
 func TestDoctorCustomEndpointCodexReportsMissingOAuthAuthNotAPIKey(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
 	cfg := config.Config{
 		Hermes: config.HermesCfg{
 			Provider: config.CodexOAuthProvider,
@@ -94,6 +95,51 @@ func TestDoctorCustomEndpointCodexReportsMissingOAuthAuthNotAPIKey(t *testing.T)
 	}
 	if got.Summary != "configured provider=openai-codex endpoint=https://chatgpt.com/backend-api/codex missing=auth" {
 		t.Fatalf("Summary = %q, want missing OAuth auth", got.Summary)
+	}
+}
+
+func TestDoctorCustomEndpointCodexCredentialPoolAuthPasses(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:           "codex-import",
+		Label:        "Imported Codex CLI",
+		AuthType:     config.CredentialAuthOAuth,
+		Source:       config.CodexOAuthSourceCodexCLIImport,
+		AccessToken:  "codex-access-secret",
+		RefreshToken: "codex-refresh-secret",
+		LastStatus:   config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+	cfg := config.Config{
+		Hermes: config.HermesCfg{
+			Provider: config.CodexOAuthProvider,
+			Endpoint: "https://chatgpt.com/backend-api/codex",
+			Model:    "gpt-5.2",
+		},
+	}
+
+	got := doctorCustomEndpointReadiness(cfg)
+
+	if got.Status != doctor.StatusPass {
+		t.Fatalf("Status = %v, want %v: %+v", got.Status, doctor.StatusPass, got)
+	}
+	auth, ok := findItem(got.Items, "auth")
+	if !ok {
+		t.Fatalf("missing auth item in: %+v", got.Items)
+	}
+	if auth.Status != doctor.StatusPass || auth.Note != "set" {
+		t.Fatalf("auth item = %+v, want pass/set", auth)
+	}
+	if strings.Contains(got.Summary, "missing=auth") {
+		t.Fatalf("Summary = %q, should not report missing auth", got.Summary)
+	}
+	formatted := got.Format()
+	for _, leak := range []string{"codex-access-secret", "codex-refresh-secret"} {
+		if strings.Contains(formatted, leak) {
+			t.Fatalf("doctor readiness leaked credential %q:\n%s", leak, formatted)
+		}
 	}
 }
 

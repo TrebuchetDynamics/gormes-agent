@@ -284,7 +284,7 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 
 	authItem := readinessItem("api_key", h.APIKey, doctor.StatusWarn)
 	if strings.EqualFold(strings.TrimSpace(h.Provider), config.CodexOAuthProvider) {
-		authItem = readinessItem("auth", h.APIKey, doctor.StatusWarn)
+		authItem = readinessBoolItem("auth", configuredProviderAuthPresent(cfg), doctor.StatusWarn)
 		if authItem.Status != doctor.StatusPass {
 			authItem.Note = "missing; run `gormes auth add openai-codex`"
 		}
@@ -349,6 +349,13 @@ func missingReadinessItemNames(items []doctor.ItemInfo) []string {
 // or an item at missingStatus with note "missing" when value is empty.
 func readinessItem(name, value string, missingStatus doctor.Status) doctor.ItemInfo {
 	if value == "" {
+		return doctor.ItemInfo{Name: name, Status: missingStatus, Note: "missing"}
+	}
+	return doctor.ItemInfo{Name: name, Status: doctor.StatusPass, Note: "set"}
+}
+
+func readinessBoolItem(name string, present bool, missingStatus doctor.Status) doctor.ItemInfo {
+	if !present {
 		return doctor.ItemInfo{Name: name, Status: missingStatus, Note: "missing"}
 	}
 	return doctor.ItemInfo{Name: name, Status: doctor.StatusPass, Note: "set"}

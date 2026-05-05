@@ -82,7 +82,7 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	fmt.Fprintln(out)
 
 	providerConfigured := onboardProviderConfigured(cfg)
-	authConfigured := strings.TrimSpace(cfg.Hermes.APIKey) != ""
+	authConfigured := configuredProviderAuthPresent(cfg)
 	if !providerConfigured {
 		fmt.Fprintln(out, "No provider configured yet — your agents can't run.")
 		fmt.Fprintln(out)
@@ -217,7 +217,7 @@ func buildOnboardPlanFromConfig(cfg config.Config) cli.OnboardPlan {
 		Provider:       cfg.Hermes.Provider,
 		Endpoint:       cfg.Hermes.Endpoint,
 		Model:          cfg.Hermes.Model,
-		APIKeyPresent:  cfg.Hermes.APIKey != "",
+		APIKeyPresent:  configuredProviderAuthPresent(cfg),
 		GatewayTargets: onboardGatewayTargets(cfg),
 		BrowserCDPURL:  cfg.Browser.CDPURL,
 		LocalSkills:    local,
