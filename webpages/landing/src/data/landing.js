@@ -1,11 +1,17 @@
 import benchmarks from './benchmarks.json';
 import progress from './progress.json';
+import release from './release.json';
 
 const STATUS_COMPLETE = 'complete';
 const STATUS_IN_PROGRESS = 'in_progress';
 const STATUS_PLANNED = 'planned';
 
-const binarySizeMB = benchmarks?.binary?.size_mb || '17';
+const binarySizeMB = benchmarks?.binary?.size_mb || '';
+const releaseVersion = release?.version || '0.1.01';
+const releaseLabel = `Current scout release: v${releaseVersion}`;
+const binaryMeasureLabel = binarySizeMB
+  ? `Current measured Linux build: ~${binarySizeMB} MB`
+  : 'Current Linux build measured during release prep';
 
 function derivedSubphaseStatus(subphase) {
   const items = Array.isArray(subphase.items) ? subphase.items : [];
@@ -27,84 +33,6 @@ function derivedSubphaseStatus(subphase) {
   return STATUS_PLANNED;
 }
 
-function derivedPhaseStatus(phase) {
-  const subphases = Object.values(phase.subphases || {});
-  if (subphases.length === 0) {
-    return STATUS_PLANNED;
-  }
-
-  const statuses = subphases.map(derivedSubphaseStatus);
-  if (statuses.every((status) => status === STATUS_COMPLETE)) {
-    return STATUS_COMPLETE;
-  }
-  if (statuses.some((status) => status === STATUS_COMPLETE || status === STATUS_IN_PROGRESS)) {
-    return STATUS_IN_PROGRESS;
-  }
-  return STATUS_PLANNED;
-}
-
-function statusTone(status, phaseKey) {
-  if (status === STATUS_COMPLETE) {
-    return 'shipped';
-  }
-  if (status === STATUS_IN_PROGRESS) {
-    return 'progress';
-  }
-  return phaseKey === '5' ? 'later' : 'planned';
-}
-
-function itemStatusMeta(status) {
-  if (status === STATUS_COMPLETE) {
-    return { statusLabel: 'Done', tone: 'shipped' };
-  }
-  if (status === STATUS_IN_PROGRESS) {
-    return { statusLabel: 'Now', tone: 'ongoing' };
-  }
-  return { statusLabel: 'Next', tone: 'pending' };
-}
-
-function statusLabel(status, complete, total) {
-  if (status === STATUS_COMPLETE) {
-    return `SHIPPED · ${complete}/${total}`;
-  }
-  if (status === STATUS_IN_PROGRESS) {
-    return `IN PROGRESS · ${complete}/${total}`;
-  }
-  return `PLANNED · 0/${total}`;
-}
-
-function buildItems(phase) {
-  return Object.entries(phase.subphases || {})
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, subphase]) => {
-      const status = derivedSubphaseStatus(subphase);
-      return {
-        ...itemStatusMeta(status),
-        label: `${key} ${subphase.name}`,
-      };
-    });
-}
-
-export function buildRoadmapPhases(source = progress) {
-  return Object.entries(source.phases || {})
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, phase]) => {
-      const items = buildItems(phase);
-      const complete = Object.values(phase.subphases || {}).filter(
-        (subphase) => derivedSubphaseStatus(subphase) === STATUS_COMPLETE,
-      ).length;
-      const total = Object.keys(phase.subphases || {}).length;
-      const phaseStatus = derivedPhaseStatus(phase);
-
-      return {
-        title: phase.name,
-        statusLabel: statusLabel(phaseStatus, complete, total),
-        statusTone: statusTone(phaseStatus, key),
-        items,
-      };
-    });
-}
-
 export function progressTrackerLabel(source = progress) {
   const subphases = Object.values(source.phases || {}).flatMap((phase) =>
     Object.values(phase.subphases || {}),
@@ -116,34 +44,36 @@ export function progressTrackerLabel(source = progress) {
 }
 
 export const page = {
-  title: 'Gormes — AI Agents From One Go Binary',
+  title: 'Gormes — Run AI Agents From One Go Binary',
   description:
-    'Gormes runs AI agents as a single static Go binary. Start offline, prove the machine works, then add provider and gateway credentials.',
+    'Gormes runs local agent sessions, provider turns, memory, dashboards, and chat gateways from one Go binary. Build from source, prove the machine offline, then add credentials.',
   nav: [
     { label: 'Docs', href: 'https://docs.gormes.ai/' },
+    { label: 'Trust', href: '#trust' },
     { label: 'Roadmap', href: '#roadmap' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  heroKicker: 'OPEN SOURCE · MIT LICENSE · EARLY SCOUT RELEASE',
-  heroHeadline: 'Run Agents From One Go Binary.',
+  heroKicker: 'OPEN SOURCE · MIT LICENSE · SCOUT RELEASE',
+  heroHeadline: 'Run AI agents from one Go binary.',
   heroLines: [
-    'Gormes runs AI agents as a single static binary.',
+    'Gormes runs local agent sessions, provider turns, memory, dashboards, and chat gateways from one Go binary.',
     'No Python runtime. No virtualenv repair. No backend service just to open the UI.',
     'Start offline, prove the machine works, then add provider and gateway credentials.',
   ],
-  heroFilterStamp: 'Scout release. Useful today, still early.',
+  heroFilterStamp: 'Scout release: useful today, still early.',
   heroFilterLine:
-    'Offline TUI, doctor diagnostics, provider one-shots, Goncho memory, dashboard, and configured Telegram/Discord/Slack paths are covered. Full parity is still hardening.',
-  primaryCta: { label: 'Build from source', href: '#install' },
+    'Offline TUI, doctor diagnostics, provider one-shots, local SQLite memory, dashboard, and runtime-ready Telegram/Discord/Slack paths are available. Hermes parity, broad channel parity, voice/TTS, plugin/MCP support, and release signing are still hardening.',
+  primaryCta: { label: 'Run offline in 3 commands', href: '#install' },
   secondaryCta: {
     label: 'View on GitHub',
     href: 'https://github.com/TrebuchetDynamics/gormes-agent',
   },
   proofStrip: [
-    `~${binarySizeMB} MB static binary`,
     'Source build recommended',
+    releaseLabel,
+    'Static Go binary',
     'MIT License',
-    'Scout release',
+    'Offline doctor before credentials',
   ],
   installHeadline: 'Build it. Prove it offline.',
   installIntro:
@@ -154,8 +84,8 @@ export const page = {
       command:
         'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build',
     },
-    { label: '2. OFFLINE TUI', command: './bin/gormes --offline' },
-    { label: '3. LOCAL DOCTOR', command: './bin/gormes doctor --offline' },
+    { label: '2. LOCAL DOCTOR', command: './bin/gormes doctor --offline' },
+    { label: '3. OFFLINE TUI', command: './bin/gormes --offline' },
   ],
   installFootnote:
     'Provider setup, gateway setup, and convenience installers come after the offline proof.',
@@ -163,14 +93,44 @@ export const page = {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
   },
+  fitHeadline: 'Who this is for',
+  fitCards: [
+    {
+      label: 'For',
+      body: 'Developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift.',
+    },
+    {
+      label: 'Not for yet',
+      body: 'Teams that require signed enterprise releases, full Hermes parity, voice/TTS, or broad channel parity today.',
+    },
+  ],
+  trustHeadline: 'Trust posture',
+  trustItems: [
+    'Source build is the recommended scout-release path.',
+    'Offline doctor runs before provider credentials or token spend.',
+    'Secrets stay local under the Gormes home, not in the landing workflow.',
+    'Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.',
+    binaryMeasureLabel,
+  ],
   builtForHeadline: 'What works today',
   builtForItems: [
     'Run a local agent UI with zero runtime dependencies on the offline path',
     'Send one-shot prompts to a provider-compatible endpoint',
     'Validate your environment before spending tokens',
-    'Operate configured Telegram, Discord, or Slack agents from one binary',
-    'Inspect and debug agent memory locally with Goncho',
+    'Operate Telegram, Discord, and Slack paths from one binary when configured',
+    'Inspect and debug local SQLite memory ("Goncho")',
     'Browse sessions, config, skills, and logs in the local dashboard',
+  ],
+  supportHeadline: 'Gateway support status',
+  supportRows: [
+    {
+      status: 'Runtime-ready',
+      body: 'Telegram, Discord, and Slack paths are promoted for configured scout-release use.',
+    },
+    {
+      status: 'Tracked, not promoted here',
+      body: 'WhatsApp, WeChat, Signal, Matrix, Mattermost, and regional channels stay in docs/roadmap status until live validation is complete.',
+    },
   ],
   whyLabel: 'WHY GORMES',
   whyPainHeadline: 'Python-stack agents fail for boring reasons.',
@@ -185,7 +145,7 @@ export const page = {
   featureCards: [
     {
       title: 'Single Static Binary',
-      body: `CGO_ENABLED=0 release builds produce a ~${binarySizeMB} MB artifact for the runtime surface.`,
+      body: 'CGO_ENABLED=0 release builds keep the runtime surface in one static Go binary with no Python runtime dependency.',
     },
     {
       title: 'Offline Proof',
@@ -200,7 +160,7 @@ export const page = {
       body: 'One-shots and the TUI use configured provider-compatible endpoints from the same binary.',
     },
     {
-      title: 'Local Goncho Memory',
+      title: 'Local SQLite Memory',
       body: 'Sessions, durable context, diagnostics, and queue state stay in local SQLite.',
     },
     {
@@ -210,14 +170,38 @@ export const page = {
   ],
   roadmapLabel: 'BUILD STATE',
   roadmapHeadline: 'Useful today, still early.',
-  roadmapCurrentFocus: [
-    'Offline TUI, doctor diagnostics, provider one-shots, dashboard, and Goncho memory',
-    'Configured Telegram and Discord gateways; Slack with complete Socket Mode credentials',
-    'Go-native tool registry, web/browser tools, and subagent safety',
+  roadmapBuckets: [
+    {
+      title: 'Shipped in scout',
+      items: [
+        'Offline TUI and doctor',
+        'Provider one-shots',
+        'Local SQLite memory and sessions',
+        'Dashboard inspection',
+        'Telegram, Discord, and Slack configured paths',
+      ],
+    },
+    {
+      title: 'Hardening now',
+      items: [
+        'Provider routing and auth edges',
+        'Tool safety and sandboxing',
+        'Browser/web tools',
+        'Release checksums, signing, and package-manager lanes',
+      ],
+    },
+    {
+      title: 'Later',
+      items: [
+        'Voice/TTS parity',
+        'Broad channel parity',
+        'Plugin/MCP parity',
+        'Enterprise release polish',
+      ],
+    },
   ],
   roadmapNextMilestone:
     'Production-stable Go-native runtime with signed releases and broader Hermes parity',
-  roadmapDetailsSummary: 'View full phase-by-phase checklist',
   progressTrackerUrl: 'https://docs.gormes.ai/building-gormes/architecture_plan/',
   exploreHeadline: 'Explore',
   exploreLinks: [
@@ -239,7 +223,7 @@ export const page = {
     { label: 'Docs', href: 'https://docs.gormes.ai/' },
     { label: 'Company', href: 'https://trebuchetdynamics.com/' },
   ],
+  footerRelease: releaseLabel,
 };
 
-export const roadmapPhases = buildRoadmapPhases(progress);
 export const trackerLabel = progressTrackerLabel(progress);

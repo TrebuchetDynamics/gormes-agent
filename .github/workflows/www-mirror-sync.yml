@@ -8,6 +8,8 @@ on:
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
       - 'webpages/landing/src/data/benchmarks.json'
+      - 'cmd/gormes/version.go'
+      - 'webpages/landing/src/data/release.json'
   push:
     branches: [main, development]
     paths:
@@ -16,6 +18,8 @@ on:
       - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
       - 'webpages/landing/src/data/benchmarks.json'
+      - 'cmd/gormes/version.go'
+      - 'webpages/landing/src/data/release.json'
 
 permissions:
   contents: read
@@ -54,3 +58,4 @@ jobs:
         run: |
           git diff --exit-code webpages/landing/src/data/progress.json
           git diff --exit-code webpages/landing/src/data/benchmarks.json
+          git diff --exit-code webpages/landing/src/data/release.json

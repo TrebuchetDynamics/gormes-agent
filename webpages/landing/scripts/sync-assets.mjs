@@ -1,10 +1,76 @@
-import { copyFile, mkdir } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const siteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(siteRoot, '../..');
 const legacyStatic = resolve(siteRoot, 'legacy/go-renderer/internal/site/static');
+
+async function pathExists(path) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function refreshBenchmarks() {
+  const binary = resolve(repoRoot, 'bin/gormes');
+  if (!(await pathExists(binary))) {
+    console.log('benchmark refresh skipped: bin/gormes is not built');
+    return;
+  }
+
+  if (process.env.GORMES_WWW_REFRESH_BENCHMARKS !== '1') {
+    const status = spawnSync('git', ['status', '--porcelain'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    if (status.status === 0 && status.stdout.trim() !== '') {
+      console.log('benchmark refresh skipped: worktree has local changes');
+      return;
+    }
+  }
+
+  const result = spawnSync('go', ['run', './cmd/repoctl', 'benchmark', 'record'], {
+    cwd: repoRoot,
+    env: process.env,
+    stdio: 'inherit',
+  });
+  if (result.error?.code === 'ENOENT') {
+    console.warn('benchmark refresh skipped: go is not available on PATH');
+    return;
+  }
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(`benchmark refresh failed with exit code ${result.status}`);
+  }
+}
+
+async function writeReleaseData() {
+  const versionFile = resolve(repoRoot, 'cmd/gormes/version.go');
+  const raw = await readFile(versionFile, 'utf8');
+  const match = raw.match(/var\s+Version\s*=\s*"([^"]+)"/);
+  if (!match) {
+    throw new Error(`could not read Version from ${versionFile}`);
+  }
+
+  const version = match[1];
+  const release = {
+    version,
+    tag: `v${version}`,
+    url: `https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v${version}`,
+    source: 'cmd/gormes/version.go',
+  };
+
+  const target = resolve(siteRoot, 'src/data/release.json');
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(release, null, 2)}\n`, 'utf8');
+}
 
 const copies = [
   ['install.sh', resolve(repoRoot, 'install.sh'), resolve(siteRoot, 'public/install.sh')],
@@ -66,6 +132,9 @@ const copies = [
     resolve(siteRoot, 'public/static/gormes-agent-logo-blue.svg'),
   ],
 ];
+
+await refreshBenchmarks();
+await writeReleaseData();
 
 for (const [, source, target] of copies) {
   await mkdir(dirname(target), { recursive: true });
