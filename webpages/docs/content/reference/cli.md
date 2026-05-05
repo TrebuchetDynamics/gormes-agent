@@ -68,6 +68,7 @@ OpenCode Zen (`opencode`) and OpenCode Go (`opencode-go`) are registered as Open
 |---|---|
 | `gormes gateway` | Start the configured multi-channel gateway. Runtime-ready channels are Telegram, Discord, and Slack; WhatsApp is row-backed/fixture-backed until the live bridge bundle and gateway registration land. |
 | `gormes gateway status` | Check gateway runtime state, connected platforms, active agents. |
+| `gormes gateway reload` | Reload swappable config in the live gateway without restarting; invalid config keeps the last-good runtime config. |
 | `gormes gateway stop` | Stop a running gateway. |
 | `gormes telegram` | Start Telegram-only mode. |
 | `gormes logs` | View recent gateway logs. |
@@ -190,6 +191,8 @@ when a terminal is available. For development, use `sh install.sh --local` from
 the repo root to build and install from the current checkout.
 
 ## Self-Restart
+
+Use `gormes gateway reload` or gateway `/reload` first for allowlists, first-run discovery flags, display/tool-progress settings, provider/model routing, skills root, and agent bindings. Restart remains the path for binary updates, database path changes, or channel transport changes that require reconnecting clients.
 
 When no service manager (systemd/launchd) is detected, the gateway supports self-restart via `/restart`. The process re-executes itself with `syscall.Exec`, preserving all arguments and environment. A takeover marker ensures no duplicate message delivery across the restart boundary.
 

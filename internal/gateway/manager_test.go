@@ -108,6 +108,16 @@ func (f *fakeKernel) submitsSnapshot() []kernel.PlatformEvent {
 	return out
 }
 
+func stopManagerTestRun(t *testing.T, cancel context.CancelFunc, done <-chan struct{}) {
+	t.Helper()
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("manager test run did not stop")
+	}
+}
+
 func TestManager_Inbound_AllowedChat_Submit(t *testing.T) {
 	tg := newFakeChannel("telegram")
 	fk := &fakeKernel{}
@@ -120,8 +130,12 @@ func TestManager_Inbound_AllowedChat_Submit(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() { _ = m.Run(ctx) }()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = m.Run(ctx)
+	}()
+	defer stopManagerTestRun(t, cancel, done)
 
 	tg.pushInbound(InboundEvent{
 		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m",
@@ -134,6 +148,120 @@ func TestManager_Inbound_AllowedChat_Submit(t *testing.T) {
 	got := fk.submitsSnapshot()[0]
 	if got.Kind != kernel.PlatformEventSubmit || got.Text != "hello" {
 		t.Errorf("kernel submit = %+v, want %+v", got, kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "hello"})
+	}
+}
+
+func TestManager_ReloadCommandAppliesReloadableAllowlistWithoutRestart(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	store := NewRuntimeStatusStore(t.TempDir() + "/gateway_state.json")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: store,
+		ReloadConfig: func(context.Context) (ManagerConfig, error) {
+			return ManagerConfig{
+				AllowedChats: map[string]string{"telegram": "99"},
+			}, nil
+		},
+	}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = m.Run(ctx)
+	}()
+	defer stopManagerTestRun(t, cancel, done)
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "reload-1",
+		Kind: EventReload,
+	})
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		sent := tg.sentSnapshot()
+		return len(sent) == 1 && strings.Contains(sent[0].Text, "Config reloaded")
+	})
+	status, err := store.ReadRuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	if status.ConfigReload.Status != RuntimeConfigReloadApplied {
+		t.Fatalf("config reload status = %+v, want applied", status.ConfigReload)
+	}
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "99", UserID: "u", MsgID: "m-99",
+		Kind: EventSubmit, Text: "after reload",
+	})
+
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+	got := fk.submitsSnapshot()[0]
+	if got.Text != "after reload" {
+		t.Fatalf("kernel submit text = %q, want reloaded chat submit", got.Text)
+	}
+}
+
+func TestManager_ReloadCommandKeepsLastGoodConfigOnFailure(t *testing.T) {
+	tg := newFakeChannel("telegram")
+	fk := &fakeKernel{}
+	store := NewRuntimeStatusStore(t.TempDir() + "/gateway_state.json")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: store,
+		ReloadConfig: func(context.Context) (ManagerConfig, error) {
+			return ManagerConfig{}, errors.New("parse config.toml: api_key=plain-secret-token")
+		},
+	}, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = m.Run(ctx)
+	}()
+	defer stopManagerTestRun(t, cancel, done)
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "reload-1",
+		Kind: EventReload,
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		sent := tg.sentSnapshot()
+		return len(sent) == 1 && strings.Contains(sent[0].Text, "Config reload failed")
+	})
+	if strings.Contains(tg.sentSnapshot()[0].Text, "plain-secret-token") {
+		t.Fatalf("reload failure leaked secret: %q", tg.sentSnapshot()[0].Text)
+	}
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram", ChatID: "42", UserID: "u", MsgID: "m-42",
+		Kind: EventSubmit, Text: "last good",
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+	if got := fk.submitsSnapshot()[0].Text; got != "last good" {
+		t.Fatalf("submit text = %q, want last-good config to remain active", got)
+	}
+
+	status, err := store.ReadRuntimeStatus(context.Background())
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	if status.ConfigReload.Status != RuntimeConfigReloadFailed {
+		t.Fatalf("config reload status = %+v, want failed", status.ConfigReload)
+	}
+	if strings.Contains(status.ConfigReload.Error, "plain-secret-token") {
+		t.Fatalf("runtime status leaked reload secret: %+v", status.ConfigReload)
 	}
 }
 

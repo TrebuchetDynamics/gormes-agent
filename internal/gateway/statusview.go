@@ -124,6 +124,9 @@ func renderRuntimeLine(runtime RuntimeStatus) string {
 	if len(runtime.ServiceManagerUnavailable) > 0 {
 		parts = append(parts, fmt.Sprintf("service_manager_unavailable=%d", len(runtime.ServiceManagerUnavailable)))
 	}
+	if runtime.ConfigReload.Status != "" {
+		parts = append(parts, fmt.Sprintf("config_reload=%s", runtime.ConfigReload.Status))
+	}
 	return fmt.Sprintf("runtime: %s (%s)", state, strings.Join(parts, " "))
 }
 
@@ -141,6 +144,7 @@ func runtimeStatusMissing(runtime RuntimeStatus) bool {
 		len(runtime.TakeoverMarkers) == 0 &&
 		len(runtime.DuplicateRestarts) == 0 &&
 		len(runtime.ServiceManagerUnavailable) == 0 &&
+		runtime.ConfigReload == (RuntimeConfigReloadEvidence{}) &&
 		runtime.Proxy == (ProxyRuntimeStatus{}) &&
 		runtime.UpdatedAt == ""
 }

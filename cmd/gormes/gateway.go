@@ -76,6 +76,10 @@ type gracefulShutdownManager interface {
 	Shutdown(context.Context) error
 }
 
+type gatewayReloadManager interface {
+	Reload(context.Context) error
+}
+
 type gatewayChannelFactory func(config.Config, *slog.Logger) (gateway.Channel, error)
 
 type gatewayChannelFactories struct {
@@ -90,11 +94,13 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
 	}
-	secretSnapshot := gormesruntime.SecretRuntimeSnapshot{}
-	cfg, secretSnapshot, err = activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
+	secretController := gormesruntime.NewGatewaySecretRuntimeController(gormesruntime.GatewaySecretRuntimeOptions{})
+	secretActivation, err := secretController.Activate(cmd.Context(), cfg)
 	if err != nil {
 		return fmt.Errorf("secret runtime activation: %w", err)
 	}
+	cfg = secretActivation.Config
+	secretSnapshot := secretActivation.Snapshot
 	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Yuanbao.Enabled {
 		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 	}
@@ -119,14 +125,15 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 	}()
 
-	hc, err := newGatewayHermesClient(cfg)
+	baseHC, err := newGatewayHermesClient(cfg)
 	if err != nil {
 		return fmt.Errorf("provider setup: %w", err)
 	}
+	hc := newReloadableHermesClient(baseHC)
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	signals := make(chan os.Signal, 2)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer signal.Stop(signals)
 	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
@@ -160,8 +167,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Goncho:            gonchoStore,
 	}, hc, mstore, telemetry.New(), slog.Default())
 
-	allowedChats := map[string]string{}
-	allowDiscovery := map[string]bool{}
+	allowedChats, allowDiscovery := gatewayPolicyMaps(cfg)
 	runtimeStatusPath := config.GatewayRuntimeStatusPath()
 	runtimeStatus := gateway.NewRuntimeStatusStore(runtimeStatusPath)
 	restartMarkerStore := gateway.NewRestartTakeoverStore(gateway.DefaultRestartTakeoverMarkerPath(runtimeStatusPath))
@@ -179,12 +185,42 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		SelfRestart:             gateway.SelfRestartViaExec,
 		DrainTimeout:            kernel.ShutdownBudget,
 	}
+	var reloadManagerConfig func(context.Context) (gateway.ManagerConfig, error)
+	reloadManagerConfig = func(ctx context.Context) (gateway.ManagerConfig, error) {
+		next, err := config.Load(os.Args[1:])
+		if err != nil {
+			return gateway.ManagerConfig{}, fmt.Errorf("config: %w", err)
+		}
+		activation, err := secretController.Reload(ctx, next)
+		if err != nil {
+			return gateway.ManagerConfig{}, fmt.Errorf("secret runtime activation: %w", err)
+		}
+		next = activation.Config
+		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Yuanbao.Enabled {
+			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
+		}
+		nextBaseHC, err := newGatewayHermesClient(next)
+		if err != nil {
+			return gateway.ManagerConfig{}, fmt.Errorf("provider setup: %w", err)
+		}
+		nextAllowedChats, nextAllowDiscovery := gatewayPolicyMaps(next)
+		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg)
+		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model)
+		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
+		if nextCfg.AgentRouting.Enabled {
+			nextCfg.AgentRuntimeFactory = newGatewayAgentRuntimeFactory(rootCtx, next, mstore, gonchoStore)
+		}
+		nextCfg.ReloadConfig = reloadManagerConfig
+		hc.Set(nextBaseHC)
+		return nextCfg, nil
+	}
 	mgrCfg := gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg)
 	mgrCfg.ToolRegistry = reg
 	mgrCfg.SkillRuntime = skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
 	if mgrCfg.AgentRouting.Enabled {
 		mgrCfg.AgentRuntimeFactory = newGatewayAgentRuntimeFactory(rootCtx, cfg, mstore, gonchoStore)
 	}
+	mgrCfg.ReloadConfig = reloadManagerConfig
 	mgr := gateway.NewManager(mgrCfg, k, slog.Default())
 
 	registeredChannels, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, defaultGatewayChannelFactories(), runtimeStatus, slog.Default())
@@ -375,6 +411,36 @@ func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
 	return out
 }
 
+func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool) {
+	allowedChats := map[string]string{}
+	allowDiscovery := map[string]bool{}
+	if cfg.Telegram.BotToken != "" {
+		if cfg.Telegram.AllowedChatID != 0 {
+			allowedChats["telegram"] = strconv.FormatInt(cfg.Telegram.AllowedChatID, 10)
+		}
+		allowDiscovery["telegram"] = cfg.Telegram.FirstRunDiscovery
+	}
+	if cfg.Discord.Enabled() {
+		if cfg.Discord.AllowedChannelID != "" {
+			allowedChats["discord"] = cfg.Discord.AllowedChannelID
+		}
+		allowDiscovery["discord"] = cfg.Discord.FirstRunDiscovery
+	}
+	if cfg.Slack.Enabled {
+		if cfg.Slack.AllowedChannelID != "" {
+			allowedChats["slack"] = cfg.Slack.AllowedChannelID
+		}
+		allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
+	}
+	if cfg.Yuanbao.Enabled {
+		if cfg.Yuanbao.AllowedConversationID != "" {
+			allowedChats["yuanbao"] = cfg.Yuanbao.AllowedConversationID
+		}
+		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
+	}
+	return allowedChats, allowDiscovery
+}
+
 func gatewayAgentRoutingConfig(cfg config.Config) gateway.AgentRoutingConfig {
 	enabled := len(cfg.Bindings) > 0 || len(cfg.Agents.List) > 1
 	if !enabled {
@@ -541,28 +607,44 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 		forceExit = os.Exit
 	}
 
-	sig, ok := <-signals
-	if !ok {
+	for {
+		sig, ok := <-signals
+		if !ok {
+			return
+		}
+		if sig == syscall.SIGHUP {
+			reloader, ok := mgr.(gatewayReloadManager)
+			if !ok {
+				log.Warn("gateway config reload unavailable", "signal", sig.String())
+				continue
+			}
+			if err := reloader.Reload(context.Background()); err != nil {
+				log.Warn("gateway config reload failed", "err", err)
+			} else {
+				log.Info("gateway config reloaded", "signal", sig.String())
+			}
+			continue
+		}
+		log.Info("gateway shutdown requested", "signal", sig.String())
+
+		timer := time.AfterFunc(budget, func() {
+			log.Error("shutdown budget exceeded; forcing exit")
+			forceExit(3)
+		})
+		defer timer.Stop()
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), budget)
+		err := mgr.Shutdown(shutdownCtx)
+		shutdownCancel()
+		if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("gateway shutdown drain", "err", err)
+		} else if err != nil {
+			log.Warn("gateway shutdown drain", "err", err)
+		}
+
+		cancel()
 		return
 	}
-	log.Info("gateway shutdown requested", "signal", sig.String())
-
-	timer := time.AfterFunc(budget, func() {
-		log.Error("shutdown budget exceeded; forcing exit")
-		forceExit(3)
-	})
-	defer timer.Stop()
-
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), budget)
-	err := mgr.Shutdown(shutdownCtx)
-	shutdownCancel()
-	if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-		log.Warn("gateway shutdown drain", "err", err)
-	} else if err != nil {
-		log.Warn("gateway shutdown drain", "err", err)
-	}
-
-	cancel()
 }
 
 func sqlOpenGoncho(path string) (*sql.DB, error) {

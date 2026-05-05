@@ -142,6 +142,7 @@ Gateway:
   gormes system event "note"        enqueue a system event and heartbeat wake
   gormes gateway                    start the configured gateway
   gormes gateway status             check gateway runtime state
+  gormes gateway reload             reload swappable live gateway config
   gormes gateway stop               stop a running gateway
   gormes whatsapp                   set up WhatsApp Baileys pairing
   gormes telegram                   start Telegram-only mode

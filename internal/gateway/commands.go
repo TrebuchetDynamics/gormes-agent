@@ -98,7 +98,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "plugins", Description: "List installed plugins", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "profile", Description: "Show active profile name and home directory", Kind: EventProfile, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "quit", Description: "Exit the CLI", Kind: EventUnknown, Aliases: []string{"exit"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "reload", Description: "Reload .env variables into the running session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "reload", Description: "Reload gateway config without restarting", Kind: EventReload, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "reload-mcp", Description: "Reload MCP servers from config", Kind: EventUnknown, Aliases: []string{"reload_mcp"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "resume", Description: "Resume a previously-named session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "save", Description: "Save the current conversation", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -227,7 +227,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventRetry {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

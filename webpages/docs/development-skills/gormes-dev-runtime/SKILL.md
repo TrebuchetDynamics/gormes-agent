@@ -73,6 +73,15 @@ Root Linux defaults are `/usr/local/lib/gormes-agent` and
 - `gormes gateway status` identifies the live runtime owner. Use
   `gormes gateway stop` when a persisted foreground TUI needs to release
   `$HOME/.gormes/sessions.db`.
+- Prefer `gormes gateway reload` or gateway `/reload` for config changes that
+  the live manager can swap without reconnecting transports: allowlists,
+  first-run discovery flags, display/tool-progress settings, provider/model
+  client routing, skills root, and agent bindings. Invalid reloads must keep
+  the last-good config active and surface `config_reload=failed` in
+  `gormes gateway status`.
+- Still use a gateway restart for binary changes, channel transport changes
+  that need reconnecting clients, database path changes, or service-manager
+  lifecycle work.
 - A foreground TUI may run with in-memory session state while the gateway owns
   `sessions.db`; that is acceptable for smoke testing but not for persisted
   session validation.
@@ -126,6 +135,7 @@ wrong-home bugs until this checklist says otherwise.
 
 - Installer behavior: `(cd webpages/landing && go test ./internal/site -run 'TestInstallSH' -count=1)`.
 - Runtime package smoke: `go test ./cmd/gormes ./internal/session -count=1`.
+- Gateway reload smoke: `go test ./cmd/gormes ./internal/gateway -run 'TestGatewaySignalLoop|TestGatewayReload|TestManager_ReloadCommand' -count=1`.
 - Source/binary/install matrix: run the same focused command through
   `GORMES_HOME="$(mktemp -d)" go run ./cmd/gormes ...`,
   `GORMES_HOME="$(mktemp -d)" ./bin/gormes ...`, and installed `gormes` after
@@ -141,6 +151,8 @@ wrong-home bugs until this checklist says otherwise.
   command.
 - Killing random processes instead of using `gormes gateway status` and
   `gormes gateway stop`.
+- Restarting the gateway for every config edit before trying `gormes gateway
+  reload`, or treating a failed reload as a partially-applied config.
 - Deleting lock files or `sessions.db` instead of stopping the owning Gormes
   process or using an isolated `GORMES_HOME`.
 - Reintroducing Hermes commands or Hermes state reads into Gormes startup.

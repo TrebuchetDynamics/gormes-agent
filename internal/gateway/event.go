@@ -52,6 +52,8 @@ const (
 	EventBusy
 	// EventTTS handles /tts subcommands (on, off, speed, voice, engine, language).
 	EventTTS
+	// EventReload reloads gateway runtime config without restarting the process.
+	EventReload
 	// EventRetry handles /retry (retry the last message by resending to agent).
 	EventRetry
 	// EventUndo handles /undo (remove the last user/assistant exchange).
@@ -99,6 +101,8 @@ func (k EventKind) String() string {
 		return "busy"
 	case EventTTS:
 		return "tts"
+	case EventReload:
+		return "reload"
 	case EventRetry:
 		return "retry"
 	case EventUndo:

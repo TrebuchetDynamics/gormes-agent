@@ -164,6 +164,9 @@ type ManagerConfig struct {
 	// KanbanDispatcher owns the gateway-managed Kanban worker dispatcher loop.
 	// Nil preserves the legacy gateway behavior with no dispatcher activity.
 	KanbanDispatcher KanbanDispatcherConfig
+	// ReloadConfig returns a freshly loaded manager config for reloadable
+	// runtime fields. Errors keep the last-good manager config active.
+	ReloadConfig func(context.Context) (ManagerConfig, error)
 }
 
 type KernelSubmitter interface {
@@ -846,6 +849,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
 		return nil
+	case EventReload:
+		m.handleReloadCommand(ctx, ch, ev)
+		return nil
 	case EventRetry:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
 		return nil
@@ -988,6 +994,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
+		return true
+	case EventReload:
+		m.handleReloadCommand(ctx, ch, ev)
 		return true
 	case EventRetry:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
@@ -1725,6 +1734,8 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	want, ok := m.cfg.AllowedChats[ev.Platform]
 	if ok && want != "" && ev.ChatID == want {
 		return true
