@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 65/92 subphases shipped · 22 in progress · 5 planned
+**Overall:** 62/92 subphases shipped · 25 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | ✅ | 21/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 10/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -135,7 +135,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -177,7 +177,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing ✅
+### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
 - [x] SessionContext prompt injection
@@ -225,6 +225,7 @@ classification and row-backed implementation queue.
 - [x] Gateway inbound dedup manager binding
 - [x] Email outbound Date header contract
 - [x] Telegram MarkdownV2 parse-mode rendering closeout
+- [ ] Telegram topic mode off/help/auth/debounce closeout
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -241,6 +242,8 @@ classification and row-backed implementation queue.
 
 - [x] Channel-neutral native runtime turn adapter
 - [x] Hermes gateway platform registry manifest
+- [x] Navivox stdio protocol control-plane tracer
+- [x] Navivox QR pairing descriptor CLI
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -530,11 +533,12 @@ classification and row-backed implementation queue.
 - [x] Native full prompt assembly
 - [x] Ephemeral prefill messages file injection
 
-### 4.D — Smart Model Routing ✅
+### 4.D — Smart Model Routing 🔨
 
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
 - [x] Model pricing/capability registry fixtures
+- [ ] Ollama Cloud models.dev suffix normalization
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
@@ -578,7 +582,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure ✅
+### 4.I — Native Agent Turn Closure 🔨
 
 - [x] Python-free normal agent turn e2e harness
 - [x] Provider-tool-memory golden transcript suite
@@ -587,6 +591,8 @@ classification and row-backed implementation queue.
 - [x] Swarm feature-level parity audit for Hermes/Honcho map
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
+- [ ] Hermes website docs mirror coverage gate
+- [ ] Gormes setup/channel/provider docs webpage parity gate
 - [x] Native runtime provider gateway binding
 - [x] Hermes compatibility namespace retirement boundary
 
@@ -633,6 +639,7 @@ classification and row-backed implementation queue.
 
 - [x] Environment interface + file sync contract
 - [x] Terminal snapshot source stdout suppression guard
+- [ ] Terminal deleted-cwd recovery guard
 - [x] Raw tool-call parser fixture matrix
 - [ ] Docker
 - [x] Docker backend top-level container reuse semantics
@@ -673,7 +680,9 @@ classification and row-backed implementation queue.
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
+- [ ] MiniMax TTS v1 text_to_speech raw-audio compatibility
 - [ ] TTS synthesis + voice-mode state
+- [ ] Voice record-key config binding for native TUI
 
 ### 5.F — Skills System (Remaining) 🔨
 
@@ -685,6 +694,7 @@ classification and row-backed implementation queue.
 - [x] Skill preprocessing + dynamic slash commands
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
+- [ ] Update bundled skills across active and named profiles
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
@@ -738,6 +748,7 @@ classification and row-backed implementation queue.
 - [x] Trust-class enforcement in shared tool executor
 - [x] Secrets Runtime Controls
 - [x] Security Audit Command
+- [ ] Email allowlist pre-dispatch loop guard
 
 ### 5.K — Code Execution ✅
 
@@ -751,6 +762,7 @@ classification and row-backed implementation queue.
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
 - [x] Terminal cwd config bridge
+- [ ] search_files hidden-root and context-line parsing drift
 
 ### 5.M — Mixture of Agents 🔨
 
@@ -771,6 +783,7 @@ classification and row-backed implementation queue.
 - [x] Session shutdown memory transcript handoff
 - [x] Debug helpers
 - [x] Debug share paste sweep scheduler contract
+- [ ] Doctor GitHub CLI auth fallback
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
 - [x] Backend usage-limit stdin health bypass
@@ -804,6 +817,9 @@ classification and row-backed implementation queue.
 - [ ] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
+- [ ] Cron env-ref expansion + parallel run state serialization
+- [ ] Cron no-agent script-only watchdog mode
+- [x] Navivox host setup apply with transient sudo
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -843,6 +859,7 @@ classification and row-backed implementation queue.
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
 - [x] Gormes setup full-wizard shell and branded summary
+- [ ] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
 - [x] Gormes setup terminal TTS and agent-settings section bindings
@@ -887,6 +904,8 @@ classification and row-backed implementation queue.
 - [ ] CLI setup/onboard/help text fidelity matrix
 - [ ] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
+- [ ] Gateway planned stop marker + WSL systemd PATH parity
+- [ ] Gateway stale-code self-check uses git HEAD SHA
 
 ### 5.P — Docker / Packaging 🔨
 
@@ -923,6 +942,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
 - [x] Native TUI Hermes slash completion helpers
+- [ ] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [ ] Native TUI Ink behavioral transcript golden matrix
@@ -1001,6 +1021,7 @@ classification and row-backed implementation queue.
 
 ### 6.F — Skill Surface 🔨
 
+- [ ] Hermes skill_manage support-file and curator intent actions
 - [ ] Hermes curator command surface
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface

@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -185,6 +186,84 @@ func TestGatewayStopNoLiveRuntimeIsIdempotent(t *testing.T) {
 	assertGatewayStopDidNotOpenDurableStores(t)
 }
 
+func TestGatewayReloadSignalsValidatedLiveRuntimeWithHUP(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayReloadRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				GatewayState: gateway.GatewayStateRunning,
+				ActiveAgents: 2,
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status: gateway.RuntimeProcessValidationLive,
+				Live:   true,
+				PID:    4242,
+			},
+		},
+	}
+	restoreStore := gatewayReloadRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayReloadSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "reload")
+	if err != nil {
+		t.Fatalf("gateway reload: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 1 || signals[0].pid != 4242 || signals[0].signal != syscall.SIGHUP {
+		t.Fatalf("signals = %+v, want one SIGHUP for pid 4242", signals)
+	}
+	if !strings.Contains(stdout, "gateway reload: sent hangup to pid=4242") {
+		t.Fatalf("stdout missing reload evidence:\n%s", stdout)
+	}
+	assertGatewayStopDidNotOpenDurableStores(t)
+}
+
+func TestGatewayReloadNoLiveRuntimeIsIdempotent(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayReloadRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Missing: true,
+			Validation: gateway.RuntimeProcessValidation{
+				Status:  gateway.RuntimeProcessValidationMissingState,
+				Live:    false,
+				Message: "runtime status is missing",
+			},
+		},
+	}
+	restoreStore := gatewayReloadRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayReloadSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "reload")
+	if err != nil {
+		t.Fatalf("gateway reload should be idempotent: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 0 {
+		t.Fatalf("signals = %+v, want none for missing runtime", signals)
+	}
+	for _, want := range []string{
+		"gateway reload: no live gateway runtime",
+		"missing_state",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	assertGatewayStopDidNotOpenDurableStores(t)
+}
+
 func TestGatewayMutatingExitCodeIsStable(t *testing.T) {
 	codes := make(map[string]int, len(gatewayMutatingUnavailableSubcommands))
 	for _, sub := range gatewayMutatingUnavailableSubcommands {
@@ -294,5 +373,37 @@ func gatewayStopSignalForTest(t *testing.T, signal func(int, os.Signal) error) f
 	signalGatewayStopProcess = signal
 	return func() {
 		signalGatewayStopProcess = previous
+	}
+}
+
+type fakeGatewayReloadRuntimeStore struct {
+	snapshot gateway.RuntimeStatusSnapshot
+	err      error
+}
+
+func (s *fakeGatewayReloadRuntimeStore) ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error) {
+	if s.err != nil {
+		return gateway.RuntimeStatusSnapshot{}, s.err
+	}
+	return s.snapshot, nil
+}
+
+func gatewayReloadRuntimeStoreForTest(t *testing.T, store gatewayReloadRuntimeStore) func() {
+	t.Helper()
+	previous := newGatewayReloadRuntimeStore
+	newGatewayReloadRuntimeStore = func(string) gatewayReloadRuntimeStore {
+		return store
+	}
+	return func() {
+		newGatewayReloadRuntimeStore = previous
+	}
+}
+
+func gatewayReloadSignalForTest(t *testing.T, signal func(int, os.Signal) error) func() {
+	t.Helper()
+	previous := signalGatewayReloadProcess
+	signalGatewayReloadProcess = signal
+	return func() {
+		signalGatewayReloadProcess = previous
 	}
 }

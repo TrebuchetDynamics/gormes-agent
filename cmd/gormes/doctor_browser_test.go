@@ -41,6 +41,20 @@ func TestDoctorBrowserRuntimeRecommendsChromeInstallWhenUnavailable(t *testing.T
 	}
 }
 
+func TestDoctorBrowserRuntimeChromeLaunchCommandHonorsGormesHome(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	got := chromeLaunchCommand("/usr/bin/chromium")
+	wantUserDataDir := "--user-data-dir=" + gormesHome + "/chrome-debug"
+	if !strings.Contains(got, wantUserDataDir) {
+		t.Fatalf("chrome launch command = %q, want %q", got, wantUserDataDir)
+	}
+	if strings.Contains(got, "$HOME/.gormes/chrome-debug") {
+		t.Fatalf("chrome launch command still hard-codes HOME fallback: %q", got)
+	}
+}
+
 func TestDoctorBrowserRuntimeReportsReadyWhenChromeAndCDPAreReachable(t *testing.T) {
 	got := doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{
 		lookPath: func(name string) (string, error) {

@@ -45,25 +45,35 @@ var doctorCmd = &cobra.Command{
 
 		if !offline {
 			providerName := cfg.Hermes.Provider
-			c, err := newProviderHTTPClient(cfg, providerName)
-			if err != nil {
-				redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-				fmt.Fprintf(os.Stderr,
-					"[FAIL] provider setup: %s\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
-					redactedErr)
-				os.Exit(1)
+			if doctorProviderHealthUsesAuthReadiness(cfg) {
+				if !configuredProviderAuthPresent(cfg) {
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] provider health: auth missing (%s)\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+						doctorProviderHealthTarget(cfg))
+					os.Exit(1)
+				}
+				fmt.Printf("[PASS] provider health: auth-ready (%s)\n", doctorProviderHealthTarget(cfg))
+			} else {
+				c, err := newProviderHTTPClient(cfg, providerName)
+				if err != nil {
+					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] provider setup: %s\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+						redactedErr)
+					os.Exit(1)
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				if err := c.Health(ctx); err != nil {
+					target := doctorProviderHealthTarget(cfg)
+					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] provider health: NOT reachable (%s): %v\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+						target, redactedErr)
+					os.Exit(1)
+				}
+				fmt.Printf("[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			if err := c.Health(ctx); err != nil {
-				target := doctorProviderHealthTarget(cfg)
-				redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-				fmt.Fprintf(os.Stderr,
-					"[FAIL] provider health: NOT reachable (%s): %v\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
-					target, redactedErr)
-				os.Exit(1)
-			}
-			fmt.Printf("[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
 		} else {
 			fmt.Println("[SKIP] provider health: skipped (--offline)")
 		}
@@ -152,6 +162,10 @@ func doctorProviderHealthTarget(cfg config.Config) string {
 		return provider
 	}
 	return "configured provider"
+}
+
+func doctorProviderHealthUsesAuthReadiness(cfg config.Config) bool {
+	return strings.EqualFold(strings.TrimSpace(cfg.Hermes.Provider), config.CodexOAuthProvider)
 }
 
 func doctorSecretRuntimeStatus(snapshot gormesruntime.SecretRuntimeSnapshot, activationErr error) doctor.CheckResult {
@@ -282,9 +296,16 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 		}
 	}
 
+	authItem := readinessItem("api_key", h.APIKey, doctor.StatusWarn)
+	if strings.EqualFold(strings.TrimSpace(h.Provider), config.CodexOAuthProvider) {
+		authItem = readinessBoolItem("auth", configuredProviderAuthPresent(cfg), doctor.StatusWarn)
+		if authItem.Status != doctor.StatusPass {
+			authItem.Note = "missing; run `gormes auth add openai-codex`"
+		}
+	}
 	items := []doctor.ItemInfo{
 		readinessItem("endpoint", h.Endpoint, doctor.StatusWarn),
-		readinessItem("api_key", h.APIKey, doctor.StatusWarn),
+		authItem,
 		readinessItem("model", h.Model, doctor.StatusFail),
 	}
 
@@ -305,12 +326,19 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 	}
 
 	summary := fmt.Sprintf("configured endpoint=%s", h.Endpoint)
+	if strings.TrimSpace(h.Provider) != "" {
+		summary = fmt.Sprintf("configured provider=%s endpoint=%s", strings.TrimSpace(h.Provider), h.Endpoint)
+	}
 	if missing > 0 {
 		missingNames := missingReadinessItemNames(items)
 		if h.Endpoint == "" {
 			summary = "setup incomplete: missing " + strings.Join(missingNames, ", ")
 		} else {
-			summary = fmt.Sprintf("configured endpoint=%s missing=%s", h.Endpoint, strings.Join(missingNames, ", "))
+			if strings.TrimSpace(h.Provider) != "" {
+				summary = fmt.Sprintf("configured provider=%s endpoint=%s missing=%s", strings.TrimSpace(h.Provider), h.Endpoint, strings.Join(missingNames, ", "))
+			} else {
+				summary = fmt.Sprintf("configured endpoint=%s missing=%s", h.Endpoint, strings.Join(missingNames, ", "))
+			}
 		}
 	}
 	return doctor.CheckResult{
@@ -335,6 +363,13 @@ func missingReadinessItemNames(items []doctor.ItemInfo) []string {
 // or an item at missingStatus with note "missing" when value is empty.
 func readinessItem(name, value string, missingStatus doctor.Status) doctor.ItemInfo {
 	if value == "" {
+		return doctor.ItemInfo{Name: name, Status: missingStatus, Note: "missing"}
+	}
+	return doctor.ItemInfo{Name: name, Status: doctor.StatusPass, Note: "set"}
+}
+
+func readinessBoolItem(name string, present bool, missingStatus doctor.Status) doctor.ItemInfo {
+	if !present {
 		return doctor.ItemInfo{Name: name, Status: missingStatus, Note: "missing"}
 	}
 	return doctor.ItemInfo{Name: name, Status: doctor.StatusPass, Note: "set"}

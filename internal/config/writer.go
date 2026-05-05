@@ -48,7 +48,13 @@ var allowedTOMLSections = map[string]struct{}{
 // secretAliases maps user-typed secret aliases (e.g. `api_key`) to the
 // canonical environment variable name written into the dotenv file.
 var secretAliases = map[string]string{
-	"api_key": "GORMES_API_KEY",
+	"api_key":            "GORMES_API_KEY",
+	"hermes.api_key":     "GORMES_API_KEY",
+	"telegram.bot_token": "GORMES_TELEGRAM_TOKEN",
+	"discord.token":      "GORMES_DISCORD_TOKEN",
+	"slack.bot_token":    "GORMES_SLACK_BOT_TOKEN",
+	"slack.app_token":    "GORMES_SLACK_APP_TOKEN",
+	"gateway.proxy_key":  "GATEWAY_PROXY_KEY",
 }
 
 // IsSecretKey reports whether the user-supplied dotted key targets the
@@ -64,7 +70,7 @@ func IsSecretKey(key string) bool {
 	if _, ok := secretAliases[strings.ToLower(key)]; ok {
 		return true
 	}
-	upper := strings.ToUpper(key)
+	upper := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
 	if strings.HasSuffix(upper, "_API_KEY") || upper == "API_KEY" {
 		return true
 	}
@@ -81,7 +87,7 @@ func SecretEnvName(key string) string {
 	if mapped, ok := secretAliases[strings.ToLower(strings.TrimSpace(key))]; ok {
 		return mapped
 	}
-	return strings.ToUpper(strings.TrimSpace(key))
+	return strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(key), ".", "_"))
 }
 
 // WriteTOMLValue persists a single dotted key/value pair into the TOML file
@@ -90,7 +96,7 @@ func SecretEnvName(key string) string {
 // pair. Unknown top-level sections are rejected before any write so a typo
 // cannot create an unbounded namespace.
 func WriteTOMLValue(path, key, value string) error {
-	section, field, err := splitTOMLDotPath(key)
+	section, fields, err := splitTOMLDotPath(key)
 	if err != nil {
 		return err
 	}
@@ -106,11 +112,11 @@ func WriteTOMLValue(path, key, value string) error {
 	if !ok {
 		table = map[string]any{}
 	}
-	coerced, err := coerceTOMLScalar(value)
+	coerced, err := coerceTOMLValue(section, fields, value)
 	if err != nil {
 		return fmt.Errorf("config: %s: %w", key, err)
 	}
-	table[field] = coerced
+	setNestedTOMLValue(table, fields, coerced)
 	doc[section] = table
 	return writeTOMLDoc(path, doc)
 }
@@ -164,27 +170,38 @@ func WriteEnvValue(path, key, value string) error {
 	return os.WriteFile(path, out.Bytes(), 0o600)
 }
 
-func splitTOMLDotPath(key string) (section, field string, err error) {
+func splitTOMLDotPath(key string) (section string, fields []string, err error) {
 	key = strings.TrimSpace(key)
 	if key == "" {
-		return "", "", fmt.Errorf("config: empty key")
+		return "", nil, fmt.Errorf("config: empty key")
 	}
 	parts := strings.Split(key, ".")
 	for _, p := range parts {
 		if strings.TrimSpace(p) == "" {
-			return "", "", fmt.Errorf("config: malformed key %q", key)
+			return "", nil, fmt.Errorf("config: malformed key %q", key)
 		}
 	}
 	switch len(parts) {
 	case 1:
 		// Bare top-level keys map to the [hermes] section to mirror Hermes
 		// `hermes config set endpoint ...` ergonomics.
-		return "hermes", parts[0], nil
-	case 2:
-		return parts[0], parts[1], nil
+		return "hermes", parts, nil
 	default:
-		return "", "", fmt.Errorf("config: nested key %q is unsupported (use <section>.<field>)", key)
+		return parts[0], parts[1:], nil
 	}
+}
+
+func setNestedTOMLValue(root map[string]any, fields []string, value any) {
+	table := root
+	for _, field := range fields[:len(fields)-1] {
+		next, ok := table[field].(map[string]any)
+		if !ok {
+			next = map[string]any{}
+			table[field] = next
+		}
+		table = next
+	}
+	table[fields[len(fields)-1]] = value
 }
 
 func allowedSectionsList() string {
@@ -265,6 +282,39 @@ func EnsureConfigFile(path string) error {
 	}
 	doc := map[string]any{"_config_version": int64(CurrentConfigVersion)}
 	return writeTOMLAtomic(path, doc)
+}
+
+func coerceTOMLValue(section string, fields []string, value string) (any, error) {
+	key := strings.ToLower(section + "." + strings.Join(fields, "."))
+	switch key {
+	case "telegram.allowed_user_ids":
+		return coerceTOMLInt64List(value)
+	default:
+		return coerceTOMLScalar(value)
+	}
+}
+
+func coerceTOMLInt64List(value string) ([]int64, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || trimmed == "[]" {
+		return []int64{}, nil
+	}
+	trimmed = strings.TrimPrefix(trimmed, "[")
+	trimmed = strings.TrimSuffix(trimmed, "]")
+	parts := strings.Split(trimmed, ",")
+	out := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("expected comma-separated integer IDs, got %q", value)
+		}
+		out = append(out, id)
+	}
+	return out, nil
 }
 
 // coerceTOMLScalar applies the same string→typed coercions as Hermes's

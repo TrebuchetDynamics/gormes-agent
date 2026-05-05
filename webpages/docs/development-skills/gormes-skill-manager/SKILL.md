@@ -70,6 +70,14 @@ Pick the primary intent:
   code changes are needed. This route must check Hermes behavior first, then
   inspect local Go references such as GoClaw/Plandex/Nanobot/trpc-agent-go/ADK-Go
   for implementation patterns while preserving Hermes parity as P0.
+- **Install/setup reports with live settings** such as Telegram bot token,
+  `telegram.allowed_user_ids`, workspace path, Codex provider, or Codex CLI
+  auth import: use `gormes-dev-runtime` to prove the active `GORMES_HOME`,
+  binary, PATH, config path, and secret redaction; then use
+  `gormes-hermes-parity`/`gormes-provider-parity` plus `gormes-tdd-slice` for
+  any setup output drift. Require `config check`, `auth status`, `doctor
+  --offline`, and `onboard --wizard --non-interactive` before calling the setup
+  fixed.
 - **Browser automation, Browser Use, browser-harness, CDP, or `/browser connect` parity**:
   use `gormes-browser-harness`, then `gormes-parity-auditor`/`gormes-planner`
   for rows or `gormes-builder` + `gormes-tdd-slice` for a single runtime slice.

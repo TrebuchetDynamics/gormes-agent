@@ -28,6 +28,7 @@ crash-*.log
 .gormes/
 .hermes/
 .codex/
+.wrangler/
 .superpowers/
 .worktrees/
 

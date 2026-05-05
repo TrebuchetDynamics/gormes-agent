@@ -30,8 +30,9 @@ type ContextFilesOptions struct {
 // ContextFilesReport records deterministic evidence for loaded, missing,
 // blocked, skipped, or truncated context sources.
 type ContextFilesReport struct {
-	Soul    ContextFileEvidence
-	Project ContextFileEvidence
+	Soul        ContextFileEvidence
+	Project     ContextFileEvidence
+	Operational []ContextFileEvidence
 }
 
 // ContextFileEvidence describes one context source considered for prompt input.
@@ -69,7 +70,8 @@ var contextInvisibleChars = []rune{'\u200b', '\u200c', '\u200d', '\u2060', '\ufe
 
 // BuildContextFilesPrompt discovers and renders Hermes-compatible project
 // context files. Project context precedence is first-match-wins; SOUL.md from
-// the profile remains independent unless SkipSoul is set.
+// the profile remains independent unless SkipSoul is set. Gormes-owned
+// operational templates are additive after the winning project context.
 func BuildContextFilesPrompt(opts ContextFilesOptions) (string, ContextFilesReport) {
 	maxChars := opts.MaxChars
 	if maxChars <= 0 {
@@ -90,6 +92,12 @@ func BuildContextFilesPrompt(opts ContextFilesOptions) (string, ContextFilesRepo
 		report.Project = ev
 	} else {
 		report.Project = ev
+	}
+	if operational, evidence := loadOperationalContext(cwd, maxChars); operational != "" {
+		sections = append(sections, operational)
+		report.Operational = evidence
+	} else {
+		report.Operational = evidence
 	}
 
 	if opts.SkipSoul {
@@ -137,6 +145,22 @@ func loadProjectContext(cwd string, maxChars int) (string, ContextFileEvidence) 
 		return content, ev
 	}
 	return "", ContextFileEvidence{Missing: true}
+}
+
+func loadOperationalContext(cwd string, maxChars int) (string, []ContextFileEvidence) {
+	parts := []string{}
+	evidence := []ContextFileEvidence{}
+	for _, name := range []string{"IDENTITY.md", "TOOLS.md"} {
+		content, ev := loadNamedCWDContext(cwd, []string{name}, name, maxChars)
+		if content == "" && !ev.Loaded && !ev.Blocked && ev.Error == "" {
+			continue
+		}
+		evidence = append(evidence, ev)
+		if content != "" {
+			parts = append(parts, content)
+		}
+	}
+	return strings.Join(parts, "\n"), evidence
 }
 
 func loadHermesMD(cwd string, maxChars int) (string, ContextFileEvidence) {

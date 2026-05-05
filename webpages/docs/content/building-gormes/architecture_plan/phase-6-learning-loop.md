@@ -51,10 +51,15 @@ Upstream Hermes at `b816fd4e2` makes the learning loop concrete in two places:
   Hermes' auxiliary picker/dashboard allowlists, falls back to the main model
   when set to `auto` or partially configured, and preserves legacy
   `curator.auxiliary` config with deprecation evidence.
+- `skill_manage` can mutate supporting files under references/templates/scripts
+  and assets, route patch calls to those files, refuse pinned skills, thread
+  `absorbed_into` delete intent, and mark only background-review-created skills
+  as agent-created for later curator maintenance.
 
-Gormes already has several prerequisites: `skill_manage`, `skills_list`,
-`skill_view`, validated SKILL.md storage, skill retrieval fixtures, and the
-memory+skills-only background review toolset policy. The missing rows are the
+Gormes already has several prerequisites: base `skill_manage` create/edit/patch/delete,
+`skills_list`, `skill_view`, validated SKILL.md storage, skill retrieval
+fixtures, and the memory+skills-only background review toolset policy. The
+missing rows are the support-file/curator-intent `skill_manage` surface,
 background review fork lifecycle, curator state/report engine, and curator CLI.
 
 ## Why this is Phase 6 and not Phase 5.F
@@ -97,29 +102,33 @@ becomes unreviewed prompt mutation.
 
 Do not begin Phase 6 with live LLM extraction. The dependency order is:
 
-1. **6.A background review fork lifecycle** — port Hermes runtime inheritance,
+1. **6.F skill_manage support-file and curator intent actions** — port Hermes
+   `write_file`, `remove_file`, support-file patching, pinned-skill refusal,
+   `absorbed_into` delete declarations, usage/provenance updates, and optional
+   agent-created guard rollback with temp skill roots.
+2. **6.A background review fork lifecycle** — port Hermes runtime inheritance,
    memory+skills-only toolset restriction, summary attribution, and cleanup with
    fake review workers.
-2. **6.C storage extension** — extend the Phase 2.G store with versioned
+3. **6.C storage extension** — extend the Phase 2.G store with versioned
    metadata, provenance, review state, and atomic writes before generated skills
    can persist.
-3. **6.E curator auxiliary model slot** — port Hermes `auxiliary.curator`
+4. **6.E curator auxiliary model slot** — port Hermes `auxiliary.curator`
    default registration, main-model fallback, canonical override precedence,
    legacy fallback, blank credential stripping, and no-secret-leak evidence.
-4. **6.E curator state/report engine** — port Hermes first-run defer,
+5. **6.E curator state/report engine** — port Hermes first-run defer,
    interval/paused gates, activity transitions, dry-run/report behavior, and
    pinned/manual safeguards before exposing the command.
-5. **6.F curator CLI** — make `gormes curator` available only after it can read
+6. **6.F curator CLI** — make `gormes curator` available only after it can read
    real native curator state and reports.
-6. **6.A deterministic detector** — prove local trigger signals are explainable
+7. **6.A deterministic detector** — prove local trigger signals are explainable
    and replayable from transcript/tool-call fixtures.
-7. **6.B extractor schema** — use fake model outputs to prove accepted/rejected
+8. **6.B extractor schema** — use fake model outputs to prove accepted/rejected
    skill drafts, secret stripping, and one-off task rejection.
-8. **6.D retrieval scorer** — combine lexical and semantic signals while
+9. **6.D retrieval scorer** — combine lexical and semantic signals while
    excluding disabled or unreviewed skills from prompt injection.
-9. **6.E feedback records** — persist outcomes before any automatic
+10. **6.E feedback records** — persist outcomes before any automatic
    promotion/demotion or weight change.
-10. **6.F operator surfaces** — expose review/edit/disable flows only after the
+11. **6.F operator surfaces** — expose review/edit/disable flows only after the
    underlying store and feedback records are stable.
 
 ### 6.K Self-Evolution Row Status

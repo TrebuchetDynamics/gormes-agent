@@ -605,6 +605,7 @@ func legacyCompanionTestEnvOverrides() []string {
 		"COMPANION_DOC_IMPROVER_CMD=:",
 		"COMPANION_LANDINGPAGE_CMD=:",
 		"MAX_EXISTING_CHROMIUM=9999",
+		"PROMOTION_MODE=cherry-pick",
 	}
 }
 

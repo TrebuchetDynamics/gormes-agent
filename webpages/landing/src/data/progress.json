@@ -4486,6 +4486,71 @@
                 "upstream_ref": "hermes:gateway/platforms/telegram.py parse_mode + format_message",
                 "note": "Hermes posts every Telegram message with parse_mode=ParseMode.MARKDOWN_V2 and falls back to plain text on parse error (line 998). Gormes already produces escaped MarkdownV2 in render.go but the channel never sets parse_mode, defeating the escape work. This slice closes the wiring gap and adds a matching parse-error fallback."
               }
+            },
+            {
+              "name": "Telegram topic mode off/help/auth/debounce closeout",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Gormes ports current Hermes Telegram topic-mode command semantics: `/topic help` shows usage without activating topic tables, `/topic off` disables topic mode and clears bindings idempotently, unauthorized users cannot toggle topic mode, BotFather screenshot/capability guidance is debounced per chat, and `/topic off` resets the debounce counters.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing topic-mode storage or unsupported platform state returns telegram_topic_unavailable or telegram_topic_auth_denied evidence instead of enabling topic routing for unauthorized users or spamming repeated capability screenshots.",
+              "fixture": "internal/gateway/telegram_topic_mode_test.go; internal/channels/telegram/bot_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@d35efb989",
+                "../hermes-agent/gateway/session_db.py@d35efb989:disable_telegram_topic_mode",
+                "../hermes-agent/tests/gateway/test_telegram_topic_mode.py@d35efb989",
+                "internal/gateway/commands.go",
+                "internal/gateway/manager.go",
+                "internal/channels/telegram/bot.go"
+              ],
+              "ready_when": [
+                "Telegram dynamic BotCommand menu wiring and channel-neutral SessionSource/thread metadata persistence are complete.",
+                "Tests can use fake Telegram inbound events, fake clocks, fake topic stores, and captured outbound messages without live Telegram tokens or Bot API calls."
+              ],
+              "not_ready_when": [
+                "The slice rewrites channel-directory routing, starts live Telegram polling, or changes non-Telegram thread delivery semantics.",
+                "`/topic help` mutates storage, unauthorized users can clear topic bindings, or BotFather guidance is sent on every triggering message."
+              ],
+              "acceptance": [
+                "`/topic help` returns usage text containing `off`, `help`, and `session-id` without creating topic-mode state.",
+                "`/topic off` disables topic mode, clears chat/topic bindings, is idempotent, and emits visible confirmation.",
+                "Unauthorized Telegram users receive auth-denied guidance for `/topic` mutations and storage is unchanged.",
+                "Topic-capability/BotFather screenshot guidance is debounced for five minutes per chat with a fake clock.",
+                "`/topic off` resets screenshot/capability debounce state so a later enablement warning can be sent once."
+              ],
+              "write_scope": [
+                "internal/gateway/commands.go",
+                "internal/gateway/telegram_topic_mode.go",
+                "internal/gateway/telegram_topic_mode_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestTelegramTopic' -count=1",
+                "go test ./internal/channels/telegram -run 'Test.*Topic|TestBot_RunRegistersHermesTelegramCommands' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram topic-mode fixtures prove help/off/auth/debounce behavior with fake stores and clocks and no live Bot API dependency."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:d35efb989 gateway/platforms/telegram.py",
+                  "hermes:d35efb989 gateway/session_db.py",
+                  "hermes:d35efb989 tests/gateway/test_telegram_topic_mode.py"
+                ],
+                "note": "Gormes already preserves generic Telegram thread metadata; this row tracks the operator-visible topic-mode command semantics added upstream."
+              }
             }
           ],
           "drift_state": {
@@ -4819,6 +4884,164 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:gateway/config.py Platform enum and gateway/platforms connectors",
                 "note": "Hermes defines platform IDs and operator behavior; Gormes owns the Go registry and implementation order."
+              }
+            },
+            {
+              "name": "Navivox stdio protocol control-plane tracer",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "`gormes navivox serve --stdio` exposes a Gormes-owned SSH stdio control-plane server for the future Flutter Navivox app. The first slice implements only the binary NVOX frame codec and fakeable server loop for `hello` -> `server.status`, `ping` -> `pong`, and unknown readable event -> structured `error`; it rejects bad magic, unsupported prelude versions, invalid JSON headers, oversized headers/payloads, and payload-length mismatches without starting gateway.Manager or handling chat, voice, config, tools, pairing, or selected-agent routing.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unreadable framing errors close the stdio server with typed Go errors instead of emitting untrustworthy in-band frames; readable unsupported event types return redacted `error` frames with correlation_id set to the triggering message id.",
+              "fixture": "internal/channels/navivox/protocol_test.go and internal/channels/navivox/server_test.go",
+              "source_refs": [
+                "flutter-navivox/navivox-decision-record.md:Protocol Framing",
+                "flutter-navivox/navibox-prd.md:Navivox Protocol",
+                "flutter-navivox/navibox-testing-plan.md:Protocol Codecs",
+                "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox SSH/Flutter channel",
+                "internal/gateway/channel.go",
+                "cmd/gormes/acp.go",
+                "internal/channels/yuanbao/runtime.go"
+              ],
+              "ready_when": [
+                "The decision record defines NVOX magic, protocol v1, header length, JSON header, payload_length, JSON-vs-binary body placement, and unsupported-version policy.",
+                "Tests can use bytes.Buffer or an in-memory pipe; no SSH daemon, PTY, Flutter app, gateway.Manager, provider, or live channel SDK is required."
+              ],
+              "not_ready_when": [
+                "The slice attempts `chat.submit` gateway dispatch, selected-agent routing, config.schema/admin, tool-call events, pairing roles, voice/TTS/STT, SSH client logic, or Flutter UI integration.",
+                "The implementation treats Navivox as a Hermes platform enum parity port instead of a Gormes-owned first-party channel.",
+                "Bad magic, invalid headers, or unsupported prelude versions are answered with in-band frames instead of failing the untrusted stream."
+              ],
+              "unblocks": [
+                "Gateway selected-agent override for channel events",
+                "Navivox chat.submit gateway binding",
+                "Navivox schema-driven config admin protocol",
+                "Navivox typed tool event stream",
+                "Navivox voice audio frame streaming"
+              ],
+              "acceptance": [
+                "Codec tests prove binary frames round-trip with ASCII NVOX magic, uint32 network-byte-order protocol/header lengths, JSON headers, exact payload_length handling, and byte-for-byte binary payload preservation.",
+                "Codec tests prove bad magic, unsupported prelude version, invalid JSON, oversized header/payload, and payload-length mismatch return typed errors.",
+                "Server tests prove `hello` returns `server.status` with protocol=1, feature list, version/config evidence, and correlation_id matching the hello message id.",
+                "Server tests prove `ping` returns `pong` with correlation_id and unknown readable event types return a structured redacted `error` frame.",
+                "cmd/gormes tests prove `gormes navivox serve --stdio` is registered, requires `--stdio`, and can complete a fake stdio handshake without PTY assumptions."
+              ],
+              "note": "Complete 2026-05-05: TDD added internal/channels/navivox with the NVOX binary frame codec, typed framing errors, static status provider, and fakeable server loop. `gormes navivox serve --stdio` is registered as a thin command and handles hello/server.status, ping/pong, unknown readable event errors, EOF shutdown, and bad framing rejection without starting gateway.Manager, SSH, providers, Flutter, chat, config, tool, pairing, or voice surfaces.",
+              "write_scope": [
+                "cmd/gormes/main.go",
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_test.go",
+                "internal/channels/navivox/protocol.go",
+                "internal/channels/navivox/protocol_test.go",
+                "internal/channels/navivox/server.go",
+                "internal/channels/navivox/server_test.go",
+                "internal/channels/navivox/status.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/navivox -run 'Test(Codec|Server)' -count=1",
+                "go test ./cmd/gormes -run TestNavivox -count=1",
+                "go test ./internal/channels/navivox ./cmd/gormes -run 'Test(Codec|Server|Navivox)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "evidence": [
+                "2026-05-05: go test ./internal/channels/navivox -run 'Test(Codec|Server)' -count=1 -> pass",
+                "2026-05-05: go test ./cmd/gormes -run TestNavivox -count=1 -> pass",
+                "2026-05-05: go test ./internal/channels/navivox ./cmd/gormes -run 'Test(Codec|Server|Navivox)' -count=1 -> pass"
+              ],
+              "done_signal": [
+                "Navivox frame codec and stdio control-plane fixtures prove fake clients can handshake and health-check the server before chat, config, tool, or voice rows begin."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-05T00:00:00Z",
+                "note": "Navivox is a Gormes-owned first-party Flutter/SSH channel. Hermes gateway sources inform manager/channel principles, but there is no upstream Hermes Navivox platform to port."
+              }
+            },
+            {
+              "name": "Navivox QR pairing descriptor CLI",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "`gormes navivox pair` creates a gateway pairing-code request for the `navivox` platform, prints a terminal QR code, and prints a plain-text fallback `navivox://pair?...` descriptor containing transport=ssh, host, port, SSH user, `gormes navivox serve --stdio`, protocol version, device name, pairing code, and expiry. Host selection prefers an explicit `--host`, then Tailscale IPv4, then LAN IPv4, then loopback. `gormes navivox setup-host --plan` renders the recommended host preparation path with Tailscale SSH, OpenSSH server commands, and sudo-password safety without mutating the host.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If QR scanning is unavailable, the fallback URI is fully usable. If Tailscale is unavailable, the command still emits an explicit host source and recommends `gormes navivox setup-host --plan`. Pairing output never includes private keys, sudo passwords, or shell credentials; setup planning states that sudo passwords are prompt-only and never stored.",
+              "fixture": "cmd/gormes/navivox_test.go::TestNavivoxPairPrintsScannableDescriptorAndPersistsPendingPairing",
+              "source_refs": [
+                "openclaw/src/plugin-sdk/channel-pairing.ts:createChannelPairingChallengeIssuer",
+                "openclaw/src/pairing/pairing-messages.ts:buildPairingReply",
+                "openclaw/docs/install/oracle.md:Install Tailscale",
+                "openclaw/docs/install/podman.md:Podman + Tailscale",
+                "hermes-agent/SECURITY.md:Network exposure",
+                "internal/gateway/pairing_store.go",
+                "cmd/gormes/navivox.go",
+                "Context7 /websites/tailscale: `tailscale up --ssh` and `tailscale set --ssh` for secure remote SSH",
+                "Context7 /mdp/qrterminal: GenerateHalfBlock terminal QR output"
+              ],
+              "ready_when": [
+                "The prior Navivox stdio control-plane tracer is complete.",
+                "Gateway pairing store can issue and persist pending platform codes without live network credentials.",
+                "QR rendering can be tested with text fallback and no live SSH daemon."
+              ],
+              "not_ready_when": [
+                "The slice attempts live SSH login, authorized_keys mutation, Tailscale installation, config admin, selected-agent routing, or chat gateway binding.",
+                "The QR contains a sudo password, private key, API token, or other credential that grants shell access.",
+                "The CLI claims that pairing approval is enforced by `serve --stdio` before the Navivox channel-binding row validates that behavior."
+              ],
+              "unblocks": [
+                "Navivox host setup apply with transient sudo",
+                "Navivox Flutter QR scanner and SSH bootstrap",
+                "Navivox pair.claim stdio event",
+                "Navivox chat.submit gateway binding"
+              ],
+              "acceptance": [
+                "`gormes navivox pair --host 100.77.1.2 --port 2222 --user ada --device-name pixel-lab --qr=false` prints a clear operator-first pairing screen, server details, pairing code, fallback URI, and Tailscale recommendation.",
+                "The fallback URI parses as `navivox://pair` and contains transport, host, port, user, command, protocol, code, and device fields.",
+                "The command persists one pending `navivox` pairing record in the existing gateway pairing store.",
+                "Pairing output does not contain sudo-password prompts, private-key markers, or credential-shaped text.",
+                "`gormes navivox setup-host --plan` renders Tailscale install/up guidance, OpenSSH server enable commands, and a clear statement that sudo passwords are prompt-only and never stored."
+              ],
+              "note": "Complete 2026-05-05: TDD added `gormes navivox pair` with qrterminal rendering, text fallback, explicit host/port/user/command details, existing gateway pairing-store persistence, Tailscale-first host discovery, and `setup-host --plan` UX copy for OpenSSH/Tailscale/sudo safety. Live privileged host mutation remains a separate planned row.",
+              "write_scope": [
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_test.go",
+                "go.mod",
+                "go.sum",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestNavivox(Pair|SetupHost)' -count=1",
+                "go test ./cmd/gormes -run TestNavivox -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "evidence": [
+                "2026-05-05: go test ./cmd/gormes -run 'TestNavivox(Pair|SetupHost)' -count=1 -> pass",
+                "2026-05-05: go test ./cmd/gormes -run TestNavivox -count=1 -> pass",
+                "2026-05-05: go test ./... -count=1 -> pass"
+              ],
+              "done_signal": [
+                "Operators can run one command on the Gormes host, scan a QR from Navivox, or manually paste a complete SSH stdio pairing descriptor without exposing credentials."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "owned_since": "2026-05-05T00:00:00Z",
+                "upstream_ref": "OpenClaw channel pairing challenge helpers and Tailscale-first remote-access docs; Hermes QR onboarding and network hardening guidance",
+                "note": "Navivox QR pairing is Gormes-owned. OpenClaw proves channel pairing challenge UX and Tailscale-first remote access patterns; Hermes contributes QR terminal onboarding precedent and the security rule to avoid public exposure without VPN/Tailscale/firewall."
               }
             }
           ]
@@ -13431,6 +13654,67 @@
               }
             },
             {
+              "name": "Ollama Cloud models.dev suffix normalization",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Gormes normalizes Ollama Cloud model IDs from models.dev before merging static metadata with live provider/model picker data, stripping Hermes-compatible `:cloud` and `-cloud` suffixes while preserving unsuffixed IDs and deduplicating clean live IDs.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Model picker/status reports ollama_cloud_model_normalized or ollama_cloud_model_metadata_unavailable evidence instead of showing duplicate suffixed/unsuffixed Ollama Cloud entries or selecting a suffixed ID that the live API rejects.",
+              "fixture": "internal/hermes/ollama_cloud_models_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/models.py@eadf34633:_strip_ollama_cloud_suffix",
+                "../hermes-agent/hermes_cli/models.py@eadf34633:fetch_ollama_cloud_models",
+                "../hermes-agent/tests/hermes_cli/test_ollama_cloud_provider.py@eadf34633:TestOllamaCloudSuffixStripping",
+                "internal/hermes/model_registry.go",
+                "internal/hermes/provider_registry_manifest.go",
+                "cmd/gormes/model.go"
+              ],
+              "ready_when": [
+                "Hermes provider registry and alias manifest plus model pricing/capability registry fixtures are complete.",
+                "Tests can use embedded models.dev/live API fixtures; no Ollama Cloud account, provider credential, or network call is required."
+              ],
+              "not_ready_when": [
+                "The slice refreshes the whole models.dev snapshot, changes generic provider routing, or performs live provider discovery.",
+                "The normalizer strips suffixes from non-Ollama providers or from model IDs where `cloud` is not the terminal Hermes suffix."
+              ],
+              "acceptance": [
+                "`kimi-k2.6:cloud` normalizes to `kimi-k2.6` and `qwen3-coder:480b-cloud` normalizes to `qwen3-coder:480b` for provider `ollama-cloud`.",
+                "Unsuffixed Ollama Cloud IDs remain unchanged.",
+                "A live clean ID and a models.dev suffixed ID merge into one model entry with deterministic metadata precedence.",
+                "Provider/model picker fixtures do not show duplicate suffixed and unsuffixed Ollama Cloud entries."
+              ],
+              "write_scope": [
+                "internal/hermes/model_registry.go",
+                "internal/hermes/ollama_cloud_models_test.go",
+                "cmd/gormes/model.go",
+                "cmd/gormes/model_picker_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestOllamaCloud' -count=1",
+                "go test ./cmd/gormes -run 'TestModel.*OllamaCloud|TestModelPicker.*OllamaCloud' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Ollama Cloud fixtures prove Hermes suffix normalization and duplicate suppression without live models.dev or provider calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:eadf34633 hermes_cli/models.py",
+                  "hermes:eadf34633 tests/hermes_cli/test_ollama_cloud_provider.py"
+                ],
+                "note": "Nested Hermes model-picker drift discovered after the provider/model registry rows were completed; this revisits only Ollama Cloud model ID merge semantics."
+              }
+            },
+            {
               "name": "Routing policy and fallback selector",
               "status": "complete",
               "contract": "Smart model routing is a pure selector over explicit overrides, provider availability, fallback policy, and model metadata before any provider call switches models",
@@ -15788,6 +16072,164 @@
               }
             },
             {
+              "name": "Hermes website docs mirror coverage gate",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes docs keep the upstream Hermes documentation mirror source-backed from the active nested Hermes repo: docs tests discover `./hermes-agent/website/docs` before legacy sibling paths, compare every active Hermes Markdown/category docs file against `webpages/docs/content/upstream-hermes`, and report missing, extra, or unsanitized pages with exact paths so operator docs drift cannot hide behind a skipped mirror test.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Docs validation reports hermes_docs_source_missing, hermes_docs_mirror_missing, hermes_docs_mirror_extra, hermes_docs_docusaurus_syntax, or hermes_docs_link_unresolved evidence instead of silently skipping when Hermes is checked out under `./hermes-agent`.",
+              "fixture": "webpages/docs/docs_test.go::TestMirroredDocsCoverage",
+              "source_refs": [
+                "./hermes-agent/website/docs@b816fd4e2",
+                "./hermes-agent/docs@b816fd4e2",
+                "webpages/docs/docs_test.go:sourceDocsRoot",
+                "webpages/docs/content/upstream-hermes/"
+              ],
+              "ready_when": [
+                "The local Hermes checkout exists at `./hermes-agent` and contains `website/docs`.",
+                "The builder can update docs tests and mirror pages without changing Gormes runtime behavior.",
+                "The pass can sanitize Docusaurus category/frontmatter/admonition syntax into the Astro/Starlight-compatible Gormes mirror."
+              ],
+              "not_ready_when": [
+                "The slice copies upstream docs without preserving the `upstream-hermes/` namespace.",
+                "The slice weakens `TestMirroredDocsCoverage` or turns missing pages into a permanent allowlist.",
+                "The slice treats stale mirrored Gormes docs as active upstream evidence when `./hermes-agent/website/docs` is available.",
+                "The slice introduces root-relative links, raw React components, Docusaurus admonitions, or broken internal links into the Gormes docs site."
+              ],
+              "blocked_by": [
+                "Skill control-plane docs and Hugo navigation closeout"
+              ],
+              "acceptance": [
+                "TestMirroredDocsCoverage discovers active upstream docs from `./hermes-agent/website/docs` first, then falls back to `../hermes-agent/website/docs`, `references/hermes-agent/website/docs`, and the legacy `../../../website/docs` path only when needed.",
+                "The mirror includes active upstream operator docs that are currently absent from Gormes, including `developer-guide/browser-supervisor.md`, `user-guide/configuring-models.md`, `user-guide/features/curator.md`, `user-guide/features/goals.md`, `user-guide/features/kanban.md`, `user-guide/features/kanban-tutorial.md`, `user-guide/features/spotify.md`, `reference/model-catalog.md`, `guides/azure-foundry.md`, `guides/cron-script-only.md`, `guides/github-pr-review-agent.md`, `guides/minimax-oauth.md`, `guides/webhook-github-pr-review.md`, `user-guide/messaging/teams.md`, and `user-guide/messaging/yuanbao.md`.",
+                "Generated category pages map upstream `_category_.json` files to Gormes `_index.md` pages, and copied Markdown passes the existing portability hazard and internal-link tests.",
+                "The failure message lists the first missing/extra paths plus the selected upstream source root, so future Hermes docs additions are immediately actionable.",
+                "`go test ./webpages/docs -run TestMirroredDocsCoverage -count=1` fails before the mirror refresh and passes after the mirror refresh without network access."
+              ],
+              "note": "2026-05-05 docs-focused parity sweep found active Hermes docs under `./hermes-agent/website/docs` with 290 source files, while Gormes' `webpages/docs/content/upstream-hermes` mirror has 127 Markdown pages. The existing mirror coverage test still looks at a legacy sibling `../../../website/docs` path and skips in this workspace, so new Hermes docs such as curator, Kanban, goals, Spotify, Teams, Yuanbao, browser supervisor, model catalog, and PR-review guides are not surfaced as drift. This row makes that documentation fidelity gap builder-ready without copying pages in the parity sweep.",
+              "write_scope": [
+                "webpages/docs/docs_test.go",
+                "webpages/docs/content/upstream-hermes/",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1",
+                "go test ./webpages/docs -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Docs mirror coverage resolves the nested Hermes docs source, mirrored upstream-Hermes pages match the active source inventory, and docs tests fail on future missing pages with exact path evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 website/docs/**",
+                "note": "Hermes owns the operator documentation contract; Gormes mirrors it under `upstream-hermes/` while keeping Gormes-native docs separate."
+              }
+            },
+            {
+              "name": "Gormes setup/channel/provider docs webpage parity gate",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "The public Gormes docs site gives operators one coherent setup path from webpage entrypoint to first successful model turn and optional messaging gateway: the docs home, Getting Started, First Run, Provider Setup, Gateway Operations, Telegram Bot, CLI reference, config reference, environment reference, and provider reference pages must agree with the live `gormes --help`, `gormes setup --help`, `gormes model --help`, and `gormes gateway --help` command surface; they must link to active upstream Hermes provider/messaging docs under `upstream-hermes/` for parity context while clearly separating Gormes-ready commands from row-backed or fixture-only channels/providers.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Docs tests report gormes_docs_setup_path_missing, gormes_docs_provider_claim_unverified, gormes_docs_channel_claim_unverified, gormes_docs_help_mismatch, or gormes_docs_upstream_context_missing instead of letting the webpage advertise stale setup, channel, or provider behavior.",
+              "fixture": "webpages/docs/landing_page_docs_test.go::TestGormesOperatorSetupChannelProviderDocs",
+              "source_refs": [
+                "cmd/gormes/main.go:gormes --help setup/provider/channel sections",
+                "cmd/gormes/setup.go",
+                "cmd/gormes/model.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
+                "cmd/gormes/whatsapp.go",
+                "./hermes-agent/website/docs/getting-started/quickstart.md@b816fd4e2",
+                "./hermes-agent/website/docs/user-guide/configuration.md@b816fd4e2",
+                "./hermes-agent/website/docs/user-guide/configuring-models.md@b816fd4e2",
+                "./hermes-agent/website/docs/integrations/providers.md@b816fd4e2",
+                "./hermes-agent/website/docs/reference/model-catalog.md@b816fd4e2",
+                "./hermes-agent/website/docs/user-guide/messaging/telegram.md@b816fd4e2",
+                "./hermes-agent/website/docs/user-guide/messaging/whatsapp.md@b816fd4e2",
+                "./hermes-agent/website/docs/user-guide/messaging/discord.md@b816fd4e2",
+                "./hermes-agent/website/docs/user-guide/messaging/slack.md@b816fd4e2",
+                "webpages/docs/content/getting-started/_index.md",
+                "webpages/docs/content/getting-started/first-run.md",
+                "webpages/docs/content/getting-started/configuration.md",
+                "webpages/docs/content/guides/provider-setup.md",
+                "webpages/docs/content/guides/gateway-operations.md",
+                "webpages/docs/content/guides/telegram-bot.md",
+                "webpages/docs/content/reference/cli.md",
+                "webpages/docs/content/reference/config.md",
+                "webpages/docs/content/reference/environment.md",
+                "webpages/docs/content/reference/providers.md"
+              ],
+              "ready_when": [
+                "The docs mirror row has active upstream provider/messaging pages or the test can name missing upstream context explicitly.",
+                "The live local CLI can be invoked in tests with `go run ./cmd/gormes --help`, `setup --help`, `model --help`, and `gateway --help` without credentials or network access.",
+                "The pass updates only docs/tests and progress data; no command handler, provider runtime, channel adapter, or installer behavior changes are required."
+              ],
+              "not_ready_when": [
+                "The docs promise a provider or channel as user-ready from progress rows alone instead of live CLI/runtime evidence.",
+                "The docs hide `gormes model`, `gormes gateway status`, `gormes telegram`, or `gormes whatsapp` while the CLI exposes them.",
+                "The docs copy Hermes command names, paths, or environment keys into Gormes-native pages without a Gormes translation or explicit upstream-Hermes context.",
+                "The docs ask users to edit secrets into config TOML instead of `.env`, `gormes auth`, or redacted config helpers."
+              ],
+              "blocked_by": [
+                "Hermes website docs mirror coverage gate",
+                "CLI setup/onboard/help text fidelity matrix",
+                "Provider endpoint/API-key root flags + runtime resolution",
+                "Gateway management CLI read-model closeout"
+              ],
+              "acceptance": [
+                "TestGormesOperatorSetupChannelProviderDocs shells out to the local Go CLI help and proves every command documented in the setup/provider/channel quick path exists in help output: `gormes setup`, `gormes setup provider`, `gormes setup model`, `gormes model`, `gormes --oneshot`, `gormes gateway`, `gormes gateway status`, `gormes gateway stop`, `gormes telegram`, and `gormes whatsapp`.",
+                "The docs home and Getting Started path link to First Run, Configuration, Provider Setup, Gateway Operations, Telegram Bot, CLI Commands, Config, Environment, and Providers without broken internal links.",
+                "First Run and Provider Setup describe the credential path consistently: provider/model selection through `gormes setup provider`, `gormes setup model`, `gormes model`, `gormes config set`, or `gormes auth`, secrets in `.env`, and verification through `gormes --oneshot` plus `gormes doctor`.",
+                "Gateway Operations, Telegram Bot, and CLI reference distinguish runtime-ready channels from row-backed/fixture-backed channels, and any WhatsApp claim points at the actual `gormes whatsapp` setup surface plus live readiness caveat.",
+                "Provider docs link to the active upstream Hermes providers/model-catalog docs under `upstream-hermes/` for parity context and keep Gormes-native provider status taxonomy separate from upstream provider availability.",
+                "The test fails with page name and missing token/link when setup, channel, or provider webpage copy drifts from the local CLI help or active upstream context."
+              ],
+              "note": "2026-05-05 topic-driven docs parity sweep (`documentation docs webpage setup channels providers`) found that Gormes has native operator docs for first run, provider setup, gateway operations, Telegram, CLI, config, environment, and provider status, but no dedicated webpage test ties those pages to the current Go CLI help and active Hermes setup/provider/messaging docs. This row keeps the docs site from becoming a stale marketing layer while the upstream-Hermes mirror row catches missing source pages.",
+              "write_scope": [
+                "webpages/docs/landing_page_docs_test.go",
+                "webpages/docs/content/_index.md",
+                "webpages/docs/content/getting-started/",
+                "webpages/docs/content/guides/provider-setup.md",
+                "webpages/docs/content/guides/gateway-operations.md",
+                "webpages/docs/content/guides/telegram-bot.md",
+                "webpages/docs/content/reference/cli.md",
+                "webpages/docs/content/reference/config.md",
+                "webpages/docs/content/reference/environment.md",
+                "webpages/docs/content/reference/providers.md",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs -run 'TestGormesOperatorSetupChannelProviderDocs|TestDocsHomePageIsGormesBranded|TestDocsInternalLinksResolve' -count=1",
+                "go test ./webpages/docs -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Docs tests prove the setup/channel/provider webpage path matches live Gormes CLI help, links to active upstream Hermes provider/messaging context, and does not promise row-backed providers or channels as runtime-ready."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b816fd4e2 website/docs getting-started + providers + messaging",
+                "note": "Hermes supplies the setup/provider/messaging documentation contract; Gormes owns the translated Go-native operator docs and readiness boundaries."
+              }
+            },
+            {
               "name": "Native runtime provider gateway binding",
               "priority": "P0",
               "status": "complete",
@@ -17236,6 +17678,73 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:2e6699b3 tools/environments/base.py",
                 "note": "Hermes fixed a macOS bash declare-x leak; Gormes should apply the same invariant when terminal environment snapshots exist."
+              }
+            },
+            {
+              "name": "Terminal deleted-cwd recovery guard",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Terminal/local environment execution recovers when the process or persistent-shell cwd has been deleted: foreground tool calls resolve through configured terminal.cwd or a safe workspace fallback, background process spawn refuses deleted cwd before subprocess creation, and persistent-shell state resets with explicit evidence instead of panicking.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Deleted or inaccessible cwd returns terminal_cwd_recovered, terminal_cwd_deleted, or background_cwd_unavailable evidence without leaking host paths outside the workspace root or silently running in an unrelated directory.",
+              "fixture": "internal/tools/terminal_cwd_recovery_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/process_registry.py@109c3e468",
+                "../hermes-agent/tools/environments/local.py@9644b8ae6",
+                "../hermes-agent/tests/tools/test_local_env_cwd_recovery.py@9644b8ae6",
+                "internal/tools/terminal_tool.go",
+                "internal/tools/environment_contract.go",
+                "internal/config/config.go"
+              ],
+              "ready_when": [
+                "Native file task tool surface and Terminal cwd config bridge are complete, so terminal execution already has a configured Workdir seam.",
+                "Tests can use temp directories removed after setup plus fake command runners; no persistent shell, PTY, provider, or background process registry runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice implements full background process registry, PTY persistence, Docker/SSH backends, or service restart behavior.",
+                "Deleted cwd recovery falls back to `/` or the developer home directory without explicit operator evidence.",
+                "A missing configured terminal.cwd is silently ignored when the caller explicitly configured it."
+              ],
+              "blocked_by": [
+                "Native file task tool surface",
+                "Terminal cwd config bridge"
+              ],
+              "acceptance": [
+                "TestTerminalToolDeletedProcessCWDRecoversToConfiguredCWD removes the launch cwd and proves the terminal tool runs from configured terminal.cwd with recovery evidence.",
+                "TestTerminalToolDeletedConfiguredCWDReturnsEvidence proves an explicitly configured but deleted cwd fails closed with terminal_cwd_deleted rather than running elsewhere.",
+                "TestTerminalBackgroundSpawnRejectsDeletedCWD proves future background-process requests are rejected before subprocess creation when cwd validation fails.",
+                "TestPersistentShellDeletedCWDResetsState proves the local environment wrapper clears stale cwd state and reports recovery evidence under fake state only."
+              ],
+              "write_scope": [
+                "internal/tools/terminal_tool.go",
+                "internal/tools/terminal_cwd_recovery_test.go",
+                "internal/tools/environment_contract.go",
+                "internal/config/config.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestTerminal.*DeletedCWD|TestPersistentShell.*DeletedCWD|TestTerminalBackground.*DeletedCWD' -count=1",
+                "go test ./internal/tools ./internal/config -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Terminal cwd recovery fixtures prove deleted launch/configured/persistent cwd handling with bounded evidence and no live shell registry."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:109c3e468 tools/process_registry.py",
+                  "hermes:9644b8ae6 tools/environments/local.py"
+                ],
+                "note": "Hermes fixed deleted-cwd crashes in both process registry and local persistent shell paths; Gormes ports the invariant around its native terminal/config seams."
               }
             },
             {
@@ -19218,6 +19727,67 @@
               }
             },
             {
+              "name": "MiniMax TTS v1 text_to_speech raw-audio compatibility",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Gormes ports current Hermes MiniMax TTS provider drift: default MiniMax synthesis uses `https://api.minimax.chat/v1/text_to_speech`, model `speech-01`, voice `female-shaonv`, a flat `{model,text,voice_id}` payload, and accepts raw audio responses while keeping the legacy JSON/hex response parser as fallback compatibility.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "MiniMax endpoint, HTTP status, content-type, and response-shape failures return typed redacted tts_api_error evidence without leaking API keys, request text, or provider URLs containing credentials.",
+              "fixture": "internal/tools/tts_minimax_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/tts_tool.py@687547191:MiniMaxTTSSynthesizer",
+                "../hermes-agent/tests/tools/test_tts_speed.py@687547191",
+                "internal/tools/tts_tool.go",
+                "internal/tools/tts_command_provider.go",
+                "internal/tools/tts_providers.go"
+              ],
+              "ready_when": [
+                "TTS tool contract + media delivery seam is complete and provider-specific synth fakes can be injected.",
+                "Tests can use httptest servers and temp output files without real MiniMax credentials, ffmpeg, or live network."
+              ],
+              "not_ready_when": [
+                "The slice changes generic TTS tool schema, voice-mode state, platform media delivery, or non-MiniMax provider behavior.",
+                "Tests require live MiniMax API calls or assert private text/API-key values in error strings."
+              ],
+              "acceptance": [
+                "MiniMax default request targets `/v1/text_to_speech` on `api.minimax.chat` with model `speech-01` and voice_id `female-shaonv`.",
+                "Captured payload is flat `{model,text,voice_id}` and omits legacy `voice_setting`, `audio_setting`, and `stream` fields.",
+                "An `audio/*` response writes the raw response body to the configured output file.",
+                "Legacy JSON/hex MiniMax responses still decode through the fallback parser.",
+                "HTTP, malformed-body, and missing-audio failures are redacted and keep existing TTS evidence codes."
+              ],
+              "write_scope": [
+                "internal/tools/tts_tool.go",
+                "internal/tools/tts_command_provider.go",
+                "internal/tools/tts_providers.go",
+                "internal/tools/tts_minimax_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestMiniMaxTTS|TestTextToSpeech' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "MiniMax TTS fixtures prove current endpoint/payload defaults, raw-audio handling, legacy JSON fallback, and redacted failure evidence without live provider calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:687547191 tools/tts_tool.py",
+                  "hermes:687547191 tests/tools/test_tts_speed.py"
+                ],
+                "note": "Provider-specific drift discovered after the generic TTS tool/media row completed; this row reopens only MiniMax synthesis compatibility."
+              }
+            },
+            {
               "name": "TTS synthesis + voice-mode state",
               "status": "planned",
               "note": "TDD: port `tools/tts_tool.py`, `tools/voice_mode.py`, and `tools/neutts_synth.py` behind a sidecar-friendly interface with cached samples and nonfatal missing-dependency behavior.",
@@ -19230,6 +19800,77 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
+            },
+            {
+              "name": "Voice record-key config binding for native TUI",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes native TUI and voice mode honor a Hermes-compatible voice.record_key setting end to end: config parse and setup surfaces preserve the key, slash/status output reports it, and the key resolver uses the configured shortcut instead of a hardcoded default while malformed, reserved, or unsupported modifier combinations fall back with evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Malformed or reserved record_key values return voice_record_key_invalid or voice_record_key_reserved evidence and fall back to the default key without disabling STT/TTS or leaking config file contents.",
+              "fixture": "internal/tools/voice_mode_test.go; internal/tui/hermes_keybindings_test.go",
+              "source_refs": [
+                "../hermes-agent/cli.py@20428f5e6",
+                "../hermes-agent/hermes_cli/voice.py@20428f5e6",
+                "../hermes-agent/tui_gateway/server.py@20428f5e6",
+                "../hermes-agent/ui-tui/src/lib/platform.ts@20428f5e6",
+                "../hermes-agent/ui-tui/src/app/useInputHandlers.ts@20428f5e6",
+                "../hermes-agent/tests/hermes_cli/test_voice_wrapper.py@20428f5e6",
+                "../hermes-agent/tests/test_tui_gateway_server.py@20428f5e6",
+                "../hermes-agent/ui-tui/src/__tests__@20428f5e6",
+                "internal/tools/voice_mode.go",
+                "internal/tui/hermes_keybindings_test.go",
+                "cmd/gormes/config_command_test.go"
+              ],
+              "ready_when": [
+                "Transcription tool contract, Telegram voice/audio STT ingress hook, and TTS tool contract + media delivery seam are complete.",
+                "Native TUI keybinding tests can resolve key strings without launching the Bubble Tea program, TTS providers, STT binaries, or a live gateway."
+              ],
+              "not_ready_when": [
+                "The slice rewrites full voice-mode media delivery, starts microphone capture, downloads audio, or changes TTS/STT provider behavior.",
+                "Malformed record_key values crash startup or shadow reserved TUI controls without a visible fallback.",
+                "The row treats Hermes Ink/React TUI code as a runtime dependency instead of parity evidence."
+              ],
+              "blocked_by": [
+                "Transcription tool contract",
+                "TTS tool contract + media delivery seam"
+              ],
+              "acceptance": [
+                "TestVoiceRecordKeyConfigParsesDefaultAndOverride proves config/setup can read and write voice.record_key while preserving the default when omitted.",
+                "TestVoiceRecordKeyResolverUsesConfiguredKey proves the native TUI key resolver toggles voice recording on the configured key and not the old hardcoded default.",
+                "TestVoiceRecordKeyMalformedAndReservedFallback proves malformed strings, reserved control keys, and unsupported multi-modifier combinations fall back with explicit evidence.",
+                "TestVoiceStatusShowsConfiguredRecordKey proves slash/status rendering includes the active record key in a bounded operator-visible field."
+              ],
+              "write_scope": [
+                "internal/tools/voice_mode.go",
+                "internal/tools/voice_mode_test.go",
+                "internal/tui/hermes_keybindings.go",
+                "internal/tui/hermes_keybindings_test.go",
+                "cmd/gormes/setup.go",
+                "cmd/gormes/config_command_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools ./internal/tui ./cmd/gormes -run 'Voice.*RecordKey|HermesKey.*Voice|Config.*Voice' -count=1",
+                "go test ./internal/tools ./internal/tui ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Voice config and TUI fixtures prove voice.record_key parses, displays, falls back safely, and controls recording without a hardcoded shortcut or live audio runtime."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:20428f5e6 voice.record_key TUI binding",
+                "note": "Hermes recently fixed voice.record_key across CLI, gateway protocol, and TUI; Gormes scopes the parity row to native config/status/keybinding behavior."
+              }
             }
           ]
         },
@@ -19707,6 +20348,68 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:0e2a53ea hermes_cli/skills_hub.py do_list",
                 "note": "Mirrors PR #16129; pure introspection feature — no skill execution change."
+              }
+            },
+            {
+              "name": "Update bundled skills across active and named profiles",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes skill update/sync paths seed reviewed bundled skills into the active profile and every named profile, target explicit profile roots, preserve user-modified skills, and return a deterministic per-profile summary without writing to unrelated homes.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Profile-root discovery, sync conflicts, and write failures return skill_profile_sync_unavailable, skill_profile_conflict, or skill_profile_write_failed evidence with profile names only; no skill body or private path content is logged.",
+              "fixture": "internal/skills/profile_sync_test.go; cmd/gormes/skills_sync_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py@20edca75e",
+                "../hermes-agent/tests/hermes_cli/test_cmd_update.py@20edca75e",
+                "internal/skills/delta_maintenance.go",
+                "internal/skills/store.go",
+                "cmd/gormes/skills.go"
+              ],
+              "ready_when": [
+                "Skills list enabled/disabled status and bundled skill catalog rows are complete enough to enumerate reviewed bundled skills.",
+                "Tests can build fake active and named profile roots under t.TempDir and inject bundled skill fixtures; no live update download, registry fetch, or real user profile mutation is required."
+              ],
+              "not_ready_when": [
+                "The slice downloads skills from network registries, rewrites URL install semantics, or overwrites user-edited active skills without conflict evidence.",
+                "The slice writes outside injected profile roots or reads real ~/.gormes/~/.hermes homes.",
+                "Profile sync silently skips the active profile while updating only named profiles."
+              ],
+              "blocked_by": [
+                "Skills list — enabled/disabled status column + --enabled-only filter"
+              ],
+              "acceptance": [
+                "TestBundledSkillProfileSyncWritesActiveAndNamedProfiles seeds active/default/work profiles and proves each receives missing reviewed bundled SKILL.md files.",
+                "TestBundledSkillProfileSyncPreservesUserModifiedSkills proves changed skills are not overwritten and conflict evidence names the profile and skill.",
+                "TestBundledSkillProfileSyncSummaryDeterministic proves per-profile added/unchanged/conflict/failed counts are sorted and redacted.",
+                "TestSkillsSyncCommandRunsProfileSyncWithFakeRoots proves the native skills sync/update-equivalent path calls the profile sync helper without network, registry, or real home writes."
+              ],
+              "write_scope": [
+                "internal/skills/profile_sync.go",
+                "internal/skills/profile_sync_test.go",
+                "cmd/gormes/skills.go",
+                "cmd/gormes/skills_sync_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestBundledSkillProfileSync' -count=1",
+                "go test ./cmd/gormes -run 'TestSkills.*ProfileSync|TestSkills.*Sync' -count=1",
+                "go test ./internal/skills ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Profile-sync fixtures prove bundled skills are updated across active and named profiles, user edits are preserved, summaries are deterministic, and tests never touch live homes or registries."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:20edca75e hermes_cli/main.py update skill sync",
+                "note": "Hermes fixed update to sync bundled skills to every profile including the active profile; Gormes tracks the same invariant in its native skills/update paths."
               }
             },
             {
@@ -22126,6 +22829,66 @@
                 "gormes security audit ships with --deep, --fix, and --json modes."
               ],
               "note": "Validated 2026-05-04: TDD added the pure internal/tools security audit engine plus the gormes security audit CLI. Deep audit now reports gateway auth/probe state, state file integrity, channel scope warnings, shell blocklist coverage, filesystem scoping probes, and credential redaction without requiring a live gateway for baseline checks. --fix applies only safe deterministic remediations through command adapters: config/dotenv/secrets-runtime permission repair and GATEWAY_PROXY_KEY generation into dotenv; unsafe fixes are reported as manual actions. --json returns redacted machine-readable category pass/warn/fail counts, findings, and fix evidence. Focused commands passed: go test ./internal/tools -run TestSecurityAudit -count=1; go test ./cmd/gormes -run TestSecurityAudit -count=1."
+            },
+            {
+              "name": "Email allowlist pre-dispatch loop guard",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Email ingress drops non-allowlisted senders before thread-context construction or gateway dispatch, while an empty allowlist permits all senders and allowlisted senders proceed with the existing reply-thread contract, preventing mail loops and unauthorized model submits.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Dropped senders produce email_sender_denied evidence with redacted sender/domain fields and no provider call, gateway event, thread read, or outbound reply.",
+              "fixture": "internal/channels/email/allowlist_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/email.py@fd9c32c0",
+                "../hermes-agent/tests/gateway/test_email.py@fd9c32c0",
+                "internal/channels/email/contract.go",
+                "internal/channels/email/contract_test.go"
+              ],
+              "ready_when": [
+                "Email ingress + outbound delivery contract is complete, so reply-target derivation and MIME/plaintext normalization already exist.",
+                "Tests can use parsed RFC 822 messages and injected allowlist values without IMAP, SMTP, provider, or gateway manager startup."
+              ],
+              "not_ready_when": [
+                "The slice starts IMAP/SMTP transports, sends denial replies to blocked senders, or changes SMS/threadtext adapter behavior.",
+                "Denied senders are normalized into gateway events or session IDs before the allowlist check.",
+                "Allowlist evidence prints full email addresses when redaction policy requires bounded identifiers."
+              ],
+              "blocked_by": [
+                "Email ingress + outbound delivery contract"
+              ],
+              "acceptance": [
+                "TestEmailAllowlistEmptyPermitsAll proves an empty allowlist preserves the existing NormalizeInbound and reply-target behavior.",
+                "TestEmailAllowlistAllowedSenderProceeds proves exact and case-insensitive allowlisted senders build a gateway event and thread target normally.",
+                "TestEmailAllowlistDeniedSenderDropsBeforeDispatch proves non-allowlisted senders return dropped evidence and do not call thread-context or gateway-submit fakes.",
+                "TestEmailAllowlistDeniedSenderRedactsEvidence proves denied evidence is bounded and contains no raw message body, auth headers, or full private address when redaction is enabled."
+              ],
+              "write_scope": [
+                "internal/channels/email/contract.go",
+                "internal/channels/email/contract_test.go",
+                "internal/channels/email/allowlist_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/email -run 'Allowlist|Dispatch|Thread' -count=1",
+                "go test ./internal/channels/email -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Email fixtures prove denied senders are dropped before dispatch/thread context, empty allowlists remain permissive, allowlisted senders proceed, and denial evidence is redacted."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:fd9c32c0 gateway/platforms/email.py",
+                "note": "Direct Hermes email safety drift; Gormes applies it at the native email contract seam before live IMAP/SMTP transport work."
+              }
             }
           ]
         },
@@ -22537,6 +23300,71 @@
                 "origin_type": "operator_transcript",
                 "upstream_ref": "Hermes terminal.cwd docs + gateway cwd bridge tests",
                 "note": "The operator supplied sanitized Hermes guidance for terminal.cwd behavior. Upstream docs/tests confirm the canonical config key and cwd-vs-profile distinction; Gormes implements the local foreground tool slice only."
+              }
+            },
+            {
+              "name": "search_files hidden-root and context-line parsing drift",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Native search_files preserves Hermes search semantics for hidden roots and context output: when the requested root is hidden, content and file-name search include it; context lines parse the rightmost `-<line>-` delimiter so hyphenated numeric filenames are not truncated.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Malformed context output returns search_context_parse_failed evidence and hidden-root traversal remains root-confined; outside-root hidden paths still fail closed without leaking content.",
+              "fixture": "internal/tools/file_search_drift_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/file_operations.py@64ad7dec0",
+                "../hermes-agent/tests/tools/test_file_operations.py@64ad7dec0",
+                "../hermes-agent/tools/file_operations.py@c050ee657",
+                "../hermes-agent/tests/tools/test_file_operations_edge_cases.py@c050ee657",
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_tool_test.go"
+              ],
+              "ready_when": [
+                "Native file task tool surface is complete and exposes SearchFilesTool over root-confined temp fixtures.",
+                "The slice can exercise hidden directories and context-line parser helpers entirely under t.TempDir; no grep/ripgrep binary, live Hermes, or outside-workspace file read is required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites read_file/write_file/patch/checkpoint behavior or changes root confinement for any file tool.",
+                "Hidden root handling allows searching hidden directories outside the configured workspace root.",
+                "The parser splits on the first dash sequence and misclassifies filenames such as `dir/file-12-name.py-8-context here`."
+              ],
+              "blocked_by": [
+                "Native file task tool surface"
+              ],
+              "acceptance": [
+                "TestSearchFilesHiddenRootIncludesFiles creates `.hidden/note.txt` under the workspace and proves search_files can find content and file names when the requested root is `.hidden`.",
+                "TestSearchFilesHiddenRootStillRootConfined proves an outside hidden directory reached through absolute path or symlink is denied without content leakage.",
+                "TestSearchContextLineParserHyphenNumericFilename proves `dir/file-12-name.py-8-context here` yields path `dir/file-12-name.py`, line 8, and context `context here`.",
+                "Existing read_file/write_file/patch and terminal fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_search_drift_test.go",
+                "internal/tools/file_read_tool_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestSearchFiles.*Hidden|TestSearchContextLineParser|TestSearchFilesTool' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "File-search fixtures prove hidden requested roots are included, outside-root hidden paths remain blocked, and hyphenated numeric filenames parse context lines correctly."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:64ad7dec0 tools/file_operations.py",
+                  "hermes:c050ee657 tools/file_operations.py"
+                ],
+                "note": "Direct Hermes file-operation drift captured after the first native file task tool surface landed."
               }
             }
           ],
@@ -23619,6 +24447,64 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:90a3e73d hermes_cli/debug.py + gateway/run.py",
                 "note": "Hermes moved paste.rs cleanup from opportunistic debug invocation to the gateway cron ticker; Gormes should adapt the queue/sweeper contract after native debug helpers exist."
+              }
+            },
+            {
+              "name": "Doctor GitHub CLI auth fallback",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "`gormes doctor` reports GitHub readiness as pass or usable when no GITHUB_TOKEN/GH_TOKEN is configured but `gh auth status --json authenticated` proves an authenticated GitHub CLI session; missing gh, unauthenticated gh, malformed JSON, or command failures degrade with redacted evidence and never require network in tests.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Doctor reports github_auth_unavailable, github_cli_missing, github_cli_unauthenticated, or github_cli_status_failed evidence without logging tokens, gh stdout/stderr bodies, or profile paths.",
+              "fixture": "cmd/gormes/doctor_github_auth_test.go; internal/doctor/github_auth_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/doctor.py@103f51ad3",
+                "../hermes-agent/tests/hermes_cli/test_doctor.py@103f51ad3",
+                "cmd/gormes/doctor.go",
+                "internal/doctor/doctor.go"
+              ],
+              "ready_when": [
+                "Doctor check registry and custom endpoint/provider readiness checks are complete enough to add one more fakeable check.",
+                "Tests can inject env maps and a fake gh command runner; no real gh binary, GitHub token, network, or user auth state is required."
+              ],
+              "not_ready_when": [
+                "The slice shells out to a real gh binary in unit tests, performs live GitHub API requests, or treats gh authentication as a replacement for provider credentials.",
+                "Doctor output exposes token-shaped env values, gh raw stderr, or absolute auth store paths.",
+                "A missing GitHub token remains a warning/failure when fake gh auth reports authenticated=true."
+              ],
+              "acceptance": [
+                "TestDoctorGitHubAuthTokenEnvPasses proves GITHUB_TOKEN or GH_TOKEN still satisfies the check without invoking gh.",
+                "TestDoctorGitHubAuthFallsBackToGHCLI proves absent env tokens plus fake `gh auth status --json authenticated` authenticated=true returns pass/usable evidence.",
+                "TestDoctorGitHubAuthGHCLIUnauthenticatedWarns proves authenticated=false, missing gh, command failure, and malformed JSON return distinct redacted evidence.",
+                "TestDoctorCommandRendersGitHubAuthFallback proves text and JSON doctor output include the check result without leaking command output or tokens."
+              ],
+              "write_scope": [
+                "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_github_auth_test.go",
+                "internal/doctor/doctor.go",
+                "internal/doctor/github_auth_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/doctor -run 'TestDoctorGitHubAuth' -count=1",
+                "go test ./cmd/gormes -run 'TestDoctor.*GitHubAuth' -count=1",
+                "go test ./cmd/gormes ./internal/doctor -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Doctor fixtures prove token env and fake gh auth fallback behavior with distinct redacted degraded evidence and no live GitHub or gh dependency."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:103f51ad3 hermes_cli/doctor.py",
+                "note": "Hermes now treats authenticated GitHub CLI state as sufficient when env tokens are absent; Gormes should mirror the operator diagnostic contract through injectable command seams."
               }
             },
             {
@@ -25602,6 +26488,210 @@
                 "tests": "go test ./internal/gateway -run MultiAgent.*Isolation -count=1; go test ./internal/kernel ./internal/skills ./internal/tools -run Agent -count=1; go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway|ProviderHTTPClient' -count=1",
                 "note": "Validated 2026-05-02: gateway can build/reuse independent routed runtimes keyed by agent session, hand each runtime a policy-filtered tool registry, per-agent tool safety policy, per-agent skill allowlist, auth-home/auth-store/model snapshot, and redacted failure evidence. Provider credential-pool lookup can use the agent auth home; providers that currently rely only on global static endpoint/api_key config remain bound by their provider adapter until explicit per-agent static credential fields are added."
               }
+            },
+            {
+              "name": "Cron env-ref expansion + parallel run state serialization",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes cron scheduler safety drift: cron job execution expands `${VAR}` references from loaded config/env snapshots before worker execution and serializes concurrent job state updates so parallel runs cannot lose status, attempt, or output transitions.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing env refs resolve to cron_env_ref_unresolved evidence and concurrent state-write conflicts retry or report cron_state_write_conflict without corrupting the job/run store.",
+              "fixture": "internal/cron/scheduler_env_test.go; internal/cron/run_state_concurrency_test.go",
+              "source_refs": [
+                "../hermes-agent/cron/scheduler.py@75bce317a",
+                "../hermes-agent/tests/cron/test_scheduler.py@75bce317a",
+                "../hermes-agent/cron/jobs.py@1c7f47a58",
+                "../hermes-agent/tests/cron/test_jobs.py@1c7f47a58",
+                "internal/cron/scheduler.go",
+                "internal/cron/store.go",
+                "internal/cron/run_store.go",
+                "internal/cron/executor.go"
+              ],
+              "ready_when": [
+                "Cron job store/run store already exist and can be exercised with temp roots and fake clocks.",
+                "Tests can inject env/config maps and parallel goroutines without live providers, channel adapters, or real cron timers."
+              ],
+              "not_ready_when": [
+                "The slice starts live scheduled jobs, reads real private config homes, shells out to Hermes/Python, or widens delivery routing.",
+                "Env expansion leaks secret values into logs/status instead of redacted evidence."
+              ],
+              "acceptance": [
+                "TestCronSchedulerExpandsConfigEnvRefs proves `${VAR}` config refs are expanded before job execution and unresolved refs return redacted evidence.",
+                "TestCronRunStateParallelWritesSerialize launches parallel fake completions and proves final state is deterministic with no lost attempt/output transitions.",
+                "Existing cron parser, store, and delivery tests remain green."
+              ],
+              "write_scope": [
+                "internal/cron/scheduler.go",
+                "internal/cron/scheduler_env_test.go",
+                "internal/cron/store.go",
+                "internal/cron/run_store.go",
+                "internal/cron/run_state_concurrency_test.go",
+                "internal/cron/executor.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1",
+                "go test ./internal/cron -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Cron fixtures prove env-ref expansion and serialized parallel run-state writes without live providers, channels, or private runtime homes."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:75bce317a cron/scheduler.py",
+                  "hermes:1c7f47a58 cron/jobs.py"
+                ],
+                "note": "Direct nested Hermes cron drift captured as a small Go cron store/executor slice."
+              }
+            },
+            {
+              "name": "Cron no-agent script-only watchdog mode",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Gormes ports Hermes cron `no_agent` jobs as script-only scheduled automations: creation/update/list surfaces persist the mode, script is required, prompt is optional and ignored, successful script stdout can be delivered verbatim, empty stdout and wakeAgent=false stay silent, and failures/timeouts emit alert evidence without constructing an agent turn.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Invalid no-agent jobs return cron_no_agent_script_required or cron_no_agent_invalid_mode evidence; script failures return redacted cron_no_agent_script_failed/timeout evidence without leaking secrets or falling back to an agent prompt.",
+              "fixture": "internal/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
+              "source_refs": [
+                "../hermes-agent/cron/jobs.py@3db6b9cc8",
+                "../hermes-agent/cron/scheduler.py@3db6b9cc8",
+                "../hermes-agent/tools/cronjob_tools.py@3db6b9cc8",
+                "../hermes-agent/hermes_cli/cron.py@3db6b9cc8",
+                "../hermes-agent/tests/cron/test_cron_no_agent.py@3db6b9cc8",
+                "internal/cron/job.go",
+                "internal/cron/executor.go",
+                "internal/tools/cronjob_tool.go"
+              ],
+              "ready_when": [
+                "Cron prompt/script safety + pre-run script contract and Cronjob tool action envelope over native store are complete.",
+                "Tests can inject script runners, clocks, stores, and delivery sinks without live cron timers, providers, channels, or private runtime homes."
+              ],
+              "not_ready_when": [
+                "The slice starts real scheduled timers, invokes live shells outside injected script-runner tests, changes agent-mode cron behavior, or widens delivery routing.",
+                "No-agent mode constructs a provider/kernel/agent turn for successful script-only ticks."
+              ],
+              "acceptance": [
+                "Cronjob tool create/update accepts no_agent true, requires script, ignores prompt for execution, persists the mode, and list/get output identifies script-only mode.",
+                ".sh and .bash scripts route through the configured bash runner; other extensions route through the configured interpreter runner while retaining existing path-containment checks.",
+                "Successful stdout is delivered verbatim when wakeAgent=true and delivery is configured.",
+                "Empty stdout and wakeAgent=false produce silent successful ticks with run evidence but no delivery.",
+                "Non-zero exit and timeout produce redacted alert evidence and never call the provider/kernel submission seam."
+              ],
+              "write_scope": [
+                "internal/cron/job.go",
+                "internal/cron/executor.go",
+                "internal/cron/no_agent_test.go",
+                "internal/tools/cronjob_tool.go",
+                "internal/tools/cronjob_tool_no_agent_test.go",
+                "cmd/gormes/cron.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run 'TestCronNoAgent' -count=1",
+                "go test ./internal/tools -run 'TestCronjobTool.*NoAgent' -count=1",
+                "go test ./internal/cron ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Cron no-agent fixtures prove script-only mode persists, executes, delivers/suppresses output correctly, alerts on failure, and never constructs an agent turn."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:3db6b9cc8 cron/jobs.py",
+                  "hermes:3db6b9cc8 cron/scheduler.py",
+                  "hermes:3db6b9cc8 tools/cronjob_tools.py",
+                  "hermes:3db6b9cc8 tests/cron/test_cron_no_agent.py"
+                ],
+                "note": "Current Hermes added script-only cron behavior after Gormes' generic cron script/action rows were completed; this row revisits only no-agent semantics."
+              }
+            },
+            {
+              "name": "Navivox host setup apply with transient sudo",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "`gormes navivox setup-host --apply` prepares a Linux host for Navivox by detecting OpenSSH server and Tailscale readiness, prompting for sudo password only through a masked transient prompt when required, installing/enabling OpenSSH server and Tailscale through explicit distro-aware steps, running `tailscale up --ssh` or equivalent Tailscale SSH enablement with operator confirmation, and discarding the sudo password immediately after the command. The existing `--plan` output remains the non-mutating default evidence surface.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported OS, missing package manager, missing systemd, failed sudo, failed Tailscale auth, or declined confirmation return typed setup evidence and leave the host unchanged beyond steps already completed. The command never writes sudo passwords, private SSH keys, or Tailscale auth keys into config, progress data, logs, or pairing URIs.",
+              "fixture": "cmd/gormes/navivox_host_setup_test.go",
+              "source_refs": [
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_host_setup_test.go",
+                "openclaw/docs/install/oracle.md:Install Tailscale",
+                "openclaw/docs/install/ansible.md:Tailscale VPN",
+                "openclaw/docs/reference/wizard.md:sudo prompt note",
+                "hermes-agent/SECURITY.md:Network exposure",
+                "internal/tui/hermes_panels.go:SecretPanelSudo"
+              ],
+              "ready_when": [
+                "Navivox QR pairing descriptor CLI is complete.",
+                "The setup executor can be injected in tests so no real sudo, package manager, systemctl, curl, or Tailscale command runs in CI.",
+                "The UX contract distinguishes Tailscale installation/enablement, OpenSSH installation, service enablement, and QR pairing handoff."
+              ],
+              "not_ready_when": [
+                "The command silently runs curl-pipe-shell, installs Tailscale during normal `install.sh`, stores sudo password or Tailscale auth keys, modifies `authorized_keys` without explicit approval, or opens public SSH/firewall rules by default.",
+                "Tests require root, network, a live Tailscale account, package manager access, or a real SSH daemon.",
+                "The implementation bypasses the existing Gormes secret/sudo prompt language or writes a second host-setup state model outside the canonical config/runtime surfaces."
+              ],
+              "unblocks": [
+                "Navivox Flutter first-run remote host preparation",
+                "Navivox pair.claim stdio event",
+                "Navivox installed-host smoke checklist"
+              ],
+              "acceptance": [
+                "`gormes navivox setup-host --plan` remains non-mutating and lists every command category that `--apply` may run.",
+                "`--apply` prompts before privileged work, masks sudo input, runs commands through an injected executor in tests, and never logs or persists the sudo password.",
+                "Linux Debian/Ubuntu and Fedora/RHEL fixtures cover OpenSSH install/enable command selection and Tailscale install/up command selection.",
+                "Unsupported OS/package-manager/systemd fixtures produce actionable setup evidence instead of partial hidden failure.",
+                "Post-apply output tells the operator to run `gormes navivox pair` and prefers the Tailscale host/IP in the descriptor."
+              ],
+              "note": "Complete 2026-05-05: TDD added `gormes navivox setup-host --apply` behind explicit opt-in confirmation/`--yes`, command previews with shell-quoted copyable commands, distro-aware Debian/Ubuntu and Fedora/RHEL OpenSSH install/enablement, Tailscale install/`tailscale up --ssh` steps, transient sudo stdin handling through injected command execution seams, unsupported-OS no-change output, and final `gormes navivox pair` handoff. The command never stores sudo passwords or places them in command args/output.",
+              "write_scope": [
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_host_setup_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestNavivoxSetupHost' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "evidence": [
+                "2026-05-05: go test ./cmd/gormes -run 'TestNavivoxSetupHost' -count=1 -> pass"
+              ],
+              "done_signal": [
+                "Hermetic host-setup fixtures prove `--apply` can prepare SSH/Tailscale using prompt-only sudo handling and leave the operator at a ready-to-scan `gormes navivox pair` handoff."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "owned_since": "2026-05-05T00:00:00Z",
+                "upstream_ref": "OpenClaw Tailscale-first host setup docs plus Hermes sudo prompt and network-hardening guidance",
+                "note": "Navivox host setup is a Gormes-owned explicit operator flow informed by OpenClaw's Tailscale-first setup docs and Hermes sudo/network-hardening guidance."
+              }
             }
           ],
           "drift_state": {
@@ -27096,6 +28186,7 @@
                 "Gormes setup minimal sectioned wizard slice",
                 "Gormes setup top-level chooser menu",
                 "Gormes setup full-wizard shell and branded summary",
+                "Hermes setup entry-mode and reset semantics",
                 "Gormes setup tools checklist command binding",
                 "Gormes setup gateway platform checklist command binding",
                 "Gormes setup terminal TTS and agent-settings section bindings",
@@ -27106,13 +28197,13 @@
                 "Model and profile selector seam (Cobra + gateway)",
                 "Gormes agent template reset command"
               ],
-              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, login removed-command typo suggestion, profile command binding, model interactive picker, minimal setup wizard slice, setup top-level chooser menu, setup full-wizard shell/summary, setup tools checklist binding, setup gateway checklist binding, setup terminal/TTS/agent-settings binding, uninstall dry-run, mcp login interface seam + noninteractive default, mcp login browser callback flow, model and profile selector seam, agent template reset). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. The 2026-04-29 omnibus update renamed the prior `Gormes login deprecated-redirect contract` row to `Gormes login removed-command typo suggestion contract` (Q1B decision: typo guide via Cobra unknown-command, not a deprecated subparser shim) and renamed the prior `Gormes mcp login OAuth re-auth bridge` to a split pair (`Gormes mcp login interface seam + noninteractive default` and `Gormes mcp login browser callback flow`). The 2026-04-30 update added a bounded Gormes-owned `agent reset` template slice for SOUL/durable-context development reset. The 2026-05-03 setup parity pass added top-level chooser, full-wizard summary, tools, gateway, terminal/TTS, and agent-settings setup rows from operator-visible Hermes setup transcript evidence without reopening the completed minimal setup slice. Do not assign this umbrella row directly."
+              "note": "Umbrella only: Hermes config/profile/auth/setup/uninstall spans profile roots, alias wrappers, auth stores, provider setup prompts, and destructive uninstall behavior. Provider auth must follow the non-deprecated Hermes command surface: `auth add/list/remove/reset/status/logout/spotify`; top-level `login` is removed guidance, not the implementation target. Execute the three pure profile sibling rows first (validator, root resolver, active-profile store), then the explicit auth command rows (credential-pool surface, OAuth adapters, Spotify, plus the new builder-ready splits below: bare auth interactive readout, auth status aggregator, openai-codex strict isolation, bedrock open-question note, top-level logout, login removed-command typo suggestion, profile command binding, model interactive picker, minimal setup wizard slice, setup top-level chooser menu, setup full-wizard shell/summary, Hermes setup entry-mode/reset semantics, setup tools checklist binding, setup gateway checklist binding, setup terminal/TTS/agent-settings binding, uninstall dry-run, mcp login interface seam + noninteractive default, mcp login browser callback flow, model and profile selector seam, agent template reset). The two prior placeholder names `CLI auth status read model before provider setup` and `Setup/uninstall dry-run command contracts` were renamed to the explicit `Gormes auth status per-provider aggregator`, `Gormes setup minimal sectioned wizard slice`, and `Gormes uninstall dry-run command contract` rows. The 2026-04-29 omnibus update renamed the prior `Gormes login deprecated-redirect contract` row to `Gormes login removed-command typo suggestion contract` (Q1B decision: typo guide via Cobra unknown-command, not a deprecated subparser shim) and renamed the prior `Gormes mcp login OAuth re-auth bridge` to a split pair (`Gormes mcp login interface seam + noninteractive default` and `Gormes mcp login browser callback flow`). The 2026-04-30 update added a bounded Gormes-owned `agent reset` template slice for SOUL/durable-context development reset. The 2026-05-03 setup parity pass added top-level chooser, full-wizard summary, tools, gateway, terminal/TTS, and agent-settings setup rows from operator-visible Hermes setup transcript evidence without reopening the completed minimal setup slice. The 2026-05-05 setup parity pass classified the completed top-level chooser as Gormes-owned and split current Hermes returning-user/fresh-install/quick/reconfigure/reset entry-mode behavior into a dedicated P1 row. Do not assign this umbrella row directly."
             },
             {
               "name": "Gormes agent template reset command",
               "status": "complete",
               "priority": "P2",
-              "contract": "`gormes agent reset [--target <dir>] [--dry-run] [--force]` seeds Gormes-owned agent context templates adapted from Hermes' default SOUL/persona behavior. By default it creates missing `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `memory/USER.md`, and `memory/MEMORY.md` under the target root, skips existing files without overwriting, reports deterministic create/skip actions, and uses `config.GormesHome()` when --target is omitted.",
+              "contract": "`gormes agent reset [--target <dir>] [--dry-run] [--force]` seeds Gormes-owned agent context templates adapted from Hermes' default SOUL/persona behavior. By default it creates missing `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `memory/USER.md`, and `memory/MEMORY.md` under the target root, skips existing files without overwriting, reports deterministic create/skip actions, and uses `config.GormesHome()` when --target is omitted. Gateway and standalone Telegram runtime startup apply the same non-force template writer to the configured terminal/default-agent workspace before live-turn prompt discovery, so a clean runtime workspace gets usable identity, project, operational, and durable memory files without an extra manual reset.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -27120,14 +28211,19 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Existing files are skipped unless --force is set; --dry-run reports would_create/would_overwrite/would_skip actions without creating directories or files; an empty target returns agent_template_target_required; write failures surface the relative template path without leaking unrelated filesystem content.",
+              "degraded_mode": "Existing files are skipped unless --force is set; --dry-run reports would_create/would_overwrite/would_skip actions without creating directories or files; an empty target returns agent_template_target_required; runtime startup fails fast on template-write failure, reload keeps the last good gateway config, and errors surface the relative template path without leaking unrelated filesystem content.",
               "fixture": "cmd/gormes/agent_reset_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/default_soul.py:DEFAULT_SOUL_MD",
+                "../hermes-agent/hermes_cli/config.py:_ensure_default_soul_md",
                 "../hermes-agent/scripts/install.sh:SOUL.md seed",
                 "../hermes-agent/scripts/install.ps1:SOUL.md seed",
+                "cmd/gormes/gateway_agent_templates.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
                 "internal/gateway/live_turn_prompt.go:defaultLiveTurnProfileDir",
                 "internal/gateway/live_turn_prompt.go:defaultLiveTurnMemoryDir",
+                "internal/gateway/manager.go",
                 "internal/hermes/context_files.go",
                 "internal/hermes/durable_user_context.go"
               ],
@@ -27140,7 +28236,8 @@
                 "The command hard-codes `/home/xel/git/sages-openclaw/workspace-gormes` or any other operator-specific path.",
                 "The default invocation overwrites existing user files.",
                 "Dry-run creates parent directories or template files.",
-                "The slice changes live-turn prompt assembly or imports Hermes runtime state."
+                "Runtime seeding is hidden inside prompt assembly instead of explicit gateway/Telegram startup setup.",
+                "The slice imports Hermes runtime state."
               ],
               "unblocks": [
                 "Gormes setup minimal sectioned wizard slice",
@@ -27154,16 +28251,27 @@
                 "TestAgentTemplateApplyDryRunDoesNotWrite proves --dry-run reports would-create/would-overwrite/would-skip without creating files or directories.",
                 "TestAgentResetCommandCreatesTemplatesInTarget proves `gormes agent reset --target <dir>` writes templates and renders deterministic relative-path output.",
                 "TestAgentResetCommandDryRunLeavesTargetEmpty proves CLI dry-run does not touch the target while still reporting would-create actions.",
-                "TestRootCommandIncludesAgentCommand proves the root Cobra tree exposes `agent reset`."
+                "TestRootCommandIncludesAgentCommand proves the root Cobra tree exposes `agent reset`.",
+                "TestEnsureGatewayAgentTemplatesCreatesMissingRuntimeContextAndPromptLoadsIt proves runtime seeding targets the configured workspace, creates SOUL/AGENTS/IDENTITY/TOOLS/USER/MEMORY templates, and the live prompt loaders consume those paths.",
+                "TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates proves a clean Telegram runtime workspace sends seeded SOUL.md, AGENTS.md, IDENTITY.md, TOOLS.md, USER.md, and MEMORY.md context to the provider before the user message.",
+                "TestContextFilesLoadsGormesOperationalTemplates proves Gormes-owned IDENTITY.md and TOOLS.md are loaded additively after the Hermes-compatible winning project context."
               ],
-              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths.",
+              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths.",
               "write_scope": [
                 "cmd/gormes/agent.go",
                 "cmd/gormes/agent_reset_test.go",
+                "cmd/gormes/gateway_agent_templates.go",
+                "cmd/gormes/gateway_agent_templates_test.go",
+                "cmd/gormes/gateway.go",
                 "cmd/gormes/hermes_cli_parity.go",
                 "cmd/gormes/hermes_cli_parity_test.go",
                 "cmd/gormes/main.go",
+                "cmd/gormes/telegram.go",
+                "cmd/gormes/telegram_test.go",
+                "internal/gateway/manager.go",
                 "internal/gateway/platform_manifest_test.go",
+                "internal/hermes/context_files.go",
+                "internal/hermes/context_files_test.go",
                 "internal/hermes/guidance_constants_test.go",
                 "internal/agenttemplate/template.go",
                 "internal/agenttemplate/template_test.go",
@@ -27173,22 +28281,25 @@
               ],
               "test_commands": [
                 "go test ./internal/agenttemplate -count=1",
+                "go test ./internal/hermes -run 'TestContextFilesLoadsGormesOperationalTemplates|TestContextFilesProjectPrecedence' -count=1",
+                "go test ./internal/gateway -run 'TestLiveTurn_SystemPrompt_MissingProfileNoPanic|TestLiveTurn_SystemPrompt_DurableUserMissingNoPanic|TestLiveTurn_SystemPrompt_IncludesAuthoritativeWorkspaceFact' -count=1",
+                "go test ./cmd/gormes -run 'TestGatewayAgentTemplateTarget|TestEnsureGatewayAgentTemplates|TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates|TestTelegramProductionProviderPayloadUsesConfiguredTerminalWorkspace' -count=1",
                 "go test ./cmd/gormes -run 'TestAgent|TestRootCommandIncludesAgentCommand|TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Template and CLI fixtures prove targetable non-destructive reset, dry-run, force overwrite, live-turn lookup-compatible paths, root registration, and manifest classification."
+                "Template, CLI, runtime startup, and Telegram provider fixtures prove targetable non-destructive reset, dry-run, force overwrite, live-turn lookup-compatible paths, seeded workspace prompt loading, root registration, and manifest classification."
               ],
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/default_soul.py DEFAULT_SOUL_MD + scripts/install.* SOUL.md seed",
-                "note": "Hermes defines the persona fallback and seed-file behavior; Gormes owns the targetable reset command and development-context template set."
+                "note": "Hermes defines the persona fallback and first-run SOUL.md seed-file behavior; Gormes owns the targetable reset command, development-context template set, runtime workspace auto-seeding, and additive IDENTITY.md/TOOLS.md operational context loading."
               },
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-30T02:10:11Z",
-                "last_success": "2026-04-30T02:10:11Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-05-05T07:00:00Z",
+                "last_success": "2026-05-05T07:00:00Z"
               }
             },
             {
@@ -27921,7 +29032,7 @@
               "name": "Gormes setup top-level chooser menu",
               "status": "complete",
               "priority": "P2",
-              "contract": "`gormes setup` with no section in an interactive TTY renders a top-level setup chooser before running any work. The menu presents Quick Setup, Full Setup, Model & Provider, Terminal Backend, Messaging Platforms (Gateway), Tools, Agent Settings, and Exit with a Quick Setup default. Selection routes through the current setup section handlers, and Exit returns success without mutating config. Non-TTY invocations keep deterministic text guidance and never launch an interactive menu.",
+              "contract": "`gormes setup` with no section in an interactive TTY renders a Gormes-owned top-level setup chooser before running any work. The menu presents Quick Setup, Full Setup, Model & Provider, Terminal Backend, Messaging Platforms (Gateway), Tools, Agent Settings, and Exit with a Quick Setup default. Selection routes through the current setup section handlers, and Exit returns success without mutating config. Non-TTY invocations keep deterministic text guidance and never launch an interactive menu. Current upstream Hermes returning-user entry-mode behavior is tracked separately by `Hermes setup entry-mode and reset semantics`.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -27970,7 +29081,7 @@
                 "TestSetupModelSectionDelegatesToPicker and provider setup fixtures continue to prove explicit section commands preserve existing model/provider behavior and provider secret redaction.",
                 "TestSetupHermesParitySectionsAreImplementedNonInteractive proves the chooser targets have concrete command bindings for TTS, terminal, gateway, tools, and agent settings."
               ],
-              "note": "Complete 2026-05-03: `gormes setup` now renders the Hermes-style top-level chooser in TTY mode, keeps non-TTY deterministic guidance, supports an injected menu seam for tests, routes choices to current section handlers, and proves Exit does not mutate config. The implementation does not start live providers, gateways, browser sessions, terminal backends, or TTS downloads.",
+              "note": "Complete 2026-05-03: `gormes setup` now renders a Gormes-owned top-level chooser in TTY mode, keeps non-TTY deterministic guidance, supports an injected menu seam for tests, routes choices to current section handlers, and proves Exit does not mutate config. The implementation does not start live providers, gateways, browser sessions, terminal backends, or TTS downloads. The 2026-05-05 setup parity sweep found that current Hermes returning-user `setup` no longer shows this chooser by default; the dedicated entry-mode row owns that correction without reopening this completed Gormes shell.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/setup_minimal_test.go",
@@ -27989,7 +29100,7 @@
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/setup.py prompt_choice + SETUP_SECTIONS + run_setup_wizard",
-                "note": "Hermes defines sectioned setup behavior and menu prompt mechanics; Gormes owns the broader top-level chooser as an operator shell over existing Go-native setup slices."
+                "note": "Hermes defines sectioned setup behavior and prompt mechanics; Gormes owns the broader top-level chooser as an operator shell over existing Go-native setup slices, while current Hermes entry-mode parity is tracked by `Hermes setup entry-mode and reset semantics`."
               }
             },
             {
@@ -28029,6 +29140,7 @@
                 "Gormes setup minimal sectioned wizard slice"
               ],
               "unblocks": [
+                "Hermes setup entry-mode and reset semantics",
                 "Interactive Onboarding",
                 "First-run user experience"
               ],
@@ -28056,7 +29168,82 @@
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/setup.py run_setup_wizard + _print_setup_summary + _offer_launch_chat",
-                "note": "Hermes defines the section order, summary shape, and post-setup chat-launch prompt; Gormes must replace product labels, config filenames, runtime-home paths, and launch text with Go-native Gormes equivalents."
+                "note": "Hermes defines the section order, summary shape, post-setup chat-launch prompt, and entry-mode flags; this completed row covers the Gormes full-wizard shell/branding, while `Hermes setup entry-mode and reset semantics` owns current returning-user/fresh-install/quick/reconfigure/reset behavior."
+              }
+            },
+            {
+              "name": "Hermes setup entry-mode and reset semantics",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Align `gormes setup` entry-mode semantics with current Hermes where upstream owns behavior. For an existing install, bare `gormes setup` and `gormes setup --reconfigure` run the full setup wizard directly without the Gormes-owned top-level chooser; `--quick` runs only the missing-items quick path. For a fresh install, bare setup, `--reconfigure`, and `--quick` enter the first-time quick-vs-full choice. `--reset` rewrites default config before any noninteractive/no-TTY guidance. `--non-interactive` or no TTY must not prompt. Gormes-owned `provider`, `workspace`, `bindings`, and `onboard` surfaces remain documented extensions rather than Hermes section parity.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If an entry mode cannot proceed interactively, the command prints deterministic setup guidance with the relevant section commands and returns without reading stdin, launching a provider/gateway/backend, or mutating credentials. Reset failures surface the config path and preserve the previous file when the default write cannot complete.",
+              "fixture": "cmd/gormes/setup_entry_mode_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py@b816fd4e2:8411-8445:setup_parser",
+                "../hermes-agent/hermes_cli/setup.py@b816fd4e2:2968-3245:SETUP_SECTIONS,run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
+                "../hermes-agent/tests/hermes_cli/test_setup_reconfigure.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_setup_noninteractive.py@b816fd4e2",
+                "cmd/gormes/setup.go",
+                "cmd/gormes/setup_minimal_test.go"
+              ],
+              "ready_when": [
+                "The completed setup section rows provide fakeable full-wizard, quick-setup, model/provider, gateway, tools, TTS, terminal, and agent-settings seams.",
+                "Tests can isolate HOME/XDG/GORMES_HOME and config/env paths in temp directories with no live provider, gateway, browser, TTS, or backend calls.",
+                "The implementation can classify Hermes-owned sections (`model`, `tts`, `terminal`, `gateway`, `tools`, `agent`) separately from Gormes-owned setup extensions (`provider`, `workspace`, `bindings`, `onboard`)."
+              ],
+              "not_ready_when": [
+                "The slice preserves the Gormes-owned top-level chooser as the default existing-install `gormes setup` behavior while claiming Hermes parity.",
+                "`--reset` only routes through the full wizard without first restoring default config.",
+                "`--reconfigure` behaves differently from bare `setup` for an existing install.",
+                "The slice removes Gormes-owned provider/workspace/bindings/onboard surfaces instead of classifying and documenting them as extensions.",
+                "Tests depend on a real TTY, real HOME, live provider credentials, or live gateway/platform setup."
+              ],
+              "blocked_by": [
+                "Gormes setup full-wizard shell and branded summary",
+                "Gormes setup terminal TTS and agent-settings section bindings",
+                "Gormes setup tools checklist command binding",
+                "Gormes setup gateway platform checklist command binding"
+              ],
+              "unblocks": [
+                "CLI setup/onboard/help text fidelity matrix"
+              ],
+              "acceptance": [
+                "TestSetupEntryMode_ExistingBareRunsFullWizardNoChooser proves an existing install runs the full-wizard seam directly and never calls the top-level chooser seam.",
+                "TestSetupEntryMode_ReconfigureMatchesExistingBare proves `--reconfigure` has the same existing-install behavior as bare setup.",
+                "TestSetupEntryMode_QuickExistingRunsMissingItemsOnly proves `--quick` runs the missing-items quick path and does not run the full wizard or chooser.",
+                "TestSetupEntryMode_FreshInstallPromptsQuickVsFull proves fresh bare setup, `--reconfigure`, and `--quick` all enter the first-time quick/full choice path.",
+                "TestSetupEntryMode_ResetWritesDefaultsBeforeHeadlessGuidance proves `--reset --non-interactive` restores default config before printing no-prompt guidance.",
+                "TestSetupEntryMode_NoTTYAndNonInteractiveNeverPrompt proves no-TTY and explicit non-interactive runs do not call input/menu/password seams.",
+                "TestSetupSections_HermesOwnedVsGormesOwned proves Hermes six section choices and Gormes-owned extension sections are separately classified in help/text fixtures."
+              ],
+              "note": "Added by the 2026-05-05 setup parity sweep at Gormes 9620cd4ae against Hermes b816fd4e2. Upstream tests now pin returning-user bare setup and `--reconfigure` as direct full-wizard paths, `--quick` as missing-items only, fresh install as quick/full choice, and `--reset` as default-config rewrite before headless guidance. Gormes' completed chooser remains useful but must be treated as an owned shell, not the current Hermes default entry mode.",
+              "write_scope": [
+                "cmd/gormes/setup.go",
+                "cmd/gormes/setup_entry_mode_test.go",
+                "cmd/gormes/setup_minimal_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md",
+                "docs/development-skills/gormes-hermes-parity/references/active-upstream-contracts.md"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestSetupEntryMode|TestSetupSections_HermesOwnedVsGormesOwned|TestSetupPromptSecret' -count=1",
+                "go test ./cmd/gormes -run '^TestSetup' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Setup entry-mode fixtures prove current Hermes returning-user/fresh-install/quick/reconfigure/reset/no-TTY behavior, while help/text fixtures classify Gormes-owned setup extensions separately from Hermes section parity."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:hermes_cli/main.py setup_parser + hermes_cli/setup.py run_setup_wizard + tests/hermes_cli/test_setup_reconfigure.py + tests/hermes_cli/test_setup_noninteractive.py",
+                "note": "Current Hermes tests are the active contract for setup entry modes. Gormes may keep its top-level chooser as an owned shell, but it cannot be cited as current Hermes default setup behavior."
               }
             },
             {
@@ -30673,7 +31860,7 @@
               "name": "CLI setup/onboard/help text fidelity matrix",
               "priority": "P1",
               "status": "planned",
-              "contract": "Add a deterministic operator-visible text matrix for `gormes setup`, setup sections, `gormes onboard`, provider/model setup guidance, root help, unknown-command suggestions, and non-TTY fallbacks. The matrix must keep Hermes-compatible setup behavior where upstream owns the flow, preserve Gormes-owned first-run onboarding wording where it intentionally differs, and prevent regressions such as parent setup arguments leaking into delegated model/provider commands, arrow-key escape bytes being treated as selections, Hermes paths appearing in Gormes summaries, or interactive-only navigation copy appearing in line-input fallback mode.",
+              "contract": "Add a deterministic operator-visible text matrix for `gormes setup`, setup entry modes, setup sections, `gormes onboard`, provider/model setup guidance, root help, unknown-command suggestions, and non-TTY fallbacks. The matrix must keep Hermes-compatible setup behavior where upstream owns the flow, preserve Gormes-owned first-run onboarding wording where it intentionally differs, and prevent regressions such as parent setup arguments leaking into delegated model/provider commands, arrow-key escape bytes being treated as selections, Hermes paths appearing in Gormes summaries, or interactive-only navigation copy appearing in line-input fallback mode.",
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -30697,6 +31884,7 @@
               ],
               "ready_when": [
                 "Gormes setup top-level chooser, full-wizard shell/summary, provider/model delegation, gateway/tools/TTS/agent sections, and onboard action runner rows are complete.",
+                "The `Hermes setup entry-mode and reset semantics` row has pinned existing-install, fresh-install, quick, reconfigure, reset, non-TTY, and non-interactive setup behavior.",
                 "Tests can run with fake command seams, stdin buffers, temp config/env roots, and no live provider, browser, dashboard, gateway, or credential prompts.",
                 "The fixture table can mark each line as Hermes-owned, Gormes-owned, or deliberate Gormes branding divergence."
               ],
@@ -30707,6 +31895,7 @@
               ],
               "acceptance": [
                 "TestSetupTextFidelity_TopLevelTTYMenuAndLineFallback proves the TTY menu copy and the line-input fallback do not promise unsupported key navigation, and escape sequences before a numeric/text selection are ignored deterministically.",
+                "TestSetupTextFidelity_EntryModes proves returning-user bare setup/reconfigure, quick setup, fresh-install first run, reset, no-TTY, and non-interactive guidance use the current Hermes-owned wording or an explicitly documented Gormes-branded equivalent.",
                 "TestSetupTextFidelity_QuickSetupDelegatesMissingProviderModel proves quick setup routes to provider/model seams without constructing `model setup` or leaking parent arguments.",
                 "TestSetupTextFidelity_BrandedSummaryAndPaths proves the completion summary says Gormes, points to Gormes config/env paths, and never prints stale Hermes install/config edit commands.",
                 "TestSetupTextFidelity_OnboardPlanAndWizard proves `gormes onboard`/`--wizard` output keeps the seven-step first-run plan, skip warnings, configured-state details, and row-backed action evidence stable.",
@@ -30736,6 +31925,7 @@
                 "note": "Hermes defines setup wizard/onboarding hint behavior; Gormes owns additional first-run text and must keep the divergence explicit."
               },
               "blocked_by": [
+                "Hermes setup entry-mode and reset semantics",
                 "Gormes setup top-level chooser menu",
                 "Gormes setup full-wizard shell and branded summary",
                 "Gormes onboard interactive action runner"
@@ -30875,6 +32065,146 @@
                 "gormes logs ships with follow mode and level filtering."
               ],
               "wired": true
+            },
+            {
+              "name": "Gateway planned stop marker + WSL systemd PATH parity",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gateway stop/service control distinguishes intentional operator stops from unexpected service deaths with a planned-stop marker, and generated systemd units preserve WSL interop PATH entries for Windows command bridges only when running under WSL.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Gateway status reports planned_stop_marker_unavailable, planned_stop_marker_stale, or wsl_interop_path_unavailable instead of treating every SIGTERM as a crash-loop trigger or stripping Windows interop commands from WSL service units.",
+              "fixture": "cmd/gormes/gateway_stop_test.go; internal/gateway/planned_stop_test.go; internal/cli/service_restart_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py@b63229016",
+                "../hermes-agent/gateway/status.py@b63229016",
+                "../hermes-agent/hermes_cli/gateway.py@b63229016",
+                "../hermes-agent/tests/gateway/test_status.py@b63229016",
+                "../hermes-agent/tests/hermes_cli/test_gateway_service.py@b63229016",
+                "../hermes-agent/hermes_cli/gateway.py@8ab9f61dc",
+                "../hermes-agent/tests/hermes_cli/test_gateway_service.py@8ab9f61dc",
+                "cmd/gormes/gateway_stop.go",
+                "cmd/gormes/gateway.go",
+                "internal/gateway/status.go",
+                "internal/cli/service_restart.go"
+              ],
+              "ready_when": [
+                "Runtime status JSON + PID/process validation and Gateway /restart command + takeover markers are complete.",
+                "The slice can use temp state roots, fake signal handlers, and pure service-unit string fixtures; no live systemd, WSL host, or real gateway process is required."
+              ],
+              "not_ready_when": [
+                "The slice shells out to systemctl/sc.exe, edits pairing/session logic, or changes restart/takeover command semantics.",
+                "The marker stores raw tokens, private profile paths, or unbounded process argv values.",
+                "Non-WSL service units inherit host PATH entries that were only meant for WSL interop."
+              ],
+              "blocked_by": [
+                "Runtime status JSON + PID/process validation",
+                "Gateway /restart command + takeover markers"
+              ],
+              "acceptance": [
+                "`gormes gateway stop` writes a planned-stop marker with pid, runtime generation/start_time, reason, and timestamp before signalling a validated live gateway.",
+                "Gateway signal/shutdown fixtures consume matching planned-stop markers on SIGTERM/SIGINT and classify the exit as intentional while unexpected SIGTERM remains visible as restartable/crash evidence.",
+                "Stale or mismatched planned-stop markers are ignored with explicit evidence and never mask an unexpected service death.",
+                "Systemd unit builder fixtures include WSL `/mnt/...` interop PATH entries under fake WSL detection and omit them under non-WSL detection."
+              ],
+              "write_scope": [
+                "cmd/gormes/gateway_stop.go",
+                "cmd/gormes/gateway_stop_test.go",
+                "cmd/gormes/gateway.go",
+                "internal/gateway/status.go",
+                "internal/gateway/planned_stop_test.go",
+                "internal/cli/service_restart.go",
+                "internal/cli/service_restart_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestGatewayStop.*Planned|TestGatewayStop' -count=1",
+                "go test ./internal/gateway -run 'Test.*PlannedStop' -count=1",
+                "go test ./internal/cli -run 'Test.*Systemd.*WSL|Test.*ServiceRestart' -count=1",
+                "go test ./cmd/gormes ./internal/gateway ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway stop/status and service-unit fixtures prove planned stops suppress restart/crash classification only for matching markers and WSL service units preserve Windows interop PATH without live service managers."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b63229016 gateway planned stop handling",
+                  "hermes:8ab9f61dc WSL interop PATH in generated systemd units"
+                ],
+                "note": "Direct Hermes gateway lifecycle drift; Gormes adapts the marker and service-unit invariants to its Go runtime/status stores."
+              }
+            },
+            {
+              "name": "Gateway stale-code self-check uses git HEAD SHA",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Gormes gateway stale-code detection compares the gateway boot commit against the current git HEAD SHA instead of source-file mtimes, so agent edits to tracked files do not trigger stale-code restart guidance while a real git pull/checkout that advances HEAD still does.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Non-git installs, unreadable git metadata, missing packed refs, or disappearing worktrees return stale_code_git_unavailable evidence and skip restart advice instead of crashing or falling back to mtime false positives.",
+              "fixture": "internal/gateway/stale_code_test.go; cmd/gormes/gateway_status_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py@d90f73bce:_stale_code_check",
+                "../hermes-agent/tests/gateway/test_stale_code_self_check.py@d90f73bce",
+                "internal/gateway/status.go",
+                "cmd/gormes/gateway_status.go",
+                "cmd/gormes/gateway_reload.go"
+              ],
+              "ready_when": [
+                "Runtime status JSON + PID/process validation and gateway status read-model rows are complete.",
+                "Tests can create temp git metadata fixtures for normal checkouts, worktrees, packed refs, detached HEAD, and non-git installs without invoking git subprocesses or running a gateway process."
+              ],
+              "not_ready_when": [
+                "The slice edits service start/stop semantics, planned-stop markers, auto-update behavior, or source-file watcher behavior unrelated to stale-code classification.",
+                "The helper shells out to git during status checks or treats arbitrary file mtime changes as stale code."
+              ],
+              "acceptance": [
+                "Boot SHA equal to current HEAD reports not stale even when a tracked source file mtime changes after boot.",
+                "Current HEAD changing to a different SHA reports stale code and includes redacted restart guidance evidence.",
+                "Fixtures cover normal `.git` directories, worktree `.git` files with commondir, packed refs, and detached HEAD.",
+                "Non-git or unreadable git metadata reports unavailable/no-stale evidence and does not panic.",
+                "Repeated checks use the bounded cache without hiding a later HEAD change beyond the configured freshness window."
+              ],
+              "write_scope": [
+                "internal/gateway/stale_code.go",
+                "internal/gateway/stale_code_test.go",
+                "internal/gateway/status.go",
+                "cmd/gormes/gateway_status.go",
+                "cmd/gormes/gateway_status_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestStaleCode' -count=1",
+                "go test ./cmd/gormes -run 'TestGatewayStatus.*StaleCode' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway stale-code fixtures prove HEAD-SHA comparison handles source edits, real HEAD changes, worktrees, packed refs, detached HEAD, cache bounds, and non-git installs without git subprocesses."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:d90f73bce gateway/run.py",
+                  "hermes:d90f73bce tests/gateway/test_stale_code_self_check.py"
+                ],
+                "note": "Current Hermes replaced mtime-based stale-code detection after Gormes gateway lifecycle rows were split; this row revisits only stale-code self-check semantics."
+              }
             }
           ],
           "drift_state": {
@@ -32754,6 +34084,66 @@
               ]
             },
             {
+              "name": "Native TUI absolute path completion routing",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Native Bubble Tea TUI exposes a pure completion-request classifier that matches current Hermes Ink behavior: leading absolute paths and trailing absolute path tokens route to path completion with the correct replace offset, while real slash commands continue routing to slash completion and picker-owned `/model` and `/provider` inputs do not invoke generic completion.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Ambiguous completion inputs return no generic completion request instead of submitting slash-looking path text to the model or replacing the wrong prompt span.",
+              "fixture": "internal/tui/completion_request_test.go",
+              "source_refs": [
+                "../hermes-agent/ui-tui/src/hooks/useCompletion.ts@b816fd4e2:completionRequestForInput",
+                "../hermes-agent/ui-tui/src/__tests__/useCompletion.test.ts@b816fd4e2",
+                "internal/tui/slash_completion.go",
+                "internal/tui/slash_completion_test.go",
+                "internal/tuigateway/completion_path.go"
+              ],
+              "ready_when": [
+                "Native TUI Hermes slash completion helpers and TUI gateway completion path normalizer are complete.",
+                "Tests can exercise the classifier without a Bubble Tea Program, terminal, filesystem stat, gateway RPC, or provider call."
+              ],
+              "not_ready_when": [
+                "The slice implements the visual completion menu, performs filesystem reads, starts the TUI gateway, or changes slash command dispatch behavior.",
+                "Absolute path text beginning with `/` is classified as a slash command solely because it has a leading slash."
+              ],
+              "acceptance": [
+                "`/help` routes to slash completion with replaceFrom 1.",
+                "`/home/d/Desktop/file.md` routes to path completion with replaceFrom 0.",
+                "`read /home/d/Desktop/file.md` routes the trailing absolute path token to path completion with replaceFrom at the token start.",
+                "`/model` and `/provider` return no generic completion request so picker-specific UI owns them.",
+                "Plain text returns no generic completion request and existing slash completion tests remain green."
+              ],
+              "write_scope": [
+                "internal/tui/completion_request.go",
+                "internal/tui/completion_request_test.go",
+                "internal/tui/slash_completion.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'TestTUICompletionRequest|TestHermesSlashCompletion' -count=1",
+                "go test ./internal/tuigateway -run TestNormalizeCompletionPath -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Pure TUI completion-request fixtures prove absolute paths are path completions, real slash commands stay slash completions, and picker-owned slash inputs remain unclaimed."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 ui-tui/src/hooks/useCompletion.ts",
+                  "hermes:b816fd4e2 ui-tui/src/__tests__/useCompletion.test.ts"
+                ],
+                "note": "Current Hermes Ink split slash-looking absolute paths from slash commands after Gormes' slash completion helper row was already complete."
+              }
+            },
+            {
               "name": "Native TUI Hermes slash dispatch behavioral matrix",
               "priority": "P1",
               "status": "complete",
@@ -34290,7 +35680,7 @@
               ],
               "ready_when": [
                 "Background review toolset restriction is validated, so the review fork can be memory+skills-only from construction.",
-                "Native skills list/view tool surface is validated, so the review fork can inspect existing skills without a Python subprocess.",
+                "Native skills list/view tool surface and Hermes skill_manage support-file and curator intent actions are validated, so the review fork can inspect and mutate skills without a Python subprocess.",
                 "Tests can use fake review runners and fake stores; no live provider, Telegram, gateway, or shell command is required."
               ],
               "not_ready_when": [
@@ -34300,7 +35690,8 @@
               ],
               "blocked_by": [
                 "Background review toolset restriction",
-                "Native skills list/view tool surface"
+                "Native skills list/view tool surface",
+                "Hermes skill_manage support-file and curator intent actions"
               ],
               "unblocks": [
                 "Hermes curator state transitions and run reports",
@@ -34974,6 +36365,7 @@
               ],
               "ready_when": [
                 "Hermes background review fork lifecycle is builder-ready or validated so agent-created skills can be attributed to the review origin.",
+                "Hermes skill_manage support-file and curator intent actions are validated, so curator consolidation can use write_file/remove_file, absorbed_into delete declarations, pinned guards, and background-review provenance rather than direct filesystem mutations.",
                 "Portable SKILL.md format and native skill usage records exist, so curator state can be tested with local temporary skill roots.",
                 "Tests can use fake clocks, fake skill roots, and fake review callbacks; no live LLM, gateway, or network call is required."
               ],
@@ -34987,6 +36379,7 @@
               "blocked_by": [
                 "Hermes background review fork lifecycle",
                 "Hermes curator auxiliary model routing slot",
+                "Hermes skill_manage support-file and curator intent actions",
                 "Portable SKILL.md format"
               ],
               "unblocks": [
@@ -35045,6 +36438,93 @@
         "6.F": {
           "name": "Skill Surface",
           "items": [
+            {
+              "name": "Hermes skill_manage support-file and curator intent actions",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes extends the native `skill_manage` tool to match Hermes' current mutating skill contract: create/edit/patch/delete still operate on SKILL.md, patch can target supporting files, write_file/remove_file manage bounded supporting files, delete accepts curator intent through `absorbed_into`, pinned skills reject every write action with an unpin hint, optional agent-created guard scans can roll back blocked writes, and background-review-origin creates are the only creates marked agent-created for later curator maintenance",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "skill_manage returns skill_manage_unsupported_action, skill_manage_invalid_support_path, skill_manage_pinned_refusal, skill_manage_absorbed_target_missing, skill_manage_guard_blocked, or skill_manage_background_origin_unavailable instead of silently mutating the wrong file or bypassing curator intent.",
+              "fixture": "internal/tools/skill_manager_test.go + internal/skills/usage_test.go + internal/subagent/skill_provenance_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_validate_file_path",
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_resolve_skill_target",
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_patch_skill",
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_delete_skill",
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_write_file",
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:_remove_file",
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:skill_manage",
+                "./hermes-agent/tools/skill_manager_tool.py@b816fd4e2:SKILL_MANAGE_SCHEMA",
+                "./hermes-agent/tools/skill_usage.py@b816fd4e2:mark_agent_created",
+                "./hermes-agent/tools/skill_usage.py@b816fd4e2:set_pinned",
+                "./hermes-agent/tools/skill_provenance.py@b816fd4e2:BACKGROUND_REVIEW",
+                "./hermes-agent/tests/tools/test_skill_manager_tool.py@b816fd4e2:write_file/remove_file/absorbed_into/provenance/pinned tests",
+                "./hermes-agent/tests/tools/test_skill_improvements.py@b816fd4e2:test_fuzzy_patch_on_supporting_file",
+                "./hermes-agent/tests/agent/test_curator.py@b816fd4e2:test_curator_review_prompt_offers_support_file_actions",
+                "./hermes-agent/tests/agent/test_curator_reports.py@b816fd4e2:write_file consolidation evidence",
+                "internal/tools/skill_manager.go",
+                "internal/skills/usage.go"
+              ],
+              "ready_when": [
+                "Native skills list/view tool surface is validated, so tests can create fixtures and inspect linked support files through Go-native tools.",
+                "Portable SKILL.md format is validated, so supporting-file writes do not need to weaken SKILL.md frontmatter checks.",
+                "The slice can use temporary skill roots, fake guard scanners, and fake background-review provenance; no live LLM, gateway, network, or real home directory access is required."
+              ],
+              "not_ready_when": [
+                "The slice reads or writes live ~/.hermes, ~/.gormes, repo-local development-skills, or bundled skill directories instead of temp skill roots.",
+                "The slice exposes generic workspace write_file or shell access through skill_manage; support-file writes must stay inside the named skill directory.",
+                "The slice marks foreground user-directed creates as agent-created or lets background-review creates skip provenance evidence.",
+                "The slice bypasses pinned-skill refusal by renaming, recreating, or directly deleting directories."
+              ],
+              "blocked_by": [
+                "Native skills list/view tool surface",
+                "Portable SKILL.md format"
+              ],
+              "unblocks": [
+                "Hermes background review fork lifecycle",
+                "Hermes curator state transitions and run reports",
+                "Hermes curator command surface"
+              ],
+              "acceptance": [
+                "TestSkillManagerSchema_HermesActions proves the schema enum includes create, patch, edit, delete, write_file, and remove_file plus file_path, file_content, replace_all, category, and absorbed_into properties.",
+                "TestSkillManagerSupportFile_WritePatchRemove proves write_file creates/overwrites files only under references/, templates/, scripts/, or assets/; patch can target those support files with the same match/error-preview behavior as SKILL.md; remove_file deletes only support files and lists available files on a miss.",
+                "TestSkillManagerSupportFile_PathSafety proves traversal, absolute paths, root-level files, directory-only paths, and symlink escapes are rejected before any filesystem write/read/delete.",
+                "TestSkillManagerAbsorbedIntoDelete proves delete accepts missing absorbed_into for backward compatibility, treats empty/whitespace absorbed_into as explicit prune, rejects self/nonexistent targets, and reports the absorbed target when valid.",
+                "TestSkillManagerPinnedGuard proves edit, patch, support-file patch, delete, write_file, and remove_file all refuse pinned skills with a `gormes curator unpin <name>` hint while unpinned sibling skills remain editable.",
+                "TestSkillManagerAgentCreatedProvenance proves foreground create does not set created_by=agent, background-review-origin create does, edit/patch/write_file/remove_file bump patch usage, and delete forgets the usage record.",
+                "TestSkillManagerAgentCreatedGuard proves skills.guard_agent_created defaults off, truthy config enables scanner invocation, blocked scans roll back SKILL.md/support-file writes, and blocked content is not left on disk."
+              ],
+              "note": "Hermes v0.12.0 made support-file mutation part of the public skill_manage contract and curator prompt: narrow content can be demoted into references/templates/scripts/assets, consolidation deletes declare absorbed_into, and pinned skills are a hard operator fence. Current Gormes skill_manage only exposes create/edit/patch/delete against SKILL.md, so background review and curator rows must not claim compatibility until this tool surface exists.",
+              "write_scope": [
+                "internal/tools/skill_manager.go",
+                "internal/tools/skill_manager_test.go",
+                "internal/skills/usage.go",
+                "internal/skills/usage_test.go",
+                "internal/subagent/skill_provenance.go",
+                "internal/subagent/skill_provenance_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./internal/subagent -run 'TestSkillManager(Schema|SupportFile|AbsorbedInto|PinnedGuard|AgentCreated|AgentCreatedGuard)|TestSkillUsage|TestBackgroundReviewProvenance' -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./internal/subagent -count=1",
+                "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Skill manager fixtures prove Hermes-compatible support-file writes/patches/removals, absorbed_into delete declarations, pinned-skill refusal, usage/provenance updates, and optional guard rollback without live model, network, gateway, or real home-directory access."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tools/skill_manager_tool.py + tests/tools/test_skill_manager_tool.py",
+                "note": "Hermes owns the model-visible skill_manage mutation contract; Gormes ports it through the Go native tool and local usage/provenance stores before enabling curator maintenance."
+              }
+            },
             {
               "name": "Hermes curator command surface",
               "priority": "P1",

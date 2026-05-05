@@ -51,6 +51,9 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 	if os.Getenv("GORMES_TELEGRAM_TOKEN") == "" && os.Getenv("TELEGRAM_BOT_TOKEN") == "" && os.Getenv("TELEGRAM_TOKEN") == "" {
 		slog.Warn("bot_token read from config.toml; prefer GORMES_TELEGRAM_TOKEN or TELEGRAM_BOT_TOKEN env var for secrets")
 	}
+	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
+		return err
+	}
 
 	// Phase 2.C — open the session map before the kernel so we can prime it.
 	smap, err := session.OpenBolt(config.SessionDBPath())

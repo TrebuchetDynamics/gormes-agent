@@ -111,9 +111,15 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 		`title: "Gormes Documentation"`,
 		"# Gormes",
 		"[Getting Started](getting-started/)",
-		"Go-native agent runtime",
+		"Go-native runtime",
 		"## What is Gormes?",
 		"Offline proof path",
+		"Two install paths",
+		"## Support labels",
+		"Runtime-ready",
+		"## Trust posture",
+		"Source build and inspectable",
+		"Upstream Hermes Archive",
 		"Roadmap & Parity",
 	}
 	for _, want := range wants {
@@ -130,6 +136,27 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 	for _, reject := range rejects {
 		if strings.Contains(raw, reject) {
 			t.Fatalf("docs home should not contain stale copy %q", reject)
+		}
+	}
+}
+
+func TestPublicDocsExcludeHighRiskUpstreamSkill(t *testing.T) {
+	if _, err := os.Stat(filepath.Join("content", "upstream-hermes", "user-guide", "skills", "godmode.md")); err == nil {
+		t.Fatalf("public docs must not publish the upstream godmode skill page")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat upstream godmode page: %v", err)
+	}
+
+	raw := readDoc(t, "content/upstream-hermes/reference/skills-catalog.md")
+	rejects := []string{
+		"G0DM0D3",
+		"Godmode Jailbreaking",
+		"`godmode`",
+		"red-teaming/godmode",
+	}
+	for _, reject := range rejects {
+		if strings.Contains(raw, reject) {
+			t.Fatalf("public skills catalog should not expose high-risk upstream skill token %q", reject)
 		}
 	}
 }

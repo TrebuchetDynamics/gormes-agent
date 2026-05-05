@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -28,6 +30,17 @@ func (f *fakeShutdownManager) Shutdown(context.Context) error {
 	close(f.called)
 	<-f.release
 	return nil
+}
+
+type fakeReloadShutdownManager struct {
+	*fakeShutdownManager
+	reloads   chan struct{}
+	reloadErr error
+}
+
+func (f *fakeReloadShutdownManager) Reload(context.Context) error {
+	f.reloads <- struct{}{}
+	return f.reloadErr
 }
 
 func TestGatewayTelegramDynamicCommands_LoadsActiveSkillCommands(t *testing.T) {
@@ -413,6 +426,124 @@ func TestGatewaySignalLoopDrainsBeforeCancel(t *testing.T) {
 	case code := <-forceExit:
 		t.Fatalf("unexpected force exit: %d", code)
 	default:
+	}
+}
+
+func TestGatewaySignalLoopReloadsOnSIGHUPWithoutCancel(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 2)
+	mgr := &fakeReloadShutdownManager{
+		fakeShutdownManager: &fakeShutdownManager{
+			called:  make(chan struct{}),
+			release: make(chan struct{}),
+		},
+		reloads: make(chan struct{}, 1),
+	}
+
+	done := make(chan struct{})
+	forceExit := make(chan int, 1)
+	go func() {
+		defer close(done)
+		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, slog.Default(), func(code int) {
+			forceExit <- code
+		})
+	}()
+
+	sigCh <- syscall.SIGHUP
+
+	select {
+	case <-mgr.reloads:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Reload was not called after SIGHUP")
+	}
+
+	select {
+	case <-rootCtx.Done():
+		t.Fatal("root context canceled after reload signal")
+	default:
+	}
+
+	select {
+	case <-mgr.called:
+		t.Fatal("Shutdown was called for reload signal")
+	default:
+	}
+
+	sigCh <- syscall.SIGTERM
+	select {
+	case <-mgr.called:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Shutdown was not called after SIGTERM")
+	}
+	close(mgr.release)
+
+	select {
+	case <-rootCtx.Done():
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("root context not canceled after shutdown signal")
+	}
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("signal loop did not return")
+	}
+	select {
+	case code := <-forceExit:
+		t.Fatalf("unexpected force exit: %d", code)
+	default:
+	}
+}
+
+func TestGatewaySignalLoopDoesNotLogReloadFailureSecrets(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 2)
+	mgr := &fakeReloadShutdownManager{
+		fakeShutdownManager: &fakeShutdownManager{
+			called:  make(chan struct{}),
+			release: make(chan struct{}),
+		},
+		reloads:   make(chan struct{}, 1),
+		reloadErr: errors.New("parse config.toml: api_key=plain-secret-token"),
+	}
+	var logs bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logs, nil))
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, log, func(int) {})
+	}()
+
+	sigCh <- syscall.SIGHUP
+	select {
+	case <-mgr.reloads:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Reload was not called after SIGHUP")
+	}
+	if strings.Contains(logs.String(), "plain-secret-token") || strings.Contains(logs.String(), "api_key") {
+		t.Fatalf("reload failure log leaked secret material:\n%s", logs.String())
+	}
+	select {
+	case <-rootCtx.Done():
+		t.Fatal("root context canceled after failed reload signal")
+	default:
+	}
+
+	sigCh <- syscall.SIGTERM
+	select {
+	case <-mgr.called:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Shutdown was not called after SIGTERM")
+	}
+	close(mgr.release)
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("signal loop did not return")
 	}
 }
 

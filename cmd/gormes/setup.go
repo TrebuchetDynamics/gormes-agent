@@ -15,9 +15,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var errSetupRequiresTTY = errors.New("setup_requires_tty")
+
+var setupReadPassword = term.ReadPassword
+var setupInputIsTerminal = stdinIsTerminal
 
 var setupSections = []string{"provider", "model", "agent", "workspace", "bindings", "tts", "terminal", "gateway", "tools"}
 
@@ -519,7 +523,7 @@ func setupProviderInteractive(cmd *cobra.Command) error {
 		}
 	}
 
-	apiKey, err := promptString(cmd, "API key: ", "")
+	apiKey, err := promptSecret(cmd, "API key: ")
 	if err != nil {
 		return err
 	}
@@ -583,6 +587,23 @@ func writeProviderConfig(cmd *cobra.Command, provider, endpoint, apiKey, model s
 
 func promptString(cmd *cobra.Command, prompt, defaultVal string) (string, error) {
 	fmt.Fprint(cmd.OutOrStdout(), prompt)
+	return scanPromptString(cmd, defaultVal)
+}
+
+func promptSecret(cmd *cobra.Command, prompt string) (string, error) {
+	fmt.Fprint(cmd.OutOrStdout(), prompt)
+	if file, ok := cmd.InOrStdin().(*os.File); ok && setupInputIsTerminal(file) {
+		input, err := setupReadPassword(int(file.Fd()))
+		fmt.Fprintln(cmd.OutOrStdout())
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(string(input)), nil
+	}
+	return scanPromptString(cmd, "")
+}
+
+func scanPromptString(cmd *cobra.Command, defaultVal string) (string, error) {
 	var input string
 	_, err := fmt.Fscanln(cmd.InOrStdin(), &input)
 	if err != nil {

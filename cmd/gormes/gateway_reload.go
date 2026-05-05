@@ -1,0 +1,85 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"syscall"
+
+	"github.com/spf13/cobra"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+)
+
+func init() {
+	gatewayCmd.AddCommand(gatewayReloadCmd)
+}
+
+type gatewayReloadRuntimeStore interface {
+	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
+}
+
+var (
+	newGatewayReloadRuntimeStore = func(path string) gatewayReloadRuntimeStore {
+		return gateway.NewRuntimeStatusStore(path)
+	}
+	signalGatewayReloadProcess = func(pid int, signal os.Signal) error {
+		if pid <= 0 {
+			return fmt.Errorf("invalid pid %d", pid)
+		}
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			return err
+		}
+		return proc.Signal(signal)
+	}
+)
+
+var gatewayReloadCmd = &cobra.Command{
+	Use:          "reload",
+	Short:        "Reload live Gormes gateway config without restarting",
+	SilenceUsage: true,
+	RunE:         runGatewayReload,
+}
+
+func runGatewayReload(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	store := newGatewayReloadRuntimeStore(config.GatewayRuntimeStatusPath())
+	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(ctx)
+	if err != nil {
+		return fmt.Errorf("runtime status: %w", err)
+	}
+	pid := gatewayReloadPID(snapshot)
+	validation := snapshot.Validation
+	if !validation.Live {
+		fmt.Fprintf(cmd.OutOrStdout(), "gateway reload: no live gateway runtime (status=%s", validation.Status)
+		if pid > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), " pid=%d", pid)
+		}
+		if validation.Message != "" {
+			fmt.Fprintf(cmd.OutOrStdout(), " message=%q", validation.Message)
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), ")")
+		return nil
+	}
+	if pid <= 0 {
+		return fmt.Errorf("gateway reload: live runtime validation did not include a pid")
+	}
+	if err := signalGatewayReloadProcess(pid, syscall.SIGHUP); err != nil {
+		return fmt.Errorf("gateway reload: signal pid %d: %w", pid, err)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "gateway reload: sent hangup to pid=%d\n", pid)
+	return nil
+}
+
+func gatewayReloadPID(snapshot gateway.RuntimeStatusSnapshot) int {
+	if snapshot.Validation.PID > 0 {
+		return snapshot.Validation.PID
+	}
+	return snapshot.Status.PID
+}

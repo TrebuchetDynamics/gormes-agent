@@ -109,7 +109,7 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
             <h2 class="section-title mb-4 text-2xl font-bold text-[#eeece5]">{page.installHeadline}</h2>
             <p class="install-intro text-base leading-7 text-[#eeece5]/70">{page.installIntro}</p>
           </div>
-          <div class="install-grid mt-8 grid gap-4 lg:grid-cols-3">
+          <div class="install-grid mt-8 grid gap-4 lg:grid-cols-2">
             {page.installSteps.map((step) => (
               <article class={`${cardShell} install-step flex min-w-0 flex-col gap-4`}>
                 <div class="flex items-center justify-between gap-3">
@@ -133,6 +133,20 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
               {page.installFootnoteLink.label}
             </a>
           </p>
+          <div class="after-proof mt-8">
+            <h3 class="mb-4 text-lg font-bold text-[#f0c84b]">{page.afterProofHeadline}</h3>
+            <div class="grid gap-4 md:grid-cols-3">
+              {page.afterProofItems.map((item) => (
+                <article class="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                  <p class="font-mono text-xs font-bold uppercase text-[#73cedd]">{item.label}</p>
+                  <code class="mt-3 block overflow-x-auto rounded-md bg-[#05070a] px-3 py-2 font-mono text-xs text-[#eeece5]">
+                    {item.command}
+                  </code>
+                  <p class="mt-3 text-sm leading-6 text-[#eeece5]/70">{item.body}</p>
+                </article>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

@@ -62,7 +62,24 @@ type RuntimeStatus struct {
 	TakeoverMarkers           []RuntimeRestartTakeoverEvidence           `json:"takeover_marker_seen,omitempty"`
 	DuplicateRestarts         []RuntimeRestartDuplicateEvidence          `json:"duplicate_restart_suppressed,omitempty"`
 	ServiceManagerUnavailable []RuntimeServiceManagerUnavailableEvidence `json:"service_manager_unavailable,omitempty"`
+	ConfigReload              RuntimeConfigReloadEvidence                `json:"config_reload,omitempty"`
 	UpdatedAt                 string                                     `json:"updated_at"`
+}
+
+type RuntimeConfigReloadStatus string
+
+const (
+	RuntimeConfigReloadApplied RuntimeConfigReloadStatus = "applied"
+	RuntimeConfigReloadFailed  RuntimeConfigReloadStatus = "failed"
+)
+
+type RuntimeConfigReloadEvidence struct {
+	Status     RuntimeConfigReloadStatus `json:"status,omitempty"`
+	Generation uint64                    `json:"generation,omitempty"`
+	Error      string                    `json:"error,omitempty"`
+	AppliedAt  string                    `json:"applied_at,omitempty"`
+	FailedAt   string                    `json:"failed_at,omitempty"`
+	Redacted   bool                      `json:"redacted"`
 }
 
 // RuntimeProcessValidationStatus classifies how much trust callers can place
@@ -247,6 +264,7 @@ type RuntimeStatusUpdate struct {
 	TakeoverMarkerEvidence            *RuntimeRestartTakeoverEvidence
 	DuplicateRestartEvidence          *RuntimeRestartDuplicateEvidence
 	ServiceManagerUnavailableEvidence *RuntimeServiceManagerUnavailableEvidence
+	ConfigReloadEvidence              *RuntimeConfigReloadEvidence
 }
 
 // RuntimeStatusSnapshot is a read-only view of the runtime status file that
@@ -602,6 +620,20 @@ func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUp
 	if update.ServiceManagerUnavailableEvidence != nil {
 		evidence := *update.ServiceManagerUnavailableEvidence
 		status.ServiceManagerUnavailable = append(status.ServiceManagerUnavailable, evidence)
+	}
+	if update.ConfigReloadEvidence != nil {
+		evidence := *update.ConfigReloadEvidence
+		if evidence.Generation == 0 {
+			evidence.Generation = status.Generation
+		}
+		if evidence.Status == RuntimeConfigReloadApplied && evidence.AppliedAt == "" {
+			evidence.AppliedAt = status.UpdatedAt
+		}
+		if evidence.Status == RuntimeConfigReloadFailed && evidence.FailedAt == "" {
+			evidence.FailedAt = status.UpdatedAt
+		}
+		evidence.Redacted = true
+		status.ConfigReload = evidence
 	}
 	if update.Platform == "" {
 		return

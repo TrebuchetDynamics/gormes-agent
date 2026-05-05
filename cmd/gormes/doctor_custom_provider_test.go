@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,6 +67,115 @@ func TestDoctorCustomEndpointMissingAPIKey(t *testing.T) {
 	}
 	if got.Summary != "configured endpoint=https://example.invalid missing=api_key" {
 		t.Fatalf("Summary = %q, want missing field name", got.Summary)
+	}
+}
+
+func TestDoctorCustomEndpointCodexReportsMissingOAuthAuthNotAPIKey(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+	cfg := config.Config{
+		Hermes: config.HermesCfg{
+			Provider: config.CodexOAuthProvider,
+			Endpoint: "https://chatgpt.com/backend-api/codex",
+			Model:    "gpt-5.2",
+		},
+	}
+
+	got := doctorCustomEndpointReadiness(cfg)
+
+	if got.Status != doctor.StatusWarn {
+		t.Fatalf("Status = %v, want %v", got.Status, doctor.StatusWarn)
+	}
+	auth, ok := findItem(got.Items, "auth")
+	if !ok {
+		t.Fatalf("missing auth item in: %+v", got.Items)
+	}
+	if auth.Status != doctor.StatusWarn || !strings.Contains(auth.Note, "gormes auth add openai-codex") {
+		t.Fatalf("auth item = %+v, want OAuth setup guidance", auth)
+	}
+	if _, ok := findItem(got.Items, "api_key"); ok {
+		t.Fatalf("Codex readiness should not ask for api_key: %+v", got.Items)
+	}
+	if got.Summary != "configured provider=openai-codex endpoint=https://chatgpt.com/backend-api/codex missing=auth" {
+		t.Fatalf("Summary = %q, want missing OAuth auth", got.Summary)
+	}
+}
+
+func TestDoctorCustomEndpointCodexCredentialPoolAuthPasses(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:           "codex-import",
+		Label:        "Imported Codex CLI",
+		AuthType:     config.CredentialAuthOAuth,
+		Source:       config.CodexOAuthSourceCodexCLIImport,
+		AccessToken:  "codex-access-secret",
+		RefreshToken: "codex-refresh-secret",
+		LastStatus:   config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+	cfg := config.Config{
+		Hermes: config.HermesCfg{
+			Provider: config.CodexOAuthProvider,
+			Endpoint: "https://chatgpt.com/backend-api/codex",
+			Model:    "gpt-5.2",
+		},
+	}
+
+	got := doctorCustomEndpointReadiness(cfg)
+
+	if got.Status != doctor.StatusPass {
+		t.Fatalf("Status = %v, want %v: %+v", got.Status, doctor.StatusPass, got)
+	}
+	auth, ok := findItem(got.Items, "auth")
+	if !ok {
+		t.Fatalf("missing auth item in: %+v", got.Items)
+	}
+	if auth.Status != doctor.StatusPass || auth.Note != "set" {
+		t.Fatalf("auth item = %+v, want pass/set", auth)
+	}
+	if strings.Contains(got.Summary, "missing=auth") {
+		t.Fatalf("Summary = %q, should not report missing auth", got.Summary)
+	}
+	formatted := got.Format()
+	for _, leak := range []string{"codex-access-secret", "codex-refresh-secret"} {
+		if strings.Contains(formatted, leak) {
+			t.Fatalf("doctor readiness leaked credential %q:\n%s", leak, formatted)
+		}
+	}
+}
+
+func TestDoctorCustomEndpointCodexCredentialPoolMissingTokensWarns(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:         "codex-import",
+		Label:      "Imported Codex CLI",
+		AuthType:   config.CredentialAuthOAuth,
+		Source:     config.CodexOAuthSourceCodexCLIImport,
+		LastStatus: config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+	cfg := config.Config{
+		Hermes: config.HermesCfg{
+			Provider: config.CodexOAuthProvider,
+			Endpoint: "https://chatgpt.com/backend-api/codex",
+			Model:    "gpt-5.2",
+		},
+	}
+
+	got := doctorCustomEndpointReadiness(cfg)
+
+	if got.Status != doctor.StatusWarn {
+		t.Fatalf("Status = %v, want %v: %+v", got.Status, doctor.StatusWarn, got)
+	}
+	auth, ok := findItem(got.Items, "auth")
+	if !ok {
+		t.Fatalf("missing auth item in: %+v", got.Items)
+	}
+	if auth.Status != doctor.StatusWarn || !strings.Contains(auth.Note, "gormes auth add openai-codex") {
+		t.Fatalf("auth item = %+v, want missing OAuth setup guidance", auth)
 	}
 }
 
@@ -147,6 +258,52 @@ func TestDoctorCmdInvokesCustomEndpointReadiness(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "configured") {
 		t.Fatalf("stdout missing 'configured' summary:\n%s", stdout)
+	}
+}
+
+func TestDoctorCodexProviderHealthUsesAuthReadinessNotGenericHealth(t *testing.T) {
+	setupCustomEndpointDoctorEnv(t)
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "generic health endpoint should not be called for Codex", http.StatusNotFound)
+	}))
+	defer server.Close()
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'openai-codex'\nendpoint = '"+server.URL+"'\nmodel = 'gpt-5.2'\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:           "codex-import",
+		Label:        "Imported Codex CLI",
+		AuthType:     config.CredentialAuthOAuth,
+		Source:       config.CodexOAuthSourceCodexCLIImport,
+		AccessToken:  "codex-access-secret",
+		RefreshToken: "codex-refresh-secret",
+		LastStatus:   config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	stdout, err := captureDoctorStdout(t, func() error {
+		cmd := newRootCommand()
+		cmd.SetArgs([]string{"doctor", "--offline=false"})
+		return cmd.Execute()
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s", err, stdout)
+	}
+	if called {
+		t.Fatalf("doctor called generic /health endpoint for Codex")
+	}
+	if !strings.Contains(stdout, "[PASS] provider health: auth-ready") {
+		t.Fatalf("stdout missing Codex auth-ready provider health:\n%s", stdout)
+	}
+	for _, leak := range []string{"codex-access-secret", "codex-refresh-secret"} {
+		if strings.Contains(stdout, leak) {
+			t.Fatalf("doctor leaked credential %q:\n%s", leak, stdout)
+		}
 	}
 }
 

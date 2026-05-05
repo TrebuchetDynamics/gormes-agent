@@ -164,6 +164,9 @@ type ManagerConfig struct {
 	// KanbanDispatcher owns the gateway-managed Kanban worker dispatcher loop.
 	// Nil preserves the legacy gateway behavior with no dispatcher activity.
 	KanbanDispatcher KanbanDispatcherConfig
+	// ReloadConfig returns a freshly loaded manager config for reloadable
+	// runtime fields. Errors keep the last-good manager config active.
+	ReloadConfig func(context.Context) (ManagerConfig, error)
 }
 
 type KernelSubmitter interface {
@@ -428,20 +431,26 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		cfg.AllowDiscovery = map[string]bool{}
 	}
 	seams := defaultLiveTurnPromptSeams()
+	explicitProfile := strings.TrimSpace(cfg.ContextFilesProfile) != ""
 	if dir := strings.TrimSpace(cfg.ContextFilesProfile); dir != "" {
 		seams.ProfileDir = func() string { return dir }
 	}
-	explicitContextFixture := strings.TrimSpace(cfg.ContextFilesProfile) != "" || strings.TrimSpace(cfg.ContextFilesCWD) != ""
 	if cwd := strings.TrimSpace(cfg.ContextFilesCWD); cwd != "" {
 		seams.CWD = func() string { return cwd }
+		if !explicitProfile {
+			seams.ProfileDir = func() string { return defaultLiveTurnProfileDir(cwd) }
+		}
+		if strings.TrimSpace(cfg.ContextFilesMemoryDir) == "" {
+			seams.MemoryDir = func() string { return defaultLiveTurnMemoryDir(cwd) }
+		}
 	}
 	if memDir := strings.TrimSpace(cfg.ContextFilesMemoryDir); memDir != "" {
 		seams.MemoryDir = func() string { return memDir }
-	} else if explicitContextFixture {
-		// Tests and callers that provide explicit profile/CWD fixtures without a
+	} else if explicitProfile {
+		// Tests and callers that provide explicit profile fixtures without a
 		// memory fixture expect durable USER.md/MEMORY.md context to be absent.
-		// Production gateway wiring leaves these fields empty and uses the default
-		// workspace/profile discovery above.
+		// Production gateway wiring supplies only CWD and uses workspace-based
+		// memory discovery above.
 		seams.MemoryDir = func() string { return "" }
 	}
 	if cfg.LiveTurnNow != nil {
@@ -846,6 +855,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
 		return nil
+	case EventReload:
+		m.handleReloadCommand(ctx, ch, ev)
+		return nil
 	case EventRetry:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
 		return nil
@@ -988,6 +1000,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
+		return true
+	case EventReload:
+		m.handleReloadCommand(ctx, ch, ev)
 		return true
 	case EventRetry:
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/retry is coming soon — session retry is not yet implemented in the gateway")
@@ -1725,6 +1740,8 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	want, ok := m.cfg.AllowedChats[ev.Platform]
 	if ok && want != "" && ev.ChatID == want {
 		return true

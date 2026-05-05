@@ -1,12 +1,28 @@
 package docs_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
+
+var docsAstroBuild = struct {
+	once sync.Once
+	dir  string
+	err  error
+}{}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if docsAstroBuild.dir != "" {
+		_ = os.RemoveAll(docsAstroBuild.dir)
+	}
+	os.Exit(code)
+}
 
 // TestAstroBuild runs `npm run build` in a temp directory and asserts
 // the full set of expected pages are emitted. Guards against:
@@ -146,6 +162,7 @@ func TestAstroBuild_IndexHasSidebarSections(t *testing.T) {
 		"Development",
 		"Parity",
 		"Building Gormes",
+		"Upstream Hermes Archive",
 		`href="/getting-started/"`,
 		`href="/guides/"`,
 		`href="/using-gormes/"`,
@@ -191,13 +208,22 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	}
 	text := string(body)
 	for _, want := range []string{
-		"Gormes runs AI agents as one Go-native agent runtime.",
-		"Start offline, prove the machine works",
+		"Gormes runs AI agents from one Go-native runtime.",
+		"Choose source build or",
+		"install.sh",
 		"What is Gormes?",
 		"Go-native runtime",
 		"Offline proof path",
+		"Two install paths",
 		"What you can do today",
-		"Browse sessions, config, skills, and logs",
+		"Support labels",
+		"Runtime-ready",
+		"Trust posture",
+		"Source build and inspectable",
+		"Progress data is generated from the canonical",
+		"Users and operators",
+		"Upstream Hermes Archive",
+		"Browse sessions, config, skills, logs, and audits",
 		"What lives here?",
 		"Start here",
 		"Getting Started",
@@ -236,24 +262,57 @@ func TestAstroBuild_IndexShowsBlueGormesAgentLogo(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(tmp, "gormes-agent-logo-blue.svg")); err != nil {
+	logoPath := filepath.Join(tmp, "gormes-agent-logo-blue.svg")
+	if _, err := os.Stat(logoPath); err != nil {
 		t.Fatalf("built docs output missing blue GORMES-AGENT logo asset: %v", err)
+	}
+	logo, err := os.ReadFile(logoPath)
+	if err != nil {
+		t.Fatalf("read built blue GORMES-AGENT logo asset: %v", err)
+	}
+	logoText := string(logo)
+	for _, want := range []string{
+		`fill="#73cedd"`,
+		`shape-rendering="crispEdges"`,
+		"Straight block-grid GORMES-AGENT logo",
+	} {
+		if !strings.Contains(logoText, want) {
+			t.Fatalf("built logo asset missing %q", want)
+		}
+	}
+	for _, reject := range []string{"<text", "<tspan", "font-family"} {
+		if strings.Contains(logoText, reject) {
+			t.Fatalf("built logo asset still depends on font-rendered text token %q", reject)
+		}
 	}
 }
 
 func runDocsAstroBuild(t *testing.T, dest string) {
 	t.Helper()
-	if err := os.RemoveAll(".astro"); err != nil {
-		t.Fatalf("clean Astro cache: %v", err)
+	docsAstroBuild.once.Do(func() {
+		docsAstroBuild.dir, docsAstroBuild.err = os.MkdirTemp("", "gormes-docs-astro-build-*")
+		if docsAstroBuild.err != nil {
+			return
+		}
+		if err := os.RemoveAll(".astro"); err != nil {
+			docsAstroBuild.err = fmt.Errorf("clean Astro cache: %w", err)
+			return
+		}
+		cmd := exec.Command("npm", "run", "build")
+		cmd.Dir = "."
+		cmd.Env = append(os.Environ(),
+			"ASTRO_OUT_DIR="+docsAstroBuild.dir,
+			"ASTRO_TELEMETRY_DISABLED=1",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			docsAstroBuild.err = fmt.Errorf("astro build failed: %w\noutput:\n%s", err, string(out))
+		}
+	})
+	if docsAstroBuild.err != nil {
+		t.Fatal(docsAstroBuild.err)
 	}
-	cmd := exec.Command("npm", "run", "build")
-	cmd.Dir = "."
-	cmd.Env = append(os.Environ(),
-		"ASTRO_OUT_DIR="+dest,
-		"ASTRO_TELEMETRY_DISABLED=1",
-	)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("astro build failed: %v\noutput:\n%s", err, string(out))
+	if err := os.CopyFS(dest, os.DirFS(docsAstroBuild.dir)); err != nil {
+		t.Fatalf("copy cached Astro build: %v", err)
 	}
 }
 

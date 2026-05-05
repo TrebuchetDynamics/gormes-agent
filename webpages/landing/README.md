@@ -96,8 +96,11 @@ is needed for the smoke test.
 - Edit `src/styles/global.css` for Tailwind theme/base states; prefer Tailwind
   utility classes in `.astro` components for page layout.
 - Run `npm run build` to sync installer/progress/benchmark mirrors and compile
-  the static site. There is no `webpages/landing/content/` Markdown tree
-  in this module; the homepage roadmap comes from the mirrored JSON data.
+  the static site. The prebuild sync copies canonical benchmark data from the
+  repo root; when `bin/gormes` exists it can refresh measurements first with
+  `GORMES_WWW_REFRESH_BENCHMARKS=1`. There is no
+  `webpages/landing/content/` Markdown tree in this module; the homepage
+  roadmap comes from the mirrored JSON data.
 
 The page intentionally avoids client-side JavaScript except for the bounded
 copy-button behavior. The homepage should remain readable and useful with

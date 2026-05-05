@@ -140,7 +140,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "profile", Description: "Show active profile name and home directory", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "queue", Description: "Queue a prompt for the next turn", Aliases: []string{"q"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "quit", Description: "Exit the CLI", Aliases: []string{"exit"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "reload", Description: "Reload .env variables into the running session", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "reload", Description: "Reload gateway config without restarting", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "reload-mcp", Description: "Reload MCP servers from config", Aliases: []string{"reload_mcp"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "resume", Description: "Resume a previously-named session", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "retry", Description: "Retry the last message", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},

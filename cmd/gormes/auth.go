@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -558,6 +560,24 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 	if importPath := strings.TrimSpace(opts.EmergencyImportFromCodexCLI); importPath != "" {
 		return runAuthAddCodexEmergencyImportCommand(cmd, opts, importPath)
 	}
+	if importPath := defaultCodexCLIAuthPath(); importPath != "" {
+		status, err := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{}).ImportCodexCLITokens(config.CodexCLIImportRequest{
+			AuthPath:  importPath,
+			Explicit:  true,
+			Label:     strings.TrimSpace(opts.Label),
+			BaseURL:   providerBaseURL(config.CodexOAuthProvider, opts.InferenceURL),
+			AccountID: "",
+		})
+		if err != nil {
+			return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", config.CodexOAuthProvider)
+		}
+		if status.Code == config.CodexOAuthStatusAuthorized {
+			fmt.Fprintln(cmd.OutOrStdout(), "Found existing Codex CLI credentials.")
+			fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
+			fmt.Fprintln(cmd.OutOrStdout(), "Credentials imported into the Gormes credential pool; future Codex CLI or VS Code refreshes do not rotate Gormes tokens.")
+			return nil
+		}
+	}
 	login := authCodexOAuthLogin
 	if login == nil {
 		login = runCodexDeviceCodeLogin
@@ -582,6 +602,18 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 	fmt.Fprintln(cmd.OutOrStdout(), "Hermes will keep working independently with its own session; the Codex CLI / VS Code extension cannot rotate Gormes tokens.")
 	return nil
+}
+
+func defaultCodexCLIAuthPath() string {
+	codexHome := strings.TrimSpace(os.Getenv("CODEX_HOME"))
+	if codexHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil || strings.TrimSpace(home) == "" {
+			return ""
+		}
+		codexHome = filepath.Join(home, ".codex")
+	}
+	return filepath.Join(codexHome, "auth.json")
 }
 
 func runAuthAddCodexEmergencyImportCommand(cmd *cobra.Command, opts authAddOptions, importPath string) error {
