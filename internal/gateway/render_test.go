@@ -311,3 +311,29 @@ func TestFormatErrorTelegram_SanitizesProviderHTMLBody(t *testing.T) {
 		t.Fatalf("FormatErrorTelegram = %q, want sanitized provider HTML evidence", got)
 	}
 }
+
+func TestFormatErrorPlain_SanitizesProviderUnauthorizedJSONBody(t *testing.T) {
+	f := kernel.RenderFrame{LastError: `Unauthorized: {"detail":"Unauthorized"}`}
+	got := FormatErrorPlain(f)
+	for _, forbidden := range []string{`{"detail"`, `"Unauthorized"}`, "detail"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatErrorPlain leaked provider JSON marker %q in %q", forbidden, got)
+		}
+	}
+	if got != "❌ Unauthorized: provider authentication failed" {
+		t.Fatalf("FormatErrorPlain = %q, want actionable auth failure", got)
+	}
+}
+
+func TestFormatErrorTelegram_SanitizesProviderUnauthorizedJSONBody(t *testing.T) {
+	f := kernel.RenderFrame{LastError: `Unauthorized: {"detail":"Unauthorized"}`}
+	got := FormatErrorTelegram(f)
+	for _, forbidden := range []string{`\\{`, "detail"} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatErrorTelegram leaked provider JSON marker %q in %q", forbidden, got)
+		}
+	}
+	if !strings.Contains(got, "provider authentication failed") {
+		t.Fatalf("FormatErrorTelegram = %q, want actionable auth failure", got)
+	}
+}

@@ -3,6 +3,7 @@ package hermes
 import (
 	"errors"
 	"net"
+	"strings"
 	"testing"
 )
 
@@ -202,5 +203,25 @@ func TestHTTPErrorErrorSanitizesHTMLProviderBodies(t *testing.T) {
 	}
 	if classification.Message != "provider returned HTML error body" {
 		t.Fatalf("Message = %q, want sanitized classification message", classification.Message)
+	}
+}
+
+func TestHTTPErrorErrorExtractsDetailJSONWithoutLeakingRawBody(t *testing.T) {
+	err := &HTTPError{Status: 401, Body: `{"detail":"Unauthorized"}`}
+
+	got := err.Error()
+	if strings.Contains(got, "{") || strings.Contains(got, "detail") {
+		t.Fatalf("Error() leaked raw JSON body: %q", got)
+	}
+	if got != "Unauthorized" {
+		t.Fatalf("Error() = %q, want deduped Unauthorized", got)
+	}
+
+	classification := ClassifyProviderError(err)
+	if classification.Kind != ProviderErrorAuth {
+		t.Fatalf("Kind = %q, want %q", classification.Kind, ProviderErrorAuth)
+	}
+	if classification.Message != "Unauthorized" {
+		t.Fatalf("Message = %q, want extracted detail", classification.Message)
 	}
 }

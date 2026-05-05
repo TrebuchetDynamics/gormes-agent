@@ -142,6 +142,12 @@ func TestProviderHTTPClient_CodexMissingCredentialFailsBeforeRelativeURL(t *test
 	if got := err.Error(); got == "" || got == `Post "/v1/responses": unsupported protocol scheme ""` {
 		t.Fatalf("error = %q, want setup evidence before relative /v1/responses URL", got)
 	}
+	if got := err.Error(); !strings.Contains(got, "gormes auth add openai-codex --type oauth") {
+		t.Fatalf("error = %q, want actionable Codex OAuth setup command", got)
+	}
+	if got := err.Error(); strings.Contains(got, "api_key") {
+		t.Fatalf("error = %q, want Codex OAuth guidance instead of api_key setup", got)
+	}
 }
 
 // TestProviderHTTPClient_EmptyEndpointGenericProviderFailsBeforeRelativeURL
