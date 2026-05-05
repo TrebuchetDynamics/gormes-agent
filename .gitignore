@@ -33,6 +33,7 @@ crash-*.log
 
 # ── Local upstream reference checkouts ───────────────
 hermes-agent/
+openclaw/
 
 # ── Agent/orchestrator scratch ───────────────────────
 scripts/.swarm/
