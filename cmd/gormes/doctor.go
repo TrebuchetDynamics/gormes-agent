@@ -45,25 +45,35 @@ var doctorCmd = &cobra.Command{
 
 		if !offline {
 			providerName := cfg.Hermes.Provider
-			c, err := newProviderHTTPClient(cfg, providerName)
-			if err != nil {
-				redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-				fmt.Fprintf(os.Stderr,
-					"[FAIL] provider setup: %s\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
-					redactedErr)
-				os.Exit(1)
+			if doctorProviderHealthUsesAuthReadiness(cfg) {
+				if !configuredProviderAuthPresent(cfg) {
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] provider health: auth missing (%s)\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+						doctorProviderHealthTarget(cfg))
+					os.Exit(1)
+				}
+				fmt.Printf("[PASS] provider health: auth-ready (%s)\n", doctorProviderHealthTarget(cfg))
+			} else {
+				c, err := newProviderHTTPClient(cfg, providerName)
+				if err != nil {
+					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] provider setup: %s\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+						redactedErr)
+					os.Exit(1)
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				if err := c.Health(ctx); err != nil {
+					target := doctorProviderHealthTarget(cfg)
+					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+					fmt.Fprintf(os.Stderr,
+						"[FAIL] provider health: NOT reachable (%s): %v\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
+						target, redactedErr)
+					os.Exit(1)
+				}
+				fmt.Printf("[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			if err := c.Health(ctx); err != nil {
-				target := doctorProviderHealthTarget(cfg)
-				redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-				fmt.Fprintf(os.Stderr,
-					"[FAIL] provider health: NOT reachable (%s): %v\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
-					target, redactedErr)
-				os.Exit(1)
-			}
-			fmt.Printf("[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
 		} else {
 			fmt.Println("[SKIP] provider health: skipped (--offline)")
 		}
@@ -152,6 +162,10 @@ func doctorProviderHealthTarget(cfg config.Config) string {
 		return provider
 	}
 	return "configured provider"
+}
+
+func doctorProviderHealthUsesAuthReadiness(cfg config.Config) bool {
+	return strings.EqualFold(strings.TrimSpace(cfg.Hermes.Provider), config.CodexOAuthProvider)
 }
 
 func doctorSecretRuntimeStatus(snapshot gormesruntime.SecretRuntimeSnapshot, activationErr error) doctor.CheckResult {

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -256,6 +258,52 @@ func TestDoctorCmdInvokesCustomEndpointReadiness(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "configured") {
 		t.Fatalf("stdout missing 'configured' summary:\n%s", stdout)
+	}
+}
+
+func TestDoctorCodexProviderHealthUsesAuthReadinessNotGenericHealth(t *testing.T) {
+	setupCustomEndpointDoctorEnv(t)
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		http.Error(w, "generic health endpoint should not be called for Codex", http.StatusNotFound)
+	}))
+	defer server.Close()
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'openai-codex'\nendpoint = '"+server.URL+"'\nmodel = 'gpt-5.2'\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:           "codex-import",
+		Label:        "Imported Codex CLI",
+		AuthType:     config.CredentialAuthOAuth,
+		Source:       config.CodexOAuthSourceCodexCLIImport,
+		AccessToken:  "codex-access-secret",
+		RefreshToken: "codex-refresh-secret",
+		LastStatus:   config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	stdout, err := captureDoctorStdout(t, func() error {
+		cmd := newRootCommand()
+		cmd.SetArgs([]string{"doctor", "--offline=false"})
+		return cmd.Execute()
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s", err, stdout)
+	}
+	if called {
+		t.Fatalf("doctor called generic /health endpoint for Codex")
+	}
+	if !strings.Contains(stdout, "[PASS] provider health: auth-ready") {
+		t.Fatalf("stdout missing Codex auth-ready provider health:\n%s", stdout)
+	}
+	for _, leak := range []string{"codex-access-secret", "codex-refresh-secret"} {
+		if strings.Contains(stdout, leak) {
+			t.Fatalf("doctor leaked credential %q:\n%s", leak, stdout)
+		}
 	}
 }
 
