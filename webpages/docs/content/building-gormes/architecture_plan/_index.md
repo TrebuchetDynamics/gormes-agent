@@ -226,6 +226,11 @@ classification and row-backed implementation queue.
 - [x] Email outbound Date header contract
 - [x] Telegram MarkdownV2 parse-mode rendering closeout
 - [ ] Telegram topic mode off/help/auth/debounce closeout
+- [ ] Telegram document/photo cache + batch attachment parity
+- [ ] Discord authenticated attachment download safety
+- [ ] Slack Block Kit approval buttons + action callback
+- [ ] Discord thread participation persistence
+- [ ] Cross-platform image/document MEDIA delivery routing
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -244,6 +249,7 @@ classification and row-backed implementation queue.
 - [x] Hermes gateway platform registry manifest
 - [x] Navivox stdio protocol control-plane tracer
 - [x] Navivox QR pairing descriptor CLI
+- [x] Navivox Flutter voice morph surface
 
 ### 2.C — Thin Mapping Persistence ✅
 

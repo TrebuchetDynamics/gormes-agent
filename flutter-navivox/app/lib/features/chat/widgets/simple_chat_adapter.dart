@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/protocol/navivox_event.dart';
+import '../../voice/widgets/voice_morph_surface.dart';
 
 class SimpleChatAdapter extends StatefulWidget {
   const SimpleChatAdapter({
@@ -153,15 +154,33 @@ class _VoiceBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.play_circle),
-      title: const Text('Voice message'),
-      subtitle: Text(
-        '${voice.duration.inSeconds}s • '
-        '${(voice.confidence * 100).round()}% confidence\n'
-        '${voice.transcript}',
-      ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        VoiceMorphSurface(
+          state: VoiceMorphState.speaking,
+          intensity: voice.confidence,
+          size: 72,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Voice message'),
+                const SizedBox(height: 4),
+                Text(
+                  '${voice.duration.inSeconds}s • '
+                  '${(voice.confidence * 100).round()}% confidence\n'
+                  '${voice.transcript}',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

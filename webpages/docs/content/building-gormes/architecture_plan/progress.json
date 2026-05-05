@@ -4551,12 +4551,344 @@
                 ],
                 "note": "Gormes already preserves generic Telegram thread metadata; this row tracks the operator-visible topic-mode command semantics added upstream."
               }
+            },
+            {
+              "name": "Telegram document/photo cache + batch attachment parity",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Telegram document, video, and photo ingress matches Hermes' channel-visible media behavior: supported files are cached with bounded metadata, small text documents inject content into the submit text, unsupported or unverifiable files produce explicit operator-visible evidence, and photo bursts or albums are coalesced into one gateway event before submission.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If Telegram file download, MIME inference, or batch flushing is unavailable, Gormes emits telegram_document_unavailable, telegram_document_too_large, telegram_document_unsupported, or telegram_photo_batch_unavailable evidence and never turns media-only updates into blank user turns.",
+              "fixture": "internal/channels/telegram/document_cache_test.go; internal/channels/telegram/photo_batch_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2",
+                "../hermes-agent/gateway/platforms/base.py@b816fd4e2:SUPPORTED_DOCUMENT_TYPES",
+                "../hermes-agent/tests/gateway/test_telegram_documents.py@b816fd4e2",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go",
+                "internal/gateway/event.go"
+              ],
+              "ready_when": [
+                "Telegram voice/audio inbound attachment markers and MarkdownV2 parse-mode rendering are complete, so media-only turns and caption rendering already have a tested channel seam.",
+                "Tests can inject fake Telegram files, fake downloads, fake clocks, and fake batch timers; no live Bot API token, network file fetch, or provider transcription is required."
+              ],
+              "not_ready_when": [
+                "The slice starts live Telegram polling, rewrites topic-mode routing, or changes non-Telegram attachment behavior.",
+                "The implementation accepts file_size=null or oversized files as downloadable, leaks host cache paths in user text, or submits each album photo as a separate user turn."
+              ],
+              "acceptance": [
+                "PDF/CSV/TXT/Markdown/ZIP document updates cache a local attachment descriptor with filename, MIME type, size evidence, and caption-preserving submit text.",
+                "Small UTF-8 text or Markdown documents inject a bounded `[Content of <filename>]` block; binary or over-cap text documents are cached without injecting raw bytes.",
+                "Unsupported MIME/extension, missing filename plus missing MIME, unknown file size, and oversized files produce explicit redacted evidence instead of blank submits or unsafe downloads.",
+                "MP4 documents are classified as video attachments, while native Telegram video messages cache video media with supported MIME evidence.",
+                "Photo bursts and media_group albums are buffered into one gateway event that preserves the first caption and all cached photo paths, and pending batch tasks are not clobbered or leaked across disconnect."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go",
+                "internal/channels/telegram/document_cache.go",
+                "internal/channels/telegram/document_cache_test.go",
+                "internal/channels/telegram/photo_batch_test.go",
+                "internal/gateway/event.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestTelegramDocument|TestTelegramPhotoBatch|TestBot_ToInboundEvent' -count=1",
+                "go test ./internal/channels/telegram ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hermetic Telegram fixtures prove document cache, text injection caps, unsupported/oversize evidence, video classification, album/photo-burst coalescing, and disconnect cleanup without live Telegram access."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 gateway/platforms/base.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_documents.py"
+                ],
+                "note": "Current Gormes Telegram ingress only has voice/audio markers; upstream Hermes has richer document, video, and photo batching contracts that are user-visible in channel conversations."
+              }
+            },
+            {
+              "name": "Discord authenticated attachment download safety",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Discord ingress downloads image, audio, and document attachments through the authenticated Discord session when possible, falls back through SSRF-gated URL fetches only when safe, and preserves bounded attachment evidence without exposing raw CDN URLs or internal fetch targets.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If Discord attachment bytes cannot be read or a fallback URL is unsafe, Gormes emits discord_attachment_unavailable or discord_attachment_blocked_ssrf evidence and submits any remaining text without attempting an unauthenticated unsafe fetch.",
+              "fixture": "internal/channels/discord/attachment_download_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_attachment_download.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_document_handling.py@b816fd4e2",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/client.go",
+                "internal/gateway/event.go"
+              ],
+              "ready_when": [
+                "Discord SessionSource guild/parent/message evidence is complete, so attachment events can preserve existing chat/thread/guild metadata.",
+                "Tests can use fake Discord message and attachment objects with in-memory bytes, fake SSRF decisions, and fake cache directories; no Discord token, CDN access, or network fetch is required."
+              ],
+              "not_ready_when": [
+                "The slice opens live Discord sessions, adds real CDN integration tests, or rewrites Discord forum routing instead of only adding attachment ingress safety.",
+                "Fallback document fetches bypass the URL safety gate, HTML/error-page bytes are accepted as images/documents, or oversized attachments are cached without evidence."
+              ],
+              "acceptance": [
+                "Image, audio, and document attachments prefer authenticated attachment bytes over URL-based download helpers.",
+                "When authenticated bytes are unavailable, image/audio/document fallback fetches run through the existing URL safety gate before any network attempt.",
+                "Unsafe fallback URLs, non-media HTML/error payloads, and oversized attachments return redacted blocked/unavailable evidence and do not populate unsafe local paths.",
+                "Successful attachment ingress populates gateway attachment/media metadata while preserving Discord chat_id, thread_id, guild_id, parent_chat_id, and message_id.",
+                "All fixtures run with fake Discord clients and local temp cache directories only."
+              ],
+              "write_scope": [
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/client.go",
+                "internal/channels/discord/attachment_download.go",
+                "internal/channels/discord/attachment_download_test.go",
+                "internal/gateway/event.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/discord -run 'TestDiscordAttachment' -count=1",
+                "go test ./internal/channels/discord ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Discord fake-attachment fixtures prove authenticated byte reads, SSRF-gated fallback, rejection evidence, and preserved gateway metadata without live Discord or CDN traffic."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/discord.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_attachment_download.py"
+                ],
+                "note": "Gormes has Discord text/forum routing but no source-backed row for Hermes' authenticated attachment download and fallback-safety contract."
+              }
+            },
+            {
+              "name": "Slack Block Kit approval buttons + action callback",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Slack exposes Hermes-compatible execution approval prompts as Block Kit buttons in the active thread and resolves once/session/always/deny callbacks exactly once through the gateway approval store with redacted channel evidence.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If Slack interactivity or approval storage is unavailable, Gormes returns slack_approval_unavailable evidence and falls back to the existing non-interactive approval path without running the requested tool.",
+              "fixture": "internal/slack/approval_buttons_test.go; internal/gateway/hook_consent_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:send_exec_approval",
+                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:_handle_approval_action",
+                "../hermes-agent/tests/gateway/test_slack_approval_buttons.py@b816fd4e2",
+                "internal/slack/bot.go",
+                "internal/slack/client.go",
+                "internal/gateway/hook_consent.go"
+              ],
+              "ready_when": [
+                "Slack thread-parent context + team-scoped cache key is complete, so approval prompts can route to the originating channel/thread without changing Slack session keys.",
+                "Tests can drive fake Slack client callbacks, captured Block Kit payloads, and fake approval resolvers; no live Slack app, signing secret, or Socket Mode connection is required."
+              ],
+              "not_ready_when": [
+                "The slice ports a new generic approval engine, changes non-Slack hook-consent semantics, or allows button clicks to resolve approvals more than once.",
+                "Approval buttons omit the session key value, post outside the thread when thread metadata is present, or leak raw command/environment secrets in callback evidence."
+              ],
+              "acceptance": [
+                "Slack execution approval posts a Block Kit message containing section text plus once, session, always, and deny action buttons whose values carry the gateway session key.",
+                "Approval prompts honor thread_ts metadata and truncate long command/description text within Slack block limits without losing the decision buttons.",
+                "Button callbacks ack immediately, map action IDs to once/session/always/deny, resolve the matching gateway approval exactly once, and update the Slack message with the actor and decision.",
+                "Double-clicks or already-resolved messages are acked but do not call the resolver again.",
+                "Not-connected or unregistered-channel states return slack_approval_unavailable evidence and never run the pending command."
+              ],
+              "write_scope": [
+                "internal/slack/bot.go",
+                "internal/slack/client.go",
+                "internal/slack/approval_buttons.go",
+                "internal/slack/approval_buttons_test.go",
+                "internal/gateway/hook_consent.go",
+                "internal/gateway/hook_consent_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/slack -run 'TestSlackApproval|TestApprovalButtons' -count=1",
+                "go test ./internal/gateway ./internal/slack -run 'Approval|HookConsent' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Slack fake-client fixtures prove Block Kit approval prompt shape, thread routing, callback ack/resolution, double-click suppression, and redacted unavailable evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/slack.py",
+                  "hermes:b816fd4e2 tests/gateway/test_slack_approval_buttons.py"
+                ],
+                "note": "Gormes has generic hook consent and Slack text/thread fixtures, but lacks the Slack-specific interactive approval surface Hermes exposes to operators."
+              }
+            },
+            {
+              "name": "Discord thread participation persistence",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Discord thread participation state survives adapter restarts through a bounded persisted tracker so Gormes can distinguish known Discord threads without relying only on in-memory forum lifecycle events.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the persisted tracker cannot be loaded, Gormes starts with an empty tracker, logs redacted discord_thread_tracker_reset evidence, and never blocks Discord ingress because of a corrupt or missing state file.",
+              "fixture": "internal/channels/discord/thread_participation_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/helpers.py@b816fd4e2:ThreadParticipationTracker",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_thread_persistence.py@b816fd4e2",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/forum_test.go"
+              ],
+              "ready_when": [
+                "Discord forum channel ingress + thread lifecycle and Discord SessionSource guild/parent/message evidence are complete.",
+                "The slice can inject a temp Gormes home/state directory and fake Discord thread IDs; no Discord session or filesystem outside the test temp directory is required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites Discord routing or tries to persist full message history instead of a bounded thread participation set.",
+                "A corrupt state file crashes adapter startup, duplicate marks create duplicate entries, or the tracker grows without a cap."
+              ],
+              "acceptance": [
+                "A fresh temp state directory starts with an empty Discord thread tracker.",
+                "Marking thread IDs persists a JSON state file and duplicate marks are no-ops.",
+                "A second bot/tracker instance loads previously marked threads from disk.",
+                "The tracker enforces a max tracked thread cap with deterministic eviction of older entries.",
+                "Missing directories and corrupt JSON fall back to an empty tracker with redacted reset evidence instead of startup failure."
+              ],
+              "write_scope": [
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/thread_participation.go",
+                "internal/channels/discord/thread_participation_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/discord -run 'TestDiscordThreadParticipation' -count=1",
+                "go test ./internal/channels/discord -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Discord tracker fixtures prove empty start, persistence, restart loading, duplicate suppression, cap enforcement, and corrupt/missing state fallback in temp directories."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/helpers.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_thread_persistence.py"
+                ],
+                "note": "Gormes' Discord thread map is currently in-memory; Hermes persists participation state across restarts."
+              }
+            },
+            {
+              "name": "Cross-platform image/document MEDIA delivery routing",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Gateway final-response MEDIA tags route local image, document, video, and audio files to native Telegram, Discord, and Slack send paths while stripping tag syntax from operator-visible text and preserving reply/thread metadata.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If a channel lacks a native media method or a local file is missing, Gormes sends redacted media_unavailable evidence through the existing text fallback without leaking local paths, credentials, or raw MEDIA tags.",
+              "fixture": "internal/gateway/media_delivery_test.go; internal/channels/telegram/media_send_test.go; internal/channels/discord/media_send_test.go; internal/slack/media_send_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/base.py@b816fd4e2:extract_media",
+                "../hermes-agent/tests/gateway/test_send_image_file.py@b816fd4e2",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_image_file",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:send_image_file",
+                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:send_image_file",
+                "internal/gateway/media_delivery.go",
+                "internal/gateway/channel.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/discord/bot.go",
+                "internal/slack/bot.go"
+              ],
+              "ready_when": [
+                "Gateway voice/audio MEDIA tag extraction is complete and already strips audio MEDIA tags from final assistant text.",
+                "Tests can use local temp files and fake Telegram/Discord/Slack clients; no live channel credentials or external uploads are required."
+              ],
+              "not_ready_when": [
+                "The slice changes provider output format, accepts unsafe relative traversal paths, or leaks local filesystem paths in user-visible fallback text.",
+                "The implementation routes all files through audio SendMedia only, ignores image/document/video extension families, or drops reply_to/thread metadata."
+              ],
+              "acceptance": [
+                "`MEDIA:` tags for png, jpg, jpeg, webp, pdf, csv, txt, zip, and mp4 files are extracted and stripped from final text; unsupported or unsafe paths are redacted.",
+                "Mixed audio and image/document/video MEDIA tags preserve order and dispatch each file through the correct native channel method or typed media capability.",
+                "Telegram sends images as photos and documents/videos through the appropriate Bot API payloads with caption truncation, reply_to, and message_thread_id metadata.",
+                "Discord sends images/documents/videos as native file attachments to the resolved channel or thread with missing-channel evidence.",
+                "Slack uploads images/documents/videos through files_upload_v2 with channel/thread metadata and returns not-connected/missing-file evidence without leaking paths."
+              ],
+              "write_scope": [
+                "internal/gateway/media_delivery.go",
+                "internal/gateway/media_delivery_test.go",
+                "internal/gateway/channel.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/media_send_test.go",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/media_send_test.go",
+                "internal/slack/bot.go",
+                "internal/slack/client.go",
+                "internal/slack/media_send_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestPrepareMediaDeliveryContent|TestManagerFinalResponseDeliversMedia' -count=1",
+                "go test ./internal/channels/telegram ./internal/channels/discord ./internal/slack -run 'Test.*Send.*File|Test.*Media' -count=1",
+                "go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord ./internal/slack -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway and fake-channel fixtures prove image/document/video/audio MEDIA extraction, native channel sends, reply/thread metadata preservation, unsupported-path redaction, and no raw MEDIA tag leakage."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/base.py",
+                  "hermes:b816fd4e2 tests/gateway/test_send_image_file.py",
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 gateway/platforms/discord.py",
+                  "hermes:b816fd4e2 gateway/platforms/slack.py"
+                ],
+                "note": "Gormes currently extracts only audio MEDIA extensions; Hermes routes screenshots, documents, and video files through native channel upload APIs."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T13:57:25Z",
-            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention, WhatsApp unsafe identifiers, message deduplication, and outbound email Date headers. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The email Date-header row lives here, rather than reopening completed Phase 7.B, because it is upstream gateway-delivery drift over an already-complete adapter baseline."
+            "last_upstream_check": "2026-05-05T14:29:20Z",
+            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval surfaces found in the May 2026 channel sweep. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweep keeps Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, and cross-platform image/document MEDIA delivery in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline."
           }
         },
         "2.B.10": {
@@ -5042,6 +5374,74 @@
                 "owned_since": "2026-05-05T00:00:00Z",
                 "upstream_ref": "OpenClaw channel pairing challenge helpers and Tailscale-first remote-access docs; Hermes QR onboarding and network hardening guidance",
                 "note": "Navivox QR pairing is Gormes-owned. OpenClaw proves channel pairing challenge UX and Tailscale-first remote access patterns; Hermes contributes QR terminal onboarding precedent and the security rule to avoid public exposure without VPN/Tailscale/firewall."
+              }
+            },
+            {
+              "name": "Navivox Flutter voice morph surface",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "The Flutter Navivox app exposes a reusable `VoiceMorphSurface` for voice mode with state-driven soft morph graphics, an intensity input that can later bind to mic/TTS amplitude, reduced-motion phase freezing, live semantics, and a visible speaking surface in the fake chat voice message flow.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Reduced-motion settings freeze phase-driven animation without removing the state-specific visual. Intensity is clamped to 0.0..1.0 so malformed audio levels cannot distort layout or painter behavior.",
+              "fixture": "flutter-navivox/app/test/features/voice/widgets/voice_morph_surface_test.dart",
+              "source_refs": [
+                "flutter-navivox/navibox-prd.md:Voice",
+                "flutter-navivox/navibox-ui-design.md:chat and voice surfaces",
+                "flutter-navivox/navibox-testing-plan.md:Voice and chat UI tests",
+                "Context7 /websites/flutter_dev: CustomPaint, AnimationController, RepaintBoundary, accessibility testing"
+              ],
+              "ready_when": [
+                "The Flutter scaffold has a fake chat flow that can display a voice message without live SSH, STT, or TTS.",
+                "The first slice can use fake state/intensity inputs and does not need real microphone or audio playback plumbing."
+              ],
+              "not_ready_when": [
+                "The slice starts live microphone capture, TTS playback, SSH streaming, or provider audio work.",
+                "The widget requires golden screenshots to prove basic behavior, ignores reduced-motion, or exposes no semantics for blind users."
+              ],
+              "unblocks": [
+                "Navivox voice audio frame streaming",
+                "Navivox live voice-mode controls",
+                "Navivox Flutter TTS playback surface"
+              ],
+              "acceptance": [
+                "`VoiceMorphSurface` supports idle, listening, thinking, speaking, and disabled states with distinct styles and semantic labels.",
+                "The painter receives clamped intensity and deterministic phase/style inputs that can later be driven by real audio amplitude.",
+                "Reduced motion freezes phase at zero while preserving the current state style.",
+                "The fake chat voice message renders the voice morph surface instead of a static play icon.",
+                "Flutter tests cover semantics, state styling, clamping, reduced motion, and fake chat integration."
+              ],
+              "note": "Complete 2026-05-05: TDD added `VoiceMorphSurface`, `VoiceMorphStyle`, and `VoiceMorphPainter` under the Flutter voice feature, using CustomPaint/RepaintBoundary with state-driven soft blob rendering, clamped intensity, live semantics, and reduced-motion phase freezing. The fake voice message bubble now shows the speaking morph surface while leaving live audio plumbing for later rows.",
+              "write_scope": [
+                "flutter-navivox/app/lib/features/voice/widgets/voice_morph_surface.dart",
+                "flutter-navivox/app/lib/features/chat/widgets/simple_chat_adapter.dart",
+                "flutter-navivox/app/test/features/voice/widgets/voice_morph_surface_test.dart",
+                "flutter-navivox/app/test/router/app_router_test.dart",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "cd flutter-navivox/app && flutter test test/features/voice/widgets/voice_morph_surface_test.dart",
+                "cd flutter-navivox/app && flutter test",
+                "cd flutter-navivox/app && flutter analyze",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "evidence": [
+                "2026-05-05: cd flutter-navivox/app && flutter test test/features/voice/widgets/voice_morph_surface_test.dart -> pass",
+                "2026-05-05: cd flutter-navivox/app && flutter test -> pass",
+                "2026-05-05: cd flutter-navivox/app && flutter analyze -> no issues"
+              ],
+              "done_signal": [
+                "The fake Navivox chat experience has an accessible, reduced-motion-safe soft voice graphic ready for later live voice-mode state and amplitude wiring."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-05T00:00:00Z",
+                "note": "Navivox voice graphics are a Gormes-owned Flutter UX surface; Flutter official docs inform the CustomPaint, animation, repaint, and accessibility implementation shape."
               }
             }
           ]
