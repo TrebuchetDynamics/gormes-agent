@@ -136,6 +136,98 @@ func TestTelegramProductionProviderPayloadIncludesOperatorContext(t *testing.T) 
 	}
 }
 
+func TestTelegramProductionProviderPayloadUsesConfiguredTerminalWorkspace(t *testing.T) {
+	root := t.TempDir()
+	sourceCheckout := filepath.Join(root, "workspace-mineru", "gormes-agent")
+	if err := os.MkdirAll(sourceCheckout, 0o755); err != nil {
+		t.Fatalf("mkdir source checkout: %v", err)
+	}
+	workspace := filepath.Join(root, "workspace-gormes")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	writeTelegramFixtureFile(t, sourceCheckout, "AGENTS.md", "Historical source checkout: workspace-mineru")
+	writeTelegramFixtureFile(t, workspace, "AGENTS.md", "Runtime workspace: workspace-gormes")
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	})
+	if err := os.Chdir(sourceCheckout); err != nil {
+		t.Fatalf("Chdir(sourceCheckout): %v", err)
+	}
+	t.Setenv("TERMINAL_CWD", "")
+	t.Setenv("GORMES_HOME", filepath.Join(root, "gormes-home"))
+	t.Setenv("HERMES_HOME", "")
+
+	provider := hermes.NewMockClient()
+	provider.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "workspace ok"},
+		{Kind: hermes.EventDone, FinishReason: "stop"},
+	}, "sess-provider")
+	k := kernel.New(kernel.Config{
+		Model:     "gpt-5.5",
+		Endpoint:  "http://mock-provider",
+		Admission: kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+	}, provider, store.NewNoop(), telemetry.New(), slog.Default())
+
+	ch := newTelegramTestChannel()
+	smap := session.NewMemMap()
+	mgrCfg := telegramManagerConfig(config.Config{
+		Hermes: config.HermesCfg{
+			Model:    "gpt-5.5",
+			Provider: "openai-codex",
+		},
+		Telegram: config.TelegramCfg{AllowedChatID: 42},
+		Terminal: config.TerminalCfg{CWD: workspace},
+	}, smap)
+	mgrCfg.LiveTurnNow = func() time.Time { return time.Date(2026, 5, 5, 6, 20, 0, 0, time.UTC) }
+
+	m := gateway.NewManager(mgrCfg, k, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go func() { _ = k.Run(ctx) }()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.push(gateway.InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "user-juan",
+		MsgID:    "tg-msg-workspace",
+		Kind:     gateway.EventSubmit,
+		Text:     "What's your workspace?",
+	})
+
+	waitForTelegramProviderRequest(t, time.Second, func() bool {
+		return len(provider.Requests()) == 1
+	})
+	req := provider.Requests()[0]
+	if len(req.Messages) == 0 || req.Messages[0].Role != "system" {
+		t.Fatalf("provider request messages = %#v, want leading system context", req.Messages)
+	}
+	system := req.Messages[0].Content
+	for _, want := range []string{
+		"Active workspace: `" + workspace + "`",
+		"Current working directory: `" + workspace + "`",
+		"Runtime workspace: workspace-gormes",
+	} {
+		if !strings.Contains(system, want) {
+			t.Fatalf("provider system prompt missing %q in:\n%s", want, system)
+		}
+	}
+	if strings.Contains(system, "Active workspace: `"+filepath.Dir(sourceCheckout)+"`") {
+		t.Fatalf("provider system prompt used source checkout workspace instead of configured terminal cwd:\n%s", system)
+	}
+}
+
 func writeTelegramFixtureFile(t *testing.T, dir, name, body string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {

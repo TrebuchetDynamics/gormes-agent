@@ -378,6 +378,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		RuntimeStatus:              runtimeStatus,
 		Restart:                    restart,
 		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
+		ContextFilesCWD:            gatewayContextFilesCWD(cfg),
 		LiveTurnNow:                func() time.Time { return time.Now() },
 		LiveTurnActiveModel: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
@@ -397,6 +398,16 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}
+}
+
+func gatewayContextFilesCWD(cfg config.Config) string {
+	if cwd := strings.TrimSpace(cfg.Terminal.CWD); cwd != "" && cwd != "." {
+		return cwd
+	}
+	if agent, ok := cfg.Agents.AgentByID(cfg.Agents.DefaultAgentID()); ok {
+		return strings.TrimSpace(agent.Workspace)
+	}
+	return ""
 }
 
 func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
