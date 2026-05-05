@@ -165,12 +165,30 @@ type terminalResult struct {
 
 func terminalWorkdir(defaultWorkdir, requested string) (string, error) {
 	workdir := strings.TrimSpace(defaultWorkdir)
-	if workdir == "" {
+	if workdir == "" || terminalCWDPlaceholder(workdir) {
+		if envWorkdir := strings.TrimSpace(os.Getenv("TERMINAL_CWD")); envWorkdir != "" && !terminalCWDPlaceholder(envWorkdir) {
+			workdir = envWorkdir
+		}
+	}
+	if workdir == "" || terminalCWDPlaceholder(workdir) {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return "", fmt.Errorf("resolve working directory: %w", err)
 		}
 		workdir = cwd
+	}
+	if strings.HasPrefix(workdir, "~") {
+		expanded, err := expandUserPath(workdir)
+		if err != nil {
+			return "", err
+		}
+		workdir = expanded
+	} else if !filepath.IsAbs(workdir) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("resolve working directory: %w", err)
+		}
+		workdir = filepath.Join(cwd, workdir)
 	}
 	if strings.TrimSpace(requested) != "" {
 		if filepathishDangerous(requested) {
@@ -196,6 +214,15 @@ func terminalWorkdir(defaultWorkdir, requested string) (string, error) {
 		return "", fmt.Errorf("workdir %q is not a directory", workdir)
 	}
 	return workdir, nil
+}
+
+func terminalCWDPlaceholder(value string) bool {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case ".", "auto", "cwd":
+		return true
+	default:
+		return false
+	}
 }
 
 func terminalExitCode(err error) int {

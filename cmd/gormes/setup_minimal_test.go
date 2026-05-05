@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -161,7 +162,21 @@ func TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary(t *testing.T) {
 	if fullCalls != 1 {
 		t.Fatalf("RunFullWizard calls = %d, want 1", fullCalls)
 	}
-	for _, want := range []string{"Setup Complete", "All your files are in", "Settings:", config.ConfigPath(), "API Keys:", config.EnvPath(), "gormes setup", "gormes config edit", "gormes doctor"} {
+	for _, want := range []string{
+		"Setup Complete",
+		"📁 All your files are in",
+		"Settings:", config.ConfigPath(),
+		"API Keys:", config.EnvPath(),
+		"Data:", filepath.Join(home, "cron") + "/, sessions/, logs/",
+		"📝 To edit your configuration:",
+		"gormes setup          Re-run the full wizard",
+		"gormes config set <key> <value>\n                          Set a specific value",
+		"Or edit the files directly:",
+		"nano " + config.ConfigPath(),
+		"nano " + config.EnvPath(),
+		"🚀 Ready to go!",
+		"gormes doctor",
+	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
@@ -186,7 +201,7 @@ func TestSetupFullWizardOffersGormesLaunchPromptAfterSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Setup Complete", "Ready to go:", "Launch gormes chat now? [Y/n]: "} {
+	for _, want := range []string{"Setup Complete", "🚀 Ready to go!", "Launch gormes chat now? [Y/n]: "} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}

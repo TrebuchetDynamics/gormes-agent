@@ -25,6 +25,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/slack"
@@ -88,6 +89,11 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.Load(os.Args[1:])
 	if err != nil {
 		return fmt.Errorf("config: %w", err)
+	}
+	secretSnapshot := gormesruntime.SecretRuntimeSnapshot{}
+	cfg, secretSnapshot, err = activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
+	if err != nil {
+		return fmt.Errorf("secret runtime activation: %w", err)
 	}
 	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Yuanbao.Enabled {
 		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
@@ -200,8 +206,13 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	})
 	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
 
-	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued)
+	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "secret_refs", len(secretSnapshot.Entries))
 	return mgr.Run(rootCtx)
+}
+
+func activateGatewaySecretRuntime(ctx context.Context, cfg config.Config, resolver gormesruntime.SecretStringResolver) (config.Config, gormesruntime.SecretRuntimeSnapshot, error) {
+	activation, err := gormesruntime.ActivateGatewaySecretRefs(ctx, cfg, gormesruntime.GatewaySecretRuntimeOptions{Resolver: resolver})
+	return activation.Config, activation.Snapshot, err
 }
 
 func newGatewayHermesClient(cfg config.Config) (hermes.Client, error) {

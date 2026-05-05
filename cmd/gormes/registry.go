@@ -28,7 +28,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewSearchFilesTool(fileTools))
 	reg.MustRegister(tools.NewWriteFileTool(fileTools))
 	reg.MustRegister(tools.NewPatchTool(fileTools))
-	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{}))
+	reg.MustRegister(tools.NewTerminalTool(tools.TerminalToolConfig{Workdir: cfg.Terminal.CWD}))
 	reg.MustRegister(tools.NewClarifyTool(nil))
 	for _, tool := range tools.NewWebTools(tools.WebToolsConfig{
 		Browser: tools.BrowserHarnessToolsConfig{

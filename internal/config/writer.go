@@ -24,6 +24,7 @@ func EnvPath() string {
 var allowedTOMLSections = map[string]struct{}{
 	"hermes":     {},
 	"runtime":    {},
+	"terminal":   {},
 	"gateway":    {},
 	"tui":        {},
 	"input":      {},

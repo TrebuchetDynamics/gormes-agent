@@ -54,6 +54,46 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	}
 }
 
+func TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool(t *testing.T) {
+	projectDir := t.TempDir()
+	otherDir := t.TempDir()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(otherDir); err != nil {
+		t.Fatalf("Chdir(%q): %v", otherDir, err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	})
+
+	reg := buildDefaultRegistry(context.Background(), config.Config{
+		Terminal: config.TerminalCfg{CWD: projectDir},
+	}, nil, "")
+	tool, ok := reg.Get("terminal")
+	if !ok {
+		t.Fatal("terminal not registered")
+	}
+
+	raw, err := tool.Execute(context.Background(), json.RawMessage(`{"command":"pwd"}`))
+	if err != nil {
+		t.Fatalf("terminal Execute: %v", err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal terminal output %s: %v", raw, err)
+	}
+	if out["workdir"] != projectDir {
+		t.Fatalf("terminal workdir = %v, want %q; output=%s", out["workdir"], projectDir, raw)
+	}
+	if strings.TrimSpace(asRegistryString(out["output"])) != projectDir {
+		t.Fatalf("terminal output = %q, want pwd %q; raw=%s", out["output"], projectDir, raw)
+	}
+}
+
 func TestBuildDefaultRegistryDelegationEnabled(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.Config{Delegation: config.DelegationCfg{
 		Enabled:               true,
@@ -65,6 +105,13 @@ func TestBuildDefaultRegistryDelegationEnabled(t *testing.T) {
 	if _, ok := reg.Get("delegate_task"); !ok {
 		t.Fatal("delegate_task not registered")
 	}
+}
+
+func asRegistryString(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }
 
 func TestBuildDefaultRegistryDelegationToolExecutes(t *testing.T) {
