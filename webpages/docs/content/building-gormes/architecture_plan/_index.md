@@ -969,10 +969,11 @@ classification and row-backed implementation queue.
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
-*Native skill extraction. Compounding intelligence. The feature Hermes doesn't have.*
+*Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.*
 
 ### 6.A — Complexity Detector ⏳
 
+- [ ] Hermes background review fork lifecycle
 - [ ] Heuristic or LLM-scored signal
 
 ### 6.B — Skill Extractor ✅
@@ -994,10 +995,12 @@ classification and row-backed implementation queue.
 
 ### 6.E — Feedback Loop ⏳
 
+- [ ] Hermes curator state transitions and run reports
 - [ ] Skill effectiveness scoring
 
 ### 6.F — Skill Surface 🔨
 
+- [ ] Hermes curator command surface
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface
 

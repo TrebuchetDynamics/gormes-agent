@@ -9,6 +9,11 @@ description: Use when the user asks Codex to commit current Gormes changes, push
 
 Use this skill for the exact "make development green, commit everything, push it, and handle the development-to-main PR" lane. It is not a feature-building workflow and it must not create branches, worktrees, or unbounded command sessions. It also owns generated-surface reconciliation before commit so progress/docs/site mirrors do not drift.
 
+If the user asks to improve `gormes-git` itself, treat that as skill
+maintenance first: use `gormes-skill-manager` plus system `skill-creator`, edit
+only the skill/routing docs needed, validate the skill shape, and do not commit
+or push unless the user explicitly asks for that git operation.
+
 ## Branch Rule
 
 Work only on the existing `development` branch.
@@ -30,10 +35,29 @@ Keep the agent session responsive while still preserving validation integrity.
 - If a command times out, report it as timed out. Do not claim the gate passed, do not keep retrying the same full command, and do not continue to commit or merge until the timeout is understood.
 - If remote checks are pending, report the pending state or poll in a small bounded loop. Do not leave a watch command running.
 
+## Intent Classification
+
+Do not treat naming this skill as permission to commit or push. Classify the
+user's exact intent before staging:
+
+| User intent | Action |
+|---|---|
+| Improve `gormes-git` or another skill | Skill-maintenance lane; validate skill docs only; no commit/push unless explicitly requested. |
+| Commit all/current dirty changes | Include tracked and untracked files after safety scan and generated-surface reconciliation. |
+| Commit this/narrow change | Stage only owned paths for the requested slice; leave unrelated dirty files untouched and report them. |
+| Push `development` | Require a clean committed branch, then push only `origin development`. |
+| Open/update/merge PR | Use the PR merge rules only after local and remote gates are clean. |
+
+If wording like "finish this" or "ship it" is ambiguous in a dirty worktree,
+state the inferred scope before staging. Ask only when the wrong scope could
+commit unrelated user work.
+
 ## Dirty Worktree Policy
 
 Treat the worktree as shared state.
 
+- Capture the initial dirty set before editing or staging. Treat later
+  unrelated changes as user/parallel-agent work unless you created them.
 - If the user says "commit all changes", include tracked and untracked dirty files after the safety scan. Do not silently omit unrelated files.
 - If the user asks for a narrower commit, do not stage unrelated dirty files. Leave them in place and report them.
 - Never revert, checkout, delete, or rewrite user/parallel-agent changes to simplify the diff.
@@ -47,6 +71,7 @@ Treat the worktree as shared state.
 Run:
 
 ```sh
+git branch --show-current
 git status --short --untracked-files=all
 git diff --stat
 git worktree list
@@ -90,17 +115,36 @@ timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
 
 Use the public-surface gates when `README.md`, `docs/`, `webpages/landing/`, `benchmarks.json`, or `docs/content/building-gormes/architecture_plan/progress.json` changed. If a gate fails, inspect the failing test or command output, fix the real issue in the current worktree, then rerun the failing gate and any affected higher-level gate.
 
+For skill-maintenance edits that are not being committed in this turn, run the
+skill validation and the light repo contracts instead of the full commit gate:
+
+```sh
+python3 /home/xel/.codex/skills/.system/skill-creator/scripts/quick_validate.py docs/development-skills/<skill-name>
+find -L .agents/skills .claude/skills .codex/skills -maxdepth 2 -name SKILL.md -print | sort
+go run ./cmd/progress validate
+git diff --check
+```
+
 ### 4. Stage And Recheck
 
 After the worktree is green:
 
 ```sh
+# For commit-all intent only:
 git add -A
+
+# For narrow commit intent, stage only owned paths:
+git add -- <path> [<path>...]
+
 git diff --cached --stat
 git diff --cached --check
+git diff --cached --name-status
 ```
 
-Confirm the staged diff matches the user's request. Do not drop unrelated dirty files when the user explicitly asked to commit all changes.
+Confirm the staged diff matches the user's request. If the user asked for a
+narrow commit, `git diff --cached --name-status` must not include unrelated
+initial dirty files. If the user explicitly asked to commit all changes, do not
+drop unrelated dirty files after the safety scan.
 
 ### 5. Commit
 

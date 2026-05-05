@@ -106,7 +106,7 @@ Use one classification:
 | `adopt` | Useful Gormes-owned enhancement that fits without breaking Hermes compatibility. |
 | `adapt` | Useful idea, but must be reshaped to preserve Gormes/Hermes contracts. |
 | `covered` | Already implemented, tested, or row-backed in Gormes. |
-| `hermes-parity` | Actually exists in Hermes; route to `gormes-hermes-parity`. |
+| `hermes-parity` | Actually exists in Hermes; route to the `gormes-hermes-parity` orchestrator. |
 | `exclude` | Not aligned, unsafe, too coupled to OpenClaw internals, licensing-risky, or not worth the dependency. |
 | `blocked` | Source evidence is missing or unsafe to inspect. |
 

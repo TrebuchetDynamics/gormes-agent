@@ -19,19 +19,19 @@ weight: 12
 
 ## Current State at a Glance
 
-**As of April 30, 2026**
+**As of May 5, 2026**
 
 | Phase | Status | Shipped | In Progress | Planned | Open Rows |
 |-------|--------|---------|-------------|---------|-----------|
 | Phase 1 — Dashboard | ✅ Complete | 4/4 | 0 | 0 | 0 |
-| Phase 2 — Gateway | 🔨 Mostly Done | 20/21 | 1 | 0 | 3 |
+| Phase 2 — Gateway | ✅ Complete | 21/21 | 0 | 0 | 0 |
 | Phase 3 — Memory | ✅ Complete | 15/15 | 0 | 0 | 0 |
-| Phase 4 — Brain Transplant | 🔨 In Progress | 3/9 | 6 | 0 | 15 |
-| Phase 5 — Final Purge | 🔨 Large Backlog | 3/18 | 8 | 7 | 38 |
-| Phase 6 — Learning Loop | 🔨 Not Started | 0/6 | 0 | 6 | 8 |
-| Phase 7 — Paused Channels | 🔨 Backlog | 2/5 | 3 | 0 | 11 |
+| Phase 4 — Brain Transplant | 🔨 Mostly Complete | 12/13 | 1 | 0 | 1 |
+| Phase 5 — Final Purge | 🔨 Large Backlog | 5/22 | 16 | 1 | 47 |
+| Phase 6 — Learning Loop | 🔨 In Progress | 6/12 | 2 | 4 | 13 |
+| Phase 7 — Paused Channels | 🔨 Backlog | 2/5 | 3 | 0 | 9 |
 
-**Overall:** 47/78 subphases shipped · 26 in progress · 5 planned · 75 open rows
+**Overall:** 65/92 subphases shipped · 22 in progress · 5 planned · 70 open rows
 
 **First closure target:** Python-free normal agent turn with local Goncho memory and tested tool-call continuation. This is a dogfood gate, not a reduced finish line.
 

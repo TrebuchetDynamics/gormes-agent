@@ -28644,7 +28644,7 @@
             {
               "name": "Hermes config.yaml Telegram compatibility bridge",
               "status": "complete",
-              "contract": "Gormes config.Load reads Hermes' canonical `config.yaml` before native Gormes TOML/env/flag overrides, mapping `platforms.telegram.token`, `platforms.telegram.api_key`, `platforms.telegram.home_channel.chat_id`, `platforms.telegram.extra.require_mention`, `platforms.telegram.extra.bot_username`, and `streaming.fresh_final_after_seconds` into the existing Telegram runtime config without printing or committing secrets.",
+              "contract": "Historical bridge row superseded by the Cross-agent config isolation contract: normal Gormes runtime must not read Hermes `config.yaml`; Telegram compatibility is preserved through `gormes migrate hermes` manifest/writer mapping and native env aliases for Hermes dotenv keys.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -28653,46 +28653,49 @@
                 "system",
                 "gateway"
               ],
-              "degraded_mode": "Missing Hermes config.yaml is a no-op; malformed YAML returns a typed decode error before gateway startup; Gormes TOML, environment, and flags remain higher precedence so existing deployments are not overwritten.",
-              "fixture": "internal/config/config_test.go::TestLoad_HermesConfigYAMLTelegramTokenParity",
+              "degraded_mode": "Foreign Hermes config residue is ignored by normal runtime paths; operators use `gormes migrate hermes --dry-run` and `--yes` to copy supported Telegram values into Gormes-native config and dotenv files.",
+              "fixture": "internal/config/config_test.go::TestLoad_IgnoresHermesConfigYAML; internal/config/config_test.go::TestLoad_TelegramHermesEnvAliases; internal/migrate/hermes/manifest_test.go::TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted; internal/migrate/hermes/writer_test.go::TestHermesConfigWriter_AppliesImportableConfig",
               "source_refs": [
-                "../hermes-agent/hermes_cli/config.py:get_config_path",
-                "../hermes-agent/gateway/config.py:PlatformConfig",
-                "internal/config/config.go:Load,loadHermesConfigYAML",
-                "internal/config/config_test.go:TestLoad_HermesConfigYAMLTelegramTokenParity"
+                "./hermes-agent/hermes_cli/config.py:get_config_path",
+                "./hermes-agent/gateway/config.py:PlatformConfig,_apply_env_overrides",
+                "./hermes-agent/hermes_cli/setup.py:_setup_telegram",
+                "./hermes-agent/hermes_cli/gateway.py:_PLATFORMS telegram",
+                "internal/config/config.go:Load,loadEnv",
+                "internal/config/config_test.go:TestLoad_IgnoresHermesConfigYAML,TestLoad_TelegramHermesEnvAliases",
+                "internal/migrate/hermes/manifest.go:supportedEnvKeys",
+                "internal/migrate/hermes/writer.go:ApplyManifest"
               ],
               "ready_when": [
-                "Hermes config source is exact: get_config_path returns get_hermes_home()/config.yaml.",
-                "The first bridge is read-only and only maps Telegram fields needed for source-run dogfood; broader config command writer parity remains in Phase 5.O rows."
+                "Cross-agent config isolation is complete and owns normal runtime behavior.",
+                "Hermes config migration dry-run manifest and writer rows own cross-agent value imports."
               ],
               "not_ready_when": [
-                "The slice writes secrets into repository files or changes the active Hermes config command writer.",
-                "The slice removes existing Gormes TOML/env/flag precedence before a full config parity row is planned."
+                "A normal runtime path reads `~/.hermes/config.yaml`, `HERMES_HOME`, or another agent home outside explicit migration commands.",
+                "A parity row claims `TestLoad_HermesConfigYAMLTelegramTokenParity` or `TestLoad_GormesEnvOverridesHermesConfigYAML` as current validation."
               ],
               "unblocks": [
                 "Gormes config command surface",
                 "Hermes config migration dry-run manifest",
-                "Telegram source-run dogfood"
+                "Telegram source-run dogfood through explicit migration"
               ],
               "acceptance": [
-                "TestLoad_HermesConfigYAMLTelegramTokenParity proves Telegram token, home_channel chat_id, require_mention, bot_username, and fresh_final_after_seconds load from Hermes config.yaml.",
-                "TestLoad_GormesEnvOverridesHermesConfigYAML proves Gormes env still overrides Hermes YAML for compatibility with existing deployments.",
-                "No raw token is printed in validation or committed to the repository."
+                "TestLoad_IgnoresHermesConfigYAML proves normal runtime does not import Telegram token, home_channel, mention, username, streaming, display, web, browser, security, Discord, or Slack values from Hermes config.yaml.",
+                "TestLoad_TelegramHermesEnvAliases proves Gormes runtime accepts Hermes-compatible Telegram dotenv aliases after migration or copied env setup.",
+                "Hermes migration manifest and writer tests prove TELEGRAM_BOT_TOKEN, TELEGRAM_HOME_CHANNEL, and TELEGRAM_ALLOWED_USERS are copied into Gormes-native dotenv keys with redacted reports and no raw secret output."
               ],
-              "note": "Added after operator correction: Hermes parity is the default, so Gormes must bridge `~/.hermes/config.yaml` instead of treating XDG TOML as the only source. This row intentionally ships a read-only Telegram bridge first; writer/config-command parity remains row-backed. Superseded 2026-05-03 by the `Cross-agent config isolation` hard rule: normal Gormes runtime must stop reading Hermes config, while useful Telegram/channel compatibility moves to `gormes migrate hermes` mapping tests.",
+              "note": "Stale-upstream reconciliation 2026-05-05: this row is retained as historical evidence but no longer claims a live runtime bridge. The active compatibility boundary is functional parity through explicit migration plus env aliases, because Cross-agent config isolation intentionally prevents normal Gormes runtime from reading Hermes config.yaml.",
               "write_scope": [
                 "internal/config/config.go",
                 "internal/config/config_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/config -run 'TestLoad_HermesConfigYAMLTelegramTokenParity|TestLoad_GormesEnvOverridesHermesConfigYAML|TestLoad_TelegramEnvOverride' -count=1",
-                "go test ./internal/config -count=1",
+                "go test ./internal/config ./internal/migrate/hermes -run 'TestLoad_IgnoresHermesConfigYAML|TestLoad_TelegramHermesEnvAliases|TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted|TestHermesConfigWriter_AppliesImportableConfig' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Gormes can source Telegram bot runtime settings from Hermes config.yaml while keeping higher-precedence Gormes overrides and no secret output."
+                "Gormes refuses live cross-agent config reads while preserving Telegram migration compatibility through redacted manifest/writer tests and Hermes-compatible dotenv aliases."
               ],
               "health": {
                 "attempt_count": 1,
@@ -28856,11 +28859,15 @@
               "degraded_mode": "Missing Hermes homes, invalid YAML, unreadable .env files, and newer unknown schema versions produce report items instead of panics or partial imports.",
               "fixture": "internal/migrate/hermes/manifest_test.go; cmd/gormes/migrate_hermes_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_constants.py:get_hermes_home",
-                "../hermes-agent/hermes_cli/config.py:DEFAULT_CONFIG,load_config,load_env,migrate_config",
-                "../hermes-agent/hermes_state.py",
-                "../hermes-agent/tests/hermes_cli/test_config.py",
-                "../hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
+                "./hermes-agent/hermes_constants.py:get_hermes_home",
+                "./hermes-agent/hermes_cli/config.py:DEFAULT_CONFIG,load_config,load_env,migrate_config",
+                "./hermes-agent/gateway/config.py:_apply_env_overrides",
+                "./hermes-agent/hermes_cli/setup.py:_setup_telegram",
+                "./hermes-agent/hermes_cli/gateway.py:_PLATFORMS telegram",
+                "./hermes-agent/hermes_state.py",
+                "./hermes-agent/tests/hermes_cli/test_config.py",
+                "./hermes-agent/tests/hermes_cli/test_config_env_expansion.py",
+                "./hermes-agent/website/docs/user-guide/messaging/telegram.md",
                 "internal/config/config.go:LegacyHermesHome,ConfigPath,MemoryDBPath,SessionDBPath",
                 "docs/content/building-gormes/architecture_plan/hermes-honcho-go-runtime-plan.md:Hermes state/config migration command"
               ],
@@ -28888,7 +28895,7 @@
                 "The dry-run command prints migrated/skipped/conflict/error counts and exits non-zero only for an unreadable or invalid requested source.",
                 "No file under XDG_CONFIG_HOME, XDG_DATA_HOME, or XDG_STATE_HOME changes during dry-run tests."
               ],
-              "note": "Complete: TDD added internal/migrate/hermes/manifest.go, internal/migrate/hermes/manifest_test.go, cmd/gormes/migrate.go, and cmd/gormes/migrate_hermes_test.go. BuildManifest resolves Hermes home in the order --source, $HERMES_HOME, ~/.hermes and records every candidate path with a Found flag, classifies config.yaml model/providers/custom_provider/terminal/display/gateway/memory as importable into hermes.model/hermes.providers/hermes.custom_provider/terminal/tui.display/gateway/memory, archives _config_version, marks unsupported top-level sections as skipped with explicit reason text, classifies .env keys against a Telegram/Discord/Slack and *_API_KEY/*_TOKEN target map, never serializes raw secret bytes (RedactedValue=[REDACTED]), reports conflict_with_existing when a Gormes target env is already set, and surfaces invalid YAML as an Errors entry instead of panicking. The migrate cobra command requires --dry-run, errors non-zero on missing/non-directory --source, prints the manifest as indented JSON, and writes nothing under XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_STATE_HOME. Locked invariants: read-only filesystem behavior, redacted-only env values, deterministic config-key sorting, and explicit candidate-path reporting for every discovery origin. Root command wiring is deferred to the writer slice, which already owns cmd/gormes/migrate.go in its write_scope.",
+              "note": "Complete: TDD added internal/migrate/hermes/manifest.go, internal/migrate/hermes/manifest_test.go, cmd/gormes/migrate.go, and cmd/gormes/migrate_hermes_test.go. BuildManifest resolves Hermes home in the order --source, $HERMES_HOME, ~/.hermes and records every candidate path with a Found flag, classifies config.yaml model/providers/custom_provider/terminal/display/gateway/memory as importable into hermes.model/hermes.providers/hermes.custom_provider/terminal/tui.display/gateway/memory, archives _config_version, marks unsupported top-level sections as skipped with explicit reason text, classifies .env keys against a Telegram/Discord/Slack and *_API_KEY/*_TOKEN target map, never serializes raw secret bytes (RedactedValue=[REDACTED]), reports conflict_with_existing when a Gormes target env is already set, and surfaces invalid YAML as an Errors entry instead of panicking. The migrate cobra command requires --dry-run, errors non-zero on missing/non-directory --source, prints the manifest as indented JSON, and writes nothing under XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_STATE_HOME. 2026-05-05 parity refresh maps Hermes Telegram dotenv keys TELEGRAM_BOT_TOKEN, TELEGRAM_HOME_CHANNEL, and TELEGRAM_ALLOWED_USERS into GORMES_TELEGRAM_TOKEN, GORMES_TELEGRAM_CHAT_ID, and GORMES_TELEGRAM_ALLOWED_USERS with redacted manifest output. Locked invariants: read-only filesystem behavior, redacted-only env values, deterministic config-key sorting, and explicit candidate-path reporting for every discovery origin. Root command wiring is deferred to the writer slice, which already owns cmd/gormes/migrate.go in its write_scope.",
               "write_scope": [
                 "cmd/gormes/migrate.go",
                 "cmd/gormes/migrate_hermes_test.go",
@@ -28917,13 +28924,15 @@
                 "system"
               ],
               "degraded_mode": "Conflicting existing Gormes keys are skipped by default and reported with --overwrite guidance; no partial write is allowed if backup creation fails.",
-              "fixture": "internal/migrate/hermes/apply_test.go; cmd/gormes/migrate_hermes_apply_test.go",
+              "fixture": "internal/migrate/hermes/writer_test.go; cmd/gormes/migrate_hermes_writer_test.go",
               "source_refs": [
                 "internal/migrate/hermes/manifest.go",
                 "internal/config/writer.go",
-                "../hermes-agent/hermes_cli/config.py:save_config,save_env_value,migrate_config",
-                "../hermes-agent/tests/hermes_cli/test_set_config_value.py",
-                "../hermes-agent/tests/hermes_cli/test_config_drift.py",
+                "./hermes-agent/hermes_cli/config.py:save_config,save_env_value,migrate_config",
+                "./hermes-agent/hermes_cli/setup.py:_setup_telegram",
+                "./hermes-agent/hermes_cli/gateway.py:_PLATFORMS telegram",
+                "./hermes-agent/tests/hermes_cli/test_set_config_value.py",
+                "./hermes-agent/tests/hermes_cli/test_config_drift.py",
                 "internal/config/config.go:ConfigPath,CurrentConfigVersion"
               ],
               "ready_when": [
@@ -28948,17 +28957,17 @@
                 "The report redacts all secret values and includes counts matching the manifest.",
                 "Session/memory source files are reported as archived/skipped with explicit follow-up row names, not silently copied."
               ],
-              "note": "Draft until the dry-run manifest row lands and exact manifest structs are known. This keeps writer work bounded and prevents broad Hermes state imports from being smuggled into config migration.",
+              "note": "Complete: TDD added the backup-first Hermes migration writer over the manifest structs. 2026-05-05 parity refresh proves Hermes Telegram dotenv keys TELEGRAM_BOT_TOKEN, TELEGRAM_HOME_CHANNEL, and TELEGRAM_ALLOWED_USERS are written to GORMES_TELEGRAM_TOKEN, GORMES_TELEGRAM_CHAT_ID, and GORMES_TELEGRAM_ALLOWED_USERS without leaking raw secret bytes in the JSON outcome. Conflict handling still skips existing Gormes target env keys unless --overwrite is set, and session/memory imports remain explicitly deferred.",
               "write_scope": [
                 "cmd/gormes/migrate.go",
-                "cmd/gormes/migrate_hermes_apply_test.go",
-                "internal/migrate/hermes/apply.go",
-                "internal/migrate/hermes/apply_test.go",
+                "cmd/gormes/migrate_hermes_writer_test.go",
+                "internal/migrate/hermes/writer.go",
+                "internal/migrate/hermes/writer_test.go",
                 "internal/config/writer.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/migrate/hermes ./cmd/gormes ./internal/config -run 'TestHermesMigrationApply|TestMigrateHermesApply|TestConfigWriter' -count=1",
+                "go test ./internal/migrate/hermes ./cmd/gormes ./internal/config -run 'TestHermesConfigWriter|TestMigrateHermesWriter|TestConfigWriter' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
@@ -34248,11 +34257,84 @@
     },
     "6": {
       "name": "Phase 6 — The Learning Loop (Soul)",
-      "deliverable": "Native skill extraction. Compounding intelligence. The feature Hermes doesn't have.",
+      "deliverable": "Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.",
       "subphases": {
         "6.A": {
           "name": "Complexity Detector",
           "items": [
+            {
+              "name": "Hermes background review fork lifecycle",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "After turns that trigger memory or skill review, Gormes can launch a quiet background review fork that inherits the active runtime credentials, runs only memory and skills toolsets, writes to shared stores without mutating parent history, emits one attributed self-improvement summary, and always cleans up approval callbacks and memory providers",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Learning-loop status reports background_review_unavailable, background_review_runtime_unavailable, background_review_denied_toolset, or background_review_cleanup_failed instead of running a full-tool child agent silently.",
+              "fixture": "internal/hermes/background_review_test.go",
+              "source_refs": [
+                "../hermes-agent/run_agent.py@b816fd4e2:AIAgent._spawn_background_review",
+                "../hermes-agent/run_agent.py@b816fd4e2:AIAgent._summarize_background_review_actions",
+                "../hermes-agent/tests/run_agent/test_background_review.py@b816fd4e2",
+                "../hermes-agent/tests/run_agent/test_background_review_summary.py@b816fd4e2",
+                "../hermes-agent/tests/run_agent/test_background_review_toolset_restriction.py@b816fd4e2",
+                "../hermes-agent/tests/run_agent/test_review_prompt_class_first.py@b816fd4e2",
+                "internal/subagent/background_review_toolset.go",
+                "internal/hermes/guidance_constants.go",
+                "internal/tools/skill_manager.go"
+              ],
+              "ready_when": [
+                "Background review toolset restriction is validated, so the review fork can be memory+skills-only from construction.",
+                "Native skills list/view tool surface is validated, so the review fork can inspect existing skills without a Python subprocess.",
+                "Tests can use fake review runners and fake stores; no live provider, Telegram, gateway, or shell command is required."
+              ],
+              "not_ready_when": [
+                "The slice grants terminal, browser, file-write outside skill_manage, provider-management, or foreground subagent toolsets to the background fork.",
+                "The slice re-resolves credentials from environment variables instead of inheriting the active runtime binding.",
+                "The slice mutates parent conversation history or re-surfaces stale tool messages from the inherited transcript as new review actions."
+              ],
+              "blocked_by": [
+                "Background review toolset restriction",
+                "Native skills list/view tool surface"
+              ],
+              "unblocks": [
+                "Hermes curator state transitions and run reports",
+                "Hermes curator command surface"
+              ],
+              "acceptance": [
+                "TestBackgroundReviewFork_InheritsActiveRuntime proves provider, model, api_mode, base_url, api_key, credential pool, platform, parent_session_id, and memory store flags are copied from the active parent into the fake review worker.",
+                "TestBackgroundReviewFork_RestrictsTools proves the worker receives only memory and skills toolsets and denies terminal, browser, execute_code, network, file_write, and provider-management toolsets with background_review_toolset evidence.",
+                "TestBackgroundReviewFork_SkipsPriorToolMessages proves summaries ignore tool messages already present in the inherited transcript and only report successful review-tool actions from the fork.",
+                "TestBackgroundReviewFork_EmitsAttributedSummary proves CLI/gateway callbacks receive exactly one `Self-improvement review` summary when memory or skills were updated.",
+                "TestBackgroundReviewFork_Cleanup proves approval callbacks are auto-deny during the run, cleared after the run, and memory providers are shutdown before close."
+              ],
+              "note": "Hermes v0.12.0 made the after-turn self-improvement review concrete: it forks an AIAgent with the active runtime binding, memory+skills toolsets, auto-deny approvals, parent session attribution, prompt-history isolation, and explicit `Self-improvement review` user-facing summaries. Gormes already has the toolset-restriction policy; this row wires the lifecycle without adding curator scheduling yet.",
+              "write_scope": [
+                "internal/hermes/background_review.go",
+                "internal/hermes/background_review_test.go",
+                "internal/subagent/background_review_toolset.go",
+                "internal/tools/skill_manager.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes ./internal/subagent ./internal/tools -run 'TestBackgroundReviewFork|TestBackgroundReviewToolsetRestriction|TestSkillManager' -count=1",
+                "go test ./internal/hermes ./internal/subagent ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Background review fixtures prove runtime inheritance, memory+skills-only tools, prompt-history isolation, attributed summaries, auto-deny approval behavior, and cleanup without live model calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 run_agent.py",
+                "note": "Hermes owns the background review lifecycle contract; Gormes ports it through Go-native review runners and existing memory/skills tool surfaces."
+              }
+            },
             {
               "name": "Heuristic or LLM-scored signal",
               "status": "planned",
@@ -34789,6 +34871,76 @@
           "name": "Feedback Loop",
           "items": [
             {
+              "name": "Hermes curator state transitions and run reports",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes maintains Hermes-compatible curator state for agent-created skills: first run defers and seeds state, configured interval/paused gates control later runs, active/stale/archived transitions use last activity, pinned and non-agent-created skills are never auto-touched, dry-run skips mutations, and every run records recoverable report evidence",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Curator status reports curator_disabled, curator_paused, curator_no_candidates, curator_dry_run_report_only, curator_backup_failed, or curator_report_write_failed instead of hiding skipped or partial maintenance.",
+              "fixture": "internal/skills/curator_test.go",
+              "source_refs": [
+                "../hermes-agent/agent/curator.py@b816fd4e2",
+                "../hermes-agent/agent/curator_backup.py@b816fd4e2",
+                "../hermes-agent/tests/agent/test_curator.py@b816fd4e2",
+                "../hermes-agent/tests/agent/test_curator_activity.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_skill_usage.py@b816fd4e2",
+                "internal/skills/usage.go",
+                "internal/skills/store.go"
+              ],
+              "ready_when": [
+                "Hermes background review fork lifecycle is builder-ready or validated so agent-created skills can be attributed to the review origin.",
+                "Portable SKILL.md format and native skill usage records exist, so curator state can be tested with local temporary skill roots.",
+                "Tests can use fake clocks, fake skill roots, and fake review callbacks; no live LLM, gateway, or network call is required."
+              ],
+              "not_ready_when": [
+                "The slice deletes skills permanently instead of moving them to a recoverable archive.",
+                "The slice treats bundled, hub-installed, manual, or pinned skills as curator-managed candidates.",
+                "The slice lets dry-run mutate state, archives, backups, or SKILL.md content."
+              ],
+              "blocked_by": [
+                "Hermes background review fork lifecycle",
+                "Portable SKILL.md format"
+              ],
+              "unblocks": [
+                "Hermes curator command surface",
+                "Skill effectiveness scoring"
+              ],
+              "acceptance": [
+                "TestCuratorState_FirstRunDefers seeds last_run_at and summary but returns not-eligible until a full interval has elapsed.",
+                "TestCuratorState_Gates respect enabled=false, paused=true, interval_hours, min_idle_hours, stale_after_days, and archive_after_days configuration.",
+                "TestCuratorTransitions_ActivityLifecycle marks old active agent-created skills stale, archives very old skills recoverably, reactivates stale skills on recent activity, and never auto-touches pinned or non-agent-created skills.",
+                "TestCuratorRun_DryRunReportOnly proves dry-run counts candidates and writes preview/report evidence without bumping run_count, last_run_at, archives, backups, or SKILL.md content.",
+                "TestCuratorRun_ReportEvidence records started_at, duration, auto-transition counts, summary, before/after skill names, tool-call metadata, and last_report_path for status surfaces."
+              ],
+              "note": "Hermes v0.12.0 added an autonomous curator for agent-created skill maintenance. It is not just a score counter: it owns interval gating, .curator_state, pinned safeguards, activity-based stale/archive transitions, recoverable backups, dry-run behavior, and logs/curator run reports. Gormes should port those invariants before exposing the CLI as available.",
+              "write_scope": [
+                "internal/skills/curator.go",
+                "internal/skills/curator_test.go",
+                "internal/skills/usage.go",
+                "internal/skills/store.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestCurator(State|Transitions|Run)' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Curator fixtures prove scheduler gates, first-run defer, activity transitions, pinned/manual safeguards, dry-run no-mutation behavior, recoverable archives, and report evidence without live LLM calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 agent/curator.py",
+                "note": "Hermes owns the curator state and maintenance contract; Gormes ports it onto the native skill usage/store layer."
+              }
+            },
+            {
               "name": "Skill effectiveness scoring",
               "status": "planned",
               "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior.",
@@ -34807,6 +34959,70 @@
         "6.F": {
           "name": "Skill Surface",
           "items": [
+            {
+              "name": "Hermes curator command surface",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "`gormes curator` replaces the current unavailable placeholder with Hermes-compatible status, run, pause, resume, pin, unpin, backup, rollback, and restore commands over the native curator state/report engine",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The CLI reports curator_unavailable, curator_disabled, curator_no_agent_created_skills, curator_backup_unavailable, or curator_rollback_cancelled with actionable hints instead of silently doing nothing.",
+              "fixture": "cmd/gormes/curator_test.go + internal/cli/command_registry_policy_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/curator.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/main.py@b816fd4e2:curator command registration",
+                "../hermes-agent/tests/hermes_cli/test_curator_status.py@b816fd4e2",
+                "../hermes-agent/tests/agent/test_curator.py@b816fd4e2",
+                "internal/cli/command_registry.go",
+                "internal/gateway/commands.go"
+              ],
+              "ready_when": [
+                "Hermes curator state transitions and run reports is fixture-ready or validated, so the CLI can render real state and reports.",
+                "The command registry still marks `curator` unavailable until this row ships, so the public surface remains honest."
+              ],
+              "not_ready_when": [
+                "The slice implements a CLI stub that prints success without reading native curator state.",
+                "The slice allows pin/unpin or curator mutations against bundled, hub-installed, manual, or pinned-protected skills contrary to the curator state contract.",
+                "The slice starts a live LLM review in tests."
+              ],
+              "blocked_by": [
+                "Hermes curator state transitions and run reports"
+              ],
+              "acceptance": [
+                "TestCuratorCommand_Status renders enabled/paused state, interval/stale/archive thresholds, run count, last run summary, last report path, agent-created counts by state, pinned skills, least recently active, most active, and least active sections.",
+                "TestCuratorCommand_Run supports --dry-run and --sync flags, prints report-only guidance for dry-run, and starts a native curator run through an injected fake runner.",
+                "TestCuratorCommand_PauseResumePinUnpin updates state through injected fake stores and refuses bundled or hub-installed skill names with Hermes-compatible hints.",
+                "TestCuratorCommand_BackupRollbackRestore lists snapshots, requires confirmation unless -y/--yes is passed, and reports cancelled rollback without mutation.",
+                "Command registry fixtures flip `curator` from unavailable to available on the CLI surface while gateway active-turn command policy remains explicit."
+              ],
+              "note": "Gormes currently registers `curator` as unavailable. Hermes v0.12.0 exposes `hermes curator status|run|pause|resume|pin|unpin|backup|rollback|restore`; the Go CLI should become available only after the native state/report engine exists.",
+              "write_scope": [
+                "cmd/gormes/curator.go",
+                "cmd/gormes/curator_test.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "internal/gateway/commands.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/cli ./internal/gateway -run 'TestCuratorCommand|TestCommandRegistry|TestGatewayCommand' -count=1",
+                "go test ./cmd/gormes ./internal/cli ./internal/gateway -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Curator CLI fixtures prove Hermes-compatible status/run/control/backup commands over injected native curator state, and command registry policy no longer exposes curator as an unavailable CLI placeholder."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/curator.py",
+                "note": "Hermes owns the user-visible curator CLI contract; Gormes ports it once the Go curator state engine exists."
+              }
+            },
             {
               "name": "TUI + Telegram browsing",
               "status": "planned",

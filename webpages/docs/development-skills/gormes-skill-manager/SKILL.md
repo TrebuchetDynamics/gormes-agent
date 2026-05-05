@@ -38,10 +38,12 @@ Pick the primary intent:
 
 - **Decide direction**: use `grill-me` and optionally `gormes-planner`.
 - **Run recurring or periodic Hermes/Gormes parity progress sweeps**:
-  use `gormes-hermes-parity`, then `gormes-parity-auditor` and
-  `gormes-planner` inside the bounded sweep. Use the same route when parity
-  taxonomy, roadmap group names, or feature-map sections need source-backed
-  renames or restructures.
+  use `gormes-hermes-parity` as the orchestrator. It loads only the needed
+  parity reference and manages follow-up subskills such as
+  `gormes-parity-auditor`, `gormes-planner`, `gormes-builder`,
+  `gormes-tdd-slice`, `gormes-dev-runtime`, and `gormes-openclaw-parity`.
+  Use the same route when parity taxonomy, roadmap group names, or
+  feature-map sections need source-backed renames or restructures.
 - **Discover useful OpenClaw-only behavior absent from Hermes**: use
   `gormes-openclaw-parity` to classify the candidate as adopt, adapt, covered,
   Hermes parity, exclude, or blocked. Route adopt/adapt findings to
@@ -90,6 +92,10 @@ Pick the primary intent:
 - **Improve landing page content or UI**: use `gormes-landing-web`.
 - **Commit, validate, and push the dirty `development` branch**: use
   `gormes-git`.
+- **Prepare, publish, or recover a Gormes release**: use `gormes-release`.
+  It may route dirty-worktree commit/push/PR work through `gormes-git`, but it
+  owns release intent, version/tag checks, artifact verification, and recovery
+  stop conditions.
 - **Create or improve skills**: use system `skill-creator` plus this manager.
   Fold repeated mistakes into existing class-level skills before creating a
   new one, and keep the update as process guidance rather than a session diary.

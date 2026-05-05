@@ -45,7 +45,7 @@ Use these skills as the default routing surface:
 | Work type | Required skill |
 |---|---|
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
-| Running a recurring full Hermes-in-Go parity sweep or recording periodic parity progress | `gormes-hermes-parity` |
+| Running a recurring full Hermes-in-Go parity sweep or recording periodic parity progress | `gormes-hermes-parity` as the subskill orchestrator |
 | Discovering useful OpenClaw-only behavior absent from Hermes for possible Gormes-owned adoption | `gormes-openclaw-parity` |
 | Mapping Hermes/Honcho parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |

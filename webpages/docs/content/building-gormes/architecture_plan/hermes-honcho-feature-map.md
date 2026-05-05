@@ -165,7 +165,7 @@ are stable.
 | Plugin SDK and first-party plugins | `plugins/*`, `plugins/spotify`, `plugins/google_meet`, image-gen plugins | `internal/plugins`, `internal/tools`, `internal/apiserver` | Start with manifest/capability loader, then add one first-party plugin fixture, dashboard assets, and tool registration. | Phase 5.I |
 | Memory plugins | `plugins/memory/*`, especially `plugins/memory/honcho` | `internal/goncho`, `internal/gonchotools`, `internal/plugins` | External compatibility names stay `honcho_*`; internal memory implementation remains Goncho. Other memory plugins become adapter rows after generic plugin contract. | Phase 3.G, 5.I |
 | Batch, mini-SWE, RL, datagen | `batch_runner.py`, `mini_swe_runner.py`, `rl_cli.py`, `datagen-config-examples/` | `internal/tools`, `internal/subagent`, future research packages | Defer research modes until normal turn, tools, and release lanes are stable. Port only hermetic runner contracts first. | Phase 5.M/5.O |
-| Learning loop | skill and memory rows plus Gormes Phase 6 docs | `internal/skills`, `internal/memory`, `internal/kernel` | Detect complex tasks, extract candidate skills, review/promote them, retrieve by hybrid search, and score effectiveness against outcomes. | Phase 6 |
+| Learning loop | `run_agent.py` background review, `agent/curator.py`, `hermes_cli/curator.py`, skill and memory rows plus Gormes Phase 6 docs | `internal/hermes`, `internal/skills`, `internal/memory`, `internal/cli`, `internal/kernel` | Port Hermes background-review forks and curator state/CLI first, then add Gormes-native detectors, candidate extraction, review/promotion, hybrid retrieval, and outcome scoring. | Phase 6 |
 
 ## Honcho Feature Map For Goncho
 

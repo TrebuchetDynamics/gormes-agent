@@ -175,6 +175,8 @@ go test ./docs -count=1
 
 Exit when:
 
+- Hermes-compatible background review forks and curator state/CLI behavior are
+  fixture-backed;
 - complex tasks can become reviewed, versioned skills;
 - skill use is tied to outcomes and operator feedback;
 - generated or stale skills never enter prompt injection without review.
@@ -182,7 +184,7 @@ Exit when:
 Gate:
 
 ```sh
-go test ./internal/skills ./internal/memory ./internal/kernel -count=1
+go test ./internal/hermes ./internal/skills ./internal/memory ./internal/cli ./internal/kernel -count=1
 ```
 
 ## Next-Lane Priority

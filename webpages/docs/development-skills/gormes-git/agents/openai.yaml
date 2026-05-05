@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Git"
   short_description: "Session-safe sync, commit, push, PR-merge development."
-  default_prompt: "Use $gormes-git to reconcile generated progress/site surfaces, validate, commit all dirty Gormes changes, push development, handle the development-to-main PR when requested, avoid unbounded watch commands, and report the resulting git state."
+  default_prompt: "Use $gormes-git to classify the requested git intent, preserve unrelated dirty work, reconcile generated progress/site surfaces when needed, validate, commit or push only the requested development-branch scope, and handle PR work only when asked."

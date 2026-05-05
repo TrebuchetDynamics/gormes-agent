@@ -5,7 +5,10 @@ weight: 20
 
 # The Learning Loop (The Soul)
 
-Detects when a task was complex enough to learn from, distills the solution into a reusable skill, stores it, and improves the skill over successive runs.
+Detects when a task was complex enough to learn from, distills the solution
+into a reusable skill, stores it, improves the skill over successive runs, and
+keeps agent-created skills maintainable through Hermes-compatible background
+review and curator flows.
 
 ## Simplified flow
 
@@ -24,17 +27,33 @@ Without a learning loop you lose:
 - **Differentiation** — every agent looks the same at turn zero
 - **Long-term value** — you pay the same token tax on turn 1000 as on turn 1
 
-Upstream Hermes has a `skills/` directory with hand-authored SKILL.md files. It does not have an algorithm that decides what's worth writing down. That's what Phase 6 delivers.
+Upstream Hermes now has two concrete learning-loop contracts: an after-turn
+background review fork that can save memory/skill updates, and a curator that
+maintains agent-created skills through activity-based lifecycle transitions,
+dry-run reports, backups, rollback/restore, and `hermes curator` commands.
+Phase 6 ports those contracts first, then adds Gormes-native evidence for
+detectors, scoring, retrieval, and promotion.
 
 ## Current status
 
-⏳ Planned — see [Phase 6](../../architecture_plan/phase-6-learning-loop/) for the sub-phase breakdown.
+🚧 Partial — see [Phase 6](../../architecture_plan/phase-6-learning-loop/) for
+the sub-phase breakdown. Gormes already has SKILL.md validation, skill
+metadata/retrieval fixtures, `skill_manage`, `skills_list`, `skill_view`, and
+the background-review memory+skills-only toolset policy. Missing parity rows
+now track the background review fork lifecycle, curator state/report engine,
+and `gormes curator` command surface.
 
 Execution should be TDD-first and local-signal-first:
 
-- Start with deterministic complexity signals from transcript length, tool-call count, retries, edits, and operator feedback.
-- Extend the Phase 2.G SKILL.md store with versioned metadata, provenance, review state, and atomic writes before generated skills persist.
-- Use fake-model extraction fixtures to prove secret stripping and one-off task rejection before live LLM generation.
+- Start with the Hermes background-review fork lifecycle: active runtime
+  inheritance, memory+skills-only toolsets, attributed summaries, and cleanup.
+- Port the Hermes curator state/report engine before enabling `gormes curator`.
+- Extend the Phase 2.G SKILL.md store with versioned metadata, provenance,
+  review state, and atomic writes before generated skills persist.
+- Add deterministic complexity signals from transcript length, tool-call count,
+  retries, edits, and operator feedback.
+- Use fake-model extraction fixtures to prove secret stripping and one-off task
+  rejection before live LLM generation.
 - Keep disabled or unreviewed skills out of prompt injection until retrieval, feedback, and operator review surfaces are all test-covered.
 - Treat Gormes-owned Code Cathedral II as optional retrieval evidence: parent-scope and call-edge context may improve skill matching later, but the base learning loop must not require a TypeScript indexer, tree-sitter WASM, or repository-wide backfill.
 
@@ -52,7 +71,7 @@ before inventing a new shape. Useful donors:
 | Truncation policy for large transcripts before extractor hand-off | `nanobot/pkg/agents/truncate.go` |
 | Token-count estimation for reasoning/extraction batching | `nanobot/pkg/agents/tokencount.go` |
 
-Skill extraction itself has no clean donor — Hermes' Python `skills/` is
-hand-authored, and no Go reference ships an automated extractor. Record this
-explicitly on Phase 6 rows as `provenance.origin_type: gormes` and write the
-contract from scratch with TDD.
+Hermes is now the source of truth for background review and curator behavior.
+Use `provenance.origin_type: upstream` for those rows. Gormes-native detector,
+scoring, and promotion rows should keep `provenance.origin_type: gormes` unless
+a later Hermes source introduces a stricter public contract.
