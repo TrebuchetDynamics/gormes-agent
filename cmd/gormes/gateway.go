@@ -619,7 +619,7 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 				continue
 			}
 			if err := reloader.Reload(context.Background()); err != nil {
-				log.Warn("gateway config reload failed", "err", err)
+				log.Warn("gateway config reload failed; continuing with last good config")
 			} else {
 				log.Info("gateway config reloaded", "signal", sig.String())
 			}
