@@ -95,6 +95,42 @@ func TestOnboardShowsConfiguredProviderDetails(t *testing.T) {
 	}
 }
 
+func TestOnboardShowsProviderDetailsWhenCodexAuthMissing(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+	t.Setenv("GORMES_API_KEY", "")
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]\nprovider = 'openai-codex'\nendpoint = 'https://chatgpt.com/backend-api/codex'\nmodel = 'gpt-5.2'\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"onboard"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"Provider: openai-codex",
+		"Endpoint: https://chatgpt.com/backend-api/codex",
+		"Model: gpt-5.2",
+		"Auth: missing",
+		"gormes auth add openai-codex",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("onboard output missing %q:\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "No provider configured yet") {
+		t.Fatalf("onboard treated selected Codex provider as missing:\n%s", output)
+	}
+}
+
 func TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

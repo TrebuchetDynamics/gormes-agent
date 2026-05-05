@@ -81,7 +81,8 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	fmt.Fprintf(out, "Runtime skills: %d local, %d bundled\n", local, builtin)
 	fmt.Fprintln(out)
 
-	providerConfigured := cfg.Hermes.Endpoint != "" && cfg.Hermes.APIKey != ""
+	providerConfigured := onboardProviderConfigured(cfg)
+	authConfigured := strings.TrimSpace(cfg.Hermes.APIKey) != ""
 	if !providerConfigured {
 		fmt.Fprintln(out, "No provider configured yet — your agents can't run.")
 		fmt.Fprintln(out)
@@ -92,6 +93,11 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 		fmt.Fprintf(out, "Provider: %s\n", onboardProviderLabel(cfg))
 		fmt.Fprintf(out, "Endpoint: %s\n", cfg.Hermes.Endpoint)
 		fmt.Fprintf(out, "Model: %s\n", cfg.Hermes.Model)
+		if authConfigured {
+			fmt.Fprintln(out, "Auth: configured")
+		} else {
+			fmt.Fprintf(out, "Auth: missing — run `%s` or configure a provider API key.\n", onboardAuthCommand(cfg))
+		}
 		fmt.Fprintln(out)
 	}
 
@@ -140,6 +146,8 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	fmt.Fprintln(out, "Next steps:")
 	if !providerConfigured {
 		fmt.Fprintln(out, "  gormes setup provider   ← configure first")
+	} else if !authConfigured {
+		fmt.Fprintf(out, "  %s   ← configure auth\n", onboardAuthCommand(cfg))
 	}
 	fmt.Fprintln(out, "  gormes doctor --offline")
 	fmt.Fprintln(out, "  gormes setup model")
@@ -296,6 +304,18 @@ func onboardProviderLabel(cfg config.Config) string {
 		return "custom"
 	}
 	return provider
+}
+
+func onboardProviderConfigured(cfg config.Config) bool {
+	return strings.TrimSpace(cfg.Hermes.Endpoint) != "" && strings.TrimSpace(cfg.Hermes.Model) != ""
+}
+
+func onboardAuthCommand(cfg config.Config) string {
+	provider := strings.TrimSpace(cfg.Hermes.Provider)
+	if provider == "" {
+		return "gormes setup provider"
+	}
+	return "gormes auth add " + provider
 }
 
 func onboardSkillCounts(cfg config.Config) (local int, builtin int) {

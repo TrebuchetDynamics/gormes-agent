@@ -14,11 +14,13 @@ import (
 	"time"
 )
 
-func TestPairingStore_PersistsPendingAndApprovedUnderXDGStateRoot(t *testing.T) {
+func TestPairingStore_PersistsPendingAndApprovedUnderGormesHomeRoot(t *testing.T) {
+	gormesHome := t.TempDir()
 	xdgRoot := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
 	t.Setenv("XDG_DATA_HOME", xdgRoot)
 
-	wantPath := filepath.Join(xdgRoot, "gormes", "pairing.json")
+	wantPath := filepath.Join(gormesHome, "pairing.json")
 	if got := DefaultPairingStorePath(); got != wantPath {
 		t.Fatalf("DefaultPairingStorePath() = %q, want %q", got, wantPath)
 	}
@@ -65,6 +67,19 @@ func TestPairingStore_PersistsPendingAndApprovedUnderXDGStateRoot(t *testing.T) 
 	}
 	if got := platformKeys(status.Platforms); !reflect.DeepEqual(got, []string{"discord/paired/0/1", "telegram/unpaired/1/0"}) {
 		t.Fatalf("platform statuses = %v", got)
+	}
+}
+
+func TestPairingStore_DefaultPathFallsBackToDotGormesHome(t *testing.T) {
+	home := t.TempDir()
+	xdgRoot := t.TempDir()
+	t.Setenv("GORMES_HOME", "")
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", xdgRoot)
+
+	wantPath := filepath.Join(home, ".gormes", "pairing.json")
+	if got := DefaultPairingStorePath(); got != wantPath {
+		t.Fatalf("DefaultPairingStorePath() = %q, want %q", got, wantPath)
 	}
 }
 

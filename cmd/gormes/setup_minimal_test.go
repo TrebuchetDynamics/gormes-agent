@@ -373,6 +373,47 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	}
 }
 
+func TestPromptSecretUsesNoEchoTerminalReader(t *testing.T) {
+	secret := "sk-terminal-secret-7890"
+	stdin, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatalf("open devnull: %v", err)
+	}
+	defer stdin.Close()
+
+	var stdout bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetIn(stdin)
+	cmd.SetOut(&stdout)
+
+	oldReadPassword := setupReadPassword
+	oldInputIsTerminal := setupInputIsTerminal
+	setupReadPassword = func(fd int) ([]byte, error) {
+		if fd != int(stdin.Fd()) {
+			t.Fatalf("read password fd = %d, want %d", fd, stdin.Fd())
+		}
+		return []byte(secret), nil
+	}
+	setupInputIsTerminal = func(file *os.File) bool {
+		return file == stdin
+	}
+	t.Cleanup(func() {
+		setupReadPassword = oldReadPassword
+		setupInputIsTerminal = oldInputIsTerminal
+	})
+
+	got, err := promptSecret(cmd, "API key: ")
+	if err != nil {
+		t.Fatalf("promptSecret: %v", err)
+	}
+	if got != secret {
+		t.Fatalf("promptSecret returned %q, want secret", got)
+	}
+	if out := stdout.String(); !strings.Contains(out, "API key: ") || strings.Contains(out, secret) {
+		t.Fatalf("stdout = %q, want prompt and no raw secret", out)
+	}
+}
+
 func TestSetupProviderRequiresTTYWithoutNonInteractive(t *testing.T) {
 	fake := &setupCommandFakeSeams{isTTY: false}
 	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "provider")

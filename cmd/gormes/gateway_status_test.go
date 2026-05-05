@@ -208,6 +208,37 @@ func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
 }
 
+func TestGatewayStatusCommand_JSONPairingPathHonorsGormesHome(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, "gormes-home")
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg-data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
+	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes"))
+	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{Missing: true},
+	})
+	defer restoreRuntimeStore()
+
+	stdout, stderr, err := executeGatewayStatusCommand(t, "--json")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	var got struct {
+		Pairing gateway.PairingStatus `json:"pairing"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
+	}
+	if len(got.Pairing.Degraded) == 0 {
+		t.Fatalf("pairing degraded evidence = none, want missing-path evidence")
+	}
+	wantPath := filepath.Join(gormesHome, "pairing.json")
+	if got.Pairing.Degraded[0].Path != wantPath {
+		t.Fatalf("pairing degraded path = %q, want %q", got.Pairing.Degraded[0].Path, wantPath)
+	}
+}
+
 func setupGatewayStatusTestEnv(t *testing.T) {
 	t.Helper()
 	root := t.TempDir()

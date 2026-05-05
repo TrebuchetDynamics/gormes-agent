@@ -282,9 +282,16 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 		}
 	}
 
+	authItem := readinessItem("api_key", h.APIKey, doctor.StatusWarn)
+	if strings.EqualFold(strings.TrimSpace(h.Provider), config.CodexOAuthProvider) {
+		authItem = readinessItem("auth", h.APIKey, doctor.StatusWarn)
+		if authItem.Status != doctor.StatusPass {
+			authItem.Note = "missing; run `gormes auth add openai-codex`"
+		}
+	}
 	items := []doctor.ItemInfo{
 		readinessItem("endpoint", h.Endpoint, doctor.StatusWarn),
-		readinessItem("api_key", h.APIKey, doctor.StatusWarn),
+		authItem,
 		readinessItem("model", h.Model, doctor.StatusFail),
 	}
 
@@ -305,12 +312,19 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 	}
 
 	summary := fmt.Sprintf("configured endpoint=%s", h.Endpoint)
+	if strings.TrimSpace(h.Provider) != "" {
+		summary = fmt.Sprintf("configured provider=%s endpoint=%s", strings.TrimSpace(h.Provider), h.Endpoint)
+	}
 	if missing > 0 {
 		missingNames := missingReadinessItemNames(items)
 		if h.Endpoint == "" {
 			summary = "setup incomplete: missing " + strings.Join(missingNames, ", ")
 		} else {
-			summary = fmt.Sprintf("configured endpoint=%s missing=%s", h.Endpoint, strings.Join(missingNames, ", "))
+			if strings.TrimSpace(h.Provider) != "" {
+				summary = fmt.Sprintf("configured provider=%s endpoint=%s missing=%s", strings.TrimSpace(h.Provider), h.Endpoint, strings.Join(missingNames, ", "))
+			} else {
+				summary = fmt.Sprintf("configured endpoint=%s missing=%s", h.Endpoint, strings.Join(missingNames, ", "))
+			}
 		}
 	}
 	return doctor.CheckResult{

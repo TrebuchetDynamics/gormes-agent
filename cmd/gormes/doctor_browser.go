@@ -7,9 +7,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 )
 
@@ -135,7 +137,7 @@ func chromeLaunchCommand(chromePath string) string {
 	if command == "" {
 		command = "google-chrome"
 	}
-	return command + " --remote-debugging-port=9222 --user-data-dir=$HOME/.gormes/chrome-debug --no-first-run --no-default-browser-check"
+	return command + " --remote-debugging-port=9222 --user-data-dir=" + filepath.Join(config.GormesHome(), "chrome-debug") + " --no-first-run --no-default-browser-check"
 }
 
 func probeChromeCDPEndpoint(ctx context.Context, endpoint string) error {

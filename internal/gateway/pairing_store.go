@@ -164,8 +164,16 @@ type PairingStore struct {
 	mu        sync.Mutex
 }
 
-// DefaultPairingStorePath returns the XDG data path for the pairing read model.
+// DefaultPairingStorePath returns the Gormes runtime-home path for the pairing
+// read model. GORMES_HOME wins so gateway status uses the same isolated home as
+// config, sessions, memory, and logs.
 func DefaultPairingStorePath() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_HOME")); v != "" {
+		return filepath.Join(v, "pairing.json")
+	}
+	if home, _ := os.UserHomeDir(); strings.TrimSpace(home) != "" {
+		return filepath.Join(home, ".gormes", "pairing.json")
+	}
 	return filepath.Join(xdgDataHomeForPairing(), "gormes", "pairing.json")
 }
 

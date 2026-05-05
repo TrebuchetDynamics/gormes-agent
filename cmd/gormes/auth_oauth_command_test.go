@@ -74,17 +74,52 @@ func TestGormesAuthAddCodexOAuthStoresDeviceCodeCredential(t *testing.T) {
 	}
 }
 
-func TestAuthAddCodexAlwaysRunsDeviceCode(t *testing.T) {
+func TestAuthAddCodexImportsCodexCLIAuthWhenAvailable(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
-	shadowHome := filepath.Join(t.TempDir(), "shadow-codex")
-	if err := os.MkdirAll(shadowHome, 0o700); err != nil {
-		t.Fatalf("mkdir shadow codex home: %v", err)
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	if err := os.MkdirAll(codexHome, 0o700); err != nil {
+		t.Fatalf("mkdir codex home: %v", err)
 	}
-	shadowPath := filepath.Join(shadowHome, "auth.json")
-	if err := os.WriteFile(shadowPath, []byte(`{"tokens":{"access_token":"plain-shadow-access","refresh_token":"plain-shadow-refresh"}}`), 0o600); err != nil {
-		t.Fatalf("write shadow codex auth: %v", err)
+	authPath := filepath.Join(codexHome, "auth.json")
+	freshToken := codexTestJWT(t, time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC))
+	writeCodexCLIAuthFixture(t, authPath, freshToken, "plain-codex-cli-refresh")
+	t.Setenv("CODEX_HOME", codexHome)
+
+	prev := authCodexOAuthLogin
+	authCodexOAuthLogin = func(_ context.Context, req codexOAuthLoginRequest) (config.CodexOAuthTokens, error) {
+		return config.CodexOAuthTokens{}, errors.New("device-code login should not run when Codex CLI auth is importable")
 	}
-	t.Setenv("CODEX_HOME", shadowHome)
+	t.Cleanup(func() { authCodexOAuthLogin = prev })
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", "openai-codex", "--type", "oauth", "--label", "codex-cli")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	entries := pool.Entries()
+	if len(entries) != 1 || entries[0].AccessToken != freshToken || entries[0].RefreshToken != "plain-codex-cli-refresh" || entries[0].Source != config.CodexOAuthSourceCodexCLIImport {
+		t.Fatalf("stored entries = %#v, want imported Codex CLI credential", entries)
+	}
+	if !strings.Contains(stdout, "auth_oauth_saved") || !strings.Contains(stdout, "source=codex-cli-import") || !strings.Contains(stdout, "redacted=true") {
+		t.Fatalf("stdout = %q, want redacted import evidence", stdout)
+	}
+	for _, leak := range []string{freshToken, "plain-codex-cli-refresh", authPath} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("auth add leaked Codex CLI import detail %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+}
+
+func TestAuthAddCodexFallsBackToDeviceCodeWhenCodexCLIAuthIsExpired(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	codexHome := filepath.Join(t.TempDir(), "codex-home")
+	authPath := filepath.Join(codexHome, "auth.json")
+	writeCodexCLIAuthFixture(t, authPath, codexTestJWT(t, time.Unix(1, 0).UTC()), "plain-expired-refresh")
+	t.Setenv("CODEX_HOME", codexHome)
 
 	calls := 0
 	prev := authCodexOAuthLogin
@@ -115,11 +150,11 @@ func TestAuthAddCodexAlwaysRunsDeviceCode(t *testing.T) {
 	}
 	entries := pool.Entries()
 	if len(entries) != 1 || entries[0].AccessToken != "plain-device-access" || entries[0].Source != config.CodexOAuthSourceDeviceCode {
-		t.Fatalf("stored entries = %#v, want device-code credential only", entries)
+		t.Fatalf("stored entries = %#v, want device-code credential after stale Codex CLI auth", entries)
 	}
-	for _, leak := range []string{"plain-shadow-access", "plain-shadow-refresh", shadowPath} {
+	for _, leak := range []string{"plain-expired-refresh", authPath} {
 		if strings.Contains(stdout+stderr, leak) {
-			t.Fatalf("auth add leaked or imported shadow value %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+			t.Fatalf("auth add leaked stale Codex CLI detail %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
 		}
 	}
 }
