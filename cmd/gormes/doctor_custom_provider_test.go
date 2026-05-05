@@ -143,6 +143,40 @@ func TestDoctorCustomEndpointCodexCredentialPoolAuthPasses(t *testing.T) {
 	}
 }
 
+func TestDoctorCustomEndpointCodexCredentialPoolMissingTokensWarns(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: config.CodexOAuthProvider}, []config.PooledCredential{{
+		ID:         "codex-import",
+		Label:      "Imported Codex CLI",
+		AuthType:   config.CredentialAuthOAuth,
+		Source:     config.CodexOAuthSourceCodexCLIImport,
+		LastStatus: config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+	cfg := config.Config{
+		Hermes: config.HermesCfg{
+			Provider: config.CodexOAuthProvider,
+			Endpoint: "https://chatgpt.com/backend-api/codex",
+			Model:    "gpt-5.2",
+		},
+	}
+
+	got := doctorCustomEndpointReadiness(cfg)
+
+	if got.Status != doctor.StatusWarn {
+		t.Fatalf("Status = %v, want %v: %+v", got.Status, doctor.StatusWarn, got)
+	}
+	auth, ok := findItem(got.Items, "auth")
+	if !ok {
+		t.Fatalf("missing auth item in: %+v", got.Items)
+	}
+	if auth.Status != doctor.StatusWarn || !strings.Contains(auth.Note, "gormes auth add openai-codex") {
+		t.Fatalf("auth item = %+v, want missing OAuth setup guidance", auth)
+	}
+}
+
 func TestDoctorCustomEndpointDefaultModelMissingEndpointAndKey(t *testing.T) {
 	cfg := config.Config{
 		Hermes: config.HermesCfg{
