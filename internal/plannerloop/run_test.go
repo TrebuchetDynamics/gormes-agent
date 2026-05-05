@@ -34,8 +34,8 @@ func TestRunDryRunCollectsContextWithoutBackend(t *testing.T) {
 	if summary.Backend != "codexu" {
 		t.Fatalf("Backend = %q, want codexu", summary.Backend)
 	}
-	if len(summary.SourceRoots) != 8 {
-		t.Fatalf("SourceRoots length = %d, want 8: %#v", len(summary.SourceRoots), summary.SourceRoots)
+	if len(summary.SourceRoots) != 6 {
+		t.Fatalf("SourceRoots length = %d, want 6: %#v", len(summary.SourceRoots), summary.SourceRoots)
 	}
 	if summary.ProgressItems != 2 {
 		t.Fatalf("ProgressItems = %d, want 2", summary.ProgressItems)
@@ -76,7 +76,6 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Updating abc123..def456\n"},
-			{Stdout: "Already up to date.\n"},
 			{Stdout: `{"type":"thread.started","thread_id":"thread-arch-1"}` + "\n"},
 		},
 	}
@@ -175,7 +174,6 @@ func TestRunOnceClearsStaleRawReportBeforeBackend(t *testing.T) {
 		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "fresh planner stdout\n"},
 		},
 	}
@@ -233,7 +231,6 @@ func TestRunOnceMergesOpenPullRequestsBeforeSyncAndPlannerPrompt(t *testing.T) {
 			{},
 			{},
 			{},
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "planner ran ok\n"},
@@ -298,7 +295,7 @@ func TestRunOnceRunsGitRepairAgentWhenPRIntakeSyncFails(t *testing.T) {
 		Runner:         runner,
 		SkipValidation: true,
 	}); err != nil {
-		t.Fatalf("RunOnce() error = %v", err)
+		t.Fatalf("RunOnce() error = %v\ncommands=%#v", err, runner.Commands)
 	}
 
 	var repairPrompt string
@@ -386,10 +383,7 @@ func TestRunOnceSkipsPRIntakeInsideEmptyBackoff(t *testing.T) {
 		Results: []cmdrunner.Result{
 			{},
 			{},
-			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
+			{Stdout: "planner ran ok\n"},
 		},
 	}
 
@@ -448,8 +442,6 @@ func TestRunOnceConsumesPlannerTriggersAndRecordsEventLedger(t *testing.T) {
 		Results: []cmdrunner.Result{
 			{},
 			{},
-			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 		},
@@ -530,7 +522,7 @@ func TestRunOnceReturnsBackendErrorWithOutput(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	wantErr := os.ErrPermission
 	runner := &cmdrunner.FakeRunner{
-		Results: []cmdrunner.Result{{}, {}, {}, {Err: wantErr, Stderr: "backend denied\n"}},
+		Results: []cmdrunner.Result{{}, {}, {Err: wantErr, Stderr: "backend denied\n"}},
 	}
 
 	_, err := RunOnce(context.Background(), RunOptions{
@@ -564,7 +556,6 @@ func TestRunOnceClassifiesKilledBackendWithoutBlamingStdinWait(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Err: errors.New("signal: killed"), Stdout: "Reading additional input from stdin...\n"},
@@ -644,7 +635,7 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "home")
 	t.Setenv("HOME", home)
 	runner := &cmdrunner.FakeRunner{
-		Results: []cmdrunner.Result{{}, {}, {}, {}, {}, {}, {}, {}, {}},
+		Results: []cmdrunner.Result{{}, {}, {}, {}, {}, {}, {}, {}},
 	}
 
 	_, err := RunOnce(context.Background(), RunOptions{
@@ -655,7 +646,7 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
 
-	if got, want := len(runner.Commands), 9; got != want {
+	if got, want := len(runner.Commands), 8; got != want {
 		t.Fatalf("Commands length = %d, want %d", got, want)
 	}
 	wantArgs := [][]string{
@@ -666,7 +657,7 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 		{"test", "./...", "-count=1"},
 	}
 	for i, want := range wantArgs {
-		command := runner.Commands[i+4]
+		command := runner.Commands[i+3]
 		if command.Name != "go" {
 			t.Fatalf("validation command %d name = %q, want go", i, command.Name)
 		}
@@ -674,12 +665,12 @@ func TestRunOnceRunsValidationAfterBackend(t *testing.T) {
 			t.Fatalf("validation command %d args = %#v, want %#v", i, command.Args, want)
 		}
 	}
-	if got, want := runner.Commands[8].Dir, filepath.Join(repoRoot, "webpages", "landing"); got != want {
+	if got, want := runner.Commands[7].Dir, filepath.Join(repoRoot, "webpages", "landing"); got != want {
 		t.Fatalf("landing validation dir = %q, want %q", got, want)
 	}
-	docsEnv := strings.Join(runner.Commands[7].Env, "\n")
+	docsEnv := strings.Join(runner.Commands[6].Env, "\n")
 	if !strings.Contains(docsEnv, filepath.Join(home, "go", "bin")) {
-		t.Fatalf("docs validation env = %#v, want HOME/go/bin on PATH", runner.Commands[7].Env)
+		t.Fatalf("docs validation env = %#v, want HOME/go/bin on PATH", runner.Commands[6].Env)
 	}
 }
 
@@ -689,7 +680,6 @@ func TestRunOnce_AppendsLedgerEventOnValidationCommandFailure(t *testing.T) {
 	validationErr := errors.New("signal: killed")
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "planner ran ok\n"},
@@ -795,7 +785,6 @@ func TestRunOnce_AppendsLedgerEventOnSuccess(t *testing.T) {
 			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "planner ran ok\n"},
 			},
 		},
@@ -899,7 +888,6 @@ func TestRunOnce_AppendsLedgerEventOnValidationReject(t *testing.T) {
 			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "planner ran ok\n"},
 			},
 		},
@@ -960,7 +948,6 @@ func TestRunOnce_RejectsRuntimeSourceEdits(t *testing.T) {
 			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "planner ran ok\n"},
 			},
 		},
@@ -1011,8 +998,6 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 			{},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
 		},
 	}
 
@@ -1030,8 +1015,8 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	if !strings.Contains(err.Error(), "internal/plannerloop/topics_test.go") {
 		t.Fatalf("RunOnce() error = %q, want dirty runtime path", err)
 	}
-	if got := len(runner.Commands); got != 3 {
-		t.Fatalf("runner commands = %d, want 3 sync commands before backend", got)
+	if got := len(runner.Commands); got != 2 {
+		t.Fatalf("runner commands = %d, want 2 sync commands before backend", got)
 	}
 
 	events := mustReadLedger(t, filepath.Join(cfg.RunRoot, "state", "runs.jsonl"))
@@ -1053,6 +1038,7 @@ func TestRunOnce_RejectsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 func TestRunOnce_RepairsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 	repoRoot := writePlannerFixture(t)
 	cfg := mustConfig(t, repoRoot)
+	cfg.MergeOpenPullRequests = false
 	runtimePath := filepath.Join(repoRoot, "internal", "plannerloop", "topics_test.go")
 	writeFile(t, runtimePath, "package plannerloop\n")
 	initPlannerGitRepo(t, repoRoot)
@@ -1066,11 +1052,14 @@ func TestRunOnce_RepairsDirtyRuntimeSourcesBeforeBackend(t *testing.T) {
 			Results: []cmdrunner.Result{
 				{},
 				{},
-				{Stdout: "Already up to date.\n"},
-				{Stdout: "Already up to date.\n"},
-				{Stdout: "Already up to date.\n"},
-				{Stdout: "Already up to date.\n"},
-				{Stdout: "repair complete\n"},
+				{},
+				{},
+				{},
+				{},
+				{},
+				{},
+				{},
+				{},
 				{},
 				{},
 				{},
@@ -1136,7 +1125,6 @@ func TestRunOnce_LedgerWriteFailureIsSoftFail(t *testing.T) {
 
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "planner ran ok\n"},
@@ -1297,7 +1285,6 @@ func TestRunOnce_TriggerEventsThreadIntoPrompt(t *testing.T) {
 		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "planner ran ok\n"},
 		},
 	}
@@ -1362,7 +1349,6 @@ func TestRunOnce_TriggerImplChangeFromEnv(t *testing.T) {
 		Results: []cmdrunner.Result{
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "planner ran ok\n"},
 		},
 	}
@@ -1393,7 +1379,6 @@ func TestRunOnce_NoTriggerEventsKeepsScheduledTrigger(t *testing.T) {
 
 	runner := &cmdrunner.FakeRunner{
 		Results: []cmdrunner.Result{
-			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "Already up to date.\n"},
 			{Stdout: "planner ran ok\n"},
@@ -1473,7 +1458,6 @@ func TestRunOnce_CursorAdvancesEvenOnValidationReject(t *testing.T) {
 		t: t,
 		inner: &cmdrunner.FakeRunner{
 			Results: []cmdrunner.Result{
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "planner ran ok\n"},
@@ -1584,6 +1568,7 @@ func (r *runtimePreflightRepairRunner) Run(ctx context.Context, command cmdrunne
 			r.repairPrompt = prompt
 			runPlannerGitCommand(r.t, r.repoRoot, "add", filepath.ToSlash(r.runtimePath))
 			runPlannerGitCommand(r.t, r.repoRoot, "commit", "-m", "repair dirty runtime fixture")
+			return cmdrunner.Result{Stdout: "repair complete\n"}
 		}
 	}
 	return res
@@ -1664,7 +1649,6 @@ func TestRunOnce_RetryRecoversAfterFirstAttemptDropsHealth(t *testing.T) {
 		t: t,
 		inner: &cmdrunner.FakeRunner{
 			Results: []cmdrunner.Result{
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "planner attempt 0\n"},
@@ -1772,7 +1756,6 @@ func TestRunOnce_RetryExhaustionStillRejectsWithFullForensics(t *testing.T) {
 			Results: []cmdrunner.Result{
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "attempt 0\n"},
 				{Stdout: "attempt 1\n"},
 				{Stdout: "attempt 2\n"},
@@ -1830,7 +1813,6 @@ func TestRunOnce_BackendFailureDoesNotRetry(t *testing.T) {
 		t: t,
 		inner: &cmdrunner.FakeRunner{
 			Results: []cmdrunner.Result{
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Err: wantErr, Stderr: "backend denied\n"},
@@ -1891,7 +1873,6 @@ func TestRunOnce_MaxRetriesZeroSkipsRetryLoop(t *testing.T) {
 		t: t,
 		inner: &cmdrunner.FakeRunner{
 			Results: []cmdrunner.Result{
-				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "Already up to date.\n"},
 				{Stdout: "attempt 0\n"},
