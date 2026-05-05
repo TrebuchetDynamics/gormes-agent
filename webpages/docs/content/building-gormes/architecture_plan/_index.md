@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 60/92 subphases shipped · 27 in progress · 5 planned
+**Overall:** 59/92 subphases shipped · 28 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 9/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 4/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -653,6 +653,7 @@ classification and row-backed implementation queue.
 - [x] Discord tool split + platform-scoped toolsets
 - [x] Discord tool limit coercion helper
 - [x] Home Assistant HASS_TOKEN platform-toolset carveout
+- [ ] Home Assistant tool handlers + service safety validation
 - [x] Pure core tools first
 - [x] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
@@ -737,10 +738,11 @@ classification and row-backed implementation queue.
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
 
-### 5.H — ACP Integration ✅
+### 5.H — ACP Integration 🔨
 
 - [x] ACP server side
 - [x] ACP Client Bridge Mode
+- [ ] ACP JSON-RPC stdio session/prompt closeout
 
 ### 5.I — Plugins Architecture 🔨
 
@@ -748,6 +750,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard theme/plugin extension status contract
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
+- [ ] Hermes plugin CLI lifecycle parity
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture
 - [x] Hindsight memory setup blank-input preservation
@@ -844,6 +847,7 @@ classification and row-backed implementation queue.
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
 - [ ] Cron env-ref expansion + parallel run state serialization
+- [ ] Cron script/workdir/inactivity execution binding
 - [ ] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
 
@@ -968,6 +972,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes status bar renderer
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
+- [ ] Native TUI clipboard, OSC52, and terminal setup parity
 - [x] Native TUI Hermes slash completion helpers
 - [ ] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix

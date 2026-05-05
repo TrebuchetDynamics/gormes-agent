@@ -18899,6 +18899,72 @@
               }
             },
             {
+              "name": "Home Assistant tool handlers + service safety validation",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes ports the Hermes Home Assistant control tool handlers behind a Go-native injectable HTTP client: ha_list_entities, ha_get_state, ha_list_services, and ha_call_service validate entity/domain/service inputs, preserve the upstream summary/result envelopes, require HASS_TOKEN availability, and fail closed on path traversal, SSRF-style names, blocked service domains, and malformed JSON payloads.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing HASS_TOKEN, missing HASS_URL, invalid entity/service identifiers, blocked domains, malformed service JSON, or client failures return redacted homeassistant_tool_unavailable/homeassistant_validation_failed evidence instead of registering broken device-control handlers or leaking tokens.",
+              "fixture": "internal/tools/homeassistant_tool_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/homeassistant_tool.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_homeassistant_tool.py@b816fd4e2",
+                "webpages/docs/content/upstream-hermes/user-guide/messaging/homeassistant.md",
+                "webpages/docs/content/upstream-hermes/reference/toolsets-reference.md",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json:homeassistant",
+                "internal/channels/homeassistant/bot.go",
+                "internal/channels/homeassistant/bot_test.go"
+              ],
+              "ready_when": [
+                "Home Assistant HASS_TOKEN platform-toolset carveout is complete, so toolset availability can already expose homeassistant when the token exists.",
+                "internal/channels/homeassistant is a gateway adapter only; this row must add a separate tool handler package under internal/tools with a fake client in tests.",
+                "Upstream tests exercise filtering, service payloads, blocked domains, and validation without requiring a live Home Assistant instance."
+              ],
+              "not_ready_when": [
+                "The slice opens a websocket, changes the Home Assistant gateway channel, connects to a live Home Assistant server, or stores/prints HASS_TOKEN.",
+                "The slice only toggles toolset registration without implementing the four ha_* handlers.",
+                "The slice permits shell_command, python_script, hassio, addon, or traversal-shaped entity/domain/service names because the upstream handler rejects them."
+              ],
+              "blocked_by": [
+                "Home Assistant HASS_TOKEN platform-toolset carveout"
+              ],
+              "acceptance": [
+                "TestHomeAssistantListEntitiesFiltersAndSummarizes proves domain, area, search, friendly_name fallback, and compact summary output match Hermes fixture behavior.",
+                "TestHomeAssistantGetStateAndListServices proves state/service responses are parsed through the fake client without live network calls.",
+                "TestHomeAssistantCallServiceBuildsPayload proves entity_id precedence, JSON string data parsing, service response parsing, and validation errors.",
+                "TestHomeAssistantSafetyRejectsTraversalAndBlockedDomains proves invalid entity_id, domain/service traversal, SSRF-shaped names, and blocked domains fail closed.",
+                "TestHomeAssistantToolRegistrationRequiresToken proves all four ha_* descriptors register only when HASS_TOKEN is present and status output redacts credentials."
+              ],
+              "write_scope": [
+                "internal/tools/homeassistant_tool.go",
+                "internal/tools/homeassistant_tool_test.go",
+                "internal/tools/registry.go",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestHomeAssistant' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Home Assistant fixtures prove the four ha_* handlers, fake-client envelopes, token gating, and safety validation without changing the gateway channel or reaching a live HA server."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tools/homeassistant_tool.py + tests/tools/test_homeassistant_tool.py",
+                "note": "The previous Gormes row only handled HASS_TOKEN toolset availability; current Hermes exposes user-visible Home Assistant control tools that need native handler parity."
+              }
+            },
+            {
               "name": "Pure core tools first",
               "status": "complete",
               "contract": "Umbrella sequencing guard for the first native tool-calling tranche: prioritize schema-backed, credential-free or fake-store tools (Clarify, Todo, Debug helpers, local format/read-only helpers) before browser, network, sandbox, and write-capable tools so the registry, descriptor, debug, and degraded-evidence contracts stabilize without external services.",
@@ -19209,8 +19275,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T03:55:07Z",
-            "origin_decision": "Hermes still leads terminal/process and platform-toolset behavior. The 97d54f0e watch-pattern flood-control fix and 4921b269 HASS_TOKEN carveout are validated. Hermes b288934d adds a narrow Discord runtime argument lesson: coerce model-provided limit values before clamping, now tracked as a pure Gormes helper before any Discord REST handler is exposed."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes still leads terminal/process and platform-toolset behavior. The 97d54f0e watch-pattern flood-control fix, 4921b269 HASS_TOKEN carveout, and b288934d Discord limit coercion are validated. The 2026-05-05 parity sweep found that Gormes only toggles Home Assistant toolset availability and owns a gateway channel adapter; Hermes b816fd4e2 exposes four active ha_* control handlers with safety tests, now tracked as `Home Assistant tool handlers + service safety validation` before Gormes claims Home Assistant tool parity."
           }
         },
         "5.B": {
@@ -23126,8 +23192,88 @@
               "done_signal": [
                 "gormes acp client ships with session key/label resolution and provenance modes."
               ]
+            },
+            {
+              "name": "ACP JSON-RPC stdio session/prompt closeout",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes replaces ACP manifest/client-only parity with a live Go-native ACP stdio JSON-RPC server that supports initialize/image capability, provider authentication, new/load/resume/cancel, prompt streaming/final closeout, history/title/usage events, slash command interception, queued/steer prompt behavior, CWD translation, permission approvals, and clean stdout framing.",
+              "contract_status": "validated",
+              "slice_size": "large",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported providers, missing auth, invalid sessions, permission timeout/rejection, queued prompt conflicts, malformed multimodal blocks, or stdio framing errors return explicit acp_jsonrpc_* evidence without shelling out to Hermes Python or leaking protocol messages onto stdout.",
+              "fixture": "internal/acp/jsonrpc_server_test.go; internal/acp/session_runtime_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/acp/test_server.py@b816fd4e2",
+                "../hermes-agent/tests/acp/test_session.py@b816fd4e2",
+                "../hermes-agent/tests/acp/test_permissions.py@b816fd4e2",
+                "../hermes-agent/tests/acp/test_approval_isolation.py@b816fd4e2",
+                "../hermes-agent/tests/acp_adapter/test_acp_commands.py@b816fd4e2",
+                "../hermes-agent/tests/acp_adapter/test_acp_images.py@b816fd4e2",
+                "../hermes-agent/acp_adapter/server.py@b816fd4e2",
+                "../hermes-agent/acp_adapter/session.py@b816fd4e2",
+                "../hermes-agent/acp_adapter/permissions.py@b816fd4e2",
+                "internal/acp/server_manifest.go",
+                "internal/acp/client.go"
+              ],
+              "ready_when": [
+                "ACP server side and ACP Client Bridge Mode are complete, so manifest, registry, permission-kind mapping, local client metadata, and session-key resolution are fixture-backed.",
+                "The worker can test JSON-RPC over in-memory readers/writers and fake runtime/session stores; no editor, Python process, provider call, or terminal is required.",
+                "Prompt execution can use an injected runtime seam that emits deterministic chunks, usage, errors, and cancellation evidence."
+              ],
+              "not_ready_when": [
+                "The slice shells out to Hermes/Python, starts a real editor integration, connects to a live provider, or reuses stdout for logs while running in stdio mode.",
+                "The slice only updates the ACP manifest inventory without implementing request/response framing and session/prompt method behavior.",
+                "The slice shares permission approval or sudo-password state across ACP sessions, because upstream tests require per-session isolation."
+              ],
+              "blocked_by": [
+                "ACP server side",
+                "ACP Client Bridge Mode"
+              ],
+              "acceptance": [
+                "TestACPJSONRPCInitializeAuthenticateAndImageCapability proves initialize/authenticate responses, provider mismatch failures, and multimodal image capability advertisement.",
+                "TestACPJSONRPCSessionLifecycle proves new, load, resume, cancel, CWD translation, DB-backed restore of ACP sessions only, and stdout-clean stdio framing.",
+                "TestACPJSONRPCPromptRunCloseout proves prompt chunks, final message, history/title/usage events, duplicate final suppression, and cancellation closeout.",
+                "TestACPJSONRPCSlashSteerAndQueue proves `/steer` after interrupt, idle steer-as-prompt, `/queue`, and queued prompts draining after the current run.",
+                "TestACPJSONRPCPermissionsIsolation proves approval mapping, timeout/rejection behavior, and per-session sudo/password cache isolation under pooled execution."
+              ],
+              "write_scope": [
+                "internal/acp/jsonrpc_server.go",
+                "internal/acp/jsonrpc_server_test.go",
+                "internal/acp/session_runtime.go",
+                "internal/acp/session_runtime_test.go",
+                "internal/acp/server_manifest.go",
+                "internal/acp/client.go",
+                "cmd/gormes/acp.go",
+                "cmd/gormes/acp_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/acp -run 'TestACPJSONRPC|TestClient|TestACPServerManifest' -count=1",
+                "go test ./cmd/gormes -run TestACP -count=1",
+                "go test ./internal/acp ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "ACP JSON-RPC fixtures prove live stdio session/prompt/permission/multimodal behavior without Hermes Python or editor subprocesses."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tests/acp + tests/acp_adapter",
+                "note": "The existing Gormes ACP rows close manifest and local-client inventory; upstream active tests show the user-visible ACP stdio protocol remains unimplemented."
+              }
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 ACP tests remain the source of truth for editor interoperability. Gormes has ACP manifest classification and local client bridge rows, but the 2026-05-05 parity sweep found no live stdio JSON-RPC server/session/prompt/permission/multimodal closeout behavior. That gap is now tracked as `ACP JSON-RPC stdio session/prompt closeout` without treating the manifest row as full ACP parity."
+          }
         },
         "5.I": {
           "name": "Plugins Architecture",
@@ -23331,6 +23477,76 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
+            },
+            {
+              "name": "Hermes plugin CLI lifecycle parity",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "`gormes plugins` ports the Hermes plugin lifecycle command surface over Go-native plugin roots and config: list, install, update, remove, enable, and disable sanitize plugin names, resolve Git/URL/file identifiers safely, copy example files, prompt for required env without overwriting existing values, gate project plugins behind explicit enablement, and never execute plugin runtime code during lifecycle operations.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Invalid plugin identifiers, manifest-name traversal, missing plugins, git failures, malformed manifests, disabled project-plugin roots, and missing required env produce redacted plugin_cli_* evidence and cleanup partial installs without deleting paths outside the plugin root.",
+              "fixture": "cmd/gormes/plugins_command_test.go; internal/plugins/lifecycle_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/hermes_cli/test_plugins_cmd.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_plugins.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/plugins_cmd.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/plugins.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/main.py@b816fd4e2:plugins_subparsers",
+                "internal/plugins/loader.go",
+                "internal/plugins/discovery.go",
+                "cmd/gormes/hermes_cli_parity.go"
+              ],
+              "ready_when": [
+                "Plugin SDK and discovery metadata are complete, so lifecycle commands can operate on manifest/status data without importing plugin code.",
+                "Tests can use temp plugin roots, fake command runners, fake prompt input, and local fixture repositories without network access.",
+                "The existing command-tree parity file advertises plugins subcommands; this row makes those commands real."
+              ],
+              "not_ready_when": [
+                "The slice executes plugin Python/JavaScript, serves dashboard assets, starts backend routes, or silently enables project plugins.",
+                "The slice shells out to real git/network in tests instead of using an injected command runner or local file fixtures.",
+                "Install/remove cleanup can escape the configured plugin root via empty names, dot paths, symlinks, or manifest name rewrites."
+              ],
+              "blocked_by": [
+                "Plugin SDK",
+                "Third-party extensions"
+              ],
+              "acceptance": [
+                "TestPluginsCommandListInstallUpdateRemove proves empty/non-empty list output, safe install from local/Git-shaped identifiers, update through injected runner, missing-plugin errors, and remove cleanup inside the plugin root.",
+                "TestPluginsCommandEnableDisable proves config enable/disable lists are updated deterministically and project plugin discovery stays gated until explicitly enabled.",
+                "TestPluginsCommandIdentifierSafety proves empty, dot, traversal, manifest-name-root, and cleanup-escape cases fail closed.",
+                "TestPluginsCommandEnvPrompts proves required env vars can be prompted with provider-specific help, existing env values are not overwritten, and optional env vars are not prompted.",
+                "Existing Plugin SDK manifest/discovery tests remain green and no plugin runtime is executed."
+              ],
+              "write_scope": [
+                "cmd/gormes/plugins.go",
+                "cmd/gormes/plugins_command_test.go",
+                "cmd/gormes/main.go",
+                "internal/plugins/lifecycle.go",
+                "internal/plugins/lifecycle_test.go",
+                "internal/plugins/discovery.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run TestPluginsCommand -count=1",
+                "go test ./internal/plugins -run 'TestPlugin.*Lifecycle|TestDiscover|TestManifest' -count=1",
+                "go test ./cmd/gormes ./internal/plugins -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Plugin lifecycle fixtures prove `gormes plugins` can list/install/update/remove/enable/disable safely over Go-native roots without executing plugin runtime code."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/plugins_cmd.py + tests/hermes_cli/test_plugins_cmd.py",
+                "note": "The current Gormes plugin rows are metadata-first; Hermes exposes a CLI lifecycle surface that operators can use before runtime plugin execution exists."
+              }
             },
             {
               "name": "First-party Spotify plugin fixture",
@@ -23670,8 +23886,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T13:57:25Z",
-            "origin_decision": "Hermes still leads plugin and dashboard-extension contracts. af22421e/cf2fabc4 page-scoped built-in slots are validated; 64a497bf adds Hindsight setup preservation as a blocked external-memory-plugin config row; df3c9593 adds Google Meet and is now split into metadata/status before any browser/audio/realtime/node runtime work. Internal Gormes memory remains Goncho with honcho_* compatibility; do not route Hindsight or meeting drift into internal/goncho."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes still leads plugin and dashboard-extension contracts. af22421e/cf2fabc4 page-scoped built-in slots, 64a497bf Hindsight setup preservation, and df3c9593 Google Meet metadata are validated. The 2026-05-05 parity sweep found that Gormes has metadata/discovery rows and CLI command-tree inventory but no operator-facing `plugins install/update/remove/list/enable/disable` lifecycle behavior; Hermes b816fd4e2 plugin CLI tests are now captured as `Hermes plugin CLI lifecycle parity` without executing plugin runtime code."
           }
         },
         "5.J": {
@@ -28384,6 +28600,83 @@
               }
             },
             {
+              "name": "Cron script/workdir/inactivity execution binding",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes binds the already-modeled cron script and workdir fields into the native cron executor: pre-run scripts execute once per tick through injected runners, stdout/stderr/timeout evidence is folded into the prompt or alert envelope, workdir jobs run with TERMINAL_CWD and sequential partitioning, env/config state is restored after each run, inactivity timeout wraps provider stream activity, Codex 401 refresh uses the cron/gateway execution path, and cron state files keep owner-only permissions.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Script failures, missing workdirs, invalid permissions, idle timeouts, Codex auth refresh failures, and env restoration errors return redacted cron_execution_* evidence without leaking env values, running live shells, or corrupting job/run state.",
+              "fixture": "internal/cron/script_workdir_execution_test.go; internal/cron/inactivity_timeout_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/cron/test_cron_script.py@b816fd4e2",
+                "../hermes-agent/tests/cron/test_cron_workdir.py@b816fd4e2",
+                "../hermes-agent/tests/cron/test_cron_inactivity_timeout.py@b816fd4e2",
+                "../hermes-agent/tests/cron/test_codex_execution_paths.py@b816fd4e2",
+                "../hermes-agent/tests/cron/test_file_permissions.py@b816fd4e2",
+                "../hermes-agent/cron/scheduler.py@b816fd4e2",
+                "../hermes-agent/cron/jobs.py@b816fd4e2",
+                "internal/cron/executor.go",
+                "internal/cron/job.go",
+                "internal/tools/cronjob_tool.go"
+              ],
+              "ready_when": [
+                "Cron prompt/script safety + pre-run script contract and Cronjob tool action envelope over native store are complete, so job fields are persisted and validated.",
+                "Tests can inject script runners, fake clocks, fake provider streams, fake Codex refreshers, and temp stores; no real cron timer, shell, provider, or private config home is needed.",
+                "This row intentionally precedes no-agent mode because no-agent depends on script execution being bound into the executor."
+              ],
+              "not_ready_when": [
+                "The slice starts live scheduled timers, runs host shell commands in tests, changes channel delivery routing, or widens cron CRUD beyond executor behavior.",
+                "Script stdout/stderr or env-ref values are logged without redaction.",
+                "The slice implements no-agent script-only semantics before the shared script/workdir/inactivity executor contract is locked."
+              ],
+              "blocked_by": [
+                "Cron prompt/script safety + pre-run script contract",
+                "Cronjob tool action envelope over native store"
+              ],
+              "unblocks": [
+                "Cron no-agent script-only watchdog mode"
+              ],
+              "acceptance": [
+                "TestCronScriptExecutionBuildsPromptSections proves script success/failure/no-output/timeout output is represented in the job prompt or alert envelope once per tick.",
+                "TestCronWorkdirExecutionBinding proves absolute existing workdir validation, sequential workdir partitioning, TERMINAL_CWD, skip_context_files behavior, and env restoration.",
+                "TestCronInactivityTimeoutInterruptsIdleRuns proves HERMES_CRON_TIMEOUT parsing, disabled <=0 behavior, idle-only interruption, and error text with idle/tool names.",
+                "TestCronCodexExecutionPathRefreshes401 proves openai-codex/codex_responses cron and gateway paths invoke the internal refresh seam on 401 before surfacing failure.",
+                "TestCronStateFilePermissions proves job/run directories are 0700 and state files are 0600."
+              ],
+              "write_scope": [
+                "internal/cron/executor.go",
+                "internal/cron/job.go",
+                "internal/cron/script_workdir_execution_test.go",
+                "internal/cron/inactivity_timeout_test.go",
+                "internal/cron/store.go",
+                "internal/cron/run_store.go",
+                "internal/tools/cronjob_tool.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run 'TestCronScriptExecution|TestCronWorkdirExecution|TestCronInactivityTimeout|TestCronCodexExecutionPath|TestCronStateFilePermissions' -count=1",
+                "go test ./internal/tools -run TestCronjobTool -count=1",
+                "go test ./internal/cron ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Cron executor fixtures prove script, workdir, inactivity timeout, Codex refresh, and file-permission behavior with injected runners and fake providers."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 cron/scheduler.py + tests/cron",
+                "note": "Gormes had cron storage/action rows but lacked the executor behavior covered by Hermes' script, workdir, inactivity, Codex refresh, and permission tests."
+              }
+            },
+            {
               "name": "Cron no-agent script-only watchdog mode",
               "status": "planned",
               "priority": "P2",
@@ -28525,8 +28818,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T13:57:25Z",
-            "origin_decision": "Hermes 90a3e73d moves paste.rs debug-share deletion from opportunistic-only cleanup to a gateway cron ticker; Gormes tracks that as a blocked Debug share paste sweep scheduler contract behind the native Debug helpers row. Hermes dbe50155 session-search recent-mode exclusion is split into schema/argument validation first, then the memory execution wrapper over internal/memory and Goncho/Honcho-compatible scope rules. Hermes 500774e3/a59a98b1 fixed shutdown memory handoff to pass session messages; Gormes tracks that operator/runtime drift here rather than reopening completed Phase 3 memory. Gormes already owns a Go-native cron Store, Scheduler, Executor, RunStore, durable-ledger audit, CRON.md mirror, and backend health bypass; cron/session rows remain split so autoloop workers can advance Phase 5.N without guessing."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes 90a3e73d paste.rs cleanup, dbe50155 session-search recent-mode exclusion, and 500774e3/a59a98b1 shutdown memory handoff remain tracked. The 2026-05-05 parity sweep found a cron executor weakness: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover untracked script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Those are now split into `Cron script/workdir/inactivity execution binding` before no-agent script-only watchdog mode."
           }
         },
         "5.O": {
@@ -35927,6 +36220,74 @@
               ]
             },
             {
+              "name": "Native TUI clipboard, OSC52, and terminal setup parity",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports the active Hermes Ink terminal integration helpers as pure Go-native services behind injectable process/env/filesystem seams: clipboard read fallbacks, macOS clipboard write, OSC52 query/decode with tmux passthrough, VS Code-family keybinding setup with conflict detection/backups, truecolor environment resolution, and terminal parity hints. It preserves the current terminal-native selection help until real copy support is explicitly wired.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing clipboard commands, unsupported OSC52, binary-looking/empty clipboard payloads, SSH terminal setup refusal, keybinding conflicts, backup/write failures, and NO_COLOR/truecolor constraints return tui_terminal_* evidence rather than advertising unavailable copy/setup behavior.",
+              "fixture": "internal/tui/clipboard_test.go; internal/tui/terminal_setup_test.go",
+              "source_refs": [
+                "../hermes-agent/ui-tui/src/__tests__/clipboard.test.ts@b816fd4e2",
+                "../hermes-agent/ui-tui/src/__tests__/osc52.test.ts@b816fd4e2",
+                "../hermes-agent/ui-tui/src/__tests__/terminalSetup.test.ts@b816fd4e2",
+                "../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts@b816fd4e2",
+                "../hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts@b816fd4e2",
+                "internal/tui/selection_help.go",
+                "internal/tui/hermes_keybindings_test.go"
+              ],
+              "ready_when": [
+                "TUI TerminalNativeSelectionHelp constant + help-string fixture and Native TUI Hermes input keybinding semantics are complete, so current non-copy behavior and keyboard semantics are locked.",
+                "Tests can fake command execution, environment variables, terminal responses, and keybinding files without touching the host clipboard or user config.",
+                "This row may add helper services and tests but must not wire copy/paste hotkeys into Update until the helpers are proven."
+              ],
+              "not_ready_when": [
+                "The slice invokes host clipboard commands, writes real VS Code/Cursor/Windsurf settings, sends OSC52 to the live terminal, or modifies user config in tests.",
+                "The slice replaces the selection help constant with advertised copy shortcuts before helper behavior and degraded evidence are fixture-backed.",
+                "The slice ports Ink/React runtime code instead of Go-native helper functions."
+              ],
+              "blocked_by": [
+                "TUI TerminalNativeSelectionHelp constant + help-string fixture",
+                "Native TUI Hermes input keybinding semantics"
+              ],
+              "acceptance": [
+                "TestTUIClipboardReadFallbacks proves pbpaste, PowerShell/WSL, wl-paste, and xclip are tried in Hermes order and empty/binary-looking payloads return unavailable evidence.",
+                "TestTUIClipboardWriteMacOnly proves pbcopy write behavior is macOS-only and no write command is attempted on unsupported platforms.",
+                "TestTUIOSC52QueryDecodeAndTmuxWrap proves OSC52 query/decode, unsupported/missing response handling, and tmux passthrough wrapping.",
+                "TestTUITerminalSetupKeybindings proves VS Code/Cursor/Windsurf detection, comment/trailing-comma JSON parsing, conflict detection, backups, and SSH refusal using temp files only.",
+                "TestTUITruecolorAndTerminalParityHints proves HERMES_TUI_TRUECOLOR, NO_COLOR, FORCE_COLOR, Apple Terminal, SSH, tmux, and IDE setup prompt suppression decisions."
+              ],
+              "write_scope": [
+                "internal/tui/clipboard.go",
+                "internal/tui/clipboard_test.go",
+                "internal/tui/osc52.go",
+                "internal/tui/terminal_setup.go",
+                "internal/tui/terminal_setup_test.go",
+                "internal/tui/selection_help.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'TestTUIClipboard|TestTUIOSC52|TestTUITerminalSetup|TestTUITruecolor' -count=1",
+                "go test ./internal/tui -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "TUI terminal helper fixtures prove clipboard, OSC52, keybinding setup, truecolor, and terminal parity decisions through injected seams without touching the live terminal."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 ui-tui/src/__tests__/clipboard.test.ts + osc52.test.ts + terminalSetup.test.ts",
+                "note": "The previous Gormes TUI rows intentionally avoided fake copy shortcuts; current Hermes Ink has active terminal helper behavior that can now be ported behind testable Go seams."
+              }
+            },
+            {
               "name": "Native TUI Hermes slash completion helpers",
               "priority": "P2",
               "status": "complete",
@@ -37181,7 +37542,7 @@
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Current Hermes Ink (`ui-tui/src/components` and `ui-tui/src/app`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server rows rather than reopening the completed chat-completions or cron-admin rows."
+            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, and `ui-tui/src/__tests__`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. The same sweep found terminal-helper drift in clipboard, OSC52, terminal setup, and truecolor tests; Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server and TUI terminal-helper rows rather than reopening completed chat-completions, cron-admin, or keybinding rows."
           }
         },
         "5.R": {
@@ -37189,17 +37550,64 @@
           "items": [
             {
               "name": "Execution-mode resolver + config precedence",
+              "priority": "P1",
               "status": "planned",
-              "note": "TDD slice 1 of 4: pure helper in `internal/tools/execute_code.go` that returns `off`/`project`/`strict` from (a) env var (e.g. `GORMES_EXECUTE_CODE_MODE`), then (b) config key, then (c) default, with unknown values falling back to default and emitting a warning. Table tests only — no sandbox coupling, no CWD/interpreter behavior yet. Freeze the token set here so later slices cannot silently add modes.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes exposes a pure execute-code mode resolver that returns `off`, `strict`, or `project` from environment override, config value, and default in that precedence order; unknown values fall back to the default with redacted warning evidence, and the token set is frozen before cwd/interpreter/runtime wiring lands.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Unknown or empty mode values produce execute_code_mode_invalid evidence and fall back to the configured default without constructing a sandbox, opening files, or running code.",
+              "fixture": "internal/tools/execute_code_mode_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/tools/test_code_execution_modes.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_local_shell_init.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_shared_container_task_id.py@b816fd4e2",
+                "../hermes-agent/tests/tools/test_modal_sandbox_fixes.py@b816fd4e2",
+                "../hermes-agent/tools/code_execution.py@b816fd4e2",
+                "internal/tools/execute_code.go",
+                "internal/tools/terminal_tool.go"
+              ],
+              "ready_when": [
+                "Sandboxed exec is complete and currently blocks code execution through a stable envelope; this row only adds a pure resolver and cannot relax that guard.",
+                "Tests can inject env/config/default values without reading operator config, starting containers, creating cwd sandboxes, or invoking interpreters.",
+                "The follow-up strict/project/default rows remain planned for cwd/interpreter/runtime binding after the token/precedence contract is locked."
+              ],
+              "not_ready_when": [
+                "The slice changes execute_code runtime behavior, runs Python/shell, creates containers, changes filesystem/network access, or selects cwd/interpreter paths.",
+                "The slice adds modes beyond off/strict/project without a new source-backed planner row.",
+                "The slice changes the 5.K Sandboxed exec blocked-result envelope."
+              ],
+              "acceptance": [
+                "TestExecuteCodeModeResolverEnvOverridesConfig proves GORMES_EXECUTE_CODE_MODE wins over config and default for off/strict/project.",
+                "TestExecuteCodeModeResolverConfigFallback proves config is used when env is unset or empty and default is used when both are empty.",
+                "TestExecuteCodeModeResolverInvalidValuesWarnAndDefault proves unknown env/config values return execute_code_mode_invalid evidence and the default mode without leaking raw secrets.",
+                "TestExecuteCodeModeResolverFreezesTokenSet proves only off, strict, and project are accepted tokens.",
+                "Existing Sandboxed exec tests remain byte-stable because the resolver is not wired into runtime execution in this slice."
+              ],
+              "note": "Revisited 2026-05-05 from an inventory-only placeholder into a builder-ready pure resolver row. It intentionally stops before CWD, interpreter, container, and sandbox execution changes so the completed 5.K blocked-result contract remains stable.",
+              "write_scope": [
+                "internal/tools/execute_code.go",
+                "internal/tools/execute_code_mode_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestExecuteCodeModeResolver|TestExecuteCode' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Execute-code mode resolver fixtures prove env/config/default precedence, invalid-value evidence, and frozen off/strict/project tokens without runtime execution changes."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:b816fd4e2 tests/tools/test_code_execution_modes.py",
+                "note": "Gormes' code-execution policy rows were placeholders; Hermes has active mode-precedence behavior that should be ported as a small pure helper before runtime semantics."
+              }
             },
             {
               "name": "Strict-mode CWD + interpreter parity",
@@ -37243,7 +37651,12 @@
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 code-execution tests cover mode precedence, local-shell initialization, shared-container task ids, and Modal sandbox edge cases. Gormes keeps the completed 5.K Sandboxed exec block intact; the 2026-05-05 revisit converts only `Execution-mode resolver + config precedence` from an umbrella placeholder into a small pure helper row, leaving strict/project cwd and default cut-over as later planner splits."
+          }
         },
         "5.S": {
           "name": "Loop Detection",
