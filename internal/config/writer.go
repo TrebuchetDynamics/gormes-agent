@@ -112,7 +112,7 @@ func WriteTOMLValue(path, key, value string) error {
 	if !ok {
 		table = map[string]any{}
 	}
-	coerced, err := coerceTOMLScalar(value)
+	coerced, err := coerceTOMLValue(section, fields, value)
 	if err != nil {
 		return fmt.Errorf("config: %s: %w", key, err)
 	}
@@ -282,6 +282,39 @@ func EnsureConfigFile(path string) error {
 	}
 	doc := map[string]any{"_config_version": int64(CurrentConfigVersion)}
 	return writeTOMLAtomic(path, doc)
+}
+
+func coerceTOMLValue(section string, fields []string, value string) (any, error) {
+	key := strings.ToLower(section + "." + strings.Join(fields, "."))
+	switch key {
+	case "telegram.allowed_user_ids":
+		return coerceTOMLInt64List(value)
+	default:
+		return coerceTOMLScalar(value)
+	}
+}
+
+func coerceTOMLInt64List(value string) ([]int64, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || trimmed == "[]" {
+		return []int64{}, nil
+	}
+	trimmed = strings.TrimPrefix(trimmed, "[")
+	trimmed = strings.TrimSuffix(trimmed, "]")
+	parts := strings.Split(trimmed, ",")
+	out := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("expected comma-separated integer IDs, got %q", value)
+		}
+		out = append(out, id)
+	}
+	return out, nil
 }
 
 // coerceTOMLScalar applies the same string→typed coercions as Hermes's

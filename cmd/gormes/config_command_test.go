@@ -173,6 +173,35 @@ func TestConfigCommand_SetTelegramBotTokenWritesLoadableEnvName(t *testing.T) {
 	}
 }
 
+func TestConfigCommand_SetTelegramAllowedUserIDsWritesLoadableList(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "set", "telegram.allowed_user_ids", "6586915095")
+	if err != nil {
+		t.Fatalf("set telegram.allowed_user_ids: %v stderr=%s", err, stderr)
+	}
+	if !strings.Contains(stdout, "telegram.allowed_user_ids") || !strings.Contains(stdout, config.ConfigPath()) {
+		t.Fatalf("stdout = %q, want key and config path", stdout)
+	}
+
+	data, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	if !strings.Contains(string(data), "allowed_user_ids = [6586915095]") {
+		t.Fatalf("config.toml did not write allowed_user_ids as TOML list:\n%s", data)
+	}
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("Load after telegram.allowed_user_ids write: %v", err)
+	}
+	if got := cfg.Telegram.AllowedUserIDs; len(got) != 1 || got[0] != 6586915095 {
+		t.Fatalf("AllowedUserIDs = %v, want [6586915095]", got)
+	}
+}
+
 func TestConfigCommand_SetNestedAgentsDefaultsWorkspaceWritesTOMLAndLoads(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	workspace := filepath.Join(t.TempDir(), "workspace-gormes")
