@@ -10737,77 +10737,6 @@
               }
             },
             {
-              "name": "Goncho Honcho plugin session config + async write compatibility",
-              "priority": "P1",
-              "status": "planned",
-              "contract": "Goncho preserves Hermes Honcho plugin session/config behavior over local-first memory: Honcho baseUrl without an API key resolves to a local/self-hosted sentinel when the URL is plausible, obvious non-URL literals fail closed, host-level config overrides root settings, writeFrequency supports async/turn/session/integer modes, session names prefer manual override then title then session id/dirname/global workspace, async writes queue and flush deterministically, and pinPeerName can opt a single-user multi-platform deployment into one configured peer while the default keeps multi-user platform IDs isolated.",
-              "contract_status": "validated",
-              "slice_size": "medium",
-              "execution_owner": "memory",
-              "trust_class": [
-                "operator",
-                "gateway",
-                "system"
-              ],
-              "degraded_mode": "Malformed baseUrl, invalid writeFrequency, async flush failures, missing session id/title, and unsafe pinPeerName combinations return goncho_config_* or goncho_async_* evidence without contacting hosted Honcho, merging unrelated users, or dropping queued memory writes silently.",
-              "fixture": "internal/goncho/plugin_session_config_test.go; internal/goncho/async_write_test.go",
-              "source_refs": [
-                "../hermes-agent/tests/honcho_plugin/test_cli.py@b816fd4e2",
-                "../hermes-agent/tests/honcho_plugin/test_async_memory.py@b816fd4e2",
-                "../hermes-agent/tests/honcho_plugin/test_pin_peer_name.py@b816fd4e2",
-                "../hermes-agent/tests/honcho_plugin/test_session.py@b816fd4e2",
-                "../hermes-agent/plugins/memory/honcho/client.py@b816fd4e2",
-                "../hermes-agent/plugins/memory/honcho/session.py@b816fd4e2",
-                "internal/goncho/service.go",
-                "internal/goncho/types.go",
-                "internal/gonchotools/honcho_tools.go"
-              ],
-              "ready_when": [
-                "Goncho topology design fixtures, CRUD lifecycle invariants, V1 memory compatibility, and empty peer-card hints are complete.",
-                "Tests can use local Goncho service fakes, temp JSON config files, fake clocks, and fake async sinks; no hosted Honcho SDK, network, Redis, vector store, or background provider is required.",
-                "Keep internal names Goncho while preserving public honcho_* compatibility and Honcho plugin config vocabulary."
-              ],
-              "not_ready_when": [
-                "The slice implements hosted Honcho HTTP routes, imports the Python Honcho plugin, starts async goroutines without controllable test shutdown, or reads live ~/.honcho/~/.hermes config.",
-                "pinPeerName=true without peerName collapses users to an empty/shared peer instead of falling back to runtime platform identity.",
-                "Async/session write modes can lose pending messages on flush_all or shutdown without evidence."
-              ],
-              "blocked_by": [
-                "Goncho CRUD lifecycle invariants",
-                "Goncho Memory V1 compatibility contract and migration harness"
-              ],
-              "acceptance": [
-                "TestGonchoHonchoBaseURLLocalSentinel proves apiKey root/host precedence, HONCHO_BASE_URL env fallback, local sentinel for plausible http/https/schemeless baseUrl, and rejection of obvious literals such as true/false/null/1/localhost without scheme.",
-                "TestGonchoWriteFrequencyParsingAndRouting proves async/turn/session/integer/string-integer parsing, host-block overrides, turn immediate flush, session deferred flush, and integer nth-turn flush.",
-                "TestGonchoSessionNameResolution proves manual session mapping beats title, title beats session id/dirname, per-session uses session id, global uses workspace, peer-prefix sanitization works, and invalid titles fall back safely.",
-                "TestGonchoAsyncWriterLifecycle proves async save enqueues, retry evidence is bounded, flush_all drains cached and queued sessions, and shutdown joins without leaks.",
-                "TestGonchoPinPeerNameResolution proves the default runtime platform id wins for multi-user bots, pinPeerName=true with peerName unifies Telegram/Discord for one configured user, missing peerName falls back to runtime id, and assistant peer identity is unchanged."
-              ],
-              "write_scope": [
-                "internal/goncho/config.go",
-                "internal/goncho/session_config.go",
-                "internal/goncho/async_write.go",
-                "internal/goncho/plugin_session_config_test.go",
-                "internal/goncho/async_write_test.go",
-                "internal/gonchotools/honcho_tools.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1",
-                "go test ./internal/goncho ./internal/gonchotools -count=1",
-                "go run ./cmd/progress validate",
-                "git diff --check"
-              ],
-              "done_signal": [
-                "Goncho fixtures prove Honcho plugin config precedence, self-hosted baseUrl sentinel behavior, writeFrequency routing, async flush/shutdown, session naming, and pinPeerName isolation/unification semantics locally."
-              ],
-              "provenance": {
-                "origin_type": "hybrid",
-                "upstream_ref": "hermes:b816fd4e2 tests/honcho_plugin/test_async_memory.py + test_pin_peer_name.py",
-                "note": "Hermes' Honcho plugin compatibility tests cover user-visible memory scoping and write timing that are not covered by Gormes' current local Goncho CRUD/V1 rows."
-              }
-            },
-            {
               "name": "Hermes memory tool over Goncho/local durable store",
               "status": "complete",
               "priority": "P0",
@@ -11078,9 +11007,9 @@
             }
           ],
           "drift_state": {
-            "status": "porting",
+            "status": "complete",
             "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Honcho e659b6b remains the synchronized memory donor for core memory docs. The Honcho repo itself has not moved since e659b6b, but upstream Hermes b816fd4e2 honcho_plugin tests expose user-visible compatibility beyond the completed empty-profile hint: baseUrl/local sentinel resolution, host-block config overrides, writeFrequency routing, async flush/shutdown, session-title naming, and pinPeerName cross-platform memory scoping. Gormes tracks those as `Goncho Honcho plugin session config + async write compatibility` while keeping the internal implementation named Goncho and preserving honcho_* public tool compatibility."
+            "origin_decision": "Honcho e659b6b remains the synchronized memory donor for core memory docs, and Phase 3 stays complete for local Goncho memory primitives. Upstream Hermes b816fd4e2 honcho_plugin tests expose plugin-facing compatibility beyond the completed empty-profile hint; that follow-up is tracked under Phase 5.I as `Goncho Honcho plugin session config + async write compatibility` while keeping the internal implementation named Goncho and preserving honcho_* public tool compatibility."
           }
         },
         "3.G": {
@@ -23838,6 +23767,77 @@
               }
             },
             {
+              "name": "Goncho Honcho plugin session config + async write compatibility",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Goncho preserves Hermes Honcho plugin session/config behavior over local-first memory: Honcho baseUrl without an API key resolves to a local/self-hosted sentinel when the URL is plausible, obvious non-URL literals fail closed, host-level config overrides root settings, writeFrequency supports async/turn/session/integer modes, session names prefer manual override then title then session id/dirname/global workspace, async writes queue and flush deterministically, and pinPeerName can opt a single-user multi-platform deployment into one configured peer while the default keeps multi-user platform IDs isolated.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Malformed baseUrl, invalid writeFrequency, async flush failures, missing session id/title, and unsafe pinPeerName combinations return goncho_config_* or goncho_async_* evidence without contacting hosted Honcho, merging unrelated users, or dropping queued memory writes silently.",
+              "fixture": "internal/goncho/plugin_session_config_test.go; internal/goncho/async_write_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/honcho_plugin/test_cli.py@b816fd4e2",
+                "../hermes-agent/tests/honcho_plugin/test_async_memory.py@b816fd4e2",
+                "../hermes-agent/tests/honcho_plugin/test_pin_peer_name.py@b816fd4e2",
+                "../hermes-agent/tests/honcho_plugin/test_session.py@b816fd4e2",
+                "../hermes-agent/plugins/memory/honcho/client.py@b816fd4e2",
+                "../hermes-agent/plugins/memory/honcho/session.py@b816fd4e2",
+                "internal/goncho/service.go",
+                "internal/goncho/types.go",
+                "internal/gonchotools/honcho_tools.go"
+              ],
+              "ready_when": [
+                "Goncho topology design fixtures, CRUD lifecycle invariants, V1 memory compatibility, and empty peer-card hints are complete.",
+                "Tests can use local Goncho service fakes, temp JSON config files, fake clocks, and fake async sinks; no hosted Honcho SDK, network, Redis, vector store, or background provider is required.",
+                "Keep internal names Goncho while preserving public honcho_* compatibility and Honcho plugin config vocabulary."
+              ],
+              "not_ready_when": [
+                "The slice implements hosted Honcho HTTP routes, imports the Python Honcho plugin, starts async goroutines without controllable test shutdown, or reads live ~/.honcho/~/.hermes config.",
+                "pinPeerName=true without peerName collapses users to an empty/shared peer instead of falling back to runtime platform identity.",
+                "Async/session write modes can lose pending messages on flush_all or shutdown without evidence."
+              ],
+              "blocked_by": [
+                "Goncho CRUD lifecycle invariants",
+                "Goncho Memory V1 compatibility contract and migration harness"
+              ],
+              "acceptance": [
+                "TestGonchoHonchoBaseURLLocalSentinel proves apiKey root/host precedence, HONCHO_BASE_URL env fallback, local sentinel for plausible http/https/schemeless baseUrl, and rejection of obvious literals such as true/false/null/1/localhost without scheme.",
+                "TestGonchoWriteFrequencyParsingAndRouting proves async/turn/session/integer/string-integer parsing, host-block overrides, turn immediate flush, session deferred flush, and integer nth-turn flush.",
+                "TestGonchoSessionNameResolution proves manual session mapping beats title, title beats session id/dirname, per-session uses session id, global uses workspace, peer-prefix sanitization works, and invalid titles fall back safely.",
+                "TestGonchoAsyncWriterLifecycle proves async save enqueues, retry evidence is bounded, flush_all drains cached and queued sessions, and shutdown joins without leaks.",
+                "TestGonchoPinPeerNameResolution proves the default runtime platform id wins for multi-user bots, pinPeerName=true with peerName unifies Telegram/Discord for one configured user, missing peerName falls back to runtime id, and assistant peer identity is unchanged."
+              ],
+              "write_scope": [
+                "internal/goncho/config.go",
+                "internal/goncho/session_config.go",
+                "internal/goncho/async_write.go",
+                "internal/goncho/plugin_session_config_test.go",
+                "internal/goncho/async_write_test.go",
+                "internal/gonchotools/honcho_tools.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1",
+                "go test ./internal/goncho ./internal/gonchotools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Goncho fixtures prove Honcho plugin config precedence, self-hosted baseUrl sentinel behavior, writeFrequency routing, async flush/shutdown, session naming, and pinPeerName isolation/unification semantics locally."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b816fd4e2 tests/honcho_plugin/test_async_memory.py + test_pin_peer_name.py",
+                "note": "Hermes' Honcho plugin compatibility tests cover user-visible memory scoping and write timing that are not covered by Gormes' current local Goncho CRUD/V1 rows."
+              }
+            },
+            {
               "name": "First-party Spotify plugin fixture",
               "status": "complete",
               "contract": "First-party plugin manifests and tool packages load through the plugin SDK without reverting to built-in tool registration",
@@ -24176,7 +24176,7 @@
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes still leads plugin and dashboard-extension contracts. af22421e/cf2fabc4 page-scoped built-in slots, 64a497bf Hindsight setup preservation, and df3c9593 Google Meet metadata are validated. The 2026-05-05 parity sweep found that Gormes has metadata/discovery rows and CLI command-tree inventory but no operator-facing `plugins install/update/remove/list/enable/disable` lifecycle behavior; Hermes b816fd4e2 plugin CLI tests are now captured as `Hermes plugin CLI lifecycle parity` without executing plugin runtime code."
+            "origin_decision": "Hermes still leads plugin and dashboard-extension contracts. af22421e/cf2fabc4 page-scoped built-in slots, 64a497bf Hindsight setup preservation, and df3c9593 Google Meet metadata are validated. The 2026-05-05 parity sweep found two plugin-facing gaps: Gormes has metadata/discovery rows and CLI command-tree inventory but no operator-facing `plugins install/update/remove/list/enable/disable` lifecycle behavior, and Hermes b816fd4e2 honcho_plugin tests cover session config, async write, and pinPeerName behavior beyond core Goncho memory. Those gaps are now captured as `Hermes plugin CLI lifecycle parity` and `Goncho Honcho plugin session config + async write compatibility` without executing plugin runtime code."
           }
         },
         "5.J": {
