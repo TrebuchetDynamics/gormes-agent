@@ -5,7 +5,7 @@ weight: 20
 
 # Install
 
-Gormes is a single static Go binary (~34 MB). Zero CGO, no Python runtime on the host.
+Gormes is a single static Go binary. The current Linux benchmark build is ~38 MB; size varies by OS and build profile. Zero CGO, no Python runtime on the host.
 
 ## Recommended: source build
 

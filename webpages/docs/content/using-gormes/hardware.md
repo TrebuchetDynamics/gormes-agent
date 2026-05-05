@@ -13,13 +13,13 @@ is built and smoke-tested.
 
 | Target | Status | Build | Smoke Gate | Binary Size | Idle RSS | Notes |
 |---|---|---|---|---:|---:|---|
-| Linux x86_64 | tested | full | `gormes doctor --offline` | ~34 MB | pending | Primary development path. |
+| Linux x86_64 | tested | full | `gormes doctor --offline` | ~38 MB | pending | Primary development path; refreshed by benchmark data. |
 | Linux arm64 | tested | full | `gormes doctor --offline` | pending | pending | Raspberry Pi-class and ARM server target. |
 | macOS arm64 | tested | full | `gormes doctor --offline` | pending | pending | Apple Silicon target. |
 | macOS amd64 | candidate | full | `gormes doctor --offline` | pending | pending | Cross-compiled release artifact. |
 | Windows amd64 | candidate | full | `gormes doctor --offline` | pending | pending | Native PowerShell installer exists; signed release still pending. |
 | Windows arm64 | candidate | full | `gormes doctor --offline` | pending | pending | Cross-compiled release artifact. |
-| WSL2 | tested | full | `gormes doctor --offline` | ~34 MB | pending | Treat as Linux x86_64/arm64 depending on host. |
+| WSL2 | tested | full | `gormes doctor --offline` | ~38 MB | pending | Treat as Linux x86_64/arm64 depending on host. |
 | Termux / Android | experimental | source | `gormes doctor --offline` | pending | pending | Source-backed until mobile release packaging is proven. |
 | Raspberry Pi 4/5 | planned | lite | `gormes doctor --offline` | pending | pending | Track boot time and gateway RSS. |
 | Low-memory Linux VPS | planned | lite | `gormes gateway status` | pending | pending | Track persistent gateway RSS. |
