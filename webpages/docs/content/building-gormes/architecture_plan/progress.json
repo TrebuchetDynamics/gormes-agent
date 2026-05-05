@@ -3231,6 +3231,74 @@
               "last_evidence": "RED/GREEN: TestStatusCommand_PersistsAndRendersAccumulatedSessionTokenTotals proves two usage snapshots persist durable per-session token totals, missing usage does not erase them, and /status renders the accumulated total. Validated with GOCACHE=/tmp/gormes-go-cache go test ./internal/gateway ./internal/session ./internal/hermes -run 'Token|Usage|Status' -count=1."
             },
             {
+              "name": "Gateway startup allowlist + weak credential guard",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes ports Hermes gateway admission startup safety before channel runtimes connect: startup reports when no platform/global allowlist or allow-all override is configured; platform placeholder tokens such as `***`, `changeme`, `your_api_key`, and `placeholder` disable the affected enabled platform with redacted evidence; and API-server wildcard/network hosts refuse placeholder keys while loopback-only development hosts remain allowed.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing allowlists produce gateway_allowlist_missing warning evidence; placeholder platform tokens produce gateway_weak_credential_disabled; network-exposed API server placeholder keys produce api_server_weak_key_refused. No token, API key, chat id, user id, or raw dotenv line is printed.",
+              "fixture": "cmd/gormes/gateway_admission_test.go; internal/gateway/admission_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/gateway/test_allowlist_startup_check.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_weak_credential_guard.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_auth_fallback.py@b816fd4e2",
+                "../hermes-agent/gateway/config.py@b816fd4e2",
+                "../hermes-agent/gateway/platforms/api_server.py@b816fd4e2",
+                "cmd/gormes/security.go",
+                "cmd/gormes/gateway.go",
+                "internal/apiserver/server.go"
+              ],
+              "ready_when": [
+                "Gateway status/security helpers already compute enabled platforms and configured allowlists without starting adapters.",
+                "Tests can use synthetic config/env structs and fake API-server hosts; no live Telegram/Discord/Slack/WhatsApp credentials, gateway process, or network listener is required.",
+                "Existing per-platform adapter tests stay focused on message admission; this row owns startup-level admission only."
+              ],
+              "not_ready_when": [
+                "The slice opens platform network connections, validates credentials against vendor APIs, reads real dotenv/home config, or starts the API server.",
+                "The slice treats empty tokens as weak placeholders; Hermes keeps empty-token handling separate from placeholder rejection.",
+                "A wildcard API-server host such as 0.0.0.0 can start with a placeholder key."
+              ],
+              "acceptance": [
+                "TestGatewayStartupAllowlistWarning proves no allowlist/no allow-all emits gateway_allowlist_missing, while SIGNAL_GROUP_ALLOWED_USERS, TELEGRAM_ALLOW_ALL_USERS=true, and GATEWAY_ALLOW_ALL_USERS=yes suppress the warning.",
+                "TestGatewayWeakCredentialGuard_DisablesEnabledPlaceholderPlatforms proves enabled Telegram/Discord/Slack/Matrix-style configs with `***`, `changeme`, `your_api_key`, `placeholder`, or whitespace-padded variants are disabled with redacted evidence.",
+                "TestGatewayWeakCredentialGuard_IgnoresDisabledOrEmptyTokens proves disabled platforms and empty tokens are not classified as placeholder-token failures.",
+                "TestAPIServerWeakKeyGuard_RefusesNetworkExposedPlaceholders proves wildcard/network-accessible hosts reject placeholder keys before listen.",
+                "TestAPIServerWeakKeyGuard_AllowsLoopbackDevelopment proves loopback hosts with placeholder keys remain allowed as local-only development mode."
+              ],
+              "write_scope": [
+                "cmd/gormes/security.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_admission_test.go",
+                "internal/gateway/admission.go",
+                "internal/gateway/admission_test.go",
+                "internal/apiserver/server.go",
+                "internal/apiserver/auth_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestGateway.*Allowlist|TestGateway.*WeakCredential' -count=1",
+                "go test ./internal/gateway ./internal/apiserver -run 'TestGateway.*Admission|TestAPIServer.*WeakKey' -count=1",
+                "go test ./cmd/gormes ./internal/gateway ./internal/apiserver -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway admission fixtures prove startup allowlist warnings, platform placeholder-token disabling, and network-exposed API-server placeholder-key refusal without live adapters or token leaks."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tests/gateway/test_allowlist_startup_check.py + test_weak_credential_guard.py",
+                "note": "Hermes treats weak startup admission as a user-visible gateway safety contract; Gormes currently has scattered allowlist fields but no source-backed startup guard row."
+              }
+            },
+            {
               "name": "Telegram voice/audio inbound attachment markers",
               "status": "complete",
               "priority": "P1",
@@ -6087,7 +6155,7 @@
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-05T16:08:51Z",
-            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. Follow-up sweeps add row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, webhook dynamic-route/rate-limit runtime behavior, Slack/Discord channel-scoped skills and prompts, Telegram fallback/reconnect recovery, Telegram sticker vision adapter binding, Discord native slash/thread command registration, Telegram entity-only mention boundaries, Telegram forum thread/send retry safety, Telegram semantic MarkdownV2 formatting, and gateway platform reconnect/health resilience after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D, Telegram sticker adapter binding is tracked here rather than reopening complete Phase 2.F.4, and platform lifecycle drift is tracked here rather than reopening complete Phase 2.F.3."
+            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. Follow-up sweeps add row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, webhook dynamic-route/rate-limit runtime behavior, Slack/Discord channel-scoped skills and prompts, Telegram fallback/reconnect recovery, Telegram sticker vision adapter binding, Discord native slash/thread command registration, Telegram entity-only mention boundaries, Telegram forum thread/send retry safety, Telegram semantic MarkdownV2 formatting, and gateway platform reconnect/health resilience after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. The second 2026-05-05 sweep adds gateway startup admission safety for allowlist warnings, weak placeholder platform tokens, and network-exposed API-server placeholder keys. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D, Telegram sticker adapter binding is tracked here rather than reopening complete Phase 2.F.4, and platform lifecycle drift is tracked here rather than reopening complete Phase 2.F.3."
           }
         },
         "2.B.10": {
@@ -10669,6 +10737,77 @@
               }
             },
             {
+              "name": "Goncho Honcho plugin session config + async write compatibility",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Goncho preserves Hermes Honcho plugin session/config behavior over local-first memory: Honcho baseUrl without an API key resolves to a local/self-hosted sentinel when the URL is plausible, obvious non-URL literals fail closed, host-level config overrides root settings, writeFrequency supports async/turn/session/integer modes, session names prefer manual override then title then session id/dirname/global workspace, async writes queue and flush deterministically, and pinPeerName can opt a single-user multi-platform deployment into one configured peer while the default keeps multi-user platform IDs isolated.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "memory",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Malformed baseUrl, invalid writeFrequency, async flush failures, missing session id/title, and unsafe pinPeerName combinations return goncho_config_* or goncho_async_* evidence without contacting hosted Honcho, merging unrelated users, or dropping queued memory writes silently.",
+              "fixture": "internal/goncho/plugin_session_config_test.go; internal/goncho/async_write_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/honcho_plugin/test_cli.py@b816fd4e2",
+                "../hermes-agent/tests/honcho_plugin/test_async_memory.py@b816fd4e2",
+                "../hermes-agent/tests/honcho_plugin/test_pin_peer_name.py@b816fd4e2",
+                "../hermes-agent/tests/honcho_plugin/test_session.py@b816fd4e2",
+                "../hermes-agent/plugins/memory/honcho/client.py@b816fd4e2",
+                "../hermes-agent/plugins/memory/honcho/session.py@b816fd4e2",
+                "internal/goncho/service.go",
+                "internal/goncho/types.go",
+                "internal/gonchotools/honcho_tools.go"
+              ],
+              "ready_when": [
+                "Goncho topology design fixtures, CRUD lifecycle invariants, V1 memory compatibility, and empty peer-card hints are complete.",
+                "Tests can use local Goncho service fakes, temp JSON config files, fake clocks, and fake async sinks; no hosted Honcho SDK, network, Redis, vector store, or background provider is required.",
+                "Keep internal names Goncho while preserving public honcho_* compatibility and Honcho plugin config vocabulary."
+              ],
+              "not_ready_when": [
+                "The slice implements hosted Honcho HTTP routes, imports the Python Honcho plugin, starts async goroutines without controllable test shutdown, or reads live ~/.honcho/~/.hermes config.",
+                "pinPeerName=true without peerName collapses users to an empty/shared peer instead of falling back to runtime platform identity.",
+                "Async/session write modes can lose pending messages on flush_all or shutdown without evidence."
+              ],
+              "blocked_by": [
+                "Goncho CRUD lifecycle invariants",
+                "Goncho Memory V1 compatibility contract and migration harness"
+              ],
+              "acceptance": [
+                "TestGonchoHonchoBaseURLLocalSentinel proves apiKey root/host precedence, HONCHO_BASE_URL env fallback, local sentinel for plausible http/https/schemeless baseUrl, and rejection of obvious literals such as true/false/null/1/localhost without scheme.",
+                "TestGonchoWriteFrequencyParsingAndRouting proves async/turn/session/integer/string-integer parsing, host-block overrides, turn immediate flush, session deferred flush, and integer nth-turn flush.",
+                "TestGonchoSessionNameResolution proves manual session mapping beats title, title beats session id/dirname, per-session uses session id, global uses workspace, peer-prefix sanitization works, and invalid titles fall back safely.",
+                "TestGonchoAsyncWriterLifecycle proves async save enqueues, retry evidence is bounded, flush_all drains cached and queued sessions, and shutdown joins without leaks.",
+                "TestGonchoPinPeerNameResolution proves the default runtime platform id wins for multi-user bots, pinPeerName=true with peerName unifies Telegram/Discord for one configured user, missing peerName falls back to runtime id, and assistant peer identity is unchanged."
+              ],
+              "write_scope": [
+                "internal/goncho/config.go",
+                "internal/goncho/session_config.go",
+                "internal/goncho/async_write.go",
+                "internal/goncho/plugin_session_config_test.go",
+                "internal/goncho/async_write_test.go",
+                "internal/gonchotools/honcho_tools.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1",
+                "go test ./internal/goncho ./internal/gonchotools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Goncho fixtures prove Honcho plugin config precedence, self-hosted baseUrl sentinel behavior, writeFrequency routing, async flush/shutdown, session naming, and pinPeerName isolation/unification semantics locally."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:b816fd4e2 tests/honcho_plugin/test_async_memory.py + test_pin_peer_name.py",
+                "note": "Hermes' Honcho plugin compatibility tests cover user-visible memory scoping and write timing that are not covered by Gormes' current local Goncho CRUD/V1 rows."
+              }
+            },
+            {
               "name": "Hermes memory tool over Goncho/local durable store",
               "status": "complete",
               "priority": "P0",
@@ -10940,8 +11079,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-28T01:55:00Z",
-            "origin_decision": "Honcho e659b6b remains the synchronized memory donor for core memory docs. The Honcho repo itself has not moved since e659b6b, but upstream Hermes 894e0b93 added a public honcho_profile empty-card diagnostic that affects Gormes' honcho_* compatibility surface. Gormes tracks that as a narrow Goncho tool response row while leaving hosted Honcho SDK config/baseUrl/timeout drift out of internal Goncho memory. Keep the implementation named Goncho while preserving honcho_* public tool compatibility."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Honcho e659b6b remains the synchronized memory donor for core memory docs. The Honcho repo itself has not moved since e659b6b, but upstream Hermes b816fd4e2 honcho_plugin tests expose user-visible compatibility beyond the completed empty-profile hint: baseUrl/local sentinel resolution, host-block config overrides, writeFrequency routing, async flush/shutdown, session-title naming, and pinPeerName cross-platform memory scoping. Gormes tracks those as `Goncho Honcho plugin session config + async write compatibility` while keeping the internal implementation named Goncho and preserving honcho_* public tool compatibility."
           }
         },
         "3.G": {
@@ -15314,6 +15453,77 @@
               }
             },
             {
+              "name": "Model catalog cache + preferred-provider live merge",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes model-catalog freshness behavior behind injectable fetch/cache seams: manifest validation rejects malformed or future-version catalogs, fetch writes an XDG-scoped cache and uses in-process reuse, network failures fall back to disk or stale cache, disabled config short-circuits fetches, override URLs win, Vercel AI Gateway pricing is translated into prompt/completion/cache fields, free Moonshot/Kimi AI Gateway models can be promoted into recommended lists, and preferred providers such as opencode-go/opencode-zen merge fresh models.dev IDs before curated extras without changing OpenRouter/Nous fallback behavior.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Fetch failures, disabled catalog config, malformed manifests, stale cache, invalid override URL, and missing credentials return model_catalog_* evidence while preserving the embedded provider registry and never requiring live models.dev or provider credentials in unit tests.",
+              "fixture": "internal/hermes/model_catalog_test.go; cmd/gormes/model_catalog_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/hermes_cli/test_model_catalog.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_ai_gateway_models.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_models_dev_preferred_merge.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_opencode_go_in_model_list.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/model_catalog.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/models.py@b816fd4e2",
+                "../hermes-agent/agent/models_dev.py@b816fd4e2",
+                "internal/hermes/model_registry.go",
+                "cmd/gormes/model.go"
+              ],
+              "ready_when": [
+                "Provider-enforced context resolver, model pricing/capability registry fixtures, Hermes provider registry/alias manifest, and model picker command rows are complete.",
+                "Tests can inject catalog JSON, fake fetchers, temp XDG cache paths, and fake provider credential presence; no live models.dev, Vercel AI Gateway, OpenRouter, Nous, or opencode-go network calls are required.",
+                "The row owns catalog/cache/merge read models only; runtime routing and provider auth stay in separate rows."
+              ],
+              "not_ready_when": [
+                "The slice refreshes the embedded model snapshot from the network during tests or writes outside temp XDG cache paths.",
+                "The slice changes provider routing/fallback policy, launches OAuth/device-code flows, or treats missing credentials as a reason to hide row-backed providers from the static manifest.",
+                "OpenRouter and Nous curated fallback behavior is routed through preferred-provider merge logic even though upstream leaves them unchanged."
+              ],
+              "blocked_by": [
+                "Model pricing/capability registry fixtures",
+                "Gormes model interactive provider/model picker",
+                "Hermes provider registry and alias manifest"
+              ],
+              "acceptance": [
+                "TestModelCatalogValidationAndCache proves well-formed manifest validation, future/malformed rejection, disk cache writes, in-process cache reuse, force refresh, stale-cache fallback, and disabled-config short-circuit.",
+                "TestModelCatalogOverrideURL proves override URL fetches win and return custom source evidence without changing embedded registry defaults.",
+                "TestAIGatewayPricingAndFreePromotion proves input/output/cache pricing fields translate to prompt/completion/cache fields and free Moonshot/Kimi models can be promoted ahead of curated paid entries.",
+                "TestPreferredProviderModelMerge proves opencode-go and opencode-zen merge fresh models.dev entries before curated extras with case-insensitive dedupe and offline curated fallback.",
+                "TestOpenRouterNousCatalogBehaviorUnchanged proves OpenRouter and Nous still use their dedicated curated/fallback helpers and do not call preferred-provider merge."
+              ],
+              "write_scope": [
+                "internal/hermes/model_catalog.go",
+                "internal/hermes/model_catalog_test.go",
+                "internal/hermes/model_registry.go",
+                "cmd/gormes/model.go",
+                "cmd/gormes/model_catalog_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestModelCatalog|TestAIGateway|TestPreferredProviderModelMerge|TestOpenRouterNousCatalog' -count=1",
+                "go test ./cmd/gormes -run 'TestModel.*Catalog|TestModel.*OpenCode' -count=1",
+                "go test ./internal/hermes ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Model catalog fixtures prove cache/fallback/override behavior, AI Gateway pricing/free promotion, preferred-provider live merge, and unchanged OpenRouter/Nous fallback paths without live catalog/provider calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/model_catalog.py + tests/hermes_cli/test_model_catalog.py",
+                "note": "Gormes currently has embedded metadata and model picker rows, but Hermes' active catalog cache/live-merge behavior remains untracked."
+              }
+            },
+            {
               "name": "Routing policy and fallback selector",
               "status": "complete",
               "contract": "Smart model routing is a pure selector over explicit overrides, provider availability, fallback policy, and model metadata before any provider call switches models",
@@ -15506,8 +15716,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-26T01:23:57Z",
-            "origin_decision": "Hermes 25ba6a4a added session-scoped reasoning-effort overrides on top of existing model override/routing behavior, and 2c56dce0 tightened custom-provider model switch behavior for named endpoints and configured aliases. Gormes has validated per-turn model selection and pure model routing, but it still lacks a typed reasoning-effort request path before gateway command state can drive provider turns; custom-provider switch preservation is tracked as a smaller 5.O CLI/TUI resolver row, so Smart Model Routing remains upstream-led for the per-turn reasoning slice."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes 25ba6a4a added session-scoped reasoning-effort overrides on top of existing model override/routing behavior, and 2c56dce0 tightened custom-provider model switch behavior for named endpoints and configured aliases. Gormes has validated per-turn model selection, pure model routing, and embedded metadata rows, but Hermes b816fd4e2 model catalog tests show a remaining cache/live-merge weakness: manifest validation, stale cache fallback, AI Gateway pricing/free-model promotion, and preferred-provider models.dev merge for opencode-go/opencode-zen. That is tracked as `Model catalog cache + preferred-provider live merge` without changing runtime routing policy."
           }
         },
         "4.E": {
@@ -16173,12 +16383,91 @@
                 "upstream_ref": "hermes:898ccfd6 skills/productivity/google-workspace/scripts/setup.py",
                 "note": "Direct upstream OAuth bugfix; Gormes adapts it to Go-native XDG credential state before live Google integrations."
               }
+            },
+            {
+              "name": "GitHub Copilot token exchange + Responses mode selector",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes ports Hermes Copilot credential and request-mode behavior behind native auth/transport seams: resolve COPILOT_GITHUB_TOKEN, GH_TOKEN, GITHUB_TOKEN, then optional gh CLI token in order; reject classic ghp_ PATs while accepting OAuth/fine-grained/app token shapes; exchange raw GitHub tokens for Copilot API JWTs with fingerprinted cache and raw-token fallback on exchange failure; build Copilot headers with Openai-Intent, x-initiator, and vision flags; and select Responses API mode for current GPT-5 Copilot model families while keeping GPT-5-mini and non-GPT models on chat mode.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing tokens, classic PATs, gh CLI failures, Copilot exchange network errors, empty exchanged tokens, expired cache entries, and unknown model-mode decisions return copilot_auth_* or copilot_mode_* evidence without logging raw GitHub/Copilot tokens or shelling out in tests.",
+              "fixture": "internal/config/copilot_auth_test.go; internal/hermes/copilot_mode_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/hermes_cli/test_copilot_auth.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_copilot_token_exchange.py@b816fd4e2",
+                "../hermes-agent/tests/agent/test_copilot_acp_client.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/copilot_auth.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/models.py@b816fd4e2:copilot_default_headers",
+                "../hermes-agent/agent/copilot_acp_client.py@b816fd4e2",
+                "internal/hermes/provider_registry_manifest.go",
+                "internal/config/credential_pool.go",
+                "cmd/gormes/auth.go"
+              ],
+              "ready_when": [
+                "Hermes provider registry and alias manifest already keeps copilot/github-copilot visible as row-backed provider metadata.",
+                "Token-vault, multi-account auth, and auth status aggregator rows are complete enough to store redacted Copilot status without adding a live provider call.",
+                "Tests can inject env maps, fake gh CLI runner, fake HTTP exchange endpoint, fake clock, and fake process HOME; no real gh CLI, GitHub, Copilot, ACP command, or keychain access is required."
+              ],
+              "not_ready_when": [
+                "The slice starts a live Copilot ACP subprocess, opens GitHub/Copilot network in unit tests, reads real GH_TOKEN/GITHUB_TOKEN from the operator shell, or stores raw JWTs in status output.",
+                "Classic ghp_ PATs are accepted because they look like GitHub tokens.",
+                "GPT-5-mini or non-GPT Copilot models are routed to Responses API mode."
+              ],
+              "blocked_by": [
+                "Hermes provider registry and alias manifest",
+                "Multi-account auth",
+                "Gormes auth status per-provider aggregator"
+              ],
+              "unblocks": [
+                "Copilot provider runtime adapter",
+                "Copilot ACP client bridge",
+                "Model catalog cache + preferred-provider live merge"
+              ],
+              "acceptance": [
+                "TestCopilotTokenValidationAndEnvResolution proves token-shape validation, env var precedence, classic PAT skip/rejection, empty-token behavior, and gh CLI fallback through an injected runner.",
+                "TestCopilotTokenExchangeCache proves exchange request headers, fingerprinted cache reuse, expired-cache refresh, empty-token rejection, network-error evidence, and raw-token fallback wrapper behavior.",
+                "TestCopilotHeaders prove Openai-Intent, User-Agent, x-initiator agent/user, and Copilot-Vision-Request flags match Hermes fixtures.",
+                "TestCopilotResponsesModeSelector proves gpt-5.4, gpt-5.4-mini, gpt-5.3-codex, gpt-5.2, and gpt-5.1-codex-max use Responses mode while gpt-5-mini, gpt-4*, Claude, Gemini, and Grok stay chat.",
+                "TestCopilotACPHomeAndSafetyClassifiers records row-backed HOME propagation, permission-deny, redaction, and write-deny expectations without starting the ACP client."
+              ],
+              "write_scope": [
+                "internal/config/copilot_auth.go",
+                "internal/config/copilot_auth_test.go",
+                "internal/hermes/copilot_mode.go",
+                "internal/hermes/copilot_mode_test.go",
+                "internal/hermes/provider_registry_manifest.go",
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run TestCopilot -count=1",
+                "go test ./internal/hermes -run TestCopilot -count=1",
+                "go test ./cmd/gormes -run 'TestAuth.*Copilot|TestCopilot' -count=1",
+                "go test ./internal/config ./internal/hermes ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Copilot fixtures prove token validation/resolution/exchange caching, header building, Responses mode selection, and ACP safety classifications with fake env/HTTP/process seams only."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/copilot_auth.py + tests/hermes_cli/test_copilot_auth.py",
+                "note": "The provider manifest lists Copilot but Gormes lacks the Hermes token exchange and mode-selection behavior required before a runtime adapter can claim parity."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T04:32:08Z",
-            "origin_decision": "Hermes still leads credential and OAuth UX. Hermes e63929d4 includes the Google Workspace OAuth fix from 898ccfd6: store the granted redirect scopes and treat partial grants as evidence instead of refreshing with over-broad requested scopes. Gormes tracks that as a pure XDG-scoped Google OAuth state-machine row behind the token-vault direction; it must not touch live Google SDKs, Google Code Assist routing, or hosted Anthropic OAuth state."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes still leads credential and OAuth UX. Google Workspace OAuth scope preservation remains validated as a pure XDG-scoped state-machine row. The second 2026-05-05 parity sweep found Copilot auth/model-mode drift outside the provider registry manifest: Copilot-specific token shape validation, env/gh CLI resolution, Copilot JWT exchange cache, request headers, and GPT-5 Responses mode selection. Gormes now tracks this as `GitHub Copilot token exchange + Responses mode selector` before any live Copilot provider/ACP runtime adapter claims parity."
           }
         },
         "4.H": {
@@ -33351,6 +33640,73 @@
               "note": "Umbrella only: read-mostly diagnostics, log capture, status, backup, and optional support-upload behavior must be split so workers do not mix local redaction and filesystem inventory with network uploads or archive writes."
             },
             {
+              "name": "Hermes sessions CLI MRU browse/delete ergonomics",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "`gormes sessions` matches Hermes operator ergonomics over the native session store: `-c`/continue resolves the most recently active session by last_active before started_at and is not limited to the newest started 20 rows; delete accepts unique ID prefixes and reports not found without mutating; delete/prune confirmation handles EOF/non-TTY as cancelled; browse offers an interactive picker with title-over-preview display and a numbered fallback when curses/TUI selection is unavailable; and unquoted multi-word session names are coalesced before subcommands.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Empty stores, ambiguous/missing prefixes, DB search errors, non-TTY confirmation EOF, curses/browser unavailable, invalid fallback selections, and keyboard interrupts return sessions_cli_* evidence without deleting sessions or leaving DB handles open.",
+              "fixture": "cmd/gormes/sessions_command_test.go; internal/session/mru_test.go",
+              "source_refs": [
+                "../hermes-agent/tests/hermes_cli/test_sessions_delete.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_resolve_last_session.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_session_browse.py@b816fd4e2",
+                "../hermes-agent/tests/hermes_cli/test_coalesce_session_args.py@b816fd4e2",
+                "../hermes-agent/hermes_cli/main.py@b816fd4e2:sessions",
+                "../hermes-agent/hermes_state.py@b816fd4e2:SessionDB.search_sessions",
+                "internal/session/directory.go",
+                "internal/transcript/markdown.go",
+                "cmd/gormes/session.go",
+                "cmd/gormes/hermes_cli_parity.go:sessions"
+              ],
+              "ready_when": [
+                "Transcript export and dashboard session list/delete contracts are complete, so the native session store and delete/export surfaces exist.",
+                "Tests can seed temp SQLite/session-directory rows and fake picker/confirmation input; no live TUI, provider, gateway, or user session DB is required.",
+                "The row owns CLI ergonomics only; session data model migrations and dashboard APIs remain separate rows."
+              ],
+              "not_ready_when": [
+                "The slice reads the operator's real sessions.db or deletes real sessions during tests.",
+                "The browse fallback requires curses, Bubble Tea, a browser, or a live terminal to pass.",
+                "Delete/prune proceeds after EOF, missing confirmation, ambiguous prefix, or not-found resolution."
+              ],
+              "acceptance": [
+                "TestSessionsContinueResolvesMostRecentlyActive proves last_active wins over started_at, legacy rows fall back to started_at, DB errors close handles and return none, and the true MRU is found beyond the newest-started 20 rows.",
+                "TestSessionsDeletePrefixResolution proves unique prefixes delete the resolved full session id, missing prefixes report not found, and ambiguous prefixes return sessions_delete_ambiguous without mutation.",
+                "TestSessionsDeleteAndPruneEOFConfirmCancel proves delete/prune confirmation EOF or non-TTY input prints Cancelled and never mutates.",
+                "TestSessionsBrowseFallback proves empty lists, numbered selection, q/empty cancel, invalid-then-valid retry, keyboard interrupt, and title-over-preview display using fake input only.",
+                "TestCoalesceSessionArgsMultiWordNames proves `-c my project name` and session-name flags stop before known subcommands and keep multi-word names intact."
+              ],
+              "write_scope": [
+                "cmd/gormes/session.go",
+                "cmd/gormes/sessions_command_test.go",
+                "internal/session/directory.go",
+                "internal/session/mru_test.go",
+                "internal/session/store.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestSessions|TestCoalesceSessionArgs' -count=1",
+                "go test ./internal/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1",
+                "go test ./cmd/gormes ./internal/session -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Sessions CLI fixtures prove MRU continue, prefix delete safety, EOF cancellation, browse fallback, and multi-word session argument coalescing over temp stores only."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tests/hermes_cli/test_resolve_last_session.py + test_sessions_delete.py",
+                "note": "Gormes has native session storage and export APIs, but the Hermes CLI session ergonomics remain untracked outside broad command-tree inventory."
+              }
+            },
+            {
               "name": "Backup/update opt-in and exclusion policy",
               "priority": "P3",
               "status": "complete",
@@ -34418,7 +34774,7 @@
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. Keep update as one dedicated lifecycle slice instead of mixing it into backup policy, installer distribution, or service-manager implementation."
+            "origin_decision": "Hermes b816fd4e2 keeps update as a substantial operator lifecycle command, with autostash, branch recovery, friendly git errors, hangup/log mirroring, gateway restart verification, stale-dashboard handling, and --yes behavior. Gormes has installer rerun-as-update helpers plus backup and service-restart helper rows, but the top-level `gormes update` command remains row-backed. The second 2026-05-05 sweep also found missing sessions CLI ergonomics: MRU continue by last_active, prefix-safe delete/prune confirmation, browse fallback, and multi-word session argument coalescing. Keep update and sessions as dedicated CLI slices instead of mixing them into broad diagnostics/status inventory."
           }
         },
         "5.P": {
@@ -36288,6 +36644,81 @@
               }
             },
             {
+              "name": "Native TUI image/file drop + paste collapse ingress",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes native TUI ports Hermes Ink composer ingress behavior before provider wiring: pasted/dropped local paths are classified without confusing real slash commands, image files attach through an `image.attach` gateway seam with remainder text preserved, large pasted text collapses through a `paste.collapse` seam with readable paste labels, clipboard/OSC52 text fallback is used only for usable text, malformed or unterminated bracketed paste is flushed back to normal input, and external-editor/copy commands expand paste placeholders or copy assistant output without leaking reasoning scratchpads.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing files, directories, unsupported image suffixes, rejected file URIs, unusable/binary clipboard payloads, paste-collapse failures, gateway image-attach failures, active modal/editor conflicts, and invalid copy indices return tui_ingress_* evidence without submitting slash-looking paths as commands or leaking collapsed paste file paths.",
+              "fixture": "internal/tui/composer_ingress_test.go; internal/tuigateway/ingress_rpc_test.go",
+              "source_refs": [
+                "../hermes-agent/ui-tui/src/app/useComposerState.ts@b816fd4e2",
+                "../hermes-agent/ui-tui/src/__tests__/useComposerState.test.ts@b816fd4e2",
+                "../hermes-agent/ui-tui/src/components/textInput.tsx@b816fd4e2",
+                "../hermes-agent/ui-tui/packages/hermes-ink/src/ink/parse-keypress.test.ts@b816fd4e2",
+                "../hermes-agent/tests/cli/test_cli_file_drop.py@b816fd4e2",
+                "../hermes-agent/tests/cli/test_cli_image_command.py@b816fd4e2",
+                "../hermes-agent/tests/cli/test_cli_external_editor.py@b816fd4e2",
+                "../hermes-agent/tests/cli/test_cli_copy_command.py@b816fd4e2",
+                "internal/tui/slash_dispatch.go",
+                "internal/tui/completion_request.go",
+                "internal/tuigateway/completion_path.go"
+              ],
+              "ready_when": [
+                "Native TUI Hermes input keybinding semantics, clipboard/OSC52 helper row, slash dispatch behavioral matrix, and absolute path completion routing rows define the adjacent input boundaries.",
+                "Tests can use temp files, fake gateway RPC handlers, fake clipboard readers, fake paste-collapsers, and pure composer helpers; no live terminal, clipboard, image decoder, provider, or gateway process is required.",
+                "This row owns input normalization and RPC envelopes only; native provider multimodal request routing stays in Phase 5.D/5.Q API-server multimodal rows."
+              ],
+              "not_ready_when": [
+                "The slice calls live clipboard commands, opens an external editor process, starts TUI gateway transport, or sends images to a live provider.",
+                "A dropped absolute path beginning with `/` is handled as an unknown slash command when it points to an existing file.",
+                "Reasoning scratchpad blocks or collapsed paste temp paths are copied into the clipboard-visible assistant answer."
+              ],
+              "blocked_by": [
+                "Native TUI Hermes input keybinding semantics",
+                "Native TUI clipboard, OSC52, and terminal setup parity",
+                "Native TUI absolute path completion routing"
+              ],
+              "acceptance": [
+                "TestTUIComposerDetectsDroppedFiles proves absolute paths, file:// URIs, tilde paths, escaped spaces, unescaped macOS screenshot names, symlinks to files, non-image files, image suffixes, and trailing remainder text classify correctly while `/help` and nonexistent paths stay slash/text input.",
+                "TestTUIComposerImageAttachRPC proves `/image` and dropped image paths call a fake image.attach seam, preserve image names/remainder text, reject non-image files, and never send provider requests.",
+                "TestTUIComposerPasteCollapse proves long pasted text becomes a readable paste token/label, paste.collapse failures fall back to bounded text evidence, and external editor expansion replaces paste placeholders with temp-file contents before opening the injected buffer.",
+                "TestTUIComposerBracketedPasteRecovery proves empty, complete, and unterminated bracketed-paste sequences flush as text instead of trapping future keys in paste mode.",
+                "TestTUIComposerCopyAssistantOutput proves `/copy` selects the latest or indexed assistant message, strips reasoning scratchpad blocks, rejects invalid indices, and uses the injected clipboard writer only."
+              ],
+              "write_scope": [
+                "internal/tui/composer_ingress.go",
+                "internal/tui/composer_ingress_test.go",
+                "internal/tui/slash_dispatch.go",
+                "internal/tui/update.go",
+                "internal/tuigateway/ingress_rpc.go",
+                "internal/tuigateway/ingress_rpc_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'TestTUIComposer|TestHermesKeybindings|TestSlashRegistry' -count=1",
+                "go test ./internal/tuigateway -run TestTUI.*Ingress -count=1",
+                "go test ./internal/tui ./internal/tuigateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Native TUI composer fixtures prove image/file drop classification, image.attach and paste.collapse RPC envelopes, bracketed-paste recovery, external-editor paste expansion, and copy redaction with fake seams only."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 ui-tui/src/app/useComposerState.ts + cli file/image/editor/copy tests",
+                "note": "Previous Gormes TUI rows covered keybinding, slash, completion, and terminal helpers; active Hermes composer ingress still has untracked file/image/paste/copy behavior."
+              }
+            },
+            {
               "name": "Native TUI Hermes slash completion helpers",
               "priority": "P2",
               "status": "complete",
@@ -37542,7 +37973,7 @@
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, and `ui-tui/src/__tests__`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. The same sweep found terminal-helper drift in clipboard, OSC52, terminal setup, and truecolor tests; Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server and TUI terminal-helper rows rather than reopening completed chat-completions, cron-admin, or keybinding rows."
+            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, and `ui-tui/src/__tests__`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. The first 2026-05-05 sweep found terminal-helper drift in clipboard, OSC52, terminal setup, and truecolor tests; the second sweep found composer-ingress drift in image/file drop classification, image.attach, paste.collapse, bracketed-paste recovery, external-editor paste expansion, and copy redaction. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server, TUI terminal-helper, and TUI composer-ingress rows rather than reopening completed chat-completions, cron-admin, keybinding, or slash rows."
           }
         },
         "5.R": {
