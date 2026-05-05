@@ -5371,7 +5371,7 @@
               "name": "Discord message admission + reply-mode policy",
               "status": "planned",
               "priority": "P1",
-              "contract": "Discord message ingress applies Hermes' channel admission policy before gateway dispatch and outbound sends honor Discord reply_to_mode: allowed, ignored, and free-response channel lists support wildcards and parent-thread matching; require_mention defaults on for guild channels; DMs and known bot-participated threads bypass fresh mentions; bot authors obey DISCORD_ALLOW_BOTS none/mentions/all; auto-threading is skipped for replies and free-response channels; and reply references can be off, first chunk only, or all chunks.",
+              "contract": "Discord message ingress applies Hermes' channel admission policy before gateway dispatch and outbound sends honor Discord reply_to_mode: allowed, ignored, free-response, and no-thread channel lists support CSV/list/scalar config, wildcards where Hermes allows them, and parent-thread matching; require_mention defaults on for guild channels; DMs and known bot-participated threads bypass fresh mentions; bot authors obey DISCORD_ALLOW_BOTS none/mentions/all; auto-threading is skipped for replies, free-response channels, and configured no-thread channels; and reply references can be off, first chunk only, or all chunks.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
@@ -5388,6 +5388,7 @@
                 "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:send",
                 "../hermes-agent/tests/gateway/test_discord_allowed_channels.py@b816fd4e2",
                 "../hermes-agent/tests/gateway/test_discord_bot_filter.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_channel_controls.py@b816fd4e2",
                 "../hermes-agent/tests/gateway/test_discord_free_response.py@b816fd4e2",
                 "../hermes-agent/tests/gateway/test_discord_reply_mode.py@b816fd4e2",
                 "internal/channels/discord/bot.go",
@@ -5409,7 +5410,8 @@
                 "Allowed, ignored, and free-response channel policies accept CSV, list/scalar config, and wildcard `*`; ignored channels win over allowed/free-response policies.",
                 "Guild messages require a bot mention by default, DMs bypass mention gating, configured free-response channels bypass it, and unknown threads still require a mention unless the bot has participated.",
                 "DISCORD_ALLOW_BOTS defaults to none, always ignores the bot's own messages, permits all bot authors in all mode, and permits mentioned bot authors only in mentions mode.",
-                "Auto-thread creation defaults on for mentioned top-level guild messages but is skipped for reply messages, free-response channels, and already-threaded conversations.",
+                "Auto-thread creation defaults on for mentioned top-level guild messages but is skipped for reply messages, free-response channels, no-thread channels, and already-threaded conversations.",
+                "DISCORD_NO_THREAD_CHANNELS parses CSV/list/scalar config, config bridges discord.no_thread_channels into the adapter, env values take precedence, parent-thread matching follows Hermes' channel-control tests, and the setting is a no-op when auto_thread is disabled.",
                 "Outbound Discord reply_to_mode values off, first, all, empty/default, and invalid values match Hermes' chunk reference behavior and deleted reference fallback."
               ],
               "write_scope": [
@@ -5429,7 +5431,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Discord fake-message fixtures prove allow/ignore/free-response wildcard handling, mention/default gating, bot-author policy, auto-thread skips, known-thread bypass, and reply_to_mode chunk references without live Discord."
+                "Discord fake-message fixtures prove allow/ignore/free-response/no-thread handling, mention/default gating, bot-author policy, auto-thread skips, known-thread bypass, and reply_to_mode chunk references without live Discord."
               ],
               "provenance": {
                 "origin_type": "upstream",
@@ -5437,10 +5439,11 @@
                   "hermes:b816fd4e2 gateway/platforms/discord.py",
                   "hermes:b816fd4e2 tests/gateway/test_discord_allowed_channels.py",
                   "hermes:b816fd4e2 tests/gateway/test_discord_bot_filter.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_channel_controls.py",
                   "hermes:b816fd4e2 tests/gateway/test_discord_free_response.py",
                   "hermes:b816fd4e2 tests/gateway/test_discord_reply_mode.py"
                 ],
-                "note": "Gormes Discord ingress currently has one allowed-channel ID and drops all bot authors before event conversion; Hermes has a broader server admission and reply-reference policy surface."
+                "note": "Gormes Discord ingress currently has one allowed-channel ID, no no-thread channel policy, and drops all bot authors before event conversion; Hermes has a broader server admission, auto-thread suppression, and reply-reference policy surface."
               }
             },
             {
@@ -5515,12 +5518,231 @@
                 ],
                 "note": "Gormes already has pure signed parsing and prompt-delivery helpers, but no row for Hermes' runtime dynamic subscription reload or auth-before-rate-limit admission ordering; the row lives in this open drift lane to keep Phase 7.D complete."
               }
+            },
+            {
+              "name": "Slack/Discord channel-scoped skills, prompts, and reload resync",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Slack and Discord gateway ingress honor Hermes channel-scoped routing metadata: channel_skill_bindings resolve by exact channel or parent thread/forum channel, accept a single skill string or ordered list, deduplicate while preserving order, skip malformed or empty bindings, and attach the resolved auto-skill set to gateway events without mutating the global skill catalog. Discord channel_prompts resolve by exact channel or parent, exact matches override parent prompts, blank prompts are ignored, slash events, thread sessions, and retry flows preserve the prompt, and run-agent prompt assembly places context prompt, channel prompt, then global prompt. Discord /reload-skills calls adapter refresh_skill_group when present so autocomplete entries resync from the current collector state, sort alphabetically, and preserve previous entries on collector errors.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Malformed channel skill bindings, blank prompts, collector errors, or adapters without refresh hooks degrade to no auto-skill/no channel prompt and stale-but-valid autocomplete entries, with channel_scope_unavailable evidence instead of widening skills globally.",
+              "fixture": "internal/gateway/channel_scope_test.go; internal/channels/discord/channel_scope_test.go; internal/slack/channel_scope_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/base.py@b816fd4e2:resolve_channel_skills",
+                "../hermes-agent/gateway/platforms/base.py@b816fd4e2:resolve_channel_prompt",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:refresh_skill_group",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_build_slash_event",
+                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_dispatch_thread_session",
+                "../hermes-agent/tests/gateway/test_discord_channel_prompts.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_discord_channel_skills.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_reload_skills_discord_resync.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_slack_channel_skills.py@b816fd4e2",
+                "internal/gateway/event.go",
+                "internal/gateway/manager.go",
+                "internal/kernel/frame.go",
+                "internal/channels/discord/bot.go",
+                "internal/slack/bot.go"
+              ],
+              "ready_when": [
+                "The kernel already carries per-event SkillProvider and SessionContext fields, so the slice can attach channel-scope metadata at gateway ingress without changing provider execution.",
+                "Tests can use pure binding tables, fake Slack/Discord messages, fake skill collectors, and fake adapter refresh hooks; no live Discord command tree, Slack socket, or provider call is required."
+              ],
+              "not_ready_when": [
+                "The slice attempts to port full Discord slash-command tree registration, live command sync, skill execution semantics, or provider-specific tool loading.",
+                "Malformed bindings expand access, blank channel prompts overwrite parent/global prompts, or collector failures erase working Discord autocomplete choices."
+              ],
+              "acceptance": [
+                "Shared resolver fixtures prove exact channel and parent-channel lookup, single-string and list skill forms, stable deduplication order, malformed entry skipping, and nil results for empty skills.",
+                "Slack ingress fixtures prove configured DM/channel/thread bindings attach auto-skill metadata to MessageEvent while unrelated channels and malformed bindings degrade to no auto-skill.",
+                "Discord ingress fixtures prove channel skill bindings, channel prompt exact/parent precedence, blank-prompt ignoring, slash/thread/retry prompt preservation, and prompt assembly order.",
+                "Discord reload fixtures prove gateway reload calls refresh_skill_group only on adapters that expose it, autocomplete entries resync alphabetically from the collector, and previous entries remain available if collection fails."
+              ],
+              "write_scope": [
+                "internal/gateway/event.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/channel_scope.go",
+                "internal/gateway/channel_scope_test.go",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/channel_scope_test.go",
+                "internal/slack/bot.go",
+                "internal/slack/channel_scope_test.go",
+                "internal/config/config.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestChannelScope|TestManager.*ChannelScope|TestReloadSkills' -count=1",
+                "go test ./internal/channels/discord ./internal/slack -run 'Test.*Channel(Skill|Prompt|Scope)|TestReloadSkills' -count=1",
+                "go test ./internal/gateway ./internal/channels/discord ./internal/slack ./internal/config -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway and adapter fixtures prove channel skill binding resolution, Slack/Discord auto-skill propagation, Discord channel prompt preservation, and reload autocomplete resync/failure preservation without live channel APIs."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/base.py",
+                  "hermes:b816fd4e2 gateway/platforms/discord.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_channel_prompts.py",
+                  "hermes:b816fd4e2 tests/gateway/test_discord_channel_skills.py",
+                  "hermes:b816fd4e2 tests/gateway/test_reload_skills_discord_resync.py",
+                  "hermes:b816fd4e2 tests/gateway/test_slack_channel_skills.py"
+                ],
+                "note": "Gormes gateway events currently lack explicit channel prompt/auto-skill propagation and Slack/Discord adapters only expose coarse allowed-channel gates; Hermes has channel-local skill and prompt routing plus Discord reload autocomplete resync."
+              }
+            },
+            {
+              "name": "Telegram fallback transport + polling reconnect recovery",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Telegram runtime matches Hermes' network resilience behavior for blocked or unstable Telegram API access: fallback IP config parsing rejects invalid, IPv6, whitespace-only, and leading-zero addresses; requests to api.telegram.org try the primary host first, preserve Host header and SNI, fall back only on connect timeout/connect errors, try fallback IPs in order, stick to the last working fallback, bypass fallback for non-Telegram hosts and read-timeout/non-connect errors, and raise the last connect error if all endpoints fail. Polling reconnect recovery self-schedules after retryable network startup/polling failures unless fatal state is already set, drains only the polling request pool before reconnect or conflict retry, continues if drain fails, resets retry counts on success, marks fatal after max retries, and emits a heartbeat probe after a successful reconnect.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If fallback parsing or reconnect orchestration is unavailable, Gormes keeps primary Telegram requests, reports telegram_network_fallback_unavailable or telegram_polling_reconnect_unavailable evidence, and never drains general-purpose request pools or rewrites non-Telegram hosts.",
+              "fixture": "internal/channels/telegram/network_test.go; internal/channels/telegram/startup_lifecycle_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram_network.py@b816fd4e2",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_handle_polling_network_error",
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_drain_polling_connections",
+                "../hermes-agent/tests/gateway/test_telegram_network.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_telegram_network_reconnect.py@b816fd4e2",
+                "internal/channels/telegram/real_client.go",
+                "internal/channels/telegram/bot.go",
+                "cmd/gormes/gateway.go"
+              ],
+              "ready_when": [
+                "Telegram polling conflict + webhook secret startup guard defines startup-state evidence and retryable/fatal classification.",
+                "Tests can inject fake HTTP transports, fake polling request pools, fake clocks, and fake heartbeat probes; no live Telegram network or bot token is required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites arbitrary hosts, falls back on read timeouts or HTTP status errors, drains shared/general client request pools, or blocks other platform startup while Telegram reconnects.",
+                "Fallback IP parsing accepts IPv6/invalid/leading-zero values or sticky fallback state prevents trying the next configured IP after a stale endpoint fails."
+              ],
+              "blocked_by": [
+                "Telegram polling conflict + webhook secret startup guard"
+              ],
+              "acceptance": [
+                "Fallback transport fixtures prove fallback IP env parsing, primary-first behavior, Host/SNI preservation, method/path preservation, non-Telegram bypass, connect-error-only fallback, sticky working IP, stale sticky retry, ordered multi-IP fallback, and last-error propagation.",
+                "Polling lifecycle fixtures prove startup/polling network errors self-schedule reconnects, fatal state suppresses scheduling, success resets counters, max retry marks fatal, and reconnect still initializes after polling-drain failure.",
+                "Request-pool fixtures prove only the polling request pool is drained on reconnect/conflict retry while the general request pool remains untouched.",
+                "Heartbeat fixtures prove a post-reconnect probe runs after successful polling restart and is skipped on fatal or failed reconnect paths."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/network.go",
+                "internal/channels/telegram/network_test.go",
+                "internal/channels/telegram/startup_lifecycle.go",
+                "internal/channels/telegram/startup_lifecycle_test.go",
+                "internal/channels/telegram/real_client.go",
+                "cmd/gormes/gateway.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestTelegram(Network|Fallback|Reconnect|Polling)' -count=1",
+                "go test ./internal/channels/telegram ./cmd/gormes -run 'Telegram|Gateway' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram fake-transport and fake-polling fixtures prove fallback request rewriting, sticky fallback ordering, reconnect scheduling, polling-only drain semantics, max-retry fatal evidence, and heartbeat recovery without live Telegram."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/telegram_network.py",
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_network.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_network_reconnect.py"
+                ],
+                "note": "Gormes has Telegram client and startup seams but no row for Hermes' fallback-IP transport, polling-request-pool drain boundary, self-scheduled reconnect recovery, or heartbeat probe."
+              }
+            },
+            {
+              "name": "Telegram sticker vision adapter binding",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Telegram sticker updates bind the completed gateway sticker cache to live adapter handling: animated/video stickers inject a deterministic placeholder from emoji/set name without vision download, static stickers look up cached descriptions by file_unique_id, download sticker bytes through a fakeable Telegram file client on cache miss, persist .webp bytes and description metadata, call an injected vision analyzer with Hermes' sticker prompt, cache the analyzed description, and fall back to emoji/set_name description on download or vision failures without dropping the inbound submit.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If sticker download, cache I/O, or vision analysis fails, Gormes injects a bounded sticker placeholder with redacted evidence and continues the Telegram message path instead of dropping the update or blocking the gateway.",
+              "fixture": "internal/channels/telegram/sticker_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_handle_sticker",
+                "../hermes-agent/gateway/sticker_cache.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_sticker_cache.py@b816fd4e2",
+                "internal/gateway/sticker_cache.go",
+                "internal/gateway/sticker_cache_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go"
+              ],
+              "ready_when": [
+                "Mirror + sticker cache surfaces is complete and provides Hermes-compatible cache lookup/injection helpers.",
+                "Tests can inject fake Telegram GetFile/DownloadFile clients, fake vision analyzers, temp cache directories, and synthetic sticker updates; no live Telegram file download or vision provider is required."
+              ],
+              "not_ready_when": [
+                "The slice changes generic media routing, ports unrelated Telegram photo/document/audio handling, or requires a live vision model.",
+                "Animated/video stickers attempt downloads, cache misses drop the message, or vision/download errors leak full file paths/tokens."
+              ],
+              "blocked_by": [
+                "Mirror + sticker cache surfaces"
+              ],
+              "acceptance": [
+                "Sticker adapter fixtures prove cached static stickers inject cached descriptions without network or vision calls.",
+                "Cache-miss fixtures prove static sticker bytes download through the fake Telegram file client, persist as .webp, call the injected vision analyzer with the sticker prompt, and cache description metadata by file_unique_id.",
+                "Animated/video fixtures prove deterministic emoji/set_name placeholder injection and no download/vision calls.",
+                "Failure fixtures prove download, cache, and vision errors degrade to placeholder text with evidence while preserving the inbound gateway submit."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go",
+                "internal/channels/telegram/sticker.go",
+                "internal/channels/telegram/sticker_test.go",
+                "internal/gateway/sticker_cache.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestTelegramSticker' -count=1",
+                "go test ./internal/channels/telegram ./internal/gateway -run 'Sticker|Telegram' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram sticker fixtures prove cache hit/miss, static download, animated placeholder, vision description caching, and failure fallback semantics over the existing gateway sticker cache."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 gateway/sticker_cache.py",
+                  "hermes:b816fd4e2 tests/gateway/test_sticker_cache.py"
+                ],
+                "note": "Gormes has completed generic sticker cache helpers, but no Telegram adapter row binds live sticker updates to file download, vision analysis, cache reuse, and placeholder fallback behavior."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-05T16:08:51Z",
-            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. The latest follow-up sweep adds row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, and webhook dynamic-route/rate-limit runtime behavior after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D."
+            "origin_decision": "Hermes session/delivery drift remains upstream-led for Telegram require-mention/topic-mode, WhatsApp unsafe identifiers, message deduplication, outbound email Date headers, and the channel media/approval/auth/reaction surfaces found in the May 2026 channel sweeps. Telegram group command-suffix behavior from 3ff3dfb5 is split into helper, config, and adapter-binding rows; the helper/config slices are complete and the adapter binding remains fixture-ready. WhatsApp unsafe inbound evidence is now split into raw sender/chat/reply rejection first and alias-endpoint filtering second, both scoped to inbound.go plus a new safety fixture with identity.go read-only. Gateway inbound dedup now has the helper-only key row validated and a manager-binding row with event/helper files explicitly read-only after the last write-scope violation. The May 2026 channel sweeps keep Discord authenticated attachment safety, Discord persisted thread participation, Slack Block Kit approvals, Telegram document/photo batching, cross-platform image/document MEDIA delivery, Telegram inline approvals, Telegram startup safety, Slack mention gating, Discord interaction auth, and processing lifecycle reactions in this already-open P1 session/delivery lane because each gap is user-visible channel behavior over an existing adapter baseline. The latest follow-up sweep adds row-backed weaknesses for Telegram text/caption batching, cross-platform multi-image native batching, Discord message admission/reply-mode policy, webhook dynamic-route/rate-limit runtime behavior, Slack/Discord channel-scoped skills and prompts, Telegram fallback/reconnect recovery, and Telegram sticker vision adapter binding after comparing Gormes adapters with Hermes b816fd4e2 gateway tests. Webhook runtime drift is tracked here rather than reopening complete Phase 7.D, and Telegram sticker adapter binding is tracked here rather than reopening complete Phase 2.F.4."
           }
         },
         "2.B.10": {
@@ -38447,6 +38669,77 @@
                   "references/go-agent-os/trpc-agent-go/agent/callbacks.go"
                 ],
                 "note": "Hermes defines Signal transport behavior; Gormes adapts it to the existing Go Signal channel seam with fakeable lifecycle callbacks."
+              }
+            },
+            {
+              "name": "Signal markdown bodyRanges + attachment rate scheduler",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Signal outbound delivery preserves Hermes formatting and rate-limit behavior before live signal-cli transport: Markdown text is converted to plain text plus Signal bodyRanges for bold, italic, strikethrough, monospace, code blocks, and headings; snake_case, paths, bullet markers, and cross-line false positives are left untouched; offsets and lengths are computed in UTF-16 code units. Attachment sends pass through a token-bucket scheduler with capacity 50, default retry_after 4s feedback, FIFO acquire ordering under concurrency, estimate_wait reporting, retry-after calibration of refill rate per token, token reset on throttling feedback, and resettable singleton access for tests/runtime reuse.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If markdown parsing or attachment scheduling is unavailable, Signal outbound falls back to plain text and conservative serialized attachment sends with signal_format_unavailable or signal_attachment_rate_limit_unavailable evidence; malformed Markdown never corrupts bodyRanges or blocks text sends.",
+              "fixture": "internal/channels/signal/format_test.go; internal/channels/signal/rate_limit_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/signal.py@b816fd4e2:_markdown_to_signal",
+                "../hermes-agent/gateway/platforms/signal_rate_limit.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_signal_format.py@b816fd4e2",
+                "../hermes-agent/tests/gateway/test_signal_rate_limit.py@b816fd4e2",
+                "internal/channels/signal/bot.go"
+              ],
+              "ready_when": [
+                "Reply/send contract on shared chassis is complete, so formatted text and attachment scheduling can be modeled over existing Signal outbound decisions.",
+                "Tests can use pure strings, fake clocks, and goroutine-controlled acquire calls; no live signal-cli, HTTP transport, phone registration, or media upload is required."
+              ],
+              "not_ready_when": [
+                "The slice starts signal-cli transport, uploads real attachments, changes shared channel formatting, or pulls in a broad Markdown renderer that cannot preserve Hermes' Signal-specific false-positive guards.",
+                "BodyRange offsets are byte/rune counts instead of UTF-16 units, retry-after feedback increases throughput unsafely, or concurrent acquires can bypass FIFO ordering."
+              ],
+              "blocked_by": [
+                "Reply/send contract on shared chassis"
+              ],
+              "unblocks": [
+                "Signal transport/bootstrap layer",
+                "Signal live transport smoke test"
+              ],
+              "acceptance": [
+                "Signal formatting fixtures prove bold, italic, strikethrough, monospace, code block, heading, mixed-style, and Unicode cases emit Hermes-compatible plain text and UTF-16 bodyRanges.",
+                "False-positive fixtures prove snake_case, paths, bullet lists, malformed spans, and cross-line ambiguous markers are preserved as plain text without invalid bodyRanges.",
+                "Rate scheduler fixtures prove capacity 50 token behavior, estimate_wait, default retry-after handling, FIFO concurrent acquire ordering, feedback calibration from retry_after per token, token reset on throttle, and singleton reset/get semantics.",
+                "Existing Signal normalize/send fixtures remain green with formatting and scheduling helpers wired as optional outbound surfaces."
+              ],
+              "write_scope": [
+                "internal/channels/signal/format.go",
+                "internal/channels/signal/format_test.go",
+                "internal/channels/signal/rate_limit.go",
+                "internal/channels/signal/rate_limit_test.go",
+                "internal/channels/signal/bot.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/signal -run 'TestSignal(Markdown|Format|AttachmentRate|RateLimit)' -count=1",
+                "go test ./internal/channels/signal -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Signal fixtures prove Markdown-to-bodyRange conversion, UTF-16 offsets, false-positive guards, token-bucket attachment scheduling, retry-after feedback, FIFO concurrency, and resettable singleton behavior without live signal-cli."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/signal.py",
+                  "hermes:b816fd4e2 gateway/platforms/signal_rate_limit.py",
+                  "hermes:b816fd4e2 tests/gateway/test_signal_format.py",
+                  "hermes:b816fd4e2 tests/gateway/test_signal_rate_limit.py"
+                ],
+                "note": "Gormes Signal already owns normalization and send-target contracts, but Hermes has channel-visible Markdown bodyRange parity and attachment throttling helpers that should be preserved before or alongside transport bootstrap."
               }
             }
           ]

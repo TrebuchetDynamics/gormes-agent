@@ -240,6 +240,9 @@ classification and row-backed implementation queue.
 - [ ] Cross-platform multi-image native batching
 - [ ] Discord message admission + reply-mode policy
 - [ ] Webhook dynamic route reload + signed rate-limit order
+- [ ] Slack/Discord channel-scoped skills, prompts, and reload resync
+- [ ] Telegram fallback transport + polling reconnect recovery
+- [ ] Telegram sticker vision adapter binding
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -1080,6 +1083,7 @@ classification and row-backed implementation queue.
 - [x] Inbound event normalization + session identity
 - [x] Reply/send contract on shared chassis
 - [ ] Signal transport/bootstrap layer
+- [ ] Signal markdown bodyRanges + attachment rate scheduler
 
 ### 7.B — Email + SMS Adapters ✅
 
