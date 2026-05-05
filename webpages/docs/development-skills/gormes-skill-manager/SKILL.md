@@ -42,6 +42,10 @@ Pick the primary intent:
   `gormes-planner` inside the bounded sweep. Use the same route when parity
   taxonomy, roadmap group names, or feature-map sections need source-backed
   renames or restructures.
+- **Discover useful OpenClaw-only behavior absent from Hermes**: use
+  `gormes-openclaw-parity` to classify the candidate as adopt, adapt, covered,
+  Hermes parity, exclude, or blocked. Route adopt/adapt findings to
+  `gormes-planner` for progress rows before implementation.
 - **Concrete Gormes-vs-Hermes UX bug** such as ugly TUI chrome, duplicate
   replies, visible hourglass/status messages, hidden tool-progress mismatch,
   Telegram formatting drift, or stale product labels: use
@@ -156,6 +160,7 @@ Use names like:
 - `gormes-provider-parity`
 - `gormes-dev-runtime`
 - `gormes-hermes-parity`
+- `gormes-openclaw-parity`
 - `gormes-goncho-compat`
 - `gormes-channel-adapter`
 - `gormes-docs-web-sync`

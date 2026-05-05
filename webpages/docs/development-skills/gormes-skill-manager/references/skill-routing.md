@@ -15,6 +15,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 |---|---|---|
 | User wants to stress-test direction or make a hard decision | `grill-me` | `gormes-planner` after decision |
 | User wants a recurring/periodic Hermes-in-Go parity sweep or to record current parity progress | `gormes-hermes-parity` | `gormes-parity-auditor` for source comparison, then `gormes-planner` for row updates |
+| User wants useful OpenClaw-only behavior that Hermes lacks considered for Gormes | `gormes-openclaw-parity` | `gormes-planner` for adopt/adapt rows, then `gormes-builder` and `gormes-tdd-slice` |
 | Need to safely rename or restructure parity taxonomy, feature-map groupings, or progress row categories | `gormes-hermes-parity` | `gormes-planner` for progress/docs edits, then `gormes-builder` only if runtime compatibility code is needed |
 | Need to compare Hermes/Honcho against Gormes | `gormes-parity-auditor` | `gormes-planner` to update rows |
 | Need Hermes CLI/config/migration parity, including `migrate hermes`, `migrate openclaw`, or typo requests like `migrate ooenclaw` | `gormes-parity-auditor` | `gormes-planner` updates manifest/config/migration rows and keeps typos as suggestions unless a compatibility row exists |
@@ -47,6 +48,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | Lane | Current route | Skill gap decision |
 |---|---|---|
 | Whole-program recurring parity progress | `gormes-hermes-parity` -> `gormes-parity-auditor` -> `gormes-planner` | Covered by the periodic parity sweep workflow. |
+| OpenClaw-only enhancement discovery | `gormes-openclaw-parity` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice` | Covered for source-backed Gormes-owned features that are useful but not required Hermes parity. |
 | Implementation lookup (any subsystem) | `gormes-references` -> `gormes-tdd-slice` | Covered. Use this whenever a worker is about to invent a Go shape that probably exists in a donor. |
 | 1.D skill control plane | `gormes-skill-manager` -> `skill-creator` -> `gormes-planner` | Covered by this routing table. |
 | 3.G Goncho/Honcho compatibility | `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice` | Add `gormes-goncho-compat` only after SDK-style fixtures repeat across multiple rows. |
@@ -65,6 +67,9 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 
 - Upstream gap to implementation:
   `gormes-parity-auditor` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice`
+
+- OpenClaw-only idea to owned Gormes row:
+  `gormes-openclaw-parity` -> `gormes-planner` -> `gormes-builder` -> `gormes-tdd-slice`
 
 - Periodic parity sweep to builder-ready rows:
   `gormes-hermes-parity` -> `gormes-parity-auditor` -> `gormes-planner`

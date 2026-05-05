@@ -156,6 +156,7 @@ Route typical follow-ups this way:
 | Need package/API boundary design | `gormes-interface-designer` |
 | Need provider/auth/model behavior | `gormes-provider-parity` |
 | Need browser automation parity | `gormes-browser-harness` |
+| Found useful OpenClaw-only behavior absent from Hermes | `gormes-openclaw-parity` |
 | Need install/build/run validation, PATH shadowing, source clones, or session DB locks | `gormes-dev-runtime` |
 | Need donor Go implementation shape | `gormes-references` |
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes OpenClaw Parity"
+  short_description: "Find adoptable OpenClaw-only Gormes features."
+  default_prompt: "Use $gormes-openclaw-parity to discover one useful OpenClaw-only behavior, prove whether Hermes lacks it, classify whether Gormes should adopt it as an owned enhancement, and produce progress.json-ready next work."
