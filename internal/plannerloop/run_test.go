@@ -90,10 +90,10 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
 
-	if got, want := len(runner.Commands), 4; got != want {
+	if got, want := len(runner.Commands), 3; got != want {
 		t.Fatalf("Commands length = %d, want %d", got, want)
 	}
-	command := runner.Commands[3]
+	command := runner.Commands[2]
 	if command.Name != "codexu" {
 		t.Fatalf("Command.Name = %q, want codexu", command.Name)
 	}
@@ -101,9 +101,7 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 	for _, want := range []string{
 		"Gormes Architecture Planner Loop",
 		"hermes-agent",
-		"gbrain",
 		"upstream-hermes",
-		"upstream-gbrain",
 		"building-gormes",
 		"www.gormes.ai",
 		"Astro/Starlight docs",
@@ -113,7 +111,6 @@ func TestRunOnceSendsPlannerPromptToBackendAndWritesArtifacts(t *testing.T) {
 		"progress.json",
 		"only long-term prompt agent",
 		"Sync results:",
-		"gbrain: pull",
 		"Updating abc123..def456",
 		"Synchronize progress.json with the current Gormes implementation",
 		"complete Gormes architecture surface",
@@ -1235,12 +1232,9 @@ func writePlannerFixture(t *testing.T) string {
 	for _, path := range []string{
 		filepath.Join(root, "..", "hermes-agent", ".git", "HEAD"),
 		filepath.Join(root, "..", "hermes-agent", "README.md"),
-		filepath.Join(root, "..", "gbrain", ".git", "HEAD"),
-		filepath.Join(root, "..", "gbrain", "README.md"),
 		filepath.Join(root, "..", "honcho", ".git", "HEAD"),
 		filepath.Join(root, "..", "honcho", "README.md"),
 		filepath.Join(root, "webpages", "docs", "content", "upstream-hermes", "_index.md"),
-		filepath.Join(root, "webpages", "docs", "content", "upstream-gbrain", "_index.md"),
 		filepath.Join(root, "webpages", "docs", "content", "building-gormes", "_index.md"),
 		filepath.Join(root, "webpages", "docs", "astro.config.mjs"),
 		filepath.Join(root, "webpages", "docs", "package.json"),

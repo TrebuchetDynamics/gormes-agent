@@ -92,10 +92,8 @@ type Config struct {
 	Backend         string
 	Mode            string
 	HermesDir       string
-	GBrainDir       string
 	HonchoDir       string
 	HermesRepoURL   string
-	GBrainRepoURL   string
 	HonchoRepoURL   string
 	Validate        bool
 	SyncRepos       bool
@@ -156,7 +154,7 @@ type Config struct {
 	// DefaultEscalationThreshold (3). Must be positive.
 	EscalationThreshold int
 	// GormesOriginalPaths is the deny-list of impl-tree path prefixes
-	// considered Gormes-original (no upstream Hermes/GBrain/Honcho analog).
+	// considered Gormes-original (no upstream Hermes/Honcho analog).
 	// Sourced from PLANNER_GORMES_ORIGINAL_PATHS (CSV). When nil/empty,
 	// ScanImplementation falls back to DefaultGormesOriginalPaths so the
 	// env var override completely replaces the seed list rather than
@@ -218,10 +216,8 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 		Backend:                    "codexu",
 		Mode:                       "safe",
 		HermesDir:                  filepath.Join(parent, "hermes-agent"),
-		GBrainDir:                  filepath.Join(parent, "gbrain"),
 		HonchoDir:                  filepath.Join(parent, "honcho"),
 		HermesRepoURL:              "https://github.com/NousResearch/hermes-agent.git",
-		GBrainRepoURL:              "https://github.com/garrytan/gbrain.git",
 		HonchoRepoURL:              "https://github.com/plastic-labs/honcho",
 		Validate:                   true,
 		SyncRepos:                  true,
@@ -265,17 +261,11 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 	if value := envValue(lookup, "HERMES_DIR"); value != "" {
 		cfg.HermesDir = value
 	}
-	if value := envValue(lookup, "GBRAIN_DIR"); value != "" {
-		cfg.GBrainDir = value
-	}
 	if value := envValue(lookup, "HONCHO_DIR"); value != "" {
 		cfg.HonchoDir = value
 	}
 	if value := envValue(lookup, "HERMES_REPO_URL"); value != "" {
 		cfg.HermesRepoURL = value
-	}
-	if value := envValue(lookup, "GBRAIN_REPO_URL"); value != "" {
-		cfg.GBrainRepoURL = value
 	}
 	if value := envValue(lookup, "HONCHO_REPO_URL"); value != "" {
 		cfg.HonchoRepoURL = value
@@ -440,7 +430,6 @@ func parsePRConflictAction(value string) (string, error) {
 func (cfg Config) ExternalRepos() []ExternalRepo {
 	return []ExternalRepo{
 		{Name: "hermes-agent", Path: cfg.HermesDir, CloneURL: cfg.HermesRepoURL},
-		{Name: "gbrain", Path: cfg.GBrainDir, CloneURL: cfg.GBrainRepoURL},
 		{Name: "honcho", Path: cfg.HonchoDir, CloneURL: cfg.HonchoRepoURL},
 	}
 }
@@ -448,10 +437,8 @@ func (cfg Config) ExternalRepos() []ExternalRepo {
 func (cfg Config) SourceRoots() []SourceRoot {
 	return []SourceRoot{
 		{Name: "hermes-agent", Path: cfg.HermesDir},
-		{Name: "gbrain", Path: cfg.GBrainDir},
 		{Name: "honcho", Path: cfg.HonchoDir},
 		{Name: "upstream-hermes", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs", "content", "upstream-hermes")},
-		{Name: "upstream-gbrain", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs", "content", "upstream-gbrain")},
 		{Name: "building-gormes", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs", "content", "building-gormes")},
 		{Name: "www.gormes.ai", Path: filepath.Join(cfg.RepoRoot, "webpages", "landing")},
 		{Name: "astro-docs", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs")},

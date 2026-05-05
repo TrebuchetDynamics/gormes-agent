@@ -191,7 +191,7 @@ Improve the architecture plan for building full Gormes, the Go port of Hermes, w
 Long-term operating contract:
 - You are the only long-term prompt agent responsible for architecture planning from now on.
 - Design the complete Gormes architecture surface: CLI, TUI, API/server, gateway, channels, cron/scheduling, provider/tooling integration, Goncho memory, persistence, docs, web, packaging, release, observability, and operations.
-- Every run must detect upstream Hermes, Honcho, and GBrain changes from the synchronized sibling repos.
+- Every run must detect upstream Hermes and Honcho changes from the synchronized sibling repos.
 - Synchronize progress.json with the current Gormes implementation and the latest upstream behavior.
 - Synchronize landing page, Astro/Starlight docs, generated pages, and progress.json whenever roadmap or implementation reality changes.
 - If upstream moved but Gormes has not, add or refine small TDD-ready progress rows instead of silently accepting drift.
@@ -222,7 +222,7 @@ Control plane:
 - Current progress items: %d
 
 Required behavior:
-1. Study hermes-agent, gbrain, webpages/docs/content/upstream-hermes, webpages/docs/content/upstream-gbrain, webpages/docs/content/building-gormes, www.gormes.ai, webpages/docs/astro.config.mjs, and Honcho/Goncho memory references.
+1. Study hermes-agent, honcho, webpages/docs/content/upstream-hermes, webpages/docs/content/building-gormes, www.gormes.ai, webpages/docs/astro.config.mjs, and Honcho/Goncho memory references.
 2. Improve webpages/docs/content/building-gormes/architecture_plan/progress.json conservatively so builder skills receive smaller, dependency-aware, TDD-ready slices.
 3. Keep GONCHO as the internal implementation name while preserving honcho_* external compatibility where the public tool contract requires it.
 4. Include Goncho/Honcho tasks when they affect the full Gormes architecture.
