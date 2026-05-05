@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. OpenClaw security audit --deep --fix
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Port the operator-facing OpenClaw security audit command surface into Gormes: `gormes security audit` and `gormes security audit --deep --fix` inspect config, SecretRefs, filesystem permissions, gateway exposure/auth, tool sandbox/blocklist policy, plugin trust, and channel credentials, then apply only safe deterministic fixes with exact finding counts.
-- Trust class: operator, gateway, system
-- Ready when: SecretRef core resolver exists so audit can identify configured/unavailable refs without resolving unsupported exec providers., Shell blocklist, filesystem scoping, and loop detector rows remain validated.
-- Not ready when: The slice performs network probes in unit tests., The fix path mutates config without previewable finding IDs and before/after evidence.
-- Degraded mode: Deep probes that require unavailable SecretRefs, live gateway access, or exec providers degrade to explicit findings instead of skipping silently or logging secrets.
-- Fixture: `internal/doctor/security_audit_test.go`
-- Write scope: `cmd/gormes/security.go`, `internal/doctor/security_audit.go`, `internal/doctor/security_audit_test.go`, `internal/config/`, `internal/tools/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/doctor ./cmd/gormes -run 'SecurityAudit\|SecurityFix' -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes security audit --deep --fix ships with fixture-backed findings, counts, redaction, and safe-fix boundaries.
-- Acceptance: Audit output includes exact pass/warn/fail/fixed counts derived from real checks., Deep mode reports SecretRef availability, gateway auth/exposure, filesystem permissions, loop detector, shell blocklist, and sandbox/tool scope checks., --fix applies only safe local remediations such as permissions/config normalization and reports unfixed manual actions., All findings redact tokens, API keys, file contents, and provider secret values.
-- Source refs: ../openclaw/src/cli/security-cli.ts, ../openclaw/src/security/audit.ts, ../openclaw/src/security/fix.ts, ../openclaw/docs/gateway/security/audit-checks.md, internal/tools/permissions.go, internal/config/secretref.go
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Extension Lifecycle Hook System
+## 1. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -68,7 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 3. Hermes Kanban production worker process binding
+## 2. Hermes Kanban production worker process binding
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -89,7 +69,7 @@ selection.
 - Unblocks: Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces
 - Why now: Unblocks Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces.
 
-## 4. Channels Capabilities Introspection
+## 3. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -110,7 +90,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 5. Prompt Fragment Include System
+## 4. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -131,7 +111,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 6. ACP bridge client compatibility
+## 5. ACP bridge client compatibility
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -151,7 +131,7 @@ selection.
 - Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Gateway discover/probe command
+## 6. Gateway discover/probe command
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -171,7 +151,7 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Transactional tool execution with snapshot/rollback
+## 7. Transactional tool execution with snapshot/rollback
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -191,7 +171,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Sandbox isolation depth selection
+## 8. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -211,7 +191,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Gateway channel adapters publish to event bus
+## 9. Gateway channel adapters publish to event bus
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -229,6 +209,26 @@ selection.
 - Done signal: Integration tests prove messages flow from channel→bus→agent and back through all adapter types
 - Acceptance: Incoming Telegram message → MessageReceived event on bus, Incoming Discord message → MessageReceived event on bus, Incoming Slack message → MessageReceived event on bus, Outgoing reply event → channel-specific delivery by adapter subscriber, Channel adapter failures are isolated — one channel crash doesn't affect others, Message events carry channel provenance (source, channel_id, user_id)
 - Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Agent turn and tool execution events on bus
+
+- Phase: 5 / 5.V
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Agent turns (start, thought, action, observation, complete, error) and tool executions (start, progress, complete, error) are published as structured events on the bus. Enables TUI, web dashboard, and audit log to observe agent activity without polling.
+- Trust class: system
+- Ready when: Event bus exists (5.V row 1), Agent loop has hook points for event emission
+- Not ready when: Event bus not yet implemented, Agent loop cannot be refactored for hooks
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/turn_events.go`, `internal/hermes/turn_events_test.go`, `internal/tools/tool_events.go`
+- Test commands: `go test ./internal/hermes -run TestTurnEvents -count=1`, `go test ./internal/tools -run TestToolEvents -count=1`
+- Done signal: Event tests prove turn lifecycle emits all expected events with correct trace_id linking
+- Acceptance: TurnStart event emitted when agent begins processing, Thought event emitted for each reasoning step, ToolCall event emitted when tool is invoked, ToolResult event emitted when tool completes, TurnComplete event emitted with summary, All events carry trace_id linking them to a session turn
+- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/hermes/turn.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

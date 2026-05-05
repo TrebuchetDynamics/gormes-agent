@@ -789,7 +789,7 @@ classification and row-backed implementation queue.
 - [x] OpenClaw SecretRef core resolver
 - [x] Cross-agent config isolation
 - [x] SecretRef runtime snapshot activation
-- [ ] OpenClaw security audit --deep --fix
+- [x] OpenClaw security audit --deep --fix
 - [ ] ACP bridge client compatibility
 - [ ] Gateway discover/probe command
 - [x] Safety-critical panic and swallowed-error closeout

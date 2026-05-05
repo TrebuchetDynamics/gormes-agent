@@ -24793,10 +24793,10 @@
             },
             {
               "name": "OpenClaw security audit --deep --fix",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Port the operator-facing OpenClaw security audit command surface into Gormes: `gormes security audit` and `gormes security audit --deep --fix` inspect config, SecretRefs, filesystem permissions, gateway exposure/auth, tool sandbox/blocklist policy, plugin trust, and channel credentials, then apply only safe deterministic fixes with exact finding counts.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -24805,12 +24805,14 @@
                 "system"
               ],
               "degraded_mode": "Deep probes that require unavailable SecretRefs, live gateway access, or exec providers degrade to explicit findings instead of skipping silently or logging secrets.",
-              "fixture": "internal/doctor/security_audit_test.go",
+              "fixture": "internal/tools/security_audit_test.go; cmd/gormes/security_command_test.go",
               "source_refs": [
                 "../openclaw/src/cli/security-cli.ts",
                 "../openclaw/src/security/audit.ts",
                 "../openclaw/src/security/fix.ts",
                 "../openclaw/docs/gateway/security/audit-checks.md",
+                "cmd/gormes/security.go",
+                "internal/tools/security_audit.go",
                 "internal/tools/permissions.go",
                 "internal/config/secretref.go"
               ],
@@ -24830,19 +24832,21 @@
               ],
               "write_scope": [
                 "cmd/gormes/security.go",
-                "internal/doctor/security_audit.go",
-                "internal/doctor/security_audit_test.go",
+                "cmd/gormes/security_command_test.go",
+                "internal/tools/security_audit.go",
+                "internal/tools/security_audit_test.go",
                 "internal/config/",
                 "internal/tools/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/doctor ./cmd/gormes -run 'SecurityAudit|SecurityFix' -count=1",
+                "go test ./internal/tools ./cmd/gormes -run 'SecurityAudit|SecurityFix' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "gormes security audit --deep --fix ships with fixture-backed findings, counts, redaction, and safe-fix boundaries."
-              ]
+              ],
+              "note": "Validated 2026-05-04: `gormes security audit --deep --fix` is registered and fixture-backed. The audit returns exact pass/warn/fail/fixed counts, checks gateway auth/probe status, state-file integrity, channel credentials/scopes, shell blocklist coverage, filesystem read/write scoping, credential redaction, and configured SecretRef availability. Safe fixes are limited to deterministic local remediations such as file permission tightening and generated gateway auth tokens; unsafe/manual actions remain findings. SecretRef env/file checks redact resolved values, missing refs degrade with explicit evidence, and exec refs report unsupported without executing helpers."
             },
             {
               "name": "ACP bridge client compatibility",
