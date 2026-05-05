@@ -111,7 +111,28 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 5. ACP bridge client compatibility
+## 5. Navivox host setup apply with transient sudo
+
+- Phase: 5 / 5.N
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: `gormes navivox setup-host --apply` prepares a Linux host for Navivox by detecting OpenSSH server and Tailscale readiness, prompting for sudo password only through a masked transient prompt when required, installing/enabling OpenSSH server and Tailscale through explicit distro-aware steps, running `tailscale up --ssh` or equivalent Tailscale SSH enablement with operator confirmation, and discarding the sudo password immediately after the command. The existing `--plan` output remains the non-mutating default evidence surface.
+- Trust class: operator, system
+- Ready when: Navivox QR pairing descriptor CLI is complete., The setup executor can be injected in tests so no real sudo, package manager, systemctl, curl, or Tailscale command runs in CI., The UX contract distinguishes Tailscale installation/enablement, OpenSSH installation, service enablement, and QR pairing handoff.
+- Not ready when: The command silently runs curl-pipe-shell, installs Tailscale during normal `install.sh`, stores sudo password or Tailscale auth keys, modifies `authorized_keys` without explicit approval, or opens public SSH/firewall rules by default., Tests require root, network, a live Tailscale account, package manager access, or a real SSH daemon., The implementation bypasses the existing Gormes secret/sudo prompt language or writes a second host-setup state model outside the canonical config/runtime surfaces.
+- Degraded mode: Unsupported OS, missing package manager, missing systemd, failed sudo, failed Tailscale auth, or declined confirmation return typed setup evidence and leave the host unchanged beyond steps already completed. The command never writes sudo passwords, private SSH keys, or Tailscale auth keys into config, progress data, logs, or pairing URIs.
+- Fixture: `cmd/gormes/navivox_host_setup_test.go`
+- Write scope: `cmd/gormes/navivox.go`, `cmd/gormes/navivox_host_setup_test.go`, `internal/runtime`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes -run 'TestNavivoxSetupHost' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Hermetic host-setup fixtures prove `--apply` can prepare SSH/Tailscale using prompt-only sudo handling and leave the operator at a ready-to-scan `gormes navivox pair` handoff.
+- Acceptance: `gormes navivox setup-host --plan` remains non-mutating and lists every command category that `--apply` may run., `--apply` prompts before privileged work, masks sudo input, runs commands through an injected executor in tests, and never logs or persists the sudo password., Linux Debian/Ubuntu and Fedora/RHEL fixtures cover OpenSSH install/enable command selection and Tailscale install/up command selection., Unsupported OS/package-manager/systemd fixtures produce actionable setup evidence instead of partial hidden failure., Post-apply output tells the operator to run `gormes navivox pair` and prefers the Tailscale host/IP in the descriptor.
+- Source refs: cmd/gormes/navivox.go, openclaw/docs/install/oracle.md:Install Tailscale, openclaw/docs/install/ansible.md:Tailscale VPN, openclaw/docs/reference/wizard.md:sudo prompt note, hermes-agent/SECURITY.md:Network exposure, internal/tui/hermes_panels.go:SecretPanelSudo
+- Unblocks: Navivox Flutter first-run remote host preparation, Navivox pair.claim stdio event, Navivox installed-host smoke checklist
+- Why now: Unblocks Navivox Flutter first-run remote host preparation, Navivox pair.claim stdio event, Navivox installed-host smoke checklist.
+
+## 6. ACP bridge client compatibility
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -131,7 +152,7 @@ selection.
 - Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Gateway discover/probe command
+## 7. Gateway discover/probe command
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -151,7 +172,7 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Transactional tool execution with snapshot/rollback
+## 8. Transactional tool execution with snapshot/rollback
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -171,7 +192,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Sandbox isolation depth selection
+## 9. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -191,7 +212,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Gateway channel adapters publish to event bus
+## 10. Gateway channel adapters publish to event bus
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -209,26 +230,6 @@ selection.
 - Done signal: Integration tests prove messages flow from channel→bus→agent and back through all adapter types
 - Acceptance: Incoming Telegram message → MessageReceived event on bus, Incoming Discord message → MessageReceived event on bus, Incoming Slack message → MessageReceived event on bus, Outgoing reply event → channel-specific delivery by adapter subscriber, Channel adapter failures are isolated — one channel crash doesn't affect others, Message events carry channel provenance (source, channel_id, user_id)
 - Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Agent turn and tool execution events on bus
-
-- Phase: 5 / 5.V
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Agent turns (start, thought, action, observation, complete, error) and tool executions (start, progress, complete, error) are published as structured events on the bus. Enables TUI, web dashboard, and audit log to observe agent activity without polling.
-- Trust class: system
-- Ready when: Event bus exists (5.V row 1), Agent loop has hook points for event emission
-- Not ready when: Event bus not yet implemented, Agent loop cannot be refactored for hooks
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/turn_events.go`, `internal/hermes/turn_events_test.go`, `internal/tools/tool_events.go`
-- Test commands: `go test ./internal/hermes -run TestTurnEvents -count=1`, `go test ./internal/tools -run TestToolEvents -count=1`
-- Done signal: Event tests prove turn lifecycle emits all expected events with correct trace_id linking
-- Acceptance: TurnStart event emitted when agent begins processing, Thought event emitted for each reasoning step, ToolCall event emitted when tool is invoked, ToolResult event emitted when tool completes, TurnComplete event emitted with summary, All events carry trace_id linking them to a session turn
-- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/hermes/turn.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

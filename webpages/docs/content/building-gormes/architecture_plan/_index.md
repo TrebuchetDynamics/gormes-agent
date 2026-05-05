@@ -242,6 +242,7 @@ classification and row-backed implementation queue.
 - [x] Channel-neutral native runtime turn adapter
 - [x] Hermes gateway platform registry manifest
 - [x] Navivox stdio protocol control-plane tracer
+- [x] Navivox QR pairing descriptor CLI
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -636,6 +637,7 @@ classification and row-backed implementation queue.
 
 - [x] Environment interface + file sync contract
 - [x] Terminal snapshot source stdout suppression guard
+- [ ] Terminal deleted-cwd recovery guard
 - [x] Raw tool-call parser fixture matrix
 - [ ] Docker
 - [x] Docker backend top-level container reuse semantics
@@ -677,6 +679,7 @@ classification and row-backed implementation queue.
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
 - [ ] TTS synthesis + voice-mode state
+- [ ] Voice record-key config binding for native TUI
 
 ### 5.F — Skills System (Remaining) 🔨
 
@@ -688,6 +691,7 @@ classification and row-backed implementation queue.
 - [x] Skill preprocessing + dynamic slash commands
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
+- [ ] Update bundled skills across active and named profiles
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
@@ -741,6 +745,7 @@ classification and row-backed implementation queue.
 - [x] Trust-class enforcement in shared tool executor
 - [x] Secrets Runtime Controls
 - [x] Security Audit Command
+- [ ] Email allowlist pre-dispatch loop guard
 
 ### 5.K — Code Execution ✅
 
@@ -754,6 +759,7 @@ classification and row-backed implementation queue.
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
 - [x] Terminal cwd config bridge
+- [ ] search_files hidden-root and context-line parsing drift
 
 ### 5.M — Mixture of Agents 🔨
 
@@ -774,6 +780,7 @@ classification and row-backed implementation queue.
 - [x] Session shutdown memory transcript handoff
 - [x] Debug helpers
 - [x] Debug share paste sweep scheduler contract
+- [ ] Doctor GitHub CLI auth fallback
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
 - [x] Backend usage-limit stdin health bypass
@@ -807,6 +814,8 @@ classification and row-backed implementation queue.
 - [ ] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
+- [ ] Cron env-ref expansion + parallel run state serialization
+- [ ] Navivox host setup apply with transient sudo
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -891,6 +900,7 @@ classification and row-backed implementation queue.
 - [ ] CLI setup/onboard/help text fidelity matrix
 - [ ] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
+- [ ] Gateway planned stop marker + WSL systemd PATH parity
 
 ### 5.P — Docker / Packaging 🔨
 
