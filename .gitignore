@@ -31,6 +31,9 @@ crash-*.log
 .superpowers/
 .worktrees/
 
+# ── Local upstream reference checkouts ───────────────
+hermes-agent/
+
 # ── Agent/orchestrator scratch ───────────────────────
 scripts/.swarm/
 .claude/worktrees/
