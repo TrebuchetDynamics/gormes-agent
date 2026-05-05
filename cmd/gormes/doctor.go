@@ -93,7 +93,7 @@ var doctorCmd = &cobra.Command{
 					fmt.Printf("[FAIL] gateway/telegram: %v\n", err)
 					os.Exit(2)
 				}
-				fmt.Printf("[PASS] gateway/telegram: allowed_chat_id=%d\n", cfg.Telegram.AllowedChatID)
+				fmt.Printf("[PASS] gateway/telegram: %s\n", configuredTelegramGatewayStatusDetail(cfg.Telegram))
 			} else {
 				fmt.Println("[SKIP] gateway/telegram: disabled")
 			}

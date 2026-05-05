@@ -172,9 +172,9 @@ func cliSecurityAuditChannels(cfg config.Config, secretRefs map[string]bool) []t
 	return []toolspkg.SecurityAuditChannel{
 		{
 			Name:                   "telegram",
-			Enabled:                strings.TrimSpace(cfg.Telegram.BotToken) != "" || cfg.Telegram.AllowedChatID != 0 || cfg.Telegram.FirstRunDiscovery,
+			Enabled:                strings.TrimSpace(cfg.Telegram.BotToken) != "" || cfg.Telegram.AllowedChatID != 0 || len(cfg.Telegram.AllowedUserIDs) > 0 || cfg.Telegram.FirstRunDiscovery,
 			TokenConfigured:        strings.TrimSpace(cfg.Telegram.BotToken) != "" || secretRefs["telegram.bot_token"],
-			AllowedScopeConfigured: cfg.Telegram.AllowedChatID != 0,
+			AllowedScopeConfigured: cfg.Telegram.AllowedChatID != 0 || len(cfg.Telegram.AllowedUserIDs) > 0,
 			FirstRunDiscovery:      cfg.Telegram.FirstRunDiscovery,
 		},
 		{
@@ -235,6 +235,8 @@ func cliSecurityAuditSecrets(cfg config.Config) []string {
 		os.Getenv("GORMES_API_KEY"),
 		os.Getenv("GATEWAY_PROXY_KEY"),
 		os.Getenv("GORMES_TELEGRAM_TOKEN"),
+		os.Getenv("TELEGRAM_BOT_TOKEN"),
+		os.Getenv("TELEGRAM_TOKEN"),
 		os.Getenv("GORMES_DISCORD_TOKEN"),
 		os.Getenv("GORMES_SLACK_BOT_TOKEN"),
 		os.Getenv("GORMES_SLACK_APP_TOKEN"),

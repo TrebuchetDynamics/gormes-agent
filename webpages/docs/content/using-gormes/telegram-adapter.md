@@ -14,8 +14,13 @@ Run Gormes as a Telegram bot. Same kernel, same tools, different edge.
 3. Launch:
 
 ```bash
-GORMES_TELEGRAM_TOKEN=... GORMES_TELEGRAM_CHAT_ID=123456789 gormes telegram
+TELEGRAM_BOT_TOKEN=... TELEGRAM_ALLOWED_USERS=123456789 TELEGRAM_HOME_CHANNEL=123456789 gormes telegram
 ```
+
+`GORMES_TELEGRAM_TOKEN`, `GORMES_TELEGRAM_CHAT_ID`, and
+`GORMES_TELEGRAM_ALLOWED_USERS` are the native names. Gormes also accepts
+Hermes-compatible `TELEGRAM_BOT_TOKEN`, `TELEGRAM_HOME_CHANNEL`, and
+`TELEGRAM_ALLOWED_USERS` for copied `.env` files and `gormes migrate hermes`.
 
 ## Behaviour
 
@@ -25,4 +30,5 @@ GORMES_TELEGRAM_TOKEN=... GORMES_TELEGRAM_CHAT_ID=123456789 gormes telegram
 
 ## Multiple chats
 
-Omit `GORMES_TELEGRAM_CHAT_ID` to respond to any chat the bot is added to. Each chat gets its own session.
+Use `TELEGRAM_ALLOWED_USERS` to allow specific users across DMs and groups. Set
+`TELEGRAM_HOME_CHANNEL` when cron or proactive delivery needs a default chat.

@@ -17,6 +17,11 @@ func TestSecurityAuditCommandOutputsJSONAndAppliesSafeFixes(t *testing.T) {
 	t.Setenv("GATEWAY_PROXY_KEY", "")
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "")
+	t.Setenv("TELEGRAM_ALLOWED_USERS", "")
 	t.Setenv("GORMES_DISCORD_TOKEN", "")
 	t.Setenv("GORMES_DISCORD_CHANNEL_ID", "")
 	t.Setenv("GORMES_SLACK_ENABLED", "")
@@ -100,6 +105,11 @@ func TestSecurityAuditCommandReportsSecretRefAvailabilityWithoutLeaking(t *testi
 		"GORMES_API_KEY",
 		"GORMES_TELEGRAM_TOKEN",
 		"GORMES_TELEGRAM_CHAT_ID",
+		"GORMES_TELEGRAM_ALLOWED_USERS",
+		"TELEGRAM_BOT_TOKEN",
+		"TELEGRAM_TOKEN",
+		"TELEGRAM_HOME_CHANNEL",
+		"TELEGRAM_ALLOWED_USERS",
 		"GORMES_DISCORD_TOKEN",
 		"GORMES_DISCORD_CHANNEL_ID",
 		"GORMES_SLACK_ENABLED",

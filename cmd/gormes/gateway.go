@@ -326,6 +326,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
 		AllowedChats:               allowedChats,
+		AllowedUsers:               gatewayAllowedUsers(cfg),
 		AllowDiscovery:             allowDiscovery,
 		CoalesceMs:                 gatewayCoalesceMs(cfg),
 		FreshFinalAfter:            gatewayFreshFinalAfter(cfg),
@@ -360,6 +361,18 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}
+}
+
+func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	if len(cfg.Telegram.AllowedUserIDs) > 0 {
+		users := make(map[string]bool, len(cfg.Telegram.AllowedUserIDs))
+		for _, id := range cfg.Telegram.AllowedUserIDs {
+			users[strconv.FormatInt(id, 10)] = true
+		}
+		out["telegram"] = users
+	}
+	return out
 }
 
 func gatewayAgentRoutingConfig(cfg config.Config) gateway.AgentRoutingConfig {
@@ -415,7 +428,7 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 		}
 		allowDiscovery["telegram"] = cfg.Telegram.FirstRunDiscovery
 		registered++
-		log.Info("gateway: telegram channel enabled", "allowed_chat_id", cfg.Telegram.AllowedChatID)
+		log.Info("gateway: telegram channel enabled", "allowed_chat_id", cfg.Telegram.AllowedChatID, "allowed_user_count", len(cfg.Telegram.AllowedUserIDs))
 	}
 
 	if cfg.Discord.Enabled() {

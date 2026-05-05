@@ -58,6 +58,7 @@ type activeTurnSnapshot struct {
 // ManagerConfig drives the shared gateway manager.
 type ManagerConfig struct {
 	AllowedChats    map[string]string
+	AllowedUsers    map[string]map[string]bool
 	AllowDiscovery  map[string]bool
 	CoalesceMs      int
 	FreshFinalAfter time.Duration
@@ -416,6 +417,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 	if cfg.AllowedChats == nil {
 		cfg.AllowedChats = map[string]string{}
+	}
+	if cfg.AllowedUsers == nil {
+		cfg.AllowedUsers = map[string]map[string]bool{}
 	}
 	if cfg.BusyInputMode == "" {
 		cfg.BusyInputMode = "interrupt"
@@ -1722,10 +1726,13 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 
 func (m *Manager) allowed(ev InboundEvent) bool {
 	want, ok := m.cfg.AllowedChats[ev.Platform]
-	if !ok || want == "" {
-		return false
+	if ok && want != "" && ev.ChatID == want {
+		return true
 	}
-	return ev.ChatID == want
+	if users := m.cfg.AllowedUsers[ev.Platform]; len(users) > 0 {
+		return users[ev.UserID]
+	}
+	return false
 }
 
 func (m *Manager) lookupChannel(name string) Channel {

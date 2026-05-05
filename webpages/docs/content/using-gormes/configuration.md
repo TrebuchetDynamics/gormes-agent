@@ -31,16 +31,17 @@ max_lines = 500
 
 | Var | Purpose |
 |---|---|
-| `GORMES_HERMES_ENDPOINT` | Override Hermes backend URL |
-| `GORMES_HERMES_API_KEY` | Hermes auth token |
-| `GORMES_TELEGRAM_TOKEN` | Telegram bot token |
-| `GORMES_TELEGRAM_CHAT_ID` | Telegram chat ID (optional) |
+| `GORMES_ENDPOINT` | Provider endpoint override |
+| `GORMES_API_KEY` | Provider API key override |
+| `GORMES_TELEGRAM_TOKEN` / `TELEGRAM_BOT_TOKEN` | Telegram bot token |
+| `GORMES_TELEGRAM_CHAT_ID` / `TELEGRAM_HOME_CHANNEL` | Telegram chat ID or home channel |
+| `GORMES_TELEGRAM_ALLOWED_USERS` / `TELEGRAM_ALLOWED_USERS` | Comma-separated Telegram user IDs |
 
 ## State directories
 
 | Path | Contents |
 |---|---|
 | `~/.gormes/sessions.db` | bbolt session resume map |
-| `~/.hermes/memory/memory.db` | SQLite memory store |
-| `~/.hermes/memory/USER.md` | Human-readable entity/relationship mirror |
-| `~/.hermes/crash-*.log` | Crash dumps |
+| `~/.gormes/memory.db` | SQLite memory store |
+| `~/.gormes/memory/USER.md` | Human-readable entity/relationship mirror |
+| `~/.gormes/gormes.log` | Runtime log |

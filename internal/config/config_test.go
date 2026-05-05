@@ -348,6 +348,10 @@ func TestLoad_TelegramEnvOverride(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "abc:xyz")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "99999")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "111, 222")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "ignored:alias")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "88888")
+	t.Setenv("TELEGRAM_ALLOWED_USERS", "333")
 	cfg, err := Load(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -357,6 +361,33 @@ func TestLoad_TelegramEnvOverride(t *testing.T) {
 	}
 	if cfg.Telegram.AllowedChatID != 99999 {
 		t.Errorf("AllowedChatID = %d", cfg.Telegram.AllowedChatID)
+	}
+	if got, want := cfg.Telegram.AllowedUserIDs, []int64{111, 222}; len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("AllowedUserIDs = %v, want %v", got, want)
+	}
+}
+
+func TestLoad_TelegramHermesEnvAliases(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "123:hermes-token")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "-10042")
+	t.Setenv("TELEGRAM_ALLOWED_USERS", "6586915095, 12345, invalid")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Telegram.BotToken != "123:hermes-token" {
+		t.Errorf("BotToken = %q", cfg.Telegram.BotToken)
+	}
+	if cfg.Telegram.AllowedChatID != -10042 {
+		t.Errorf("AllowedChatID = %d", cfg.Telegram.AllowedChatID)
+	}
+	if got, want := cfg.Telegram.AllowedUserIDs, []int64{6586915095, 12345}; len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("AllowedUserIDs = %v, want %v", got, want)
 	}
 }
 
@@ -376,6 +407,12 @@ func TestLoad_IgnoresHermesConfigYAML(t *testing.T) {
 	t.Setenv("CHROME_REMOTE_DEBUGGING_URL", "")
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "")
+	t.Setenv("TELEGRAM_CHAT_ID", "")
+	t.Setenv("TELEGRAM_ALLOWED_USERS", "")
 	t.Setenv("GORMES_DISCORD_TOKEN", "")
 	t.Setenv("GORMES_DISCORD_CHANNEL_ID", "")
 	t.Setenv("GORMES_SLACK_ENABLED", "")

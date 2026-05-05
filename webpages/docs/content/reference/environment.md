@@ -50,6 +50,18 @@ All provider credentials can also be managed via `gormes auth add <provider>`.
 |---|---|
 | `GORMES_GATEWAY_SERVICE_MANAGER` | Set to `1` or `true` to signal that a service manager (systemd/launchd) owns the gateway process. Enables exit-code-based restart. |
 
+## Telegram Gateway
+
+Gormes accepts the native `GORMES_TELEGRAM_*` names and the Hermes-compatible
+`TELEGRAM_*` names so copied Hermes `.env` files keep working after migration.
+Native names win when both are set.
+
+| Variable | Purpose |
+|---|---|
+| `GORMES_TELEGRAM_TOKEN` / `TELEGRAM_BOT_TOKEN` | Telegram bot token. `TELEGRAM_TOKEN` remains a legacy alias. |
+| `GORMES_TELEGRAM_CHAT_ID` / `TELEGRAM_HOME_CHANNEL` | Default Telegram chat/channel for gateway allowlisting and cron delivery. `TELEGRAM_CHAT_ID` remains a legacy alias. |
+| `GORMES_TELEGRAM_ALLOWED_USERS` / `TELEGRAM_ALLOWED_USERS` | Comma-separated Telegram user IDs allowed to use the bot. |
+
 ## Installer
 
 | Variable | Purpose |
@@ -78,6 +90,8 @@ Example `.env`:
 GORMES_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 TELEGRAM_BOT_TOKEN=123:abc
+TELEGRAM_ALLOWED_USERS=123456789
+TELEGRAM_HOME_CHANNEL=123456789
 ```
 
 Secret-like keys (`*_API_KEY`, `*_TOKEN`, `api_key`) are never written to `config.toml`. Use `gormes config set` or `gormes auth add` — the CLI routes secrets to `.env` automatically.

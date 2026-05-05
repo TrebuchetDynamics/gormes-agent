@@ -58,6 +58,7 @@ type TelegramCfg struct {
 	BotToken               string     `toml:"bot_token" yaml:"bot_token"`
 	BotTokenRef            *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
 	AllowedChatID          int64      `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	AllowedUserIDs         []int64    `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 	RequireMention         bool       `toml:"require_mention" yaml:"require_mention"`
 	BotUsername            string     `toml:"bot_username" yaml:"bot_username"`
 	CoalesceMs             int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
@@ -736,13 +737,16 @@ func loadEnv(cfg *Config) error {
 		}
 		cfg.TUI.MouseTracking = parsed
 	}
-	if v := os.Getenv("GORMES_TELEGRAM_TOKEN"); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_TOKEN"), os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_TOKEN")); v != "" {
 		cfg.Telegram.BotToken = v
 	}
-	if v := os.Getenv("GORMES_TELEGRAM_CHAT_ID"); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_CHAT_ID"), os.Getenv("TELEGRAM_HOME_CHANNEL"), os.Getenv("TELEGRAM_CHAT_ID")); v != "" {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			cfg.Telegram.AllowedChatID = id
 		}
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("TELEGRAM_ALLOWED_USERS")); v != "" {
+		cfg.Telegram.AllowedUserIDs = parseEnvInt64CSV(v)
 	}
 	if v := os.Getenv("GORMES_DISCORD_TOKEN"); v != "" {
 		cfg.Discord.Token = v
@@ -906,6 +910,19 @@ func parseEnvCSV(value string) []string {
 		if trimmed != "" {
 			out = append(out, trimmed)
 		}
+	}
+	return out
+}
+
+func parseEnvInt64CSV(value string) []int64 {
+	parts := parseEnvCSV(value)
+	out := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		parsed, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			continue
+		}
+		out = append(out, parsed)
 	}
 	return out
 }

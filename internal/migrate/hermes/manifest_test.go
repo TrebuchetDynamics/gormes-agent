@@ -46,6 +46,9 @@ unknown_top_level_section:
 func sampleEnv() string {
 	return `# Hermes .env fixture
 TELEGRAM_TOKEN=123:abc-secret
+TELEGRAM_BOT_TOKEN=123:bot-secret
+TELEGRAM_HOME_CHANNEL=123456789
+TELEGRAM_ALLOWED_USERS=123456789,987654321
 DISCORD_TOKEN=disc-secret
 OPENROUTER_API_KEY=sk-or-real-secret
 RANDOM_USER_VAR=plainvalue
@@ -245,9 +248,12 @@ func TestHermesMigrationManifest_DotenvKeysClassifiedAndRedacted(t *testing.T) {
 		t.Fatalf("BuildManifest: %v", err)
 	}
 	wantTargets := map[string]string{
-		"TELEGRAM_TOKEN":     "GORMES_TELEGRAM_TOKEN",
-		"DISCORD_TOKEN":      "GORMES_DISCORD_TOKEN",
-		"OPENROUTER_API_KEY": "OPENROUTER_API_KEY",
+		"TELEGRAM_TOKEN":         "GORMES_TELEGRAM_TOKEN",
+		"TELEGRAM_BOT_TOKEN":     "GORMES_TELEGRAM_TOKEN",
+		"TELEGRAM_HOME_CHANNEL":  "GORMES_TELEGRAM_CHAT_ID",
+		"TELEGRAM_ALLOWED_USERS": "GORMES_TELEGRAM_ALLOWED_USERS",
+		"DISCORD_TOKEN":          "GORMES_DISCORD_TOKEN",
+		"OPENROUTER_API_KEY":     "OPENROUTER_API_KEY",
 	}
 	for srcKey, gormesEnv := range wantTargets {
 		entry := findEnvEntry(m, srcKey)

@@ -126,10 +126,10 @@ func expandDoubleQuotedEscapes(s string) string {
 	return b.String()
 }
 
-// loadDotenvFiles reads Gormes-native then legacy Hermes dotenv files
-// and populates os.Setenv for any key not already present in the
-// ORIGINAL shell environment. Precedence: shell env > Gormes `.env` >
-// Hermes `.env`. Silently no-ops when a file is missing.
+// loadDotenvFiles reads the Gormes-native dotenv file and populates
+// os.Setenv for any key not already present in the ORIGINAL shell
+// environment. Precedence: shell env > Gormes `.env`. Silently no-ops
+// when the file is missing.
 //
 // Implementation note: we snapshot the shell env ONCE before applying
 // any files, then walk files low→high precedence. That way a later
@@ -207,8 +207,9 @@ func snapshotShellEnv() map[string]struct{} {
 	return out
 }
 
-// dotenvCandidatePaths returns the list of dotenv files to load, in
-// increasing precedence order (last write wins for unset keys).
+// dotenvCandidatePaths returns the list of dotenv files to load, in increasing
+// precedence order (last write wins for unset keys). Cross-agent homes are
+// imported only through explicit migration commands, never normal startup.
 func dotenvCandidatePaths() []string {
 	return []string{EnvPath()}
 }

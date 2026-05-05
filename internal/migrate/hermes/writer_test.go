@@ -26,11 +26,14 @@ unknown_section:
 `
 }
 
-// writerSampleEnv contains importable keys (TELEGRAM_TOKEN, *_API_KEY),
+// writerSampleEnv contains importable keys (TELEGRAM_TOKEN, Hermes
+// TELEGRAM_* aliases, *_API_KEY),
 // an unsupported key (RANDOM_USER_VAR), and one whose target may
 // already exist on the destination (DISCORD_TOKEN -> GORMES_DISCORD_TOKEN).
 func writerSampleEnv() string {
 	return `TELEGRAM_TOKEN=tg-secret-do-not-leak
+TELEGRAM_HOME_CHANNEL=6586915095
+TELEGRAM_ALLOWED_USERS=6586915095,12345
 DISCORD_TOKEN=dc-secret-do-not-leak
 ANTHROPIC_API_KEY=` + fakeAPIKey + `
 RANDOM_USER_VAR=plainvalue
@@ -141,6 +144,12 @@ func TestHermesConfigWriter_AppliesImportableConfig(t *testing.T) {
 	}
 	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_TOKEN=tg-secret-do-not-leak") {
 		t.Fatalf("dest .env missing GORMES_TELEGRAM_TOKEN value: %s", envBody)
+	}
+	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_CHAT_ID=6586915095") {
+		t.Fatalf("dest .env missing GORMES_TELEGRAM_CHAT_ID value: %s", envBody)
+	}
+	if !strings.Contains(string(envBody), "GORMES_TELEGRAM_ALLOWED_USERS=6586915095,12345") {
+		t.Fatalf("dest .env missing GORMES_TELEGRAM_ALLOWED_USERS value: %s", envBody)
 	}
 	if !strings.Contains(string(envBody), "ANTHROPIC_API_KEY="+fakeAPIKey) {
 		t.Fatalf("dest .env missing ANTHROPIC_API_KEY value: %s", envBody)
