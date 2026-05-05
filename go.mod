@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest v0.0.0-20260419004333-9332b2225b80
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/google/uuid v1.6.0
+	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/ncruces/go-sqlite3 v0.33.3
 	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/robfig/cron/v3 v3.0.1
@@ -63,4 +64,5 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/text v0.36.0 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )

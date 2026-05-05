@@ -210,7 +210,18 @@ Uses a fake Navivox server (Dart process) that echoes frames.
 | Ping/pong | ping → pong within timeout |
 | Agent list | agent.list → parsed agent list |
 
-### 4.2 SSH Session
+### 4.2 Host Pairing CLI
+
+**File**: `cmd/gormes/navivox_test.go`
+
+| Test | Description |
+|------|-------------|
+| Pairing QR descriptor | `gormes navivox pair --host 100.77.1.2 --port 2222 --user ada --device-name pixel-lab --qr=false` prints host details, pairing code, Tailscale recommendation, and fallback `navivox://pair` URI |
+| Pending pairing persistence | Same command with isolated `GORMES_HOME` records one pending `navivox` pairing in the gateway pairing store |
+| Credential safety | Pairing output contains no sudo password prompt, private key marker, or shell credential |
+| Host setup plan | `gormes navivox setup-host --plan` lists Tailscale install/up, OpenSSH server enablement, and prompt-only sudo handling without mutating the host |
+
+### 4.3 SSH Session
 
 **File**: `test/core/ssh/ssh_session_test.dart`
 
@@ -226,7 +237,7 @@ Requires a real SSH server (Docker container or test server).
 | navivox serve start | Execute 'gormes navivox serve --stdio' |
 | Encrypted key with passphrase | Prompt for passphrase, decrypt, connect |
 
-### 4.3 Drift Database
+### 4.4 Drift Database
 
 **File**: `test/data/database/app_database_test.dart`
 

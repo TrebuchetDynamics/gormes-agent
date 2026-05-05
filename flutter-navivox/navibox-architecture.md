@@ -425,6 +425,20 @@ Host key pinning prompts for new hosts on first connect
 
 ## 5. SSH Session Lifecycle
 
+The preferred first-run path starts on the Gormes host:
+
+```text
+operator runs `gormes navivox pair`
+      │
+      ├── prints QR code for `navivox://pair?...`
+      └── prints fallback URI with host, port, user, command, protocol, code
+```
+
+The Flutter app scans or pastes that descriptor before opening SSH. Gormes
+prefers Tailscale IPv4 in the descriptor when available; if host setup is not
+ready, `gormes navivox setup-host --plan` explains the Tailscale/OpenSSH steps
+without storing sudo passwords or mutating the host.
+
 ```
 createSession(serverId, keyIdentity)
       │

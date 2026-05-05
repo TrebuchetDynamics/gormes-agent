@@ -164,7 +164,22 @@ Rules:
 - Sensitive or disruptive changes require explicit confirmation with exact
   before/after non-secret values.
 
-## 6. Implementation Order
+## 6. Pairing And Host Reachability
+
+- The host starts pairing from `gormes navivox pair`; the Flutter app should
+  scan or paste the emitted descriptor instead of guessing SSH settings.
+- The command emits a QR code plus a plain `navivox://pair?...` fallback with
+  SSH host, port, user, `gormes navivox serve --stdio`, protocol version,
+  device name, pairing code, and expiry.
+- Tailscale SSH is the recommended network path. Host discovery prefers an
+  explicit host, then Tailscale IPv4, then LAN IPv4, then loopback.
+- Host preparation is explicit. `gormes navivox setup-host --plan` explains the
+  Tailscale/OpenSSH/sudo steps; future `--apply` may perform them only after
+  confirmation.
+- Sudo passwords are prompt-only, masked, and never stored in config, logs,
+  pairing URIs, or QR payloads.
+
+## 7. Implementation Order
 
 The first implementation slice should be server protocol before full app UI.
 
@@ -173,11 +188,12 @@ Order:
 1. Add a builder-ready Gormes row for `gormes navivox serve --stdio` with frame
    codec, `hello`, `server.status`, ping/pong, error frames, and fake transport
    tests.
-2. Scaffold the Flutter app shell and fake Navivox channel using the accepted
+2. Add `gormes navivox pair` QR/text descriptor and host setup planning UX.
+3. Scaffold the Flutter app shell and fake Navivox channel using the accepted
    Riverpod/GoRouter/Drift/Freezed stack.
-3. Add Flyer Chat integration with text, streaming text, tool-call card, voice
+4. Add Flyer Chat integration with text, streaming text, tool-call card, voice
    bubble, and agent-switch system/control renderers against fake events.
-4. Add config schema/diff/validate/apply events and secret-safe admin forms.
-5. Add voice capture, hybrid STT command handling, and server TTS playback.
+5. Add config schema/diff/validate/apply events and secret-safe admin forms.
+6. Add voice capture, hybrid STT command handling, and server TTS playback.
 
 This order avoids building a polished UI on top of an undefined wire contract.

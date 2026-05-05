@@ -457,6 +457,14 @@ Admin/config actions require an owner/admin role even if the SSH login
 succeeds. A single-user install can accept the first paired device as owner to
 avoid setup friction.
 
+The first host-facing UX is `gormes navivox pair`. It prints a scannable QR code
+plus a manual `navivox://pair?...` fallback containing the SSH host, port, user,
+remote stdio command, protocol version, device name, pairing code, and expiry.
+Gormes should prefer a Tailscale IPv4 address when available, because Tailscale
+SSH avoids exposing port 22 to the public internet. Privileged host preparation
+belongs in an explicit `gormes navivox setup-host` flow; sudo passwords are
+masked, prompt-only, and never stored.
+
 ### Apply Model
 
 Config writes use a staged flow:
@@ -544,8 +552,8 @@ First-run flow:
 1. Import Termius file or add server manually.
 2. Import or generate SSH key.
 3. Connect and verify host fingerprint.
-4. Probe for Gormes.
-5. Start `gormes navivox serve --stdio` when available.
+4. Scan or paste the `gormes navivox pair` descriptor.
+5. Probe for Gormes and start `gormes navivox serve --stdio` when available.
 6. Pair the device and assign owner/admin role.
 7. List agents.
 8. Pick existing agent or create one from a remote workspace path.
