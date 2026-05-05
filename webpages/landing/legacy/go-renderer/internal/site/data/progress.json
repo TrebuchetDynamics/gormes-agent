@@ -4820,6 +4820,86 @@
                 "upstream_ref": "hermes:gateway/config.py Platform enum and gateway/platforms connectors",
                 "note": "Hermes defines platform IDs and operator behavior; Gormes owns the Go registry and implementation order."
               }
+            },
+            {
+              "name": "Navivox stdio protocol control-plane tracer",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "`gormes navivox serve --stdio` exposes a Gormes-owned SSH stdio control-plane server for the future Flutter Navivox app. The first slice implements only the binary NVOX frame codec and fakeable server loop for `hello` -> `server.status`, `ping` -> `pong`, and unknown readable event -> structured `error`; it rejects bad magic, unsupported prelude versions, invalid JSON headers, oversized headers/payloads, and payload-length mismatches without starting gateway.Manager or handling chat, voice, config, tools, pairing, or selected-agent routing.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unreadable framing errors close the stdio server with typed Go errors instead of emitting untrustworthy in-band frames; readable unsupported event types return redacted `error` frames with correlation_id set to the triggering message id.",
+              "fixture": "internal/channels/navivox/protocol_test.go and internal/channels/navivox/server_test.go",
+              "source_refs": [
+                "flutter-navivox/navivox-decision-record.md:Protocol Framing",
+                "flutter-navivox/navibox-prd.md:Navivox Protocol",
+                "flutter-navivox/navibox-testing-plan.md:Protocol Codecs",
+                "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox SSH/Flutter channel",
+                "internal/gateway/channel.go",
+                "cmd/gormes/acp.go",
+                "internal/channels/yuanbao/runtime.go"
+              ],
+              "ready_when": [
+                "The decision record defines NVOX magic, protocol v1, header length, JSON header, payload_length, JSON-vs-binary body placement, and unsupported-version policy.",
+                "Tests can use bytes.Buffer or an in-memory pipe; no SSH daemon, PTY, Flutter app, gateway.Manager, provider, or live channel SDK is required."
+              ],
+              "not_ready_when": [
+                "The slice attempts `chat.submit` gateway dispatch, selected-agent routing, config.schema/admin, tool-call events, pairing roles, voice/TTS/STT, SSH client logic, or Flutter UI integration.",
+                "The implementation treats Navivox as a Hermes platform enum parity port instead of a Gormes-owned first-party channel.",
+                "Bad magic, invalid headers, or unsupported prelude versions are answered with in-band frames instead of failing the untrusted stream."
+              ],
+              "unblocks": [
+                "Gateway selected-agent override for channel events",
+                "Navivox chat.submit gateway binding",
+                "Navivox schema-driven config admin protocol",
+                "Navivox typed tool event stream",
+                "Navivox voice audio frame streaming"
+              ],
+              "acceptance": [
+                "Codec tests prove binary frames round-trip with ASCII NVOX magic, uint32 network-byte-order protocol/header lengths, JSON headers, exact payload_length handling, and byte-for-byte binary payload preservation.",
+                "Codec tests prove bad magic, unsupported prelude version, invalid JSON, oversized header/payload, and payload-length mismatch return typed errors.",
+                "Server tests prove `hello` returns `server.status` with protocol=1, feature list, version/config evidence, and correlation_id matching the hello message id.",
+                "Server tests prove `ping` returns `pong` with correlation_id and unknown readable event types return a structured redacted `error` frame.",
+                "cmd/gormes tests prove `gormes navivox serve --stdio` is registered, requires `--stdio`, and can complete a fake stdio handshake without PTY assumptions."
+              ],
+              "note": "Complete 2026-05-05: TDD added internal/channels/navivox with the NVOX binary frame codec, typed framing errors, static status provider, and fakeable server loop. `gormes navivox serve --stdio` is registered as a thin command and handles hello/server.status, ping/pong, unknown readable event errors, EOF shutdown, and bad framing rejection without starting gateway.Manager, SSH, providers, Flutter, chat, config, tool, pairing, or voice surfaces.",
+              "write_scope": [
+                "cmd/gormes/main.go",
+                "cmd/gormes/navivox.go",
+                "cmd/gormes/navivox_test.go",
+                "internal/channels/navivox/protocol.go",
+                "internal/channels/navivox/protocol_test.go",
+                "internal/channels/navivox/server.go",
+                "internal/channels/navivox/server_test.go",
+                "internal/channels/navivox/status.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/navivox -run 'Test(Codec|Server)' -count=1",
+                "go test ./cmd/gormes -run TestNavivox -count=1",
+                "go test ./internal/channels/navivox ./cmd/gormes -run 'Test(Codec|Server|Navivox)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "evidence": [
+                "2026-05-05: go test ./internal/channels/navivox -run 'Test(Codec|Server)' -count=1 -> pass",
+                "2026-05-05: go test ./cmd/gormes -run TestNavivox -count=1 -> pass",
+                "2026-05-05: go test ./internal/channels/navivox ./cmd/gormes -run 'Test(Codec|Server|Navivox)' -count=1 -> pass"
+              ],
+              "done_signal": [
+                "Navivox frame codec and stdio control-plane fixtures prove fake clients can handshake and health-check the server before chat, config, tool, or voice rows begin."
+              ],
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-05T00:00:00Z",
+                "note": "Navivox is a Gormes-owned first-party Flutter/SSH channel. Hermes gateway sources inform manager/channel principles, but there is no upstream Hermes Navivox platform to port."
+              }
             }
           ]
         },
@@ -27271,7 +27351,7 @@
               "name": "Gormes agent template reset command",
               "status": "complete",
               "priority": "P2",
-              "contract": "`gormes agent reset [--target <dir>] [--dry-run] [--force]` seeds Gormes-owned agent context templates adapted from Hermes' default SOUL/persona behavior. By default it creates missing `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `memory/USER.md`, and `memory/MEMORY.md` under the target root, skips existing files without overwriting, reports deterministic create/skip actions, and uses `config.GormesHome()` when --target is omitted.",
+              "contract": "`gormes agent reset [--target <dir>] [--dry-run] [--force]` seeds Gormes-owned agent context templates adapted from Hermes' default SOUL/persona behavior. By default it creates missing `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `memory/USER.md`, and `memory/MEMORY.md` under the target root, skips existing files without overwriting, reports deterministic create/skip actions, and uses `config.GormesHome()` when --target is omitted. Gateway and standalone Telegram runtime startup apply the same non-force template writer to the configured terminal/default-agent workspace before live-turn prompt discovery, so a clean runtime workspace gets usable identity, project, operational, and durable memory files without an extra manual reset.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -27279,14 +27359,19 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Existing files are skipped unless --force is set; --dry-run reports would_create/would_overwrite/would_skip actions without creating directories or files; an empty target returns agent_template_target_required; write failures surface the relative template path without leaking unrelated filesystem content.",
+              "degraded_mode": "Existing files are skipped unless --force is set; --dry-run reports would_create/would_overwrite/would_skip actions without creating directories or files; an empty target returns agent_template_target_required; runtime startup fails fast on template-write failure, reload keeps the last good gateway config, and errors surface the relative template path without leaking unrelated filesystem content.",
               "fixture": "cmd/gormes/agent_reset_test.go",
               "source_refs": [
                 "../hermes-agent/hermes_cli/default_soul.py:DEFAULT_SOUL_MD",
+                "../hermes-agent/hermes_cli/config.py:_ensure_default_soul_md",
                 "../hermes-agent/scripts/install.sh:SOUL.md seed",
                 "../hermes-agent/scripts/install.ps1:SOUL.md seed",
+                "cmd/gormes/gateway_agent_templates.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
                 "internal/gateway/live_turn_prompt.go:defaultLiveTurnProfileDir",
                 "internal/gateway/live_turn_prompt.go:defaultLiveTurnMemoryDir",
+                "internal/gateway/manager.go",
                 "internal/hermes/context_files.go",
                 "internal/hermes/durable_user_context.go"
               ],
@@ -27299,7 +27384,8 @@
                 "The command hard-codes `/home/xel/git/sages-openclaw/workspace-gormes` or any other operator-specific path.",
                 "The default invocation overwrites existing user files.",
                 "Dry-run creates parent directories or template files.",
-                "The slice changes live-turn prompt assembly or imports Hermes runtime state."
+                "Runtime seeding is hidden inside prompt assembly instead of explicit gateway/Telegram startup setup.",
+                "The slice imports Hermes runtime state."
               ],
               "unblocks": [
                 "Gormes setup minimal sectioned wizard slice",
@@ -27313,16 +27399,27 @@
                 "TestAgentTemplateApplyDryRunDoesNotWrite proves --dry-run reports would-create/would-overwrite/would-skip without creating files or directories.",
                 "TestAgentResetCommandCreatesTemplatesInTarget proves `gormes agent reset --target <dir>` writes templates and renders deterministic relative-path output.",
                 "TestAgentResetCommandDryRunLeavesTargetEmpty proves CLI dry-run does not touch the target while still reporting would-create actions.",
-                "TestRootCommandIncludesAgentCommand proves the root Cobra tree exposes `agent reset`."
+                "TestRootCommandIncludesAgentCommand proves the root Cobra tree exposes `agent reset`.",
+                "TestEnsureGatewayAgentTemplatesCreatesMissingRuntimeContextAndPromptLoadsIt proves runtime seeding targets the configured workspace, creates SOUL/AGENTS/IDENTITY/TOOLS/USER/MEMORY templates, and the live prompt loaders consume those paths.",
+                "TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates proves a clean Telegram runtime workspace sends seeded SOUL.md, AGENTS.md, IDENTITY.md, TOOLS.md, USER.md, and MEMORY.md context to the provider before the user message.",
+                "TestContextFilesLoadsGormesOperationalTemplates proves Gormes-owned IDENTITY.md and TOOLS.md are loaded additively after the Hermes-compatible winning project context."
               ],
-              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths.",
+              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths.",
               "write_scope": [
                 "cmd/gormes/agent.go",
                 "cmd/gormes/agent_reset_test.go",
+                "cmd/gormes/gateway_agent_templates.go",
+                "cmd/gormes/gateway_agent_templates_test.go",
+                "cmd/gormes/gateway.go",
                 "cmd/gormes/hermes_cli_parity.go",
                 "cmd/gormes/hermes_cli_parity_test.go",
                 "cmd/gormes/main.go",
+                "cmd/gormes/telegram.go",
+                "cmd/gormes/telegram_test.go",
+                "internal/gateway/manager.go",
                 "internal/gateway/platform_manifest_test.go",
+                "internal/hermes/context_files.go",
+                "internal/hermes/context_files_test.go",
                 "internal/hermes/guidance_constants_test.go",
                 "internal/agenttemplate/template.go",
                 "internal/agenttemplate/template_test.go",
@@ -27332,22 +27429,25 @@
               ],
               "test_commands": [
                 "go test ./internal/agenttemplate -count=1",
+                "go test ./internal/hermes -run 'TestContextFilesLoadsGormesOperationalTemplates|TestContextFilesProjectPrecedence' -count=1",
+                "go test ./internal/gateway -run 'TestLiveTurn_SystemPrompt_MissingProfileNoPanic|TestLiveTurn_SystemPrompt_DurableUserMissingNoPanic|TestLiveTurn_SystemPrompt_IncludesAuthoritativeWorkspaceFact' -count=1",
+                "go test ./cmd/gormes -run 'TestGatewayAgentTemplateTarget|TestEnsureGatewayAgentTemplates|TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates|TestTelegramProductionProviderPayloadUsesConfiguredTerminalWorkspace' -count=1",
                 "go test ./cmd/gormes -run 'TestAgent|TestRootCommandIncludesAgentCommand|TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Template and CLI fixtures prove targetable non-destructive reset, dry-run, force overwrite, live-turn lookup-compatible paths, root registration, and manifest classification."
+                "Template, CLI, runtime startup, and Telegram provider fixtures prove targetable non-destructive reset, dry-run, force overwrite, live-turn lookup-compatible paths, seeded workspace prompt loading, root registration, and manifest classification."
               ],
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:hermes_cli/default_soul.py DEFAULT_SOUL_MD + scripts/install.* SOUL.md seed",
-                "note": "Hermes defines the persona fallback and seed-file behavior; Gormes owns the targetable reset command and development-context template set."
+                "note": "Hermes defines the persona fallback and first-run SOUL.md seed-file behavior; Gormes owns the targetable reset command, development-context template set, runtime workspace auto-seeding, and additive IDENTITY.md/TOOLS.md operational context loading."
               },
               "health": {
-                "attempt_count": 1,
-                "last_attempt": "2026-04-30T02:10:11Z",
-                "last_success": "2026-04-30T02:10:11Z"
+                "attempt_count": 2,
+                "last_attempt": "2026-05-05T07:00:00Z",
+                "last_success": "2026-05-05T07:00:00Z"
               }
             },
             {

@@ -37,7 +37,7 @@ abstract class AppRoutes {
 
 | Path | Screen | Guard | Notes |
 |------|--------|-------|-------|
-| `/setup` | FirstRunWizard | None (shown when no servers exist) | 6-step wizard flow |
+| `/setup` | FirstRunWizard | None (shown when no servers exist) | 10-step first-run journey grouped into wizard screens |
 | `/setup/import` | TermiusImportScreen | None | File picker + preview |
 | `/setup/manual` | ManualServerScreen | None | Direct server entry |
 | `/setup/keys` | KeyImportOrGenerateScreen | None | Import or generate Ed25519 |

@@ -1,8 +1,12 @@
 # Navivox PRD
 
-Status: planning draft
+Status: decision baseline accepted; implementation rows pending
 Scope: Flutter app plus Gormes `navivox` channel design
 Platforms: Android, iOS, Linux, Windows
+
+Decision baseline: `navivox-decision-record.md` is canonical for current chat
+UI, Flutter stack, protocol framing, voice, config admin, and implementation
+order decisions.
 
 ## 1. Product Summary
 
@@ -158,14 +162,26 @@ when available.
 ### Framing
 
 The protocol is framed, versioned, and binary-safe. It should not be raw newline
-JSON for audio. Recommended frame shape:
+JSON for audio. Accepted frame shape:
 
-- fixed magic/version prefix
-- JSON header with event type, ids, timestamps, and payload metadata
-- optional binary payload for audio or files
-- request/response correlation id
+- 4-byte magic: ASCII `NVOX` (`0x4e564f58`)
+- 4-byte protocol version, unsigned integer, network byte order
+- 4-byte JSON header length, unsigned integer, network byte order
+- JSON header with event type, ids, timestamps, `payload_length`, and metadata
+- optional binary payload for audio or files, exactly `payload_length` bytes
+- request/response correlation id in the header when applicable
 
 Every frame must be bounded by size limits. Large media should stream in chunks.
+Frame readers must reject bad magic, unsupported versions, invalid JSON,
+oversized lengths, and payloads whose byte count does not match
+`payload_length`.
+
+For V1, the header carries framing, routing, correlation, content type, payload
+length, and safe metadata. Non-binary event bodies are encoded as a UTF-8 JSON
+payload with `content_type: "application/json"`. Binary bodies use the payload
+bytes directly and keep codec/chunk metadata in the header. Protocol v1 is the
+only accepted prelude version for the first server slice; `hello` may advertise
+future supported versions but must be sent in a supported frame version.
 
 ### Core Events
 
@@ -703,10 +719,11 @@ End-to-end tests:
 
 ### Phase 0: Planning And Interface Rows
 
-- Approve this PRD.
+- Treat the decision baseline as accepted.
 - Create builder-ready Gormes progress rows for `navivox` channel, config admin,
   agent selection, tool events, and secret-safe config mutation.
-- Create Flutter implementation plan after PRD approval.
+- Create Flutter implementation plan after the Gormes protocol/config rows are
+  defined.
 
 ### Phase 1: SSH Shell
 

@@ -181,10 +181,13 @@ TTS Path (Text → Speech):
 The protocol needs binary framing because audio can't be newline-delimited JSON:
 
 ```
-[4 bytes: magic 0x4E568F00] [4 bytes: version] [4 bytes: header length] [N bytes: JSON header] [M bytes: binary payload]
+[4 bytes: magic "NVOX"] [4 bytes: version] [4 bytes: header length] [N bytes: JSON header] [M bytes: binary payload]
 ```
 
-This is simpler than WebSocket-style framing and avoids JSON overhead for audio passthrough.
+All integer prelude fields use network byte order. The JSON header must include
+`payload_length`; the decoder reads exactly that many payload bytes after the
+header. This is simpler than WebSocket-style framing and avoids JSON overhead
+for audio passthrough.
 
 ## 4. Config UI Architecture
 

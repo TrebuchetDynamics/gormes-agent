@@ -28,9 +28,11 @@ Source: derived from navibox-prd.md §18
 | Encode/decode hello frame | Round-trip handshake | HelloEvent with device info | Identical decoded frame |
 | Encode chat submit | User text message | ChatSubmitEvent(text: "hello") | Correct header + text payload |
 | Encode voice submit | Audio + transcript | VoiceSubmitEvent with PCM bytes | Correct binary payload + metadata |
+| Payload length mismatch | Header says 120 bytes, payload has 119 | Corrupt frame | Throws PayloadLengthMismatchError |
 | Frame size limit exceeded | Reject oversized frames | 10MB payload | Throws FrameSizeExceededError |
-| Version mismatch | Server sends newer version | v3 frame, client v1 | Emits error, doesn't crash |
-| Corrupt magic bytes | Random data | [0x00, 0x00...] | Throws InvalidFrameError |
+| Version mismatch | Server sends newer prelude version | v3 frame, client v1 | Throws UnsupportedProtocolVersion before reading event body |
+| Hello advertised versions | v1 hello payload includes supported_versions | JSON payload | server.status reports selected v1 |
+| Corrupt magic bytes | Random data | [0x00, 0x00...] | Throws InvalidFrameError before JSON parse |
 | Empty payload | Frame with no body | Header only, empty payload | Decodes with empty data list |
 | Concurrent frames | Multiple frames in buffer | 3 frames back-to-back | Each decoded separately |
 | UTF-8 text in header | Non-ASCII metadata | Japanese agent name in metadata | Correct round-trip |
@@ -204,7 +206,7 @@ Uses a fake Navivox server (Dart process) that echoes frames.
 | Voice submit | voice.submit with audio + transcript → voice.transcript + voice.audio |
 | Error handling | Server sends error frame → channel emits error |
 | Reconnect | Drop connection, reconnect, resume |
-| Protocol version negotiation | Different versions, negotiate common |
+| Protocol version compatibility | v1 hello succeeds; unsupported prelude version fails before event handling |
 | Ping/pong | ping → pong within timeout |
 | Agent list | agent.list → parsed agent list |
 

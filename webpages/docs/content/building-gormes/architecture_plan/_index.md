@@ -241,6 +241,7 @@ classification and row-backed implementation queue.
 
 - [x] Channel-neutral native runtime turn adapter
 - [x] Hermes gateway platform registry manifest
+- [x] Navivox stdio protocol control-plane tracer
 
 ### 2.C — Thin Mapping Persistence ✅
 

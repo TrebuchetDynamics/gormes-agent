@@ -458,6 +458,26 @@ Ready state → chat, config, agents available
 
 ## 6. Protocol Model (Freezed)
 
+Frames are binary-safe and use the accepted prelude:
+
+```text
+4 bytes  magic          ASCII "NVOX" (0x4e564f58)
+4 bytes  version        uint32, network byte order
+4 bytes  header_length  uint32, network byte order
+N bytes  JSON header    UTF-8 object with payload_length
+M bytes  payload        optional binary bytes
+```
+
+The decoder reads exactly `payload_length` bytes after the JSON header and
+rejects malformed magic, unsupported versions, invalid JSON, oversized lengths,
+and payload-size mismatches.
+
+The header is for framing, routing, correlation, content type, and safe metadata.
+Non-binary event bodies are JSON payload bytes with
+`content_type: "application/json"`; binary voice/file events put bytes in the
+payload and codec/chunk metadata in the header. Protocol v1 is the only accepted
+prelude version in the first server slice.
+
 ### 6.1 NavivoxFrame
 
 ```dart
@@ -469,6 +489,8 @@ class NavivoxFrame with _$NavivoxFrame {
     String? correlationId,          // links request/response
     required DateTime timestamp,
     required NavivoxEventType type,
+    @Default(0) int payloadLength,  // must match payload.length
+    String? contentType,            // e.g. application/json or audio/ogg
     Map<String, dynamic>? metadata, // JSON header
     @Default([]) List<int> payload, // optional binary (audio/files)
   }) = _NavivoxFrame;
