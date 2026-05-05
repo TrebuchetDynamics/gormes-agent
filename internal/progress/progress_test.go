@@ -62,10 +62,10 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["1"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 1 = %q, want complete", got)
 	}
-	// Phase 2 is complete once the gateway, scheduler, runtime, and operator
-	// surface rows are all validated.
-	if got := p.Phases["2"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 2 = %q, want complete", got)
+	// Phase 2 is back in progress while the Telegram topic-mode closeout row
+	// tracks fresh upstream command/auth/debounce drift.
+	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
+		t.Errorf("Phase 2 = %q, want in_progress", got)
 	}
 	// Phase 3 is complete once the local-first markdown MCP memory requirement
 	// joins the existing durable-memory parity rows as validated.
@@ -452,10 +452,17 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.B.5 = %q, want complete after Gateway session token accounting parity closed the remaining planned Telegram/Sidon parity row", got)
+	if got := routing.DerivedStatus(); got != StatusInProgress {
+		t.Fatalf("Phase 2.B.5 = %q, want in_progress while Telegram topic-mode closeout is planned", got)
 	}
 	routingItems := itemsByName(routing.Items)
+	topicCloseout := routingItems["Telegram topic mode off/help/auth/debounce closeout"]
+	if topicCloseout.Status != StatusPlanned || topicCloseout.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 2.B.5 topic closeout = status %q contract_status %q, want planned/validated", topicCloseout.Status, topicCloseout.ContractStatus)
+	}
+	if !strings.Contains(topicCloseout.Contract, "/topic off") || !strings.Contains(topicCloseout.Contract, "debounced") {
+		t.Fatalf("Phase 2.B.5 topic closeout contract = %q, want /topic off debounce detail", topicCloseout.Contract)
+	}
 	liveTurnPrompt := routingItems["Hermes live-turn prompt assembly parity (channel-neutral)"]
 	if liveTurnPrompt.Status != StatusComplete || liveTurnPrompt.ContractStatus != ContractStatusValidated {
 		t.Fatalf("Phase 2.B.5 live-turn prompt umbrella = status %q contract_status %q, want complete/validated", liveTurnPrompt.Status, liveTurnPrompt.ContractStatus)

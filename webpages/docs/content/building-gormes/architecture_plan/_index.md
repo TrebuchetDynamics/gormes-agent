@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 64/92 subphases shipped · 23 in progress · 5 planned
+**Overall:** 62/92 subphases shipped · 25 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | ✅ | 21/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 10/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -135,7 +135,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -177,7 +177,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing ✅
+### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
 - [x] SessionContext prompt injection
@@ -225,6 +225,7 @@ classification and row-backed implementation queue.
 - [x] Gateway inbound dedup manager binding
 - [x] Email outbound Date header contract
 - [x] Telegram MarkdownV2 parse-mode rendering closeout
+- [ ] Telegram topic mode off/help/auth/debounce closeout
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -532,11 +533,12 @@ classification and row-backed implementation queue.
 - [x] Native full prompt assembly
 - [x] Ephemeral prefill messages file injection
 
-### 4.D — Smart Model Routing ✅
+### 4.D — Smart Model Routing 🔨
 
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
 - [x] Model pricing/capability registry fixtures
+- [ ] Ollama Cloud models.dev suffix normalization
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
@@ -678,6 +680,7 @@ classification and row-backed implementation queue.
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
+- [ ] MiniMax TTS v1 text_to_speech raw-audio compatibility
 - [ ] TTS synthesis + voice-mode state
 - [ ] Voice record-key config binding for native TUI
 
@@ -815,7 +818,8 @@ classification and row-backed implementation queue.
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
 - [ ] Cron env-ref expansion + parallel run state serialization
-- [ ] Navivox host setup apply with transient sudo
+- [ ] Cron no-agent script-only watchdog mode
+- [x] Navivox host setup apply with transient sudo
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -901,6 +905,7 @@ classification and row-backed implementation queue.
 - [ ] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
 - [ ] Gateway planned stop marker + WSL systemd PATH parity
+- [ ] Gateway stale-code self-check uses git HEAD SHA
 
 ### 5.P — Docker / Packaging 🔨
 
@@ -937,6 +942,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
 - [x] Native TUI Hermes slash completion helpers
+- [ ] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [ ] Native TUI Ink behavioral transcript golden matrix

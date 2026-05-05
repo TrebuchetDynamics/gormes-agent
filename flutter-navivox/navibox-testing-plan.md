@@ -220,6 +220,8 @@ Uses a fake Navivox server (Dart process) that echoes frames.
 | Pending pairing persistence | Same command with isolated `GORMES_HOME` records one pending `navivox` pairing in the gateway pairing store |
 | Credential safety | Pairing output contains no sudo password prompt, private key marker, or shell credential |
 | Host setup plan | `gormes navivox setup-host --plan` lists Tailscale install/up, OpenSSH server enablement, and prompt-only sudo handling without mutating the host |
+| Host setup apply | Injected Linux fixtures for Ubuntu and Fedora prove `--apply --yes` previews commands, runs sudo via stdin only, enables OpenSSH/Tailscale SSH, and never prints the sudo password |
+| Unsupported host setup | Unsupported OS/package-manager fixtures print actionable no-change guidance and run no commands |
 
 ### 4.3 SSH Session
 

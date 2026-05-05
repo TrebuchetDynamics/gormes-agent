@@ -437,7 +437,8 @@ operator runs `gormes navivox pair`
 The Flutter app scans or pastes that descriptor before opening SSH. Gormes
 prefers Tailscale IPv4 in the descriptor when available; if host setup is not
 ready, `gormes navivox setup-host --plan` explains the Tailscale/OpenSSH steps
-without storing sudo passwords or mutating the host.
+without mutating the host, and `--apply` previews exact privileged commands
+before asking for the prompt-only sudo password.
 
 ```
 createSession(serverId, keyIdentity)

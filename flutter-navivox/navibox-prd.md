@@ -462,8 +462,9 @@ plus a manual `navivox://pair?...` fallback containing the SSH host, port, user,
 remote stdio command, protocol version, device name, pairing code, and expiry.
 Gormes should prefer a Tailscale IPv4 address when available, because Tailscale
 SSH avoids exposing port 22 to the public internet. Privileged host preparation
-belongs in an explicit `gormes navivox setup-host` flow; sudo passwords are
-masked, prompt-only, and never stored.
+belongs in an explicit `gormes navivox setup-host` flow: `--plan` is
+non-mutating, `--apply` previews exact commands, sudo passwords are masked,
+prompt-only, and never stored.
 
 ### Apply Model
 

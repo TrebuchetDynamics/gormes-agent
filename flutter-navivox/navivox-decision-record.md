@@ -174,8 +174,8 @@ Rules:
 - Tailscale SSH is the recommended network path. Host discovery prefers an
   explicit host, then Tailscale IPv4, then LAN IPv4, then loopback.
 - Host preparation is explicit. `gormes navivox setup-host --plan` explains the
-  Tailscale/OpenSSH/sudo steps; future `--apply` may perform them only after
-  confirmation.
+  Tailscale/OpenSSH/sudo steps; `--apply` previews exact commands and performs
+  them only after confirmation.
 - Sudo passwords are prompt-only, masked, and never stored in config, logs,
   pairing URIs, or QR payloads.
 
