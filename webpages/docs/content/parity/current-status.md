@@ -17,3 +17,13 @@ Use status labels precisely:
 | `unverified` | Needs source or runtime evidence. |
 
 This distinction matters because a progress row can be complete while the user-visible feature still needs wiring, live validation, or UX parity work.
+
+## Gateway Channels
+
+| Channel | Public status | Evidence |
+|---|---|---|
+| Telegram | `runtime-ready` | Registered by `gormes gateway` when configured; also available through `gormes telegram`. |
+| Discord | `runtime-ready` | Registered by `gormes gateway` when token and discovery/allowlist config are present. |
+| Slack | `runtime-ready` | Registered by `gormes gateway` when enabled with bot/app tokens; status reports missing-token degradation. |
+| WhatsApp | `fixture-backed` / `row-backed` | Pairing and bridge/runtime contracts are tested, but live Baileys bundling and gateway registration are still tracked work. |
+| WeChat / Weixin and long-tail adapters | `row-backed` / `planned` | Adapter contracts live in the roadmap until runtime registration and live validation are complete. |

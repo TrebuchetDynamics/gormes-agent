@@ -66,7 +66,7 @@ OpenCode Zen (`opencode`) and OpenCode Go (`opencode-go`) are registered as Open
 
 | Command | Purpose |
 |---|---|
-| `gormes gateway` | Start the multi-channel gateway (Telegram, Discord, Slack, WhatsApp, WeChat). |
+| `gormes gateway` | Start the configured multi-channel gateway. Runtime-ready channels are Telegram, Discord, and Slack; WhatsApp is row-backed/fixture-backed until the live bridge bundle and gateway registration land. |
 | `gormes gateway status` | Check gateway runtime state, connected platforms, active agents. |
 | `gormes gateway stop` | Stop a running gateway. |
 | `gormes telegram` | Start Telegram-only mode. |
