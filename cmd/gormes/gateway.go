@@ -104,6 +104,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Yuanbao.Enabled {
 		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 	}
+	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
+		return err
+	}
 
 	smap, err := session.OpenBolt(config.SessionDBPath())
 	if err != nil {
@@ -198,6 +201,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		next = activation.Config
 		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Yuanbao.Enabled {
 			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
+		}
+		if _, err := ensureGatewayAgentTemplates(next, slog.Default()); err != nil {
+			return gateway.ManagerConfig{}, err
 		}
 		nextBaseHC, err := newGatewayHermesClient(next)
 		if err != nil {

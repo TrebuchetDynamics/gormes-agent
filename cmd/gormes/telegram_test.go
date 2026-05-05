@@ -228,6 +228,83 @@ func TestTelegramProductionProviderPayloadUsesConfiguredTerminalWorkspace(t *tes
 	}
 }
 
+func TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates(t *testing.T) {
+	root := t.TempDir()
+	workspace := filepath.Join(root, "workspace-gormes")
+	t.Setenv("GORMES_HOME", filepath.Join(root, "gormes-home"))
+	t.Setenv("HERMES_HOME", "")
+
+	cfg := config.Config{
+		Hermes: config.HermesCfg{
+			Model:    "gpt-5.5",
+			Provider: "openai-codex",
+		},
+		Telegram: config.TelegramCfg{AllowedChatID: 42},
+		Terminal: config.TerminalCfg{CWD: workspace},
+	}
+	if _, err := ensureGatewayAgentTemplates(cfg, discardLogger()); err != nil {
+		t.Fatalf("ensureGatewayAgentTemplates: %v", err)
+	}
+
+	provider := hermes.NewMockClient()
+	provider.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "seeded context ok"},
+		{Kind: hermes.EventDone, FinishReason: "stop"},
+	}, "sess-provider")
+	k := kernel.New(kernel.Config{
+		Model:     "gpt-5.5",
+		Endpoint:  "http://mock-provider",
+		Admission: kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+	}, provider, store.NewNoop(), telemetry.New(), slog.Default())
+
+	ch := newTelegramTestChannel()
+	smap := session.NewMemMap()
+	mgrCfg := telegramManagerConfig(cfg, smap)
+	mgrCfg.LiveTurnNow = func() time.Time { return time.Date(2026, 5, 5, 7, 0, 0, 0, time.UTC) }
+
+	m := gateway.NewManager(mgrCfg, k, slog.Default())
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	go func() { _ = k.Run(ctx) }()
+	go func() { _ = m.Run(ctx) }()
+
+	ch.push(gateway.InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "user-juan",
+		MsgID:    "tg-msg-seeded-context",
+		Kind:     gateway.EventSubmit,
+		Text:     "Do you have a SOUL.md?",
+	})
+
+	waitForTelegramProviderRequest(t, time.Second, func() bool {
+		return len(provider.Requests()) == 1
+	})
+	req := provider.Requests()[0]
+	if len(req.Messages) == 0 || req.Messages[0].Role != "system" {
+		t.Fatalf("provider request messages = %#v, want leading system context", req.Messages)
+	}
+	system := req.Messages[0].Content
+	for _, want := range []string{
+		"Active workspace: `" + workspace + "`",
+		"# Gormes Agent Persona",
+		"## AGENTS.md",
+		"## IDENTITY.md",
+		"## TOOLS.md",
+		"# Durable User Context",
+		"# User",
+		"# Memory",
+	} {
+		if !strings.Contains(system, want) {
+			t.Fatalf("provider system prompt missing seeded template %q in:\n%s", want, system)
+		}
+	}
+}
+
 func writeTelegramFixtureFile(t *testing.T, dir, name, body string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {

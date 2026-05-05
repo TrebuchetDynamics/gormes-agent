@@ -110,6 +110,45 @@ func TestContextFilesProjectPrecedence(t *testing.T) {
 	}
 }
 
+func TestContextFilesLoadsGormesOperationalTemplates(t *testing.T) {
+	project := t.TempDir()
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(project, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	write("AGENTS.md", "Primary project instructions.")
+	write("IDENTITY.md", "Runtime identity file.")
+	write("TOOLS.md", "Runtime tool instructions.")
+
+	block, report := BuildContextFilesPrompt(ContextFilesOptions{CWD: project, SkipSoul: true})
+	for _, want := range []string{
+		"## AGENTS.md\n\nPrimary project instructions.",
+		"## IDENTITY.md\n\nRuntime identity file.",
+		"## TOOLS.md\n\nRuntime tool instructions.",
+	} {
+		if !strings.Contains(block, want) {
+			t.Fatalf("context block missing %q:\n%s", want, block)
+		}
+	}
+	ordered := []string{"## AGENTS.md", "## IDENTITY.md", "## TOOLS.md"}
+	prev := -1
+	for _, marker := range ordered {
+		idx := strings.Index(block, marker)
+		if idx < 0 {
+			t.Fatalf("missing marker %q:\n%s", marker, block)
+		}
+		if idx <= prev {
+			t.Fatalf("marker %q at %d should appear after previous index %d:\n%s", marker, idx, prev, block)
+		}
+		prev = idx
+	}
+	if len(report.Operational) != 2 || report.Operational[0].Source != "IDENTITY.md" || report.Operational[1].Source != "TOOLS.md" {
+		t.Fatalf("operational evidence = %+v, want IDENTITY.md then TOOLS.md", report.Operational)
+	}
+}
+
 func TestContextFilesStripsFrontmatterScansAndBlocksInjection(t *testing.T) {
 	project := t.TempDir()
 	if err := os.WriteFile(filepath.Join(project, ".hermes.md"), []byte("---\nmodel: ignored\n---\nVisible body"), 0o600); err != nil {
