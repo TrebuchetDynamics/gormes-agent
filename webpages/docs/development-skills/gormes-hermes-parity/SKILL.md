@@ -111,6 +111,13 @@ When a report touches these surfaces:
   `config set`, nested config loading, `onboard`, `doctor --offline`,
   `gateway status --json`, and source/binary/install smoke when PATH or
   published binaries are in scope.
+- Do not infer provider readiness from `hermes.api_key` alone. Credential-pool
+  providers such as `openai-codex` must be visible as configured in
+  `auth status`, `doctor --offline`, and `onboard`; failures here are parity
+  bugs because operators see them as broken setup.
+- Config writer regressions must round-trip through `config.Load`; list-shaped
+  fields such as `telegram.allowed_user_ids` must be written as TOML arrays,
+  while secrets such as Telegram bot tokens stay in dotenv and out of reports.
 
 When delegating or handing off, emit a task packet:
 
