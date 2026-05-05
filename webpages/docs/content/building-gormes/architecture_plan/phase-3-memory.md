@@ -45,7 +45,7 @@ The 3.E ship criterion: the operator runs `cat ~/.local/share/gormes/sessions/in
 
 ## Memory Lessons Now Imported
 
-Gormes-owned strongest memory lesson is provenance. It stores knowledge pages,
+The strongest memory lesson is provenance. Knowledge pages store
 chunks, links, timeline entries, versions, and ingest logs so retrieval can
 explain where a claim came from. Gormes should apply that idea to the local
 SQLite graph without adopting external Postgres-first storage model.
@@ -67,7 +67,7 @@ share a peer identity.
 
 ## Retrieval Evaluation And Degraded Health
 
-Gormes-owned and Hermes both degrade when optional capability is missing. Gormes
+Hermes and the Go donor references both degrade when optional capability is missing. Gormes
 should degrade visibly. Phase 3 docs and tests should define an operator-facing
 health contract for:
 

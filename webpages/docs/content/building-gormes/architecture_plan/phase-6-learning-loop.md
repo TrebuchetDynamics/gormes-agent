@@ -38,7 +38,7 @@ Positioning: **Gormes's moat over Hermes**. Hermes has a skills directory; it do
 
 ## Hermes Skill Lessons
 
-Skills are code-like runtime assets, not loose notes. Gormes-owned skillpack shows
+Skills are code-like runtime assets, not loose notes. The current skill rows show
 the value of procedural knowledge with resolver checks and conformance tests.
 Hermes shows the value and risk of large skill surfaces injected into prompts.
 Gormes should combine the useful parts:
@@ -52,7 +52,7 @@ Gormes should combine the useful parts:
 - updates preserve version history and source evidence;
 - secret stripping and one-off task rejection are mandatory gates.
 
-Gormes-owned `f718c59` adds Code Cathedral II: qualified symbols, parent-scope chunks,
+The code-context retrieval rows keep the useful shape: qualified symbols, parent-scope chunks,
 call-graph edges, and two-pass retrieval. For Gormes this is a retrieval
 evidence lesson, not a runtime dependency. Phase 6.D now keeps that drift as a
 small blocked row: define synthetic code-context evidence and fan-out caps that

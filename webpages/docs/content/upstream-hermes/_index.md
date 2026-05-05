@@ -19,7 +19,7 @@ The content below is preserved verbatim from the upstream docs so operators eval
 ## 2026-04-27 Security And Tooling Drift Check
 
 Hermes `b288934d` is current in the synchronized sibling repo. Honcho remains
-at `e659b6b` and Gormes-owned moved to `891c28b`; no new Goncho/Honcho memory row is
+at `e659b6b`; no new Goncho/Honcho memory row is
 needed from this Hermes sync, and Gormes keeps the internal `goncho` package
 name while preserving public `honcho_*` compatibility surfaces.
 

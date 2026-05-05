@@ -767,7 +767,6 @@ Features studied but explicitly excluded from the must-have list:
 
 - [Cross-Project Feature Map](../cross-project-feature-map/) — Detailed matrix of all 12 projects
 - [Upstream Hermes Study](../../upstream-hermes/) — Full Hermes source analysis
-- [Retired upstream study](../../upstream-hermes/) — Gormes-owned architecture analysis
 - [Upstream Lessons](../upstream-lessons/) — Durable contracts to absorb
 - [What Hermes Gets Wrong](../what-hermes-gets-wrong/) — Why Gormes exists
 - [Contract Readiness](../contract-readiness/) — Row-level handoff fields

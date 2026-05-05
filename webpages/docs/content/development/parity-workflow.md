@@ -28,7 +28,7 @@ visible error string, setup flow, TUI behavior, or user transcript.
 Allowed evidence:
 
 - upstream checkouts in this repo, especially `./hermes-agent`
-- sibling upstream checkouts such as `../honcho` and `../gormes`
+- sibling upstream checkouts such as `../honcho`
 - checked-in Gormes code, tests, docs, generated progress data, and fixtures
 - sanitized transcripts explicitly provided by an operator
 
@@ -54,7 +54,6 @@ Resolve upstream references from local checkouts first:
 ```bash
 test -f ./hermes-agent/hermes_cli/main.py && git -C ./hermes-agent rev-parse --short HEAD
 test -d ../honcho && git -C ../honcho rev-parse --short HEAD
-test -d ../gormes && git -C ../gormes rev-parse --short HEAD
 ```
 
 ## Classify the pair

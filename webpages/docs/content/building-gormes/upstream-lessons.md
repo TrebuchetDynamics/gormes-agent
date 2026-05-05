@@ -5,15 +5,14 @@ weight: 25
 
 # Upstream Lessons
 
-Gormes does not copy Hermes or Gormes-owned. It absorbs their durable contracts.
+Gormes does not copy upstream projects line by line. It absorbs their durable contracts.
 The [Completion Plan](../architecture_plan/completion-plan/) is the delivery
 contract for turning those lessons into Hermes-in-Go parity.
 
 Hermes is the capability ledger for the agent runtime: provider routing,
 prompt assembly, tool continuations, gateway sessions, cron, memory providers,
-skills, plugins, and operator commands. Gormes-owned is the architecture donor for
-contract-first operations, durable jobs, knowledge graph provenance, retrieval
-evaluation, and skills as auditable runtime knowledge.
+skills, plugins, and operator commands. Honcho and the Go donor references shape
+memory, durable work, retrieval evidence, and auditable runtime knowledge.
 
 The combined lesson is simple:
 
@@ -45,12 +44,12 @@ source-backed parity lessons for future rows and tests:
 
 | Contract | Donor | Gormes target |
 |---|---|---|
-| Contract-first operations | Gormes-owned | Operation/tool descriptors drive schemas, commands, doctor, audit, and fixtures. |
+| Contract-first operations | Go donors | Operation/tool descriptors drive schemas, commands, doctor, audit, and fixtures. |
 | Trust-class enforcement | Hermes gateway | `operator`, `gateway`, `child-agent`, and `system` are enforced before handlers run. |
 | Stable prompt assembly | Hermes | Stable system layers; ephemeral recall injected into the current user turn. |
 | Provider-neutral events | Hermes | Adapters own provider quirks; `internal/hermes` emits one stream/tool-call contract. |
-| Durable jobs | Gormes-owned | Cron, long work, and subagents get restartable ledgers, bounded queues, worker-health evidence, and operator inspection. |
-| Provenance-rich memory | Gormes-owned | Entities and relationships carry source turn, extractor, confidence, freshness, and review state. |
+| Durable jobs | Go donors | Cron, long work, and subagents get restartable ledgers, bounded queues, worker-health evidence, and operator inspection. |
+| Provenance-rich memory | Honcho + Go donors | Entities and relationships carry source turn, extractor, confidence, freshness, and review state. |
 | Explainable code-context retrieval | Gormes-owned | Parent-scope symbols and call edges become optional evidence for skill/retrieval explanations, not a required TypeScript indexer in the runtime. |
 | Skills as reviewed code | Hermes | Skills have metadata, resolver tests, inactive drafts, review, feedback, and version history. |
 | Visible degraded mode | Hermes | Missing embeddings, provider limits, stale extraction, plugin/tool gaps, and dead letters surface in status/doctor/audit. |
@@ -142,14 +141,9 @@ Every planned subsystem should answer these before implementation:
 
 ## Upstream Study References
 
-- [Retired upstream study](../../upstream-hermes/)
-- [Retired upstream study](../../upstream-hermes/)
-- [Retired upstream notes](../../upstream-hermes/good-and-bad/)
-- [Retired upstream takeaways](../../upstream-hermes/gormes-takeaways/)
 - [Upstream Hermes Reference](../../upstream-hermes/)
 - [Hermes Source Study](../../upstream-hermes/source-study/)
 - [Hermes Good And Bad](../../upstream-hermes/good-and-bad/)
-- [Hermes Gormes Takeaways](../../upstream-hermes/gormes-takeaways/)
 
 ## Go Donor Anchors
 
