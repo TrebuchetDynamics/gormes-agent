@@ -69,6 +69,64 @@ func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolWhenEndpointEmpty(t *tes
 	}
 }
 
+func TestProviderHTTPClient_UsesCodexOAuthCredentialPoolTokenWhenEndpointConfigured(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	var sawResponsesPath bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/responses" {
+			t.Fatalf("request path = %q, want /v1/responses", r.URL.Path)
+		}
+		sawResponsesPath = true
+		if r.Header.Get("Authorization") != "Bearer pool-access-token" {
+			t.Fatalf("Authorization = %q, want credential pool access token", r.Header.Get("Authorization"))
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"completed","output_text":"ok from configured codex endpoint"}`))
+	}))
+	defer server.Close()
+
+	store := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{HermesHome: gormesHome})
+	if _, err := store.SaveTokens(config.CodexOAuthTokens{
+		AccountID:    "acct-pool",
+		Label:        "Pool Account",
+		AccessToken:  "pool-access-token",
+		RefreshToken: "pool-refresh-token",
+		BaseURL:      "https://unused.example.invalid/backend-api/codex",
+	}); err != nil {
+		t.Fatalf("SaveTokens: %v", err)
+	}
+
+	client, err := newProviderHTTPClient(config.Config{Hermes: config.HermesCfg{
+		Endpoint: server.URL,
+		Model:    "gpt-5.5",
+		Provider: "openai-codex",
+	}}, "openai-codex")
+	if err != nil {
+		t.Fatalf("newProviderHTTPClient: %v", err)
+	}
+
+	stream, err := client.OpenStream(context.Background(), hermes.ChatRequest{
+		Model:    "gpt-5.5",
+		Messages: []hermes.Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatalf("OpenStream error = %v", err)
+	}
+	defer stream.Close()
+	event, err := stream.Recv(context.Background())
+	if err != nil {
+		t.Fatalf("Recv token error = %v", err)
+	}
+	if event.Kind != hermes.EventToken || event.Token != "ok from configured codex endpoint" {
+		t.Fatalf("event = %+v, want configured Codex endpoint token event", event)
+	}
+	if !sawResponsesPath {
+		t.Fatal("configured responses endpoint was not called")
+	}
+}
+
 func TestProviderHTTPClient_CodexMissingCredentialFailsBeforeRelativeURL(t *testing.T) {
 	t.Setenv("GORMES_HOME", t.TempDir())
 	client, err := newProviderHTTPClient(config.Config{Hermes: config.HermesCfg{
