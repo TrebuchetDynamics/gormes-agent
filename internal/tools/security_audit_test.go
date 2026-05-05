@@ -110,6 +110,67 @@ func TestSecurityAuditDeepCoversEveryCategoryWithoutLiveGateway(t *testing.T) {
 	}
 }
 
+func TestSecurityAuditDeepReportsSecretRefAvailabilityWithoutLeakingResolvedValues(t *testing.T) {
+	const resolvedSecret = "sk-resolved-secret"
+	result := AuditSecurity(SecurityAuditRequest{
+		Deep: true,
+		SecretRefs: []SecurityAuditSecretRef{
+			{
+				Path:         "hermes.api_key",
+				Active:       true,
+				Available:    true,
+				Source:       "env",
+				Provider:     "default",
+				ID:           "CUSTOM_PROVIDER_SECRET",
+				EvidenceCode: "secret_ref_resolved",
+				Message:      "resolved provider secret " + resolvedSecret,
+			},
+			{
+				Path:         "telegram.bot_token",
+				Active:       true,
+				Available:    false,
+				Source:       "env",
+				Provider:     "default",
+				ID:           "MISSING_TELEGRAM_TOKEN",
+				EvidenceCode: "secret_ref_missing",
+				Message:      "missing env secret " + resolvedSecret,
+			},
+			{
+				Path:         "slack.app_token",
+				Active:       true,
+				Available:    false,
+				Source:       "exec",
+				Provider:     "default",
+				ID:           "secret-helper",
+				EvidenceCode: "secret_ref_unsupported",
+				Message:      "exec SecretRef providers are not supported",
+			},
+		},
+		CredentialRedaction: SecurityAuditCredentialRedaction{
+			Secrets: []string{resolvedSecret},
+			Samples: []string{"api_key=" + resolvedSecret},
+		},
+	})
+
+	statuses := securityAuditStatusesByCategory(result)
+	if statuses[SecurityAuditCategorySecretRefs] != SecurityAuditStatusWarn {
+		t.Fatalf("secret_refs status = %q, want warn: %+v", statuses[SecurityAuditCategorySecretRefs], result.Categories)
+	}
+	if !securityAuditFindingPresent(result.Findings, SecurityAuditFindingSecretRefUnavailable) {
+		t.Fatalf("findings = %+v, missing unavailable SecretRef finding", result.Findings)
+	}
+	if !securityAuditFindingPresent(result.Findings, SecurityAuditFindingSecretRefUnsupported) {
+		t.Fatalf("findings = %+v, missing unsupported SecretRef finding", result.Findings)
+	}
+	body, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if strings.Contains(string(body), resolvedSecret) {
+		t.Fatalf("audit JSON leaked resolved SecretRef value:\n%s", body)
+	}
+}
+
 func TestSecurityAuditFixAppliesOnlySafeDeterministicRemediations(t *testing.T) {
 	var applied []SecurityAuditFixCandidate
 	result := AuditSecurity(SecurityAuditRequest{
