@@ -7,10 +7,11 @@ const STATUS_IN_PROGRESS = 'in_progress';
 const STATUS_PLANNED = 'planned';
 
 const binarySizeMB = benchmarks?.binary?.size_mb || '';
+const binaryMeasuredAt = benchmarks?.binary?.last_measured || '';
 const releaseVersion = release?.version || '0.1.01';
 const releaseLabel = `Current scout release: v${releaseVersion}`;
 const binaryMeasureLabel = binarySizeMB
-  ? `Current measured Linux build: ~${binarySizeMB} MB`
+  ? `Current measured Linux build: ~${binarySizeMB} MB${binaryMeasuredAt ? ` (${binaryMeasuredAt})` : ''}`
   : 'Current Linux build measured during release prep';
 
 function derivedSubphaseStatus(subphase) {
@@ -58,41 +59,63 @@ export const page = {
   heroLines: [
     'Gormes runs local agent sessions, provider turns, memory, dashboards, and chat gateways from one Go binary.',
     'No Python runtime. No virtualenv repair. No backend service just to open the UI.',
-    'Start offline, prove the machine works, then add provider and gateway credentials.',
+    'Choose source build or install.sh, prove the machine offline, then add provider and gateway credentials.',
   ],
-  heroFilterStamp: 'Scout release: useful today, still early.',
+  heroFilterStamp: 'Scout release: useful now, still hardening.',
   heroFilterLine:
-    'Offline TUI, doctor diagnostics, provider one-shots, local SQLite memory, dashboard, and runtime-ready Telegram/Discord/Slack paths are available. Hermes parity, broad channel parity, voice/TTS, plugin/MCP support, and release signing are still hardening.',
-  primaryCta: { label: 'Run offline in 3 commands', href: '#install' },
+    'Offline TUI, doctor/onboard/setup, provider one-shots, local SQLite memory, dashboard, logs, security audits, source-backed install.sh, and runtime-ready Telegram/Discord/Slack paths are available. Hermes parity, broad channel parity, voice/TTS, plugin/MCP support, and release signing are still hardening.',
+  primaryCta: { label: 'Choose an install path', href: '#install' },
   secondaryCta: {
     label: 'View on GitHub',
     href: 'https://github.com/TrebuchetDynamics/gormes-agent',
   },
   proofStrip: [
     'Source build recommended',
+    'install.sh available',
     releaseLabel,
     'Static Go binary',
     'MIT License',
     'Offline doctor before credentials',
   ],
-  installHeadline: 'Build it. Prove it offline.',
+  installHeadline: 'Two install paths. One gormes command.',
   installIntro:
-    'Start with the inspectable source path. The first proof does not need credentials, a model call, Python, Docker, or Hermes. No runtime Node or npm is required.',
+    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install that publishes the stable gormes command. Both paths keep the first proof offline.',
   installSteps: [
     {
-      label: '1. BUILD FROM SOURCE',
+      label: 'METHOD 1 · BUILD FROM SOURCE',
       command:
-        'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build',
+        'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build\nexport PATH="$PWD/bin:$PATH"\ngormes doctor --offline\ngormes --offline',
     },
-    { label: '2. LOCAL DOCTOR', command: './bin/gormes doctor --offline' },
-    { label: '3. OFFLINE TUI', command: './bin/gormes --offline' },
+    {
+      label: 'METHOD 2 · INSTALL.SH',
+      command:
+        'curl -fsSLO https://gormes.ai/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
+    },
   ],
   installFootnote:
-    'Provider setup, gateway setup, and convenience installers come after the offline proof.',
+    'Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.',
   installFootnoteLink: {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
   },
+  afterProofHeadline: 'After offline proof',
+  afterProofItems: [
+    {
+      label: 'Add a provider',
+      command: 'gormes setup provider',
+      body: 'Configure endpoint credentials only after the local doctor and offline TUI prove the machine.',
+    },
+    {
+      label: 'Smoke-test a turn',
+      command: 'gormes --oneshot "hello"',
+      body: 'Run a single provider turn before starting longer local sessions or gateways.',
+    },
+    {
+      label: 'Check gateway state',
+      command: 'gormes gateway status',
+      body: 'Promote Telegram, Discord, or Slack only after the configured channel reports clean status.',
+    },
+  ],
   fitHeadline: 'Who this is for',
   fitCards: [
     {
@@ -106,20 +129,23 @@ export const page = {
   ],
   trustHeadline: 'Trust posture',
   trustItems: [
-    'Source build is the recommended scout-release path.',
+    'Source build and inspectable install.sh are the two promoted scout-release paths.',
     'Offline doctor runs before provider credentials or token spend.',
     'Secrets stay local under the Gormes home, not in the landing workflow.',
+    'install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.',
     'Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.',
     binaryMeasureLabel,
+    'Progress and benchmark data sync from repo sources during every landing build.',
   ],
   builtForHeadline: 'What works today',
   builtForItems: [
     'Run a local agent UI with zero runtime dependencies on the offline path',
     'Send one-shot prompts to a provider-compatible endpoint',
     'Validate your environment before spending tokens',
+    'Run onboard/setup flows that surface config, providers, skills, agents, and channel bindings',
     'Operate Telegram, Discord, and Slack paths from one binary when configured',
     'Inspect and debug local SQLite memory ("Goncho")',
-    'Browse sessions, config, skills, and logs in the local dashboard',
+    'Browse sessions, config, skills, logs, and audits from local operator surfaces',
   ],
   supportHeadline: 'Gateway support status',
   supportRows: [
@@ -149,11 +175,11 @@ export const page = {
     },
     {
       title: 'Offline Proof',
-      body: './bin/gormes --offline starts the native TUI without credentials, network calls, Python, Node, Docker, or Hermes.',
+      body: 'gormes --offline starts the native TUI without credentials, network calls, Python, Node, Docker, or Hermes.',
     },
     {
       title: 'Built-In Doctor',
-      body: './bin/gormes doctor --offline checks local readiness before provider calls or token spend.',
+      body: 'gormes doctor --offline checks local readiness before provider calls or token spend.',
     },
     {
       title: 'Provider Turns',
@@ -169,15 +195,18 @@ export const page = {
     },
   ],
   roadmapLabel: 'BUILD STATE',
-  roadmapHeadline: 'Useful today, still early.',
+  roadmapHeadline: 'Core runtime shipped. Parity is hardening.',
   roadmapBuckets: [
     {
       title: 'Shipped in scout',
       items: [
         'Offline TUI and doctor',
+        'Source-backed install.sh and setup handoff',
+        'Onboard/setup flows',
         'Provider one-shots',
         'Local SQLite memory and sessions',
         'Dashboard inspection',
+        'Logs, security audit, and secrets audit',
         'Telegram, Discord, and Slack configured paths',
       ],
     },
@@ -185,6 +214,7 @@ export const page = {
       title: 'Hardening now',
       items: [
         'Provider routing and auth edges',
+        'Learning loop and operator feedback paths',
         'Tool safety and sandboxing',
         'Browser/web tools',
         'Release checksums, signing, and package-manager lanes',
@@ -211,10 +241,10 @@ export const page = {
     { label: 'Architecture', href: 'https://docs.gormes.ai/building-gormes/architecture_plan/' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  finalCtaHeadline: 'Start offline. Add credentials later.',
+  finalCtaHeadline: 'Build or install.sh. Then run gormes.',
   finalCtaBody:
-    'The offline path proves the runtime before provider calls, gateway traffic, or token spend.',
-  finalPrimaryCta: { label: 'Build from source', href: '#install' },
+    'Both install paths prove the runtime before provider calls, gateway traffic, or token spend.',
+  finalPrimaryCta: { label: 'Pick an install path', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',
     href: 'https://github.com/TrebuchetDynamics/gormes-agent',

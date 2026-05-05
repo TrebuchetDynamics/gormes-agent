@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 const release = JSON.parse(readFileSync(new URL('../src/data/release.json', import.meta.url), 'utf8'));
+const landingBenchmarks = JSON.parse(readFileSync(new URL('../src/data/benchmarks.json', import.meta.url), 'utf8'));
+const rootBenchmarks = JSON.parse(readFileSync(new URL('../../../benchmarks.json', import.meta.url), 'utf8'));
 const releaseTag = release.tag || `v${release.version}`;
 const releaseLabel = `Current scout release: ${releaseTag}`;
 const releaseLabelPattern = new RegExp(escapeRegExp(releaseLabel));
@@ -11,6 +13,9 @@ function escapeRegExp(value) {
 }
 
 test('homepage renders the redesigned landing', async ({ page }) => {
+  expect(landingBenchmarks.binary.size_mb).toBe(rootBenchmarks.binary.size_mb);
+  expect(landingBenchmarks.binary.last_measured).toBe(rootBenchmarks.binary.last_measured);
+
   await page.goto('/');
 
   await expect(page).toHaveTitle('Gormes — Run AI Agents From One Go Binary');
@@ -18,27 +23,31 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Run AI agents from one Go binary.' })).toBeVisible();
   await expect(page.getByText('Gormes runs local agent sessions, provider turns, memory, dashboards, and chat gateways from one Go binary.')).toBeVisible();
   await expect(page.getByText('No Python runtime. No virtualenv repair. No backend service just to open the UI.')).toBeVisible();
-  await expect(page.getByText('Start offline, prove the machine works, then add provider and gateway credentials.')).toBeVisible();
-  await expect(page.getByText('Scout release: useful today, still early.')).toBeVisible();
-  await expect(page.getByText('Offline TUI, doctor diagnostics, provider one-shots, local SQLite memory, dashboard, and runtime-ready Telegram/Discord/Slack paths are available.')).toBeVisible();
+  await expect(page.getByText('Choose source build or install.sh, prove the machine offline, then add provider and gateway credentials.')).toBeVisible();
+  await expect(page.getByText('Scout release: useful now, still hardening.')).toBeVisible();
+  await expect(page.getByText('Offline TUI, doctor/onboard/setup, provider one-shots, local SQLite memory, dashboard, logs, security audits, source-backed install.sh, and runtime-ready Telegram/Discord/Slack paths are available.')).toBeVisible();
   await expect(page.getByText('Hermes parity, broad channel parity, voice/TTS, plugin/MCP support, and release signing are still hardening.')).toBeVisible();
   await expect(page.locator('.topnav a')).toHaveText(['Docs', 'Trust', 'Roadmap', 'GitHub']);
   await expect(page.getByRole('img', { name: 'GORMES-AGENT' })).toHaveAttribute('src', '/static/gormes-agent-logo-blue.svg');
   await expect(page.locator('img[src="/static/go-gopher-bear-lowpoly.png"]')).toHaveCount(1);
-  await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Run offline in 3 commands');
+  await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Choose an install path');
   await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('View on GitHub');
   await expect(page.getByRole('heading', { name: 'Who this is for' })).toBeVisible();
   await expect(page.getByText('Developers and operators who want local, inspectable agent infrastructure')).toBeVisible();
   await expect(page.getByText('Teams that require signed enterprise releases, full Hermes parity, voice/TTS, or broad channel parity today.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Trust posture' })).toBeVisible();
-  await expect(page.getByText('Source build is the recommended scout-release path.')).toBeVisible();
-  await expect(page.getByText('Current measured Linux build:')).toBeVisible();
+  await expect(page.getByText('Source build and inspectable install.sh are the two promoted scout-release paths.')).toBeVisible();
+  await expect(page.getByText('install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.')).toBeVisible();
+  await expect(page.getByText(`Current measured Linux build: ~${landingBenchmarks.binary.size_mb} MB (${landingBenchmarks.binary.last_measured})`)).toBeVisible();
+  await expect(page.getByText('Progress and benchmark data sync from repo sources during every landing build.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What works today' })).toBeVisible();
   await expect(page.getByText('Run a local agent UI with zero runtime dependencies on the offline path')).toBeVisible();
   await expect(page.getByText('Send one-shot prompts to a provider-compatible endpoint')).toBeVisible();
   await expect(page.getByText('Validate your environment before spending tokens')).toBeVisible();
+  await expect(page.getByText('Run onboard/setup flows that surface config, providers, skills, agents, and channel bindings')).toBeVisible();
   await expect(page.getByText('Operate Telegram, Discord, and Slack paths from one binary when configured')).toBeVisible();
   await expect(page.getByText('Inspect and debug local SQLite memory ("Goncho")')).toBeVisible();
+  await expect(page.getByText('Browse sessions, config, skills, logs, and audits from local operator surfaces')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Gateway support status' })).toBeVisible();
   await expect(page.locator('.support-card').getByText('Runtime-ready', { exact: true })).toBeVisible();
   await expect(page.locator('.support-card').getByText('Tracked, not promoted here', { exact: true })).toBeVisible();
@@ -50,27 +59,44 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('virtualenvs and package wheels drift across hosts')).toBeVisible();
   await expect(page.getByText('long turns die on dropped streams')).toBeVisible();
   await expect(page.getByText('tool wiring fails after tokens are already burning')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Useful today, still early.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Core runtime shipped. Parity is hardening.' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Shipped in scout' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Hardening now' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Later', exact: true })).toBeVisible();
+  await expect(page.getByText('Source-backed install.sh and setup handoff')).toBeVisible();
+  await expect(page.getByText('Onboard/setup flows', { exact: true })).toBeVisible();
   await expect(page.getByText('Local SQLite memory and sessions')).toBeVisible();
+  await expect(page.getByText('Logs, security audit, and secrets audit')).toBeVisible();
+  await expect(page.getByText('Learning loop and operator feedback paths')).toBeVisible();
   await expect(page.getByText('Release checksums, signing, and package-manager lanes')).toBeVisible();
   await expect(page.getByText('Next milestone')).toBeVisible();
   await expect(page.getByText('Production-stable Go-native runtime with signed releases and broader Hermes parity')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Build it. Prove it offline.' })).toBeVisible();
-  await expect(page.getByText('Start with the inspectable source path.')).toBeVisible();
-  await expect(page.locator('#install').getByText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git')).toBeVisible();
-  await expect(page.locator('#install').getByText('cd gormes-agent')).toBeVisible();
-  await expect(page.locator('#install').getByText('make build')).toBeVisible();
-  await expect(page.locator('#install').getByText('./bin/gormes doctor --offline', { exact: true })).toBeVisible();
-  await expect(page.locator('#install').getByText('./bin/gormes --offline', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Two install paths. One gormes command.' })).toBeVisible();
+  await expect(page.getByText('Build from source when you want maximum inspection.')).toBeVisible();
+  await expect(page.getByText('Use install.sh when you want a source-backed managed install that publishes the stable gormes command.')).toBeVisible();
+  const installCommands = page.locator('#install pre code');
+  const sourceBuildCommand = installCommands.nth(0);
+  const installScriptCommand = installCommands.nth(1);
+  await expect(sourceBuildCommand).toContainText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git');
+  await expect(sourceBuildCommand).toContainText('cd gormes-agent');
+  await expect(sourceBuildCommand).toContainText('make build');
+  await expect(sourceBuildCommand).toContainText('export PATH="$PWD/bin:$PATH"');
+  await expect(sourceBuildCommand).toContainText('gormes doctor --offline');
+  await expect(sourceBuildCommand).toContainText('gormes --offline');
+  await expect(installScriptCommand).toContainText('curl -fsSLO https://gormes.ai/install.sh');
+  await expect(installScriptCommand).toContainText('less install.sh');
+  await expect(installScriptCommand).toContainText('sh install.sh');
+  await expect(installScriptCommand).toContainText('gormes doctor --offline');
+  await expect(page.getByRole('heading', { name: 'After offline proof' })).toBeVisible();
+  await expect(page.locator('#install').getByText('gormes setup provider', { exact: true })).toBeVisible();
+  await expect(page.locator('#install').getByText('gormes --oneshot "hello"', { exact: true })).toBeVisible();
+  await expect(page.locator('#install').getByText('gormes gateway status', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('./bin/gormes goncho doctor --json', { exact: true })).toHaveCount(0);
+  await expect(page.locator('#install').getByText('./bin/gormes')).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);
-  await expect(page.locator('#install').getByText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh')).toHaveCount(0);
-  await expect(page.getByText('Provider setup, gateway setup, and convenience installers come after the offline proof.')).toBeVisible();
+  await expect(page.getByText('Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Single Static Binary' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Offline Proof' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Offline Proof', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Built-In Doctor' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Provider Turns' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Local SQLite Memory' })).toBeVisible();
@@ -82,7 +108,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('.proof-item').getByText(releaseLabel, { exact: true })).toBeVisible();
   await expect(page.locator('.footer-left').getByText(releaseLabelPattern)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Start offline. Add credentials later.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Build or install.sh. Then run gormes.' })).toBeVisible();
+  await expect(page.getByText('Both install paths prove the runtime before provider calls, gateway traffic, or token spend.')).toBeVisible();
   await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toHaveCount(0);
   await expect(page.getByText('Run Hermes Through a Go Operator Console.')).toHaveCount(0);
   await expect(page.getByText('Why Hermes breaks in production')).toHaveCount(0);
@@ -90,8 +117,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
-  // Copy buttons require a tiny inline clipboard script — bounded to the three-step offline proof.
-  await expect(page.locator('button.copy-btn')).toHaveCount(3);
+  // Copy buttons require a tiny inline clipboard script — bounded to the two install methods.
+  await expect(page.locator('button.copy-btn')).toHaveCount(2);
 });
 
 // Long-term bulletproof: the page must stay readable as content
@@ -132,10 +159,10 @@ for (const vp of MOBILE_VIEWPORTS) {
     expect(pageOverflow, `page body overflows at ${vp.width}px`).toBeFalsy();
 
     // Copy buttons stay visible + tappable on every supported viewport.
-    // Three install steps: source build, offline TUI, doctor.
+    // Two install methods: source build and install.sh.
     const copyButtons = page.locator('button.copy-btn');
-    await expect(copyButtons).toHaveCount(3);
-    for (let i = 0; i < 3; i++) {
+    await expect(copyButtons).toHaveCount(2);
+    for (let i = 0; i < 2; i++) {
       const btn = copyButtons.nth(i);
       await expect(btn).toBeVisible();
       const box = await btn.boundingBox();
