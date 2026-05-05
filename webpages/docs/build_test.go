@@ -1,12 +1,28 @@
 package docs_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
+
+var docsAstroBuild = struct {
+	once sync.Once
+	dir  string
+	err  error
+}{}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if docsAstroBuild.dir != "" {
+		_ = os.RemoveAll(docsAstroBuild.dir)
+	}
+	os.Exit(code)
+}
 
 // TestAstroBuild runs `npm run build` in a temp directory and asserts
 // the full set of expected pages are emitted. Guards against:
@@ -253,17 +269,30 @@ func TestAstroBuild_IndexShowsBlueGormesAgentLogo(t *testing.T) {
 
 func runDocsAstroBuild(t *testing.T, dest string) {
 	t.Helper()
-	if err := os.RemoveAll(".astro"); err != nil {
-		t.Fatalf("clean Astro cache: %v", err)
+	docsAstroBuild.once.Do(func() {
+		docsAstroBuild.dir, docsAstroBuild.err = os.MkdirTemp("", "gormes-docs-astro-build-*")
+		if docsAstroBuild.err != nil {
+			return
+		}
+		if err := os.RemoveAll(".astro"); err != nil {
+			docsAstroBuild.err = fmt.Errorf("clean Astro cache: %w", err)
+			return
+		}
+		cmd := exec.Command("npm", "run", "build")
+		cmd.Dir = "."
+		cmd.Env = append(os.Environ(),
+			"ASTRO_OUT_DIR="+docsAstroBuild.dir,
+			"ASTRO_TELEMETRY_DISABLED=1",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			docsAstroBuild.err = fmt.Errorf("astro build failed: %w\noutput:\n%s", err, string(out))
+		}
+	})
+	if docsAstroBuild.err != nil {
+		t.Fatal(docsAstroBuild.err)
 	}
-	cmd := exec.Command("npm", "run", "build")
-	cmd.Dir = "."
-	cmd.Env = append(os.Environ(),
-		"ASTRO_OUT_DIR="+dest,
-		"ASTRO_TELEMETRY_DISABLED=1",
-	)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("astro build failed: %v\noutput:\n%s", err, string(out))
+	if err := os.CopyFS(dest, os.DirFS(docsAstroBuild.dir)); err != nil {
+		t.Fatalf("copy cached Astro build: %v", err)
 	}
 }
 
