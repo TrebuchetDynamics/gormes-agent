@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -9,12 +10,14 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mdp/qrterminal/v3"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/navivox"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -184,16 +187,23 @@ func renderNavivoxPairing(cmd *cobra.Command, opts navivoxPairOptions, hostSourc
 
 func newNavivoxSetupHostCommand() *cobra.Command {
 	var plan bool
+	var apply bool
+	var yes bool
 	cmd := &cobra.Command{
 		Use:          "setup-host",
 		Short:        "Show how to prepare this host for Navivox SSH pairing",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if apply {
+				return runNavivoxSetupHostApply(cmd, navivoxHostSetupOptions{Yes: yes})
+			}
 			renderNavivoxSetupHostPlan(cmd)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&plan, "plan", false, "render the setup plan without changing the host")
+	cmd.Flags().BoolVar(&apply, "apply", false, "apply the host setup steps after confirmation")
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm setup-host --apply without an interactive confirmation prompt")
 	return cmd
 }
 
@@ -222,10 +232,313 @@ func renderNavivoxSetupHostPlan(cmd *cobra.Command) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Sudo handling")
 	fmt.Fprintln(out, "  sudo password is prompt-only and never stored in Gormes config.")
-	fmt.Fprintln(out, "  Future --apply setup will ask once, run explicit steps, then discard it.")
+	fmt.Fprintln(out, "  setup-host --apply asks once, previews exact steps, then discards it.")
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "After setup")
 	fmt.Fprintln(out, "  Run: gormes navivox pair")
+}
+
+type navivoxHostSetupOptions struct {
+	Yes bool
+}
+
+type navivoxHostSetupSeams struct {
+	GOOS             func() string
+	LookPath         func(string) (string, error)
+	ReadOSRelease    func() (map[string]string, error)
+	Confirm          func(*navivoxHostSetupPlan) (bool, error)
+	ReadSudoPassword func() (string, error)
+	Run              func(context.Context, navivoxHostSetupCommand) error
+}
+
+func (s navivoxHostSetupSeams) withDefaults() navivoxHostSetupSeams {
+	if s.GOOS == nil {
+		s.GOOS = func() string { return runtime.GOOS }
+	}
+	if s.LookPath == nil {
+		s.LookPath = exec.LookPath
+	}
+	if s.ReadOSRelease == nil {
+		s.ReadOSRelease = readNavivoxOSRelease
+	}
+	if s.Confirm == nil {
+		s.Confirm = confirmNavivoxHostSetup
+	}
+	if s.ReadSudoPassword == nil {
+		s.ReadSudoPassword = readNavivoxSudoPassword
+	}
+	if s.Run == nil {
+		s.Run = runNavivoxHostSetupCommand
+	}
+	return s
+}
+
+var navivoxHostSetup = (navivoxHostSetupSeams{}).withDefaults()
+
+type navivoxHostSetupPlan struct {
+	GOOS               string
+	Distro             string
+	PackageManager     string
+	SSHService         string
+	TailscaleInstalled bool
+	UnsupportedReason  string
+	Steps              []navivoxHostSetupStep
+}
+
+type navivoxHostSetupStep struct {
+	Label   string
+	Command navivoxHostSetupCommand
+}
+
+type navivoxHostSetupCommand struct {
+	Name  string
+	Args  []string
+	Stdin string
+}
+
+func runNavivoxSetupHostApply(cmd *cobra.Command, opts navivoxHostSetupOptions) error {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "Navivox host setup")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Tailscale SSH is the recommended path.")
+	fmt.Fprintln(out, "Gormes will use sudo only for this command and will not store the password.")
+	fmt.Fprintln(out)
+
+	plan := buildNavivoxHostSetupPlan()
+	if plan.UnsupportedReason != "" {
+		fmt.Fprintf(out, "Unsupported OS: %s\n", plan.GOOS)
+		fmt.Fprintf(out, "Reason: %s\n", plan.UnsupportedReason)
+		fmt.Fprintln(out, "No changes were made.")
+		fmt.Fprintln(out, "Run: gormes navivox setup-host --plan")
+		return newExitCodeError(2, fmt.Errorf("navivox setup-host unsupported: %s", plan.UnsupportedReason))
+	}
+
+	fmt.Fprintln(out, "Preflight")
+	fmt.Fprintf(out, "  Linux distribution: %s\n", plan.Distro)
+	fmt.Fprintf(out, "  Package manager: %s\n", plan.PackageManager)
+	if plan.TailscaleInstalled {
+		fmt.Fprintln(out, "  Tailscale already installed")
+	} else {
+		fmt.Fprintln(out, "  Tailscale missing; installer step will run")
+	}
+	fmt.Fprintf(out, "  SSH service: %s\n", plan.SSHService)
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Planned changes")
+	for i, step := range plan.Steps {
+		fmt.Fprintf(out, "  %d. %s\n", i+1, step.Label)
+		fmt.Fprintf(out, "     %s\n", navivoxHostSetupCommandString(step.Command))
+	}
+	fmt.Fprintln(out)
+
+	if !opts.Yes {
+		confirmed, err := navivoxHostSetup.Confirm(plan)
+		if err != nil {
+			return fmt.Errorf("confirm navivox host setup: %w", err)
+		}
+		if !confirmed {
+			fmt.Fprintln(out, "No changes were made.")
+			return nil
+		}
+	} else {
+		fmt.Fprintln(out, "Confirmation: --yes")
+	}
+
+	password, err := navivoxHostSetup.ReadSudoPassword()
+	if err != nil {
+		return fmt.Errorf("read sudo password: %w", err)
+	}
+	defer func() {
+		password = ""
+	}()
+
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Applying changes")
+	for i, step := range plan.Steps {
+		fmt.Fprintf(out, "  %d/%d %s\n", i+1, len(plan.Steps), step.Label)
+		c := step.Command
+		c.Stdin = password + "\n"
+		if err := navivoxHostSetup.Run(cmd.Context(), c); err != nil {
+			return fmt.Errorf("navivox setup-host %s: %w", step.Label, err)
+		}
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Done")
+	fmt.Fprintln(out, "Run: gormes navivox pair")
+	return nil
+}
+
+func buildNavivoxHostSetupPlan() *navivoxHostSetupPlan {
+	seams := navivoxHostSetup.withDefaults()
+	plan := &navivoxHostSetupPlan{GOOS: seams.GOOS()}
+	if plan.GOOS != "linux" {
+		plan.UnsupportedReason = "automatic host setup is currently Linux-only"
+		return plan
+	}
+	osRelease, _ := seams.ReadOSRelease()
+	plan.Distro = navivoxOSReleaseValue(osRelease, "ID")
+	if plan.Distro == "" {
+		plan.Distro = "linux"
+	}
+
+	pm, sshService := detectNavivoxHostPackageManager(seams, osRelease)
+	if pm == "" {
+		plan.UnsupportedReason = "supported package manager not found; install openssh-server and Tailscale manually"
+		return plan
+	}
+	if _, err := seams.LookPath("sudo"); err != nil {
+		plan.UnsupportedReason = "sudo not found; install OpenSSH and Tailscale manually or rerun on a sudo-capable host"
+		return plan
+	}
+	if _, err := seams.LookPath("systemctl"); err != nil {
+		plan.UnsupportedReason = "systemctl not found; enable SSH and Tailscale manually for this init system"
+		return plan
+	}
+	plan.PackageManager = pm
+	plan.SSHService = sshService
+
+	if pm == "apt-get" {
+		plan.Steps = append(plan.Steps,
+			navivoxHostSetupStep{Label: "Update package indexes", Command: sudoNavivoxHostCommand("apt-get", "update")},
+			navivoxHostSetupStep{Label: "Install OpenSSH server", Command: sudoNavivoxHostCommand("apt-get", "install", "-y", "openssh-server")},
+		)
+	} else {
+		plan.Steps = append(plan.Steps,
+			navivoxHostSetupStep{Label: "Install OpenSSH server", Command: sudoNavivoxHostCommand(pm, "install", "-y", "openssh-server")},
+		)
+	}
+	plan.Steps = append(plan.Steps,
+		navivoxHostSetupStep{Label: "Enable SSH service", Command: sudoNavivoxHostCommand("systemctl", "enable", "--now", sshService)},
+	)
+
+	if _, err := seams.LookPath("tailscale"); err == nil {
+		plan.TailscaleInstalled = true
+	} else {
+		plan.Steps = append(plan.Steps,
+			navivoxHostSetupStep{Label: "Install Tailscale", Command: sudoNavivoxHostCommand("sh", "-c", "curl -fsSL https://tailscale.com/install.sh | sh")},
+		)
+	}
+	plan.Steps = append(plan.Steps,
+		navivoxHostSetupStep{Label: "Enable Tailscale SSH", Command: sudoNavivoxHostCommand("tailscale", "up", "--ssh")},
+	)
+	return plan
+}
+
+func detectNavivoxHostPackageManager(seams navivoxHostSetupSeams, osRelease map[string]string) (manager, sshService string) {
+	id := strings.ToLower(navivoxOSReleaseValue(osRelease, "ID"))
+	like := strings.ToLower(navivoxOSReleaseValue(osRelease, "ID_LIKE"))
+	distroText := id + " " + like
+	if strings.Contains(distroText, "debian") || strings.Contains(distroText, "ubuntu") {
+		if _, err := seams.LookPath("apt-get"); err == nil {
+			return "apt-get", "ssh"
+		}
+		return "", ""
+	}
+	if strings.Contains(distroText, "fedora") || strings.Contains(distroText, "rhel") || strings.Contains(distroText, "centos") {
+		if _, err := seams.LookPath("dnf"); err == nil {
+			return "dnf", "sshd"
+		}
+		return "", ""
+	}
+	if _, err := seams.LookPath("apt-get"); err == nil {
+		return "apt-get", "ssh"
+	}
+	if _, err := seams.LookPath("dnf"); err == nil {
+		return "dnf", "sshd"
+	}
+	return "", ""
+}
+
+func sudoNavivoxHostCommand(name string, args ...string) navivoxHostSetupCommand {
+	out := navivoxHostSetupCommand{Name: "sudo", Args: []string{"-S", "--", name}}
+	out.Args = append(out.Args, args...)
+	return out
+}
+
+func navivoxHostSetupCommandString(c navivoxHostSetupCommand) string {
+	parts := make([]string, 0, 1+len(c.Args))
+	parts = append(parts, navivoxShellQuote(c.Name))
+	for _, arg := range c.Args {
+		parts = append(parts, navivoxShellQuote(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+func navivoxShellQuote(value string) string {
+	if value == "" {
+		return "''"
+	}
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			strings.ContainsRune("_@%+=:,./-", r) {
+			continue
+		}
+		return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+	}
+	return value
+}
+
+func readNavivoxOSRelease() (map[string]string, error) {
+	raw, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		value = strings.Trim(strings.TrimSpace(value), `"`)
+		out[strings.TrimSpace(key)] = value
+	}
+	return out, nil
+}
+
+func navivoxOSReleaseValue(values map[string]string, key string) string {
+	if values == nil {
+		return ""
+	}
+	return strings.TrimSpace(values[key])
+}
+
+func confirmNavivoxHostSetup(*navivoxHostSetupPlan) (bool, error) {
+	fmt.Fprint(os.Stderr, "Apply Navivox host setup? Type yes to continue: ")
+	text, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(strings.TrimSpace(text), "yes"), nil
+}
+
+func readNavivoxSudoPassword() (string, error) {
+	fmt.Fprint(os.Stderr, "sudo password: ")
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return "", err
+		}
+		return string(raw), nil
+	}
+	text, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(text, "\r\n"), nil
+}
+
+func runNavivoxHostSetupCommand(ctx context.Context, c navivoxHostSetupCommand) error {
+	cmd := exec.CommandContext(ctx, c.Name, c.Args...)
+	if c.Stdin != "" {
+		cmd.Stdin = strings.NewReader(c.Stdin)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func resolveNavivoxPairHost(ctx context.Context, explicit string) (host string, source string, err error) {
