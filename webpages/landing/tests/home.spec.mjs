@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const release = JSON.parse(readFileSync(new URL('../src/data/release.json', import.meta.url), 'utf8'));
 const landingBenchmarks = JSON.parse(readFileSync(new URL('../src/data/benchmarks.json', import.meta.url), 'utf8'));
 const rootBenchmarks = JSON.parse(readFileSync(new URL('../../../benchmarks.json', import.meta.url), 'utf8'));
+const logoSvg = readFileSync(new URL('../public/static/gormes-agent-logo-blue.svg', import.meta.url), 'utf8');
 const releaseTag = release.tag || `v${release.version}`;
 const releaseLabel = `Current scout release: ${releaseTag}`;
 const releaseLabelPattern = new RegExp(escapeRegExp(releaseLabel));
@@ -15,6 +16,8 @@ function escapeRegExp(value) {
 test('homepage renders the redesigned landing', async ({ page }) => {
   expect(landingBenchmarks.binary.size_mb).toBe(rootBenchmarks.binary.size_mb);
   expect(landingBenchmarks.binary.last_measured).toBe(rootBenchmarks.binary.last_measured);
+  expect(logoSvg).toContain('<tspan x="24" dy="0"> ██████');
+  expect(logoSvg).toContain('<tspan x="24" dy="20"> ╚═════╝');
 
   await page.goto('/');
 

@@ -79,7 +79,7 @@ export const page = {
   ],
   installHeadline: 'Two install paths. One gormes command.',
   installIntro:
-    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install that publishes the stable gormes command. Both paths keep the first proof offline.',
+    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install that publishes the stable gormes command. Both paths keep the first proof offline. No runtime Node or npm is needed to open the native UI.',
   installSteps: [
     {
       label: 'METHOD 1 · BUILD FROM SOURCE',

@@ -19,11 +19,11 @@
 
 ![Gormes install and first-run onboarding demo](docs/assets/gormes-tui-demo.gif)
 
-Gormes is a Go-native runtime for Hermes-Agent, with upstream Git history preserved for attribution. It keeps the agent, TUI, gateway, tools, sessions, and local memory in one Go binary so setup is a checklist, not a Python environment.
+Gormes is a Go-native runtime for Hermes-Agent, with upstream Git history preserved for attribution and Hermes-compatible agent behavior carried forward in Go. It keeps the TUI, provider turns, onboarding, chat gateways, tools, sessions, local SQLite memory, dashboard, logs, and security audits behind the `gormes` command so setup is a checklist, not a Python environment.
 
 ## Install
 
-Two promoted install paths are supported.
+Two promoted install paths are supported. Both end with the `gormes` command and start with offline verification before provider credentials are needed.
 
 Build from source:
 
@@ -33,6 +33,7 @@ cd gormes-agent
 make build
 export PATH="$PWD/bin:$PATH"
 gormes doctor --offline
+gormes --offline
 ```
 
 Or use the source-backed installer:
@@ -42,13 +43,14 @@ curl -fsSLO https://gormes.ai/install.sh
 less install.sh
 sh install.sh
 gormes doctor --offline
+gormes --offline
 ```
 
 The installer clones or updates a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Use `--skip-setup` to defer that wizard.
 
 ## First Run
 
-Run these in order:
+After either install path, run these in order:
 
 ```bash
 gormes doctor --offline
@@ -59,7 +61,7 @@ gormes --oneshot "hello"
 
 | Command | What it proves |
 |---|---|
-| `gormes doctor --offline` | Local runtime, TUI, tools, gateway checks, and Goncho memory are wired without using credentials. |
+| `gormes doctor --offline` | Local runtime, TUI, tools, gateway checks, and local SQLite memory ("Goncho") are wired without using credentials. |
 | `gormes onboard` | Shows your config path, skills, agents, channel bindings, missing provider state, and next commands. |
 | `gormes setup provider` | Interactively picks endpoint, provider, model, and API key. Secrets go to `~/.gormes/.env`; config goes to `~/.gormes/config.toml`. |
 | `gormes --oneshot "hello"` | Sends one provider-backed turn and exits. If this works, the TUI and gateway have a model to use. |
@@ -74,9 +76,11 @@ gormes --offline
 
 ```bash
 gormes                     # open the native TUI
+gormes onboard --wizard    # guided first-run readiness plan
 gormes dashboard           # web UI at http://127.0.0.1:43827/dashboard
 gormes gateway             # run the configured messaging gateway
 gormes gateway status      # inspect gateway runtime state
+gormes gateway reload      # reload swappable gateway config without restart
 gormes logs                # read recent gateway logs
 ```
 
@@ -95,29 +99,31 @@ The default agent is ready after install. Add more when you need separate worksp
 
 | Surface | Current path |
 |---|---|
-| Install | Hermes-style source-backed `curl \| bash`, with one Go binary and no Python runtime. |
-| Setup | `gormes onboard` for state, `gormes setup provider` for the missing model/API key path. |
-| Providers | OpenAI-compatible providers, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, and custom endpoints. |
-| Memory | Goncho local memory and sessions backed by SQLite inside `~/.gormes`. |
-| Gateway | One gateway process with Telegram, Discord, and Slack setup paths; additional adapters are tracked in the roadmap. |
-| Operations | `doctor`, `config show`, `gateway status`, `logs`, `security audit`, and `secrets audit` commands. |
+| Install | Source build or inspectable `install.sh`, with one Go command and no Python runtime. |
+| Setup | `gormes onboard` for state, `gormes onboard --wizard` for guided readiness, and `gormes setup provider` for model/API-key setup. |
+| Providers | OpenAI-compatible endpoints plus implemented OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, and custom endpoint paths. |
+| Memory | Local SQLite memory ("Goncho") and sessions inside `~/.gormes`. |
+| Gateway | One gateway process with runtime-ready Telegram, Discord, and Slack setup paths; additional adapters are tracked in the roadmap. |
+| Operations | `doctor`, `config show`, `gateway status`, `gateway reload`, `logs`, `dashboard`, `security audit`, and `secrets audit` commands. |
 
 ## Why People Switch
 
 | | Other agents | Gormes |
 |---|---|---|
-| **Install** | pip, venvs, system packages | `curl \| sh` to one Go binary |
-| **First setup** | Find and edit config files | `gormes onboard` then `gormes setup provider` |
+| **Install** | pip, venvs, system packages | Source build or inspectable `install.sh` to one Go command |
+| **First setup** | Find and edit config files | `gormes onboard`, optional wizard, then `gormes setup provider` |
 | **Smoke test** | Needs a live model first | `gormes doctor --offline` and `gormes --offline` |
 | **State** | Redis, vector DBs, sidecars | SQLite under `~/.gormes` |
 | **Channels** | Separate bot glue per platform | One gateway process with channel bindings |
-| **Release trust** | Ad-hoc local environments | Tagged release assets with SHA-256, SBOMs, and CI validation |
+| **Release trust** | Ad-hoc local environments | Tagged release assets with SHA-256, SBOMs, and CI validation; signing and package-manager lanes are still hardening |
 
 ## Operator Cheatsheet
 
 ```bash
 gormes config show              # redacted config
 gormes config edit              # open ~/.gormes/config.toml
+gormes onboard --wizard         # guided first-run readiness plan
+gormes setup model              # select the default model
 gormes auth add <provider>      # add or refresh credentials
 gormes security audit --deep    # inspect gateway, tool, and state security
 gormes secrets audit --plan file
@@ -148,9 +154,17 @@ go run ./cmd/progress validate
 [Troubleshooting](https://docs.gormes.ai/getting-started/troubleshooting/) ·
 [Roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/)
 
+## Scout Trust Posture
+
+- Source build and inspectable `install.sh` are the recommended scout-release paths.
+- `gormes doctor --offline` and `gormes --offline` prove local readiness before token spend.
+- Provider secrets stay local under `~/.gormes/.env`; config stays under `~/.gormes/config.toml`.
+- Binary size and public benchmark mirrors come from repo data, not hand-tuned marketing copy.
+- Release signing and package-manager installs are still active hardening work.
+
 ## Status
 
-Latest public release: [v0.1.01](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.01). Gormes is early 0.x software: dashboard, gateway, and memory phases are shipped; provider/runtime parity and the learning loop are still moving through the roadmap below.
+Latest public release: [v0.1.01](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.01). Gormes is early 0.x software: dashboard, gateway, local SQLite memory, source-backed install, onboarding/setup, logs, and security/secrets audits are available now. Provider/runtime parity, deeper learning-loop work, broad channel parity, MCP/plugin parity, voice/TTS, release signing, and package-manager hardening are still moving through the roadmap below.
 
 <!-- PROGRESS:START kind=readme-rollup -->
 | Phase | Status | Shipped |
@@ -164,7 +178,7 @@ Latest public release: [v0.1.01](https://github.com/TrebuchetDynamics/gormes-age
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 <!-- PROGRESS:END -->
 
-Release v0.1.01 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. Local Linux amd64 release smoke: `gormes 0.1.01`, 25 MB on disk. CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
+Release v0.1.01 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. The current benchmark mirror reports a Linux build at ~38.6 MB (`benchmarks.json`, 2026-05-04). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
 
 ---
 
