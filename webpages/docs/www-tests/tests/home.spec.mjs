@@ -6,8 +6,8 @@ test('docs home renders through Starlight with operator-first content', async ({
   await expect(page).toHaveTitle(/Gormes Documentation \| Gormes Docs/);
   await expect(page.getByRole('heading', { name: 'Gormes Documentation' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Gormes', exact: true })).toBeVisible();
-  await expect(page.getByText('Gormes runs AI agents as one Go-native agent runtime.')).toBeVisible();
-  await expect(page.getByText('Start offline, prove the machine works')).toBeVisible();
+  await expect(page.getByText('Gormes runs AI agents from one Go-native runtime.')).toBeVisible();
+  await expect(page.getByText('Choose source build or')).toBeVisible();
 
   await expect(page.getByText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git')).toBeVisible();
   await expect(page.getByText('gormes doctor --offline').first()).toBeVisible();
@@ -25,7 +25,7 @@ test('docs home renders through Starlight with operator-first content', async ({
     'Development',
     'Parity',
     'Building Gormes',
-    'Upstream Hermes',
+    'Upstream Hermes Archive',
   ]) {
     await expect(nav.getByText(label, { exact: true }).first()).toBeVisible();
   }

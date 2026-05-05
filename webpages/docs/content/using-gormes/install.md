@@ -7,27 +7,32 @@ weight: 20
 
 Gormes is a single static Go binary. The current Linux benchmark build is ~38 MB; size varies by OS and build profile. Zero CGO, no Python runtime on the host.
 
-## Recommended: source build
+## Method 1: source build
 
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
 make build
-./bin/gormes --offline
-./bin/gormes doctor --offline
-./bin/gormes goncho doctor --json
+export PATH="$PWD/bin:$PATH"
+gormes doctor --offline
+gormes --offline
+gormes goncho doctor --json
 ```
 
 This is the primary trust path while Gormes is early-stage: inspect the source
-tree, build the binary locally, then verify the offline runtime and Goncho
-memory diagnostics before adding provider credentials.
+tree, build the command locally, put the fresh build first on `PATH`, then
+verify the offline runtime and Goncho memory diagnostics before adding provider
+credentials.
 
 Requires Go 1.25+.
 
-## Quick install
+## Method 2: install.sh
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
+curl -fsSLO https://gormes.ai/install.sh
+less install.sh
+sh install.sh
+gormes doctor --offline
 ```
 
 The Unix installer mirrors Hermes' source-backed user flow for Gormes. It
@@ -36,13 +41,10 @@ command, verifies `gormes version`, runs `gormes doctor --offline`, and starts
 `gormes setup` when a terminal is available. Rerun the same command to update
 the managed checkout and rebuild the command.
 
-Convenience aliases exist at `https://gormes.ai/install.sh` and
-`https://gormes.ai/install.ps1`. To inspect first:
+If you intentionally want the one-line convenience form:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
-less install.sh
-sh install.sh
+curl -fsSL https://gormes.ai/install.sh | bash
 ```
 
 Use `sh install.sh --skip-setup` or set `GORMES_SKIP_SETUP=1` when you want to

@@ -167,7 +167,9 @@ model = "claude-sonnet-4-20250514"
 ## Installer
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
+curl -fsSLO https://gormes.ai/install.sh
+less install.sh
+sh install.sh
 ```
 
 Key installer options:

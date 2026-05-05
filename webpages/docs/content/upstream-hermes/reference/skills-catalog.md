@@ -217,14 +217,6 @@ Skills for document creation, presentations, spreadsheets, and other productivit
 | `ocr-and-documents` | Extract text from PDFs and scanned documents. Use web_extract for remote URLs, pymupdf for local text-based PDFs, marker-pdf for OCR/scanned docs. For DOCX use python-docx, for PPTX see the powerpoint skill. | `productivity/ocr-and-documents` |
 | `powerpoint` | Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted content will be used elsewhere, like in … | `productivity/powerpoint` |
 
-## red-teaming
-
-Skills for LLM red-teaming, jailbreaking, and safety filter bypass research.
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| `godmode` | Jailbreak API-served LLMs using G0DM0D3 techniques — Parseltongue input obfuscation (33 techniques), GODMODE CLASSIC system prompt templates, ULTRAPLINIAN multi-model racing, encoding escalation, and Hermes-native prefill/system prompt integration. Use when a user wants to byp… | `red-teaming/godmode` |
-
 ## research
 
 Skills for academic research, paper discovery, literature review, market data, content monitoring, and scientific knowledge retrieval.

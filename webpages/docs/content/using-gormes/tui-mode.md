@@ -10,10 +10,10 @@ The default interface. A Bubble Tea terminal shell for local smoke checks and co
 ## Launch
 
 ```bash
-./bin/gormes --offline
+gormes --offline
 ```
 
-`--offline` keeps typed messages local. Run `./bin/gormes` without `--offline` after configuring a provider-compatible endpoint.
+`--offline` keeps typed messages local. Run `gormes` without `--offline` after configuring a provider-compatible endpoint.
 
 ## Keybindings
 
@@ -30,4 +30,4 @@ The TUI coalesces streamed tokens at 16 ms (the render mailbox), so scrolling un
 
 ## Session resume
 
-Each invocation reattaches to the last session via a bbolt map at `~/.gormes/sessions.db`. To start fresh: `./bin/gormes --resume new`.
+Each invocation reattaches to the last session via a bbolt map at `~/.gormes/sessions.db`. To start fresh: `gormes --resume new`.

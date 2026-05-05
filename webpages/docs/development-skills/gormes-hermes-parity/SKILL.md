@@ -88,6 +88,30 @@ finishes the current behavior packet.
 | Need Go donor shape before coding | `gormes-references` |
 | Useful OpenClaw-only behavior absent from Hermes | `gormes-openclaw-parity` |
 
+## Provider Auth And Setup Incidents
+
+Treat install, setup, config writing, doctor/onboard output, Telegram settings,
+provider auth, and Codex auth import reports as user-visible parity surfaces,
+not as incidental local-machine issues.
+
+When a report touches these surfaces:
+
+- Identify the active Hermes contract first, then route implementation through
+  `gormes-provider-parity`, `gormes-dev-runtime`, and `gormes-tdd-slice` as
+  needed.
+- Use isolated `GORMES_HOME`, `HERMES_HOME`, and `CODEX_HOME` fixtures. Never
+  read real private homes or print user secrets; use synthetic tokens/JWTs.
+- For Codex auth, Hermes can find `CODEX_HOME/auth.json` or
+  `~/.codex/auth.json`, import fresh Codex CLI tokens into Hermes-owned auth
+  state, and fall back to device-code when the file is missing, stale, or bad.
+  Gormes parity means fresh Codex CLI auth imports into Gormes' own credential
+  pool, stale imports do not block device-code login, and all evidence is
+  redacted.
+- Setup regressions need TDD coverage for the exact broken surface:
+  `config set`, nested config loading, `onboard`, `doctor --offline`,
+  `gateway status --json`, and source/binary/install smoke when PATH or
+  published binaries are in scope.
+
 When delegating or handing off, emit a task packet:
 
 ```text

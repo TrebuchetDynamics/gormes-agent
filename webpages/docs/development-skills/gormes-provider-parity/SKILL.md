@@ -156,6 +156,9 @@ Write RED tests with:
 Required test classes for provider fixes:
 
 - explicit endpoint/proxy remains supported;
+- Codex auth import uses synthetic `CODEX_HOME/auth.json` fixtures: fresh
+  Codex CLI tokens import into Gormes' own pool, expired tokens fall back to
+  device-code, and logs/status output redacts tokens and absolute auth paths;
 - no implicit localhost or relative `/v1/responses` URL;
 - credential-pool OAuth entries can supply base URL and bearer token when Hermes parity expects it;
 - missing/stale/forbidden/rate-limited provider failures surface structured safe evidence, not raw HTML or secret-bearing text;

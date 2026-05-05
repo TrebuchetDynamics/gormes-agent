@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 65/92 subphases shipped · 22 in progress · 5 planned
+**Overall:** 64/92 subphases shipped · 23 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -578,7 +578,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure ✅
+### 4.I — Native Agent Turn Closure 🔨
 
 - [x] Python-free normal agent turn e2e harness
 - [x] Provider-tool-memory golden transcript suite
@@ -587,6 +587,8 @@ classification and row-backed implementation queue.
 - [x] Swarm feature-level parity audit for Hermes/Honcho map
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
+- [ ] Hermes website docs mirror coverage gate
+- [ ] Gormes setup/channel/provider docs webpage parity gate
 - [x] Native runtime provider gateway binding
 - [x] Hermes compatibility namespace retirement boundary
 
@@ -843,6 +845,7 @@ classification and row-backed implementation queue.
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
 - [x] Gormes setup full-wizard shell and branded summary
+- [ ] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
 - [x] Gormes setup terminal TTS and agent-settings section bindings
@@ -1001,6 +1004,7 @@ classification and row-backed implementation queue.
 
 ### 6.F — Skill Surface 🔨
 
+- [ ] Hermes skill_manage support-file and curator intent actions
 - [ ] Hermes curator command surface
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface

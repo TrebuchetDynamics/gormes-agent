@@ -33,21 +33,28 @@ maintains agent-created skills through activity-based lifecycle transitions,
 dry-run reports, backups, rollback/restore, and `hermes curator` commands. The
 curator also has a dedicated `auxiliary.curator` model slot, so review work can
 use a cheaper or slower side model without changing the main chat model. Phase
-6 ports those contracts first, then adds Gormes-native evidence for detectors,
-scoring, retrieval, and promotion.
+6 ports those contracts first, including the `skill_manage` support-file actions
+the curator prompt uses to demote narrow content into references/templates/scripts
+or assets, then adds Gormes-native evidence for detectors, scoring, retrieval,
+and promotion.
 
 ## Current status
 
 🚧 Partial — see [Phase 6](../../architecture_plan/phase-6-learning-loop/) for
 the sub-phase breakdown. Gormes already has SKILL.md validation, skill
-metadata/retrieval fixtures, `skill_manage`, `skills_list`, `skill_view`, and
-the background-review memory+skills-only toolset policy. Missing parity rows
-now track the background review fork lifecycle, curator state/report engine,
-curator auxiliary model routing, and `gormes curator` command surface.
+metadata/retrieval fixtures, base `skill_manage` create/edit/patch/delete,
+`skills_list`, `skill_view`, and the background-review memory+skills-only
+toolset policy. Missing parity rows now track Hermes `skill_manage`
+support-file and curator-intent actions, the background review fork lifecycle,
+curator state/report engine, curator auxiliary model routing, and `gormes
+curator` command surface.
 
 Execution should be TDD-first and local-signal-first:
 
-- Start with the Hermes background-review fork lifecycle: active runtime
+- Start with Hermes `skill_manage` support-file and curator-intent actions:
+  support-file write/patch/remove, `absorbed_into` deletes, pinned-skill
+  refusal, optional guard rollback, and background-review provenance.
+- Then port the Hermes background-review fork lifecycle: active runtime
   inheritance, memory+skills-only toolsets, attributed summaries, and cleanup.
 - Add the Hermes `auxiliary.curator` slot before native curator runs so model
   routing, fallback, timeout, and credential behavior are visible and testable.

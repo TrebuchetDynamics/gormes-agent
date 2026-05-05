@@ -98,7 +98,7 @@ export default defineConfig({
           autogenerate: { directory: 'building-gormes', collapsed: true },
         },
         {
-          label: 'Upstream Hermes',
+          label: 'Upstream Hermes Archive',
           collapsed: true,
           autogenerate: { directory: 'upstream-hermes', collapsed: true },
         },

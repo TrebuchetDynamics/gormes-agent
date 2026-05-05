@@ -23,19 +23,28 @@ Gormes is a Go-native runtime for Hermes-Agent, with upstream Git history preser
 
 ## Install
 
+Two promoted install paths are supported.
+
+Build from source:
+
 ```bash
-curl -fsSL https://gormes.ai/install.sh | bash
+git clone https://github.com/TrebuchetDynamics/gormes-agent.git
+cd gormes-agent
+make build
+export PATH="$PWD/bin:$PATH"
+gormes doctor --offline
 ```
 
-The installer clones or updates a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Use `--skip-setup` to defer that wizard.
-
-Prefer to inspect first?
+Or use the source-backed installer:
 
 ```bash
 curl -fsSLO https://gormes.ai/install.sh
 less install.sh
 sh install.sh
+gormes doctor --offline
 ```
+
+The installer clones or updates a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Use `--skip-setup` to defer that wizard.
 
 ## First Run
 
@@ -121,8 +130,9 @@ gormes uninstall                # remove local Gormes artifacts
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
 make build
-./bin/gormes version
-./bin/gormes doctor --offline
+export PATH="$PWD/bin:$PATH"
+gormes version
+gormes doctor --offline
 go test ./... -count=1
 go run ./cmd/progress validate
 ```
@@ -148,7 +158,7 @@ Latest public release: [v0.1.01](https://github.com/TrebuchetDynamics/gormes-age
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |

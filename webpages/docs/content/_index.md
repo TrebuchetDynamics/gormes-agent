@@ -11,22 +11,42 @@ slug: "/"
 
 # Gormes
 
-Gormes runs AI agents as one Go-native agent runtime.
+Gormes runs AI agents from one Go-native runtime.
 
 No Python runtime. No virtualenv repair. No backend service just to open the UI.
 
-Start offline, prove the machine works, then add provider and gateway credentials.
+Choose source build or `install.sh`, prove the machine offline, then add provider and gateway credentials.
 
 ## Get started
 
-Build from source, verify the local stack, then open the offline TUI:
+Use one of the two promoted install paths.
+
+Build from source:
 
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
 make build
+export PATH="$PWD/bin:$PATH"
 gormes doctor --offline
 gormes --offline
+```
+
+Or inspect and run `install.sh`:
+
+```bash
+curl -fsSLO https://gormes.ai/install.sh
+less install.sh
+sh install.sh
+gormes doctor --offline
+```
+
+After either path, add only what you need:
+
+```bash
+gormes setup provider
+gormes --oneshot "hello"
+gormes gateway status
 ```
 
 ## What is Gormes?
@@ -37,9 +57,10 @@ Who is it for? Operators, developers, and agent builders who want a local runtim
 
 What makes it different?
 
-- **Go-native runtime:** native TUI, doctor, provider turns, tools, memory, dashboard, and configured gateways from one binary.
+- **Go-native runtime:** native TUI, doctor, onboard/setup, provider turns, tools, memory, dashboard, logs, audits, and configured gateways from one binary.
 - **Offline proof path:** `gormes --offline` and `gormes doctor --offline` work before credentials, network calls, or token spend.
-- **Local memory:** Goncho keeps sessions and durable context in local SQLite.
+- **Two install paths:** source build for maximum inspection, or source-backed `install.sh` for a managed checkout that publishes the `gormes` command.
+- **Local SQLite memory ("Goncho"):** sessions and durable context stay local.
 - **Roadmap honesty:** Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening stay visible as active work instead of shipped promises.
 
 ## What you can do today
@@ -47,17 +68,44 @@ What makes it different?
 - Run a local agent UI with zero runtime dependencies on the offline path.
 - Send one-shot prompts to a provider-compatible endpoint.
 - Validate your environment before spending tokens.
+- Run onboard/setup flows that surface config, providers, skills, agents, and channel bindings.
 - Operate configured Telegram, Discord, or Slack agents from one binary.
 - Inspect and debug agent memory locally with Goncho.
-- Browse sessions, config, skills, and logs in the local dashboard.
+- Browse sessions, config, skills, logs, and audits in local operator surfaces.
+
+## Support labels
+
+The docs use support labels so roadmap work does not look like shipped runtime behavior:
+
+| Label | Meaning |
+|---|---|
+| **Runtime-ready** | Covered by current Go runtime paths and promoted for configured scout-release use. Telegram, Discord, and Slack are in this group. |
+| **Adapter present / needs live validation** | Go code or fixtures exist, but the path is not promoted as a default user-ready channel yet. |
+| **Planned** | Tracked in the roadmap or progress file, but not user-ready. |
+| **Experimental or internal** | Kept for contributor context, not public setup guidance. |
+
+## Trust posture
+
+- Source build and inspectable `install.sh` are the two promoted scout-release paths.
+- Offline doctor runs before provider credentials or token spend.
+- Secrets stay local under the Gormes home.
+- `install.sh` clones or updates a managed source checkout, builds `gormes`, verifies the command, and can hand off to setup.
+- Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.
+- Progress data is generated from the canonical `progress.json` source instead of hand-edited marketing copy.
 
 ## How it works
 
-The Gormes binary is the local source of truth for TUI sessions, provider turns, tools, Goncho memory, dashboard views, and configured gateway status. Operator docs separate what is ready today from architecture and parity pages that track deeper Hermes/Honcho compatibility.
+The Gormes binary is the local source of truth for TUI sessions, provider turns, tools, local SQLite memory, dashboard views, and configured gateway status. Operator docs separate what is ready today from architecture and parity pages that track deeper Hermes/Honcho compatibility.
 
 ## What lives here?
 
 This docs surface is the operator and developer manual for Gormes. It starts with install, first run, configuration, gateway operation, and troubleshooting. Architecture and parity pages explain how Gormes stays compatible with Hermes without making roadmap work look like shipped runtime behavior.
+
+| Section | Audience | Use it for |
+|---|---|---|
+| **Getting Started**, **Operate**, **Using Gormes**, **Reference** | Users and operators | Install, first run, provider setup, gateway operation, config, CLI, environment, and troubleshooting. |
+| **Architecture**, **Development**, **Parity**, **Building Gormes** | Contributors | Runtime boundaries, parity workflow, implementation progress, and source-backed roadmap rows. |
+| **Upstream Hermes Archive** and **Papers** | Researchers and maintainers | Historical/source context. These pages are not Gormes setup instructions and may describe upstream-only behavior. |
 
 ## Start here
 

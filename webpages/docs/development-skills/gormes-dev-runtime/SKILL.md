@@ -83,6 +83,27 @@ Root Linux defaults are `/usr/local/lib/gormes-agent` and
   `hermes gateway start`. Any such output is a parity bug; fix the Gormes
   startup path or installer-published binary, not the user's Hermes process.
 
+## Setup And Auth Regression Checks
+
+Runtime/setup incidents often span multiple surfaces. Build a temp-home matrix
+before touching real operator state:
+
+- Run config/setup checks with isolated `GORMES_HOME`, `HERMES_HOME`,
+  `CODEX_HOME`, `XDG_CONFIG_HOME`, and `XDG_DATA_HOME`.
+- Use synthetic Telegram/provider tokens in tests; never echo, commit, or
+  report real tokens.
+- For Codex provider setup, include a synthetic `CODEX_HOME/auth.json` case:
+  fresh Codex CLI auth should import into the Gormes credential pool, expired
+  Codex CLI auth should fall back to device-code, and output must stay
+  redacted.
+- Cover the operator-facing chain that broke: `config set`, config reload,
+  `onboard`, `doctor --offline`, `gateway status --json`, and the exact
+  binary surface (`go run`, `./bin/gormes`, or installed `gormes`) implicated
+  by the report.
+- If the user provides live settings, install them only after a sanitized
+  dry-run fixture passes, then verify with redacted commands. Document any
+  blockers without printing secret values.
+
 ## Incident Checklist
 
 When validating an installer/runtime report, write down these facts before
