@@ -102,11 +102,6 @@ export default defineConfig({
           collapsed: true,
           autogenerate: { directory: 'upstream-hermes', collapsed: true },
         },
-        {
-          label: 'Upstream GBrain',
-          collapsed: true,
-          autogenerate: { directory: 'upstream-gbrain' },
-        },
         { label: 'Papers', collapsed: true, autogenerate: { directory: 'papers' } },
         { label: 'Why Gormes', link: '/why-gormes/' },
       ],

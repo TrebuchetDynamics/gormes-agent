@@ -46,7 +46,7 @@ Use these skills as the default routing surface:
 |---|---|
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
 | Running a recurring full Hermes-in-Go parity sweep or recording periodic parity progress | `gormes-hermes-parity` |
-| Mapping Hermes/Honcho/GBrain parity gaps | `gormes-parity-auditor` |
+| Mapping Hermes/Honcho parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Local run/install/runtime work: `go run ./cmd/gormes`, `bin/gormes`, `install.sh`, managed source checkouts, PATH shadowing, gateway process ownership, or `sessions.db` locks | `gormes-dev-runtime` |

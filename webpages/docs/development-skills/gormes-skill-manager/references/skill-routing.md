@@ -16,7 +16,7 @@ Skill files are edited in `docs/development-skills/<name>/`; `.agents/skills/`,
 | User wants to stress-test direction or make a hard decision | `grill-me` | `gormes-planner` after decision |
 | User wants a recurring/periodic Hermes-in-Go parity sweep or to record current parity progress | `gormes-hermes-parity` | `gormes-parity-auditor` for source comparison, then `gormes-planner` for row updates |
 | Need to safely rename or restructure parity taxonomy, feature-map groupings, or progress row categories | `gormes-hermes-parity` | `gormes-planner` for progress/docs edits, then `gormes-builder` only if runtime compatibility code is needed |
-| Need to compare Hermes/Honcho/GBrain against Gormes | `gormes-parity-auditor` | `gormes-planner` to update rows |
+| Need to compare Hermes/Honcho against Gormes | `gormes-parity-auditor` | `gormes-planner` to update rows |
 | Need Hermes CLI/config/migration parity, including `migrate hermes`, `migrate openclaw`, or typo requests like `migrate ooenclaw` | `gormes-parity-auditor` | `gormes-planner` updates manifest/config/migration rows and keeps typos as suggestions unless a compatibility row exists |
 | Need to update roadmap/progress rows | `gormes-planner` | `gormes-builder` for selected row |
 | Need Go API/package shape before coding | `gormes-interface-designer` | `gormes-planner` row or `gormes-builder` implementation |
