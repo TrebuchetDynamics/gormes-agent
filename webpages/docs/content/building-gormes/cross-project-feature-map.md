@@ -5,7 +5,7 @@
 Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mineru:
 - **hermes-agent** (Python upstream - 519K lines CLI, 702K lines agent runner)
 - **honcho** (Python memory/session - Peer paradigm, 3-agent memory system)
-- **gbrain** (TypeScript memory/runtime - Brain-first knowledge graph, minions queue)
+- **gormes** (TypeScript memory/runtime - Brain-first knowledge graph, minions queue)
 - **browser-harness** (Python browser automation - CDP, Camofox, daemon lifecycle)
 - **go-browser-harness** (Go browser automation - Chromedp, stateless actions)
 - **mercury-agent** (TypeScript CLI/Telegram - Soul-driven, permission-hardened)
@@ -40,7 +40,7 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
 **Learnings from other projects:**
 - **Picoclaw**: 30+ providers with unified interface - could adopt pattern for provider registration
 - **Mercury**: Provider fallback chain (DeepSeek → OpenAI → Anthropic → Grok → Ollama) - resilient routing
-- **GBrain**: Multi-provider LLM abstraction with fallback models per provider
+- **Gormes-owned**: Multi-provider LLM abstraction with fallback models per provider
 
 ### Category 2: Browser Automation
 
@@ -89,11 +89,11 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
 - **Mercury**: 31 built-in tools with permission-hardened execution (shell blocklist, filesystem scoping)
 - **Space-agent**: Skill system with metadata-driven placement (`metadata.when`, `metadata.loaded`, `metadata.placement`)
 - **Picoclaw**: Cron, web search (DuckDuckGo, Baidu, Tavily, Brave, Perplexity, SearXNG), filesystem, shell, spawn
-- **GBrain**: Cathedral II code navigation (call-graph edges, two-pass retrieval)
+- **Gormes-owned**: Cathedral II code navigation (call-graph edges, two-pass retrieval)
 
 ### Category 4: Memory Systems
 
-| Feature | Hermes | Honcho | GBrain | Mercury | Gormes |
+| Feature | Hermes | Honcho | Gormes-owned | Mercury | Gormes |
 |---------|--------|--------|--------|---------|--------|
 | Storage | SQLite | PostgreSQL+pgvector | SQLite+FTS5 / PostgreSQL | SQLite+FTS5 | SQLite (Goncho) |
 | Vector search | Not core | ✅ HNSW cosine | ✅ Hybrid (RRF+cosine) | FTS5 keyword | Not yet |
@@ -107,7 +107,7 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
 
 **Learnings:**
 - **Honcho**: Three-agent memory system (Deriver/Dialectic/Dreamer) with observation levels (explicit/deductive/inductive/contradiction)
-- **GBrain**: Brain-first lookup (5-step before external API), compiled truth + timeline pattern, tiered enrichment
+- **Gormes-owned**: Brain-first lookup (5-step before external API), compiled truth + timeline pattern, tiered enrichment
 - **Mercury**: Second Brain with 10 typed memories, hourly heartbeat consolidation, confidence/durability scoring
 
 ### Category 5: Gateway/Channels
@@ -196,7 +196,7 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
 
 ### Category 9: Scheduling & Background Tasks
 
-| Feature | Hermes | Mercury | GBrain | Gormes |
+| Feature | Hermes | Mercury | Gormes-owned | Gormes |
 |---------|--------|---------|--------|--------|
 | Cron scheduling | `cron/scheduler.py` (58,318) | ✅ Cron + delayed | Not core | `cron/` basic |
 | Job queue | Postgres-backed | YAML-persisted | ✅ Minions (BullMQ-inspired) | Not yet |
@@ -206,7 +206,7 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
 | Token accounting | Not core | Not core | ✅ Per-job tracking | Not yet |
 
 **Learnings:**
-- **GBrain Minions**: Postgres-native job queue, BullMQ-inspired, zero infra, stall detection, retry with backoff, supervisor auto-restart
+- **Gormes durable jobs**: Postgres-native job queue, BullMQ-inspired, zero infra, stall detection, retry with backoff, supervisor auto-restart
 - **Mercury**: Configurable heartbeat interval, episodic prune + second brain consolidate
 
 ### Category 10: Unique Paradigms from Other Projects
@@ -218,10 +218,10 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
 | **Space-agent** | Layered customware (L0 firmware → L1 group → L2 user) | Multi-tenant configuration model |
 | **Space-agent** | Git-backed time travel (rollback/revert) | Useful for workspace state recovery |
 | **Space-agent** | WebLLM + HuggingFace (browser-side inference) | Novel - requires browser runtime |
-| **GBrain** | Zero-LLM knowledge graph wiring (regex-based auto-links) | HIGH - significantly reduces LLM calls for entity resolution |
-| **GBrain** | Cathedral II code navigation (call-graph edges) | HIGH - for code-aware agent capabilities |
-| **GBrain** | Thin harness, fat skills (intelligence in skills not runtime) | Architectural philosophy alignment |
-| **GBrain** | Fail-improve loop (logs regex failures, generates better patterns) | Self-improving deterministic classifiers |
+| **Gormes-owned** | Zero-LLM knowledge graph wiring (regex-based auto-links) | HIGH - significantly reduces LLM calls for entity resolution |
+| **Gormes-owned** | Cathedral II code navigation (call-graph edges) | HIGH - for code-aware agent capabilities |
+| **Gormes-owned** | Thin harness, fat skills (intelligence in skills not runtime) | Architectural philosophy alignment |
+| **Gormes-owned** | Fail-improve loop (logs regex failures, generates better patterns) | Self-improving deterministic classifiers |
 | **Honcho** | Peer paradigm (users AND agents are "Peers") | Multi-agent interaction model |
 | **Honcho** | Three-agent memory (Deriver/Dialectic/Dreamer) | Memory quality differentiation |
 | **Honcho** | Observation levels (explicit/deductive/inductive/contradiction) | Richer memory than simple key-value |
@@ -285,7 +285,7 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
    - Tool-result pruning, protected head/tail invariants
    - **Rationale**: Compression behavior drift from upstream
 
-9. **GBrain Patterns** (from GBrain)
+9. **Gormes-owned Patterns** (from Gormes-owned)
    - Zero-LLM knowledge graph wiring (regex-based auto-links)
    - Brain-first lookup (5-step before external API)
    - **Rationale**: Significantly reduces LLM calls, compounds knowledge
@@ -303,12 +303,12 @@ Analysis completed on 2026-04-30 of all 12 opensource projects in workspace-mine
 
 ### Long-Term (Next 12 Months)
 
-12. **Cathedral II Code Navigation** (from GBrain)
+12. **Cathedral II Code Navigation** (from Gormes-owned)
     - Call-graph edges, two-pass retrieval
     - 5 commands: code-callers, code-callees, code-def, code-refs, query --near-symbol
     - **Rationale**: Code-aware agent capabilities
 
-13. **Minions Job Queue** (from GBrain)
+13. **Minions Job Queue** (from Gormes-owned)
     - Postgres-native BullMQ-inspired queue
     - Parent-child DAGs, stall detection, retry with backoff
     - **Rationale**: Background task durability, subagent coordination
@@ -361,7 +361,7 @@ From `references/go-agent-os/`:
 
 - **30 days**: Permission hardening shipped, provider parity >80%, browser harness doctor working
 - **90 days**: Loop detection, structured memory (6 types), skill metadata, native prompt builder
-- **6 months**: Context compression reconciled, GBrain patterns (auto-links, brain-first), token budget
+- **6 months**: Context compression reconciled, Gormes-owned patterns (auto-links, brain-first), token budget
 - **12 months**: Cathedral II, Minions queue, Soul system, Web dashboard, multi-memory backends
 
 **Current parity: ~20-30% → Target: 80%+ within 12 months**

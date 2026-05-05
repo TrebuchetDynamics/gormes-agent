@@ -213,7 +213,7 @@ Use these when a lane row is too broad:
 Before a split row names a new Go runtime shape, run the `gormes-references`
 workflow, use the [Go Donor Reference Map](../go-donor-reference-map/), and
 cite the exact donor file in `source_refs`. The planner should still use
-Hermes/Honcho/GBrain as the behavior contract; Go donors only answer
+Hermes/Honcho as the behavior contract; Go donors only answer
 implementation shape questions.
 
 | Lane | Donor preflight |
@@ -223,4 +223,4 @@ implementation shape questions.
 | 3 — Tools / Security / Skills | Use Nanobot for tool-host boundaries and result truncation, trpc-agent-go for callback separation, and Axe for small artifact/budget utilities. |
 | 4 — Gateway / Cron / Delivery | Use trpc-agent-go await-user-reply and agentcontrolplane state-machine patterns for pause/resume, cancellation, and visible stuck-turn state; do not import their orchestration stack. |
 | 5 — CLI / API / TUI / Release | Use donors only for runtime mechanics behind the operator surface; Hermes remains the source for command names, output, config, and TUI behavior. |
-| 6 — Learning Loop | Use GBrain/Hermes for skill lifecycle behavior first, then Go donors only for storage, audit, and workflow mechanics. |
+| 6 — Learning Loop | Use Gormes-owned/Hermes for skill lifecycle behavior first, then Go donors only for storage, audit, and workflow mechanics. |

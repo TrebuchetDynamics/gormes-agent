@@ -8,7 +8,7 @@ weight: 26
 
 > **Source scope:** All 6 sages-openclaw workspace agents (Link, Mineru, Riju, Sidon, Tulin, Yunobo) plus OpenClaw 2026.3.28 platform.
 > **Audience:** gormes-agent planner, builder, and reviewer skills.
-> **Relationship to existing docs:** The [Cross-Project Feature Map](../cross-project-feature-map/) covers 12 external open-source projects (hermes-agent, honcho, gbrain, mercury-agent, space-agent, picoclaw, etc.). This document covers the _operational ecosystem_ those projects don't expose: how a real fleet runs, what patterns emerge, and what gormes-agent is missing from its own operational model.
+> **Relationship to existing docs:** The [Cross-Project Feature Map](../cross-project-feature-map/) covers 12 external open-source projects (hermes-agent, honcho, gormes, mercury-agent, space-agent, picoclaw, etc.). This document covers the _operational ecosystem_ those projects don't expose: how a real fleet runs, what patterns emerge, and what gormes-agent is missing from its own operational model.
 
 ---
 
@@ -452,7 +452,7 @@ Month 6: Full plugin marketplace compatibility + third-party sandboxing
 
 - [Cross-Project Feature Map](../cross-project-feature-map/) — External open-source project analysis (12 projects)
 - [Must-Have Features](../must-have-features/) — Comprehensive feature catalogue
-- [Upstream Lessons](../upstream-lessons/) — Durable contracts from Hermes + GBrain
+- [Upstream Lessons](../upstream-lessons/) — Durable contracts from Hermes
 - [Implementation Roadmap](../implementation-roadmap/) — Current state and execution horizons
 - [Architecture Plan](../architecture_plan/) — Phase-by-phase delivery plan
 - [Contract Readiness](../contract-readiness/) — Row-level handoff contract specifications

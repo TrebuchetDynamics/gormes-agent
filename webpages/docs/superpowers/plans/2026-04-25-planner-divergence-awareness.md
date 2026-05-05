@@ -452,7 +452,7 @@ type ImplInventory struct {
 }
 
 // DefaultGormesOriginalPaths is the seed deny-list of paths considered
-// Gormes-original (no upstream Hermes/GBrain/Honcho analog). Tunable via
+// Gormes-original (no upstream Hermes/Gormes-owned/Honcho analog). Tunable via
 // Config.GormesOriginalPaths and the PLANNER_GORMES_ORIGINAL_PATHS env var.
 var DefaultGormesOriginalPaths = []string{
 	"cmd/autoloop/",

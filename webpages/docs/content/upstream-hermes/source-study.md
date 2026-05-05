@@ -18,9 +18,9 @@ Hermes hard to shrink.
 - Gormes commit: `a8a62302`
 - Date: 2026-04-27
 
-## 2026-04-27 (Hermes ee1a07f9, GBrain 891c28b) Drift Check
+## 2026-04-27 (Hermes ee1a07f9, Gormes-owned 891c28b) Drift Check
 
-The synchronized Hermes head is now `ee1a07f9`, GBrain is `891c28b`, and
+The synchronized Hermes head is now `ee1a07f9`, Gormes-owned is `891c28b`, and
 Honcho remains `e659b6b`. The Gormes memory direction is unchanged: internal
 implementation stays `goncho`, while public compatibility surfaces keep
 `honcho_*` names and Honcho v3 data-shape expectations where hosts require
@@ -34,7 +34,7 @@ Material deltas in this window are already represented by focused rows:
 - Hermes updated the Hindsight memory plugin and provider docs. Gormes keeps
   Goncho as the in-binary memory baseline and should not port a second memory
   provider until the Honcho-compatible Goncho surface is complete.
-- GBrain `891c28b` adds the frontmatter-guard release. Gormes tracks the useful
+- Gormes-owned `891c28b` adds the frontmatter-guard release. Gormes tracks the useful
   contract as Phase 6.C `SKILL.md frontmatter validation guard`, not as a
   TypeScript CLI import.
 - Honcho `e659b6b` adds SillyTavern integration docs. Gormes already validated
@@ -51,7 +51,7 @@ clear them on the next selection.
 ## 2026-04-27 (Hermes 3ff3dfb5) Drift Check
 
 The synchronized Hermes head is now `3ff3dfb5`, moving beyond the prior
-`b288934d` study snapshot. Honcho remains at `e659b6b`; GBrain remains at
+`b288934d` study snapshot. Honcho remains at `e659b6b`; Gormes-owned remains at
 `891c28b`. No new Honcho/Goncho memory naming behavior changed. Gormes should
 keep the internal `goncho` package direction and preserve public `honcho_*`
 tool contracts where compatibility requires them.
@@ -85,8 +85,8 @@ Material deltas in this window:
 ## 2026-04-27 (Hermes b288934d) Drift Check
 
 The synchronized Hermes head is now `b288934d`, moving beyond the prior
-`cb51baec` study snapshot. Honcho remains at `e659b6b`; GBrain moved to
-`891c28b` and is covered in the upstream GBrain study. No new Honcho/Goncho
+`cb51baec` study snapshot. Honcho remains at `e659b6b`; Gormes-owned moved to
+`891c28b` and is covered in the upstream Gormes-owned study. No new Honcho/Goncho
 memory naming behavior changed. Gormes should keep the internal `goncho`
 package direction and preserve public `honcho_*` tool contracts where
 compatibility requires them.
@@ -113,7 +113,7 @@ Material deltas in this window:
 ## 2026-04-27 (Hermes cb51baec) Drift Check
 
 The synchronized Hermes head was `cb51baec`, moving beyond the prior
-`b16f9d43` study snapshot. Honcho remains at `e659b6b` and GBrain remains at
+`b16f9d43` study snapshot. Honcho remains at `e659b6b` and Gormes-owned remains at
 `c78c3d0`; no new Honcho/Goncho naming change is required. Gormes should keep
 the internal `goncho` package direction and preserve public `honcho_*` tool
 contracts where compatibility requires them.
@@ -150,7 +150,7 @@ slash-bypass rows.
 
 ## 2026-04-27 (Telegram fresh-final streaming) Drift Check
 
-The synchronized Hermes head moved from `755a2804` to `b16f9d43`. GBrain is
+The synchronized Hermes head moved from `755a2804` to `b16f9d43`. Gormes-owned is
 still at `c78c3d0` and Honcho is still at `e659b6b`; no new memory-provider
 or Honcho/Goncho compatibility behavior changed. Gormes should therefore keep
 the internal `goncho` package direction while preserving `honcho_*` public
@@ -181,7 +181,7 @@ fallback`, then `Telegram fresh-final delete and config exposure`.
 
 The synchronized Hermes head moved from `0824ba6a` to `9be83728`; the sibling
 repo is now at `755a2804` after release-author mapping. Honcho remains at
-`e659b6b`, and GBrain is now at `e2961c0`; no new Goncho/Honcho memory row is
+`e659b6b`, and Gormes-owned is now at `e2961c0`; no new Goncho/Honcho memory row is
 needed from this Hermes delta. Internal implementation remains Goncho; public
 memory tools keep Honcho-compatible `honcho_*` names where external contracts
 require them.
@@ -208,7 +208,7 @@ The new Hermes delta is small but touches three planning surfaces:
 ## 2026-04-26 (branch drift) Drift Check
 
 The synchronized Hermes head moved from `42c076d3` to `0824ba6a`. Honcho
-remains at `e659b6b` and GBrain remains at `172b55b`; no new memory-donor
+remains at `e659b6b` and Gormes-owned remains at `172b55b`; no new memory-donor
 behavior changed, so the internal implementation name stays Goncho while public
 tool contracts keep `honcho_*` where compatibility requires it.
 
@@ -235,7 +235,7 @@ lineage contract.
 ## 2026-04-26 (later) Drift Check
 
 The synchronized Hermes head moved from `b2d3308f` to `eaa7e2db` (25 new
-commits). Honcho and GBrain were unchanged in this sync. The drift is mostly
+commits). Honcho and Gormes-owned were unchanged in this sync. The drift is mostly
 small CLI/gateway polish but a few items deserve roadmap rows in a future
 planner cycle:
 
@@ -296,7 +296,7 @@ from `dc4d92f1` to `b2d3308f`. The new drift is narrow but execution-relevant:
   captures the equivalent custom-endpoint readiness contract under Phase 5.O
   rather than porting Hermes config parsing.
 
-Honcho and GBrain were unchanged in this sync. The internal memory direction
+Honcho and Gormes-owned were unchanged in this sync. The internal memory direction
 therefore remains Goncho as the Go implementation name, with Honcho-compatible
 public tool names and data shapes preserved where external contracts require
 `honcho_*`.

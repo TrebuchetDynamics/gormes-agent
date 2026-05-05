@@ -63,7 +63,7 @@ Before writing implementation tasks, answer these in the spec or plan:
 Useful donor study pages:
 
 - [Upstream Hermes Source Study](../../upstream-hermes/source-study/)
-- [Upstream GBrain Architecture](../../upstream-gbrain/architecture/)
+- [Retired upstream study](../../upstream-hermes/)
 - [Upstream Lessons](../upstream-lessons/)
 - [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/)
 

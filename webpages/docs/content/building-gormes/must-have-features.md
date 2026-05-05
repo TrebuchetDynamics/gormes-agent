@@ -7,7 +7,7 @@ weight: 18
 # Must-Have Features — Long-Term Plan
 
 > **Source scope:** 12+ open-source projects studied April 2026.
-> **Projects:** hermes-agent (Python upstream), honcho (Python memory), gbrain (TypeScript memory/runtime), browser-harness / go-browser-harness, mercury-agent (TypeScript), space-agent (JS browser-first), picoclaw (Go lightweight agent), MLT-OSS/hermes-agent-go (Go port), trpc-agent-go, AgenticGoKit, claw-prime, langchaingo, 8 go-agent-os reference repos.
+> **Projects:** hermes-agent (Python upstream), honcho (Python memory), gormes (TypeScript memory/runtime), browser-harness / go-browser-harness, mercury-agent (TypeScript), space-agent (JS browser-first), picoclaw (Go lightweight agent), MLT-OSS/hermes-agent-go (Go port), trpc-agent-go, AgenticGoKit, claw-prime, langchaingo, 8 go-agent-os reference repos.
 > **Audience:** gormes-agent planner, builder, and reviewer skills. Not end-user marketing.
 > **Relationship to progress.json:** This document names the features gormes must eventually have. The canonical execution queue is `progress.json`. This document is the _why_ and the _what_. `progress.json` is the _when_ and the _how_.
 
@@ -29,7 +29,7 @@ A feature is **must-have** if it scores `foundational` on criticality OR `produc
 
 ## 1. Provider Adapters — The Model Surface
 
-> **Donor projects:** hermes-agent, picoclaw, mercury-agent, gbrain, trpc-agent-go, langchaingo
+> **Donor projects:** hermes-agent, picoclaw, mercury-agent, gormes, trpc-agent-go, langchaingo
 > **Current parity:** ~70% (7/10 major providers)
 > **Criticality:** foundational
 
@@ -56,7 +56,7 @@ Every provider gormes cannot speak is a provider the operator cannot use without
 
 | Feature | Source | Status |
 |---------|--------|--------|
-| Provider-neutral stream contract | hermes-agent, gbrain | Shipped |
+| Provider-neutral stream contract | hermes-agent, gormes | Shipped |
 | Tool-call normalization + continuation | hermes-agent | Shipped |
 | Provider registry + alias manifest | hermes-agent, picoclaw | Shipped |
 | Retry-After header parsing + backoff | plandex (go-agent-os) | Shipped |
@@ -66,7 +66,7 @@ Every provider gormes cannot speak is a provider the operator cannot use without
 | Provider timeout config fail-closed | hermes-agent | Shipped |
 | Cross-provider reasoning-tag sanitization | hermes-agent | Shipped |
 | Tool-call argument repair + schema sanitizer | hermes-agent | Shipped |
-| Model metadata registry (context limits, pricing, capabilities) | hermes-agent, gbrain | In-flight |
+| Model metadata registry (context limits, pricing, capabilities) | hermes-agent, gormes | In-flight |
 | Smart model routing with fallback chain | mercury-agent (DeepSeek→OpenAI→Anthropic→Grok→Ollama) | In-flight |
 | Per-turn model selection + reasoning effort propagation | hermes-agent | Shipped |
 | Provider account usage read model (`/usage`) | hermes-agent | Shipped |
@@ -109,7 +109,7 @@ Without native prompt assembly, the Go runtime cannot construct a correct Hermes
 
 ## 3. Context Compression — The Long Session Engine
 
-> **Donor projects:** hermes-agent (ContextEngine), gbrain (tiered enrichment)
+> **Donor projects:** hermes-agent (ContextEngine), gormes (tiered enrichment)
 > **Current parity:** ~60%
 > **Criticality:** production
 
@@ -203,7 +203,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 
 ## 5. Tool Registry — The Agent's Hands
 
-> **Donor projects:** hermes-agent (40+ tools), mercury-agent (31 tools, permission-hardened), picoclaw (Go native tools), gbrain (operation catalog)
+> **Donor projects:** hermes-agent (40+ tools), mercury-agent (31 tools, permission-hardened), picoclaw (Go native tools), gormes (operation catalog)
 > **Current parity:** ~25% (15/61 tools)
 > **Criticality:** foundational
 
@@ -212,12 +212,12 @@ Real agent sessions run long. Without compression, the context window fills and 
 | Feature | Source | Status |
 |---------|--------|--------|
 | Typed Tool interface + in-process registry | hermes-agent, gormes | Shipped |
-| **Tool descriptor layer** (toolset, availability, mutating flag, trust class, timeout, result budget, audit kind, prompt-visible flag) | gbrain (OperationSpec), hermes-agent | Gap |
+| **Tool descriptor layer** (toolset, availability, mutating flag, trust class, timeout, result budget, audit kind, prompt-visible flag) | gormes (OperationSpec), hermes-agent | Gap |
 | Streamed tool_calls accumulation | hermes-agent | Shipped |
 | Kernel tool loop (90-turn budget, summary grace turn) | hermes-agent | Shipped |
-| Doctor verification (`--offline`) | hermes-agent, gbrain | Shipped |
+| Doctor verification (`--offline`) | hermes-agent, gormes | Shipped |
 | Tool registry inventory + schema parity harness | hermes-agent | Shipped |
-| **Executor-enforced trust class + timeout before handler runs** | gbrain (trust-class enforcement) | Gap |
+| **Executor-enforced trust class + timeout before handler runs** | gormes (trust-class enforcement) | Gap |
 
 ### 5.2 Core Task Tools (Must-Have for Agent Utility)
 
@@ -275,8 +275,8 @@ Real agent sessions run long. Without compression, the context window fills and 
 | Typed result envelope + append-only run log | hermes-agent, gormes | Shipped |
 | Runner-enforced tool allowlists + blocked-tool policy | hermes-agent, gormes | Shipped |
 | Interrupt propagation to concurrent-tool workers | hermes-agent, gormes | Shipped |
-| **Child-agent message/tool-call replay from ledger** | gbrain (subagent_messages) | Shipped |
-| **Durable subagent/job ledger** (SQLite) | gbrain (Minions), gormes | Shipped |
+| **Child-agent message/tool-call replay from ledger** | gormes (subagent_messages) | Shipped |
+| **Durable subagent/job ledger** (SQLite) | gormes (Minions), gormes | Shipped |
 | **Background review toolset restriction** | hermes-agent | Shipped |
 
 ### 5.6 Scheduling + Background Tasks
@@ -285,14 +285,14 @@ Real agent sessions run long. Without compression, the context window fills and 
 |---------|--------|--------|
 | robfig/cron scheduler + bbolt/SQLite job store | hermes-agent | Shipped |
 | Heartbeat [SYSTEM:] + [SILENT] delivery contract | hermes-agent | Shipped |
-| **Durable job queue** (claim, renew, complete, fail, retry, cancel) | gbrain (Minions), gormes | Shipped |
-| Durable job backpressure + timeout audit | gbrain, gormes | Shipped |
-| Durable worker supervisor status seam | gbrain, gormes | Shipped |
-| Durable pause/resume intent contract | gbrain, gormes | Shipped |
-| Durable replay and inbox message contract | gbrain, gormes | Shipped |
+| **Durable job queue** (claim, renew, complete, fail, retry, cancel) | gormes (Minions), gormes | Shipped |
+| Durable job backpressure + timeout audit | gormes, gormes | Shipped |
+| Durable worker supervisor status seam | gormes, gormes | Shipped |
+| Durable pause/resume intent contract | gormes, gormes | Shipped |
+| Durable replay and inbox message contract | gormes, gormes | Shipped |
 | **Cronjob tool API + schedule parser parity** | hermes-agent | Gap |
-| **Parent-child DAGs with completion policies** | gbrain (Minions) | Gap |
-| **Per-job token accounting** | gbrain | Gap |
+| **Parent-child DAGs with completion policies** | gormes (Minions) | Gap |
+| **Per-job token accounting** | gormes | Gap |
 | **Cron multi-target delivery** | hermes-agent | Shipped |
 | **Cron context_from output chaining** | hermes-agent | Shipped |
 
@@ -310,7 +310,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 
 ## 6. Memory System — Goncho / Honcho Parity
 
-> **Donor projects:** honcho (3-agent memory, peer paradigm), gbrain (knowledge graph, brain-first lookup), mercury-agent (Second Brain, 10 typed memories), hermes-agent (MemoryProvider interface)
+> **Donor projects:** honcho (3-agent memory, peer paradigm), gormes (knowledge graph, brain-first lookup), mercury-agent (Second Brain, 10 typed memories), hermes-agent (MemoryProvider interface)
 > **Current parity:** Shipped (Goncho Phase 3 complete)
 > **Criticality:** production (core is shipped; enhancements are differentiators)
 
@@ -346,11 +346,11 @@ Real agent sessions run long. Without compression, the context window fills and 
 | **Confidence + durability scoring** per observation | mercury-agent, honcho | Gap |
 | **Conflict resolution** (confidence wins; equal→newer) | mercury-agent, honcho | Gap |
 | **Auto-pruning** (21-day stale memories) | mercury-agent | Gap |
-| **Zero-LLM knowledge graph wiring** (regex-based auto-links) | gbrain | Gap |
-| **Brain-first lookup** (5-step before external API) | gbrain | Gap |
-| **Retrieval eval harness** (precision@k, recall@k, cross-chat negative tests) | gbrain | Gap |
-| **Source-aware retrieval ranking** (curated/reviewed boost, bulk-source damping) | gbrain | Gap |
-| **Compiled truth + timeline pattern** (per-entity page) | gbrain | Gap |
+| **Zero-LLM knowledge graph wiring** (regex-based auto-links) | gormes | Gap |
+| **Brain-first lookup** (5-step before external API) | gormes | Gap |
+| **Retrieval eval harness** (precision@k, recall@k, cross-chat negative tests) | gormes | Gap |
+| **Source-aware retrieval ranking** (curated/reviewed boost, bulk-source damping) | gormes | Gap |
+| **Compiled truth + timeline pattern** (per-entity page) | gormes | Gap |
 | **Directional peer cards** (users AND agents as peers) | honcho | Gap |
 | **Multi-memory backends** (Turbopuffer, LanceDB, Redis cache layer) | honcho | Gap |
 | **Three-agent memory loop** (Deriver/Dialectic/Dreamer) | honcho | Gap |
@@ -416,7 +416,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 
 ## 8. Security + Safety — The Trust Boundary
 
-> **Donor projects:** mercury-agent (permission system), hermes-agent (approval, URL safety, Tirith), gbrain (trust-class enforcement)
+> **Donor projects:** mercury-agent (permission system), hermes-agent (approval, URL safety, Tirith), gormes (trust-class enforcement)
 > **Current parity:** ~30%
 > **Criticality:** foundational
 
@@ -441,7 +441,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 | **Cron dangerous-command approval mode** | hermes-agent | Gap |
 | **Tirith security integration** | hermes-agent | Gap |
 | **OSV vulnerability check** | hermes-agent | Gap |
-| **Trust-class enforcement in shared tool executor** | gbrain, mercury-agent | **Gap** |
+| **Trust-class enforcement in shared tool executor** | gormes, mercury-agent | **Gap** |
 | **WhatsApp identity safety** (ASCII-only, anti-traversal) | hermes-agent (2026-04-27 sync) | Shipped |
 
 ### 8.2 Operator Safety (Must-Have from Mercury)
@@ -457,7 +457,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 
 ## 9. Skills System — The Agent's Knowledge
 
-> **Donor projects:** hermes-agent (skills_hub.py, 118K lines), gbrain (fat skills, thin harness), space-agent (metadata-driven skills), mercury-agent (skill preprocessing)
+> **Donor projects:** hermes-agent (skills_hub.py, 118K lines), gormes (fat skills, thin harness), space-agent (metadata-driven skills), mercury-agent (skill preprocessing)
 > **Current parity:** ~40%
 > **Criticality:** differentiator
 
@@ -469,18 +469,18 @@ Real agent sessions run long. Without compression, the context window fills and 
 | Deterministic selection + prompt injection block | hermes-agent, gormes | Shipped |
 | Kernel injection + usage log | hermes-agent, gormes | Shipped |
 | Inactive candidate drafting + explicit promotion | hermes-agent, gormes | Shipped |
-| SKILL.md frontmatter validation guard | gbrain, gormes | Shipped |
+| SKILL.md frontmatter validation guard | gormes, gormes | Shipped |
 | Hermes creative skill metadata compatibility | hermes-agent, gormes | Shipped |
 | Skill preprocessing + dynamic slash commands | hermes-agent, gormes | Shipped |
 | Skills hub search (in-memory registry) | hermes-agent, gormes | Shipped |
 | Skills list (enabled/disabled status + filter) | gormes | Shipped |
 | **Metadata-driven skill placement** (when, loaded, placement, context tags) | space-agent | Gap |
-| **Skill conformance checks + routing evals** | gbrain | Gap |
-| **Skill conflict detection** (overlapping triggers) | gbrain | Gap |
+| **Skill conformance checks + routing evals** | gormes | Gap |
+| **Skill conflict detection** (overlapping triggers) | gormes | Gap |
 | **Bundled productivity skills** (Airtable, Spotify, TouchDesigner, Google Meet) | hermes-agent | In-flight |
 | **Skill registries** (external repo fetching) | hermes-agent | Gap |
 | **Skill confidence/feedback scoring** | hermes-agent | Gap |
-| **Skill versioning + review history** | gbrain | Gap |
+| **Skill versioning + review history** | gormes | Gap |
 
 ---
 
@@ -541,7 +541,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 
 ## 13. Learning Loop — Phase 6
 
-> **Donor projects:** gbrain (skill extraction, maintenance cycles), hermes-agent (skill generation)
+> **Donor projects:** gormes (skill extraction, maintenance cycles), hermes-agent (skill generation)
 > **Current parity:** Not started (Phase 6)
 > **Criticality:** differentiator
 
@@ -549,21 +549,21 @@ Real agent sessions run long. Without compression, the context window fills and 
 |---------|--------|--------|
 | Complexity detector (heuristic/LLM signal) | hermes-agent, gormes | Gap |
 | Skill extractor (LLM-assisted pattern distillation) | hermes-agent, gormes | Gap |
-| Hybrid lexical + semantic skill lookup | gbrain, gormes | Gap |
-| Skill effectiveness scoring + feedback loop | gbrain, gormes | Gap |
+| Hybrid lexical + semantic skill lookup | gormes, gormes | Gap |
+| Skill effectiveness scoring + feedback loop | gormes, gormes | Gap |
 | TUI + Telegram skill browsing | gormes | In-flight |
-| **Delta-bounded skill/memory maintenance** (changed-source IDs only) | gbrain (e2961c0) | In-flight |
-| **Source-aware retrieval damping fixtures** | gbrain | Gap |
-| **Code Cathedral II** (call-graph edges, two-pass retrieval) | gbrain | Gap |
-| **Incremental extract + embed-stale filters** | gbrain (v0.22.1) | Gap |
-| **Per-source sync anchor** (source-scoped last-commit) | gbrain (v0.22.5) | Gap |
-| **Fail-improve loop** (logs regex failures, generates better patterns) | gbrain | Gap |
+| **Delta-bounded skill/memory maintenance** (changed-source IDs only) | gormes (e2961c0) | In-flight |
+| **Source-aware retrieval damping fixtures** | gormes | Gap |
+| **Code Cathedral II** (call-graph edges, two-pass retrieval) | gormes | Gap |
+| **Incremental extract + embed-stale filters** | gormes (v0.22.1) | Gap |
+| **Per-source sync anchor** (source-scoped last-commit) | gormes (v0.22.5) | Gap |
+| **Fail-improve loop** (logs regex failures, generates better patterns) | gormes | Gap |
 
 ---
 
 ## 14. Observability + Telemetry
 
-> **Donor projects:** hermes-agent (logs, status, tips), gbrain (doctor, degraded mode), mercury-agent (heartbeat)
+> **Donor projects:** hermes-agent (logs, status, tips), gormes (doctor, degraded mode), mercury-agent (heartbeat)
 > **Current parity:** ~40%
 > **Criticality:** production
 
@@ -577,13 +577,13 @@ Real agent sessions run long. Without compression, the context window fills and 
 | CLI log redactor (secret shapes) | hermes-agent | Shipped |
 | CLI log snapshot reader | hermes-agent | Shipped |
 | CLI dump support-summary helper | hermes-agent | Shipped |
-| **Visible degraded mode** (every fallback reported in status/doctor/audit) | gbrain, mercury-agent | Gap |
-| **Semantic recall disabled warning** (no embedding model) | gbrain | Gap |
-| **Extractor queue depth + dead-letter count** | gbrain, gormes | Shipped |
-| **Graph extraction age** | gbrain | Gap |
-| **Skill resolver warnings** | gbrain | Gap |
-| **Durable job stalled count** | gbrain, gormes | Shipped |
-| **Child-agent replay not available warning** | gbrain | Gap |
+| **Visible degraded mode** (every fallback reported in status/doctor/audit) | gormes, mercury-agent | Gap |
+| **Semantic recall disabled warning** (no embedding model) | gormes | Gap |
+| **Extractor queue depth + dead-letter count** | gormes, gormes | Shipped |
+| **Graph extraction age** | gormes | Gap |
+| **Skill resolver warnings** | gormes | Gap |
+| **Durable job stalled count** | gormes, gormes | Shipped |
+| **Child-agent replay not available warning** | gormes | Gap |
 | **Tips system** (deterministic, seen-state) | hermes-agent, gormes | Shipped |
 | **Web dashboard** (session, skills, chat, config, logs) | hermes-agent | Gap |
 
@@ -591,7 +591,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 
 ## 15. Plugin Architecture
 
-> **Donor projects:** hermes-agent (plugin SDK, hooks, tools, slash commands), gbrain (isolated MCP plugins)
+> **Donor projects:** hermes-agent (plugin SDK, hooks, tools, slash commands), gormes (isolated MCP plugins)
 > **Current parity:** ~40%
 > **Criticality:** commodity (must-have infrastructure; plugins themselves are differentiators)
 
@@ -602,16 +602,16 @@ Real agent sessions run long. Without compression, the context window fills and 
 | First-party Spotify plugin fixture | hermes-agent, gormes | Shipped |
 | First-party Google Meet plugin fixture | hermes-agent, gormes | Shipped |
 | **Third-party extension system** | hermes-agent | Gap |
-| **Plugin isolation** (subprocess/WASM for untrusted) | gbrain, hermes-agent | Gap |
-| **Plugin manifest + capability declaration** | gbrain | Gap |
-| **Operator enablement required before activation** | gbrain | Gap |
+| **Plugin isolation** (subprocess/WASM for untrusted) | gormes, hermes-agent | Gap |
+| **Plugin manifest + capability declaration** | gormes | Gap |
+| **Operator enablement required before activation** | gormes | Gap |
 | **Hindsight memory setup** | hermes-agent, gormes | Gap |
 
 ---
 
 ## 16. Mixture of Agents
 
-> **Donor projects:** hermes-agent (multi-model coordination), gbrain (subagent orchestration)
+> **Donor projects:** hermes-agent (multi-model coordination), gormes (subagent orchestration)
 > **Current parity:** Gap
 > **Criticality:** differentiator
 
@@ -629,21 +629,21 @@ These are not features but architectural patterns that every subsystem must adop
 
 | Pattern | Source | Applied To |
 |---------|--------|------------|
-| **Contract-first operations** (one descriptor → CLI, MCP, tool schemas, doctor) | gbrain | Tools, commands, gateways |
-| **Trust-class enforcement in shared executor** (operator/gateway/child/system) | gbrain, hermes-agent | All tool execution |
-| **Visible degraded mode** (every fallback reported) | gbrain, mercury-agent | All subsystems |
+| **Contract-first operations** (one descriptor → CLI, MCP, tool schemas, doctor) | gormes | Tools, commands, gateways |
+| **Trust-class enforcement in shared executor** (operator/gateway/child/system) | gormes, hermes-agent | All tool execution |
+| **Visible degraded mode** (every fallback reported) | gormes, mercury-agent | All subsystems |
 | **Provider-neutral events** (adapters own quirks; kernel sees one contract) | hermes-agent | Provider layer |
-| **Thin harness, fat skills** (intelligence in skills, not runtime) | gbrain | Skills system |
-| **Hermetic fixtures over live tests** (replayable, no live credentials) | gbrain, hermes-agent | All tests |
+| **Thin harness, fat skills** (intelligence in skills, not runtime) | gormes | Skills system |
+| **Hermetic fixtures over live tests** (replayable, no live credentials) | gormes, hermes-agent | All tests |
 | **Metadata-driven discovery** (not hardcoded branches) | space-agent | Skills, tools, commands |
 | **Prompt contributors as keyed, budgeted items** | space-agent | Prompt assembly |
 | **Goroutines + channels** (not asyncio threads) | All Go projects | Concurrency |
 | **Context.Context propagation** (cancellation, deadlines) | All Go projects | All I/O |
-| **SQLite + FTS5 first** (Postgres optional behind interface) | gbrain, gormes | Memory, jobs, state |
+| **SQLite + FTS5 first** (Postgres optional behind interface) | gormes, gormes | Memory, jobs, state |
 | **Single binary, zero runtime deps** | claw-prime, gormes | Distribution |
-| **Durable job ledger** (restartable work, not ephemeral goroutines) | gbrain | Cron, subagents, long work |
-| **Provenance-rich memory** (source, extractor, confidence, freshness) | gbrain, honcho | Goncho relationships |
-| **Skills as reviewed code** (frontmatter, conformance, routing evals) | gbrain, hermes-agent | Skills store |
+| **Durable job ledger** (restartable work, not ephemeral goroutines) | gormes | Cron, subagents, long work |
+| **Provenance-rich memory** (source, extractor, confidence, freshness) | gormes, honcho | Goncho relationships |
+| **Skills as reviewed code** (frontmatter, conformance, routing evals) | gormes, hermes-agent | Skills store |
 
 ---
 
@@ -655,10 +655,10 @@ These are not features but architectural patterns that every subsystem must adop
 |---|---------|---------------|-------------------|
 | F1 | Provider completion (xAI/Grok, LM Studio, DeepSeek, Moonshot) | hermes-agent, picoclaw | 4-6 weeks |
 | F2 | Native prompt builder assembly (skills snapshot, memory/search guidance) | hermes-agent | 2-3 weeks |
-| F3 | Tool descriptor layer (toolset, trust class, timeout, audit, budget) | gbrain | 2-3 weeks |
+| F3 | Tool descriptor layer (toolset, trust class, timeout, audit, budget) | gormes | 2-3 weeks |
 | F4 | Shell blocklist + filesystem scoping | mercury-agent | 2-3 weeks |
 | F5 | Permission approval UX (inline y/n/always) | mercury-agent, hermes-agent | 2-3 weeks |
-| F6 | Trust-class enforcement in shared executor | gbrain | 1-2 weeks |
+| F6 | Trust-class enforcement in shared executor | gormes | 1-2 weeks |
 
 ### Production Gaps (Block Real-World Operation)
 
@@ -673,7 +673,7 @@ These are not features but architectural patterns that every subsystem must adop
 | P7 | Code execution mode policy (strict/project/default) | hermes-agent | 2-3 weeks |
 | P8 | CLI closeout (backup, logs, web-server, uninstall, diagnostics) | hermes-agent | 3-4 weeks |
 | P9 | Packaging closeout (install.sh, install.ps1, install.cmd) | hermes-agent | 2-3 weeks |
-| P10 | Visible degraded mode in all subsystems | gbrain, mercury-agent | Ongoing |
+| P10 | Visible degraded mode in all subsystems | gormes, mercury-agent | Ongoing |
 | P11 | Channel adapters (Matrix, Mattermost, LINE, IRC, VK, Feishu/DingTalk closeout) | hermes-agent, picoclaw | 4-6 weeks |
 
 ### Differentiator Gaps (Define Gormes's Unique Value)
@@ -681,14 +681,14 @@ These are not features but architectural patterns that every subsystem must adop
 | # | Feature | Source Project | Estimated Effort |
 |---|---------|---------------|-------------------|
 | D1 | Typed memory categories + confidence scoring | mercury-agent, honcho | 3-4 weeks |
-| D2 | Zero-LLM knowledge graph wiring (regex auto-links) | gbrain | 2-3 weeks |
-| D3 | Brain-first lookup (5-step before external API) | gbrain | 2-3 weeks |
-| D4 | Retrieval eval harness (precision@k, recall@k) | gbrain | 2-3 weeks |
+| D2 | Zero-LLM knowledge graph wiring (regex auto-links) | gormes | 2-3 weeks |
+| D3 | Brain-first lookup (5-step before external API) | gormes | 2-3 weeks |
+| D4 | Retrieval eval harness (precision@k, recall@k) | gormes | 2-3 weeks |
 | D5 | Metadata-driven skill placement (when, loaded, context tags) | space-agent | 2-3 weeks |
-| D6 | Minions DAG job dependencies (parent-child with policies) | gbrain | 3-4 weeks |
+| D6 | Minions DAG job dependencies (parent-child with policies) | gormes | 3-4 weeks |
 | D7 | Soul/personality system (soul.md, persona.md, taste.md, heartbeat.md) | mercury-agent | 2-3 weeks |
-| D8 | Learning loop (complexity detector, skill extractor, feedback) | hermes-agent, gbrain | 6-8 weeks |
-| D9 | Code Cathedral II (call-graph edges, two-pass retrieval) | gbrain | 4-6 weeks |
+| D8 | Learning loop (complexity detector, skill extractor, feedback) | hermes-agent, gormes | 6-8 weeks |
+| D9 | Code Cathedral II (call-graph edges, two-pass retrieval) | gormes | 4-6 weeks |
 | D10 | Web dashboard (TypeScript/React parity with Hermes UI) | hermes-agent | 6-8 weeks |
 | D11 | Multi-memory backends (Turbopuffer, LanceDB, Redis) | honcho | 3-4 weeks |
 | D12 | Three-agent memory loop (Deriver/Dialectic/Dreamer) | honcho | 4-6 weeks |
@@ -756,7 +756,7 @@ Features studied but explicitly excluded from the must-have list:
 | Mercury's Telegram org model (admin/member roles) | mercury-agent | Gormes gateway channels use different abstraction |
 | Picoclaw's ultra-lightweight constraints ($10 hardware) | picoclaw | Different deployment target |
 | Full Kubernetes ACP controllers | go-agent-os references | Use local state machine instead |
-| TypeScript indexer / tree-sitter WASM in runtime | gbrain | Keep runtime small; optional code-context evidence only |
+| TypeScript indexer / tree-sitter WASM in runtime | gormes | Keep runtime small; optional code-context evidence only |
 | Hermes's dynamic Python import-time tool registration | hermes-agent | Explicit registration is safer for Go |
 | Hermes's sync/async/thread complexity | hermes-agent | Go goroutines + context.Context are sufficient |
 | Hermes's Postgres-backed cron | hermes-agent | SQLite-backed is correct for single-binary promise |
@@ -767,7 +767,7 @@ Features studied but explicitly excluded from the must-have list:
 
 - [Cross-Project Feature Map](../cross-project-feature-map/) — Detailed matrix of all 12 projects
 - [Upstream Hermes Study](../../upstream-hermes/) — Full Hermes source analysis
-- [Upstream GBrain Study](../../upstream-gbrain/) — GBrain architecture analysis
+- [Retired upstream study](../../upstream-hermes/) — Gormes-owned architecture analysis
 - [Upstream Lessons](../upstream-lessons/) — Durable contracts to absorb
 - [What Hermes Gets Wrong](../what-hermes-gets-wrong/) — Why Gormes exists
 - [Contract Readiness](../contract-readiness/) — Row-level handoff fields

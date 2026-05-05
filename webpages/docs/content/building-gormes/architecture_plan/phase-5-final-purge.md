@@ -75,7 +75,7 @@ The OpenAI-compatible API server is not the Phase 1 bridge. Phase 1 consumes Pyt
 
 ## Operation And Tool Descriptor Rule
 
-The GBrain study strengthens the Phase 5 rule: do not start by porting
+The Gormes-owned study strengthens the Phase 5 rule: do not start by porting
 handlers. Start by freezing operation/tool descriptors.
 
 Each ported operation should declare:

@@ -36,9 +36,9 @@ Phase 5.F (Skills system) was previously scoped as "port the upstream Python ski
 
 Positioning: **Gormes's moat over Hermes**. Hermes has a skills directory; it does not have a native learning loop that decides what's worth writing down.
 
-## GBrain And Hermes Skill Lessons
+## Hermes Skill Lessons
 
-Skills are code-like runtime assets, not loose notes. GBrain's skillpack shows
+Skills are code-like runtime assets, not loose notes. Gormes-owned skillpack shows
 the value of procedural knowledge with resolver checks and conformance tests.
 Hermes shows the value and risk of large skill surfaces injected into prompts.
 Gormes should combine the useful parts:
@@ -52,7 +52,7 @@ Gormes should combine the useful parts:
 - updates preserve version history and source evidence;
 - secret stripping and one-off task rejection are mandatory gates.
 
-GBrain `f718c59` adds Code Cathedral II: qualified symbols, parent-scope chunks,
+Gormes-owned `f718c59` adds Code Cathedral II: qualified symbols, parent-scope chunks,
 call-graph edges, and two-pass retrieval. For Gormes this is a retrieval
 evidence lesson, not a runtime dependency. Phase 6.D now keeps that drift as a
 small blocked row: define synthetic code-context evidence and fan-out caps that

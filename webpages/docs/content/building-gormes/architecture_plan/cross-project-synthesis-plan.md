@@ -17,7 +17,7 @@ weight: 20
 |---------|----------|-------|------------|------------------|
 | **hermes-agent** | Python | 1.2M+ | Upstream agent (Gormes parity target) | Canonical feature set to port |
 | **honcho** | Python | ~15K | Memory/session platform (Honcho) | Memory architecture patterns |
-| **gbrain** | TypeScript | ~25K | Knowledge graph runtime | Auto-wiring, search, job queue |
+| **gormes** | TypeScript | ~25K | Knowledge graph runtime | Auto-wiring, search, job queue |
 | **browser-harness** | Python | ~5K | Browser automation (CDP) | Browser tool parity reference |
 | **go-browser-harness** | Go | ~3K | Go browser automation port | Direct code donor |
 | **mercury-agent** | TypeScript | ~8K | Soul-driven CLI/Telegram agent | Safety, memory, loop detection |
@@ -49,7 +49,7 @@ weight: 20
 | 9 | **Retry-After parsing + backoff** | Plandex (ref) | 4.H | Small | `plandex/model_error.go` pattern — classify + extract retry timing |
 | 10 | **Tool result truncation** | Nanobot (ref) | 5.A | Small | 50 KiB cap, persist oversized output, sanitize paths |
 | 11 | **Token budget tracker** | Axe (ref) + Mercury | 5.Q | Medium | Daily mutex-protected counter, auto-concise at 70% |
-| 12 | **Zero-LLM knowledge graph wiring** | GBrain | 6 | Large | Regex-based auto-links, brain-first 5-step lookup |
+| 12 | **Zero-LLM knowledge graph wiring** | Gormes-owned | 6 | Large | Regex-based auto-links, brain-first 5-step lookup |
 
 ### P2 — Medium Term (6 Months)
 
@@ -57,7 +57,7 @@ weight: 20
 |---|---------|--------|--------------|--------|-----------|
 | 13 | **Credential + OAuth (XDG)** | Hermes + goclaw (ref) | 4.G | Medium | XDG-scoped token storage, Google OAuth PKCE |
 | 14 | **Deterministic write queue** | Engram (ref) | 3/6 | Small | Serialized MCP/GONCHO writes, bounded channel, panic recovery |
-| 15 | **Minions job queue** | GBrain | 5/6 | Large | Postgres-native BullMQ-inspired, DAGs, stall detection |
+| 15 | **Minions job queue** | Gormes-owned | 5/6 | Large | Postgres-native BullMQ-inspired, DAGs, stall detection |
 | 16 | **Image token estimation** | Nanobot (ref) | 4.D | Small | Dimension-based token counting for image routing |
 | 17 | **State machine transitions** | AgentControlPlane (ref) | 4.I | Medium | Turn lifecycle: admitted → planning → building → tool_calls → final |
 
@@ -65,7 +65,7 @@ weight: 20
 
 | # | Feature | Source | Gormes Phase | Effort | Rationale |
 |---|---------|--------|--------------|--------|-----------|
-| 18 | **Cathedral II code navigation** | GBrain | 5.J | Large | Call-graph edges, two-pass retrieval, 5 code commands |
+| 18 | **Cathedral II code navigation** | Gormes-owned | 5.J | Large | Call-graph edges, two-pass retrieval, 5 code commands |
 | 19 | **Soul/personality system** | Mercury | 6 | Medium | soul.md (heart), persona.md (face), taste.md (palate), heartbeat.md |
 | 20 | **Web dashboard (React)** | Hermes + Space | 5.Q | Large | Hermes has 191K-line TUI gateway; Space has browser-first widgets |
 
@@ -178,7 +178,7 @@ Based on cross-project analysis, the following rows should be added to `progress
 
 **6.F Zero-LLM Knowledge Graph**
 - `contract`: Regex-based auto-link extraction, brain-first 5-step lookup
-- `source_refs`: `gbrain/src/core/link-extraction.ts`, `gbrain/src/core/search/hybrid.ts`
+- `source_refs`: `gormes/src/core/link-extraction.ts`, `gormes/src/core/search/hybrid.ts`
 - `write_scope`: `internal/goncho/auto_link.go`, `internal/goncho/brain_first.go`
 - `test_commands`: `go test ./internal/goncho -run TestAutoLink -count=1`
 
@@ -209,7 +209,7 @@ Based on cross-project analysis, the following rows should be added to `progress
 | 90 days | Skill metadata | `metadata.when/loaded/placement` in SKILL.md |
 | 90 days | Native prompt builder | `internal/hermes/prompt_builder.go` shipped |
 | 6 months | Context compression | Reconciled with upstream `5006b220` |
-| 6 months | GBrain patterns | Auto-links + brain-first lookup working |
+| 6 months | Gormes-owned patterns | Auto-links + brain-first lookup working |
 | 6 months | Token budget | Daily budget + auto-concise at 70% |
 | 12 months | Cathedral II | Code navigation with call-graph edges |
 | 12 months | Minions queue | Postgres-native job queue with DAGs |

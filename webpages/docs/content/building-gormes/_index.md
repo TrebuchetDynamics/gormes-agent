@@ -23,7 +23,7 @@ Hermes parity for almost every operator-visible surface: config, command tree,
 slash commands, gateway handlers, provider routing/auth/usage, tool
 continuations, plugins, skills, cron, status, TUI/API behavior, packaging, and
 recovery. Go-native divergence is allowed only when it is explicit, tested, and
-visible to operators. GBrain proves the value of contract-first operations,
+visible to operators. Gormes-owned proves the value of contract-first operations,
 durable jobs, graph provenance, and skills as auditable runtime knowledge.
 Gormes absorbs those durable contracts into a small Go runtime instead of
 copying Python mega-files or TypeScript database gravity.
@@ -99,7 +99,7 @@ Use the planning docs in this order:
 
 1. Read **[Implementation Roadmap](./implementation-roadmap/)** for current state, decision trees, and execution horizons.
 2. Read [Upstream Lessons](./upstream-lessons/) to understand which contracts
-   Gormes absorbs from Hermes and GBrain.
+   Gormes absorbs from Hermes and Gormes-owned.
 3. Check [Skill Builder Handoff](./builder-loop/builder-loop-handoff/) for the
    skill entrypoint, candidate source, generated docs, tests, and candidate
    policy.

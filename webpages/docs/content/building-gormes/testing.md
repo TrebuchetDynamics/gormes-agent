@@ -53,7 +53,7 @@ go test -tags=live ./...         # requires local Ollama
 ## Architecture fixtures
 
 Subsystem ports need tests that freeze contracts, not just happy-path code.
-Borrow these fixture classes from the Hermes and GBrain studies:
+Borrow these fixture classes from the Hermes and Gormes-owned studies:
 
 - **Command registry parity:** one registry drives parsing, help text, platform
   command exposure, aliases, and active-turn policy.

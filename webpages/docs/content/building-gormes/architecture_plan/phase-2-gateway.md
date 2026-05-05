@@ -30,7 +30,7 @@ behavior, pairing, home channel, status, restart, hooks, and cron handoff.
 | Phase 2.C — Thin Mapping Persistence | ✅ complete | P0 | bbolt-backed `(platform, chat_id) -> session_id` resume; no transcript ownership moved into Go |
 | Phase 2.D — Cron / Scheduled Automations | ✅ complete | P2 | `internal/cron` package with `robfig/cron/v3` scheduler, bbolt `cron_jobs` bucket, SQLite `cron_runs` audit table, CRON.md mirror, Heartbeat `[SYSTEM:]` prefix + exact-match `[SILENT]` suppression, kernel `PlatformEvent.SessionID`/`CronJobID` per-event override, generic `DeliverySink` interface, plus the shipped `scripts/gormes-architecture-planner-tasks-manager.sh` operator automation that writes `.codex/planner/architecture-planner-tasks.md`, report/state artifacts, validation logs, and periodic systemd/cron scheduling. Opt-in via `[cron].enabled=true` + `[telegram].allowed_chat_id`. Ship criterion proven live against Ollama (commits `e0b2fcea`…`8aa9a6e6`). Natural-language cron parsing is deferred to Phase 4.C; planner-wrapper compatibility is now complete under Phase 1.C |
 | **Phase 2.E.0 — Deterministic Subagent Runtime** | ✅ complete | **P0** | Runtime core landed: deterministic lifecycle manager, max-depth guard, bounded batch execution, timeout/cancellation scopes, typed result envelope, `[delegation]` config, Go-native `delegate_task`, and append-only run logging |
-| **Phase 2.E.1 — Delegation Policy + Child Execution** | 🔨 in progress | **P0** | Runner-enforced blocked-tool/allowlist policy, typed child tool-call audit, and a live Hermes child stream loop are landed; GBrain's unified `minion-orchestrator` now adds a routing-policy slice plus a blocked durable-job ledger slice |
+| **Phase 2.E.1 — Delegation Policy + Child Execution** | 🔨 in progress | **P0** | Runner-enforced blocked-tool/allowlist policy, typed child tool-call audit, and a live Hermes child stream loop are landed; Gormes-owned unified `minion-orchestrator` now adds a routing-policy slice plus a blocked durable-job ledger slice |
 | Phase 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation | ✅ complete | P1 | Kernel-side interrupt propagation now fans one cancel across parallel `tool_calls`, sidecar sandbox jobs, and delegated subagent children; fixture tests freeze the cancel envelope before 2.F.5 mid-run steering |
 | **Phase 2.G — OS-AI Spine: Skills Runtime** | ✅ complete | **P0** | Static skills runtime and the first reviewed learning-loop proof are in-tree: validated `SKILL.md` parsing, active-store snapshots, deterministic selection + prompt rendering, kernel injection, append-only usage logging, delegated candidate drafting into the inactive store, and explicit promotion into the active store. |
 | Phase 2.F.1 — Slash Command Registry + Gateway Dispatch | ✅ complete | P1 | Canonical command registry now drives gateway parsing, help text, Telegram menus, and Slack subcommand exposure from one shared source of truth |
@@ -76,7 +76,7 @@ approvals, status, restart, background jobs, and ordinary follow-up text need
 different semantics. The command registry, not each adapter, should own those
 semantics.
 
-GBrain adds one complementary lesson: gateway-triggered work that can outlive a
+Gormes-owned adds one complementary lesson: gateway-triggered work that can outlive a
 single turn should enter a durable job/subagent ledger instead of depending on
 one in-memory process. Its current `minion-orchestrator` skill merged the older
 jobs lane and LLM subagent lane behind one policy surface. Gormes should borrow

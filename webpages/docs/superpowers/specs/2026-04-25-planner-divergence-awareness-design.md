@@ -8,7 +8,7 @@
 
 Phase C closed the autoloop ↔ planner feedback loop with reactive triggers,
 self-evaluation, and human escalation. But the planner still treats upstream
-sources (Hermes, GBrain, Honcho) as eternally authoritative: every run pulls
+sources (Hermes, Honcho) as eternally authoritative: every run pulls
 upstream, inventories the tree, and refines contracts assuming "do what they
 do." This works while porting. It fails the moment Gormes ships something
 upstream doesn't have — the autoloop itself, `internal/plannertriggers`, the

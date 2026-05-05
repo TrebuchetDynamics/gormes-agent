@@ -35,7 +35,7 @@ for Gormes-owned runtime code.
 
 ## Upstream Contract Boundary
 
-Gormes studies Hermes and GBrain as donors, but only ports contracts that make
+Gormes studies Hermes and Gormes-owned as donors, but only ports contracts that make
 the Go runtime better:
 
 - provider-neutral stream and tool-call events;
@@ -47,7 +47,7 @@ the Go runtime better:
 - graph provenance and retrieval evaluation.
 
 It does not port upstream file shape. `run_agent.py`, `gateway/run.py`, and
-GBrain's large operation and queue files are evidence, not templates.
+external large operation and queue files are evidence, not templates.
 
 ## Trust-Class Boundary
 

@@ -151,7 +151,7 @@ async def _process_chain(self, agent, msg, user=True):
 **What gormes-agent should steal:**
 - gormes-agent's subagents (`internal/subagent/`) are flat goroutine pools
 - Add hierarchical parent-child relationships with result chaining
-- This aligns with the planned "Mixture of Agents" (Phase 5.M) and GBrain Minions DAG pattern
+- This aligns with the planned "Mixture of Agents" (Phase 5.M) and Gormes durable-job DAG pattern
 
 ### 2.2 Subordinate History Sealing
 

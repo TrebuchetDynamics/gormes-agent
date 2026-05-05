@@ -23,7 +23,7 @@ checks.
 |---|---|---|
 | `surface` | Operator-visible capability or model-visible tool family. | `gateway.tool_progress`, `tools.skill_view`, `provider.transport` |
 | `contract_layer` | The part of the surface being preserved. | `schema`, `preview`, `render`, `transport`, `lifecycle`, `persistence`, `error`, `safety` |
-| `upstream_contract` | Exact Hermes/Honcho/GBrain files or symbols that define the behavior. | `../hermes-agent/gateway/run.py:progress_callback` |
+| `upstream_contract` | Exact Hermes/Honcho files or symbols that define the behavior. | `../hermes-agent/gateway/run.py:progress_callback` |
 | `gormes_adapter` | Exact Go package, file, type, or function that implements the behavior. | `internal/gateway/render.go:FormatToolProgressPlain` |
 | `parity_mode` | `strict`, `functional`, `owned`, or `excluded`. | `functional` |
 | `progress_classification` | `covered`, `planned`, `vague`, `missing`, `stale-upstream`, or `blocked`. | `covered` |

@@ -180,7 +180,7 @@ skill files live under `docs/development-skills/`; `.agents/skills/`,
 | Situation | Skill path |
 |---|---|
 | Unsure what workflow applies | `gormes-skill-manager` |
-| Mapping upstream Hermes/Honcho/GBrain gaps | `gormes-parity-auditor` |
+| Mapping upstream Hermes/Honcho gaps | `gormes-parity-auditor` |
 | Updating `progress.json`, phases, or docs | `gormes-planner` |
 | Selecting a Go donor pattern before shaping a runtime row | `gormes-references` |
 | Designing a Go package/API boundary | `gormes-interface-designer` |

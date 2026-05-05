@@ -32,7 +32,7 @@ start TDD without rediscovering architecture:
 
 | Field | Completion expectation |
 |---|---|
-| `contract` | Names one observable Hermes, Honcho, GBrain, or Gormes-owned behavior. |
+| `contract` | Names one observable Hermes, Honcho, Gormes-owned, or Gormes-owned behavior. |
 | `execution_owner` | Names the package/system that owns the result: gateway, provider, memory, tools, docs, planner, builder, etc. |
 | `slice_size` | `small`, `medium`, or `large` for executable work; `umbrella` remains inventory only. |
 | `ready_when` | Lists concrete prerequisites a builder can check locally. |

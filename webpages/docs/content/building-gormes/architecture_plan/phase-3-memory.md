@@ -43,12 +43,12 @@ Phase 3.E is the final Black Box milestone. It closes four orthogonal gaps: **op
 
 The 3.E ship criterion: the operator runs `cat ~/.local/share/gormes/sessions/index.yaml` and sees every active chat/session mapping in plain YAML; runs `cat ~/.local/share/gormes/tools/audit.jsonl` and sees a full history of tool invocations; a fact mentioned once six months ago and never again no longer dominates recall results; asking the same question across two different chats surfaces the same entity graph; and context-compressed branches no longer disappear into opaque IDs because lineage and source-filtered search are queryable.
 
-## GBrain Memory Lessons Now Imported
+## Memory Lessons Now Imported
 
-GBrain's strongest memory lesson is provenance. It stores knowledge pages,
+Gormes-owned strongest memory lesson is provenance. It stores knowledge pages,
 chunks, links, timeline entries, versions, and ingest logs so retrieval can
 explain where a claim came from. Gormes should apply that idea to the local
-SQLite graph without adopting GBrain's Postgres-first storage model.
+SQLite graph without adopting external Postgres-first storage model.
 
 Relationship and entity writes should carry enough evidence to debug recall:
 
@@ -67,7 +67,7 @@ share a peer identity.
 
 ## Retrieval Evaluation And Degraded Health
 
-GBrain and Hermes both degrade when optional capability is missing. Gormes
+Gormes-owned and Hermes both degrade when optional capability is missing. Gormes
 should degrade visibly. Phase 3 docs and tests should define an operator-facing
 health contract for:
 

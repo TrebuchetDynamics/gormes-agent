@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a Go `architecture-planner-loop` command that improves the building-gormes architecture plan by running a Codex/Claude planner over local Hermes, GBrain, Goncho, and Gormes documentation context.
+**Goal:** Add a Go `architecture-planner-loop` command that improves the building-gormes architecture plan by running a Codex/Claude planner over local Hermes, Honcho, Goncho, and Gormes documentation context.
 
 **Architecture:** Create a small `internal/architectureplanner` package for config, context collection, prompt construction, backend execution, artifacts, and validation orchestration. Add `cmd/architecture-planner-loop` as a thin CLI layer similar to `cmd/autoloop`.
 

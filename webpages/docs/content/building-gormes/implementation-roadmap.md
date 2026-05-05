@@ -125,7 +125,7 @@ implementation-roadmap.md (this file) ──► decision tree + state + horizons
     │   ├── 04-agent-work-packets.md
     │   └── 05-operator-playbook.md
     │
-    ├── upstream-lessons.md ──► durable contracts from Hermes + GBrain
+    ├── upstream-lessons.md ──► durable contracts from Hermes
     ├── what-hermes-gets-wrong.md ──► why Gormes exists
     ├── fleet-operational-patterns.md ──► cross-fleet ecosystem analysis (sages + OpenClaw)
     ├── fleet-integration-plan.md ──► mapping fleet patterns to phases and progress.json rows
