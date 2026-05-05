@@ -243,6 +243,11 @@ classification and row-backed implementation queue.
 - [ ] Slack/Discord channel-scoped skills, prompts, and reload resync
 - [ ] Telegram fallback transport + polling reconnect recovery
 - [ ] Telegram sticker vision adapter binding
+- [ ] Discord native slash/thread command registration parity
+- [ ] Telegram entity-only mention boundary closeout
+- [ ] Telegram forum thread fallback + send retry safety
+- [ ] Telegram semantic MarkdownV2 formatter + table rewrite
+- [ ] Gateway platform reconnect isolation + channel health limits
 
 ### 2.B.10 — WeChat Adapter ✅
 
