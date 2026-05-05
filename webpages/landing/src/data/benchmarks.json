@@ -1,23 +1,30 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "d1852f276",
+    "commit": "960dcfdc0",
     "go_version": "1.25+",
-    "last_measured": "2026-05-04",
+    "last_measured": "2026-05-05",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 40495082,
-    "size_mb": "38.6",
+    "size_bytes": 40954746,
+    "size_mb": "39.1",
     "stripped": true
   },
   "code": {
     "dependencies": 135,
-    "go_files": 647,
-    "go_lines": 153990,
-    "test_count": 3991
+    "go_files": 651,
+    "go_lines": 154498,
+    "test_count": 4003
   },
   "history": [
+    {
+      "commit": "960dcfdc0",
+      "date": "2026-05-05",
+      "phase": "Phase 4 — The Brain Transplant",
+      "size_bytes": 40954746,
+      "size_mb": 39.1
+    },
     {
       "commit": "649c65af2",
       "date": "2026-05-04",
