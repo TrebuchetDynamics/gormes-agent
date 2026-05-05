@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Extension Lifecycle Hook System
+## 1. OpenClaw security audit --deep --fix
+
+- Phase: 5 / 5.N
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Port the operator-facing OpenClaw security audit command surface into Gormes: `gormes security audit` and `gormes security audit --deep --fix` inspect config, SecretRefs, filesystem permissions, gateway exposure/auth, tool sandbox/blocklist policy, plugin trust, and channel credentials, then apply only safe deterministic fixes with exact finding counts.
+- Trust class: operator, gateway, system
+- Ready when: SecretRef core resolver exists so audit can identify configured/unavailable refs without resolving unsupported exec providers., Shell blocklist, filesystem scoping, and loop detector rows remain validated.
+- Not ready when: The slice performs network probes in unit tests., The fix path mutates config without previewable finding IDs and before/after evidence.
+- Degraded mode: Deep probes that require unavailable SecretRefs, live gateway access, or exec providers degrade to explicit findings instead of skipping silently or logging secrets.
+- Fixture: `internal/doctor/security_audit_test.go`
+- Write scope: `cmd/gormes/security.go`, `internal/doctor/security_audit.go`, `internal/doctor/security_audit_test.go`, `internal/config/`, `internal/tools/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/doctor ./cmd/gormes -run 'SecurityAudit\|SecurityFix' -count=1`, `go run ./cmd/progress validate`
+- Done signal: gormes security audit --deep --fix ships with fixture-backed findings, counts, redaction, and safe-fix boundaries.
+- Acceptance: Audit output includes exact pass/warn/fail/fixed counts derived from real checks., Deep mode reports SecretRef availability, gateway auth/exposure, filesystem permissions, loop detector, shell blocklist, and sandbox/tool scope checks., --fix applies only safe local remediations such as permissions/config normalization and reports unfixed manual actions., All findings redact tokens, API keys, file contents, and provider secret values.
+- Source refs: ../openclaw/src/cli/security-cli.ts, ../openclaw/src/security/audit.ts, ../openclaw/src/security/fix.ts, ../openclaw/docs/gateway/security/audit-checks.md, internal/tools/permissions.go, internal/config/secretref.go
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -48,7 +68,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 2. Hermes Kanban production worker process binding
+## 3. Hermes Kanban production worker process binding
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -65,11 +85,11 @@ selection.
 - Test commands: `go test ./internal/kanban -run 'TestKanban(ProcessSpawner\|WorkerLifecycle)' -count=1`, `go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1`, `go run ./cmd/progress validate`
 - Done signal: Kanban dispatcher production binding launches native Gormes workers through fakeable process seams, records PID/log/runtime evidence, reclaims crashed or timed-out workers, and never depends on Hermes Python or live subprocesses in tests.
 - Acceptance: Spawner fixtures prove the production launcher builds native `gormes -p <profile> --skills kanban-worker chat -q ...` argv, GORMES_KANBAN_* env, cwd, and redacted logs without any HERMES_* leak., Log fixtures prove per-task stdout/stderr paths are under the Gormes Kanban log root and rotate before spawn when over the configured limit., PID fixtures prove spawned PIDs are recorded on task and run rows, crashed workers are reclaimed with worker_crashed evidence, and stale or reused PID evidence does not kill unrelated processes., Runtime-cap fixtures prove expired tasks receive injected TERM/KILL-style process controls, record worker_timed_out evidence, and return to ready or blocked according to the failure policy., Gateway wiring fixtures prove production dispatcher config can use the process spawner while tests keep using the fake spawner seam.
-- Source refs: ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:_default_spawn, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:detect_crashed_workers, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:enforce_max_runtime, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:worker_logs_dir, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:heartbeat_worker, ../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run, internal/kanban/dispatcher.go, internal/kanban/store.go, internal/cli/profile_root.go, cmd/gormes/profile.go
+- Source refs: ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:_default_spawn, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:detect_crashed_workers, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:enforce_max_runtime, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:worker_logs_dir, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:heartbeat_worker, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatcher_spawn_injects_kanban_db_and_workspaces_root, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_promotes_ready_and_spawns, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_spawn_failure_releases_claim, internal/kanban/dispatcher.go, internal/kanban/store.go, internal/cli/profile_root.go, cmd/gormes/profile.go
 - Unblocks: Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces
 - Why now: Unblocks Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces.
 
-## 3. Channels Capabilities Introspection
+## 4. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +110,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 4. Prompt Fragment Include System
+## 5. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,67 +131,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 5. Circuit breaker per provider and API key
-
-- Phase: 4 / 4.M
-- Owner: `provider`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Each provider connection gets an independent circuit breaker tracking consecutive failures. After threshold (default 5), breaker trips to OPEN and all calls fast-fail for cooldown period (default 30s). Half-open state allows single probe request.
-- Trust class: system
-- Ready when: Provider interface supports health status reporting
-- Not ready when: No per-provider error tracking
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/circuit_breaker.go`, `internal/hermes/circuit_breaker_test.go`
-- Test commands: `go test ./internal/hermes -run TestCircuitBreaker -count=1`
-- Done signal: Circuit breaker tests prove CLOSED→OPEN→HALF_OPEN→CLOSED transitions with configurable thresholds
-- Acceptance: Circuit breaker trips after N consecutive failures, OPEN state fast-fails without making network calls, Half-open probe succeeds → breaker resets to CLOSED, Half-open probe fails → breaker returns to OPEN, Each API key tracked independently, Breaker state transitions are logged at INFO level
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go, internal/hermes/provider.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. P95 latency-aware failover
-
-- Phase: 4 / 4.M
-- Owner: `provider`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Provider selection considers P95 latency in addition to health status. Degraded-but-not-dead providers get reduced traffic weight rather than full exclusion. Rolling window tracks last N requests.
-- Trust class: system
-- Ready when: Provider interface supports latency tracking, Circuit breaker exists (4.M row 1)
-- Not ready when: No latency data collection from providers
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/latency_router.go`, `internal/hermes/latency_router_test.go`
-- Test commands: `go test ./internal/hermes -run TestLatencyRouter -count=1`
-- Done signal: Latency router tests prove degraded providers get reduced weight while healthy ones get priority
-- Acceptance: P95 latency tracked per provider in rolling window, Degraded providers receive reduced traffic weight, Non-degraded providers prioritized in selection, Latency window configurable (default: last 100 requests)
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/fallback_chain.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Capability-based model tier routing
-
-- Phase: 4 / 4.M
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Route simple queries to cheap models and complex queries to capable models based on a fast classifier. Avoids sending 'hello' to Claude Opus and avoids sending multi-file refactors to a 7B model.
-- Trust class: operator
-- Ready when: Multiple model tiers configured in provider registry
-- Not ready when: Only one model tier available
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/capability_router.go`, `internal/hermes/capability_router_test.go`
-- Test commands: `go test ./internal/hermes -run TestCapabilityRouter -count=1`
-- Done signal: Capability router tests prove simple queries hit cheap tier and complex queries hit capable tier
-- Acceptance: Simple queries (greetings, single-file edits) route to cheap tier, Complex queries (multi-file refactor, architecture) route to capable tier, Classifier is fast (<100ms) and does not add LLM call overhead, Operator can override classifier with explicit model selection, Classification failures fall back to capable tier (safe default)
-- Source refs: docs/content/papers/safety-and-deployment.md, internal/hermes/provider.go, Beluga AI model-switching docs
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. ACP bridge client compatibility
+## 6. ACP bridge client compatibility
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -191,7 +151,7 @@ selection.
 - Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Gateway discover/probe command
+## 7. Gateway discover/probe command
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -211,24 +171,64 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Pre-execution command classification
+## 8. Transactional tool execution with snapshot/rollback
+
+- Phase: 5 / 5.U
+- Owner: `tools`
+- Size: `large`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Wrap each uncertain tool call as an atomic transaction with ACID properties. Filesystem snapshot before execution; rollback on failure, error, or policy violation. Guarantees system consistency regardless of agent behavior.
+- Trust class: system
+- Ready when: Command classifier exists (5.U row 1), Sandbox filesystem supports snapshot/rollback
+- Not ready when: No snapshot mechanism available on target OS
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/tools/transactional_executor.go`, `internal/tools/transactional_executor_test.go`, `internal/tools/snapshot.go`
+- Test commands: `go test ./internal/tools -run TestTransactionalExecutor -count=1`, `go test ./internal/tools -run TestSnapshot -count=1`
+- Done signal: Transactional executor tests prove rollback on failure and commit on success with filesystem integrity
+- Acceptance: Uncertain tool calls create filesystem snapshot before execution, Failed tool calls roll back to pre-execution state, Successful tool calls commit snapshot changes, Rollback is atomic — no partial state after failure, Snapshot overhead <2s per transaction on typical project, Audit log records snapshot/rollback/commit events
+- Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 9. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
 - Size: `medium`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Classify every tool command as safe (whitelist), unsafe (blacklist), or uncertain (needs sandbox snapshot) before execution. Safe commands run directly. Unsafe commands are blocked. Uncertain commands trigger snapshot/rollback wrapper.
-- Trust class: system
-- Ready when: Tool execution path is interceptable, Sandbox filesystem supports snapshots
-- Not ready when: Tool execution cannot be intercepted, No sandbox filesystem available
+- Priority: `P3`
+- Contract: Operator can select sandbox isolation depth: process-level (fast, weaker isolation), container-level (Docker/gVisor, balanced), or VM-level (Firecracker, strongest isolation). Default is process-level with transactional rollback.
+- Trust class: operator
+- Ready when: Transactional executor exists (5.U row 2)
+- Not ready when: No sandbox backend available
 - Degraded mode: -
 - Fixture: `-`
-- Write scope: `internal/tools/command_classifier.go`, `internal/tools/command_classifier_test.go`, `internal/tools/transactional_executor.go`, `internal/tools/transactional_executor_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestCommandClassifier -count=1`, `go test ./internal/tools -run TestTransactionalExecutor -count=1`, `go run ./cmd/progress validate`
-- Done signal: Classifier tests prove safe/unsafe/uncertain classification for representative command sets
-- Acceptance: Commands classified as safe/unsafe/uncertain before execution, Safe commands execute directly with <1ms overhead, Unsafe commands are blocked with audit log entry, Uncertain commands trigger snapshot before execution, Classification rules are configurable per session
-- Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go
+- Write scope: `internal/tools/isolation_depth.go`, `internal/tools/isolation_depth_test.go`
+- Test commands: `go test ./internal/tools -run TestIsolationDepth -count=1`
+- Done signal: Isolation depth tests prove all three levels selectable and process-level works without Docker
+- Acceptance: Process-level isolation is the default and requires zero setup, Docker/gVisor isolation selectable via config, Firecracker VM isolation selectable via config, Isolation depth is per-session configurable, Deeper isolation correctly fails if backend not available
+- Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Gateway channel adapters publish to event bus
+
+- Phase: 5 / 5.V
+- Owner: `gateway`
+- Size: `large`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Each gateway channel adapter (Telegram, Discord, Slack, WhatsApp, WeChat) publishes incoming messages as standardized events on the bus, and subscribes to outgoing message events. Channel-specific translation lives in adapters; the bus carries channel-neutral events.
+- Trust class: system
+- Ready when: Event bus exists (5.V row 1), Channel adapters are refactorable to add bus hooks
+- Not ready when: Event bus not yet implemented, Channel adapters too tightly coupled to refactor
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/channels/telegram/bus_adapter.go`, `internal/channels/discord/bus_adapter.go`, `internal/channels/slack/bus_adapter.go`, `internal/gateway/event_dispatch.go`, `internal/gateway/event_dispatch_test.go`
+- Test commands: `go test ./internal/gateway -run TestEventDispatch -count=1`, `go test ./internal/channels/telegram -run TestBusAdapter -count=1`
+- Done signal: Integration tests prove messages flow from channel→bus→agent and back through all adapter types
+- Acceptance: Incoming Telegram message → MessageReceived event on bus, Incoming Discord message → MessageReceived event on bus, Incoming Slack message → MessageReceived event on bus, Outgoing reply event → channel-specific delivery by adapter subscriber, Channel adapter failures are isolated — one channel crash doesn't affect others, Message events carry channel provenance (source, channel_id, user_id)
+- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

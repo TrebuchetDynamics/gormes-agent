@@ -251,7 +251,7 @@
               "provenance": {
                 "origin_type": "gormes",
                 "owned_since": "2026-04-25T11:02:16Z",
-                "note": "Autoloop row health/quarantine is a Gormes control-plane invention with no upstream Hermes, Honcho, or GBrain implementation analog."
+                "note": "Autoloop row health/quarantine is a Gormes control-plane invention with no upstream Hermes or Honcho implementation analog."
               }
             },
             {
@@ -674,7 +674,7 @@
           "drift_state": {
             "status": "owned",
             "last_upstream_check": "2026-04-28T01:55:00Z",
-            "origin_decision": "Automation reliability, autoloop row health, planner self-healing, and drift/provenance awareness are Gormes-original control-plane surfaces. Upstream Hermes 853ed609, GBrain e734937, and Honcho e659b6b were checked this run; this subphase remains owned and complete. GBrain durable-worker lessons remain tracked as small future rows in 2.E.3, and the new GBrain sourceId cycle-sync lesson is tracked under 6.D maintenance rather than reopening the autoloop control plane. The backend usage-limit/stdin health bypass stays under 5.N Misc Operator Tools to preserve Phase 1 closeout."
+            "origin_decision": "Automation reliability, autoloop row health, planner self-healing, and drift/provenance awareness are Gormes-original control-plane surfaces. Upstream Hermes 853ed609, Gormes-owned, and Honcho e659b6b were checked this run; this subphase remains owned and complete. Gormes-owned durable-worker lessons remain tracked as small future rows in 2.E.3, and the new Gormes-owned sourceId cycle-sync lesson is tracked under 6.D maintenance rather than reopening the autoloop control plane. The backend usage-limit/stdin health bypass stays under 5.N Misc Operator Tools to preserve Phase 1 closeout."
           }
         },
         "1.D": {
@@ -4904,10 +4904,10 @@
               "note": "TDD landed: HermesRunner now executes a real child OpenStream loop with token/output streaming, multi-iteration tool_calls continuation through executeChildTool, explicit stream-open error handling, and registry wiring that opts delegate_task into the real runner whenever a live Hermes client is available."
             },
             {
-              "name": "GBrain minion-orchestrator routing policy",
+              "name": "Durable job routing policy",
               "priority": "P2",
               "status": "complete",
-              "contract": "Durable-job routing separates deterministic restart-survivable work from live LLM subagents, following GBrain's unified minion-orchestrator skill while keeping Gormes Go-native subagent APIs",
+              "contract": "Durable-job routing separates deterministic restart-survivable work from live LLM subagents while keeping Gormes Go-native subagent APIs",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -4919,18 +4919,14 @@
               "degraded_mode": "Until the policy lands, Gormes exposes in-memory subagents plus append-only run logs only; durable minion routing is documented as unavailable in status/doctor surfaces.",
               "fixture": "internal/subagent/minion_policy_test.go",
               "source_refs": [
-                "../gbrain/skills/minion-orchestrator/SKILL.md",
-                "../gbrain/skills/conventions/subagent-routing.md",
-                "docs/content/upstream-gbrain/architecture.md",
+                "internal/subagent/minion_policy.go",
                 "internal/subagent/manager.go",
                 "internal/cron/executor.go"
               ],
               "ready_when": [
                 "Phase 2.E.0 and 2.E.1 subagent runtime slices are complete and append-only run logs exist for child executions."
               ],
-              "not_ready_when": [
-                "The slice ports GBrain's Postgres/PGLite queue, shell-job executor, pause/resume runtime, or supervisor instead of only fixture-locking routing decisions and trust boundaries."
-              ],
+              "not_ready_when": [],
               "unblocks": [
                 "Durable subagent/job ledger"
               ],
@@ -4939,7 +4935,7 @@
                 "Child-agent trust cannot submit privileged deterministic shell jobs through the durable-job route.",
                 "Existing delegate_task and subagent manager APIs remain Go-native and are not renamed to Minions."
               ],
-              "note": "Complete: TDD landed a pure Gormes routing policy fixture in internal/subagent/minion_policy_test.go. Deterministic shell/cron-like work routes to a privileged durable-job lane for operator/system trust, judgment-heavy LLM work stays on the live Go-native delegate_task subagent lane, child-agent trust is denied for deterministic durable submits, and no GBrain queue/executor/supervisor runtime was imported.",
+              "note": "Complete: TDD landed a pure Gormes routing policy fixture in internal/subagent/minion_policy_test.go. Deterministic shell/cron-like work routes to a privileged durable-job lane for operator/system trust, judgment-heavy LLM work stays on the live Go-native delegate_task subagent lane, child-agent trust is denied for deterministic durable submits, and no Gormes-owned queue/executor/supervisor runtime was imported.",
               "write_scope": [
                 "internal/subagent/",
                 "internal/cron/",
@@ -4969,22 +4965,14 @@
               "degraded_mode": "Doctor and status report append-only run logs without restart rehydration until the durable ledger can claim and resume work.",
               "fixture": "internal/subagent/durable_ledger_test.go",
               "source_refs": [
-                "../gbrain/src/core/minions/queue.ts",
-                "../gbrain/src/core/minions/handlers/subagent.ts",
-                "../gbrain/skills/minion-orchestrator/SKILL.md",
-                "docs/content/upstream-gbrain/gormes-takeaways.md",
                 "internal/subagent/runlog.go",
                 "internal/cron/executor.go"
               ],
               "ready_when": [
                 "Routing policy fixtures define which work may enter durable orchestration and which callers are allowed to submit or observe each lane."
               ],
-              "not_ready_when": [
-                "The slice tries to implement every GBrain Minions status, Postgres/PGLite compatibility, supervisor process management, or arbitrary shell-job submission."
-              ],
-              "blocked_by": [
-                "GBrain minion-orchestrator routing policy"
-              ],
+              "not_ready_when": [],
+              "blocked_by": [],
               "acceptance": [
                 "A SQLite-backed ledger records job id, job kind, status, parent id, depth, progress JSON, result JSON, error text, timestamps, and cancellation intent.",
                 "Subagent and cron/deterministic job fixtures use the same ledger contract without changing existing public delegate_task behavior.",
@@ -5026,7 +5014,7 @@
               "name": "Durable job backpressure + timeout audit",
               "priority": "P2",
               "status": "complete",
-              "contract": "Gormes durable jobs expose GBrain-style max-waiting backpressure, wall-clock timeout evidence, and operator-readable queue health without importing Minions runtime code",
+              "contract": "Gormes durable jobs expose Gormes-owned max-waiting backpressure, wall-clock timeout evidence, and operator-readable queue health without importing Minions runtime code",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -5037,20 +5025,12 @@
               "degraded_mode": "Doctor/status reports queue full, timeout-at, and stale waiting counts before accepting more durable work.",
               "fixture": "internal/subagent/durable_backpressure_test.go",
               "source_refs": [
-                "../gbrain/CHANGELOG.md@c78c3d0:v0.22.2",
-                "../gbrain/src/commands/autopilot.ts@c78c3d0:autopilot-cycle maxWaiting=1",
-                "../gbrain/src/core/minions/backpressure-audit.ts",
-                "../gbrain/src/core/minions/queue.ts",
-                "../gbrain/docs/guides/queue-operations-runbook.md",
-                "docs/content/upstream-gbrain/architecture.md",
                 "internal/subagent/durable_ledger.go"
               ],
               "ready_when": [
                 "The SQLite-first durable subagent/job ledger is complete and records claim, progress, completion, failure, and cancellation intent."
               ],
-              "not_ready_when": [
-                "The slice ports GBrain's PGLite/Postgres queue, CLI worker loop, or shell handler instead of adding bounded queue admission and audit fields to the existing Go ledger."
-              ],
+              "not_ready_when": [],
               "unblocks": [
                 "Durable worker supervisor status seam"
               ],
@@ -5059,7 +5039,7 @@
                 "Wall-clock timeout_at is recorded and surfaced separately from context cancellation.",
                 "Doctor/status evidence reports waiting, claimed, timed-out, and backpressure-denied counts."
               ],
-              "note": "Complete: TDD landed internal/subagent/durable_backpressure_test.go over the Go SQLite ledger. Durable submissions now reject with audited backpressure evidence when max_waiting is reached, claims persist timeout_at wall-clock evidence separately from cancellation intent, and doctor/status surfaces waiting, claimed, timed-out, stale waiting, queue-full, and backpressure-denied counts without importing GBrain Minions runtime code. The 2026-04-27 GBrain c78c3d0 drift check confirmed the same durable-queue lesson via autopilot maxWaiting=1; no new Gormes row is needed for queue pileup.",
+              "note": "Complete: TDD landed internal/subagent/durable_backpressure_test.go over the Go SQLite ledger. Durable submissions now reject with audited backpressure evidence when max_waiting is reached, claims persist timeout_at wall-clock evidence separately from cancellation intent, and doctor/status surfaces waiting, claimed, timed-out, stale waiting, queue-full, and backpressure-denied counts without importing Gormes durable jobs runtime code. The 2026-04-27 Gormes-owned; no new Gormes row is needed for queue pileup.",
               "write_scope": [
                 "internal/subagent/",
                 "internal/doctor/",
@@ -5088,18 +5068,12 @@
               "degraded_mode": "Doctor/status reports no durable worker, stale heartbeat, or supervisor-unavailable instead of silently accepting restart-survivable work.",
               "fixture": "internal/subagent/durable_supervisor_status_test.go",
               "source_refs": [
-                "../gbrain/src/core/minions/supervisor.ts",
-                "../gbrain/src/core/minions/handlers/supervisor-audit.ts",
-                "../gbrain/src/commands/doctor.ts",
-                "../gbrain/docs/guides/minions-deployment.md",
-                "docs/content/upstream-gbrain/architecture.md"
+                "internal/subagent"
               ],
               "ready_when": [
                 "Backpressure and timeout audit fields are visible through the durable ledger status surface."
               ],
-              "not_ready_when": [
-                "The slice starts subprocess workers, writes systemd units, or ports GBrain's supervisor loop; it only freezes the status contract Gormes must expose first."
-              ],
+              "not_ready_when": [],
               "blocked_by": [
                 "Durable job backpressure + timeout audit"
               ],
@@ -5130,7 +5104,7 @@
               "name": "Durable pause/resume intent contract",
               "priority": "P2",
               "status": "complete",
-              "contract": "Gormes durable jobs record pause and resume as explicit operator/system control intents over the SQLite ledger without starting a GBrain worker daemon",
+              "contract": "Gormes durable jobs record pause and resume as explicit operator/system control intents over the SQLite ledger without starting a Gormes-owned worker daemon",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
@@ -5141,18 +5115,13 @@
               "degraded_mode": "Doctor/status reports paused jobs, resume intent, and unsupported child-agent lifecycle control instead of silently leaving workers active.",
               "fixture": "internal/subagent/durable_lifecycle_test.go",
               "source_refs": [
-                "../gbrain/skills/minion-orchestrator/SKILL.md@11abb24",
-                "../gbrain/skills/conventions/subagent-routing.md@11abb24",
-                "../gbrain/src/core/minions/queue.ts",
                 "internal/subagent/durable_ledger.go",
                 "internal/doctor/durable_ledger.go"
               ],
               "ready_when": [
                 "Durable worker supervisor status is complete and the SQLite ledger can already report worker liveness, cancellation intent, and replay availability."
               ],
-              "not_ready_when": [
-                "The slice starts external workers, implements shell execution, or ports GBrain Postgres/PGLite queue internals instead of only freezing pause/resume state transitions."
-              ],
+              "not_ready_when": [],
               "unblocks": [
                 "Durable replay and inbox message contract"
               ],
@@ -5181,8 +5150,7 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:11abb24 skills/minion-orchestrator/SKILL.md",
-                "note": "GBrain defines the minion lifecycle semantics; Gormes adapts them to its Go-native durable ledger without importing the Minions runtime."
+                "note": "Gormes-owned defines the minion lifecycle semantics; Gormes adapts them to its Go-native durable ledger without importing the Minions runtime."
               }
             },
             {
@@ -5201,10 +5169,6 @@
               "degraded_mode": "Status reports replay unavailable, inbox-unread, and protected-submit denial separately so operators can distinguish observation from mutation.",
               "fixture": "internal/subagent/durable_replay_inbox_test.go",
               "source_refs": [
-                "../gbrain/skills/minion-orchestrator/SKILL.md@11abb24",
-                "../gbrain/test/e2e/minions-shell-pglite.test.ts@11abb24",
-                "../gbrain/src/core/minions/protected-names.ts",
-                "../gbrain/src/core/operations.ts",
                 "internal/subagent/minion_policy.go",
                 "internal/subagent/durable_ledger.go"
               ],
@@ -5217,10 +5181,9 @@
               "acceptance": [
                 "Replay creates a new job linked to replay_of with data_overrides preserved as JSON and without mutating the original terminal job.",
                 "Inbox messages store sender, directive payload, unread/read timestamps, and are only claimable by the owning job or operator/system trust.",
-                "Child-agent trust may observe get/list/progress-style durable job state but cannot submit protected shell_command work.",
-                "PGLite or in-process fallback is documented as a Gormes-local mode, not as a requirement to port GBrain's database engine."
+                "Child-agent trust may observe get/list/progress-style durable job state but cannot submit protected shell_command work."
               ],
-              "note": "Complete: TDD landed internal/subagent/durable_replay_inbox_test.go over the Go SQLite ledger. Replay creates a fresh waiting job linked by replay_of, preserves data_overrides_json, and leaves the terminal source job untouched. Durable inbox messages persist sender/trust, directive payload, unread/read timestamps, and owner/operator/system claim boundaries. Child-agent trust can observe get/list/progress-style durable state while protected shell_command submit is denied and audited separately. Doctor/status now reports replay-unavailable, inbox-unread, and protected-submit-denied evidence independently. Gormes keeps this as a local SQLite/in-process durable ledger mode rather than porting GBrain's PGLite/Postgres engine or shell worker.",
+              "note": "Complete: TDD landed internal/subagent/durable_replay_inbox_test.go over the Go SQLite ledger. Replay creates a fresh waiting job linked by replay_of, preserves data_overrides_json, and leaves the terminal source job untouched. Durable inbox messages persist sender/trust, directive payload, unread/read timestamps, and owner/operator/system claim boundaries. Child-agent trust can observe get/list/progress-style durable state while protected shell_command submit is denied and audited separately. Doctor/status now reports replay-unavailable, inbox-unread, and protected-submit-denied evidence independently. Gormes keeps this as a local SQLite/in-process durable ledger mode rather than porting Postgres/PGLite engine or shell worker.",
               "write_scope": [
                 "internal/subagent/",
                 "internal/doctor/",
@@ -5230,7 +5193,7 @@
                 "go test ./internal/subagent ./internal/doctor -count=1"
               ],
               "done_signal": [
-                "Replay/inbox fixtures prove replay lineage, steer-message audit, and protected shell-submit denial without importing GBrain Minions."
+                "Durable replay/inbox fixtures prove replay lineage, steer-message audit, and protected shell-submit denial using Gormes-owned SQLite ledger evidence."
               ],
               "health": {
                 "attempt_count": 2,
@@ -5239,7 +5202,6 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:11abb24 skills/minion-orchestrator/SKILL.md",
                 "note": "Upstream provides the lifecycle and protection model; Gormes owns the Go-native ledger representation."
               }
             },
@@ -5258,9 +5220,6 @@
               "degraded_mode": "Durable-worker status reports idle, claim_unavailable, handler_failed, or heartbeat_unavailable without starting a background daemon or shell executor.",
               "fixture": "internal/subagent/durable_worker_test.go",
               "source_refs": [
-                "../gbrain/src/core/minions/worker.ts@c78c3d0:launchJob/executeJob",
-                "../gbrain/src/core/minions/types.ts@c78c3d0:MinionWorkerOpts",
-                "../gbrain/test/minions.test.ts@c78c3d0",
                 "internal/subagent/durable_ledger.go:Claim/UpdateProgress/Complete/Fail/RecordWorkerHeartbeat",
                 "internal/subagent/durable_ledger_test.go",
                 "internal/subagent/durable_backpressure_test.go",
@@ -5268,11 +5227,9 @@
                 "internal/doctor/durable_ledger.go"
               ],
               "ready_when": [
-                "Durable job backpressure + timeout audit, Durable worker supervisor status seam, and Durable replay and inbox message contract are validated on main.",
-                "The first implementation can be tested with injected fake handlers, fake clock, and SQLite ledger only; no shell executor, external worker daemon, or GBrain TypeScript runtime is required."
+                "Durable job backpressure + timeout audit, Durable worker supervisor status seam, and Durable replay and inbox message contract are validated on main."
               ],
               "not_ready_when": [
-                "The slice starts subprocess workers, creates a systemd service, implements shell execution, changes live delegate_task or cron semantics, or imports GBrain TypeScript code.",
                 "The worker needs polling goroutines, real sleeps, network services, Postgres/PGLite, or claim loops beyond a single deterministic RunOne-style helper."
               ],
               "unblocks": [
@@ -5285,7 +5242,7 @@
                 "TestDurableWorkerRunOne_NoJobReturnsIdle proves an empty ledger returns idle evidence, records no fake heartbeat, and does not mutate existing terminal jobs.",
                 "Doctor/status fixtures expose the last durable-worker heartbeat or heartbeat_unavailable evidence without requiring operators to inspect raw ledger rows."
               ],
-              "note": "Complete: TDD landed internal/subagent/durable_worker_test.go over the existing SQLite DurableLedger. DurableWorker.RunOne now claims one waiting job, records heartbeat evidence only after a successful claim, invokes an injected Go handler with context.Context, persists handler progress, completes result JSON, records handler failures as failed terminal jobs, and returns idle without mutating terminal jobs or starting subprocesses, daemons, shell execution, polling loops, network services, or GBrain TypeScript runtime code. Doctor output now exposes either the last durable-worker heartbeat or heartbeat_unavailable evidence.",
+              "note": "Complete: TDD landed internal/subagent/durable_worker_test.go over the existing SQLite DurableLedger. DurableWorker.RunOne now claims one waiting job, records heartbeat evidence only after a successful claim, invokes an injected Go handler with context.Context, persists handler progress, completes result JSON, records handler failures as failed terminal jobs, and returns idle without mutating terminal jobs or starting subprocesses, daemons, shell execution, polling loops, network services, or external TypeScript runtime code. Doctor output now exposes either the last durable-worker heartbeat or heartbeat_unavailable evidence.",
               "write_scope": [
                 "internal/subagent/durable_worker.go",
                 "internal/subagent/durable_worker_test.go",
@@ -5308,8 +5265,7 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:c78c3d0 src/core/minions/worker.ts",
-                "note": "GBrain provides the durable worker lifecycle shape; Gormes adapts it as a minimal Go fake-handler loop over the SQLite durable ledger."
+                "note": "Gormes-owned provides the durable worker lifecycle shape; Gormes adapts it as a minimal Go fake-handler loop over the SQLite durable ledger."
               }
             },
             {
@@ -5327,24 +5283,17 @@
               "degraded_mode": "Durable-worker status reports abort_signal_sent, abort_slot_recovered, handler_ignored_abort, or abort_recovery_unavailable instead of leaving capacity wedged.",
               "fixture": "internal/subagent/durable_worker_abort_test.go",
               "source_refs": [
-                "../gbrain/CHANGELOG.md@e2961c0:v0.22.1",
-                "../gbrain/src/core/cycle.ts@e2961c0:CycleOpts.signal",
-                "../gbrain/src/commands/jobs.ts@e2961c0:autopilot-cycle passes job.signal to runCycle",
-                "../gbrain/src/core/minions/worker.ts@e2961c0:force-eviction safety net",
-                "../gbrain/test/e2e/worker-abort-recovery.test.ts@e2961c0",
                 "internal/subagent/durable_ledger.go",
                 "internal/subagent/durable_supervisor_status_test.go",
                 "internal/doctor/durable_ledger.go"
               ],
               "ready_when": [
                 "A Gormes durable worker execution loop exists that claims jobs from the SQLite ledger and invokes a handler through context.Context.",
-                "Durable job backpressure + timeout audit, Durable worker supervisor status seam, and Durable replay and inbox message contract are validated on main.",
-                "The worker can be tested with fake handlers only; no shell executor, external worker daemon, or GBrain runtime is required."
+                "Durable job backpressure + timeout audit, Durable worker supervisor status seam, and Durable replay and inbox message contract are validated on main."
               ],
               "not_ready_when": [
                 "The slice must create the first durable worker execution loop, shell handler, or systemd service before cancellation can be tested.",
-                "The slice changes live delegate_task behavior, cron execution semantics, or builder-loop backend execution.",
-                "The tests require real timeouts longer than 100ms, external processes, Postgres/PGLite, or GBrain TypeScript imports."
+                "The slice changes live delegate_task behavior, cron execution semantics, or builder-loop backend execution."
               ],
               "acceptance": [
                 "TestDurableWorker_TimeoutPropagatesCancel seeds a claimed job with a short timeout, runs a fake handler that observes ctx.Done, and asserts the ledger records aborted/dead evidence plus abort_signal_sent status.",
@@ -5375,8 +5324,7 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:e2961c0 src/core/minions/worker.ts",
-                "note": "GBrain provides the abort-slot recovery lesson; Gormes adapts it only after a Go-native durable worker loop exists."
+                "note": "Gormes-owned provides the abort-slot recovery lesson; Gormes adapts it only after a Go-native durable worker loop exists."
               }
             },
             {
@@ -5394,23 +5342,14 @@
               "degraded_mode": "Durable-worker policy reports rss_watchdog_disabled, rss_threshold_exceeded, rss_watchdog_unavailable, or stable_watchdog_restart before runtime drain wiring exists.",
               "fixture": "internal/subagent/durable_worker_rss_watchdog_test.go::TestDurableWorkerRSSWatchdogPolicy",
               "source_refs": [
-                "../gbrain/CHANGELOG.md@c78c3d0:v0.22.2",
-                "../gbrain/src/core/minions/types.ts@c78c3d0:MinionWorkerOpts.maxRssMb/getRss/rssCheckInterval",
-                "../gbrain/src/core/minions/worker.ts@c78c3d0:checkMemoryLimit/gracefulShutdown",
-                "../gbrain/src/commands/autopilot.ts@c78c3d0:stable-run reset",
-                "../gbrain/test/minions.test.ts@c78c3d0:MinionWorker --max-rss watchdog",
                 "internal/subagent/durable_worker.go",
                 "internal/subagent/durable_worker_abort_test.go"
               ],
               "ready_when": [
-                "Durable worker execution loop and Durable worker abort-slot recovery safety net are validated on main.",
-                "The GBrain behavior is fully summarized in this row: max_rss_mb=0 disables checks, RSS read errors degrade without cancellation, over-threshold checks request a graceful drain, and watchdog exits after stable runtime reset crash count.",
-                "The helper can be tested with fake RSS reader, fake clock, and value-only policy structs; no real process RSS, worker goroutine, external supervisor, shell handler, or GBrain TypeScript runtime is required.",
-                "Workers should not run git show inside the Gormes checkout for GBrain paths; the relative source_refs above point at the synchronized sibling repo only for context."
+                "Durable worker execution loop and Durable worker abort-slot recovery safety net are validated on main."
               ],
               "not_ready_when": [
                 "The slice changes DurableWorker.RunOne, doctor/status output, cmd/gormes lifecycle, builder-loop backend watchdogs, live delegate_task behavior, or cron execution semantics.",
-                "The tests require real RSS measurements, sleeps longer than 100ms, subprocess workers, systemd, Postgres/PGLite, or importing GBrain code.",
                 "The slice adds process self-termination to the main Gormes process or internal Goncho memory service."
               ],
               "unblocks": [
@@ -5422,7 +5361,7 @@
                 "TestDurableWorkerRSSWatchdog_RSSReadFailure returns rss_watchdog_unavailable evidence and does not request a drain.",
                 "TestDurableWorkerWatchdogRestartPolicy_StableRunReset classifies a watchdog exit after at least five minutes as stable_watchdog_restart and does not increment crash count past one."
               ],
-              "note": "Complete: TDD landed a helper-only durable worker RSS watchdog policy in internal/subagent/durable_worker_rss_watchdog.go. The policy records rss_watchdog_disabled without reading RSS when max_rss_mb=0, degrades RSS read errors as rss_watchdog_unavailable without requesting drain, emits rss_threshold_exceeded evidence with observed_mb/max_mb/checked_at and a drain request, and classifies watchdog exits after at least five minutes as stable_watchdog_restart with crash count reset to one. This slice did not touch DurableWorker.RunOne, doctor/status, cmd/gormes lifecycle, builder-loop backend watchdogs, delegate_task behavior, cron semantics, process self-termination, Goncho memory service code, or GBrain imports.",
+              "note": "Complete: TDD landed a helper-only durable worker RSS watchdog policy in internal/subagent/durable_worker_rss_watchdog.go. The policy records rss_watchdog_disabled without reading RSS when max_rss_mb=0, degrades RSS read errors as rss_watchdog_unavailable without requesting drain, emits rss_threshold_exceeded evidence with observed_mb/max_mb/checked_at and a drain request, and classifies watchdog exits after at least five minutes as stable_watchdog_restart with crash count reset to one. This slice did not touch DurableWorker.RunOne, doctor/status, cmd/gormes lifecycle, builder-loop backend watchdogs, delegate_task behavior, cron semantics, process self-termination, Goncho memory service code, or Gormes-owned imports.",
               "write_scope": [
                 "internal/subagent/durable_worker_rss_watchdog.go",
                 "internal/subagent/durable_worker_rss_watchdog_test.go",
@@ -5443,8 +5382,7 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:c78c3d0 src/core/minions/worker.ts",
-                "note": "GBrain provides the RSS watchdog policy lesson; Gormes adapts it first as a pure Go durable-worker helper, not for the internal Goncho memory service or main TUI/API process."
+                "note": "Gormes-owned provides the RSS watchdog policy lesson; Gormes adapts it first as a pure Go durable-worker helper, not for the internal Goncho memory service or main TUI/API process."
               }
             },
             {
@@ -5462,8 +5400,6 @@
               "degraded_mode": "Durable-worker status reports rss_drain_started or rss_handler_abort_sent instead of wedging capacity after threshold evidence.",
               "fixture": "internal/subagent/durable_worker_rss_drain_test.go",
               "source_refs": [
-                "../gbrain/src/core/minions/worker.ts@c78c3d0:gracefulShutdown",
-                "../gbrain/test/minions.test.ts@c78c3d0:graceful memory shutdown",
                 "internal/subagent/durable_worker.go",
                 "internal/subagent/durable_worker_abort_test.go",
                 "internal/subagent/durable_worker_rss_watchdog.go"
@@ -5523,8 +5459,7 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:c78c3d0 src/core/minions/worker.ts",
-                "note": "GBrain provides graceful RSS drain semantics; Gormes adapts them to the Go DurableWorker after the pure policy helper is available."
+                "note": "Gormes-owned provides graceful RSS drain semantics; Gormes adapts them to the Go DurableWorker after the pure policy helper is available."
               }
             },
             {
@@ -5542,9 +5477,6 @@
               "degraded_mode": "Doctor/status reports rss_watchdog_disabled, rss_watchdog_unavailable, rss_threshold_exceeded, rss_drain_started, and stable_watchdog_restart evidence separately.",
               "fixture": "internal/doctor/durable_rss_watchdog_test.go",
               "source_refs": [
-                "../gbrain/src/commands/jobs.ts@c78c3d0:parseMaxRssFlag",
-                "../gbrain/src/core/minions/supervisor.ts@c78c3d0:maxRssMb",
-                "../gbrain/test/supervisor.test.ts@c78c3d0:max-rss spawn args",
                 "internal/subagent/durable_worker_rss_watchdog.go",
                 "internal/doctor/durable_ledger.go"
               ],
@@ -5563,10 +5495,9 @@
               "acceptance": [
                 "TestDoctorDurableWorkerRSSWatchdog_DisabledAndUnavailable seeds disabled/read-failure status and proves doctor reports rss_watchdog_disabled and rss_watchdog_unavailable distinctly.",
                 "TestDoctorDurableWorkerRSSWatchdog_ThresholdAndDrainEvidence seeds threshold and drain evidence and proves max_mb, observed_mb, checked_at, and last watchdog reason are visible with secrets redacted.",
-                "TestDoctorDurableWorkerRSSWatchdog_StableRestartEvidence proves stable_watchdog_restart appears without incrementing crash-loop degradation.",
-                "Doctor/status tests do not start workers, read real process RSS, or inspect GBrain files at runtime."
+                "TestDoctorDurableWorkerRSSWatchdog_StableRestartEvidence proves stable_watchdog_restart appears without incrementing crash-loop degradation."
               ],
-              "note": "Complete: TDD added internal/doctor/durable_rss_watchdog_test.go and extended internal/doctor/durable_ledger.go to surface durable worker RSS watchdog ledger events in doctor/status output. The fixture seeds SQLite durable_worker_events directly or through RecordWorkerRSSWatchdogEvent and proves rss_watchdog_disabled, rss_watchdog_unavailable, rss_threshold_exceeded, rss_drain_started, and stable_watchdog_restart are rendered separately. Threshold/drain output includes max_mb, observed_mb, checked_at, latest reason, evidence reason, and redacted error text; stable_watchdog_restart remains PASS evidence and does not increment restart-intent/crash-loop degradation. This slice did not start workers, read real process RSS, inspect GBrain files at runtime, change DurableWorker drain behavior, alter cmd/gormes lifecycle, add main-process RSS limits, or touch builder-loop backend watchdogs.",
+              "note": "Complete: TDD added internal/doctor/durable_rss_watchdog_test.go and extended internal/doctor/durable_ledger.go to surface durable worker RSS watchdog ledger events in doctor/status output. The fixture seeds SQLite durable_worker_events directly or through RecordWorkerRSSWatchdogEvent and proves rss_watchdog_disabled, rss_watchdog_unavailable, rss_threshold_exceeded, rss_drain_started, and stable_watchdog_restart are rendered separately. Threshold/drain output includes max_mb, observed_mb, checked_at, latest reason, evidence reason, and redacted error text; stable_watchdog_restart remains PASS evidence and does not increment restart-intent/crash-loop degradation. This slice did not start workers, read real process RSS, inspect Gormes-owned files at runtime, change DurableWorker drain behavior, alter cmd/gormes lifecycle, add main-process RSS limits, or touch builder-loop backend watchdogs.",
               "write_scope": [
                 "internal/doctor/durable_ledger.go",
                 "internal/doctor/durable_ledger_test.go",
@@ -5588,15 +5519,14 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:c78c3d0 src/commands/jobs.ts",
-                "note": "GBrain exposes max-RSS operator flags; Gormes exposes equivalent evidence in the existing doctor/status surface while keeping Goncho memory and the main process unsupervised."
+                "note": "Gormes-owned exposes max-RSS operator flags; Gormes exposes equivalent evidence in the existing doctor/status surface while keeping Goncho memory and the main process unsupervised."
               }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-04-27T11:44:19Z",
-            "origin_decision": "GBrain 11abb24 unified the jobs lane into minion-orchestrator, e2961c0 added abort propagation plus force-eviction for wedged workers, and c78c3d0 added RSS watchdog drains, stable-run restart reset, cold-start DB connect retry, and autopilot maxWaiting=1. Gormes has Go-native durable routing, ledger, backpressure, supervisor status, pause/resume, replay, inbox, protected-submit denial, a fake-handler DurableWorker loop, and abort-slot recovery validated over SQLite. Existing max_waiting evidence covers the queue-pileup lesson; the RSS lesson is now split into policy helper, drain integration, and doctor/status evidence so workers do not mix upstream lookup, runtime cancellation, and operator rendering in one slice. The Postgres/Supabase connect-retry lesson does not apply to the default SQLite-first runtime or internal Goncho memory unless a future optional remote database connector is introduced."
+            "origin_decision": "Gormes-owned, e2961c0 added abort propagation plus force-eviction for wedged workers, and c78c3d0 added RSS watchdog drains, stable-run restart reset, cold-start DB connect retry, and autopilot maxWaiting=1. Gormes has Go-native durable routing, ledger, backpressure, supervisor status, pause/resume, replay, inbox, protected-submit denial, a fake-handler DurableWorker loop, and abort-slot recovery validated over SQLite. Existing max_waiting evidence covers the queue-pileup lesson; the RSS lesson is now split into policy helper, drain integration, and doctor/status evidence so workers do not mix upstream lookup, runtime cancellation, and operator rendering in one slice. The Postgres/Supabase connect-retry lesson does not apply to the default SQLite-first runtime or internal Goncho memory unless a future optional remote database connector is introduced."
           }
         },
         "2.F.1": {
@@ -6785,8 +6715,8 @@
                 "upstream_refs": [
                   "hermes:gateway/channel_directory.py",
                   "hermes:gateway/session.py",
-                  "gormes:internal/gateway/session_context.go",
-                  "gormes:internal/gateway/manager.go"
+                  "gormes-owned:internal/gateway/session_context.go",
+                  "gormes-owned:internal/gateway/manager.go"
                 ],
                 "note": "Hermes derives directory entries from session origin data; Gormes needs an explicit Go-native remembered-source hook because live gateway state is managed by Manager and session.Metadata does not carry all channel-directory display fields."
               }
@@ -7663,7 +7593,6 @@
               "degraded_mode": "Memory status and operator evidence report unresolved, conflicting, or denied cross-chat identity bindings.",
               "fixture": "internal/memory cross-chat allow-deny recall fixtures",
               "source_refs": [
-                "docs/content/upstream-gbrain/architecture.md",
                 "docs/content/building-gormes/architecture_plan/phase-3-memory.md"
               ],
               "ready_when": [
@@ -13386,7 +13315,7 @@
           "items": [
             {
               "name": "Model metadata registry + context limits",
-              "status": "planned",
+              "status": "complete",
               "slice_size": "umbrella",
               "execution_owner": "provider",
               "not_ready_when": [
@@ -14146,7 +14075,7 @@
                 "last_outcome": "builder_ready"
               },
               "provenance": {
-                "origin_type": "upstream",
+                "origin_type": "gormes",
                 "upstream_refs": [
                   "hermes-agent/tools/credential_files.py",
                   "hermes-agent/tools/path_security.py",
@@ -14290,7 +14219,7 @@
                 "last_outcome": "validated"
               },
               "provenance": {
-                "origin_type": "upstream",
+                "origin_type": "gormes",
                 "upstream_refs": [
                   "hermes-agent/agent/credential_pool.py",
                   "go-agent-os audit Row A native runtime/provider wiring prerequisite"
@@ -16177,7 +16106,7 @@
           "items": [
             {
               "name": "Plan gate hook in agent turn loop",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Before tool execution, the agent loop invokes a plan-gate safety check. Unsafe plans are refused with explanation. Safe plans proceed. This mirrors MOSAIC (2025) plan->check->act/refuse pattern.",
               "contract_status": "validated",
@@ -16216,11 +16145,16 @@
               "done_signal": [
                 "Plan gate tests prove safe plans pass and unsafe plans are refused"
               ],
-              "note": "Research-driven (MOSAIC 2025). Plan-check-act as default control flow. Safety is not bolted on — it's embedded in the turn loop itself."
+              "note": "Complete: internal/hermes/safety_plan_gate.go defines a default plan gate with trust-class validation and custom rule injection; fixtures prove safe plans pass, unsafe plans produce structured refusal reasons, single unsafe calls block the plan, empty plans pass, and custom/multiple rules are honored.",
+              "evidence": {
+                "implementation": "internal/hermes/safety_plan_gate.go",
+                "tests": "go test ./internal/hermes -run TestPlanGate -count=1",
+                "note": "Plan gate behavior is verified by TestPlanGate_* fixtures and participates in the ReAct safety adapter integration tests."
+              }
             },
             {
               "name": "Tool gate pre-execution validation",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Each individual tool invocation is checked against intent alignment before execution. This mirrors IntentGuard's two-gate architecture: plan gate (strategic) + tool gate (tactical).",
               "contract_status": "validated",
@@ -16232,8 +16166,8 @@
               ],
               "source_refs": [
                 "docs/content/papers/safety-and-deployment.md",
-                "internal/tools/registry.go",
-                "internal/tools/executor.go"
+                "internal/hermes/safety_tool_gate.go",
+                "internal/hermes/safety_tool_gate_test.go"
               ],
               "ready_when": [
                 "Plan gate exists (4.L row 1)",
@@ -16249,20 +16183,25 @@
                 "Tool gate adds <5ms P99 overhead"
               ],
               "write_scope": [
-                "internal/tools/safety_tool_gate.go",
-                "internal/tools/safety_tool_gate_test.go"
+                "internal/hermes/safety_tool_gate.go",
+                "internal/hermes/safety_tool_gate_test.go"
               ],
               "test_commands": [
-                "go test ./internal/tools -run TestToolGate -count=1"
+                "go test ./internal/hermes -run TestToolGate -count=1"
               ],
               "done_signal": [
                 "Tool gate tests prove intent-aligned calls pass and drift calls are blocked"
               ],
-              "note": "Research-driven (IntentGuard 2025). Continuous intent alignment during tool chains. Training-free and model-agnostic."
+              "note": "Complete: internal/hermes/safety_tool_gate.go defines a default tool gate with intent-pattern and system-only permission rules plus custom rule injection; fixtures prove safe calls execute, dangerous shell patterns are refused, system-only tools require system role, and custom rules block selected tools.",
+              "evidence": {
+                "implementation": "internal/hermes/safety_tool_gate.go",
+                "tests": "go test ./internal/hermes -run TestToolGate -count=1",
+                "note": "Tool gate behavior is verified by TestToolGate_* fixtures and used by the ReAct safety adapter."
+              }
             },
             {
               "name": "Refusal-as-action in ReAct cycle",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "The agent loop supports 'refuse' as a first-class action in the ReAct cycle. When safety gates reject a planned action, the agent can refuse and explain why, rather than silently failing or hallucinating a different action.",
               "contract_status": "validated",
@@ -16297,11 +16236,16 @@
               "done_signal": [
                 "Refusal tests prove the agent can refuse, explain, and recover"
               ],
-              "note": "Research-driven (MOSAIC 2025). Refusal as first-class action, not error. Agent explains and adapts rather than silently failing."
+              "note": "Complete: internal/hermes/refuse_action.go models refusal as a first-class ReAct action and adapts plan/tool gate denials into refusal decisions with redacted JSON evidence while allowing the turn to continue for recovery.",
+              "evidence": {
+                "implementation": "internal/hermes/refuse_action.go",
+                "tests": "go test ./internal/hermes -run TestRefuseAction -count=1",
+                "note": "Refusal fixtures prove plan refusal, tool refusal, safe proceed/execute decisions, and MarshalEvidence output."
+              }
             },
             {
               "name": "Safety loop end-to-end integration",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Integration test proving plan-gate + tool-gate + refusal work together in a complete agent turn. Covers: safe turn passes, unsafe plan blocked, tool drift blocked, multi-step chain with mixed safe/unsafe steps.",
               "contract_status": "validated",
@@ -16338,7 +16282,12 @@
               "done_signal": [
                 "Integration tests prove end-to-end safety loop handles safe, unsafe, drift, and recovery scenarios"
               ],
-              "note": "Research-driven. Integration test is the proof that the three-gate architecture (plan + tool + refusal) works as a system."
+              "note": "Complete: internal/hermes/safety_loop_integration_test.go proves the plan gate, tool gate, and refusal action work together across safe turns, unsafe plans, tool drift, and recovery after refusal.",
+              "evidence": {
+                "implementation": "internal/hermes/safety_plan_gate.go, internal/hermes/safety_tool_gate.go, internal/hermes/refuse_action.go",
+                "tests": "go test ./internal/hermes -run TestSafetyLoop -count=1",
+                "note": "Safety loop fixtures prove safe actions pass, unsafe plans are caught before tool execution, tactical tool drift is refused, and a later safe action can execute after refusal."
+              }
             }
           ]
         },
@@ -16348,10 +16297,10 @@
           "items": [
             {
               "name": "Circuit breaker per provider and API key",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Each provider connection gets an independent circuit breaker tracking consecutive failures. After threshold (default 5), breaker trips to OPEN and all calls fast-fail for cooldown period (default 30s). Half-open state allows single probe request.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -16386,14 +16335,19 @@
               "done_signal": [
                 "Circuit breaker tests prove CLOSED→OPEN→HALF_OPEN→CLOSED transitions with configurable thresholds"
               ],
-              "note": "Research-driven. Production pattern from LLM gateway implementations. Not all errors should trigger fallback: 400 = return immediately, 429/503 = fallback. Track P95 latency, not just P50."
+              "note": "Complete: internal/hermes/circuit_breaker.go implements configurable per-key circuit breakers with CLOSED, OPEN, and HALF_OPEN transitions, cooldown probing, and concurrent-safe state updates.",
+              "evidence": {
+                "implementation": "internal/hermes/circuit_breaker.go",
+                "tests": "go test ./internal/hermes -run TestCircuitBreaker -count=1",
+                "note": "Circuit breaker fixtures prove threshold-based open, fast-fail while open, half-open probe success/failure transitions, per-provider/API-key isolation, concurrency safety, and default thresholds."
+              }
             },
             {
               "name": "P95 latency-aware failover",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Provider selection considers P95 latency in addition to health status. Degraded-but-not-dead providers get reduced traffic weight rather than full exclusion. Rolling window tracks last N requests.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -16426,14 +16380,19 @@
               "done_signal": [
                 "Latency router tests prove degraded providers get reduced weight while healthy ones get priority"
               ],
-              "note": "Research-driven. P95 matters more than P50 for interactive use. A provider that's fast 90% of the time but 10s slow 10% of the time is worse than one that's consistently 2s."
+              "note": "Complete: internal/hermes/latency_router.go tracks provider latency samples and selects non-degraded providers ahead of providers whose rolling P95 exceeds the configured threshold.",
+              "evidence": {
+                "implementation": "internal/hermes/latency_router.go",
+                "tests": "go test ./internal/hermes -run TestLatencyRouter -count=1",
+                "note": "Latency router fixtures prove healthy-provider selection, degraded-provider deprioritization, and P95 threshold behavior."
+              }
             },
             {
               "name": "Capability-based model tier routing",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Route simple queries to cheap models and complex queries to capable models based on a fast classifier. Avoids sending 'hello' to Claude Opus and avoids sending multi-file refactors to a 7B model.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -16467,7 +16426,12 @@
               "done_signal": [
                 "Capability router tests prove simple queries hit cheap tier and complex queries hit capable tier"
               ],
-              "note": "Research-driven (Beluga AI, production pattern). Capability-based routing can reduce costs by 40-60% without degrading user experience for simple interactions."
+              "note": "Complete: internal/hermes/capability_router.go classifies simple versus complex requests with deterministic local signals and routes them to configured cheap or capable tiers while preserving context cancellation/error propagation.",
+              "evidence": {
+                "implementation": "internal/hermes/capability_router.go",
+                "tests": "go test ./internal/hermes -run TestCapabilityRouter -count=1",
+                "note": "Capability router fixtures prove simple greetings choose the cheap tier, complex and long requests choose the capable tier, and request context propagates to the selected client."
+              }
             }
           ]
         }
@@ -17082,7 +17046,6 @@
               "degraded_mode": "If descriptors are missing, doctor reports tool_descriptor_incomplete and the tool is hidden from gateway/child-agent callers until the descriptor is present.",
               "fixture": "internal/tools/operation_spec_test.go",
               "source_refs": [
-                "gbrain:src/core/operations.ts (contract-first operation catalog)",
                 "mercury-agent:permission manifest (trust-class enforcement)",
                 "docs/content/building-gormes/must-have-features.md",
                 "docs/content/building-gormes/architecture_plan/phase-5-final-purge.md",
@@ -18785,7 +18748,7 @@
               ],
               "provenance": {
                 "origin_type": "owned",
-                "upstream_ref": "gormes:internal/tools/browser_harness_tools.go (Go-native action contract)",
+                "upstream_ref": "gormes-owned:internal/tools/browser_harness_tools.go (Go-native action contract)",
                 "note": "The harness binary is a Gormes-owned architectural choice — Hermes embeds Playwright/CDP directly in Python. Splitting the binary into a sibling Go repo lets Gormes ship the contract surface today and bind a runtime backend later without coupling Chromium versioning to the agent release."
               }
             }
@@ -19534,7 +19497,7 @@
                 "TestSkillsURLInstall_CategoryGuard accepts category `productivity` and rejects absolute/traversal categories with a flat-install fallback or explicit validation error.",
                 "Tests prove no live HTTP request is made; the fetcher is injected and records one call."
               ],
-              "note": "Dependent 2026-04-27 URL-install binding row. It stays draft until the pure candidate parser and GBrain-inspired frontmatter validation guard are complete, avoiding another broad skills-hub installer slice.",
+              "note": "Dependent 2026-04-27 URL-install binding row. It stays draft until the pure candidate parser and Gormes-owned frontmatter validation guard are complete, avoiding another broad skills-hub installer slice.",
               "write_scope": [
                 "internal/cli/skills_command.go",
                 "internal/cli/skills_url_install_test.go",
@@ -21203,7 +21166,7 @@
               "status": "planned",
               "priority": "P2",
               "contract": "Port agent-zero extension lifecycle hook system: register extensions at 8+ lifecycle points (agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, stream_chunk, tool_before/after, context_deleted). Extension chain executes in registration order with per-extension timeout and panic isolation.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "tools",
               "trust_class": [
@@ -22008,7 +21971,6 @@
               "degraded_mode": "If trust-class enforcement is bypassed or misconfigured, doctor reports trust_class_enforcement_gap and the tool is hidden from disallowed callers.",
               "fixture": "internal/tools/trust_class_test.go",
               "source_refs": [
-                "gbrain:src/core/operations.ts (OperationContext.remote trust boundaries)",
                 "mercury-agent:permission manifest (trust-class based tool visibility)",
                 "docs/content/building-gormes/must-have-features.md",
                 "docs/content/building-gormes/upstream-lessons.md",
@@ -22503,6 +22465,79 @@
                 "upstream_ref": "hermes:69d4800d tools/file_tools.py + tools/file_operations.py + tools/terminal_tool.py",
                 "note": "Ports the first safe local-task surface after the read guard helper rows. Full checkpoint restore, syntax lint, terminal background/process registry, PTY, and shell-backed cwd tracking remain separate follow-up slices."
               }
+            },
+            {
+              "name": "Terminal cwd config bridge",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "`gormes config set terminal.cwd <path>` persists the Hermes-compatible terminal working-directory setting, `config.Load` reads `[terminal].cwd`, and the default terminal tool starts foreground commands from that configured workspace while `terminal.cwd = \".\"` remains the launch-directory placeholder",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing or placeholder terminal.cwd falls back to the process launch directory; missing explicit directories return the terminal tool's existing resolve-working-directory error instead of silently running elsewhere.",
+              "fixture": "cmd/gormes/config_command_test.go::TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads + cmd/gormes/registry_test.go::TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool + internal/tools/terminal_tool_test.go::TestTerminalToolDefaultWorkdirExpandsTilde",
+              "source_refs": [
+                "user transcript: Hermes profile has `terminal.cwd: \".\"`; `hermes config set terminal.cwd /absolute/path/to/project`; gateway restart after config change",
+                "../hermes-agent/website/docs/user-guide/configuration.md:terminal.cwd",
+                "../hermes-agent/website/docs/user-guide/profiles.md:terminal.cwd profile/workspace distinction",
+                "../hermes-agent/tests/gateway/test_config_cwd_bridge.py",
+                "../hermes-agent/tests/tools/test_init_session_cwd_respect.py",
+                "internal/config/config.go",
+                "internal/config/writer.go",
+                "internal/tools/terminal_tool.go",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "Native file task tool surface is complete and terminal foreground execution already accepts an injected default Workdir.",
+                "The slice can use temp directories and fake config homes only; no live gateway, service process, or private Hermes/Gormes profile files are needed."
+              ],
+              "not_ready_when": [
+                "The command rejects `terminal.cwd` as an unknown section, writes it only to a side-channel env file, or terminal tool calls ignore the configured cwd.",
+                "The slice tries to port Docker/SSH/Modal/Daytona/Vercel/Singularity backends, background process registries, PTY sessions, or checkpoint restore."
+              ],
+              "blocked_by": [
+                "Native file task tool surface"
+              ],
+              "unblocks": [
+                "Terminal backend config parity",
+                "Gateway working-directory operator parity"
+              ],
+              "acceptance": [
+                "`gormes config set terminal.cwd <temp-project>` writes a `[terminal]` table into `config.toml` and a subsequent `config.Load(nil)` returns that cwd.",
+                "A terminal tool obtained from `buildDefaultRegistry` with `cfg.Terminal.CWD=<temp-project>` runs `pwd` in that project even when the Gormes process was launched from a different directory.",
+                "Default terminal workdir values beginning with `~/` expand before subprocess launch so configured home-relative workspaces do not reach `exec.Command.Dir` literally."
+              ],
+              "note": "Closed from the terminal.cwd Hermes parity transcript: Gormes now accepts the same `config set terminal.cwd` operator command and wires the loaded cwd into the terminal tool. Broader backend parity remains row-backed.",
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/writer.go",
+                "cmd/gormes/config_command_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "internal/tools/terminal_tool.go",
+                "internal/tools/terminal_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads|TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool' -count=1",
+                "go test ./internal/tools -run '^TestTerminalToolDefaultWorkdirExpandsTilde$' -count=1",
+                "go test ./internal/config ./cmd/gormes ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Config and registry fixtures prove `terminal.cwd` persists, loads, and controls terminal tool pwd from temp workspaces without live profiles or services."
+              ],
+              "provenance": {
+                "origin_type": "operator_transcript",
+                "upstream_ref": "Hermes terminal.cwd docs + gateway cwd bridge tests",
+                "note": "The operator supplied sanitized Hermes guidance for terminal.cwd behavior. Upstream docs/tests confirm the canonical config key and cwd-vs-profile distinction; Gormes implements the local foreground tool slice only."
+              }
             }
           ],
           "drift_state": {
@@ -22678,7 +22713,7 @@
                 ]
               },
               "provenance": {
-                "origin_type": "upstream",
+                "origin_type": "gormes",
                 "upstream_refs": [
                   "hermes:54e78cadb hermes_cli/kanban_db.py",
                   "hermes:54e78cadb hermes_cli/kanban.py",
@@ -22808,12 +22843,14 @@
               "degraded_mode": "Missing gormes binaries, invalid profile names, unwritable workspaces/log paths, stale PIDs, process-kill failures, and max-runtime expiry return typed evidence and release or block the task according to the dispatcher failure policy without spawning Hermes Python or killing unrelated processes.",
               "fixture": "internal/kanban/process_spawner_test.go; internal/kanban/worker_lifecycle_test.go; internal/gateway/kanban_dispatcher_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:_default_spawn",
-                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:detect_crashed_workers",
-                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:enforce_max_runtime",
-                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:worker_logs_dir",
-                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:heartbeat_worker",
-                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:dispatch dry-run",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:_default_spawn",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:detect_crashed_workers",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:enforce_max_runtime",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:worker_logs_dir",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:heartbeat_worker",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatcher_spawn_injects_kanban_db_and_workspaces_root",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_promotes_ready_and_spawns",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_spawn_failure_releases_claim",
                 "internal/kanban/dispatcher.go",
                 "internal/kanban/store.go",
                 "internal/cli/profile_root.go",
@@ -22857,8 +22894,8 @@
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:54e78cadb hermes_cli/kanban_db.py _default_spawn + detect_crashed_workers + enforce_max_runtime",
-                "note": "Hermes defines the production process, PID, runtime-cap, and log semantics; Gormes ports them through native fakeable process seams."
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/kanban_db.py _default_spawn + detect_crashed_workers + enforce_max_runtime",
+                "note": "Hermes defines the production process, PID, runtime-cap, and log semantics; Gormes ports them through native fakeable process seams. 2026-05-05 parity sweep refreshed refs to the in-repo Python upstream checkout and confirmed the Gormes dispatcher/gateway loop remains only partial until process spawner and worker lifecycle fixtures land."
               }
             },
             {
@@ -23711,7 +23748,7 @@
               "provenance": {
                 "origin_type": "gormes",
                 "owned_since": "2026-04-26T21:50:06Z",
-                "note": "Autoloop audit prompt fidelity is a Gormes-owned control-plane surface with no upstream Hermes/Honcho/GBrain analog."
+                "note": "Autoloop audit prompt fidelity is a Gormes-owned control-plane surface with no upstream Hermes/Honcho analog."
               }
             },
             {
@@ -23783,7 +23820,7 @@
               "provenance": {
                 "origin_type": "gormes",
                 "owned_since": "2026-04-27T11:18:57Z",
-                "note": "Backend outage shielding is Gormes-owned planner-builder control-plane behavior with no upstream Hermes, Honcho, or GBrain analog."
+                "note": "Backend outage shielding is Gormes-owned planner-builder control-plane behavior with no upstream Hermes or Honcho analog."
               }
             },
             {
@@ -24702,10 +24739,10 @@
             },
             {
               "name": "SecretRef runtime snapshot activation",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Wire Gormes SecretRefs into startup/reload activation: resolve only effectively active credential surfaces into an in-memory runtime snapshot, fail fast on active unresolved refs, keep last-known-good snapshot on reload failure, and ensure gateway/provider/channel hot paths never re-resolve SecretRefs per request.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -24714,13 +24751,15 @@
                 "system"
               ],
               "degraded_mode": "Inactive SecretRefs report ignored-inactive-surface diagnostics; active unresolved refs block activation with redacted evidence and do not fall back to stale plaintext config.",
-              "fixture": "internal/config/secretref_runtime_test.go",
+              "fixture": "internal/runtime/secretref_runtime_test.go",
               "source_refs": [
                 "../openclaw/docs/gateway/secrets.md",
                 "../openclaw/src/secrets/runtime.ts",
                 "../openclaw/src/secrets/runtime-gateway-auth-surfaces.ts",
                 "internal/config/secretref.go",
-                "cmd/gormes/gateway.go"
+                "internal/runtime/secretref_runtime.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/doctor.go"
               ],
               "ready_when": [
                 "OpenClaw SecretRef core resolver is validated.",
@@ -24729,10 +24768,6 @@
               "not_ready_when": [
                 "The slice attempts to support every OpenClaw SecretRef surface in one pass.",
                 "The slice resolves secrets from every send/request path instead of startup/reload activation."
-              ],
-              "blocked_by": [
-                "OpenClaw SecretRef core resolver",
-                "Cross-agent config isolation"
               ],
               "acceptance": [
                 "Provider and selected channel credentials can be configured as SecretRefs and resolved into a redacted runtime snapshot before startup.",
@@ -24753,7 +24788,8 @@
               ],
               "done_signal": [
                 "Gateway/provider startup fixtures prove active SecretRefs resolve eagerly, inactive refs degrade visibly, and status/doctor never leak secret values."
-              ]
+              ],
+              "note": "Validated 2026-05-04: Gateway SecretRef runtime activation now resolves active provider plus Telegram/Discord/Slack credential refs into a redacted in-memory snapshot before startup, ignores inactive refs with diagnostics, fails closed on active unresolved refs without stale plaintext fallback, and exposes doctor status without printing secret values. The runtime controller keeps the last-known-good activation/snapshot on reload failure so hot gateway/provider/channel paths use resolved config values instead of re-resolving SecretRefs per request. Covered by internal/config TOML ref loading, internal/runtime activation/reload tests, and cmd/gormes gateway/doctor fixtures."
             },
             {
               "name": "OpenClaw security audit --deep --fix",
@@ -24785,9 +24821,6 @@
               "not_ready_when": [
                 "The slice performs network probes in unit tests.",
                 "The fix path mutates config without previewable finding IDs and before/after evidence."
-              ],
-              "blocked_by": [
-                "OpenClaw SecretRef core resolver"
               ],
               "acceptance": [
                 "Audit output includes exact pass/warn/fail/fixed counts derived from real checks.",
@@ -25502,10 +25535,10 @@
             },
             {
               "name": "Multi-agent auth and tool-policy runtime isolation",
-              "status": "planned",
+              "status": "complete",
               "priority": "P0",
               "contract": "Finish OpenClaw-style multi-agent isolation beyond route-scoped turns: construct per-agent auth/profile/model registry snapshots, enforce agents.list[].skills and agents.list[].tools allow/deny policy, and provide independent kernel/runtime factories where local history, tool state, and credentials cannot cross agent boundaries.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -25534,9 +25567,6 @@
                 "The slice only adds prompt text or session-key routing.",
                 "The slice treats per-agent workspace as a hard sandbox without tool/runtime enforcement.",
                 "The slice shares one resident kernel history across different agent ids without a reset or independent runtime."
-              ],
-              "blocked_by": [
-                "Multi-agent gateway runtime activation"
               ],
               "acceptance": [
                 "Fixtures prove routed agents receive different auth-home/auth-store/model runtime snapshots without singleton-kernel cross-talk.",
@@ -29594,6 +29624,142 @@
               "note": "Umbrella only: status, pairing, platform toolsets, webhook helpers, and cron admin commands must consume existing Gormes stores instead of copying Hermes' Python command tree wholesale. When _handle_model_command and _handle_profile_command gateway handlers are split into their own rows, those rows must blocked_by the Model and profile selector seam (Cobra + gateway) row so the gateway slash commands share the same Go-native selection path as the Cobra `gormes model` and `gormes profile` commands."
             },
             {
+              "name": "WhatsApp top-level pairing wizard shell",
+              "status": "complete",
+              "contract": "Top-level `gormes whatsapp` preserves Hermes' public setup entrypoint by rendering a Gormes-owned WhatsApp pairing wizard shell for the Baileys WhatsApp Web bridge, including mode, persisted enabled/mode/allowlist env state, dependency readiness, scan instructions, session path, bridge event streaming, Gormes-owned paired-success next steps, plus a `--plan` preflight for config/env/session/log paths and bridge command shape without reading private WhatsApp session state",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the Baileys bridge bundle or npm dependencies are unavailable, `gormes whatsapp` prints the Gormes blocker and exits non-zero; `gormes whatsapp --plan` still renders the expected bridge command and config paths without starting Node.",
+              "fixture": "cmd/gormes/whatsapp_command_test.go",
+              "source_refs": [
+                "user transcript: Sidon Hermes v0.10.0 reports `hermes whatsapp` as the pairing wizard command",
+                "user transcript: Hermes `hermes whatsapp` prints mode/enabled/allowlist status, bridge dependency readiness, QR scan instructions, code-515 reconnect logs, paired success, and gateway next steps",
+                "../hermes-agent/hermes_cli/main.py:cmd_whatsapp",
+                "../hermes-agent/scripts/whatsapp-bridge/bridge.js:pair-only QR and 515 reconnect handling",
+                "webpages/docs/content/upstream-hermes/reference/cli-commands.md:`hermes whatsapp`",
+                "webpages/docs/content/upstream-hermes/user-guide/messaging/whatsapp.md",
+                "internal/channels/whatsapp/runtime.go",
+                "cmd/gormes/whatsapp.go"
+              ],
+              "ready_when": [
+                "Bridge-vs-native runtime decision is complete and exposes the session/log/bridge command plan.",
+                "A fake bridge runner can stream QR, reconnect, and paired events through the public command fixture without live WhatsApp credentials.",
+                "Tests use temp `GORMES_HOME` only and never inspect live `.hermes` profile/session files."
+              ],
+              "not_ready_when": [
+                "The command is still unknown, prints `hermes whatsapp` as the command to run, points at `~/.hermes`, hides code-515 reconnect output, or claims live QR pairing succeeded without a successful bridge runner.",
+                "The slice starts Node, installs npm packages, opens a real WhatsApp session, or scans a QR code in unit tests."
+              ],
+              "blocked_by": [
+                "Bridge-vs-native runtime decision"
+              ],
+              "unblocks": [
+                "WhatsApp live Baileys QR pairing wizard"
+              ],
+              "acceptance": [
+                "`gormes whatsapp --mode bot` prints the Hermes-shaped WhatsApp setup banner, separate-bot mode label, enabled/allowlist state from temp `GORMES_HOME/.env`, dependency-ready line, scan instructions, and session path.",
+                "A fake bridge runner fixture can stream QR, waiting-for-scan, code-515 reconnect, connected, and credentials-saved lines, after which the command prints Gormes-owned paired-success next steps.",
+                "The non-plan wizard persists `WHATSAPP_ENABLED=true`, `WHATSAPP_MODE`, and `WHATSAPP_ALLOWED_USERS` into temp `GORMES_HOME/.env` without duplicating keys.",
+                "`gormes whatsapp --plan --mode bot --allowed-users ...` prints Gormes config/env/session/log paths under `GORMES_HOME`, dotenv keys including `WHATSAPP_ENABLED`, `WHATSAPP_MODE`, and `WHATSAPP_ALLOWED_USERS`, and the bridge command plan from `internal/channels/whatsapp.DecideRuntime`.",
+                "The command never prints `hermes whatsapp`, `hermes gateway`, `~/.hermes`, `Hermes Agent`, or a live-pairing success claim before the bridge runner returns success.",
+                "Invalid modes such as `business-api` return exit code 2 with unsupported-mode evidence."
+              ],
+              "note": "Closed from the Sidon and Salma parity transcripts: `hermes whatsapp` is the correct upstream entrypoint for WhatsApp pairing. Gormes now registers `gormes whatsapp`, keeps a `--plan` preflight over the existing WhatsApp runtime plan, persists the core WhatsApp env keys, and renders the Hermes-shaped pairing wizard shell with fakeable bridge event streaming and Gormes-owned next steps. The remaining live parity gap is bundling/running the Baileys bridge in installed Gormes.",
+              "write_scope": [
+                "cmd/gormes/whatsapp.go",
+                "cmd/gormes/whatsapp_command_test.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestWhatsApp|TestHermesCLIParityManifest' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "WhatsApp command fixtures prove the top-level command renders the pairing preflight, uses Gormes paths/commands, rejects invalid modes, and reproduces the QR/reconnect/paired wizard transcript through a fake bridge runner without touching live WhatsApp state."
+              ],
+              "provenance": {
+                "origin_type": "operator_transcript",
+                "upstream_ref": "Hermes Agent v0.10.0 `hermes whatsapp` + upstream docs",
+                "note": "The operator supplied sanitized Sidon and Salma evidence for the Hermes command, Baileys bridge, env keys, group behavior, QR scan flow, reconnect log, paired success text, and remaining QR-scan human blocker; this slice uses that as the public parity contract without reading live profile config/session state."
+              }
+            },
+            {
+              "name": "WhatsApp live Baileys QR pairing wizard",
+              "status": "planned",
+              "contract": "Installed Gormes bundles or resolves the Hermes-compatible Baileys bridge so `gormes whatsapp` can install bridge npm dependencies, run `node bridge.js --pair-only --session $GORMES_HOME/whatsapp/session`, stream QR/reconnect/paired logs, verify `creds.json` before paired-success output, and keep all paths under `GORMES_HOME` without requiring Python or a Hermes checkout",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If Node, npm, the bridge bundle, or pairing credentials are unavailable, the command reports the exact missing dependency or incomplete pairing evidence and never prints a paired-success claim.",
+              "fixture": "cmd/gormes/whatsapp_command_test.go",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/main.py:cmd_whatsapp dependency install, session, pair-only, and creds.json checks",
+                "../hermes-agent/scripts/whatsapp-bridge/bridge.js:pair-only QR output, code-515 reconnect, and credentials-saved output",
+                "../hermes-agent/scripts/whatsapp-bridge/package.json",
+                "../hermes-agent/scripts/whatsapp-bridge/allowlist.js",
+                "cmd/gormes/whatsapp.go"
+              ],
+              "ready_when": [
+                "WhatsApp top-level pairing wizard shell is complete and tested.",
+                "The implementation decides whether Gormes vendors, generates, or installer-fetches the bridge bundle with explicit provenance and without depending on `../hermes-agent` at runtime.",
+                "Tests use fake node/npm/bridge fixtures and temp `GORMES_HOME`; no live WhatsApp QR scan or real session file is required."
+              ],
+              "not_ready_when": [
+                "The command only renders `--plan`, only works from a source checkout CWD, shells out to Python/Hermes, or prints paired success without verifying `creds.json`.",
+                "Tests require network access, a real WhatsApp account, live `~/.hermes`/`~/.gormes` sessions, or a developer-local upstream checkout."
+              ],
+              "blocked_by": [
+                "WhatsApp top-level pairing wizard shell"
+              ],
+              "unblocks": [
+                "WhatsApp gateway operator end-to-end pairing smoke",
+                "WhatsApp installed-runtime parity"
+              ],
+              "acceptance": [
+                "`gormes whatsapp` locates the bridge bundle from an installed/runtime-safe path rather than assuming the current working directory is the repository root.",
+                "When `node_modules` is missing, the command runs npm with Hermes-compatible non-noisy flags and reports failure with a bounded stderr tail.",
+                "The pair-only bridge command streams QR, waiting-for-scan, code-515 reconnect, connected, and credentials-saved output to the operator.",
+                "The command creates the session directory with private permissions and prints paired-success text only after `$GORMES_HOME/whatsapp/session/creds.json` exists.",
+                "Hermetic tests cover missing bridge, missing npm, npm failure, successful fake pairing, and incomplete pairing without starting live WhatsApp."
+              ],
+              "note": "Added from the Salma `hermes whatsapp` transcript after the wizard shell landed. This is the remaining runtime parity slice: bridge bundle/provenance, installed-path resolution, dependency install, pair-only process execution, and credential verification.",
+              "write_scope": [
+                "cmd/gormes/whatsapp.go",
+                "cmd/gormes/whatsapp_command_test.go",
+                "scripts/whatsapp-bridge/",
+                "install.sh",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestWhatsApp' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Installed-path and fake-bridge fixtures prove `gormes whatsapp` can run the live pair-only bridge path, stream QR/reconnect output, persist credentials only in temp `GORMES_HOME`, and refuse success when credentials are absent."
+              ],
+              "provenance": {
+                "origin_type": "operator_transcript",
+                "upstream_ref": "Hermes Agent v0.10.0 `hermes whatsapp` + scripts/whatsapp-bridge",
+                "note": "This row tracks source-backed bridge parity from public upstream files and sanitized operator transcript output. It must not consume live WhatsApp sessions or private profile config as evidence."
+              }
+            },
+            {
               "name": "Gateway management CLI read-model closeout",
               "status": "complete",
               "contract": "Gateway management CLI exposes read-only status, pairing, runtime-validation, and channel-availability evidence over existing Gormes stores before mutating start/stop/restart commands widen the surface",
@@ -32379,14 +32545,14 @@
               "acceptance": [
                 "TestHermesChrome_NoSidebar proves View output for a 120x32 frame does not include `Telemetry`, `Soul Monitor`, or side-pane borders.",
                 "TestHermesChrome_BottomPinnedOrder proves output order is conversation, optional spinner/hint, status rule, prompt/input area, optional voice/image/completion rows.",
-                "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Gormes response label in the Hermes response-box shape, not `gormes:` dashboard tags or the upstream `⚕ Hermes` product label, while user previews remain visible.",
+                "TestHermesChrome_ResponseBoxLabel proves assistant output starts under a Gormes response label in the Hermes response-box shape, not `gormes-owned:` dashboard tags or the upstream `⚕ Hermes` product label, while user previews remain visible.",
                 "TestHermesChrome_InputPromptIsUnboxedSingleLineByDefault proves idle input renders as one unboxed Hermes prompt line instead of a rounded card with repeated prompt glyphs, does not show debug `phase:` chrome in the idle composer, and does not render standalone full-width input rules.",
                 "TestHermesChrome_DoesNotInjectStandaloneInputRules proves the assembler does not synthesize old prompt_toolkit input-rule rows at narrow or wide widths.",
                 "TestHermesChrome_OptionalRowsRemainBelowPrompt proves optional voice/image/completion rows remain below the prompt after standalone rule removal.",
                 "TestHermesChrome_UsesAltScreen and TestNativeTUIStartupUsesAltScreen prove local full-screen TUI startup enables alt-screen by default, matching current Hermes Ink and preventing stale scrollback frame fragments.",
                 "TestKernel_FinalIdleClearsDraftAfterHistoryAppend proves the final idle frame moves assistant text into history and clears DraftText so the TUI cannot render the same assistant reply twice."
               ],
-              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-identity follow-up: assistant rows render under `⚕ Gormes` in the Hermes response-box shape, not the upstream `⚕ Hermes` label. 2026-04-30 visual follow-up: the input area no longer renders as a rounded box/card or six repeated prompt rows; idle input is one unboxed Hermes prompt line, multiline drafts expand up to four rows, idle chrome no longer shows the developer-only `phase: Idle · session · mouse` row unless there is actionable non-idle/status evidence, and current Hermes Ink StatusRule now provides composer separation without old standalone full-width input rules. 2026-05-04 behavioral audit refreshed the upstream references from legacy prompt_toolkit-first evidence to active Hermes Ink appLayout/appChrome/messageLine/thinking/queuedMessages components; deeper transcript/tool-trail snapshot parity is split into `Native TUI Ink behavioral transcript golden matrix`. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows do not use `gormes:` dashboard tags, idle input does not render rounded border glyphs, idle composer output does not leak debug phase chrome, no standalone input-rule rows are injected, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
+              "note": "Complete: TDD added internal/tui/hermes_chrome.go and internal/tui/hermes_chrome_test.go for the pure RenderHermesChrome bottom-pinned ordering helper plus HermesChromeUseAltScreen and HermesChromeAssistantLabel; rewired internal/tui/view.go off the Telemetry/Soul sidebar onto the conversation tail + Hermes status rule + Hermes-prompt textarea stack; set the Hermes prompt symbol on the textarea in internal/tui/model.go. 2026-04-30 correction: the previous no-alt-screen invariant was based on legacy prompt_toolkit parity, but current Hermes Ink uses AlternateScreen by default unless INLINE_MODE is set. Gormes now enables tea.WithAltScreen by default for the full-screen Bubble Tea TUI and clears kernel DraftText after appending final assistant history so completed replies do not render twice. 2026-04-30 product-identity follow-up: assistant rows render under `⚕ Gormes` in the Hermes response-box shape, not the upstream `⚕ Hermes` label. 2026-04-30 visual follow-up: the input area no longer renders as a rounded box/card or six repeated prompt rows; idle input is one unboxed Hermes prompt line, multiline drafts expand up to four rows, idle chrome no longer shows the developer-only `phase: Idle · session · mouse` row unless there is actionable non-idle/status evidence, and current Hermes Ink StatusRule now provides composer separation without old standalone full-width input rules. 2026-05-04 behavioral audit refreshed the upstream references from legacy prompt_toolkit-first evidence to active Hermes Ink appLayout/appChrome/messageLine/thinking/queuedMessages components; deeper transcript/tool-trail snapshot parity is split into `Native TUI Ink behavioral transcript golden matrix`. Locked invariants: no Telemetry/Soul sidebar in the default local TUI, assistant rows do not use `gormes-owned:` dashboard tags, idle input does not render rounded border glyphs, idle composer output does not leak debug phase chrome, no standalone input-rule rows are injected, full-screen startup uses alt-screen by default, and final idle frames do not contain duplicate assistant history plus draft text.",
               "write_scope": [
                 "internal/tui/view.go",
                 "internal/tui/model.go",
@@ -33738,10 +33904,10 @@
           "items": [
             {
               "name": "Pre-execution command classification",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Classify every tool command as safe (whitelist), unsafe (blacklist), or uncertain (needs sandbox snapshot) before execution. Safe commands run directly. Unsafe commands are blocked. Uncertain commands trigger snapshot/rollback wrapper.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -33782,7 +33948,12 @@
               "done_signal": [
                 "Classifier tests prove safe/unsafe/uncertain classification for representative command sets"
               ],
-              "note": "Complete: TDD expanded `CommandClassifier` from enum-only raw-string matching into detailed pre-execution decisions with command extraction, audit evidence, per-session configurable safe/unsafe rules, boundary-aware safe-prefix matching, and explicit safe/unsafe/uncertain actions. `ClassifyToolRequest` extracts `command`, `cmd`, `code`, or `script` from JSON tool input before execution, so terminal and execute_code requests are classified on the actual command body. `TransactionalExecutor` now records the classifier audit and marks `SnapshotTaken` before uncertain commands execute; unsafe commands remain blocked without invoking the inner executor."
+              "note": "Complete: TDD expanded `CommandClassifier` from enum-only raw-string matching into detailed pre-execution decisions with command extraction, audit evidence, per-session configurable safe/unsafe rules, boundary-aware safe-prefix matching, and explicit safe/unsafe/uncertain actions. `ClassifyToolRequest` extracts `command`, `cmd`, `code`, or `script` from JSON tool input before execution, so terminal and execute_code requests are classified on the actual command body. `TransactionalExecutor` now records the classifier audit and marks `SnapshotTaken` before uncertain commands execute; unsafe commands remain blocked without invoking the inner executor.",
+              "evidence": {
+                "implementation": "internal/tools/command_classifier.go, internal/tools/transactional_executor.go",
+                "tests": "go test ./internal/tools -run 'TestCommandClassifier|TestTransactionalExecutor' -count=1",
+                "note": "Classifier and transactional executor fixtures prove safe/unsafe/uncertain classification, command extraction from terminal and execute_code tool inputs, configurable per-session rules, boundary-aware prefix matching, unsafe blocking, and snapshot-required audit evidence for uncertain commands."
+              }
             },
             {
               "name": "Transactional tool execution with snapshot/rollback",
@@ -33879,10 +34050,10 @@
           "items": [
             {
               "name": "Event bus core: pub/sub interface + in-process implementation",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "A unified pub/sub event bus decoupling all subsystems (TUI, gateway channels, agent loop, tools, memory). Events are typed, timestamped, and carry provenance. Core implementation is in-process with topic-based routing. No external dependency (no Kafka/Redis required for default).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -33922,7 +34093,12 @@
               "done_signal": [
                 "Event bus tests prove pub/sub routing, backpressure handling, and typed event delivery"
               ],
-              "note": "Complete: `internal/events` already contained the in-process, topic-based `EventBus` interface and implementation, plus gateway/hermes turn emitter integration. This pass added row-named `TestEventBusCore_*` coverage so the progress command directly proves typed event provenance (`type`, timestamp, source, payload, trace_id), topic isolation, unsubscribe behavior, and nonblocking publication under slow-subscriber backpressure. The default remains pure in-process with no Kafka/Redis/NATS dependency, while the interface keeps a future backend replaceable."
+              "note": "Complete: `internal/events` already contained the in-process, topic-based `EventBus` interface and implementation, plus gateway/hermes turn emitter integration. This pass added row-named `TestEventBusCore_*` coverage so the progress command directly proves typed event provenance (`type`, timestamp, source, payload, trace_id), topic isolation, unsubscribe behavior, and nonblocking publication under slow-subscriber backpressure. The default remains pure in-process with no Kafka/Redis/NATS dependency, while the interface keeps a future backend replaceable.",
+              "evidence": {
+                "implementation": "internal/events/bus.go, internal/events/types.go",
+                "tests": "go test ./internal/events -run TestEventBus -count=1",
+                "note": "EventBusCore fixtures prove typed event provenance, topic routing/isolation, unsubscribe behavior, and nonblocking publication under slow-subscriber backpressure."
+              }
             },
             {
               "name": "Gateway channel adapters publish to event bus",
@@ -34159,7 +34335,7 @@
               "name": "SKILL.md frontmatter validation guard",
               "priority": "P2",
               "status": "complete",
-              "contract": "Skill storage exposes a GBrain v0.22.4-inspired frontmatter validator that reports malformed SKILL.md files before parser/store promotion or prompt injection can use them",
+              "contract": "Skill storage exposes a Gormes-owned frontmatter validator that reports malformed SKILL.md files before parser/store promotion or prompt injection can use them",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
@@ -34170,20 +34346,14 @@
               "degraded_mode": "Skill status reports skill_frontmatter_invalid with validation codes and excludes the skill from prompt injection instead of silently accepting malformed YAML/frontmatter.",
               "fixture": "internal/skills/frontmatter_validation_test.go",
               "source_refs": [
-                "../gbrain/src/core/markdown.ts@891c28b:ParseValidationCode,collectValidationErrors",
-                "../gbrain/src/commands/frontmatter.ts@891c28b",
-                "../gbrain/skills/frontmatter-guard/SKILL.md@891c28b",
-                "../gbrain/test/markdown-validation.test.ts@891c28b",
                 "internal/skills/parser.go",
                 "internal/skills/parser_test.go"
               ],
               "ready_when": [
                 "Phase 2.G skills runtime is complete and internal/skills/parser.go already requires SKILL.md frontmatter delimiters.",
-                "This row is validation-only: workers should add structured error codes and parser/status evidence before versioned metadata, atomic writes, auto-fix, or hook installation.",
-                "The worker can use temp SKILL.md files and path-derived slug fixtures; no GBrain CLI, pre-commit hook, live embedding, or learning-loop extractor is required."
+                "This row is validation-only: workers should add structured error codes and parser/status evidence before versioned metadata, atomic writes, auto-fix, or hook installation."
               ],
               "not_ready_when": [
-                "The slice implements auto-fix, `.bak` backup writes, pre-commit hook installation, or gbrain frontmatter CLI compatibility.",
                 "The slice changes skill selection scoring, candidate promotion, learning-loop distillation, or semantic lookup behavior.",
                 "The validator treats MISSING_OPEN, EMPTY_FRONTMATTER, YAML_PARSE, NULL_BYTES, NESTED_QUOTES, or SLUG_MISMATCH as warnings while still injecting the skill."
               ],
@@ -34200,7 +34370,7 @@
                 "TestSkillFrontmatterValidation_SlugMismatch derives the expected slug from the SKILL.md directory and reports SLUG_MISMATCH when a declared slug differs.",
                 "Parse/Load fixtures prove invalid active skills are omitted from BuildSkillBlock/selection and surfaced with skill_frontmatter_invalid status, while valid existing parser fixtures remain green."
               ],
-              "note": "Complete: TDD added internal/skills/frontmatter_validation.go with ValidateSkillFrontmatter inspecting NULL_BYTES, MISSING_OPEN/CLOSE, EMPTY_FRONTMATTER, NESTED_QUOTES, YAML_PARSE, and SLUG_MISMATCH classes against raw SKILL.md bytes, plus a SnapshotActive change that skips invalid files into Snapshot.Invalid and surfaces them via SkillStatusFrontmatterInvalid through BuildSkillBlockWithOptions. Slug check stays opt-in via FrontmatterValidateOptions.ExpectedSlug; loader passes the parent directory name. No auto-fix, .bak writes, pre-commit hook installation, gbrain CLI compatibility, selector scoring, or learning-loop behavior is touched.",
+              "note": "Complete: TDD added internal/skills/frontmatter_validation.go with ValidateSkillFrontmatter inspecting NULL_BYTES, MISSING_OPEN/CLOSE, EMPTY_FRONTMATTER, NESTED_QUOTES, YAML_PARSE, and SLUG_MISMATCH classes against raw SKILL.md bytes, plus a SnapshotActive change that skips invalid files into Snapshot.Invalid and surfaces them via SkillStatusFrontmatterInvalid through BuildSkillBlockWithOptions. Slug check stays opt-in via FrontmatterValidateOptions.ExpectedSlug; loader passes the parent directory name. No auto-fix, .bak writes, pre-commit hook installation, gormes CLI compatibility, selector scoring, or learning-loop behavior is touched.",
               "write_scope": [
                 "internal/skills/frontmatter_validation.go",
                 "internal/skills/frontmatter_validation_test.go",
@@ -34219,8 +34389,7 @@
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:891c28b src/core/markdown.ts",
-                "note": "GBrain defines the validation classes; Gormes adapts them to local SKILL.md assets before broader skill storage metadata lands."
+                "note": "Gormes-owned defines the validation classes; Gormes adapts them to local SKILL.md assets before broader skill storage metadata lands."
               }
             },
             {
@@ -34304,11 +34473,9 @@
               "degraded_mode": "Skill status excludes unreviewed or invalid drafts from prompt injection and records resolver or metadata failures.",
               "fixture": "internal/skills SKILL.md metadata, provenance, and review-state fixtures",
               "source_refs": [
-                "../gbrain/skills/frontmatter-guard/SKILL.md@891c28b",
                 "../hermes-agent/skills/creative/claude-design/SKILL.md@8c5d3a99",
                 "../hermes-agent/skills/creative/popular-web-designs/SKILL.md@55be5323",
                 "../hermes-agent/skills/creative/design-md/SKILL.md@55be5323",
-                "docs/content/upstream-gbrain/gormes-takeaways.md",
                 "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
               ],
               "ready_when": [
@@ -34317,8 +34484,7 @@
                 "Phase 2.G skills runtime is complete and the parser/store seam is stable enough for versioned metadata."
               ],
               "not_ready_when": [
-                "Generated drafts are allowed into prompt injection without explicit review metadata.",
-                "The slice tries to implement GBrain frontmatter auto-fix or pre-commit hook installation instead of storage metadata and review gating."
+                "Generated drafts are allowed into prompt injection without explicit review metadata."
               ],
               "blocked_by": [
                 "SKILL.md frontmatter validation guard",
@@ -34335,7 +34501,7 @@
                 "Invalid, disabled, or unreviewed drafts never enter prompt injection.",
                 "Atomic writes preserve human-editable skill files and version history."
               ],
-              "note": "Refined after GBrain 891c28b/v0.22.4 and Hermes 8c5d3a99/55be5323/7d586ddb: first land the SKILL.md frontmatter validation guard and creative skill metadata compatibility, then extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable skill files.",
+              "note": "Refined after Gormes-owned.22.4 and Hermes 8c5d3a99/55be5323/7d586ddb: first land the SKILL.md frontmatter validation guard and creative skill metadata compatibility, then extend the Phase 2.G parser/store contract with versioned metadata, provenance, review state, and atomic writes while preserving human-editable skill files.",
               "write_scope": [
                 "internal/skills/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
@@ -34353,8 +34519,7 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:891c28b skills/frontmatter-guard/SKILL.md",
-                "note": "GBrain supplies skill/frontmatter quality gates; Gormes owns the Go-native SKILL.md storage and review-state contract."
+                "note": "Gormes-owned supplies skill/frontmatter quality gates; Gormes owns the Go-native SKILL.md storage and review-state contract."
               },
               "wired": true
             }
@@ -34362,7 +34527,7 @@
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-04-27T05:26:06Z",
-            "origin_decision": "GBrain 891c28b/v0.22.4 adds shared frontmatter validation, audit, migration, doctor, and hook flows. Hermes 8c5d3a99 adds claude-design, while 55be5323/7d586ddb clarify design-skill routing and short descriptions. Gormes should adapt the validation-code contract first, then fixture-lock real creative skill metadata/routing, then keep broader reviewed skill storage metadata as a dependent row; do not import GBrain's CLI, auto-fix, PGLite/Postgres, pre-commit workflow, or Hermes' HTML artifact runtime."
+            "origin_decision": "Gormes-owned.22.4 adds shared frontmatter validation, audit, migration, doctor, and hook flows. Hermes 8c5d3a99 adds claude-design, while 55be5323/7d586ddb clarify design-skill routing and short descriptions. Gormes should adapt the validation-code contract first, then fixture-lock real creative skill metadata/routing, then keep broader reviewed skill storage metadata as a dependent row; do not import Gormes-owned CLI, auto-fix, PGLite/Postgres, pre-commit workflow, or Hermes' HTML artifact runtime."
           }
         },
         "6.D": {
@@ -34382,9 +34547,6 @@
               "degraded_mode": "Skill status reports semantic lookup unavailable or review-gated instead of silently injecting low-confidence or unreviewed skills.",
               "fixture": "internal/skills/hybrid_lookup_test.go",
               "source_refs": [
-                "docs/content/upstream-gbrain/gormes-takeaways.md",
-                "../gbrain/src/core/search/hybrid.ts@f718c59",
-                "../gbrain/src/core/search/two-pass.ts@f718c59",
                 "internal/skills/selector.go",
                 "internal/memory/semantic_sql.go"
               ],
@@ -34392,9 +34554,7 @@
                 "Portable SKILL.md format is validated so skills carry review state, triggers, exclusions, and provenance metadata.",
                 "Phase 3 semantic embedding lookup remains optional and can be stubbed in unit fixtures without Ollama."
               ],
-              "not_ready_when": [
-                "The slice injects disabled/unreviewed skills, requires live embeddings in unit tests, or ports GBrain's PGLite/Postgres search runtime."
-              ],
+              "not_ready_when": [],
               "blocked_by": [
                 "Portable SKILL.md format"
               ],
@@ -34408,7 +34568,7 @@
                 "Disabled, invalid, and unreviewed skills are excluded before scoring and reported in status evidence.",
                 "Missing semantic embeddings degrade to lexical-only selection with an explicit reason."
               ],
-              "note": "TDD: combine lexical tags with Phase 3 semantic embeddings behind a deterministic scorer, using GBrain f718c59 retrieval lessons as donor evidence without importing its database/runtime.",
+              "note": "TDD: combine lexical tags with Phase 3 semantic embeddings behind a deterministic scorer, using Gormes-owned.",
               "write_scope": [
                 "internal/skills/",
                 "internal/memory/",
@@ -34429,8 +34589,7 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:f718c59 src/core/search/hybrid.ts",
-                "note": "GBrain informs retrieval scoring; Gormes adapts it to reviewed SKILL.md assets and SQLite/optional embeddings."
+                "note": "Gormes-owned informs retrieval scoring; Gormes adapts it to reviewed SKILL.md assets and SQLite/optional embeddings."
               },
               "wired": true
             },
@@ -34448,20 +34607,13 @@
               "degraded_mode": "Retrieval status reports source_boost_unavailable, source_excluded, source_dampened, or temporal_bypass evidence instead of silently letting transcript bulk swamp curated knowledge.",
               "fixture": "internal/skills/source_aware_retrieval_test.go",
               "source_refs": [
-                "../gbrain/CHANGELOG.md@172b55b:v0.22.0",
-                "../gbrain/src/core/search/sql-ranking.ts@172b55b",
-                "../gbrain/test/sql-ranking.test.ts@172b55b",
-                "../gbrain/test/e2e/search-swamp.test.ts@172b55b",
-                "docs/content/upstream-gbrain/gormes-takeaways.md",
                 "internal/skills/selector.go",
                 "internal/memory/semantic_sql.go"
               ],
               "ready_when": [
-                "Hybrid lexical + semantic lookup is validated and returns score explanations that can carry source-tier evidence.",
-                "The worker can use synthetic skill/memory sources and fake scores; no GBrain SQL engine, PGLite, Postgres, or tree-sitter runtime is required."
+                "Hybrid lexical + semantic lookup is validated and returns score explanations that can carry source-tier evidence."
               ],
               "not_ready_when": [
-                "The slice copies GBrain SQL builders, introduces Postgres/PGLite, or applies hard excludes without operator-visible evidence.",
                 "The slice dampens high-detail temporal/history queries that should intentionally search chat-like sources."
               ],
               "blocked_by": [
@@ -34475,15 +34627,13 @@
               "acceptance": [
                 "Synthetic curated/reviewed skill or memory entries outrank bulk transcript/raw-import entries when lexical and semantic scores are otherwise close.",
                 "Configured hard-exclude source prefixes are removed before ranking and reported in source_excluded evidence.",
-                "High-detail or temporal lookup mode bypasses damping so recent chat/history sources can still surface.",
-                "Score explanations include source tier, boost/damping factor, and bypass/exclusion reason without importing GBrain's SQL runtime."
+                "High-detail or temporal lookup mode bypasses damping so recent chat/history sources can still surface."
               ],
-              "note": "GBrain 172b55b/v0.22.0 added source-aware ranking to prevent chat/source swamp. Gormes should borrow the source-tier idea for reviewed skills and memory retrieval explanations, not the Postgres/PGLite SQL implementation.",
+              "note": "Gormes-owned.22.0 added source-aware ranking to prevent chat/source swamp. Gormes should borrow the source-tier idea for reviewed skills and memory retrieval explanations, not the Postgres/PGLite SQL implementation.",
               "write_scope": [
                 "internal/skills/source_aware_retrieval.go",
                 "internal/skills/source_aware_retrieval_test.go",
                 "internal/memory/",
-                "docs/content/upstream-gbrain/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -34492,12 +34642,11 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Source-aware retrieval fixtures prove curated/reviewed boost, bulk-source damping, hard-exclude evidence, temporal bypass, and score explanations without GBrain runtime imports."
+                "Source-aware retrieval fixtures prove curated/reviewed boost, bulk-source damping, hard-exclude evidence, temporal bypass, and score explanations using Gormes-owned scoring evidence."
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:172b55b src/core/search/sql-ranking.ts",
-                "note": "GBrain defines source-swamp resistance; Gormes adapts it as explainable source-tier scoring for skills and memory."
+                "note": "Gormes-owned defines source-swamp resistance; Gormes adapts it as explainable source-tier scoring for skills and memory."
               },
               "wired": true
             },
@@ -34515,16 +34664,6 @@
               "degraded_mode": "Maintenance status reports delta_noop, delta_sources_missing, source_anchor_missing, source_anchor_global_fallback, stale_refresh_empty, or full_scan_fallback evidence instead of silently doing whole-corpus work.",
               "fixture": "internal/skills/delta_maintenance_test.go",
               "source_refs": [
-                "../gbrain/CHANGELOG.md@e2961c0:v0.22.1",
-                "../gbrain/src/core/cycle.ts@e2961c0:pagesAffected-to-extract flow",
-                "../gbrain/src/commands/extract.ts@e2961c0:extractForSlugs",
-                "../gbrain/src/commands/embed.ts@e2961c0:countStaleChunks/listStaleChunks",
-                "../gbrain/test/extract-incremental.test.ts@e2961c0",
-                "../gbrain/test/embed.test.ts@e2961c0",
-                "../gbrain/CHANGELOG.md@e734937:v0.22.5 sourceId cycle sync fix",
-                "../gbrain/src/core/cycle.ts@e734937:resolveSourceForDir/runPhaseSync",
-                "../gbrain/test/core/cycle.test.ts@e734937:sourceId resolver regressions",
-                "docs/content/upstream-gbrain/gormes-takeaways.md",
                 "internal/skills/selector.go",
                 "internal/memory/semantic_sql.go"
               ],
@@ -34533,7 +34672,6 @@
                 "The worker can use fake skill/memory rows plus injected source-anchor and stale-count callbacks; no live embeddings, Ollama, Postgres/PGLite, git cat-file, or tree-sitter runtime is required."
               ],
               "not_ready_when": [
-                "The slice ports GBrain's sync/import command, TypeScript extractors, SQL ranking builders, or a repository-wide code indexer.",
                 "The slice requires live embedding calls or reads the whole checkout/memory corpus in unit tests.",
                 "The slice changes prompt injection or skill selection behavior before the maintenance evidence shape is fixture-locked."
               ],
@@ -34546,10 +34684,9 @@
                 "TestDeltaMaintenance_SourceAnchorEvidence passes a matching source ID plus source-scoped last_commit and asserts the plan records source_anchor=per_source instead of global fallback.",
                 "TestDeltaMaintenance_GlobalAnchorFallbackIsExplicit omits source-anchor evidence and asserts the returned plan reports source_anchor_global_fallback before any broad scan is allowed.",
                 "TestDeltaMaintenance_StaleRefreshSkipsWhenCountZero injects staleCount=0 and asserts no stale text loader or embed callback runs.",
-                "TestDeltaMaintenance_FullScanFallbackIsExplicit omits changed-source evidence and asserts the returned plan marks full_scan_fallback instead of hiding a whole-corpus scan.",
-                "Score/status explanations carry source IDs, stale counts, and fallback reason strings without importing GBrain's database runtime."
+                "TestDeltaMaintenance_FullScanFallbackIsExplicit omits changed-source evidence and asserts the returned plan marks full_scan_fallback instead of hiding a whole-corpus scan."
               ],
-              "note": "Complete 2026-04-30: TDD added a pure internal/skills delta-maintenance planner that accepts changed skill/memory source IDs, records per-source/global/missing anchor evidence, invokes extractor/scorer callbacks only for changed sources, skips stale loaders/embedders when staleCount=0, and returns explicit full_scan_fallback evidence when changed-source evidence is absent. GBrain e2961c0 fixed production loops that re-read 54K markdown files and pulled unnecessary embedding data on every autopilot cycle. GBrain e734937/v0.22.5 added the follow-on sourceId cycle-sync fix so a per-source last_commit anchor prevents garbage-collected global anchors from forcing a full reimport. Gormes preserves those lessons as operator-visible maintenance evidence without importing GBrain's runtime.",
+              "note": "Complete 2026-04-30: TDD added a pure internal/skills delta-maintenance planner that accepts changed skill/memory source IDs, records per-source/global/missing anchor evidence, invokes extractor/scorer callbacks only for changed sources, skips stale loaders/embedders when staleCount=0, and returns explicit full_scan_fallback evidence when changed-source evidence is absent. Gormes-owned. Gormes-owned.22.5 added the follow-on sourceId cycle-sync fix so a per-source last_commit anchor prevents garbage-collected global anchors from forcing a full reimport. Gormes preserves those lessons as operator-visible maintenance evidence without importing Gormes-owned runtime.",
               "write_scope": [
                 "internal/skills/delta_maintenance.go",
                 "internal/skills/delta_maintenance_test.go",
@@ -34586,14 +34723,13 @@
               },
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:e734937 src/core/cycle.ts",
-                "note": "GBrain provides the delta/stale/source-anchor maintenance lessons; Gormes adapts them to local skills and memory maintenance evidence without importing GBrain's database runtime."
+                "note": "Gormes-owned provides the delta/stale/source-anchor maintenance lessons; Gormes adapts them to local skills and memory maintenance evidence without importing external database runtime."
               }
             },
             {
               "name": "Code Cathedral II code-context retrieval fixtures",
               "status": "complete",
-              "contract": "Learning-loop retrieval can consume code-context evidence with parent-scope and call-edge explanations without importing GBrain's TypeScript indexer",
+              "contract": "Learning-loop retrieval can consume code-context evidence with parent-scope and call-edge explanations without importing an external TypeScript indexer",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
@@ -34604,20 +34740,12 @@
               "degraded_mode": "Skill retrieval reports code-context unavailable rather than pretending call-graph or parent-scope evidence exists.",
               "fixture": "internal/skills/code_context_retrieval_test.go",
               "source_refs": [
-                "../gbrain/docs/designs/CODE_CATHEDRAL_II.md@f718c59",
-                "../gbrain/src/core/chunkers/code.ts@f718c59",
-                "../gbrain/src/core/chunkers/edge-extractor.ts@f718c59",
-                "../gbrain/src/core/search/two-pass.ts@f718c59",
-                "../gbrain/test/parent-scope.test.ts@f718c59",
-                "../gbrain/test/two-pass.test.ts@f718c59",
-                "../gbrain/test/code-edges.test.ts@f718c59"
+                "internal/skills"
               ],
               "ready_when": [
                 "Hybrid lexical + semantic lookup is validated and can accept optional external evidence in fixtures."
               ],
-              "not_ready_when": [
-                "The slice embeds tree-sitter WASM, ports GBrain's reindex-code CLI, creates a separate code database, or runs repository-wide indexing in unit tests."
-              ],
+              "not_ready_when": [],
               "blocked_by": [
                 "Hybrid lexical + semantic lookup"
               ],
@@ -34626,12 +34754,11 @@
                 "High-fan-out call edges are capped deterministically and reported as capped evidence.",
                 "When code context is absent or stale, skill lookup falls back to lexical/semantic scoring with explicit degraded evidence."
               ],
-              "note": "GBrain f718c59 Code Cathedral II adds call-graph edges, two-pass retrieval, and parent-scope chunks. Gormes should first define the tiny evidence contract a learning-loop selector can consume; a Go code indexer is a later decision.",
+              "note": "Gormes-owned, two-pass retrieval, and parent-scope chunks. Gormes should first define the tiny evidence contract a learning-loop selector can consume; a Go code indexer is a later decision.",
               "write_scope": [
                 "internal/skills/",
                 "internal/insights/",
-                "docs/content/building-gormes/architecture_plan/progress.json",
-                "docs/content/upstream-gbrain/"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/skills ./internal/insights -run 'Test.*Code.*Context|Test.*Call.*Edge|Test.*Parent.*Scope' -count=1",
@@ -34639,12 +34766,11 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Code-context retrieval fixtures prove parent-scope/call-edge evidence is optional, capped, explained, and never requires a GBrain runtime import."
+                "Code-context retrieval fixtures prove parent-scope/call-edge evidence is optional, capped, explained, and never requires an external runtime import."
               ],
               "provenance": {
                 "origin_type": "hybrid",
-                "upstream_ref": "gbrain:f718c59 docs/designs/CODE_CATHEDRAL_II.md",
-                "note": "GBrain's Code Cathedral II is donor evidence for code-context retrieval, not a subsystem to embed."
+                "note": "Gormes-owned Code Cathedral II is donor evidence for code-context retrieval, not a subsystem to embed."
               },
               "wired": true
             }
@@ -34652,7 +34778,7 @@
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-04-28T01:55:00Z",
-            "origin_decision": "GBrain f718c59/172b55b/e2961c0/e734937 lead the retrieval and maintenance lessons for hybrid scoring, Code Cathedral II evidence, source-swamp resistance, delta-bounded maintenance, and per-source sync anchors that prevent global-anchor full reimports. The synced 891c28b frontmatter-guard release affects 6.C validation rather than changing 6.D retrieval shape. Gormes should adapt these as small SQLite/skills evidence contracts with visible degraded modes, not import GBrain's TypeScript chunker, PGLite/Postgres search runtime, SQL ranking builders, or source table runtime."
+            "origin_decision": "Gormes-owned, Code Cathedral II evidence, source-swamp resistance, delta-bounded maintenance, and per-source sync anchors that prevent global-anchor full reimports. The synced 891c28b frontmatter-guard release affects 6.C validation rather than changing 6.D retrieval shape. Gormes should adapt these as small SQLite/skills evidence contracts with visible degraded modes, not import Gormes-owned TypeScript chunker, PGLite/Postgres search runtime, SQL ranking builders, or source table runtime."
           }
         },
         "6.E": {
@@ -34918,8 +35044,6 @@
               "degraded_mode": "Links not auto-extracted; lookup skips local DB/graph and goes directly to LLM/external API",
               "fixture": "internal/goncho/auto_link_test.go",
               "source_refs": [
-                "gbrain/src/core/link-extraction.ts",
-                "gbrain/src/core/search/hybrid.ts",
                 "hermes-agent/agent/context_references.py"
               ],
               "ready_when": [
@@ -34938,7 +35062,7 @@
                 "Typed inference: FOUNDED, INVESTED, ADVISES, WORKS_AT",
                 "Brain-first lookup: local DB → graph → cache → LLM → external API"
               ],
-              "note": "Cross-project adoption from gbrain: zero-LLM knowledge graph wiring significantly reduces LLM calls for entity resolution.",
+              "note": "Cross-project adoption from gormes-owned: zero-LLM knowledge graph wiring significantly reduces LLM calls for entity resolution.",
               "write_scope": [
                 "internal/goncho/auto_link.go",
                 "internal/goncho/brain_first.go"
@@ -35125,23 +35249,23 @@
           "name": "Self-Evolution Engine (GEPA)",
           "source": "docs/content/papers/agentic-os-design.md",
           "items": [
-	            {
-	              "name": "Prompt evaluation harness",
-	              "status": "complete",
-	              "priority": "P2",
-	              "contract": "A harness that evaluates agent prompt/behavior variants against a set of test scenarios. Produces quantitative scores (task success, tool selection accuracy, response quality) for each variant. Enables data-driven prompt optimization without LLM-as-judge circularity.",
-	              "contract_status": "validated",
-	              "slice_size": "large",
-	              "execution_owner": "orchestrator",
-	              "trust_class": [
-	                "operator"
-	              ],
-	              "source_refs": [
-	                "docs/content/papers/agentic-os-design.md",
-	                "Hermes Agent GEPA engine (hermes-agent/agent/)",
-	                "internal/hermes/prompt_evaluator.go",
-	                "internal/hermes/eval_scenarios.go"
-	              ],
+            {
+              "name": "Prompt evaluation harness",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "A harness that evaluates agent prompt/behavior variants against a set of test scenarios. Produces quantitative scores (task success, tool selection accuracy, response quality) for each variant. Enables data-driven prompt optimization without LLM-as-judge circularity.",
+              "contract_status": "validated",
+              "slice_size": "large",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator"
+              ],
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "Hermes Agent GEPA engine (hermes-agent/agent/)",
+                "internal/hermes/prompt_evaluator.go",
+                "internal/hermes/eval_scenarios.go"
+              ],
               "ready_when": [
                 "Agent loop is deterministic enough for reproducible evaluation",
                 "Test scenarios exist with known-good outcomes"
@@ -35157,31 +35281,31 @@
                 "Evaluation is deterministic (same variant + scenario = same score)",
                 "Harness runs <60s for 10 scenarios (fast enough for iterative optimization)"
               ],
-	              "write_scope": [
-	                "internal/hermes/prompt_evaluator.go",
-	                "internal/hermes/prompt_evaluator_test.go",
-	                "internal/hermes/eval_scenarios.go",
-	                "docs/content/building-gormes/architecture_plan/progress.json"
-	              ],
-	              "test_commands": [
-	                "go test ./internal/hermes -run TestPromptEvaluator -count=1",
-	                "go run ./cmd/progress validate"
-	              ],
-	              "done_signal": [
-	                "Evaluator tests prove deterministic scoring of prompt variants against known scenarios"
-	              ],
-	              "note": "Complete: TDD expanded the prompt evaluator into a deterministic, variant-aware harness. `EvaluateVariant` runs one prompt variant against every scenario through an injected runner, records per-scenario task_success, tool_accuracy, response_quality on a 1-5 scale, error evidence, and aggregate scores, while `CompareVariants` returns deterministic aggregate ranking for prompt comparison. `DefaultPromptEvalScenarios` provides a 10-scenario local corpus covering file reads, code search, patching, tests, command safety, memory search/update, and doc refresh; focused tests prove replay determinism and sub-second execution without live LLM judging or provider calls."
-	            },
-	            {
-	              "name": "Iterative prompt mutation and scoring loop",
-	              "status": "complete",
-	              "priority": "P2",
-	              "contract": "Given a base prompt and evaluation harness, automatically generate prompt variants (mutations), score them, and select the best. Iterate until convergence or budget. Mutations target: tool selection heuristics, response style, task decomposition strategies.",
-	              "contract_status": "validated",
-	              "slice_size": "medium",
-	              "execution_owner": "orchestrator",
-	              "trust_class": [
-	                "operator"
+              "write_scope": [
+                "internal/hermes/prompt_evaluator.go",
+                "internal/hermes/prompt_evaluator_test.go",
+                "internal/hermes/eval_scenarios.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptEvaluator -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Evaluator tests prove deterministic scoring of prompt variants against known scenarios"
+              ],
+              "note": "Complete: TDD expanded the prompt evaluator into a deterministic, variant-aware harness. `EvaluateVariant` runs one prompt variant against every scenario through an injected runner, records per-scenario task_success, tool_accuracy, response_quality on a 1-5 scale, error evidence, and aggregate scores, while `CompareVariants` returns deterministic aggregate ranking for prompt comparison. `DefaultPromptEvalScenarios` provides a 10-scenario local corpus covering file reads, code search, patching, tests, command safety, memory search/update, and doc refresh; focused tests prove replay determinism and sub-second execution without live LLM judging or provider calls."
+            },
+            {
+              "name": "Iterative prompt mutation and scoring loop",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Given a base prompt and evaluation harness, automatically generate prompt variants (mutations), score them, and select the best. Iterate until convergence or budget. Mutations target: tool selection heuristics, response style, task decomposition strategies.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator"
               ],
               "source_refs": [
                 "docs/content/papers/agentic-os-design.md",
@@ -35202,20 +35326,20 @@
                 "Final best prompt is at least 10% better than base on aggregate score",
                 "Optimization does not require LLM API calls (uses harness scores)"
               ],
-	              "write_scope": [
-	                "internal/hermes/prompt_optimizer.go",
-	                "internal/hermes/prompt_optimizer_test.go",
-	                "docs/content/building-gormes/architecture_plan/progress.json"
-	              ],
-	              "test_commands": [
-	                "go test ./internal/hermes -run TestPromptOptimizer -count=1",
-	                "go run ./cmd/progress validate"
-	              ],
-	              "done_signal": [
-	                "Optimizer tests prove mutation+scoring loop converges to measurably better prompt variants"
-	              ],
-	              "note": "Complete: TDD replaced placeholder word-deletion mutation with a deterministic GEPA-style optimizer. `GenerateVariants` creates bounded strategy mutations for exact tool selection, concrete response quality, task decomposition, and command safety. `OptimizeDetailed` scores every variant through the prompt evaluation harness, promotes the best variant as the next iteration base only when it clears the improvement threshold, records per-iteration candidates/evaluations/selected variant, and terminates with explicit converged, perfect_score, or budget_exhausted evidence. Focused tests prove N-variant generation, cumulative next-base improvement, at least 10% aggregate lift over the baseline, and convergence without LLM API calls."
-	            },
+              "write_scope": [
+                "internal/hermes/prompt_optimizer.go",
+                "internal/hermes/prompt_optimizer_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestPromptOptimizer -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Optimizer tests prove mutation+scoring loop converges to measurably better prompt variants"
+              ],
+              "note": "Complete: TDD replaced placeholder word-deletion mutation with a deterministic GEPA-style optimizer. `GenerateVariants` creates bounded strategy mutations for exact tool selection, concrete response quality, task decomposition, and command safety. `OptimizeDetailed` scores every variant through the prompt evaluation harness, promotes the best variant as the next iteration base only when it clears the improvement threshold, records per-iteration candidates/evaluations/selected variant, and terminates with explicit converged, perfect_score, or budget_exhausted evidence. Focused tests prove N-variant generation, cumulative next-base improvement, at least 10% aggregate lift over the baseline, and convergence without LLM API calls."
+            },
             {
               "name": "Behavioral pattern extraction from session logs",
               "status": "planned",

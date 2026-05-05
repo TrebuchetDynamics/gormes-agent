@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 62/92 subphases shipped · 21 in progress · 9 planned
+**Overall:** 65/92 subphases shipped · 22 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 9/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -267,7 +267,7 @@ classification and row-backed implementation queue.
 - [x] Runner-enforced tool allowlists + blocked-tool policy
 - [x] Tool-call audit in typed child results
 - [x] Real child Hermes stream loop
-- [x] GBrain minion-orchestrator routing policy
+- [x] Durable job routing policy
 - [x] Durable subagent/job ledger
 
 ### 2.E.2 — OS-AI Spine: Concurrent-Tool Cancellation ✅
@@ -530,9 +530,9 @@ classification and row-backed implementation queue.
 - [x] Native full prompt assembly
 - [x] Ephemeral prefill messages file injection
 
-### 4.D — Smart Model Routing 🔨
+### 4.D — Smart Model Routing ✅
 
-- [ ] Model metadata registry + context limits
+- [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
 - [x] Model pricing/capability registry fixtures
 - [x] Routing policy and fallback selector
@@ -598,18 +598,18 @@ classification and row-backed implementation queue.
 
 - [x] Resilient provider chain dispatch
 
-### 4.L — Safety-Anchored Turn Loop (MOSAIC) ⏳
+### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 
-- [ ] Plan gate hook in agent turn loop
-- [ ] Tool gate pre-execution validation
-- [ ] Refusal-as-action in ReAct cycle
-- [ ] Safety loop end-to-end integration
+- [x] Plan gate hook in agent turn loop
+- [x] Tool gate pre-execution validation
+- [x] Refusal-as-action in ReAct cycle
+- [x] Safety loop end-to-end integration
 
-### 4.M — Advanced Provider Routing ⏳
+### 4.M — Advanced Provider Routing ✅
 
-- [ ] Circuit breaker per provider and API key
-- [ ] P95 latency-aware failover
-- [ ] Capability-based model tier routing
+- [x] Circuit breaker per provider and API key
+- [x] P95 latency-aware failover
+- [x] Capability-based model tier routing
 
 ## Phase 5 — The Final Purge 🔨
 
@@ -750,6 +750,7 @@ classification and row-backed implementation queue.
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
+- [x] Terminal cwd config bridge
 
 ### 5.M — Mixture of Agents 🔨
 
@@ -787,7 +788,7 @@ classification and row-backed implementation queue.
 - [x] Blocker Policy Integration
 - [x] OpenClaw SecretRef core resolver
 - [x] Cross-agent config isolation
-- [ ] SecretRef runtime snapshot activation
+- [x] SecretRef runtime snapshot activation
 - [ ] OpenClaw security audit --deep --fix
 - [ ] ACP bridge client compatibility
 - [ ] Gateway discover/probe command
@@ -802,7 +803,7 @@ classification and row-backed implementation queue.
 - [ ] Channels Capabilities Introspection
 - [ ] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
-- [ ] Multi-agent auth and tool-policy runtime isolation
+- [x] Multi-agent auth and tool-policy runtime isolation
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -867,6 +868,8 @@ classification and row-backed implementation queue.
 - [x] Platform toolset config persistence + MCP sentinel
 - [x] Effective toolset picker dedupes bundled plugin keys
 - [ ] Gateway, platform, webhook, and cron management CLI
+- [x] WhatsApp top-level pairing wizard shell
+- [ ] WhatsApp live Baileys QR pairing wizard
 - [x] Gateway management CLI read-model closeout
 - [x] Gateway mutating-subcommand unavailability stub
 - [x] Service RestartSec parser helper
@@ -951,15 +954,15 @@ classification and row-backed implementation queue.
 
 - [x] go-browser-harness doctor subcommand
 
-### 5.U — Fault-Tolerant Sandbox Execution ⏳
+### 5.U — Fault-Tolerant Sandbox Execution 🔨
 
-- [ ] Pre-execution command classification
+- [x] Pre-execution command classification
 - [ ] Transactional tool execution with snapshot/rollback
 - [ ] Sandbox isolation depth selection
 
-### 5.V — Unified Event Bus ⏳
+### 5.V — Unified Event Bus 🔨
 
-- [ ] Event bus core: pub/sub interface + in-process implementation
+- [x] Event bus core: pub/sub interface + in-process implementation
 - [ ] Gateway channel adapters publish to event bus
 - [ ] Agent turn and tool execution events on bus
 - [ ] Event bus integration test: full message flow

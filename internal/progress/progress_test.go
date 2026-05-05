@@ -72,7 +72,7 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 3 = %q, want complete", got)
 	}
-	// Phase 4 has the Anthropic adapter landed while the rest stays planned.
+	// Phase 4 still has umbrella rows that need smaller builder-ready splits.
 	if got := p.Phases["4"].DerivedStatus(); got != StatusInProgress {
 		t.Errorf("Phase 4 = %q, want in_progress", got)
 	}
@@ -229,7 +229,7 @@ func TestLoad_RealFile_Phase2Ledger(t *testing.T) {
 		"Runner-enforced tool allowlists + blocked-tool policy": StatusComplete,
 		"Tool-call audit in typed child results":                StatusComplete,
 		"Real child Hermes stream loop":                         StatusComplete,
-		"GBrain minion-orchestrator routing policy":             StatusComplete,
+		"Durable job routing policy":                            StatusComplete,
 		"Durable subagent/job ledger":                           StatusComplete,
 	} {
 		if got := runtimeNextItems[name]; got != want {
@@ -347,15 +347,15 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if !strings.Contains(child.Note, "HermesRunner") {
 		t.Fatalf("Phase 2.E.1 child runner note = %q, want HermesRunner implementation detail", child.Note)
 	}
-	minionPolicy := e1Items["GBrain minion-orchestrator routing policy"]
+	minionPolicy := e1Items["Durable job routing policy"]
 	if minionPolicy.Status != StatusComplete {
 		t.Fatalf("Phase 2.E.1 minion policy status = %q, want complete", minionPolicy.Status)
 	}
 	if minionPolicy.ContractStatus != ContractStatusValidated || minionPolicy.SliceSize != SliceSizeSmall || minionPolicy.ExecutionOwner != ExecutionOwnerOrchestrator {
 		t.Fatalf("Phase 2.E.1 minion policy metadata = status %q size %q owner %q, want validated/small/orchestrator", minionPolicy.ContractStatus, minionPolicy.SliceSize, minionPolicy.ExecutionOwner)
 	}
-	if !containsString(minionPolicy.SourceRefs, "../gbrain/skills/minion-orchestrator/SKILL.md") || !containsString(minionPolicy.Unblocks, "Durable subagent/job ledger") {
-		t.Fatalf("Phase 2.E.1 minion policy refs/unblocks = refs %v unblocks %v, want GBrain skill ref and durable ledger unblock", minionPolicy.SourceRefs, minionPolicy.Unblocks)
+	if !containsString(minionPolicy.SourceRefs, "internal/subagent/minion_policy.go") || !containsString(minionPolicy.Unblocks, "Durable subagent/job ledger") {
+		t.Fatalf("Phase 2.E.1 routing policy refs/unblocks = refs %v unblocks %v, want policy source ref and durable ledger unblock", minionPolicy.SourceRefs, minionPolicy.Unblocks)
 	}
 	durableLedger := e1Items["Durable subagent/job ledger"]
 	if durableLedger.Status != StatusComplete {
