@@ -11,8 +11,8 @@
 // wiring. Wiring slices that compose these blocks into the system prompt are
 // tracked separately in `docs/content/building-gormes/architecture_plan/progress.json`.
 //
-// Upstream pin: hermes-agent commit 69d4800db77d001ca5b1500ac68a6c76e612c533
-// (../hermes-agent/agent/prompt_builder.py). Byte-equivalence with the
+// Upstream pin: hermes-agent commit b816fd4e26d6c7260814f53d5ba7c7eb065548c7
+// (./hermes-agent/agent/prompt_builder.py). Byte-equivalence with the
 // upstream constants is enforced by guidance_constants_test.go; if Hermes
 // changes a constant, the test fails loudly so a follow-up port row can land
 // the new value.
@@ -20,7 +20,7 @@
 package hermes
 
 // MemoryGuidance is the upstream MEMORY_GUIDANCE constant.
-// Source: ../hermes-agent/agent/prompt_builder.py MEMORY_GUIDANCE
+// Source: ./hermes-agent/agent/prompt_builder.py MEMORY_GUIDANCE
 const MemoryGuidance = "You have persistent memory across sessions. Save durable facts using the memory " +
 	"tool: user preferences, environment details, tool quirks, and stable conventions. " +
 	"Memory is injected into every turn, so keep it compact and focused on facts that " +
@@ -40,13 +40,13 @@ const MemoryGuidance = "You have persistent memory across sessions. Save durable
 	"workflows belong in skills, not memory."
 
 // SessionSearchGuidance is the upstream SESSION_SEARCH_GUIDANCE constant.
-// Source: ../hermes-agent/agent/prompt_builder.py SESSION_SEARCH_GUIDANCE
+// Source: ./hermes-agent/agent/prompt_builder.py SESSION_SEARCH_GUIDANCE
 const SessionSearchGuidance = "When the user references something from a past conversation or you suspect " +
 	"relevant cross-session context exists, use session_search to recall it before " +
 	"asking them to repeat themselves."
 
 // SkillsGuidance is the upstream SKILLS_GUIDANCE constant.
-// Source: ../hermes-agent/agent/prompt_builder.py SKILLS_GUIDANCE
+// Source: ./hermes-agent/agent/prompt_builder.py SKILLS_GUIDANCE
 const SkillsGuidance = "After completing a complex task (5+ tool calls), fixing a tricky error, " +
 	"or discovering a non-trivial workflow, save the approach as a " +
 	"skill with skill_manage so you can reuse it next time.\n" +
@@ -55,7 +55,7 @@ const SkillsGuidance = "After completing a complex task (5+ tool calls), fixing 
 	"Skills that aren't maintained become liabilities."
 
 // ToolUseEnforcementGuidance is the upstream TOOL_USE_ENFORCEMENT_GUIDANCE constant.
-// Source: ../hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_GUIDANCE
+// Source: ./hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_GUIDANCE
 const ToolUseEnforcementGuidance = "# Tool-use enforcement\n" +
 	"You MUST use your tools to take action — do not describe what you would do " +
 	"or plan to do without actually doing it. When you say you will perform an " +
@@ -72,7 +72,7 @@ const ToolUseEnforcementGuidance = "# Tool-use enforcement\n" +
 // ToolUseEnforcementModels is the upstream TOOL_USE_ENFORCEMENT_MODELS tuple.
 // Substring matches against the active model name trigger tool-use enforcement
 // guidance.
-// Source: ../hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_MODELS
+// Source: ./hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_MODELS
 var ToolUseEnforcementModels = []string{"gpt", "codex", "gemini", "gemma", "grok"}
 
 // DeveloperRoleModels is the upstream DEVELOPER_ROLE_MODELS tuple. Substring
@@ -80,11 +80,11 @@ var ToolUseEnforcementModels = []string{"gpt", "codex", "gemini", "gemma", "grok
 // system prompt under the "developer" role instead of "system" (OpenAI's
 // newer GPT-5 / Codex models give the developer role stronger
 // instruction-following weight).
-// Source: ../hermes-agent/agent/prompt_builder.py DEVELOPER_ROLE_MODELS
+// Source: ./hermes-agent/agent/prompt_builder.py DEVELOPER_ROLE_MODELS
 var DeveloperRoleModels = []string{"gpt-5", "codex"}
 
 // OpenAIModelExecutionGuidance is the upstream OPENAI_MODEL_EXECUTION_GUIDANCE constant.
-// Source: ../hermes-agent/agent/prompt_builder.py OPENAI_MODEL_EXECUTION_GUIDANCE
+// Source: ./hermes-agent/agent/prompt_builder.py OPENAI_MODEL_EXECUTION_GUIDANCE
 const OpenAIModelExecutionGuidance = "# Execution discipline\n" +
 	"<tool_persistence>\n" +
 	"- Use tools whenever they improve correctness, completeness, or grounding.\n" +
@@ -144,7 +144,7 @@ const OpenAIModelExecutionGuidance = "# Execution discipline\n" +
 	"</missing_context>"
 
 // GoogleModelOperationalGuidance is the upstream GOOGLE_MODEL_OPERATIONAL_GUIDANCE constant.
-// Source: ../hermes-agent/agent/prompt_builder.py GOOGLE_MODEL_OPERATIONAL_GUIDANCE
+// Source: ./hermes-agent/agent/prompt_builder.py GOOGLE_MODEL_OPERATIONAL_GUIDANCE
 const GoogleModelOperationalGuidance = "# Google model operational directives\n" +
 	"Follow these operational rules strictly:\n" +
 	"- **Absolute paths:** Always construct and use absolute file paths for all " +
@@ -166,7 +166,7 @@ const GoogleModelOperationalGuidance = "# Google model operational directives\n"
 // WSLEnvironmentHint is the upstream WSL_ENVIRONMENT_HINT constant. Injected
 // when the agent detects it is running inside Windows Subsystem for Linux so
 // the model can translate Windows host paths to /mnt/<drive>/ equivalents.
-// Source: ../hermes-agent/agent/prompt_builder.py WSL_ENVIRONMENT_HINT
+// Source: ./hermes-agent/agent/prompt_builder.py WSL_ENVIRONMENT_HINT
 const WSLEnvironmentHint = "You are running inside WSL (Windows Subsystem for Linux). " +
 	"The Windows host filesystem is mounted under /mnt/ — " +
 	"/mnt/c/ is the C: drive, /mnt/d/ is D:, etc. " +
