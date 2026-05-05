@@ -995,6 +995,7 @@ classification and row-backed implementation queue.
 
 ### 6.E — Feedback Loop ⏳
 
+- [ ] Hermes curator auxiliary model routing slot
 - [ ] Hermes curator state transitions and run reports
 - [ ] Skill effectiveness scoring
 

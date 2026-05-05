@@ -28,10 +28,10 @@ weight: 12
 | Phase 3 — Memory | ✅ Complete | 15/15 | 0 | 0 | 0 |
 | Phase 4 — Brain Transplant | 🔨 Mostly Complete | 12/13 | 1 | 0 | 1 |
 | Phase 5 — Final Purge | 🔨 Large Backlog | 5/22 | 16 | 1 | 47 |
-| Phase 6 — Learning Loop | 🔨 In Progress | 6/12 | 2 | 4 | 13 |
+| Phase 6 — Learning Loop | 🔨 In Progress | 6/12 | 2 | 4 | 14 |
 | Phase 7 — Paused Channels | 🔨 Backlog | 2/5 | 3 | 0 | 9 |
 
-**Overall:** 65/92 subphases shipped · 22 in progress · 5 planned · 70 open rows
+**Overall:** 65/92 subphases shipped · 22 in progress · 5 planned · 71 open rows
 
 **First closure target:** Python-free normal agent turn with local Goncho memory and tested tool-call continuation. This is a dogfood gate, not a reduced finish line.
 

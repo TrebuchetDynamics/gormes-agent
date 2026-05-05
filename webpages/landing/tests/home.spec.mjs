@@ -1,4 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+
+const release = JSON.parse(readFileSync(new URL('../src/data/release.json', import.meta.url), 'utf8'));
+const releaseTag = release.tag || `v${release.version}`;
+const releaseLabel = `Current scout release: ${releaseTag}`;
+const releaseLabelPattern = new RegExp(escapeRegExp(releaseLabel));
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 test('homepage renders the redesigned landing', async ({ page }) => {
   await page.goto('/');
@@ -69,8 +79,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Read the install docs ->')).toBeVisible();
   // New conversion sections
   await expect(page.locator('.proof-item').getByText('Static Go binary', { exact: true })).toBeVisible();
-  await expect(page.locator('.proof-item').getByText('Current scout release: v0.1.01', { exact: true })).toBeVisible();
-  await expect(page.locator('.footer-left').getByText(/Current scout release: v0\.1\.01/)).toBeVisible();
+  await expect(page.locator('.proof-item').getByText(releaseLabel, { exact: true })).toBeVisible();
+  await expect(page.locator('.footer-left').getByText(releaseLabelPattern)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Start offline. Add credentials later.' })).toBeVisible();
   await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toHaveCount(0);

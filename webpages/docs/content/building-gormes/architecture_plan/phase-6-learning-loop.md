@@ -30,7 +30,7 @@ retrieval, and promotion.
 | 6.B — Skill Extractor | ⏳ planned | LLM-assisted pattern distillation from the conversation + tool-call trace, with fake-model fixtures and secret/noise rejection gates |
 | 6.C — Skill Storage Format | ⏳ planned | Portable, human-editable SKILL.md with versioned metadata, provenance, review state, and atomic writes |
 | 6.D — Skill Retrieval + Matching | ⏳ planned | Hybrid lexical + Phase 3 semantic lookup for relevant reviewed skills at turn start, plus optional Code Cathedral II-style code-context evidence after the base scorer is stable |
-| 6.E — Feedback Loop | ⏳ planned | Hermes curator state transitions and run reports, then skill-use outcomes, explicit operator feedback, and auditable weight adjustments |
+| 6.E — Feedback Loop | ⏳ planned | Hermes curator auxiliary model slot plus curator state transitions and run reports, then skill-use outcomes, explicit operator feedback, and auditable weight adjustments |
 | 6.F — Skill Surface (TUI + Telegram) | 🚧 partial | Hermes curator CLI surface plus browse, edit, disable, and review skills from the TUI or messaging edge after store/feedback contracts are stable |
 | 6.K — Self-Evolution Engine (GEPA) | 🚧 partial | Prompt evaluation harness and iterative prompt mutation/scoring loop are validated; behavioral pattern extraction remains planned |
 | 6.L — Composable Skill Execution (Voyager) | ⏳ planned | Sandbox executable skills, dependency resolution, and validation remain future rows |
@@ -47,6 +47,10 @@ Upstream Hermes at `b816fd4e2` makes the learning loop concrete in two places:
   maintenance: interval/paused gates, first-run defer, activity-based
   active/stale/archived transitions, pinned-skill safeguards, dry-run reports,
   backups, rollback/restore, and `hermes curator` status/run/control commands.
+- `auxiliary.curator` is a first-class auxiliary model slot. It participates in
+  Hermes' auxiliary picker/dashboard allowlists, falls back to the main model
+  when set to `auto` or partially configured, and preserves legacy
+  `curator.auxiliary` config with deprecation evidence.
 
 Gormes already has several prerequisites: `skill_manage`, `skills_list`,
 `skill_view`, validated SKILL.md storage, skill retrieval fixtures, and the
@@ -99,20 +103,23 @@ Do not begin Phase 6 with live LLM extraction. The dependency order is:
 2. **6.C storage extension** — extend the Phase 2.G store with versioned
    metadata, provenance, review state, and atomic writes before generated skills
    can persist.
-3. **6.E curator state/report engine** — port Hermes first-run defer,
+3. **6.E curator auxiliary model slot** — port Hermes `auxiliary.curator`
+   default registration, main-model fallback, canonical override precedence,
+   legacy fallback, blank credential stripping, and no-secret-leak evidence.
+4. **6.E curator state/report engine** — port Hermes first-run defer,
    interval/paused gates, activity transitions, dry-run/report behavior, and
    pinned/manual safeguards before exposing the command.
-4. **6.F curator CLI** — make `gormes curator` available only after it can read
+5. **6.F curator CLI** — make `gormes curator` available only after it can read
    real native curator state and reports.
-5. **6.A deterministic detector** — prove local trigger signals are explainable
+6. **6.A deterministic detector** — prove local trigger signals are explainable
    and replayable from transcript/tool-call fixtures.
-6. **6.B extractor schema** — use fake model outputs to prove accepted/rejected
+7. **6.B extractor schema** — use fake model outputs to prove accepted/rejected
    skill drafts, secret stripping, and one-off task rejection.
-7. **6.D retrieval scorer** — combine lexical and semantic signals while
+8. **6.D retrieval scorer** — combine lexical and semantic signals while
    excluding disabled or unreviewed skills from prompt injection.
-8. **6.E feedback records** — persist outcomes before any automatic
+9. **6.E feedback records** — persist outcomes before any automatic
    promotion/demotion or weight change.
-9. **6.F operator surfaces** — expose review/edit/disable flows only after the
+10. **6.F operator surfaces** — expose review/edit/disable flows only after the
    underlying store and feedback records are stable.
 
 ### 6.K Self-Evolution Row Status

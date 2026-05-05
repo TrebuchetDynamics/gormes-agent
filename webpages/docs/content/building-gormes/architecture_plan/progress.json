@@ -34278,12 +34278,12 @@
               "degraded_mode": "Learning-loop status reports background_review_unavailable, background_review_runtime_unavailable, background_review_denied_toolset, or background_review_cleanup_failed instead of running a full-tool child agent silently.",
               "fixture": "internal/hermes/background_review_test.go",
               "source_refs": [
-                "../hermes-agent/run_agent.py@b816fd4e2:AIAgent._spawn_background_review",
-                "../hermes-agent/run_agent.py@b816fd4e2:AIAgent._summarize_background_review_actions",
-                "../hermes-agent/tests/run_agent/test_background_review.py@b816fd4e2",
-                "../hermes-agent/tests/run_agent/test_background_review_summary.py@b816fd4e2",
-                "../hermes-agent/tests/run_agent/test_background_review_toolset_restriction.py@b816fd4e2",
-                "../hermes-agent/tests/run_agent/test_review_prompt_class_first.py@b816fd4e2",
+                "./hermes-agent/run_agent.py@b816fd4e2:AIAgent._spawn_background_review",
+                "./hermes-agent/run_agent.py@b816fd4e2:AIAgent._summarize_background_review_actions",
+                "./hermes-agent/tests/run_agent/test_background_review.py@b816fd4e2",
+                "./hermes-agent/tests/run_agent/test_background_review_summary.py@b816fd4e2",
+                "./hermes-agent/tests/run_agent/test_background_review_toolset_restriction.py@b816fd4e2",
+                "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@b816fd4e2",
                 "internal/subagent/background_review_toolset.go",
                 "internal/hermes/guidance_constants.go",
                 "internal/tools/skill_manager.go"
@@ -34871,10 +34871,86 @@
           "name": "Feedback Loop",
           "items": [
             {
+              "name": "Hermes curator auxiliary model routing slot",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes treats curator review as a first-class auxiliary model task: `auxiliary.curator.{provider,model,base_url,api_key,timeout,extra_body}` is readable/writable through native config/model surfaces, fully set provider+model overrides win over the main model, `auto` or partial overrides fall back to the main provider/model without leaking stray auxiliary credentials, and legacy `curator.auxiliary.{provider,model,base_url,api_key}` remains readable with deprecation evidence",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Curator model status reports curator_auxiliary_auto_main, curator_auxiliary_partial_fallback, curator_auxiliary_legacy_config, curator_auxiliary_secret_stripped, or curator_auxiliary_slot_missing instead of silently using the wrong model or leaking slot credentials.",
+              "fixture": "internal/config/curator_auxiliary_test.go + internal/hermes/curator_auxiliary_test.go",
+              "source_refs": [
+                "./hermes-agent/agent/curator.py@b816fd4e2:_resolve_review_runtime",
+                "./hermes-agent/agent/curator.py@b816fd4e2:_resolve_review_model",
+                "./hermes-agent/tests/agent/test_curator.py@b816fd4e2:curator review-model resolution",
+                "./hermes-agent/hermes_cli/config.py@b816fd4e2:DEFAULT_CONFIG auxiliary.curator",
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:_AUX_TASKS",
+                "./hermes-agent/hermes_cli/web_server.py@b816fd4e2:_AUX_TASK_SLOTS",
+                "internal/config/config.go",
+                "internal/cli/model_picker.go",
+                "internal/hermes/model_routing.go"
+              ],
+              "ready_when": [
+                "Provider registry manifest and native model picker selection contracts are validated, so curator can reuse provider/model identifiers rather than defining a parallel registry.",
+                "The slice can be pure config/runtime resolution with fake config structs and fake persistence; no live LLM, curator run, gateway, dashboard server, or network provider call is required.",
+                "Hermes curator command surface remains unavailable until the curator state and CLI rows land, so adding this config slot does not imply curator runtime availability."
+              ],
+              "not_ready_when": [
+                "The slice starts a curator run, calls a provider, or changes foreground main-model selection semantics.",
+                "The slice accepts a half-configured `auxiliary.curator` provider/model pair instead of falling back to the main model.",
+                "The slice reuses `api_key` or `base_url` from `auxiliary.curator` when the slot is `auto` or otherwise falls through to the main provider/model.",
+                "The slice exposes raw api_key values in config show/status, test logs, model-picker output, or progress evidence."
+              ],
+              "blocked_by": [
+                "Hermes provider registry manifest",
+                "Gormes model interactive provider/model picker"
+              ],
+              "unblocks": [
+                "Hermes curator state transitions and run reports",
+                "Hermes curator command surface"
+              ],
+              "acceptance": [
+                "TestCuratorAuxiliarySlot_DefaultConfig proves native defaults include auxiliary.curator with provider=auto, empty model/base_url/api_key, timeout >= 600 seconds, and extra_body support.",
+                "TestCuratorAuxiliarySlot_ResolveMainFallback proves missing, auto/empty, provider-only, and model-only auxiliary.curator config all resolve to the main provider/model and strip auxiliary-only credentials.",
+                "TestCuratorAuxiliarySlot_OverrideWins proves a fully configured auxiliary.curator provider+model returns that binding and passes explicit api_key/base_url after trimming blanks.",
+                "TestCuratorAuxiliarySlot_LegacyFallback proves curator.auxiliary provider/model/api_key/base_url still resolves when the canonical slot is absent and emits deprecated-curator-auxiliary evidence.",
+                "TestCuratorAuxiliarySlot_NewSlotWins proves canonical auxiliary.curator beats legacy curator.auxiliary when both are present.",
+                "Model/config surface fixtures include curator in the auxiliary task registry or explicitly report curator_auxiliary_slot_missing until the UI/API surface exists."
+              ],
+              "note": "Hermes v0.12.0 made curator a regular auxiliary task. Tests pin DEFAULT_CONFIG['auxiliary']['curator'], CLI auxiliary picker registration, dashboard REST allowlist, canonical-slot precedence, legacy curator.auxiliary fallback, blank credential stripping, partial override fallback, and no stray secret reuse. The current Gormes curator rows track state and CLI but did not yet isolate this model-routing contract.",
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/curator_auxiliary_test.go",
+                "internal/hermes/curator_auxiliary.go",
+                "internal/hermes/curator_auxiliary_test.go",
+                "internal/cli/model_picker.go",
+                "cmd/gormes/model.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config ./internal/hermes ./internal/cli ./cmd/gormes -run 'TestCuratorAuxiliarySlot|TestModelPicker|TestModelCommand' -count=1",
+                "go test ./internal/config ./internal/hermes ./internal/cli ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Curator auxiliary slot fixtures prove default registration, canonical override precedence, main fallback, legacy fallback with evidence, credential stripping, no secret leakage, and model/config surface visibility without live provider calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 agent/curator.py + tests/agent/test_curator.py",
+                "note": "Hermes owns the curator auxiliary model routing contract; Gormes ports it before enabling native curator runs."
+              }
+            },
+            {
               "name": "Hermes curator state transitions and run reports",
               "priority": "P1",
               "status": "planned",
-              "contract": "Gormes maintains Hermes-compatible curator state for agent-created skills: first run defers and seeds state, configured interval/paused gates control later runs, active/stale/archived transitions use last activity, pinned and non-agent-created skills are never auto-touched, dry-run skips mutations, and every run records recoverable report evidence",
+              "contract": "Gormes maintains Hermes-compatible curator state for agent-created skills: first run defers and seeds state, configured interval/paused gates control later runs, active/stale/archived transitions use last activity, pinned and non-agent-created skills are never auto-touched, dry-run skips mutations, every run records recoverable report/backup evidence, removed skills are classified as consolidated or pruned, and cron job skill links are rewritten or restored when skill names change",
               "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "skills",
@@ -34882,14 +34958,17 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Curator status reports curator_disabled, curator_paused, curator_no_candidates, curator_dry_run_report_only, curator_backup_failed, or curator_report_write_failed instead of hiding skipped or partial maintenance.",
+              "degraded_mode": "Curator status reports curator_disabled, curator_paused, curator_no_candidates, curator_dry_run_report_only, curator_backup_failed, curator_report_write_failed, curator_classification_uncertain, or curator_cron_rewrite_failed instead of hiding skipped or partial maintenance.",
               "fixture": "internal/skills/curator_test.go",
               "source_refs": [
-                "../hermes-agent/agent/curator.py@b816fd4e2",
-                "../hermes-agent/agent/curator_backup.py@b816fd4e2",
-                "../hermes-agent/tests/agent/test_curator.py@b816fd4e2",
-                "../hermes-agent/tests/agent/test_curator_activity.py@b816fd4e2",
-                "../hermes-agent/tests/tools/test_skill_usage.py@b816fd4e2",
+                "./hermes-agent/agent/curator.py@b816fd4e2",
+                "./hermes-agent/agent/curator_backup.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator_activity.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator_reports.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator_backup.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator_classification.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_skill_usage.py@b816fd4e2",
                 "internal/skills/usage.go",
                 "internal/skills/store.go"
               ],
@@ -34901,10 +34980,13 @@
               "not_ready_when": [
                 "The slice deletes skills permanently instead of moving them to a recoverable archive.",
                 "The slice treats bundled, hub-installed, manual, or pinned skills as curator-managed candidates.",
-                "The slice lets dry-run mutate state, archives, backups, or SKILL.md content."
+                "The slice lets dry-run mutate state, archives, backups, cron job links, or SKILL.md content.",
+                "The slice accepts model consolidation/pruning claims without validating target skill existence, absorbed_into delete declarations, or heuristic file/content evidence.",
+                "The slice rewrites cron job skill references without recoverable backup/rollback evidence."
               ],
               "blocked_by": [
                 "Hermes background review fork lifecycle",
+                "Hermes curator auxiliary model routing slot",
                 "Portable SKILL.md format"
               ],
               "unblocks": [
@@ -34916,28 +34998,32 @@
                 "TestCuratorState_Gates respect enabled=false, paused=true, interval_hours, min_idle_hours, stale_after_days, and archive_after_days configuration.",
                 "TestCuratorTransitions_ActivityLifecycle marks old active agent-created skills stale, archives very old skills recoverably, reactivates stale skills on recent activity, and never auto-touches pinned or non-agent-created skills.",
                 "TestCuratorRun_DryRunReportOnly proves dry-run counts candidates and writes preview/report evidence without bumping run_count, last_run_at, archives, backups, or SKILL.md content.",
-                "TestCuratorRun_ReportEvidence records started_at, duration, auto-transition counts, summary, before/after skill names, tool-call metadata, and last_report_path for status surfaces."
+                "TestCuratorRun_ReportEvidence records started_at, duration, auto-transition counts, summary, before/after skill names, tool-call metadata, model classification evidence, cron rewrite summaries, and last_report_path for status surfaces.",
+                "TestCuratorRun_BackupAndRollbackSafety proves real runs snapshot skills and cron job skill links, dry-run skips snapshots, rollback is itself undoable, unsafe tarballs are rejected, and rollback only restores skill fields for existing cron jobs.",
+                "TestCuratorRun_ClassificationReconciliation proves structured summaries, absorbed_into delete declarations, heuristic file/content evidence, and target existence checks classify removed skills as consolidated or pruned without false positives.",
+                "TestCuratorRun_CronSkillRewrite proves consolidated skills rewrite cron job skill references, pruned skills are removed from cron jobs, empty/no-change runs omit cron report sections, and rollback/restore can repair skill links."
               ],
-              "note": "Hermes v0.12.0 added an autonomous curator for agent-created skill maintenance. It is not just a score counter: it owns interval gating, .curator_state, pinned safeguards, activity-based stale/archive transitions, recoverable backups, dry-run behavior, and logs/curator run reports. Gormes should port those invariants before exposing the CLI as available.",
+              "note": "Hermes v0.12.0 added an autonomous curator for agent-created skill maintenance. It is not just a score counter: it owns interval gating, .curator_state, pinned safeguards, activity-based stale/archive transitions, recoverable backups, dry-run behavior, logs/curator run reports, consolidation/pruning reconciliation, and cron skill-link rewrites. Gormes should port those invariants before exposing the CLI as available.",
               "write_scope": [
                 "internal/skills/curator.go",
                 "internal/skills/curator_test.go",
                 "internal/skills/usage.go",
                 "internal/skills/store.go",
+                "internal/cron/store.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/skills -run 'TestCurator(State|Transitions|Run)' -count=1",
-                "go test ./internal/skills -count=1",
+                "go test ./internal/skills ./internal/cron -run 'TestCurator(State|Transitions|Run|Backup|Report|Classification|CronSkillRewrite)' -count=1",
+                "go test ./internal/skills ./internal/cron -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Curator fixtures prove scheduler gates, first-run defer, activity transitions, pinned/manual safeguards, dry-run no-mutation behavior, recoverable archives, and report evidence without live LLM calls."
+                "Curator fixtures prove scheduler gates, first-run defer, activity transitions, pinned/manual safeguards, dry-run no-mutation behavior, recoverable archives/backups, classification reconciliation, cron skill-link repair, and report evidence without live LLM calls."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:b816fd4e2 agent/curator.py",
-                "note": "Hermes owns the curator state and maintenance contract; Gormes ports it onto the native skill usage/store layer."
+                "upstream_ref": "hermes:b816fd4e2 agent/curator.py + agent/curator_backup.py + tests/agent/test_curator_reports.py",
+                "note": "Hermes owns the curator state, maintenance, backup, report, classification, and cron-link contract; Gormes ports it onto the native skill usage/store and cron layers."
               }
             },
             {
@@ -34974,10 +35060,12 @@
               "degraded_mode": "The CLI reports curator_unavailable, curator_disabled, curator_no_agent_created_skills, curator_backup_unavailable, or curator_rollback_cancelled with actionable hints instead of silently doing nothing.",
               "fixture": "cmd/gormes/curator_test.go + internal/cli/command_registry_policy_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/curator.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/main.py@b816fd4e2:curator command registration",
-                "../hermes-agent/tests/hermes_cli/test_curator_status.py@b816fd4e2",
-                "../hermes-agent/tests/agent/test_curator.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/curator.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:curator command registration",
+                "./hermes-agent/tests/hermes_cli/test_curator_status.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator_backup.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_curator_reports.py@b816fd4e2",
                 "internal/cli/command_registry.go",
                 "internal/gateway/commands.go"
               ],
@@ -34997,7 +35085,7 @@
                 "TestCuratorCommand_Status renders enabled/paused state, interval/stale/archive thresholds, run count, last run summary, last report path, agent-created counts by state, pinned skills, least recently active, most active, and least active sections.",
                 "TestCuratorCommand_Run supports --dry-run and --sync flags, prints report-only guidance for dry-run, and starts a native curator run through an injected fake runner.",
                 "TestCuratorCommand_PauseResumePinUnpin updates state through injected fake stores and refuses bundled or hub-installed skill names with Hermes-compatible hints.",
-                "TestCuratorCommand_BackupRollbackRestore lists snapshots, requires confirmation unless -y/--yes is passed, and reports cancelled rollback without mutation.",
+                "TestCuratorCommand_BackupRollbackRestore lists/creates snapshots, supports newest or selected rollback, requires confirmation unless -y/--yes is passed, restores archived skills, and reports cancelled rollback without mutation.",
                 "Command registry fixtures flip `curator` from unavailable to available on the CLI surface while gateway active-turn command policy remains explicit."
               ],
               "note": "Gormes currently registers `curator` as unavailable. Hermes v0.12.0 exposes `hermes curator status|run|pause|resume|pin|unpin|backup|rollback|restore`; the Go CLI should become available only after the native state/report engine exists.",
@@ -35015,7 +35103,7 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Curator CLI fixtures prove Hermes-compatible status/run/control/backup commands over injected native curator state, and command registry policy no longer exposes curator as an unavailable CLI placeholder."
+                "Curator CLI fixtures prove Hermes-compatible status/run/control/backup/rollback/restore commands over injected native curator state, and command registry policy no longer exposes curator as an unavailable CLI placeholder."
               ],
               "provenance": {
                 "origin_type": "upstream",

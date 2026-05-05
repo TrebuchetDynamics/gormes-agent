@@ -30,9 +30,11 @@ Without a learning loop you lose:
 Upstream Hermes now has two concrete learning-loop contracts: an after-turn
 background review fork that can save memory/skill updates, and a curator that
 maintains agent-created skills through activity-based lifecycle transitions,
-dry-run reports, backups, rollback/restore, and `hermes curator` commands.
-Phase 6 ports those contracts first, then adds Gormes-native evidence for
-detectors, scoring, retrieval, and promotion.
+dry-run reports, backups, rollback/restore, and `hermes curator` commands. The
+curator also has a dedicated `auxiliary.curator` model slot, so review work can
+use a cheaper or slower side model without changing the main chat model. Phase
+6 ports those contracts first, then adds Gormes-native evidence for detectors,
+scoring, retrieval, and promotion.
 
 ## Current status
 
@@ -41,12 +43,14 @@ the sub-phase breakdown. Gormes already has SKILL.md validation, skill
 metadata/retrieval fixtures, `skill_manage`, `skills_list`, `skill_view`, and
 the background-review memory+skills-only toolset policy. Missing parity rows
 now track the background review fork lifecycle, curator state/report engine,
-and `gormes curator` command surface.
+curator auxiliary model routing, and `gormes curator` command surface.
 
 Execution should be TDD-first and local-signal-first:
 
 - Start with the Hermes background-review fork lifecycle: active runtime
   inheritance, memory+skills-only toolsets, attributed summaries, and cleanup.
+- Add the Hermes `auxiliary.curator` slot before native curator runs so model
+  routing, fallback, timeout, and credential behavior are visible and testable.
 - Port the Hermes curator state/report engine before enabling `gormes curator`.
 - Extend the Phase 2.G SKILL.md store with versioned metadata, provenance,
   review state, and atomic writes before generated skills persist.
