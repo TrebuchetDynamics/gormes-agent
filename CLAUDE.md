@@ -41,7 +41,7 @@ Default routing:
 | Work type | Required skill |
 |---|---|
 | Unsure which workflow applies, or deciding whether a new skill is needed | `gormes-skill-manager` |
-| Mapping Hermes/Honcho/GBrain parity gaps | `gormes-parity-auditor` |
+| Mapping Hermes/Honcho parity gaps | `gormes-parity-auditor` |
 | Fixing provider/auth/client/model-routing/usage/rate-limit parity bugs | `gormes-provider-parity` |
 | Browser automation parity, Browser Use, browser-harness, CDP, or `/browser connect` work | `gormes-browser-harness` |
 | Updating roadmap rows, phases, dependencies, or planning docs | `gormes-planner` |
@@ -72,3 +72,50 @@ Gormes is complete only when it is Hermes in Go, with Goncho as the
 Honcho-compatible Go port inside Gormes. Keep all implementation intent in
 `docs/content/building-gormes/architecture_plan/progress.json`; do not create
 parallel queues.
+
+<!-- karpathy-guidelines:start -->
+## Karpathy-Inspired Agent Guardrails
+
+Source: https://github.com/forrestchang/andrej-karpathy-skills at commit `2c60614`.
+
+These guardrails supplement the local instructions above. Local project, safety, and user-specific rules win on conflict.
+
+Tradeoff: they bias toward caution over speed for non-trivial work; use judgment for obvious one-line fixes.
+
+### Think Before Coding
+
+- State assumptions before implementing; ask when uncertainty would change the solution.
+- Surface multiple interpretations and tradeoffs instead of silently picking one.
+- Push back when a simpler approach meets the goal.
+
+### Simplicity First
+
+- Build the minimum code that solves the requested problem.
+- Avoid speculative features, single-use abstractions, and unnecessary configurability.
+- If the solution is growing large, stop and simplify before continuing.
+
+### Surgical Changes
+
+- Touch only files and lines required by the request.
+- Preserve existing style, comments, and nearby code unless the task requires changing them.
+- Clean up only dead code introduced by your own change; mention unrelated dead code instead of deleting it.
+
+### Goal-Driven Execution
+
+- Convert the request into verifiable success criteria before editing.
+- For multi-step work, state a short plan with a verification check for each step.
+- Loop until the relevant tests, builds, or manual checks prove the goal is met.
+<!-- karpathy-guidelines:end -->
+
+<!-- karpathy-project-adjustment:start -->
+## Project-Specific Karpathy Adjustment
+
+This section localizes the Karpathy guardrails for `workspace-mineru/gormes-agent`. Source inspiration: https://github.com/forrestchang/andrej-karpathy-skills at commit `2c60614`.
+
+- Project family: Gormes Go-native Hermes-compatible agent runtime.
+- Local focus: Go-native agent runtime, TUI, gateway, tools, sessions, local memory, installer, docs, and progress.json delivery tracking.
+- Stack cues: Go.
+- Evidence to prefer: go test output, CLI smoke checks, doctor/onboard output, exact branch, progress.json updates, and compatibility notes against Hermes behavior.
+- Surgical boundary: work from development rules in the repo; avoid Python/venv assumptions and avoid changing public CLI/runtime contracts without tests.
+- Stop and ask when: a change affects agent behavior, persistence, gateway routing, provider config, install flow, or compatibility promises.
+<!-- karpathy-project-adjustment:end -->

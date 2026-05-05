@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Hermes Parity"
+  short_description: "Discover source-backed Gormes behavior drift."
+  default_prompt: "Use $gormes-hermes-parity to run a bounded behavioral fidelity discovery sweep, loading only the needed parity reference and routing follow-up work to the smallest Gormes subskill chain."

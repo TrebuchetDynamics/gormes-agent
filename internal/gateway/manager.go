@@ -58,6 +58,7 @@ type activeTurnSnapshot struct {
 // ManagerConfig drives the shared gateway manager.
 type ManagerConfig struct {
 	AllowedChats    map[string]string
+	AllowedUsers    map[string]map[string]bool
 	AllowDiscovery  map[string]bool
 	CoalesceMs      int
 	FreshFinalAfter time.Duration
@@ -160,6 +161,9 @@ type ManagerConfig struct {
 	// TypingActionEvidenceSink receives redacted non-fatal typing-action
 	// failures. Nil discards evidence silently.
 	TypingActionEvidenceSink TypingActionEvidenceSink
+	// KanbanDispatcher owns the gateway-managed Kanban worker dispatcher loop.
+	// Nil preserves the legacy gateway behavior with no dispatcher activity.
+	KanbanDispatcher KanbanDispatcherConfig
 }
 
 type KernelSubmitter interface {
@@ -244,6 +248,9 @@ type Manager struct {
 
 	verboseHintMu   sync.Mutex
 	verboseHintSent map[string]bool
+
+	kanbanDispatcherMu      sync.Mutex
+	kanbanDispatcherRunning bool
 }
 
 type channelRunFailure struct {
@@ -410,6 +417,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	}
 	if cfg.AllowedChats == nil {
 		cfg.AllowedChats = map[string]string{}
+	}
+	if cfg.AllowedUsers == nil {
+		cfg.AllowedUsers = map[string]map[string]bool{}
 	}
 	if cfg.BusyInputMode == "" {
 		cfg.BusyInputMode = "interrupt"
@@ -617,6 +627,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			})
 		}(ch)
 	}
+	m.startKanbanDispatcher(runCtx, &wg)
 
 	wg.Add(1)
 	go func() {
@@ -881,7 +892,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 		if isRecognizedUnavailableSlashCommand(name) {
 			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "/"+name+" is recognized but unavailable in this build")
 		} else {
-			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "unknown command — no slash command by that name is available")
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, UnknownSlashCommandGuidance(name))
 		}
 		return true
 	}
@@ -1715,10 +1726,13 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 
 func (m *Manager) allowed(ev InboundEvent) bool {
 	want, ok := m.cfg.AllowedChats[ev.Platform]
-	if !ok || want == "" {
-		return false
+	if ok && want != "" && ev.ChatID == want {
+		return true
 	}
-	return ev.ChatID == want
+	if users := m.cfg.AllowedUsers[ev.Platform]; len(users) > 0 {
+		return users[ev.UserID]
+	}
+	return false
 }
 
 func (m *Manager) lookupChannel(name string) Channel {

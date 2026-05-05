@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/**'
+      - 'webpages/docs/**'
       - '.github/workflows/deploy-gormes-docs.yml'
   workflow_dispatch:
 
@@ -28,18 +28,18 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: docs/package-lock.json
+          cache-dependency-path: webpages/docs/package-lock.json
 
       - name: Install docs dependencies
-        working-directory: docs
+        working-directory: webpages/docs
         run: npm ci
 
       - name: Build Astro site
-        working-directory: docs
+        working-directory: webpages/docs
         run: npm run build
 
       - name: Verify build artifacts
-        working-directory: docs
+        working-directory: webpages/docs
         run: |
           test -f dist/index.html
           test -d dist/pagefind
@@ -47,7 +47,7 @@ jobs:
           test -f dist/building-gormes/architecture_plan/progress.json
 
       - name: Verify homepage content
-        working-directory: docs
+        working-directory: webpages/docs
         run: |
           grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" dist/index.html >/dev/null
           ! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" dist/index.html >/dev/null
@@ -66,7 +66,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy docs/dist --project-name=gormes-docs --branch=main --commit-dirty=true
+          command: pages deploy webpages/docs/dist --project-name=gormes-docs --branch=main --commit-dirty=true
 
       - name: Attach docs.gormes.ai
         env:

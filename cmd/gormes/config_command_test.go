@@ -79,6 +79,36 @@ func TestConfigCommand_SetEndpointAndModelWritesTOMLOnly(t *testing.T) {
 	}
 }
 
+func TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	projectDir := t.TempDir()
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "set", "terminal.cwd", projectDir)
+	if err != nil {
+		t.Fatalf("set terminal.cwd: %v stderr=%s", err, stderr)
+	}
+	if !strings.Contains(stdout, "terminal.cwd") || !strings.Contains(stdout, config.ConfigPath()) {
+		t.Fatalf("stdout = %q, want terminal.cwd and config path", stdout)
+	}
+
+	tomlBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	if !strings.Contains(string(tomlBody), "[terminal]") || !strings.Contains(string(tomlBody), projectDir) {
+		t.Fatalf("config.toml missing terminal cwd:\n%s", tomlBody)
+	}
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("Load after terminal.cwd write: %v", err)
+	}
+	if cfg.Terminal.CWD != projectDir {
+		t.Fatalf("loaded terminal.cwd = %q, want %q", cfg.Terminal.CWD, projectDir)
+	}
+}
+
 func TestConfigCommand_SetAPIKeyWritesEnvFileNotTOML(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	cmd := newRootCommandWithRuntime(rootRuntime{})

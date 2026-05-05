@@ -30,6 +30,7 @@ type Config struct {
 	Hermes     HermesCfg         `toml:"hermes" yaml:"hermes"`
 	Runtime    RuntimeCfg        `toml:"runtime" yaml:"runtime"`
 	Gateway    GatewayCfg        `toml:"gateway" yaml:"gateway"`
+	Terminal   TerminalCfg       `toml:"terminal" yaml:"terminal"`
 	Display    DisplayCfg        `toml:"display" yaml:"display"`
 	TUI        TUICfg            `toml:"tui" yaml:"tui"`
 	Input      InputCfg          `toml:"input" yaml:"input"`
@@ -54,13 +55,15 @@ type Config struct {
 }
 
 type TelegramCfg struct {
-	BotToken               string  `toml:"bot_token" yaml:"bot_token"`
-	AllowedChatID          int64   `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
-	RequireMention         bool    `toml:"require_mention" yaml:"require_mention"`
-	BotUsername            string  `toml:"bot_username" yaml:"bot_username"`
-	CoalesceMs             int     `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FreshFinalAfterSeconds float64 `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
-	FirstRunDiscovery      bool    `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	BotToken               string     `toml:"bot_token" yaml:"bot_token"`
+	BotTokenRef            *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
+	AllowedChatID          int64      `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	AllowedUserIDs         []int64    `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
+	RequireMention         bool       `toml:"require_mention" yaml:"require_mention"`
+	BotUsername            string     `toml:"bot_username" yaml:"bot_username"`
+	CoalesceMs             int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FreshFinalAfterSeconds float64    `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
+	FirstRunDiscovery      bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
 	MemoryQueueCap int `toml:"memory_queue_cap" yaml:"memory_queue_cap"`
@@ -97,11 +100,12 @@ type TelegramCfg struct {
 
 // DiscordCfg drives the Discord channel adapter.
 type DiscordCfg struct {
-	Token             string   `toml:"token" yaml:"token"`
-	AllowedChannelID  string   `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
-	ServerActions     []string `toml:"server_actions" yaml:"server_actions"`
-	CoalesceMs        int      `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FirstRunDiscovery bool     `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	Token             string     `toml:"token" yaml:"token"`
+	TokenRef          *SecretRef `toml:"token_ref" yaml:"token_ref" json:"token_ref,omitempty"`
+	AllowedChannelID  string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	ServerActions     []string   `toml:"server_actions" yaml:"server_actions"`
+	CoalesceMs        int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
 }
 
 func (c DiscordCfg) Enabled() bool {
@@ -113,12 +117,14 @@ func (c DiscordCfg) Enabled() bool {
 
 // SlackCfg drives the Slack Socket Mode channel adapter.
 type SlackCfg struct {
-	Enabled           bool   `toml:"enabled" yaml:"enabled"`
-	BotToken          string `toml:"bot_token" yaml:"bot_token"`
-	AppToken          string `toml:"app_token" yaml:"app_token"`
-	AllowedChannelID  string `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
-	CoalesceMs        int    `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FirstRunDiscovery bool   `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	Enabled           bool       `toml:"enabled" yaml:"enabled"`
+	BotToken          string     `toml:"bot_token" yaml:"bot_token"`
+	BotTokenRef       *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
+	AppToken          string     `toml:"app_token" yaml:"app_token"`
+	AppTokenRef       *SecretRef `toml:"app_token_ref" yaml:"app_token_ref" json:"app_token_ref,omitempty"`
+	AllowedChannelID  string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	CoalesceMs        int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
 }
 
 type CronCfg struct {
@@ -248,10 +254,11 @@ func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
 }
 
 type HermesCfg struct {
-	Endpoint string `toml:"endpoint" yaml:"endpoint"`
-	APIKey   string `toml:"api_key" yaml:"api_key"`
-	Model    string `toml:"model" yaml:"model"`
-	Provider string `toml:"provider" yaml:"provider"`
+	Endpoint  string     `toml:"endpoint" yaml:"endpoint"`
+	APIKey    string     `toml:"api_key" yaml:"api_key"`
+	APIKeyRef *SecretRef `toml:"api_key_ref" yaml:"api_key_ref" json:"api_key_ref,omitempty"`
+	Model     string     `toml:"model" yaml:"model"`
+	Provider  string     `toml:"provider" yaml:"provider"`
 }
 
 type RuntimeCfg struct {
@@ -263,6 +270,11 @@ type RuntimeCfg struct {
 	SessionResetAfterMinutes  int     `toml:"session_reset_after_minutes" yaml:"session_reset_after_minutes"`
 	SessionResetDailyHour     int     `toml:"session_reset_daily_hour" yaml:"session_reset_daily_hour"`
 	SessionResetMemorySummary bool    `toml:"session_reset_memory_summary" yaml:"session_reset_memory_summary"`
+}
+
+type TerminalCfg struct {
+	Backend string `toml:"backend" yaml:"backend"`
+	CWD     string `toml:"cwd" yaml:"cwd"`
 }
 
 type GatewayCfg struct {
@@ -440,6 +452,9 @@ func defaults() Config {
 			SessionResetPolicy:        "inactivity",
 			SessionResetAfterMinutes:  1440,
 			SessionResetMemorySummary: true,
+		},
+		Terminal: TerminalCfg{
+			CWD: ".",
 		},
 		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
@@ -722,13 +737,16 @@ func loadEnv(cfg *Config) error {
 		}
 		cfg.TUI.MouseTracking = parsed
 	}
-	if v := os.Getenv("GORMES_TELEGRAM_TOKEN"); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_TOKEN"), os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_TOKEN")); v != "" {
 		cfg.Telegram.BotToken = v
 	}
-	if v := os.Getenv("GORMES_TELEGRAM_CHAT_ID"); v != "" {
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_CHAT_ID"), os.Getenv("TELEGRAM_HOME_CHANNEL"), os.Getenv("TELEGRAM_CHAT_ID")); v != "" {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			cfg.Telegram.AllowedChatID = id
 		}
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("TELEGRAM_ALLOWED_USERS")); v != "" {
+		cfg.Telegram.AllowedUserIDs = parseEnvInt64CSV(v)
 	}
 	if v := os.Getenv("GORMES_DISCORD_TOKEN"); v != "" {
 		cfg.Discord.Token = v
@@ -896,6 +914,19 @@ func parseEnvCSV(value string) []string {
 	return out
 }
 
+func parseEnvInt64CSV(value string) []int64 {
+	parts := parseEnvCSV(value)
+	out := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		parsed, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			continue
+		}
+		out = append(out, parsed)
+	}
+	return out
+}
+
 func loadFlags(cfg *Config, args []string) error {
 	if args == nil {
 		return nil
@@ -923,6 +954,14 @@ func loadFlags(cfg *Config, args []string) error {
 func validateConfig(cfg *Config) error {
 	cfg.Gateway.ProxyURL = normalizeGatewayProxyURL(cfg.Gateway.ProxyURL)
 	cfg.Gateway.ProxyKey = strings.TrimSpace(cfg.Gateway.ProxyKey)
+	cfg.Terminal.Backend = strings.ToLower(strings.TrimSpace(firstNonEmpty(cfg.Terminal.Backend, cfg.Runtime.TerminalBackend, "local")))
+	cfg.Terminal.CWD = strings.TrimSpace(cfg.Terminal.CWD)
+	if cfg.Terminal.CWD == "" {
+		cfg.Terminal.CWD = "."
+	}
+	if strings.TrimSpace(cfg.Runtime.TerminalBackend) == "" {
+		cfg.Runtime.TerminalBackend = cfg.Terminal.Backend
+	}
 	cfg.Slack.BotToken = strings.TrimSpace(cfg.Slack.BotToken)
 	cfg.Slack.AppToken = strings.TrimSpace(cfg.Slack.AppToken)
 	cfg.Slack.AllowedChannelID = strings.TrimSpace(cfg.Slack.AllowedChannelID)
@@ -1044,6 +1083,19 @@ func SessionIndexMirrorPath() string {
 // memory database.
 func MemoryDBPath() string {
 	return filepath.Join(GormesHome(), "memory.db")
+}
+
+// KanbanDBPath returns the native Gormes Kanban SQLite database path.
+// Gormes intentionally ignores Hermes runtime env vars here; Hermes state is
+// only read by explicit migrate commands.
+func KanbanDBPath() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_HOME")); v != "" {
+		return filepath.Join(v, "kanban.db")
+	}
+	return filepath.Join(GormesHome(), "kanban.db")
 }
 
 // CronMirrorPath returns the resolved CRON.md path — either

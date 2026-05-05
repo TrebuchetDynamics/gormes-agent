@@ -1,0 +1,144 @@
+import { spawnSync } from 'node:child_process';
+import { access, copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const siteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = resolve(siteRoot, '../..');
+const legacyStatic = resolve(siteRoot, 'legacy/go-renderer/internal/site/static');
+
+async function pathExists(path) {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function refreshBenchmarks() {
+  const binary = resolve(repoRoot, 'bin/gormes');
+  if (!(await pathExists(binary))) {
+    console.log('benchmark refresh skipped: bin/gormes is not built');
+    return;
+  }
+
+  if (process.env.GORMES_WWW_REFRESH_BENCHMARKS !== '1') {
+    const status = spawnSync('git', ['status', '--porcelain'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    if (status.status === 0 && status.stdout.trim() !== '') {
+      console.log('benchmark refresh skipped: worktree has local changes');
+      return;
+    }
+  }
+
+  const result = spawnSync('go', ['run', './cmd/repoctl', 'benchmark', 'record'], {
+    cwd: repoRoot,
+    env: process.env,
+    stdio: 'inherit',
+  });
+  if (result.error?.code === 'ENOENT') {
+    console.warn('benchmark refresh skipped: go is not available on PATH');
+    return;
+  }
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(`benchmark refresh failed with exit code ${result.status}`);
+  }
+}
+
+async function writeReleaseData() {
+  const versionFile = resolve(repoRoot, 'cmd/gormes/version.go');
+  const raw = await readFile(versionFile, 'utf8');
+  const match = raw.match(/var\s+Version\s*=\s*"([^"]+)"/);
+  if (!match) {
+    throw new Error(`could not read Version from ${versionFile}`);
+  }
+
+  const version = match[1];
+  const release = {
+    version,
+    tag: `v${version}`,
+    url: `https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v${version}`,
+    source: 'cmd/gormes/version.go',
+  };
+
+  const target = resolve(siteRoot, 'src/data/release.json');
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(release, null, 2)}\n`, 'utf8');
+}
+
+const copies = [
+  ['install.sh', resolve(repoRoot, 'install.sh'), resolve(siteRoot, 'public/install.sh')],
+  ['install.ps1', resolve(repoRoot, 'scripts/install.ps1'), resolve(siteRoot, 'public/install.ps1')],
+  ['install.cmd', resolve(repoRoot, 'scripts/install.cmd'), resolve(siteRoot, 'public/install.cmd')],
+  [
+    'benchmarks.json',
+    resolve(repoRoot, 'benchmarks.json'),
+    resolve(siteRoot, 'src/data/benchmarks.json'),
+  ],
+  [
+    'progress.json',
+    resolve(repoRoot, 'webpages/docs/content/building-gormes/architecture_plan/progress.json'),
+    resolve(siteRoot, 'src/data/progress.json'),
+  ],
+  [
+    'favicon.ico',
+    resolve(legacyStatic, 'favicon.ico'),
+    resolve(siteRoot, 'public/static/favicon.ico'),
+  ],
+  [
+    'favicon-16x16.png',
+    resolve(legacyStatic, 'favicon-16x16.png'),
+    resolve(siteRoot, 'public/static/favicon-16x16.png'),
+  ],
+  [
+    'favicon-32x32.png',
+    resolve(legacyStatic, 'favicon-32x32.png'),
+    resolve(siteRoot, 'public/static/favicon-32x32.png'),
+  ],
+  [
+    'apple-touch-icon.png',
+    resolve(legacyStatic, 'apple-touch-icon.png'),
+    resolve(siteRoot, 'public/static/apple-touch-icon.png'),
+  ],
+  [
+    'android-chrome-192x192.png',
+    resolve(legacyStatic, 'android-chrome-192x192.png'),
+    resolve(siteRoot, 'public/static/android-chrome-192x192.png'),
+  ],
+  [
+    'android-chrome-512x512.png',
+    resolve(legacyStatic, 'android-chrome-512x512.png'),
+    resolve(siteRoot, 'public/static/android-chrome-512x512.png'),
+  ],
+  [
+    'social-card.png',
+    resolve(legacyStatic, 'social-card.png'),
+    resolve(siteRoot, 'public/static/social-card.png'),
+  ],
+  [
+    'go-gopher-bear-lowpoly.png',
+    resolve(legacyStatic, 'go-gopher-bear-lowpoly.png'),
+    resolve(siteRoot, 'public/static/go-gopher-bear-lowpoly.png'),
+  ],
+  [
+    'gormes-agent-logo-blue.svg',
+    resolve(repoRoot, 'assets/gormes-agent-logo-blue.svg'),
+    resolve(siteRoot, 'public/static/gormes-agent-logo-blue.svg'),
+  ],
+];
+
+await refreshBenchmarks();
+await writeReleaseData();
+
+for (const [, source, target] of copies) {
+  await mkdir(dirname(target), { recursive: true });
+  await copyFile(source, target);
+}
+
+console.log(`synced ${copies.length} www.gormes.ai assets`);

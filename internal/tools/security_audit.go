@@ -19,6 +19,7 @@ const (
 	SecurityAuditCategoryShellBlocklist      = "shell_blocklist"
 	SecurityAuditCategoryFilesystemScoping   = "filesystem_scoping"
 	SecurityAuditCategoryCredentialRedaction = "credential_redaction"
+	SecurityAuditCategorySecretRefs          = "secret_refs"
 
 	SecurityAuditFindingGatewayAuthMissing       = "gateway_auth_missing"
 	SecurityAuditFindingGatewayProbeUnavailable  = "gateway_probe_unavailable"
@@ -29,6 +30,8 @@ const (
 	SecurityAuditFindingShellBlocklistGap        = "shell_blocklist_gap"
 	SecurityAuditFindingFilesystemScopeOpen      = "filesystem_scope_open"
 	SecurityAuditFindingCredentialLeak           = "credential_redaction_leak"
+	SecurityAuditFindingSecretRefUnavailable     = "secret_ref_unavailable"
+	SecurityAuditFindingSecretRefUnsupported     = "secret_ref_unsupported"
 	SecurityAuditFindingFixFailed                = "security_fix_failed"
 	SecurityAuditFindingUnsafeFixSkipped         = "unsafe_fix_skipped"
 
@@ -53,6 +56,7 @@ type SecurityAuditRequest struct {
 	Channels             []SecurityAuditChannel
 	Filesystem           SecurityAuditFilesystem
 	CredentialRedaction  SecurityAuditCredentialRedaction
+	SecretRefs           []SecurityAuditSecretRef
 	FixCandidates        []SecurityAuditFixCandidate
 	FixApplier           SecurityAuditFixApplier
 	TokenGenerator       SecurityAuditTokenGenerator
@@ -109,6 +113,17 @@ type SecurityAuditFilesystem struct {
 type SecurityAuditCredentialRedaction struct {
 	Secrets []string
 	Samples []string
+}
+
+type SecurityAuditSecretRef struct {
+	Path         string
+	Active       bool
+	Available    bool
+	Source       string
+	Provider     string
+	ID           string
+	EvidenceCode string
+	Message      string
 }
 
 type SecurityAuditFixCandidate struct {
@@ -205,6 +220,7 @@ func AuditSecurity(req SecurityAuditRequest) SecurityAuditResult {
 	b.auditChannelSecurity()
 	b.auditShellBlocklist()
 	b.auditFilesystemScoping()
+	b.auditSecretRefs()
 	b.auditCredentialRedaction()
 	b.applyFixCandidates()
 
@@ -257,6 +273,7 @@ func securityAuditCategories() []string {
 		SecurityAuditCategoryChannelSecurity,
 		SecurityAuditCategoryShellBlocklist,
 		SecurityAuditCategoryFilesystemScoping,
+		SecurityAuditCategorySecretRefs,
 		SecurityAuditCategoryCredentialRedaction,
 	}
 }
@@ -543,6 +560,74 @@ func (b *securityAuditBuilder) auditCredentialRedaction() {
 			}
 		}
 	}
+}
+
+func (b *securityAuditBuilder) auditSecretRefs() {
+	for _, ref := range b.req.SecretRefs {
+		path := strings.TrimSpace(ref.Path)
+		if path == "" {
+			path = strings.TrimSpace(ref.ID)
+		}
+		if path == "" {
+			path = "secret_ref"
+		}
+		evidence := securityAuditSecretRefEvidence(ref)
+		message := strings.TrimSpace(ref.Message)
+		if strings.EqualFold(strings.TrimSpace(ref.Source), "exec") {
+			if message == "" {
+				message = "exec SecretRef providers are not supported by this audit"
+			}
+			b.addFinding(SecurityAuditFinding{
+				Category: SecurityAuditCategorySecretRefs,
+				Code:     SecurityAuditFindingSecretRefUnsupported,
+				Severity: SecurityAuditStatusWarn,
+				Path:     path,
+				Message:  message,
+				Action:   "replace exec SecretRefs with env/file refs or verify them manually",
+				Evidence: evidence,
+				Redacted: true,
+			})
+			continue
+		}
+		if !ref.Available {
+			if message == "" {
+				message = "SecretRef is unavailable"
+			}
+			action := "resolve the SecretRef before relying on this credential surface"
+			if !ref.Active {
+				action = "remove the inactive SecretRef or activate the surface before requiring it"
+			}
+			b.addFinding(SecurityAuditFinding{
+				Category: SecurityAuditCategorySecretRefs,
+				Code:     SecurityAuditFindingSecretRefUnavailable,
+				Severity: SecurityAuditStatusWarn,
+				Path:     path,
+				Message:  message,
+				Action:   action,
+				Evidence: evidence,
+				Redacted: true,
+			})
+		}
+	}
+}
+
+func securityAuditSecretRefEvidence(ref SecurityAuditSecretRef) string {
+	parts := []string{}
+	for _, part := range []struct {
+		key   string
+		value string
+	}{
+		{key: "code", value: ref.EvidenceCode},
+		{key: "source", value: ref.Source},
+		{key: "provider", value: ref.Provider},
+		{key: "id", value: ref.ID},
+	} {
+		value := strings.TrimSpace(part.value)
+		if value != "" {
+			parts = append(parts, part.key+"="+value)
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 func (b *securityAuditBuilder) applyFixCandidates() {

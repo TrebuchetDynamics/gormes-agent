@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Planner"
+  short_description: "Plan Hermes and Honcho parity for Gormes."
+  default_prompt: "Use the Gormes planner skill to map upstream Hermes and Honcho behavior into progress.json rows for Gormes, preferring ./hermes-agent as the Python Hermes upstream reference."

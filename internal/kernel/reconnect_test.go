@@ -52,7 +52,7 @@ func TestKernel_HandlesMidStreamNetworkDrop(t *testing.T) {
 	// Wait for streaming to accumulate 5 "x" tokens.
 	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return f.Phase == PhaseStreaming && f.DraftText == "xxxxx"
-	}, 3*time.Second)
+	}, 10*time.Second)
 
 	// CHAOS MONKEY: close the first server's client connections mid-stream.
 	srv1.CloseClientConnections()

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes TDD Slice"
+  short_description: "Deliver one Gormes row with tracer-bullet TDD."
+  default_prompt: "Use the Gormes TDD slice skill to implement one progress.json row with red-green-refactor and verification gates, resolving ./hermes-agent as the Python upstream behavior reference for parity tests."

@@ -1,10 +1,13 @@
 package tui
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 )
 
 // SlashResult is the typed return value of a SlashHandler. It tells Update
@@ -31,7 +34,8 @@ type SlashHandler func(input string, model *Model) SlashResult
 // no synchronization is required as long as Register is called before the
 // Bubble Tea program starts.
 type SlashRegistry struct {
-	handlers map[string]slashEntry
+	handlers         map[string]slashEntry
+	consumeFallbacks bool
 }
 
 // slashEntry pairs a SlashHandler with its registration metadata. Today the
@@ -89,11 +93,12 @@ func (r *SlashRegistry) BusyAvailableSlashes() []string {
 	return names
 }
 
-// Dispatch parses the first whitespace-separated token of input. If it
-// starts with "/" and matches a registered handler, the handler runs with
-// the full original input string. Otherwise, an empty (Handled=false)
-// SlashResult is returned and the caller MUST treat input as a normal
-// kernel turn.
+// Dispatch parses the first whitespace-separated token of input. If it starts
+// with "/" and matches a registered handler, the handler runs with the full
+// original input string. Default registries also consume unresolved slash-like
+// input with visible guidance so command text cannot fall through to the model.
+// Bare registries created by NewSlashRegistry keep the old opt-in behavior:
+// unknown slash commands return Handled=false for focused handler tests.
 func (r *SlashRegistry) Dispatch(input string, model *Model) SlashResult {
 	fields := strings.Fields(strings.TrimSpace(input))
 	if len(fields) == 0 {
@@ -103,8 +108,12 @@ func (r *SlashRegistry) Dispatch(input string, model *Model) SlashResult {
 	if !strings.HasPrefix(first, "/") {
 		return SlashResult{}
 	}
-	entry, ok := r.handlers[normalizeSlashName(first)]
+	name := normalizeSlashName(first)
+	entry, ok := r.handlers[name]
 	if !ok {
+		if r.consumeFallbacks {
+			return slashFallbackResult(input)
+		}
 		return SlashResult{}
 	}
 	return entry.handler(input, model)
@@ -122,12 +131,74 @@ func normalizeSlashName(name string) string {
 // Model.
 func NewDefaultSlashRegistry() *SlashRegistry {
 	r := NewSlashRegistry()
+	r.consumeFallbacks = true
 	r.Register("mouse", mouseSlashHandler)
 	r.Register("scroll", mouseSlashHandler)
 	r.Register("save", saveSlashHandler)
 	r.Register("branch", branchSlashHandler)
 	r.Register("browser", browserSlashHandler, WithBusyAvailable())
 	return r
+}
+
+func slashFallbackResult(input string) SlashResult {
+	resolved := cli.ResolveCommandAlias(input)
+	if resolved.RawCommand == "" {
+		return SlashResult{}
+	}
+	switch resolved.Kind {
+	case cli.CommandAliasExact, cli.CommandAliasAlias, cli.CommandAliasPrefix:
+		return SlashResult{Handled: true, StatusMessage: slashKnownUnhandledStatus(resolved.RawCommand, resolved.Policy)}
+	case cli.CommandAliasAmbiguous:
+		return SlashResult{Handled: true, StatusMessage: slashAmbiguousNameStatus(resolved.Matches)}
+	case cli.CommandAliasUnknown:
+		return SlashResult{
+			Handled:       true,
+			StatusMessage: fmt.Sprintf("unknown command /%s — no slash command by that name is available", resolved.RawCommand),
+		}
+	}
+	return SlashResult{}
+}
+
+func slashKnownUnhandledStatus(typed string, policy cli.CommandPolicy) string {
+	display := "/" + policy.Name
+	if typed != policy.Name {
+		display = fmt.Sprintf("/%s -> /%s", typed, policy.Name)
+	}
+	switch policy.Surface {
+	case cli.CommandSurfaceGateway:
+		return display + " is recognized but requires gateway support in the native TUI"
+	default:
+		return display + " is recognized but unavailable in the native TUI"
+	}
+}
+
+func slashAmbiguousStatus(matches []SlashCompletion) string {
+	limit := len(matches)
+	if limit > 6 {
+		limit = 6
+	}
+	names := make([]string, 0, limit)
+	for _, match := range matches[:limit] {
+		names = append(names, "/"+match.Name)
+	}
+	suffix := ""
+	if len(matches) > limit {
+		suffix = ", ..."
+	}
+	return "ambiguous command: " + strings.Join(names, ", ") + suffix
+}
+
+func slashAmbiguousNameStatus(matches []string) string {
+	limit := len(matches)
+	if limit > 6 {
+		limit = 6
+	}
+	names := append([]string(nil), matches[:limit]...)
+	suffix := ""
+	if len(matches) > limit {
+		suffix = ", ..."
+	}
+	return "ambiguous command: " + strings.Join(names, ", ") + suffix
 }
 
 // mouseSlashHandler adapts the existing parseMouseTrackingSlash result into

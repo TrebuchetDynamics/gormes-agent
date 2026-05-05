@@ -9,7 +9,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-const DefaultStatusProgressPath = "docs/content/building-gormes/architecture_plan/progress.json"
+const DefaultStatusProgressPath = "webpages/docs/content/building-gormes/architecture_plan/progress.json"
 
 type StatusReportOptions struct {
 	ProgressPath string

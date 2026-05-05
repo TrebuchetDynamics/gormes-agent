@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
+	toolmeta "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 // MemoryToolStore abstracts the storage backend for agent-controlled memory
@@ -19,12 +21,17 @@ type MemoryToolStore interface {
 	Forget(ctx context.Context, id string) error
 }
 
+type MemoryImportanceUpdater interface {
+	UpdateImportance(ctx context.Context, id string, importance float64) error
+}
+
 // MemoryToolEntry is a single unit of agent-managed memory.
 type MemoryToolEntry struct {
 	ID         string            `json:"id"`
 	Content    string            `json:"content"`
 	Tags       []string          `json:"tags"`
 	Importance float64           `json:"importance"`
+	SessionID  string            `json:"session_id,omitempty"`
 	CreatedAt  time.Time         `json:"created_at"`
 	UpdatedAt  time.Time         `json:"updated_at"`
 	Metadata   map[string]string `json:"metadata,omitempty"`
@@ -57,16 +64,17 @@ func (t *storeMemoryTool) Description() string {
 	return "Persist information to agent memory. Use to remember facts, preferences, and lessons that should survive across sessions."
 }
 func (t *storeMemoryTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"content":{"type":"string","description":"The information to store"},"tags":{"type":"array","items":{"type":"string"},"description":"Tags for categorization"},"importance":{"type":"number","description":"Importance 0.0-1.0"}},"required":["content"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"content":{"type":"string","description":"The information to store"},"tags":{"type":"array","items":{"type":"string"},"description":"Tags for categorization"},"importance":{"type":"number","description":"Importance 0.0-1.0"},"metadata":{"type":"object","additionalProperties":{"type":"string"},"description":"Optional metadata to persist with provenance"}},"required":["content"]}`)
 }
-func (t storeMemoryTool) Spec() MemoryToolSpec {
-	return MemoryToolSpec{Name: "store_memory", Description: "Persist information to agent memory", Mutating: true, Idempotent: false}
+func (t storeMemoryTool) Spec() toolmeta.OperationSpec {
+	return memoryToolOperationSpec(t.Name(), t.Description(), t.Schema())
 }
 func (t *storeMemoryTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	var in struct {
-		Content    string   `json:"content"`
-		Tags       []string `json:"tags"`
-		Importance float64  `json:"importance"`
+		Content    string            `json:"content"`
+		Tags       []string          `json:"tags"`
+		Importance *float64          `json:"importance"`
+		Metadata   map[string]string `json:"metadata"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
 		return nil, fmt.Errorf("store_memory: %w", err)
@@ -74,13 +82,18 @@ func (t *storeMemoryTool) Execute(ctx context.Context, args json.RawMessage) (js
 	if in.Content == "" {
 		return nil, errors.New("store_memory: content is required")
 	}
+	importance := 0.5
+	if in.Importance != nil {
+		importance = clampMemoryImportance(*in.Importance)
+	}
 	entry := MemoryToolEntry{
 		ID:         fmt.Sprintf("mem_%d", time.Now().UnixNano()),
 		Content:    in.Content,
 		Tags:       in.Tags,
-		Importance: in.Importance,
+		Importance: importance,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
+		Metadata:   in.Metadata,
 	}
 	if err := t.store.Store(ctx, entry); err != nil {
 		return nil, fmt.Errorf("store_memory: %w", err)
@@ -117,8 +130,8 @@ func (t *retrieveMemoryTool) Description() string {
 func (t *retrieveMemoryTool) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{"query":{"type":"string","description":"Search query for memory retrieval"},"limit":{"type":"integer","description":"Max results (default 5)"}},"required":["query"]}`)
 }
-func (t retrieveMemoryTool) Spec() MemoryToolSpec {
-	return MemoryToolSpec{Name: "retrieve_memory", Description: "Retrieve relevant memories", Mutating: false, Idempotent: true}
+func (t retrieveMemoryTool) Spec() toolmeta.OperationSpec {
+	return memoryToolOperationSpec(t.Name(), t.Description(), t.Schema())
 }
 func (t *retrieveMemoryTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	var in struct {
@@ -167,27 +180,42 @@ func NewUpdateMemoryTool(store MemoryToolStore) *UpdateMemoryTool {
 func (t *updateMemoryTool) Name() string           { return "update_memory" }
 func (t *updateMemoryTool) Timeout() time.Duration { return 5 * time.Second }
 func (t *updateMemoryTool) Description() string {
-	return "Update an existing memory entry. Use when information has changed or needs correction."
+	return "Update an existing memory entry. Use when information has changed, needs correction, or its importance should be promoted or demoted."
 }
 func (t *updateMemoryTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"Memory entry ID to update"},"content":{"type":"string","description":"New content for the memory entry"}},"required":["id","content"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"Memory entry ID to update"},"content":{"type":"string","description":"New content for the memory entry"},"importance":{"type":"number","description":"New importance from 0.0 to 1.0"}},"required":["id"]}`)
 }
-func (t updateMemoryTool) Spec() MemoryToolSpec {
-	return MemoryToolSpec{Name: "update_memory", Description: "Update an existing memory entry", Mutating: true, Idempotent: false}
+func (t updateMemoryTool) Spec() toolmeta.OperationSpec {
+	return memoryToolOperationSpec(t.Name(), t.Description(), t.Schema())
 }
 func (t *updateMemoryTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	var in struct {
-		ID      string `json:"id"`
-		Content string `json:"content"`
+		ID         string   `json:"id"`
+		Content    string   `json:"content"`
+		Importance *float64 `json:"importance"`
 	}
 	if err := json.Unmarshal(args, &in); err != nil {
 		return nil, fmt.Errorf("update_memory: %w", err)
 	}
-	if in.ID == "" || in.Content == "" {
-		return nil, errors.New("update_memory: id and content are required")
+	if in.ID == "" {
+		return nil, errors.New("update_memory: id is required")
 	}
-	if err := t.store.Update(ctx, in.ID, in.Content); err != nil {
-		return nil, fmt.Errorf("update_memory: %w", err)
+	if in.Content == "" && in.Importance == nil {
+		return nil, errors.New("update_memory: content or importance is required")
+	}
+	if in.Content != "" {
+		if err := t.store.Update(ctx, in.ID, in.Content); err != nil {
+			return nil, fmt.Errorf("update_memory: %w", err)
+		}
+	}
+	if in.Importance != nil {
+		updater, ok := t.store.(MemoryImportanceUpdater)
+		if !ok {
+			return nil, errors.New("update_memory: store does not support importance updates")
+		}
+		if err := updater.UpdateImportance(ctx, in.ID, clampMemoryImportance(*in.Importance)); err != nil {
+			return nil, fmt.Errorf("update_memory: %w", err)
+		}
 	}
 	return json.Marshal(map[string]interface{}{
 		"success":          true,
@@ -220,8 +248,8 @@ func (t *summarizeMemoryTool) Description() string {
 func (t *summarizeMemoryTool) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{"filter":{"type":"string","description":"Tag or query to filter memories for summarization"},"max_items":{"type":"integer","description":"Max entries to summarize (default 10)"}},"required":["filter"]}`)
 }
-func (t summarizeMemoryTool) Spec() MemoryToolSpec {
-	return MemoryToolSpec{Name: "summarize_memories", Description: "Summarize related memories", Mutating: true, Idempotent: false}
+func (t summarizeMemoryTool) Spec() toolmeta.OperationSpec {
+	return memoryToolOperationSpec(t.Name(), t.Description(), t.Schema())
 }
 func (t *summarizeMemoryTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	var in struct {
@@ -247,6 +275,7 @@ func (t *summarizeMemoryTool) Execute(ctx context.Context, args json.RawMessage)
 	return json.Marshal(map[string]interface{}{
 		"summarized":       len(entries),
 		"filter":           in.Filter,
+		"summary":          summarizeMemoryEntries(entries),
 		"message":          "Memories retrieved for summarization.",
 		"contract_version": memory.GonchoMemoryV1ContractVersion,
 		"local_first":      true,
@@ -254,6 +283,32 @@ func (t *summarizeMemoryTool) Execute(ctx context.Context, args json.RawMessage)
 		"network_required": false,
 		"ollama_required":  false,
 	})
+}
+
+func summarizeMemoryEntries(entries []MemoryToolEntry) string {
+	if len(entries) == 0 {
+		return "No matching memories."
+	}
+	var summary strings.Builder
+	for _, entry := range entries {
+		content := strings.TrimSpace(entry.Content)
+		if content == "" {
+			continue
+		}
+		if summary.Len() > 0 {
+			summary.WriteByte('\n')
+		}
+		summary.WriteString("- ")
+		if entry.ID != "" {
+			summary.WriteString(entry.ID)
+			summary.WriteString(": ")
+		}
+		summary.WriteString(content)
+	}
+	if summary.Len() == 0 {
+		return "No matching memories."
+	}
+	return summary.String()
 }
 
 type forgetMemoryTool struct {
@@ -276,8 +331,8 @@ func (t *forgetMemoryTool) Description() string {
 func (t *forgetMemoryTool) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{"id":{"type":"string","description":"Memory entry ID to forget"}},"required":["id"]}`)
 }
-func (t forgetMemoryTool) Spec() MemoryToolSpec {
-	return MemoryToolSpec{Name: "forget_memory", Description: "Soft-delete a memory entry", Mutating: true, Idempotent: true}
+func (t forgetMemoryTool) Spec() toolmeta.OperationSpec {
+	return memoryToolOperationSpec(t.Name(), t.Description(), t.Schema())
 }
 func (t *forgetMemoryTool) Execute(ctx context.Context, args json.RawMessage) (json.RawMessage, error) {
 	var in struct {
@@ -303,10 +358,15 @@ func (t *forgetMemoryTool) Execute(ctx context.Context, args json.RawMessage) (j
 	})
 }
 
-// MemoryToolSpec declares behavioral metadata for memory tools.
-type MemoryToolSpec struct {
-	Name        string
-	Description string
-	Mutating    bool
-	Idempotent  bool
+func memoryToolOperationSpec(name, description string, schema json.RawMessage) toolmeta.OperationSpec {
+	spec, ok := toolmeta.MemoryToolOperationSpec(name)
+	if !ok {
+		return toolmeta.DefaultSpec(name, description, schema)
+	}
+	spec.ToolDescriptor = toolmeta.ToolDescriptor{
+		Name:        name,
+		Description: description,
+		Schema:      schema,
+	}
+	return spec
 }

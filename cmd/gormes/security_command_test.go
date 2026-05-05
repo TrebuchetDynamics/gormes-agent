@@ -17,6 +17,11 @@ func TestSecurityAuditCommandOutputsJSONAndAppliesSafeFixes(t *testing.T) {
 	t.Setenv("GATEWAY_PROXY_KEY", "")
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
 	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "")
+	t.Setenv("TELEGRAM_ALLOWED_USERS", "")
 	t.Setenv("GORMES_DISCORD_TOKEN", "")
 	t.Setenv("GORMES_DISCORD_CHANNEL_ID", "")
 	t.Setenv("GORMES_SLACK_ENABLED", "")
@@ -92,9 +97,98 @@ first_run_discovery = true
 	}
 }
 
+func TestSecurityAuditCommandReportsSecretRefAvailabilityWithoutLeaking(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	for _, name := range []string{
+		"GATEWAY_PROXY_URL",
+		"GATEWAY_PROXY_KEY",
+		"GORMES_API_KEY",
+		"GORMES_TELEGRAM_TOKEN",
+		"GORMES_TELEGRAM_CHAT_ID",
+		"GORMES_TELEGRAM_ALLOWED_USERS",
+		"TELEGRAM_BOT_TOKEN",
+		"TELEGRAM_TOKEN",
+		"TELEGRAM_HOME_CHANNEL",
+		"TELEGRAM_ALLOWED_USERS",
+		"GORMES_DISCORD_TOKEN",
+		"GORMES_DISCORD_CHANNEL_ID",
+		"GORMES_SLACK_ENABLED",
+		"GORMES_SLACK_BOT_TOKEN",
+		"GORMES_SLACK_APP_TOKEN",
+		"GORMES_SLACK_CHANNEL_ID",
+	} {
+		t.Setenv(name, "")
+	}
+	const resolvedSecret = "sk-custom-provider-secret"
+	t.Setenv("CUSTOM_PROVIDER_SECRET", resolvedSecret)
+
+	configPath := config.ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(configPath, []byte(`
+[hermes]
+endpoint = "http://127.0.0.1:11434"
+model = "fixture-model"
+
+[hermes.api_key_ref]
+source = "env"
+id = "CUSTOM_PROVIDER_SECRET"
+
+[telegram]
+allowed_chat_id = 42
+first_run_discovery = false
+
+[telegram.bot_token_ref]
+source = "env"
+id = "MISSING_TELEGRAM_TOKEN"
+
+[discord]
+allowed_channel_id = "C123"
+
+[discord.token_ref]
+source = "exec"
+id = "secret-helper"
+`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "security", "audit", "--deep", "--json")
+	if err != nil {
+		t.Fatalf("security audit: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, resolvedSecret) {
+		t.Fatalf("security audit leaked resolved SecretRef value:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var result toolspkg.SecurityAuditResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal: %v\nstdout=%s", err, stdout)
+	}
+	if !securityCommandCategoryPresent(result.Categories, toolspkg.SecurityAuditCategorySecretRefs) {
+		t.Fatalf("categories = %+v, missing secret_refs category", result.Categories)
+	}
+	if !securityCommandFindingPresent(result.Findings, toolspkg.SecurityAuditFindingSecretRefUnavailable) {
+		t.Fatalf("findings = %+v, missing unavailable SecretRef finding", result.Findings)
+	}
+	if !securityCommandFindingPresent(result.Findings, toolspkg.SecurityAuditFindingSecretRefUnsupported) {
+		t.Fatalf("findings = %+v, missing unsupported SecretRef finding", result.Findings)
+	}
+}
+
 func securityCommandCategoryPresent(categories []toolspkg.SecurityAuditCategoryResult, name string) bool {
 	for _, category := range categories {
 		if category.Name == name && category.Status != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func securityCommandFindingPresent(findings []toolspkg.SecurityAuditFinding, code string) bool {
+	for _, finding := range findings {
+		if finding.Code == code {
 			return true
 		}
 	}

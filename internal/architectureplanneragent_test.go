@@ -68,37 +68,37 @@ func TestArchitecturePlannerAgentRunsCodexuAndInstallsPeriodicTimer(t *testing.T
 	)
 
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		[]byte("{\n  \"meta\": {\"version\": \"2.0\", \"last_updated\": \"2026-04-22\", \"links\": {}},\n  \"phases\": {\n    \"2\": {\n      \"name\": \"Phase 2\",\n      \"deliverable\": \"Gateway\",\n      \"subphases\": {\n        \"2.B.4\": {\n          \"name\": \"WhatsApp Adapter\",\n          \"priority\": \"P1\",\n          \"items\": [\n            {\"name\": \"Pairing, reconnect, and send contract\", \"status\": \"planned\"}\n          ]\n        }\n      }\n    },\n    \"3\": {\n      \"name\": \"Phase 3\",\n      \"deliverable\": \"Memory\",\n      \"subphases\": {\n        \"3.E.8\": {\n          \"name\": \"Identity + Lineage\",\n          \"priority\": \"P0\",\n          \"items\": [\n            {\"name\": \"parent_session_id lineage for compression splits\", \"status\": \"planned\"}\n          ]\n        }\n      }\n    }\n  }\n}\n"),
 		0o644,
 	)
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "_index.md"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "_index.md"),
 		[]byte("# Architecture Plan\n"),
 		0o644,
 	)
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "phase-2-gateway.md"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "phase-2-gateway.md"),
 		[]byte("# Phase 2\n"),
 		0o644,
 	)
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "phase-3-memory.md"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "phase-3-memory.md"),
 		[]byte("# Phase 3\n"),
 		0o644,
 	)
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "subsystem-inventory.md"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "subsystem-inventory.md"),
 		[]byte("# Inventory\n"),
 		0o644,
 	)
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "core-systems", "gateway.md"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "core-systems", "gateway.md"),
 		[]byte("# Gateway\n"),
 		0o644,
 	)
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "core-systems", "memory.md"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "core-systems", "memory.md"),
 		[]byte("# Memory\n"),
 		0o644,
 	)
@@ -113,10 +113,13 @@ func TestArchitecturePlannerAgentRunsCodexuAndInstallsPeriodicTimer(t *testing.T
 		0o644,
 	)
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "doc.go"),
+		filepath.Join(gormesRepo, "webpages", "docs", "doc.go"),
 		[]byte("package docs\n"),
 		0o644,
 	)
+	if err := os.Symlink(filepath.Join("webpages", "docs"), filepath.Join(gormesRepo, "docs")); err != nil {
+		t.Fatalf("symlink docs compatibility path: %v", err)
+	}
 
 	runPlannerTestCommand(t, parentRepo, "git", "init")
 	runPlannerTestCommand(t, parentRepo, "git", "config", "user.name", "Test User")
@@ -212,7 +215,7 @@ case "$*" in
   "run ./cmd/progress write") echo "progress: _index.md regenerated" ;;
   "run ./cmd/progress validate") echo "progress: validated 2 phases" ;;
   "test ./internal/progress -count=1") echo "ok github.com/example/internal/progress 0.001s" ;;
-  "test ./docs -count=1") echo "ok github.com/example/docs 0.001s" ;;
+  "test ./webpages/docs -count=1") echo "ok github.com/example/docs 0.001s" ;;
   *) echo "unexpected go invocation: $*" >&2; exit 1 ;;
 esac
 `), 0o755)
@@ -390,7 +393,7 @@ exit 0
 		"run ./cmd/progress write",
 		"run ./cmd/progress validate",
 		"test ./internal/progress -count=1",
-		"test ./docs -count=1",
+		"test ./webpages/docs -count=1",
 	} {
 		if !strings.Contains(goLog, want) {
 			t.Fatalf("go log missing %q:\n%s", want, goLog)
@@ -463,18 +466,18 @@ func TestDocumentationImproverRunsAndWritesState(t *testing.T) {
 	)
 
 	writePlannerTestFile(t,
-		filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		[]byte("{\n  \"phases\": {\n    \"2\": {\n      \"name\": \"Phase 2\",\n      \"subphases\": {\n        \"2.F\": {\n          \"items\": [{\"name\": \"Channel directory persistence + lookup contract\", \"status\": \"in_progress\"}]\n        }\n      }\n    }\n  }\n}\n"),
 		0o644,
 	)
-	writePlannerTestFile(t, filepath.Join(gormesRepo, "docs", "content", "building-gormes", "architecture_plan", "_index.md"), []byte("# Architecture Plan\n"), 0o644)
-	writePlannerTestFile(t, filepath.Join(gormesRepo, "docs", "content", "building-gormes", "core-systems", "gateway.md"), []byte("# Gateway\n"), 0o644)
-	writePlannerTestFile(t, filepath.Join(gormesRepo, "www.gormes.ai", "content", "_index.md"), []byte("# Gormes site\n"), 0o644)
-	writePlannerTestFile(t, filepath.Join(gormesRepo, "www.gormes.ai", "src", "data", "progress.json"), []byte("{}\n"), 0o644)
-	writePlannerTestFile(t, filepath.Join(gormesRepo, "www.gormes.ai", "internal", "site", "data", "progress.json"), []byte("{}\n"), 0o644)
+	writePlannerTestFile(t, filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "architecture_plan", "_index.md"), []byte("# Architecture Plan\n"), 0o644)
+	writePlannerTestFile(t, filepath.Join(gormesRepo, "webpages", "docs", "content", "building-gormes", "core-systems", "gateway.md"), []byte("# Gateway\n"), 0o644)
+	writePlannerTestFile(t, filepath.Join(gormesRepo, "webpages", "landing", "content", "_index.md"), []byte("# Gormes site\n"), 0o644)
+	writePlannerTestFile(t, filepath.Join(gormesRepo, "webpages", "landing", "src", "data", "progress.json"), []byte("{}\n"), 0o644)
+	writePlannerTestFile(t, filepath.Join(gormesRepo, "webpages", "landing", "internal", "site", "data", "progress.json"), []byte("{}\n"), 0o644)
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "cmd", "autoloop", "progress.go"), []byte("package main\nfunc main() {}\n"), 0o644)
 	writePlannerTestFile(t, filepath.Join(gormesRepo, "internal", "progress", "doc.go"), []byte("package progress\n"), 0o644)
-	writePlannerTestFile(t, filepath.Join(gormesRepo, "docs", "doc.go"), []byte("package docs\n"), 0o644)
+	writePlannerTestFile(t, filepath.Join(gormesRepo, "webpages", "docs", "doc.go"), []byte("package docs\n"), 0o644)
 
 	runPlannerTestCommand(t, gormesRepo, "git", "init")
 	runPlannerTestCommand(t, gormesRepo, "git", "config", "user.name", "Test User")
@@ -525,7 +528,7 @@ case "$*" in
   "run ./cmd/progress write") echo "progress: _index.md regenerated" ;;
   "run ./cmd/progress validate") echo "progress: validated 2 phases" ;;
   "test ./internal/progress -count=1") echo "ok github.com/example/internal/progress 0.001s" ;;
-  "test ./docs -count=1") echo "ok github.com/example/docs 0.001s" ;;
+  "test ./webpages/docs -count=1") echo "ok github.com/example/docs 0.001s" ;;
   *) echo "unexpected go invocation: $*" >&2; exit 1 ;;
 esac
 `), 0o755)
@@ -609,7 +612,7 @@ esac
 		"run ./cmd/progress write",
 		"run ./cmd/progress validate",
 		"test ./internal/progress -count=1",
-		"test ./docs -count=1",
+		"test ./webpages/docs -count=1",
 	} {
 		if !strings.Contains(goLog, want) {
 			t.Fatalf("go log missing %q:\n%s", want, goLog)

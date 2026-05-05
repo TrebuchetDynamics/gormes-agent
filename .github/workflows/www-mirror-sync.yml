@@ -3,19 +3,23 @@ name: www mirror sync check
 on:
   pull_request:
     paths:
-      - 'docs/content/building-gormes/architecture_plan/progress.json'
-      - 'www.gormes.ai/src/data/progress.json'
-      - 'www.gormes.ai/scripts/sync-assets.mjs'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
+      - 'webpages/landing/src/data/progress.json'
+      - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
-      - 'www.gormes.ai/src/data/benchmarks.json'
+      - 'webpages/landing/src/data/benchmarks.json'
+      - 'cmd/gormes/version.go'
+      - 'webpages/landing/src/data/release.json'
   push:
     branches: [main, development]
     paths:
-      - 'docs/content/building-gormes/architecture_plan/progress.json'
-      - 'www.gormes.ai/src/data/progress.json'
-      - 'www.gormes.ai/scripts/sync-assets.mjs'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
+      - 'webpages/landing/src/data/progress.json'
+      - 'webpages/landing/scripts/sync-assets.mjs'
       - 'benchmarks.json'
-      - 'www.gormes.ai/src/data/benchmarks.json'
+      - 'webpages/landing/src/data/benchmarks.json'
+      - 'cmd/gormes/version.go'
+      - 'webpages/landing/src/data/release.json'
 
 permissions:
   contents: read
@@ -37,20 +41,21 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: www.gormes.ai/package-lock.json
+          cache-dependency-path: webpages/landing/package-lock.json
 
       - name: Install dependencies
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: npm ci
 
       - name: Run www mirror sync
         run: |
-          cd www.gormes.ai
+          cd webpages/landing
           npm run prebuild
 
       - name: Verify mirror matches canonical
         env:
           GIT_PAGER: cat
         run: |
-          git diff --exit-code www.gormes.ai/src/data/progress.json
-          git diff --exit-code www.gormes.ai/src/data/benchmarks.json
+          git diff --exit-code webpages/landing/src/data/progress.json
+          git diff --exit-code webpages/landing/src/data/benchmarks.json
+          git diff --exit-code webpages/landing/src/data/release.json

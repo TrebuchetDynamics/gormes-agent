@@ -57,10 +57,13 @@ func newSecurityAuditCommand() *cobra.Command {
 
 func buildCLISecurityAuditRequest(ctx context.Context, cfg config.Config, deep, fix bool) toolspkg.SecurityAuditRequest {
 	secrets := cliSecurityAuditSecrets(cfg)
+	secretRefs := cliSecurityAuditSecretRefs(cfg, secrets)
+	secrets = appendUniqueSecurityAuditSecrets(secrets, secretRefs.Secrets...)
 	cwd, err := os.Getwd()
 	if err != nil || strings.TrimSpace(cwd) == "" {
 		cwd = config.GormesHome()
 	}
+	secretRefAvailability := cliSecurityAuditSecretRefAvailability(secretRefs.Refs)
 	return toolspkg.SecurityAuditRequest{
 		Deep: deep,
 		Fix:  fix,
@@ -75,9 +78,10 @@ func buildCLISecurityAuditRequest(ctx context.Context, cfg config.Config, deep, 
 		State: toolspkg.SecurityAuditState{
 			Files: cliSecurityAuditStateFiles(),
 		},
-		Channels:            cliSecurityAuditChannels(cfg),
+		Channels:            cliSecurityAuditChannels(cfg, secretRefAvailability),
 		Filesystem:          cliSecurityAuditFilesystem(cwd),
 		CredentialRedaction: cliSecurityAuditCredentialRedaction(secrets),
+		SecretRefs:          secretRefs.Refs,
 		FixCandidates:       cliSecurityAuditFixCandidates(),
 		FixApplier:          cliSecurityAuditFixApplier,
 		TokenGenerator:      cliSecurityAuditGenerateGatewayToken,
@@ -164,26 +168,26 @@ func cliSecurityAuditStateFile(path string) toolspkg.SecurityAuditStateFile {
 	return toolspkg.SecurityAuditStateFile{Path: path, Exists: true, Valid: true}
 }
 
-func cliSecurityAuditChannels(cfg config.Config) []toolspkg.SecurityAuditChannel {
+func cliSecurityAuditChannels(cfg config.Config, secretRefs map[string]bool) []toolspkg.SecurityAuditChannel {
 	return []toolspkg.SecurityAuditChannel{
 		{
 			Name:                   "telegram",
-			Enabled:                strings.TrimSpace(cfg.Telegram.BotToken) != "" || cfg.Telegram.AllowedChatID != 0 || cfg.Telegram.FirstRunDiscovery,
-			TokenConfigured:        strings.TrimSpace(cfg.Telegram.BotToken) != "",
-			AllowedScopeConfigured: cfg.Telegram.AllowedChatID != 0,
+			Enabled:                strings.TrimSpace(cfg.Telegram.BotToken) != "" || cfg.Telegram.AllowedChatID != 0 || len(cfg.Telegram.AllowedUserIDs) > 0 || cfg.Telegram.FirstRunDiscovery,
+			TokenConfigured:        strings.TrimSpace(cfg.Telegram.BotToken) != "" || secretRefs["telegram.bot_token"],
+			AllowedScopeConfigured: cfg.Telegram.AllowedChatID != 0 || len(cfg.Telegram.AllowedUserIDs) > 0,
 			FirstRunDiscovery:      cfg.Telegram.FirstRunDiscovery,
 		},
 		{
 			Name:                   "discord",
 			Enabled:                strings.TrimSpace(cfg.Discord.Token) != "" || strings.TrimSpace(cfg.Discord.AllowedChannelID) != "" || cfg.Discord.FirstRunDiscovery,
-			TokenConfigured:        strings.TrimSpace(cfg.Discord.Token) != "",
+			TokenConfigured:        strings.TrimSpace(cfg.Discord.Token) != "" || secretRefs["discord.token"],
 			AllowedScopeConfigured: strings.TrimSpace(cfg.Discord.AllowedChannelID) != "",
 			FirstRunDiscovery:      cfg.Discord.FirstRunDiscovery,
 		},
 		{
 			Name:                   "slack",
 			Enabled:                cfg.Slack.Enabled || strings.TrimSpace(cfg.Slack.BotToken) != "" || strings.TrimSpace(cfg.Slack.AppToken) != "" || strings.TrimSpace(cfg.Slack.AllowedChannelID) != "" || cfg.Slack.FirstRunDiscovery,
-			TokenConfigured:        strings.TrimSpace(cfg.Slack.BotToken) != "" && strings.TrimSpace(cfg.Slack.AppToken) != "",
+			TokenConfigured:        (strings.TrimSpace(cfg.Slack.BotToken) != "" || secretRefs["slack.bot_token"]) && (strings.TrimSpace(cfg.Slack.AppToken) != "" || secretRefs["slack.app_token"]),
 			AllowedScopeConfigured: strings.TrimSpace(cfg.Slack.AllowedChannelID) != "",
 			FirstRunDiscovery:      cfg.Slack.FirstRunDiscovery,
 		},
@@ -231,6 +235,8 @@ func cliSecurityAuditSecrets(cfg config.Config) []string {
 		os.Getenv("GORMES_API_KEY"),
 		os.Getenv("GATEWAY_PROXY_KEY"),
 		os.Getenv("GORMES_TELEGRAM_TOKEN"),
+		os.Getenv("TELEGRAM_BOT_TOKEN"),
+		os.Getenv("TELEGRAM_TOKEN"),
 		os.Getenv("GORMES_DISCORD_TOKEN"),
 		os.Getenv("GORMES_SLACK_BOT_TOKEN"),
 		os.Getenv("GORMES_SLACK_APP_TOKEN"),
@@ -249,6 +255,109 @@ func cliSecurityAuditSecrets(cfg config.Config) []string {
 		secrets = append(secrets, value)
 	}
 	return secrets
+}
+
+type cliSecurityAuditSecretRefsResult struct {
+	Refs    []toolspkg.SecurityAuditSecretRef
+	Secrets []string
+}
+
+type cliSecurityAuditSecretRefTarget struct {
+	Path   string
+	Ref    *config.SecretRef
+	Active bool
+}
+
+func cliSecurityAuditSecretRefs(cfg config.Config, baseSecrets []string) cliSecurityAuditSecretRefsResult {
+	resolver := config.NewSecretResolver(config.SecretResolverConfig{Secrets: cfg.Secrets})
+	result := cliSecurityAuditSecretRefsResult{}
+	targets := []cliSecurityAuditSecretRefTarget{
+		{Path: "hermes.api_key", Ref: cfg.Hermes.APIKeyRef, Active: cfg.Hermes.APIKeyRef != nil},
+		{Path: "telegram.bot_token", Ref: cfg.Telegram.BotTokenRef, Active: cfg.Telegram.BotTokenRef != nil},
+		{Path: "discord.token", Ref: cfg.Discord.TokenRef, Active: cfg.Discord.TokenRef != nil},
+		{Path: "slack.bot_token", Ref: cfg.Slack.BotTokenRef, Active: cfg.Slack.BotTokenRef != nil},
+		{Path: "slack.app_token", Ref: cfg.Slack.AppTokenRef, Active: cfg.Slack.AppTokenRef != nil},
+	}
+	redactions := append([]string{}, baseSecrets...)
+	for _, target := range targets {
+		if target.Ref == nil {
+			continue
+		}
+		ref := normalizeCLISecurityAuditSecretRef(*target.Ref)
+		entry := toolspkg.SecurityAuditSecretRef{
+			Path:     target.Path,
+			Active:   target.Active,
+			Source:   string(ref.Source),
+			Provider: ref.Provider,
+			ID:       ref.ID,
+		}
+		if ref.Source == config.SecretRefSourceExec {
+			entry.Available = false
+			entry.EvidenceCode = config.SecretRefEvidenceUnsupported
+			entry.Message = "exec SecretRef providers are not supported by security audit"
+			result.Refs = append(result.Refs, entry)
+			continue
+		}
+		value, evidence, err := resolver.ResolveString(ref)
+		entry.Available = err == nil
+		entry.EvidenceCode = evidence.Code
+		if evidence.Source != "" {
+			entry.Source = evidence.Source
+		}
+		if evidence.Provider != "" {
+			entry.Provider = evidence.Provider
+		}
+		if evidence.ID != "" {
+			entry.ID = evidence.ID
+		}
+		if err != nil {
+			entry.Message = toolspkg.RedactSecurityAuditText(err.Error(), redactions)
+		} else {
+			entry.Message = "SecretRef resolved"
+			result.Secrets = append(result.Secrets, value)
+			redactions = append(redactions, value)
+		}
+		result.Refs = append(result.Refs, entry)
+	}
+	result.Secrets = appendUniqueSecurityAuditSecrets(nil, result.Secrets...)
+	return result
+}
+
+func normalizeCLISecurityAuditSecretRef(ref config.SecretRef) config.SecretRef {
+	ref.Source = config.SecretRefSource(strings.ToLower(strings.TrimSpace(string(ref.Source))))
+	ref.Provider = strings.TrimSpace(ref.Provider)
+	if ref.Provider == "" {
+		ref.Provider = config.DefaultSecretProviderAlias
+	}
+	ref.ID = strings.TrimSpace(ref.ID)
+	return ref
+}
+
+func cliSecurityAuditSecretRefAvailability(refs []toolspkg.SecurityAuditSecretRef) map[string]bool {
+	availability := map[string]bool{}
+	for _, ref := range refs {
+		if ref.Active && ref.Available {
+			availability[ref.Path] = true
+		}
+	}
+	return availability
+}
+
+func appendUniqueSecurityAuditSecrets(secrets []string, values ...string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(secrets)+len(values))
+	for _, value := range append(append([]string{}, secrets...), values...) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func cliSecurityAuditFixCandidates() []toolspkg.SecurityAuditFixCandidate {

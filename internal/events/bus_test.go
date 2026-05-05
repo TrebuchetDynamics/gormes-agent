@@ -28,6 +28,80 @@ func TestPublishSubscribe(t *testing.T) {
 	}
 }
 
+func TestEventBusCore_PubSubRoutingTypedEvent(t *testing.T) {
+	bus := NewInProcessEventBus()
+	defer bus.Close()
+
+	delivered := make(chan Event, 1)
+	bus.Subscribe("memory.updated", func(e Event) {
+		delivered <- e
+	})
+	evt := NewEvent("memory.updated", "goncho", json.RawMessage(`{"id":"mem_1"}`), "trace-memory-1")
+	if evt.Timestamp.IsZero() || evt.Source != "goncho" || evt.TraceID != "trace-memory-1" || string(evt.Payload) == "" {
+		t.Fatalf("event provenance = %+v, want type/timestamp/source/payload/trace_id", evt)
+	}
+	if err := bus.Publish("memory.updated", evt); err != nil {
+		t.Fatalf("Publish: %v", err)
+	}
+
+	select {
+	case got := <-delivered:
+		if got.Type != evt.Type || got.Source != evt.Source || got.TraceID != evt.TraceID || string(got.Payload) != string(evt.Payload) {
+			t.Fatalf("delivered event = %+v, want %+v", got, evt)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for typed event delivery")
+	}
+}
+
+func TestEventBusCore_TopicIsolationAndUnsubscribe(t *testing.T) {
+	bus := NewInProcessEventBus()
+	defer bus.Close()
+
+	var gotA, gotB atomic.Int32
+	unsub := bus.Subscribe("gateway.message", func(Event) { gotA.Add(1) })
+	bus.Subscribe("agent.turn", func(Event) { gotB.Add(1) })
+	if err := bus.Publish("gateway.message", NewEvent("message", "gateway", nil, "trace-1")); err != nil {
+		t.Fatalf("Publish gateway.message: %v", err)
+	}
+	time.Sleep(30 * time.Millisecond)
+	if gotA.Load() != 1 || gotB.Load() != 0 {
+		t.Fatalf("topic counts before unsubscribe = gateway:%d agent:%d, want 1/0", gotA.Load(), gotB.Load())
+	}
+
+	unsub()
+	if err := bus.Publish("gateway.message", NewEvent("message", "gateway", nil, "trace-2")); err != nil {
+		t.Fatalf("Publish gateway.message after unsubscribe: %v", err)
+	}
+	time.Sleep(30 * time.Millisecond)
+	if gotA.Load() != 1 {
+		t.Fatalf("gateway count after unsubscribe = %d, want unchanged 1", gotA.Load())
+	}
+}
+
+func TestEventBusCore_BackpressureDoesNotBlockPublisher(t *testing.T) {
+	bus := NewInProcessEventBus()
+	bus.bufferSize = 1
+	defer bus.Close()
+
+	blocker := make(chan struct{})
+	bus.Subscribe("slow", func(Event) {
+		<-blocker
+	})
+
+	start := time.Now()
+	for i := 0; i < 100; i++ {
+		if err := bus.Publish("slow", NewEvent("tick", "test", nil, "trace-slow")); err != nil {
+			t.Fatalf("Publish slow: %v", err)
+		}
+	}
+	elapsed := time.Since(start)
+	close(blocker)
+	if elapsed > 50*time.Millisecond {
+		t.Fatalf("publishing to slow subscriber took %v, want nonblocking publish", elapsed)
+	}
+}
+
 func TestMultipleSubscribers(t *testing.T) {
 	bus := NewInProcessEventBus()
 	defer bus.Close()

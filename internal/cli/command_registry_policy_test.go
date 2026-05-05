@@ -113,6 +113,28 @@ func TestCommandRegistryGoalCommandTracksHermesRegistry(t *testing.T) {
 	}
 }
 
+func TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands(t *testing.T) {
+	cmd, ok := ResolveCommandPolicy("/kanban create task")
+	if !ok {
+		t.Fatal("ResolveCommandPolicy(/kanban create task) not found")
+	}
+	if cmd.ActiveTurnPolicy != ActiveTurnPolicyUnavailable {
+		t.Fatalf("/kanban policy = %q, want %q until gateway/TUI slash handler lands", cmd.ActiveTurnPolicy, ActiveTurnPolicyUnavailable)
+	}
+	if cmd.Ported {
+		t.Fatal("/kanban Ported = true, want false until slash handler lands")
+	}
+	want := []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link"}
+	if len(cmd.Subcommands) != len(want) {
+		t.Fatalf("/kanban Subcommands = %v, want %v", cmd.Subcommands, want)
+	}
+	for i, sub := range want {
+		if cmd.Subcommands[i] != sub {
+			t.Errorf("/kanban Subcommands[%d] = %q, want %q (full=%v)", i, cmd.Subcommands[i], sub, cmd.Subcommands)
+		}
+	}
+}
+
 func TestCommandRegistryPolicyBusyVerdictForUnknownIsUnavailable(t *testing.T) {
 	v := EvaluateActiveTurnVerdict("/no-such-command-xyzzy", true)
 	if v.Known {

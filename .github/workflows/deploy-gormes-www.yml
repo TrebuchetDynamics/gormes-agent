@@ -4,12 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'www.gormes.ai/**'
+      - 'webpages/landing/**'
       - 'benchmarks.json'
-      - 'docs/content/building-gormes/architecture_plan/progress.json'
+      - 'webpages/docs/content/building-gormes/architecture_plan/progress.json'
       - 'install.sh'
       - 'scripts/install.ps1'
       - 'scripts/install.cmd'
+      - 'cmd/gormes/version.go'
       - '.github/workflows/deploy-gormes-www.yml'
   workflow_dispatch:
 
@@ -29,22 +30,33 @@ jobs:
         with:
           submodules: recursive
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: www.gormes.ai/package-lock.json
+          cache-dependency-path: webpages/landing/package-lock.json
 
       - name: Install dependencies
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: npm ci
 
+      - name: Refresh benchmark input
+        run: |
+          version=$(grep 'var Version =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.Version=${version}" -o bin/gormes ./cmd/gormes
+
       - name: Build Astro static site
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
+        env:
+          GORMES_WWW_REFRESH_BENCHMARKS: '1'
         run: npm run build
 
       - name: Verify build artifacts
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: |
           test -f dist/index.html
           test -f dist/install.sh
@@ -56,14 +68,19 @@ jobs:
           test -d dist/_astro
 
       - name: Verify homepage content
-        working-directory: www.gormes.ai
+        working-directory: webpages/landing
         run: |
           grep -F 'data-site-runtime="astro-tailwind"' dist/index.html >/dev/null
-          grep -F "Run Agents From One Go Binary." dist/index.html >/dev/null
-          grep -F "Gormes runs AI agents as a single static binary." dist/index.html >/dev/null
+          grep -F "Run AI agents from one Go binary." dist/index.html >/dev/null
+          grep -F "Gormes runs local agent sessions, provider turns, memory, dashboards, and chat gateways from one Go binary." dist/index.html >/dev/null
+          grep -F "Current scout release:" dist/index.html >/dev/null
+          grep -F "Runtime-ready" dist/index.html >/dev/null
           grep -F 'href="/static/favicon.ico"' dist/index.html >/dev/null
           grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
           grep -F '/static/go-gopher-bear-lowpoly.png' dist/index.html >/dev/null
+          ! grep -F "Gormes 0.1.0" dist/index.html >/dev/null
+          ! grep -F "Run Agents From One Go Binary." dist/index.html >/dev/null
+          ! grep -F "Gormes runs AI agents as a single static binary." dist/index.html >/dev/null
           ! grep -F "Run AI Agents as One Go Binary." dist/index.html >/dev/null
           ! grep -F "One static binary. No Python runtime. No Hermes process." dist/index.html >/dev/null
           ! grep -F "One Go Binary. No Python. No Drift." dist/index.html >/dev/null
@@ -86,7 +103,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy www.gormes.ai/dist --project-name=gormes-agent-landing --branch=main --commit-dirty=true
+          command: pages deploy webpages/landing/dist --project-name=gormes-agent-landing --branch=main --commit-dirty=true
 
       - name: Attach gormes.ai
         env:

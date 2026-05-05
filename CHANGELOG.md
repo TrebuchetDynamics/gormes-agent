@@ -8,6 +8,34 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.1.02] - 2026-05-05
+
+### Added
+- Expanded Go-native Hermes parity across CLI, TUI, provider, gateway, tool,
+  memory, cron, migration, and dashboard surfaces.
+- Operator workflows for setup and onboarding, provider defaults, security audit
+  SecretRef findings, source-backed installation, discovery probes, system
+  events, ACP bridge mode, WhatsApp setup, kanban dispatch, and Goncho memory
+  tools.
+- Repo-local parity and delivery skills for Hermes/OpenClaw discovery,
+  provider/browser/runtime/build/release/git/readme/landing workflows, plus
+  skill validation and dependency tooling.
+
+### Changed
+- Relocated web surfaces under `webpages/` and refreshed landing, docs, README,
+  progress, and benchmark outputs from current source evidence.
+- Hardened release and installer flows, Windows builds, config isolation,
+  gateway secrets, terminal settings, and branch safety guardrails.
+
+### Fixed
+- Provider and gateway failure handling now sanitizes provider errors,
+  authenticates health checks, redacts runtime errors and media paths, and
+  stabilizes provider failure admission.
+- Telegram markdown, audio, voice, typing, live-turn, and browser-artifact
+  behavior; TUI session DB lock fallback and Hermes chrome alignment; dashboard
+  static assets; setup cancellation and noninteractive paths; and release SBOM
+  upload behavior.
+
 ## [0.1.01] - 2026-05-04
 
 ### Added
@@ -73,7 +101,8 @@ inside the 0.x compatibility window.
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.01...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.02...HEAD
+[0.1.02]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.01...v0.1.02
 [0.1.01]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0...v0.1.01
 [0.1.0]: https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.0
 [0.2.0-scout]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0-scout...v0.2.0-scout

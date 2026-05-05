@@ -1,4 +1,0 @@
-interface:
-  display_name: "Gormes Skill Manager"
-  short_description: "Select Gormes skills and detect missing ones."
-  default_prompt: "Use the Gormes skill manager to choose the right Gormes skill workflow and decide whether a new repo-local skill is needed."

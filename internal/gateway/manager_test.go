@@ -53,6 +53,21 @@ func TestManager_RegisterEmptyName(t *testing.T) {
 	}
 }
 
+func TestManager_AllowedUsesPlatformUserAllowlist(t *testing.T) {
+	m := NewManager(ManagerConfig{
+		AllowedUsers: map[string]map[string]bool{
+			"telegram": {"6586915095": true},
+		},
+	}, nil, slog.Default())
+
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "-10042", UserID: "6586915095"}) {
+		t.Fatal("allowed user was blocked")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "-10042", UserID: "111"}) {
+		t.Fatal("unlisted user was allowed")
+	}
+}
+
 type fakeKernel struct {
 	mu        sync.Mutex
 	submits   []kernel.PlatformEvent

@@ -99,10 +99,10 @@ LOCK_PID_FILE="$LOCK_DIR/pid"
 LOCK_STARTED_FILE="$LOCK_DIR/started_at"
 LOCK_COMMAND_FILE="$LOCK_DIR/command"
 
-PROGRESS_JSON="$REPO_ROOT/docs/content/building-gormes/architecture_plan/progress.json"
-ARCH_PLAN_DIR="$REPO_ROOT/docs/content/building-gormes/architecture_plan"
+PROGRESS_JSON="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan/progress.json"
+ARCH_PLAN_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/architecture_plan"
 ARCH_PLAN_JSON="$ARCH_PLAN_DIR/architecture_plan.json"
-CORE_SYSTEMS_DIR="$REPO_ROOT/docs/content/building-gormes/core-systems"
+CORE_SYSTEMS_DIR="$REPO_ROOT/webpages/docs/content/building-gormes/core-systems"
 RUN_AT_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 RUN_STAMP="$(date -u +"%Y%m%dT%H%M%SZ")"
 
@@ -946,7 +946,7 @@ Required work:
    - go run ./cmd/progress write
    - go run ./cmd/progress validate
    - go test ./internal/progress -count=1
-   - go test ./docs -count=1
+   - go test ./webpages/docs -count=1
 
 Required final report format:
 1) Scope scanned
@@ -1104,7 +1104,7 @@ run_validation() {
     go run ./cmd/progress write
     go run ./cmd/progress validate
     go test ./internal/progress -count=1
-    go test ./docs -count=1
+    go test ./webpages/docs -count=1
   ) >>"$VALIDATION_LOG" 2>&1 || {
     cat "$VALIDATION_LOG" >&2
     fail "validation failed"

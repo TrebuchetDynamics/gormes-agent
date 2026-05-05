@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Parity Auditor"
+  short_description: "Map upstream Hermes and Honcho gaps into Gormes rows."
+  default_prompt: "Use the Gormes parity auditor skill to compare upstream Hermes/Honcho behavior against Gormes, preferring ./hermes-agent as the Python Hermes upstream reference, and produce progress.json-ready gaps."

@@ -16,18 +16,20 @@ import (
 // prompt_builder.py used as the byte-equivalence source-of-truth.
 //
 // Resolution order:
-//  1. ../hermes-agent/agent/prompt_builder.py relative to the gormes-agent repo root
-//     (the parent of internal/hermes is internal; its parent is the repo root).
-//  2. /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/prompt_builder.py
+//  1. ./hermes-agent/agent/prompt_builder.py relative to the gormes-agent repo root
+//     (internal/hermes is two levels below the repo root).
+//  2. ../hermes-agent/agent/prompt_builder.py as the older sibling checkout layout.
+//  3. /home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/prompt_builder.py
 //     as the shared local upstream checkout when the active Gormes repo lives
 //     under workspace-gormes.
-//  3. /home/xel/.hermes/hermes-agent/agent/prompt_builder.py as a developer fallback.
+//  4. /home/xel/.hermes/hermes-agent/agent/prompt_builder.py as a developer fallback.
 //
 // Returns the resolved path and ok=true if a readable file is found.
 func upstreamPromptBuilderPath(t *testing.T) (string, bool) {
 	t.Helper()
 	// internal/hermes is two levels below the repo root.
 	candidates := []string{
+		filepath.Join("..", "..", "hermes-agent", "agent", "prompt_builder.py"),
 		filepath.Join("..", "..", "..", "hermes-agent", "agent", "prompt_builder.py"),
 		"/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/prompt_builder.py",
 		"/home/xel/.hermes/hermes-agent/agent/prompt_builder.py",

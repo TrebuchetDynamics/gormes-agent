@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	gormesruntime "github.com/TrebuchetDynamics/gormes-agent/internal/runtime"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -33,6 +35,13 @@ var doctorCmd = &cobra.Command{
 		}
 
 		offline, _ := cmd.Flags().GetBool("offline")
+		activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
+		cfg = activatedCfg
+		secretRuntimeResult := doctorSecretRuntimeStatus(secretSnapshot, secretActivationErr)
+		fmt.Fprint(cmd.OutOrStdout(), secretRuntimeResult.Format())
+		if secretRuntimeResult.Status == doctor.StatusFail {
+			os.Exit(2)
+		}
 
 		if !offline {
 			providerName := cfg.Hermes.Provider
@@ -84,7 +93,7 @@ var doctorCmd = &cobra.Command{
 					fmt.Printf("[FAIL] gateway/telegram: %v\n", err)
 					os.Exit(2)
 				}
-				fmt.Printf("[PASS] gateway/telegram: allowed_chat_id=%d\n", cfg.Telegram.AllowedChatID)
+				fmt.Printf("[PASS] gateway/telegram: %s\n", configuredTelegramGatewayStatusDetail(cfg.Telegram))
 			} else {
 				fmt.Println("[SKIP] gateway/telegram: disabled")
 			}
@@ -143,6 +152,57 @@ func doctorProviderHealthTarget(cfg config.Config) string {
 		return provider
 	}
 	return "configured provider"
+}
+
+func doctorSecretRuntimeStatus(snapshot gormesruntime.SecretRuntimeSnapshot, activationErr error) doctor.CheckResult {
+	resolved := 0
+	inactive := 0
+	unavailable := 0
+	items := make([]doctor.ItemInfo, 0, len(snapshot.Entries))
+	paths := make([]string, 0, len(snapshot.Entries))
+	for path := range snapshot.Entries {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		entry := snapshot.Entries[path]
+		state := "unavailable"
+		status := doctor.StatusFail
+		switch {
+		case entry.Resolved:
+			resolved++
+			state = "resolved"
+			status = doctor.StatusPass
+		case !entry.Active:
+			inactive++
+			state = "inactive"
+			status = doctor.StatusPass
+		default:
+			unavailable++
+		}
+		note := fmt.Sprintf("%s: %s source=%s provider=%s id=%s redacted=%t",
+			path,
+			state,
+			entry.Evidence.Source,
+			entry.Evidence.Provider,
+			entry.Evidence.ID,
+			entry.Evidence.Redacted,
+		)
+		if entry.Reason != "" {
+			note += " reason=" + entry.Reason
+		}
+		items = append(items, doctor.ItemInfo{Name: "secret", Status: status, Note: note})
+	}
+	status := doctor.StatusPass
+	if unavailable > 0 || activationErr != nil {
+		status = doctor.StatusFail
+	}
+	return doctor.CheckResult{
+		Name:    "SecretRef runtime",
+		Status:  status,
+		Summary: fmt.Sprintf("resolved=%d inactive=%d unavailable=%d", resolved, inactive, unavailable),
+		Items:   items,
+	}
 }
 
 func doctorSlackGatewayConfig(cfg config.Config, runtime gateway.RuntimeStatus) doctor.CheckResult {

@@ -154,7 +154,7 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 
 	cfg := Config{
 		RepoRoot:       repoRoot,
-		ProgressJSON:   filepath.Join(repoRoot, "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
+		ProgressJSON:   filepath.Join(repoRoot, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json"),
 		RunRoot:        defaultBuilderLoopRunRoot(repoRoot),
 		Backend:        "codexu",
 		Mode:           "safe",
@@ -429,10 +429,10 @@ func ConfigFromEnv(repoRoot string, lookup EnvLookup) (Config, error) {
 func defaultPostPromotionVerifyCommands() []string {
 	return []string{
 		"go test ./... -count=1",
-		"(cd www.gormes.ai && go test ./... -count=1)",
+		"(cd webpages/landing && go test ./... -count=1)",
 		"go run ./cmd/progress validate",
-		"(cd docs/www-tests && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
-		"(cd www.gormes.ai && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
+		"(cd webpages/docs/www-tests && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
+		"(cd webpages/landing && npm ci && npx playwright install chromium && npm run test:e2e -- --reporter=line)",
 	}
 }
 

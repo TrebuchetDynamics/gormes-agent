@@ -1350,7 +1350,7 @@ func TestRunOnceRunsWorkerInIsolatedGitWorktree(t *testing.T) {
 		if workerDir == repoRoot {
 			return Result{}
 		}
-		outsidePath := filepath.Join(workerDir, "www.gormes.ai", "internal", "site", "content.go")
+		outsidePath := filepath.Join(workerDir, "webpages", "landing", "internal", "site", "content.go")
 		if err := os.MkdirAll(filepath.Dir(outsidePath), 0o755); err != nil {
 			t.Fatal(err)
 		}

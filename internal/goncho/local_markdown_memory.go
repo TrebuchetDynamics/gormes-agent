@@ -97,7 +97,7 @@ func (s *LocalMarkdownMemoryStore) Store(ctx context.Context, entry MemoryToolEn
 		AgentID:        s.agentID(),
 		WorkspaceID:    s.workspaceID(),
 		PeerID:         s.peerID(),
-		SessionID:      s.sessionID(),
+		SessionID:      firstNonEmpty(entry.SessionID, s.sessionID()),
 		Scope:          "private",
 		State:          "active",
 		SourceKind:     "tool",
@@ -128,35 +128,55 @@ func (s *LocalMarkdownMemoryStore) Retrieve(ctx context.Context, query string, l
 	if limit <= 0 {
 		limit = 5
 	}
-	like := "%" + strings.ToLower(strings.TrimSpace(query)) + "%"
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT memory_id, content, tags_json, importance, created_at, updated_at
+		SELECT memory_id, content, tags_json, importance, session_key, created_at, updated_at
 		FROM goncho_memory_items
 		WHERE active = 1
-		  AND (? = '%%' OR lower(content) LIKE ? OR lower(tags_json) LIKE ?)
-		ORDER BY importance DESC, updated_at DESC, memory_id ASC
-		LIMIT ?
-	`, like, like, like, limit)
+		  AND agent_id = ?
+		  AND workspace_id = ?
+		  AND peer_id = ?
+		ORDER BY updated_at DESC, memory_id ASC
+		LIMIT 200
+	`, s.agentID(), s.workspaceID(), s.peerID())
 	if err != nil {
 		return nil, fmt.Errorf("goncho: retrieve local markdown memory: %w", err)
 	}
 	defer rows.Close()
 
-	var out []MemoryToolEntry
+	var candidates []MemoryToolEntry
 	for rows.Next() {
 		var entry MemoryToolEntry
 		var tagsRaw string
+		var sessionKey string
 		var createdAt, updatedAt int64
-		if err := rows.Scan(&entry.ID, &entry.Content, &tagsRaw, &entry.Importance, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&entry.ID, &entry.Content, &tagsRaw, &entry.Importance, &sessionKey, &createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("goncho: scan local markdown memory: %w", err)
 		}
 		_ = json.Unmarshal([]byte(tagsRaw), &entry.Tags)
+		entry.SessionID = sessionKey
+		entry.Metadata = map[string]string{"session_id": sessionKey}
 		entry.CreatedAt = time.Unix(createdAt, 0).UTC()
 		entry.UpdatedAt = time.Unix(updatedAt, 0).UTC()
-		out = append(out, entry)
+		candidates = append(candidates, entry)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("goncho: local markdown memory rows: %w", err)
+	}
+	query = strings.TrimSpace(query)
+	ranked := NewImportanceScorer().RankByQuery(candidates, query, time.Now().UTC())
+	capacity := limit
+	if len(ranked) < capacity {
+		capacity = len(ranked)
+	}
+	out := make([]MemoryToolEntry, 0, capacity)
+	for _, item := range ranked {
+		if query != "" && item.Relevance <= 0 {
+			continue
+		}
+		out = append(out, item.Entry)
+		if len(out) >= limit {
+			break
+		}
 	}
 	return out, nil
 }
@@ -181,6 +201,33 @@ func (s *LocalMarkdownMemoryStore) Update(ctx context.Context, id string, conten
 	item.Revision++
 	item.State = "active"
 	item.Checksum = memory.GonchoMemoryV1Checksum(content)
+	item.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	item.TombstonedAt = ""
+	item.TombstoneReason = ""
+	if err := s.upsertItem(ctx, item, true); err != nil {
+		return err
+	}
+	return s.exportMarkdown(ctx)
+}
+
+func (s *LocalMarkdownMemoryStore) UpdateImportance(ctx context.Context, id string, importance float64) error {
+	if err := s.validate(); err != nil {
+		return err
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return errors.New("goncho: memory id is required")
+	}
+	item, found, err := s.readItem(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil
+	}
+	item.Importance = clampMemoryImportance(importance)
+	item.Revision++
+	item.State = "active"
 	item.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	item.TombstonedAt = ""
 	item.TombstoneReason = ""
@@ -273,7 +320,10 @@ func (s *LocalMarkdownMemoryStore) readItem(ctx context.Context, id string) (mem
 		       provenance_json, tags_json, importance, created_at, updated_at
 		FROM goncho_memory_items
 		WHERE memory_id = ?
-	`, id).Scan(&item.MemoryID, &item.AgentID, &item.WorkspaceID, &item.PeerID, &item.SessionID, &item.SourceKind, &item.Content, &item.Revision, &active, &tombstonedAt, &tombstoneReason, &item.Scope, &item.ProvenanceJSON, &tagsRaw, &item.Importance, &createdAt, &updatedAt)
+		  AND agent_id = ?
+		  AND workspace_id = ?
+		  AND peer_id = ?
+	`, id, s.agentID(), s.workspaceID(), s.peerID()).Scan(&item.MemoryID, &item.AgentID, &item.WorkspaceID, &item.PeerID, &item.SessionID, &item.SourceKind, &item.Content, &item.Revision, &active, &tombstonedAt, &tombstoneReason, &item.Scope, &item.ProvenanceJSON, &tagsRaw, &item.Importance, &createdAt, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return memory.GonchoMemoryV1Item{}, false, nil
 	}

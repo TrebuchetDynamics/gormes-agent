@@ -84,11 +84,13 @@ var CommandRegistry = []CommandDef{
 	{Name: "copy", Description: "Copy the last assistant response to clipboard", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "cron", Description: "Manage scheduled tasks", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "debug", Description: "Upload debug report and get shareable links", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "details", Description: "Toggle detailed activity sections", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "fast", Description: "Toggle fast mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "goal", Description: "Set a standing goal Gormes works on across turns until achieved", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "history", Description: "Show conversation history", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "image", Description: "Attach a local image file for your next prompt", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "insights", Description: "Show usage insights and analytics", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "kanban", Description: "Manage the durable multi-agent task board", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "model", Description: "Show current model and provider", Kind: EventModel, Aliases: []string{"provider"}, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "paste", Description: "Attach clipboard image", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "personality", Description: "Set a predefined personality", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -196,6 +198,19 @@ func isRecognizedUnavailableSlashCommand(name string) bool {
 	return ok
 }
 
+// GatewayCommandDispatch is the gateway-visible command-token normalization.
+// It keeps typed raw_command/raw_args evidence for hooks and diagnostics while
+// exposing the canonical command that handlers must dispatch against.
+type GatewayCommandDispatch struct {
+	Known      bool
+	Alias      bool
+	RawCommand string
+	RawArgs    string
+	Canonical  string
+	Kind       EventKind
+	Command    CommandDef
+}
+
 // ParseInboundText normalizes a channel message into a shared EventKind/body
 // pair. Plain text becomes EventSubmit; recognized slash commands become their
 // mapped EventKind; unknown slash commands become EventUnknown.
@@ -204,10 +219,11 @@ func ParseInboundText(text string) (EventKind, string) {
 	if !strings.HasPrefix(body, "/") {
 		return EventSubmit, body
 	}
-	cmd, ok := ResolveCommand(body)
-	if !ok {
+	resolved := ResolveGatewayCommandDispatch(body)
+	if !resolved.Known {
 		return EventUnknown, ""
 	}
+	cmd := resolved.Command
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
@@ -215,6 +231,39 @@ func ParseInboundText(text string) (EventKind, string) {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""
+}
+
+// ResolveGatewayCommandDispatch maps a typed gateway slash command or alias to
+// the canonical command definition while preserving the typed command and raw
+// argument tail for hook contexts.
+func ResolveGatewayCommandDispatch(text string) GatewayCommandDispatch {
+	token, args := splitGatewayCommandLine(text)
+	raw := slashCommandName(token)
+	out := GatewayCommandDispatch{RawCommand: raw, RawArgs: args}
+	if raw == "" {
+		return out
+	}
+	cmd, ok := ResolveCommand(raw)
+	if !ok {
+		return out
+	}
+	out.Known = true
+	out.Alias = raw != cmd.Name
+	out.Canonical = cmd.Name
+	out.Kind = cmd.Kind
+	out.Command = cmd
+	return out
+}
+
+// UnknownSlashCommandGuidance matches the bounded Hermes gateway guidance: it
+// tells users how to inspect commands or resend literal text without allowing
+// the slash token to fall through as a provider prompt.
+func UnknownSlashCommandGuidance(name string) string {
+	cleaned := slashCommandName(name)
+	if cleaned == "" {
+		cleaned = "unknown"
+	}
+	return fmt.Sprintf("unknown command `/%s`. Type /commands to see what's available, or resend without the leading slash to send as a regular message.", cleaned)
 }
 
 // GatewayHelpLines renders registry-driven help output in canonical order,
@@ -339,4 +388,18 @@ func normalizeSlackCommandName(name string) string {
 	name = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), "/")
 	name = strings.ReplaceAll(name, "_", "-")
 	return strings.Trim(name, "-")
+}
+
+func splitGatewayCommandLine(input string) (token, args string) {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return "", ""
+	}
+	for i, r := range trimmed {
+		switch r {
+		case ' ', '\t', '\n', '\r':
+			return trimmed[:i], strings.TrimSpace(trimmed[i:])
+		}
+	}
+	return trimmed, ""
 }

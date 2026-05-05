@@ -20,7 +20,6 @@ func TestConfigFromEnvDefaultsExternalRepoURLs(t *testing.T) {
 	got := cfg.ExternalRepos()
 	want := []ExternalRepo{
 		{Name: "hermes-agent", Path: filepath.Join("tmp", "hermes-agent"), CloneURL: "https://github.com/NousResearch/hermes-agent.git"},
-		{Name: "gbrain", Path: filepath.Join("tmp", "gbrain"), CloneURL: "https://github.com/garrytan/gbrain.git"},
 		{Name: "honcho", Path: filepath.Join("tmp", "honcho"), CloneURL: "https://github.com/plastic-labs/honcho"},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -31,7 +30,6 @@ func TestConfigFromEnvDefaultsExternalRepoURLs(t *testing.T) {
 func TestConfigFromEnvReadsExternalRepoURLOverrides(t *testing.T) {
 	cfg, err := ConfigFromEnv(filepath.Join("tmp", "repo"), MapEnv(map[string]string{
 		"HERMES_REPO_URL": "https://example.test/hermes.git",
-		"GBRAIN_REPO_URL": "https://example.test/gbrain.git",
 		"HONCHO_REPO_URL": "https://example.test/honcho.git",
 	}))
 	if err != nil {
@@ -42,11 +40,8 @@ func TestConfigFromEnvReadsExternalRepoURLOverrides(t *testing.T) {
 	if got[0].CloneURL != "https://example.test/hermes.git" {
 		t.Fatalf("Hermes CloneURL = %q", got[0].CloneURL)
 	}
-	if got[1].CloneURL != "https://example.test/gbrain.git" {
-		t.Fatalf("GBrain CloneURL = %q", got[1].CloneURL)
-	}
-	if got[2].CloneURL != "https://example.test/honcho.git" {
-		t.Fatalf("Honcho CloneURL = %q", got[2].CloneURL)
+	if got[1].CloneURL != "https://example.test/honcho.git" {
+		t.Fatalf("Honcho CloneURL = %q", got[1].CloneURL)
 	}
 }
 
@@ -54,10 +49,8 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 	root := t.TempDir()
 	cfg, err := ConfigFromEnv(filepath.Join(root, "gormes-agent"), MapEnv(map[string]string{
 		"HERMES_DIR":      filepath.Join(root, "hermes-agent"),
-		"GBRAIN_DIR":      filepath.Join(root, "gbrain"),
 		"HONCHO_DIR":      filepath.Join(root, "honcho"),
 		"HERMES_REPO_URL": "https://example.test/hermes.git",
-		"GBRAIN_REPO_URL": "https://example.test/gbrain.git",
 		"HONCHO_REPO_URL": "https://example.test/honcho.git",
 	}))
 	if err != nil {
@@ -70,7 +63,6 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 	}
 	runner := &cmdrunner.FakeRunner{Results: []cmdrunner.Result{
 		{Stdout: "Already up to date.\n"},
-		{Stdout: "Cloning into 'gbrain'...\n"},
 		{Stdout: "Updating abc123..def456\n"},
 	}}
 
@@ -81,7 +73,6 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 
 	want := []cmdrunner.Command{
 		{Name: "git", Args: []string{"-C", cfg.HermesDir, "pull", "--ff-only"}, Dir: cfg.RepoRoot},
-		{Name: "git", Args: []string{"clone", "https://example.test/gbrain.git", cfg.GBrainDir}, Dir: cfg.RepoRoot},
 		{Name: "git", Args: []string{"-C", cfg.HonchoDir, "pull", "--ff-only"}, Dir: cfg.RepoRoot},
 	}
 	if !reflect.DeepEqual(runner.Commands, want) {
@@ -90,7 +81,6 @@ func TestSyncExternalReposPullsExistingGitReposAndClonesMissingRepos(t *testing.
 
 	wantResults := []RepoSyncResult{
 		{Name: "hermes-agent", Path: cfg.HermesDir, Action: "pull", CloneURL: "https://example.test/hermes.git", Output: "Already up to date."},
-		{Name: "gbrain", Path: cfg.GBrainDir, Action: "clone", CloneURL: "https://example.test/gbrain.git", Output: "Cloning into 'gbrain'..."},
 		{Name: "honcho", Path: cfg.HonchoDir, Action: "pull", CloneURL: "https://example.test/honcho.git", Output: "Updating abc123..def456"},
 	}
 	if !reflect.DeepEqual(results, wantResults) {

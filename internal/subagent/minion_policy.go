@@ -84,8 +84,8 @@ type MinionRoutingDecision struct {
 	Reason           string
 }
 
-// MinionRoutingPolicy holds the trust matrix for the borrowed GBrain routing
-// policy while preserving Gormes-native delegate_task/subagent execution APIs.
+// MinionRoutingPolicy holds the Gormes trust matrix for durable jobs and live
+// subagents while preserving Gormes-native delegate_task execution APIs.
 type MinionRoutingPolicy struct{}
 
 // DefaultMinionRoutingPolicy returns the built-in routing policy.

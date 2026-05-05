@@ -130,13 +130,9 @@ func renderRuntimeValidationLine(validation gateway.RuntimeProcessValidation) st
 func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel {
 	channels := []gateway.StatusChannel{}
 	if cfg.Telegram.BotToken != "" {
-		detail := "first_run_discovery=" + strconv.FormatBool(cfg.Telegram.FirstRunDiscovery)
-		if cfg.Telegram.AllowedChatID != 0 {
-			detail = "allowed_chat_id=" + strconv.FormatInt(cfg.Telegram.AllowedChatID, 10)
-		}
 		channels = append(channels, gateway.StatusChannel{
 			Name:   "telegram",
-			Detail: detail,
+			Detail: configuredTelegramGatewayStatusDetail(cfg.Telegram),
 		})
 	}
 	if cfg.Discord.Enabled() {
@@ -156,6 +152,21 @@ func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel 
 		})
 	}
 	return channels
+}
+
+func configuredTelegramGatewayStatusDetail(cfg config.TelegramCfg) string {
+	detail := "first_run_discovery=" + strconv.FormatBool(cfg.FirstRunDiscovery)
+	if cfg.AllowedChatID != 0 {
+		detail = "allowed_chat_id=" + strconv.FormatInt(cfg.AllowedChatID, 10)
+	}
+	if len(cfg.AllowedUserIDs) > 0 {
+		userDetail := "allowed_users=" + strconv.Itoa(len(cfg.AllowedUserIDs))
+		if detail == "" {
+			return userDetail
+		}
+		return detail + " " + userDetail
+	}
+	return detail
 }
 
 func configuredSlackGatewayStatusDetail(cfg config.SlackCfg) string {

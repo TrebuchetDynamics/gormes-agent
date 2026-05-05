@@ -19,6 +19,8 @@ func setupMigrateHermesWriterEnv(t *testing.T) (root string) {
 	t.Setenv("HERMES_HOME", "")
 	t.Setenv("HOME", filepath.Join(root, "fake-home"))
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "")
 	t.Setenv("GORMES_DISCORD_TOKEN", "")
 	return root
 }
@@ -34,7 +36,9 @@ gateway:
 unknown_section:
   ignored: true
 `
-	envBody := `TELEGRAM_TOKEN=tg-secret
+	envBody := `TELEGRAM_BOT_TOKEN=tg-secret
+TELEGRAM_HOME_CHANNEL=6586915095
+TELEGRAM_ALLOWED_USERS=6586915095
 ANTHROPIC_API_KEY=sk-deadbeef
 RANDOM_USER_VAR=plainvalue
 `

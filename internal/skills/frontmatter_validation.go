@@ -9,8 +9,8 @@ import (
 )
 
 // SkillValidationCode classifies a malformed SKILL.md frontmatter problem.
-// Codes mirror GBrain v0.22.4 src/core/markdown.ts ParseValidationCode so the
-// same triage vocabulary applies across markdown corpora.
+// The stable code vocabulary lets callers report frontmatter defects without
+// depending on parser-specific error strings.
 type SkillValidationCode string
 
 const (

@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -59,6 +61,25 @@ func TestTerminalToolRejectsBackgroundUntilProcessRegistryPort(t *testing.T) {
 	}
 	if !strings.Contains(asString(out["error"]), "background") {
 		t.Fatalf("error = %v, want background guidance", out["error"])
+	}
+}
+
+func TestTerminalToolDefaultWorkdirExpandsTilde(t *testing.T) {
+	home := t.TempDir()
+	project := filepath.Join(home, "project")
+	if err := os.MkdirAll(project, 0o755); err != nil {
+		t.Fatalf("mkdir project: %v", err)
+	}
+	t.Setenv("HOME", home)
+
+	tool := NewTerminalTool(TerminalToolConfig{Workdir: "~/project"})
+	out := executeTerminalTool(t, tool, `{"command":"pwd"}`)
+
+	if out["workdir"] != project {
+		t.Fatalf("workdir = %v, want %q: %#v", out["workdir"], project, out)
+	}
+	if strings.TrimSpace(asString(out["output"])) != project {
+		t.Fatalf("output = %q, want pwd %q", out["output"], project)
 	}
 }
 

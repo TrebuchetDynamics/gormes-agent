@@ -21,7 +21,7 @@ func TestConfigFromEnvDefaultsToArchitecturePlannerPaths(t *testing.T) {
 	if cfg.RepoRoot != root {
 		t.Fatalf("RepoRoot = %q, want %q", cfg.RepoRoot, root)
 	}
-	if cfg.ProgressJSON != filepath.Join(root, "docs", "content", "building-gormes", "architecture_plan", "progress.json") {
+	if cfg.ProgressJSON != filepath.Join(root, "webpages", "docs", "content", "building-gormes", "architecture_plan", "progress.json") {
 		t.Fatalf("ProgressJSON = %q", cfg.ProgressJSON)
 	}
 	if cfg.RunRoot != filepath.Join(root, ".codex", "planner-loop") {
@@ -89,7 +89,6 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 		"BACKEND":                       "claudeu",
 		"MODE":                          "full",
 		"HERMES_DIR":                    "/tmp/hermes",
-		"GBRAIN_DIR":                    "/tmp/gbrain",
 		"HONCHO_DIR":                    "/tmp/honcho",
 		"MERGE_OPEN_PULL_REQUESTS":      "0",
 		"PR_INTAKE_EMPTY_BACKOFF":       "2m30s",
@@ -121,9 +120,6 @@ func TestConfigFromEnvReadsOverrides(t *testing.T) {
 	}
 	if cfg.HermesDir != "/tmp/hermes" {
 		t.Fatalf("HermesDir = %q", cfg.HermesDir)
-	}
-	if cfg.GBrainDir != "/tmp/gbrain" {
-		t.Fatalf("GBrainDir = %q", cfg.GBrainDir)
 	}
 	if cfg.HonchoDir != "/tmp/honcho" {
 		t.Fatalf("HonchoDir = %q", cfg.HonchoDir)

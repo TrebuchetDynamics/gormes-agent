@@ -18,16 +18,24 @@ func NewTransactionalExecutor(inner *InProcessToolExecutor, classifier *CommandC
 type TransactionalResult struct {
 	Success        bool
 	RolledBack     bool
+	SnapshotTaken  bool
 	Classification string
+	Audit          CommandAuditEntry
 	Output         json.RawMessage
 	Error          string
 }
 
 func (te *TransactionalExecutor) Execute(ctx context.Context, req ToolRequest) (TransactionalResult, error) {
-	classification := te.classifier.Classify(string(req.Input))
+	classifier := te.classifier
+	if classifier == nil {
+		classifier = NewCommandClassifier()
+	}
+	decision := classifier.ClassifyToolRequest(req)
+	classification := decision.Class
 
 	var result TransactionalResult
 	result.Classification = classification.String()
+	result.Audit = decision.Audit
 
 	switch classification {
 	case CommandUnsafe:
@@ -35,6 +43,7 @@ func (te *TransactionalExecutor) Execute(ctx context.Context, req ToolRequest) (
 		result.Error = fmt.Sprintf("blocked: command classified as unsafe")
 		return result, nil
 	case CommandUncertain:
+		result.SnapshotTaken = decision.RequiresSnapshot
 		ch, err := te.inner.Execute(ctx, req)
 		if err != nil {
 			result.Success = false

@@ -285,12 +285,12 @@ func sampleFile(path string) bool {
 }
 
 func collectImplementationInventory(cfg Config) (ImplementationInventory, error) {
-	landingSite := SourceRoot{Name: "www.gormes.ai", Path: filepath.Join(cfg.RepoRoot, "www.gormes.ai")}
+	landingSite := SourceRoot{Name: "www.gormes.ai", Path: filepath.Join(cfg.RepoRoot, "webpages", "landing")}
 	if err := enrichSourceRoot(&landingSite); err != nil {
 		return ImplementationInventory{}, err
 	}
 
-	hugoDocs := SourceRoot{Name: "Astro/Starlight docs", Path: filepath.Join(cfg.RepoRoot, "docs")}
+	hugoDocs := SourceRoot{Name: "Astro/Starlight docs", Path: filepath.Join(cfg.RepoRoot, "webpages", "docs")}
 	if err := enrichSourceRoot(&hugoDocs); err != nil {
 		return ImplementationInventory{}, err
 	}
@@ -298,7 +298,7 @@ func collectImplementationInventory(cfg Config) (ImplementationInventory, error)
 	return ImplementationInventory{
 		Commands:         collectImmediateDirs(filepath.Join(cfg.RepoRoot, "cmd")),
 		InternalPackages: collectImmediateDirs(filepath.Join(cfg.RepoRoot, "internal")),
-		BuildingDocs:     collectImmediateFiles(filepath.Join(cfg.RepoRoot, "docs", "content", "building-gormes"), ".md"),
+		BuildingDocs:     collectImmediateFiles(filepath.Join(cfg.RepoRoot, "webpages", "docs", "content", "building-gormes"), ".md"),
 		LandingSite:      landingSite,
 		HugoDocs:         hugoDocs,
 	}, nil

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Gormes Release"
-  short_description: "Release Gormes through development, PR, tag, and CI."
-  default_prompt: "Use $gormes-release to bump the Gormes version, validate development, PR-merge to main, push the release tag, verify release artifacts, and resync development."
