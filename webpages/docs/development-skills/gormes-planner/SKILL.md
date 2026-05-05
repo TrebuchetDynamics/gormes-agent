@@ -1,6 +1,6 @@
 ---
 name: gormes-planner
-description: Plan Gormes as a complete Hermes-in-Go delivery program. Use when an agent must inspect upstream hermes-agent, honcho, gbrain, docs, or progress.json; map Hermes/Honcho features into Go phases; refine or split roadmap rows; plan Goncho as the Honcho-compatible Go port inside Gormes; or update planning/docs/progress surfaces without implementing runtime feature code.
+description: Plan Gormes as a complete Hermes-in-Go delivery program. Use when an agent must inspect upstream hermes-agent, honcho, docs, or progress.json; map Hermes/Honcho features into Go phases; refine or split roadmap rows; plan Goncho as the Honcho-compatible Go port inside Gormes; or update planning/docs/progress surfaces without implementing runtime feature code.
 ---
 
 # Gormes Planner
@@ -15,6 +15,12 @@ blocker.
 ## Mission
 
 Plan Gormes until it is Hermes in Go, with no lesser definition of done. Goncho is the in-repo Go port of Honcho and must preserve Honcho-compatible external contracts where users/tools depend on them.
+
+Hermes Agent is the Python upstream/father implementation for Gormes. Prefer
+the in-repo checkout at `./hermes-agent`; fall back to `../hermes-agent` only
+when the in-repo checkout is absent. Resolve it as `$HERMES_SRC` before citing
+paths or row source refs. It is behavior evidence, not a Gormes runtime
+dependency.
 
 This skill is for bounded planner passes by Codex, Claude, or another agent.
 It replaces the deleted autonomous planner-loop command.
@@ -32,22 +38,21 @@ If the task might instead be parity audit, implementation, TDD, interface design
 3. Treat `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md` as the canonical Hermes/Honcho-to-Go map.
 4. Treat `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md` as the completeness check for whether all feature-bearing Hermes/Honcho source classes are mapped.
 5. Treat `docs/development-skills/<name>/SKILL.md` as the canonical skill source; `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` are symlink loader views.
-6. Use sibling upstream repos when present:
-   - `../hermes-agent`
-   - `../honcho`
-   - `../gbrain`
+6. Use in-repo upstream references when present, otherwise sibling checkouts:
+   - `$HERMES_SRC`: `./hermes-agent`, then `../hermes-agent`
+   - `$HONCHO_SRC`: `./honcho`, then `../honcho`
 7. Use existing Gormes code under `cmd/`, `internal/`, `docs/`, and `www.gormes.ai` as implementation evidence.
 8. Read `references/parity-map.md` as a quick trigger checklist when deciding whether a subsystem is fully mapped.
 9. Read `references/progress-row-contract.md` before editing progress rows.
-10. For CLI/config/migration parity, inspect `../hermes-agent/hermes_cli/main.py`,
-    `../hermes-agent/hermes_cli/commands.py`,
-    `../hermes-agent/hermes_cli/config.py`, `../hermes-agent/hermes_cli/claw.py`,
-    `../hermes-agent/gateway/run.py`, and the matching Gormes `cmd/gormes`
+10. For CLI/config/migration parity, inspect `$HERMES_SRC/hermes_cli/main.py`,
+    `$HERMES_SRC/hermes_cli/commands.py`,
+    `$HERMES_SRC/hermes_cli/config.py`, `$HERMES_SRC/hermes_cli/claw.py`,
+    `$HERMES_SRC/gateway/run.py`, and the matching Gormes `cmd/gormes`
     and `internal/cli` surfaces before changing rows.
 
 For TUI and channel UX parity, choose the active upstream implementation
-explicitly. `../hermes-agent/ui-tui` is authoritative for the current
-full-screen terminal app; `../hermes-agent/cli.py` remains evidence
+explicitly. `$HERMES_SRC/ui-tui` is authoritative for the current
+full-screen terminal app; `$HERMES_SRC/cli.py` remains evidence
 for legacy prompt-toolkit behavior and command semantics. If a progress row
 points only at stale upstream files, refine the row before handing it to a
 builder.
@@ -95,7 +100,7 @@ Before changing rows, zoom out one level: name the relevant modules, callers, pu
 
 For each subsystem in scope:
 
-1. Identify upstream behavior in Hermes/Honcho/GBrain.
+1. Identify upstream behavior in Hermes/Honcho.
 2. Identify the closest Gormes package or missing package.
 3. Decide if the subphase is `porting`, `converged`, or `owned`.
 4. Create or refine small rows only when there is an implementation gap.
@@ -130,31 +135,31 @@ When planning Hermes command or config parity:
 
 When planning agent-default or "Gormes bot persona" parity, inspect the
 upstream sources that actually seed and inject identity:
-`../hermes-agent/hermes_cli/default_soul.py`,
-`../hermes-agent/hermes_cli/config.py`,
-`../hermes-agent/hermes_cli/profiles.py`,
-`../hermes-agent/agent/prompt_builder.py`, and
-`../hermes-agent/docker/SOUL.md` when container defaults matter. Rows must say
+`$HERMES_SRC/hermes_cli/default_soul.py`,
+`$HERMES_SRC/hermes_cli/config.py`,
+`$HERMES_SRC/hermes_cli/profiles.py`,
+`$HERMES_SRC/agent/prompt_builder.py`, and
+`$HERMES_SRC/docker/SOUL.md` when container defaults matter. Rows must say
 whether Gormes is porting Hermes' default `SOUL.md`, intentionally replacing
 the brand text with Gormes identity, or preserving user-owned local
 customization.
 
 For skills parity, use exact sources such as
-`../hermes-agent/agent/skill_commands.py`,
-`../hermes-agent/agent/skill_preprocessing.py`,
-`../hermes-agent/agent/skill_utils.py`,
-`../hermes-agent/tools/skills_tool.py`,
-`../hermes-agent/tools/skill_manager_tool.py`, and
-`../hermes-agent/tools/skills_sync.py`. Plan user-visible skill behavior:
+`$HERMES_SRC/agent/skill_commands.py`,
+`$HERMES_SRC/agent/skill_preprocessing.py`,
+`$HERMES_SRC/agent/skill_utils.py`,
+`$HERMES_SRC/tools/skills_tool.py`,
+`$HERMES_SRC/tools/skill_manager_tool.py`, and
+`$HERMES_SRC/tools/skills_sync.py`. Plan user-visible skill behavior:
 load order, template files, linked references, enabled/disabled/platform
 filtering, reset/sync commands, and how skill tool calls appear to the model.
 
 For reset behavior, separate session reset from development-environment reset.
 Hermes session reset evidence lives in files such as
-`../hermes-agent/tests/gateway/test_session_boundary_hooks.py`,
-`../hermes-agent/tests/gateway/test_session_reset_notify.py`,
-`../hermes-agent/tests/gateway/test_session_model_reset.py`, and
-`../hermes-agent/tests/run_agent/test_session_reset_fix.py`. A Gormes
+`$HERMES_SRC/tests/gateway/test_session_boundary_hooks.py`,
+`$HERMES_SRC/tests/gateway/test_session_reset_notify.py`,
+`$HERMES_SRC/tests/gateway/test_session_model_reset.py`, and
+`$HERMES_SRC/tests/run_agent/test_session_reset_fix.py`. A Gormes
 development reset follow-up must first inspect the completed `Gormes agent
 template reset command` row, `internal/agenttemplate`, and
 `cmd/gormes/agent_reset_test.go`. Extend or correct that surface with explicit

@@ -21,6 +21,10 @@ or artifact, including negative visual/output details. "It works" is not enough
 when the bug is duplicate output, stale labels, boxed chrome, hidden tool-call
 noise, or platform-visible formatting.
 
+Hermes Agent is the Python upstream/father implementation for Gormes. Prefer
+the in-repo checkout at `./hermes-agent`; fall back to `../hermes-agent` only
+when absent. Resolve it as `$HERMES_SRC` before writing parity tests.
+
 ## Workflow
 
 ### 1. Select One Behavior
@@ -37,7 +41,7 @@ If the row is too broad, split/refine it before coding.
 
 For UI/TUI/channel parity, identify the active upstream implementation before
 writing the test. Current full-screen TUI UX comes from
-`../hermes-agent/ui-tui`, while older `cli.py` prompt_toolkit code is only a
+`$HERMES_SRC/ui-tui`, while older `cli.py` prompt_toolkit code is only a
 legacy/detail donor when current Ink does not cover the behavior.
 
 ### 2. RED
@@ -73,7 +77,7 @@ also sent.
 
 For gateway tool-progress bugs, first decide which Hermes surface defines the
 artifact. Emoji/snake_case lines such as `📚 skill_view: "plan"` are gateway
-progress from `../hermes-agent/gateway/run.py` plus
+progress from `$HERMES_SRC/gateway/run.py` plus
 `agent.display.build_tool_preview`; current Ink TUI shelves render Title Case
 tool calls such as `Read File("x")`. A regression test must encode the right
 surface, including `new` vs `all`, preview truncation, `(×N)` collapse,

@@ -36,6 +36,9 @@ Skip this skill when:
 Reduce token waste, copy-paste errors, and re-invented abstractions by routing every Gormes implementation question to the smallest set of donor files that answer it.
 
 Hermes Python remains the parity contract. Go donors are how Gormes _shapes_ Hermes parity in idiomatic Go.
+The local Hermes source is normally `./hermes-agent` inside this repository;
+fall back to `../hermes-agent` only when absent. Resolve it as `$HERMES_SRC`
+before reading upstream behavior.
 
 ## Permission Map (2026-04-29)
 
@@ -76,8 +79,8 @@ Pick exactly one and continue:
 
 Even when Gormes ships its own Go implementation, the user-facing behavior must match Hermes. Anchor the parity target before reading donors:
 
-- `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/AGENTS.md`
-- relevant subsystem under `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/`
+- `$HERMES_SRC/AGENTS.md`
+- relevant subsystem under `$HERMES_SRC/`
 
 If Hermes has no analog (e.g. a brand-new Gormes-only seam), record this explicitly in the receiving row's `provenance.origin_type: gormes`.
 

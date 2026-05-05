@@ -16,6 +16,11 @@ blocker.
 
 Route Gormes work to the smallest effective skill chain. Gormes is finished only when it is Hermes in Go with Goncho as the Honcho-compatible Go port inside Gormes; skill selection should serve that delivery goal, not create process theater.
 
+Hermes Agent is the Python upstream/father implementation for Gormes. In this
+repository, prefer the in-repo reference checkout at `./hermes-agent`; fall
+back to `../hermes-agent` only when the in-repo checkout is absent. Treat it as
+behavior evidence, not as a Gormes runtime dependency.
+
 Canonical skill source lives under `docs/development-skills/<name>/SKILL.md`.
 The `.agents/skills/`, `.claude/skills/`, and `.codex/skills/` directories are
 symlink loader views.

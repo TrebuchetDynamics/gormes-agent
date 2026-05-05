@@ -1,4 +1,4 @@
 interface:
   display_name: "Gormes Hermes Parity"
-  short_description: "Audit source-backed Gormes parity drift."
-  default_prompt: "Use $gormes-hermes-parity to choose one high-risk Gormes/Hermes parity scope, compare source-backed upstream refs, respect the no-live-config evidence boundary, update canonical progress/docs if needed, and identify the next builder-ready rows."
+  short_description: "Discover source-backed Gormes behavior drift."
+  default_prompt: "Use $gormes-hermes-parity to run a bounded behavioral fidelity discovery sweep. With no topic, auto-select one behavior-fidelity pair from repo risk evidence; with a topic, treat it as a discovery seed and expand to adjacent behavior atoms. Compare against the active upstream Hermes/Honcho source, respect the no-live-config evidence boundary, update canonical progress/docs if needed, and identify the next builder-ready rows."

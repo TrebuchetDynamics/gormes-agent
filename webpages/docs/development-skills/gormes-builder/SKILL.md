@@ -22,19 +22,24 @@ evidence.
 
 If the task might be planning, parity audit, interface design, or skill creation instead of implementation, route through `gormes-skill-manager` first.
 
+Hermes Agent is the Python upstream/father implementation for Gormes. Prefer
+`./hermes-agent` as the local behavior reference and fall back to
+`../hermes-agent` only when absent. Resolve it as `$HERMES_SRC` before trusting
+row source refs. Do not depend on the Python runtime from Gormes code.
+
 ## Source Order
 
 1. Read `AGENTS.md`.
 2. Read the selected row in `docs/content/building-gormes/architecture_plan/progress.json`.
 3. Read the relevant section of `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`.
 4. Read generated handoff docs under `docs/content/building-gormes/builder-loop/` when useful.
-5. Read exact `source_refs`, upstream Hermes/Honcho/GBrain files, and current Gormes code before editing.
+5. Read exact `source_refs`, upstream Hermes/Honcho files, and current Gormes code before editing.
 6. Read `references/delivery-gates.md` before final verification.
 
 For Hermes UX parity rows, confirm the active upstream contract before
 writing tests. The current full-screen terminal UI comes from
-`../hermes-agent/ui-tui`; the older prompt-toolkit CLI in
-`../hermes-agent/cli.py` is still useful for classic command
+`$HERMES_SRC/ui-tui`; the older prompt-toolkit CLI in
+`$HERMES_SRC/cli.py` is still useful for classic command
 behavior but is not authoritative for the modern TUI chrome. Runtime,
 installer, `go run`, `bin/gormes`, installed-binary, PATH, and
 `sessions.db`-lock behavior belongs under `gormes-dev-runtime` before this

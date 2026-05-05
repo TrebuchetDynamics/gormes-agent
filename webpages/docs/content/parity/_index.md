@@ -11,5 +11,6 @@ Roadmap content is still important, but it is not the first thing a new user nee
 - [Current status](current-status/)
 - [Command surface](command-surface/)
 - [Roadmap](roadmap/)
+- [Parity workflow](../development/parity-workflow/)
 
 Deep planning archives remain available under [Building Gormes](../building-gormes/) and [Upstream Hermes](../upstream-hermes/).

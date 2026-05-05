@@ -1,6 +1,6 @@
 ---
 name: gormes-parity-auditor
-description: Audit upstream Hermes, Honcho, and GBrain behavior against current Gormes implementation and progress.json. Use when the user asks what is missing for full Hermes-in-Go parity, wants upstream feature mapping, wants Goncho/Honcho compatibility gaps, or needs progress.json-ready parity rows before builder work.
+description: Audit upstream Hermes and Honcho behavior against current Gormes implementation and progress.json. Use when the user asks what is missing for full Hermes-in-Go parity, wants upstream feature mapping, wants Goncho/Honcho compatibility gaps, or needs progress.json-ready parity rows before builder work.
 ---
 
 # Gormes Parity Auditor
@@ -15,6 +15,11 @@ blocker.
 ## Mission
 
 Find what prevents Gormes from being Hermes in Go, with Goncho as the Honcho-compatible Go port. Output builder-ready gaps, not a vague research report.
+
+Hermes Agent is the Python upstream/father implementation for Gormes. Prefer
+the in-repo checkout at `./hermes-agent` and fall back to `../hermes-agent`
+only when it is absent. Resolve it as `$HERMES_SRC` before citing source refs.
+It is behavior evidence, not a runtime dependency.
 
 ## Workflow
 
@@ -35,7 +40,7 @@ wrong home directory, leaked tool call, or missing reset/template state.
 
 List:
 
-- upstream files and symbols in `../hermes-agent`, `../honcho`, or `../gbrain`;
+- upstream files and symbols in `$HERMES_SRC` or `$HONCHO_SRC`;
 - source classes in `docs/content/building-gormes/architecture_plan/upstream-coverage-ledger.md`;
 - matching sections in `docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md`;
 - current Gormes packages and commands;
@@ -44,9 +49,16 @@ List:
 
 Use `rg`, `find`, and `jq`. Do not infer parity from package names alone.
 
+Resolve upstream roots before reading refs:
+
+```sh
+HERMES_SRC="$(for p in ./hermes-agent ../hermes-agent references/hermes-agent; do [ -d "$p" ] && [ -f "$p/hermes_cli/main.py" ] && { printf '%s\n' "$p"; break; }; done)"
+HONCHO_SRC="$(for p in ./honcho ../honcho references/honcho; do [ -d "$p" ] && { printf '%s\n' "$p"; break; }; done)"
+```
+
 Pick the active upstream implementation before classifying. For current
-full-screen TUI UX, inspect `../hermes-agent/ui-tui/src/components` and
-`../hermes-agent/ui-tui/src/__tests__` before falling back to older `cli.py`
+full-screen TUI UX, inspect `$HERMES_SRC/ui-tui/src/components` and
+`$HERMES_SRC/ui-tui/src/__tests__` before falling back to older `cli.py`
 prompt_toolkit code. For installer/runtime behavior, route implementation
 questions through `gormes-dev-runtime` after recording the upstream evidence.
 For prompt identity, memory, skills, and reset defaults, include
@@ -54,7 +66,7 @@ For prompt identity, memory, skills, and reset defaults, include
 `agent/memory_manager.py`, `agent/skill_commands.py`, and `tools/skills_tool.py`
 as applicable, then compare against `internal/agenttemplate`,
 `internal/gateway/live_turn_prompt.go`, `internal/tools`, and `internal/skills`.
-For tool-loop reports, include `../hermes-agent/run_agent.py` max-iteration
+For tool-loop reports, include `$HERMES_SRC/run_agent.py` max-iteration
 handling, then compare against the completed Gormes `Kernel tool loop` row,
 `internal/kernel/kernel.go`, and `internal/kernel/tools_test.go` before
 opening new work.

@@ -26,6 +26,10 @@ rendering.
 
 Make Gormes provider behavior feel like Hermes to existing Hermes users while implementing the runtime natively in Go.
 
+Hermes Agent is the Python upstream/father implementation for Gormes. Prefer
+the in-repo checkout at `./hermes-agent`; fall back to `../hermes-agent` only
+when absent. Resolve it as `$HERMES_SRC` before reading provider behavior.
+
 Hermes parity is P0:
 
 - same user-facing config semantics and `config.yaml` placement;
@@ -40,9 +44,9 @@ External Go projects are implementation references, not the product contract.
 
 1. Read the active Gormes row in `docs/content/building-gormes/architecture_plan/progress.json` when one exists.
 2. Read Hermes Python for the expected user/operator behavior. Useful anchors:
-   - `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/AGENTS.md`
-   - provider/credential/runtime code under `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/agent/`
-   - gateway/platform behavior under `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/gateway/`
+   - `$HERMES_SRC/AGENTS.md`
+   - provider/credential/runtime code under `$HERMES_SRC/agent/`
+   - gateway/platform behavior under `$HERMES_SRC/gateway/`
 3. Read the provider reference note:
    - `/home/xel/git/sages-openclaw/workspace-mineru/references/go-agent-os/GORMES-PROVIDER-PATTERN-REFERENCES.md`
 4. Inspect local Go donor implementations for the specific problem:

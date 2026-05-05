@@ -22,21 +22,25 @@ default Gormes plugin dependency. This skill is for browser parity slices only;
 keep provider auth work in `gormes-provider-parity` and generic tool registry
 work in `gormes-builder`.
 
+Hermes Agent is the Python upstream/father implementation for Gormes. Prefer
+`./hermes-agent` and fall back to `../hermes-agent` only when absent; resolve
+it as `$HERMES_SRC` before comparing browser behavior.
+
 ## Source Order
 
 1. Inspect current Gormes rows in
    `docs/content/building-gormes/architecture_plan/progress.json`, Phase 5.C
    `Browser Automation`.
 2. Inspect Hermes upstream first:
-   - `../hermes-agent/tools/browser_tool.py`
-   - `../hermes-agent/tools/browser_cdp_tool.py`
-   - `../hermes-agent/tools/browser_supervisor.py`
-   - `../hermes-agent/tools/browser_dialog_tool.py`
-   - `../hermes-agent/tools/browser_providers/{base,browserbase,browser_use,firecrawl}.py`
-   - `../hermes-agent/hermes_cli/browser_connect.py`
-   - `../hermes-agent/cli.py:_handle_browser_command`
-   - matching tests under `../hermes-agent/tests/tools/` and
-     `../hermes-agent/tests/cli/`.
+   - `$HERMES_SRC/tools/browser_tool.py`
+   - `$HERMES_SRC/tools/browser_cdp_tool.py`
+   - `$HERMES_SRC/tools/browser_supervisor.py`
+   - `$HERMES_SRC/tools/browser_dialog_tool.py`
+   - `$HERMES_SRC/tools/browser_providers/{base,browserbase,browser_use,firecrawl}.py`
+   - `$HERMES_SRC/hermes_cli/browser_connect.py`
+   - `$HERMES_SRC/cli.py:_handle_browser_command`
+   - matching tests under `$HERMES_SRC/tests/tools/` and
+     `$HERMES_SRC/tests/cli/`.
 3. Inspect Gormes' internal Go runtime contract:
    - `internal/tools/browser_harness_backend.go`
    - `internal/tools/browser_harness_chromedp_transport.go`
