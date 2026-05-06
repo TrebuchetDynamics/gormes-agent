@@ -332,7 +332,7 @@ func (s *Server) buildResponseTurnRequest(body map[string]any) (TurnRequest, res
 	}
 
 	last := inputMessages[len(inputMessages)-1]
-	if !hasVisibleText(last.Content) {
+	if !hasVisibleChatMessage(last) {
 		return TurnRequest{}, responseTurnContext{}, &requestError{status: http.StatusBadRequest, message: "No user message found in input", code: "missing_user_message"}
 	}
 	turnHistory := append([]ChatMessage(nil), conversationHistory...)
@@ -354,11 +354,12 @@ func (s *Server) buildResponseTurnRequest(body map[string]any) (TurnRequest, res
 	historyForStorage := append([]ChatMessage(nil), turnHistory...)
 	historyForStorage = append(historyForStorage, last)
 	return TurnRequest{
-			Model:        model,
-			UserMessage:  last.Content,
-			History:      turnHistory,
-			SystemPrompt: instructions,
-			SessionID:    sessionID,
+			Model:            model,
+			UserMessage:      last.Content,
+			UserContentParts: cloneContentParts(last.ContentParts),
+			History:          turnHistory,
+			SystemPrompt:     instructions,
+			SessionID:        sessionID,
 		}, responseTurnContext{
 			instructions:      instructions,
 			conversation:      conversation,
@@ -414,16 +415,17 @@ func normalizeResponseInputMessage(raw any, param string) (ChatMessage, *request
 		if role == "" || role == "<nil>" {
 			role = "user"
 		}
-		content, err := normalizeChatContent(v["content"])
+		content, err := normalizeChatContentForTurn(v["content"])
 		if err != nil {
 			return ChatMessage{}, &requestError{status: http.StatusBadRequest, message: err.message, param: param + ".content", code: err.code}
 		}
 		msg := ChatMessage{
-			Role:       role,
-			Content:    content,
-			ToolCalls:  parseToolCalls(v["tool_calls"]),
-			ToolCallID: strings.TrimSpace(fmt.Sprint(v["tool_call_id"])),
-			Name:       strings.TrimSpace(fmt.Sprint(v["name"])),
+			Role:         role,
+			Content:      content.Text,
+			ContentParts: cloneContentParts(content.Parts),
+			ToolCalls:    parseToolCalls(v["tool_calls"]),
+			ToolCallID:   strings.TrimSpace(fmt.Sprint(v["tool_call_id"])),
+			Name:         strings.TrimSpace(fmt.Sprint(v["name"])),
 		}
 		if msg.ToolCallID == "<nil>" {
 			msg.ToolCallID = ""
@@ -575,8 +577,8 @@ func responseHistoryWithAssistant(base []ChatMessage, assistantText string) []Ch
 
 func firstUserContent(messages []ChatMessage) string {
 	for _, msg := range messages {
-		if msg.Role == "user" && strings.TrimSpace(msg.Content) != "" {
-			return msg.Content
+		if msg.Role == "user" && hasVisibleChatMessage(msg) {
+			return chatContentFingerprint(msg)
 		}
 	}
 	return ""

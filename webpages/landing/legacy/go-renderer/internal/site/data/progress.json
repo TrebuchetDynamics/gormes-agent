@@ -38826,7 +38826,7 @@
             {
               "name": "API server multimodal content preservation",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Native API server request normalization preserves Hermes' multimodal payload semantics instead of flattening images away: text-only arrays collapse to text, image_url and input_image parts survive into the native turn/message content-part model for chat.completions and responses, data:image URLs are accepted, non-image data URLs and file/input_file parts fail with OpenAI-compatible 400 errors, and visible-payload checks treat image-only messages as non-empty.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -38858,10 +38858,6 @@
                 "The slice downloads remote images, decodes base64 data, or calls vision providers in API server unit tests.",
                 "Responses and chat.completions use different validation rules for the same content part shape."
               ],
-              "blocked_by": [
-                "OpenAI-compatible chat-completions API server",
-                "Image input mode router + native content parts"
-              ],
               "unblocks": [
                 "Dashboard API client contract",
                 "Provider-tool-memory golden transcript suite",
@@ -38881,15 +38877,18 @@
                 "internal/apiserver/multimodal_content_test.go",
                 "internal/kernel/",
                 "internal/hermes/client.go",
+                "internal/hermes/http_client.go",
+                "internal/hermes/openai_multimodal_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/apiserver -run 'TestAPIServerNormalizeMultimodal|TestChatCompletions' -count=1",
-                "go test ./internal/kernel ./internal/hermes -run 'Test.*Multimodal|Test.*Image' -count=1",
+                "go test ./internal/kernel ./internal/hermes -run 'Test.*Multimodal|Test.*Image|TestOpenAICompatibleMessageContent_MultimodalParts' -count=1",
                 "go test ./internal/apiserver ./internal/kernel ./internal/hermes -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "note": "Complete in the 2026-05-06 parity/builder pass: the all-topic sweep found this Hermes API row blocked only by completed dependencies, then TDD added structured content-part normalization for chat.completions and responses, image-only visibility, unsupported-part 400 envelopes, kernel PlatformEvent content parts, and OpenAI-compatible provider serialization without live downloads or provider calls.",
               "done_signal": [
                 "API server fixtures prove image content parts survive HTTP normalization, unsupported parts fail before turn start, image-only payloads are visible, and existing text/session envelopes remain compatible."
               ],

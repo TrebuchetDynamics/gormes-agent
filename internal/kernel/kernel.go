@@ -259,7 +259,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 						k.cfg.ToolSafety = ComposeToolSafetyPolicies(e.ToolSafety, prevToolSafety)
 						defer func() { k.cfg.ToolSafety = prevToolSafety }()
 					}
-					k.runTurn(ctx, e.Text, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
+					k.runTurn(ctx, e.Text, e.ContentParts, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
 				}()
 			case PlatformEventCancel:
 				// No active turn; ignore (cancel during a turn is handled
@@ -298,7 +298,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 // goroutine — this is part of the single-owner invariant.
 // cronJobID is non-empty for Phase 2.D cron-fired turns; it is passed through
 // to the store.Command payload and is otherwise opaque to the kernel.
-func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, model, reasoningOverride string) {
+func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes.MessageContentPart, sessionContext, cronJobID, model, reasoningOverride string) {
 	prov := newProvenance(k.cfg.Endpoint)
 	defer func() { k.pendingSteers = nil }()
 	turnKey := prov.LocalRunID
@@ -308,12 +308,13 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	k.soul = nil
 
 	// 1. Admission. Reject locally before any HTTP.
-	if err := k.cfg.Admission.Validate(text); err != nil {
+	if err := validateTurnAdmission(k.cfg.Admission, text, contentParts); err != nil {
 		k.lastError = err.Error()
 		k.emitFrame(err.Error())
 		return
 	}
 	prov.LogAdmitted(k.log)
+	userMsg := hermes.Message{Role: "user", Content: text, ContentParts: cloneMessageContentParts(contentParts)}
 
 	// 2. Persist user turn with hard 250ms ack deadline (spec §7.8 store row).
 	storeCtx, storeCancel := context.WithTimeout(ctx, StoreAckDeadline)
@@ -341,7 +342,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 
 	// 3. Update state for the new turn. These mutations are safe because we
 	// are on the Run goroutine.
-	k.history = append(k.history, hermes.Message{Role: "user", Content: text})
+	k.history = append(k.history, userMsg)
 	k.draft = ""
 	k.lastError = ""
 	k.retryStatus = NewRetryStatus()
@@ -355,7 +356,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	// we execute the tools in-process and issue a follow-up stream with the
 	// tool results appended to the message history. Capped at MaxToolIterations
 	// to prevent runaway agent loops.
-	msgs := []hermes.Message{{Role: "user", Content: text}}
+	msgs := []hermes.Message{userMsg}
 	systemMsgs := make([]hermes.Message, 0, 8)
 
 	if gonchoCtx := k.gonchoContext(ctx); gonchoCtx != "" {
@@ -701,6 +702,35 @@ toolLoop:
 	k.activeReasoning = hermes.ReasoningEffortEvidence{}
 	k.pendingSteers = nil
 	k.emitFrame("idle")
+}
+
+func validateTurnAdmission(admission Admission, text string, parts []hermes.MessageContentPart) error {
+	payload := text
+	for _, part := range parts {
+		switch strings.ToLower(strings.TrimSpace(part.Type)) {
+		case "text", "input_text", "output_text":
+			payload += "\n" + part.Text
+		case "image_url", "input_image", "image":
+			payload += "\n" + part.ImageURL
+		}
+	}
+	if strings.TrimSpace(payload) == "" {
+		return ErrEmptyInput
+	}
+	if admission.MaxBytes > 0 && len(payload) > admission.MaxBytes {
+		return ErrInputTooLarge
+	}
+	if admission.MaxLines > 0 && strings.Count(payload, "\n")+1 > admission.MaxLines {
+		return ErrTooManyLines
+	}
+	return nil
+}
+
+func cloneMessageContentParts(parts []hermes.MessageContentPart) []hermes.MessageContentPart {
+	if len(parts) == 0 {
+		return nil
+	}
+	return append([]hermes.MessageContentPart(nil), parts...)
 }
 
 const maxIterationSummaryRequest = "You've reached the maximum number of tool-calling iterations allowed. Please provide a final response summarizing what you've found and accomplished so far, without calling any more tools."

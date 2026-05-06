@@ -57,6 +57,7 @@ func (l *KernelTurnLoop) run(ctx context.Context, req TurnRequest, onToken func(
 	if err := l.kernel.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           req.UserMessage,
+		ContentParts:   req.UserContentParts,
 		SessionID:      req.SessionID,
 		SessionContext: buildKernelSessionContext(req),
 	}); err != nil {
@@ -166,10 +167,11 @@ func newChatMessagesFromFrame(f kernel.RenderFrame, req TurnRequest, startHistor
 	messages := make([]ChatMessage, 0, len(f.History)-startHistoryLen)
 	for _, msg := range f.History[startHistoryLen:] {
 		converted := ChatMessage{
-			Role:       msg.Role,
-			Content:    msg.Content,
-			ToolCallID: msg.ToolCallID,
-			Name:       msg.Name,
+			Role:         msg.Role,
+			Content:      msg.Content,
+			ContentParts: cloneContentParts(msg.ContentParts),
+			ToolCallID:   msg.ToolCallID,
+			Name:         msg.Name,
 		}
 		for _, call := range msg.ToolCalls {
 			converted.ToolCalls = append(converted.ToolCalls, ToolCall{
@@ -206,10 +208,15 @@ func buildKernelSessionContext(req TurnRequest) string {
 		for _, msg := range req.History {
 			role := strings.TrimSpace(msg.Role)
 			content := strings.TrimSpace(msg.Content)
-			if role == "" || (content == "" && len(msg.ToolCalls) == 0 && msg.ToolCallID == "") {
+			if role == "" || (content == "" && len(msg.ContentParts) == 0 && len(msg.ToolCalls) == 0 && msg.ToolCallID == "") {
 				continue
 			}
 			line := role + ": " + content
+			for _, part := range msg.ContentParts {
+				if part.Type == "image_url" && part.ImageURL != "" {
+					line += "\n" + role + " image_url: " + part.ImageURL
+				}
+			}
 			for _, call := range msg.ToolCalls {
 				line += "\n" + "assistant tool_call " + call.ID + " " + call.Name + ": " + call.Arguments
 			}

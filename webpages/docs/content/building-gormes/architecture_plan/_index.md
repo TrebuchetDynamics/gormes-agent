@@ -1002,7 +1002,7 @@ classification and row-backed implementation queue.
 - [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
-- [ ] API server multimodal content preservation
+- [x] API server multimodal content preservation
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence
 - [x] Gateway proxy mode forwarding contract
