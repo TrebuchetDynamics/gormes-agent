@@ -228,10 +228,10 @@ classification and row-backed implementation queue.
 - [x] Telegram MarkdownV2 parse-mode rendering closeout
 - [x] Telegram topic mode off/help/auth/debounce closeout
 - [x] Telegram document/photo cache + batch attachment parity
-- [ ] Discord authenticated attachment download safety
-- [ ] Slack Block Kit approval buttons + action callback
+- [x] Discord authenticated attachment download safety
+- [x] Slack Block Kit approval buttons + action callback
 - [ ] Discord thread participation persistence
-- [ ] Cross-platform image/document MEDIA delivery routing
+- [x] Cross-platform image/document MEDIA delivery routing
 - [ ] Telegram inline approval buttons + callback auth
 - [ ] Telegram polling conflict + webhook secret startup guard
 - [ ] Slack mention/free-response gating + strict thread-memory guard

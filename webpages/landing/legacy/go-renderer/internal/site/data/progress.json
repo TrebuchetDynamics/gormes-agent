@@ -4763,7 +4763,7 @@
             },
             {
               "name": "Discord authenticated attachment download safety",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Discord ingress downloads image, audio, and document attachments through the authenticated Discord session when possible, falls back through SSRF-gated URL fetches only when safe, and preserves bounded attachment evidence without exposing raw CDN URLs or internal fetch targets.",
               "contract_status": "validated",
@@ -4802,6 +4802,8 @@
               "write_scope": [
                 "internal/channels/discord/bot.go",
                 "internal/channels/discord/client.go",
+                "internal/channels/discord/real_client.go",
+                "internal/channels/discord/mock_test.go",
                 "internal/channels/discord/attachment_download.go",
                 "internal/channels/discord/attachment_download_test.go",
                 "internal/gateway/event.go",
@@ -4816,6 +4818,27 @@
               "done_signal": [
                 "Discord fake-attachment fixtures prove authenticated byte reads, SSRF-gated fallback, rejection evidence, and preserved gateway metadata without live Discord or CDN traffic."
               ],
+              "completed_at": "2026-05-06T02:01:43Z",
+              "evidence": {
+                "implementation": [
+                  "internal/channels/discord/attachment_download.go classifies image/audio/document attachments, prefers authenticated session reads, gates URL fallback through the URL safety policy with Discord CDN allowlist entries, rejects HTML/error payloads, enforces the 32 MB cap, writes local cache descriptors, and injects bounded small text documents.",
+                  "internal/channels/discord/client.go and real_client.go add a narrow ReadAttachment seam backed by authenticated Discord requests for production while keeping unsafe non-Discord URLs out of the authenticated path.",
+                  "internal/channels/discord/bot.go wires cached attachment descriptors into inbound events without leaking raw CDN or internal fallback URLs into event text.",
+                  "internal/channels/discord/mock_test.go supports in-memory attachment bytes and read-call assertions for hermetic fake-session coverage."
+                ],
+                "tests": [
+                  "internal/channels/discord/attachment_download_test.go covers authenticated-read preference for image/audio/document attachments, safe CDN fallback caching, SSRF-blocked fallback with no HTTP call, HTML/error payload rejection, bounded text document injection, oversized skip evidence, and preservation of Discord chat/thread/guild/message metadata."
+                ],
+                "verification": [
+                  "go test ./internal/channels/discord -run 'TestDiscordAttachment' -count=1 -> failed before implementation: missing AttachmentCacheDir, AttachmentHTTPClient, ReadAttachment, and attachment normalization.",
+                  "go test ./internal/channels/discord -run 'TestDiscordAttachment' -count=1 -> pass",
+                  "go test ./internal/channels/discord ./internal/gateway -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass",
+                  "git diff --check -> pass",
+                  "go test ./internal/progress ./webpages/docs -count=1 -> pass",
+                  "go test ./... -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
@@ -4827,7 +4850,7 @@
             },
             {
               "name": "Slack Block Kit approval buttons + action callback",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Slack exposes Hermes-compatible execution approval prompts as Block Kit buttons in the active thread and resolves once/session/always/deny callbacks exactly once through the gateway approval store with redacted channel evidence.",
               "contract_status": "validated",
@@ -4846,6 +4869,7 @@
                 "../hermes-agent/tests/gateway/test_slack_approval_buttons.py@b816fd4e2",
                 "internal/slack/bot.go",
                 "internal/slack/client.go",
+                "internal/slack/real_client.go",
                 "internal/gateway/hook_consent.go"
               ],
               "ready_when": [
@@ -4866,6 +4890,7 @@
               "write_scope": [
                 "internal/slack/bot.go",
                 "internal/slack/client.go",
+                "internal/slack/real_client.go",
                 "internal/slack/approval_buttons.go",
                 "internal/slack/approval_buttons_test.go",
                 "internal/gateway/hook_consent.go",
@@ -4881,6 +4906,30 @@
               "done_signal": [
                 "Slack fake-client fixtures prove Block Kit approval prompt shape, thread routing, callback ack/resolution, double-click suppression, and redacted unavailable evidence."
               ],
+              "completed_at": "2026-05-06T02:17:35Z",
+              "evidence": {
+                "implementation": [
+                  "internal/slack/approval_buttons.go adds the Slack execution-approval prompt API, Block Kit button payloads, section truncation, slack_approval_unavailable errors, callback action mapping, exactly-once prompt claiming, and resolved-message updates without retaining decision buttons.",
+                  "internal/slack/bot.go and client.go route Slack approval actions through the existing event ack path before resolving gateway approvals.",
+                  "internal/slack/real_client.go posts and updates raw Block Kit messages through Slack Socket Mode, parses interactive block-action callbacks, and preserves channel/message/user evidence for approval resolution.",
+                  "internal/gateway/hook_consent.go defines the shared approval choice and resolver contract used by channel callbacks."
+                ],
+                "tests": [
+                  "internal/slack/approval_buttons_test.go covers Block Kit prompt shape, thread routing, long command/description truncation, unavailable Slack/storage states, callback ack before update, once/session/deny mapping, and double-click suppression.",
+                  "internal/gateway/hook_consent_test.go covers gateway approval choice parsing and resolver function adaptation alongside hook consent behavior."
+                ],
+                "verification": [
+                  "go test ./internal/slack -run 'TestSlackApproval|TestApprovalButtons' -count=1 -> failed before implementation: missing cloneSlackBlocks, approval prompt API, Slack resolver config, and callback handling.",
+                  "go test ./internal/slack -run 'TestSlackApproval|TestApprovalButtons' -count=1 -> pass",
+                  "go test ./internal/gateway ./internal/slack -run 'Approval|HookConsent' -count=1 -> pass",
+                  "go test ./internal/slack -count=1 -> pass",
+                  "go test ./internal/gateway -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass",
+                  "go test ./internal/progress ./webpages/docs -count=1 -> pass",
+                  "git diff --check -> pass",
+                  "go test ./... -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
@@ -4952,7 +5001,7 @@
             },
             {
               "name": "Cross-platform image/document MEDIA delivery routing",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gateway final-response MEDIA tags route local image, document, video, and audio files to native Telegram, Discord, and Slack send paths while stripping tag syntax from operator-visible text and preserving reply/thread metadata.",
               "contract_status": "validated",
@@ -4972,9 +5021,11 @@
                 "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:send_image_file",
                 "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:send_image_file",
                 "internal/gateway/media_delivery.go",
+                "internal/gateway/manager.go",
                 "internal/gateway/channel.go",
                 "internal/channels/telegram/bot.go",
                 "internal/channels/discord/bot.go",
+                "internal/slack/channel.go",
                 "internal/slack/bot.go"
               ],
               "ready_when": [
@@ -4995,11 +5046,13 @@
               "write_scope": [
                 "internal/gateway/media_delivery.go",
                 "internal/gateway/media_delivery_test.go",
+                "internal/gateway/manager.go",
                 "internal/gateway/channel.go",
                 "internal/channels/telegram/bot.go",
                 "internal/channels/telegram/media_send_test.go",
                 "internal/channels/discord/bot.go",
                 "internal/channels/discord/media_send_test.go",
+                "internal/slack/channel.go",
                 "internal/slack/bot.go",
                 "internal/slack/client.go",
                 "internal/slack/media_send_test.go",
@@ -5015,6 +5068,32 @@
               "done_signal": [
                 "Gateway and fake-channel fixtures prove image/document/video/audio MEDIA extraction, native channel sends, reply/thread metadata preservation, unsupported-path redaction, and no raw MEDIA tag leakage."
               ],
+              "completed_at": "2026-05-06T02:04:20Z",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/media_delivery.go and channel.go classify outbound MEDIA tags as audio, image, document, or video, accept png/jpg/jpeg/webp/pdf/csv/txt/zip/mp4 plus existing audio extensions, preserve tag order, and carry thread metadata into MediaSender dispatch.",
+                  "internal/gateway/manager.go strips final-response MEDIA tags, uses generic media-only fallback copy, and passes the active session source thread ID to native media senders without exposing local file paths in text fallback/error hooks.",
+                  "internal/channels/telegram/bot.go sends images as photos, documents as documents, videos as videos, audio as audio/voice, and uses a raw upload seam for message_thread_id because the pinned Telegram SDK structs do not expose that Bot API field.",
+                  "internal/channels/discord/bot.go sends MEDIA files through native Discord file attachments to the thread channel when present and returns redacted missing-file errors.",
+                  "internal/slack/channel.go, bot.go, client.go, and real_client.go upload MEDIA files through the Slack file-upload seam with channel/thread metadata while stripping raw MEDIA tags from Slack-visible final text."
+                ],
+                "tests": [
+                  "internal/gateway/media_delivery_test.go covers image/document/video extension extraction, mixed audio+media order, unsafe path redaction, native fake-channel media delivery, reply metadata, thread metadata, and no raw tag leakage.",
+                  "internal/channels/telegram/media_send_test.go covers Telegram photo/document/video send payloads plus message_thread_id upload parameters.",
+                  "internal/channels/discord/media_send_test.go covers native Discord file attachment sends, thread-channel routing, reply references, file bytes, and redacted missing-file errors.",
+                  "internal/slack/media_send_test.go covers active Slack Channel file uploads to remembered threads and direct Slack Bot final-response MEDIA stripping plus upload metadata."
+                ],
+                "verification": [
+                  "go test ./internal/gateway -run 'TestPrepareMediaDeliveryContent|TestManagerFinalResponseDeliversMedia' -count=1 -> failed before implementation: non-audio MEDIA tags were redacted and mixed final responses only delivered the voice file.",
+                  "go test ./internal/gateway -run 'TestPrepareMediaDeliveryContent|TestManagerFinalResponseDeliversMedia' -count=1 -> pass",
+                  "go test ./internal/channels/telegram ./internal/channels/discord ./internal/slack -run 'Test.*Send.*File|Test.*Media' -count=1 -> pass",
+                  "go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord ./internal/slack -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass",
+                  "git diff --check -> pass",
+                  "go test ./internal/progress ./webpages/docs -count=1 -> pass",
+                  "go test ./... -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
