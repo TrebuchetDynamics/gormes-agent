@@ -22454,8 +22454,8 @@
             },
             {
               "name": "Voice mode environment detector + audio provider seam",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes' voice-mode environment detection into a Go-native, injectable audio-provider seam: SSH, container, WSL, Termux, missing PortAudio/sounddevice-equivalent probes, no-device, and provider-unavailable cases produce hard warnings or informational notices matching Hermes' voice-mode availability rules before any microphone capture or playback is attempted.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -22472,6 +22472,7 @@
                 "./hermes-agent/tools/voice_mode.py@b816fd4e2:_voice_capture_install_hint",
                 "./hermes-agent/tools/voice_mode.py@b816fd4e2:_termux_microphone_command",
                 "./hermes-agent/tools/voice_mode.py@b816fd4e2:_termux_api_app_installed",
+                "internal/tools/voice_mode_env.go:VoiceModeEnvironmentDetector",
                 "internal/tools/voice_mode.go:VoiceModeProvider",
                 "internal/tools/voice_mode.go:NoopVoiceModeProvider"
               ],
@@ -22516,10 +22517,27 @@
               "done_signal": [
                 "Voice-mode environment fixtures prove SSH/container/WSL/Termux/no-device availability decisions and lazy audio probing without real microphone, speaker, or optional audio dependencies."
               ],
+              "note": "Complete: TDD added internal/tools/voice_mode_env.go and internal/tools/voice_mode_env_test.go. VoiceModeEnvironmentDetector now mirrors Hermes detect_audio_environment for SSH, container, WSL PulseAudio, Termux:API fallback, missing audio libraries, PortAudio/system-library failures, no-device, query-failure, and lazy audio probing through injected fixtures. The implementation imports no audio backend at package init and keeps warnings/notices redacted and bounded.",
+              "evidence": {
+                "implementation": [
+                  "internal/tools/voice_mode_env.go defines VoiceModeEnvironmentDetector, VoiceModeAudioProbeResult, and VoiceModeAudioProbeStatus for injectable environment/audio probes.",
+                  "Detector output uses the existing VoiceModeEnvironment provider seam consumed by VoiceModeRunner.CheckRequirements."
+                ],
+                "tests": [
+                  "internal/tools/voice_mode_env_test.go:TestVoiceModeDetectSSHAndContainerWarnings",
+                  "internal/tools/voice_mode_env_test.go:TestVoiceModeDetectWSLPulseAudioNotice",
+                  "internal/tools/voice_mode_env_test.go:TestVoiceModeDetectTermuxFallback",
+                  "internal/tools/voice_mode_env_test.go:TestVoiceModeDetectorNoOptionalImportsAtInit"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run 'TestVoiceMode(Detect|Detector|Runner|Tool|Noop)' -count=1",
+                  "go test ./internal/tools -count=1"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tools/voice_mode.py",
-                "note": "Gormes already has VoiceModeRunner and no-op provider tests, but broad voice-mode rows still hide the environment-probe contract that protects headless gateways and remote operators."
+                "note": "2026-05-06 all-topic weakness sweep: source-backed Hermes voice environment detection is still missing from the Go tools surface while higher P1 rows remain draft/blocked. Raised this small validated row to P1 because it protects headless gateways, remote TUI users, and operator setup flows without live audio dependencies."
               }
             },
             {

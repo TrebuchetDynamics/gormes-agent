@@ -712,7 +712,7 @@ classification and row-backed implementation queue.
 ### 5.E — TTS / Voice / Transcription 🔨
 
 - [ ] Voice mode port
-- [ ] Voice mode environment detector + audio provider seam
+- [x] Voice mode environment detector + audio provider seam
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
