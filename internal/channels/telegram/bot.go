@@ -20,6 +20,7 @@ import (
 // kept here so SDK-specific entrypoints can reuse the typed values.
 type Config struct {
 	AllowedChatID     int64
+	AllowedUserIDs    []int64
 	FirstRunDiscovery bool
 	// AttachmentCacheDir stores Telegram downloads before the channel emits
 	// normalized attachments to the gateway. Empty uses the user cache dir.
@@ -38,7 +39,8 @@ type Config struct {
 	BotUsername string
 	// DynamicCommands are optional runtime-discovered commands (for example
 	// enabled skill slash commands) appended to the canonical Hermes menu.
-	DynamicCommands []gateway.PlatformCommand
+	DynamicCommands  []gateway.PlatformCommand
+	ApprovalResolver gateway.ApprovalResolver
 }
 
 // Bot implements gateway.Channel plus the editing capabilities the shared
@@ -51,6 +53,10 @@ type Bot struct {
 	photoMu      sync.Mutex
 	photoSeq     uint64
 	photoBatches map[string]*telegramPhotoBatchEntry
+
+	approvalMu     sync.Mutex
+	approvalNextID uint64
+	approvalState  map[uint64]telegramApprovalState
 }
 
 var _ gateway.Channel = (*Bot)(nil)
@@ -69,10 +75,11 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 		log = slog.Default()
 	}
 	return &Bot{
-		cfg:          cfg,
-		client:       client,
-		log:          log,
-		photoBatches: map[string]*telegramPhotoBatchEntry{},
+		cfg:           cfg,
+		client:        client,
+		log:           log,
+		photoBatches:  map[string]*telegramPhotoBatchEntry{},
+		approvalState: map[uint64]telegramApprovalState{},
 	}
 }
 
@@ -120,6 +127,12 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 		case u, ok := <-updates:
 			if !ok {
 				return nil
+			}
+			if u.CallbackQuery != nil {
+				if b.handleCallbackQuery(ctx, u.CallbackQuery) {
+					continue
+				}
+				continue
 			}
 			if ev, ok := b.toInboundEvent(ctx, u); ok {
 				if b.enqueuePhotoBatch(ctx, inbox, ev, u.Message) {

@@ -192,6 +192,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 
 	bot := telegram.New(telegram.Config{
 		AllowedChatID:     cfg.Telegram.AllowedChatID,
+		AllowedUserIDs:    cfg.Telegram.AllowedUserIDs,
 		FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
 		RequireMention:    cfg.Telegram.RequireMention,
 		BotUsername:       cfg.Telegram.BotUsername,

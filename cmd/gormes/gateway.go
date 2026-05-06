@@ -307,6 +307,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 			}
 			return telegram.New(telegram.Config{
 				AllowedChatID:     cfg.Telegram.AllowedChatID,
+				AllowedUserIDs:    cfg.Telegram.AllowedUserIDs,
 				FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
 				RequireMention:    cfg.Telegram.RequireMention,
 				BotUsername:       cfg.Telegram.BotUsername,
