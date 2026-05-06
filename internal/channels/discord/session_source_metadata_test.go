@@ -27,7 +27,7 @@ func TestDiscordSessionSourceMetadata_ForumPostFlowsIntoSessionContext(t *testin
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = m.Run(ctx) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliverThreadCreate(&discordgo.ThreadCreate{Channel: loadDiscordChannelFixture(t, "forum_thread_create.json")})
 	ms.deliver(loadDiscordMessageCreateFixture(t, "forum_thread_message.json"))
@@ -95,7 +95,7 @@ func TestDiscordSessionSourceMetadata_DMOmitsUnavailableScopeIDs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = m.Run(ctx) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "dm-msg-1",

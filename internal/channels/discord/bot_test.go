@@ -31,8 +31,8 @@ func TestBot_ToInboundEvent_Submit(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = b.Run(ctx, inbox) }()
+	ms.waitOpen(t)
 
-	time.Sleep(10 * time.Millisecond)
 	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "m99",
 		ChannelID: "42",
@@ -61,7 +61,7 @@ func TestBot_ToInboundEvent_IgnoresBotMessages(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = b.Run(ctx, inbox) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "m1",
@@ -97,7 +97,7 @@ func TestBot_ToInboundEvent_Commands(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			go func() { _ = b.Run(ctx, inbox) }()
-			time.Sleep(10 * time.Millisecond)
+			ms.waitOpen(t)
 
 			ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
 				ID:        "1",
@@ -259,7 +259,7 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = mgr.Run(ctx) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "m99",

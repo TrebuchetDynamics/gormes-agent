@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"testing"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -14,6 +16,8 @@ var errMockDiscordAttachmentReadUnavailable = errors.New("mock discord attachmen
 type mockSession struct {
 	mu                   sync.Mutex
 	opened               bool
+	openOnce             sync.Once
+	openCh               chan struct{}
 	closed               bool
 	handlers             []interface{}
 	sent                 []mockSent
@@ -47,6 +51,7 @@ func newMockSession() *mockSession {
 	return &mockSession{
 		nextMsgID:       1000,
 		attachmentBytes: map[string][]byte{},
+		openCh:          make(chan struct{}),
 	}
 }
 
@@ -55,7 +60,20 @@ func (m *mockSession) Open() error {
 	m.opened = true
 	err := m.openErr
 	m.mu.Unlock()
+	m.openOnce.Do(func() { close(m.openCh) })
 	return err
+}
+
+// waitOpen blocks until Bot.Run reaches session.Open, after every AddHandler
+// call has returned. Use this in tests instead of time.Sleep to deterministically
+// synchronize handler registration with mock event delivery.
+func (m *mockSession) waitOpen(t *testing.T) {
+	t.Helper()
+	select {
+	case <-m.openCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("discord mock: timed out waiting for session.Open()")
+	}
 }
 
 func (m *mockSession) Close() error {
