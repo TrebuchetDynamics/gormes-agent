@@ -763,7 +763,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard theme/plugin extension status contract
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
-- [ ] Hermes plugin CLI lifecycle parity
+- [x] Hermes plugin CLI lifecycle parity
 - [x] Goncho Honcho plugin session config + async write compatibility
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture

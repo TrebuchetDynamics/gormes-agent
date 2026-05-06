@@ -165,6 +165,7 @@ Memory and sessions:
 Tools and skills:
   gormes skills list                list installed skills
   gormes skills install <url>       install a direct SKILL.md URL
+  gormes plugins list               list installed plugins
   gormes mcp login <server>         refresh OAuth for one MCP server
 
 Maintenance:
@@ -194,7 +195,7 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
 	return root
 }
 

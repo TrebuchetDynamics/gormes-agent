@@ -24911,8 +24911,8 @@
             },
             {
               "name": "Hermes plugin CLI lifecycle parity",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "`gormes plugins` ports the Hermes plugin lifecycle command surface over Go-native plugin roots and config: list, install, update, remove, enable, and disable sanitize plugin names, resolve Git/URL/file identifiers safely, copy example files, prompt for required env without overwriting existing values, gate project plugins behind explicit enablement, and never execute plugin runtime code during lifecycle operations.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -24924,11 +24924,13 @@
               "degraded_mode": "Invalid plugin identifiers, manifest-name traversal, missing plugins, git failures, malformed manifests, disabled project-plugin roots, and missing required env produce redacted plugin_cli_* evidence and cleanup partial installs without deleting paths outside the plugin root.",
               "fixture": "cmd/gormes/plugins_command_test.go; internal/plugins/lifecycle_test.go",
               "source_refs": [
-                "../hermes-agent/tests/hermes_cli/test_plugins_cmd.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_plugins.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/plugins_cmd.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/plugins.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/main.py@b816fd4e2:plugins_subparsers",
+                "./hermes-agent/tests/hermes_cli/test_plugins_cmd.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_plugins.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/plugins_cmd.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/plugins.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:plugins_subparsers",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree",
+                "docs/content/building-gormes/architecture_plan/hermes-command-surface-parity.md:plugins",
                 "internal/plugins/loader.go",
                 "internal/plugins/discovery.go",
                 "cmd/gormes/hermes_cli_parity.go"
@@ -24943,9 +24945,9 @@
                 "The slice shells out to real git/network in tests instead of using an injected command runner or local file fixtures.",
                 "Install/remove cleanup can escape the configured plugin root via empty names, dot paths, symlinks, or manifest name rewrites."
               ],
-              "blocked_by": [
-                "Plugin SDK",
-                "Third-party extensions"
+              "unblocks": [
+                "Third-party extensions",
+                "Hermes dynamic plugin command rows"
               ],
               "acceptance": [
                 "TestPluginsCommandListInstallUpdateRemove proves empty/non-empty list output, safe install from local/Git-shaped identifiers, update through injected runner, missing-plugin errors, and remove cleanup inside the plugin root.",
@@ -24972,6 +24974,15 @@
               ],
               "done_signal": [
                 "Plugin lifecycle fixtures prove `gormes plugins` can list/install/update/remove/enable/disable safely over Go-native roots without executing plugin runtime code."
+              ],
+              "note": "2026-05-06 all-topic parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. The highest source-backed operator gap after the sweep is the Hermes plugin lifecycle CLI: Hermes b816fd4e2 exposes `plugins install/update/remove/list/enable/disable` and tests path/name safety, env prompting, discovery, and enablement before any runtime plugin execution. The completed Plugin SDK row already supplies metadata/discovery safety, and the broad Third-party extensions umbrella remains runtime inventory rather than a prerequisite for this command slice, so this row is unblocked and promoted to P0 for the next builder pass. Complete: TDD added internal/plugins lifecycle management with safe plugin-root path validation, owner/repo URL resolution, fakeable clone/pull runner, .example copy-on-install/update, required-env prompting through an injected env store, deterministic plugins.enabled/plugins.disabled config set writes, list/update/remove/enable/disable operations, and manifest-name escape rejection. cmd/gormes now exposes `gormes plugins` with install/list/ls/update/remove/rm/uninstall/enable/disable over that lifecycle manager. The slice does not import or execute plugin Python/JavaScript, serve plugin assets, start backend routes, or silently enable project plugin roots.",
+              "evidence": [
+                "RED: go test ./internal/plugins -run TestPluginLifecycle -count=1 failed because NewLifecycleManager, LifecycleOptions, InstallOptions, and PluginLifecycleStatusEnabled did not exist.",
+                "GREEN: internal/plugins/lifecycle.go now implements the Go-native lifecycle boundary with fakeable clone/pull seams, safe name/root handling, required-env prompting, example-file copy, deterministic config set updates, and no runtime plugin execution.",
+                "RED: go test ./cmd/gormes -run TestPluginsCommand -count=1 failed because newPluginsCommandWithManager did not exist.",
+                "GREEN: cmd/gormes/plugins.go now wires install/list/ls/update/remove/rm/uninstall/enable/disable to the lifecycle manager; cmd/gormes/main.go registers `gormes plugins`.",
+                "RED/GREEN: go test ./internal/plugins -run TestPluginLifecycleRejectsUnsafeNamesAndManifestEscapes -count=1 failed until invalid or malformed manifests returned plugin_cli_invalid_manifest before any install target was created.",
+                "VALIDATION: go test ./internal/plugins -run 'TestPlugin.*Lifecycle|TestDiscover|TestManifest' -count=1 PASS; go test ./cmd/gormes -run TestPluginsCommand -count=1 PASS; go test ./cmd/gormes ./internal/plugins -count=1 PASS."
               ],
               "provenance": {
                 "origin_type": "upstream",
