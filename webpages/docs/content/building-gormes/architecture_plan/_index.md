@@ -884,7 +884,7 @@ classification and row-backed implementation queue.
 - [x] CLI contextual first-touch onboarding hint renderers
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
-- [ ] CLI terminal control-response sanitizer
+- [x] CLI terminal control-response sanitizer
 - [ ] CLI submitted user-message preview formatter
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper

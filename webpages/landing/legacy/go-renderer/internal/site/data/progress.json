@@ -31499,8 +31499,8 @@
             },
             {
               "name": "CLI terminal control-response sanitizer",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes' defensive CLI input sanitizer for leaked terminal responses: pure internal/cli helpers strip cursor-position DSR/CPR responses and SGR mouse reports in ESC-prefixed, visible caret-escape, and narrowly bounded bare forms before command/path parsing, while preserving ordinary text, ANSI color SGR sequences, and literal angle-bracket content.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -31545,6 +31545,7 @@
                 "TestStripLeakedTerminalResponses_PreservesAngleBracketContent proves regular text such as render <div class='hero'> literal is not stripped.",
                 "TestStripLeakedTerminalResponsesWithMetaEvidence proves the helper can report whether mouse reports were stripped without logging the raw input."
               ],
+              "note": "Complete: TDD added internal/cli/terminal_response_sanitizer.go and internal/cli/terminal_response_sanitizer_test.go. Focused fixtures prove DSR/CPR stripping, canonical and visible forms, concatenated reports, SGR mouse report stripping, preservation of ANSI color and ordinary text, regular angle-bracket content preservation, and redacted terminal_response_stripped metadata with no raw input or coordinate fields.",
               "write_scope": [
                 "internal/cli/terminal_response_sanitizer.go",
                 "internal/cli/terminal_response_sanitizer_test.go",
@@ -31564,7 +31565,7 @@
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 cli.py",
-                "note": "Hermes fixed leaked terminal control responses after resize, multiplexer, and mouse-tracking events; Gormes has paste sanitizers but not this terminal-response boundary."
+                "note": "2026-05-06 all-topic parity sweep raised this row because CLI/TUI input hygiene is a source-backed operator surface, all blockers are complete, and the helper unblocks preview/input-loop binding. Hermes fixed leaked terminal control responses after resize, multiplexer, and mouse-tracking events; Gormes has paste sanitizers but not this terminal-response boundary."
               }
             },
             {
