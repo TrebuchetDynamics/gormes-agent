@@ -916,6 +916,7 @@ classification and row-backed implementation queue.
 - [x] Gormes mcp login browser callback flow
 - [x] Hermes fallback provider chain CLI commands
 - [x] Provider endpoint/API-key root flags + runtime resolution
+- [x] Gormes profile skills chat invocation shim
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface
 - [x] Gormes config edit/check/native schema-migrate closeout

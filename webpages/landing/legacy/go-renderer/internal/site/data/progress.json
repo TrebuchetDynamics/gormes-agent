@@ -33921,6 +33921,77 @@
               }
             },
             {
+              "name": "Gormes profile skills chat invocation shim",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes accepts the active Hermes worker invocation shape `gormes -p <profile> --skills <skill> chat -q <prompt>` as a native compatibility shim: profile selection resolves Gormes-owned profile roots before config loading, repeated or comma-separated `--skills` values become an explicit runtime skill allowlist for the one turn, and `chat -q` dispatches through the existing oneshot path without reading HERMES_HOME, shelling out to Hermes, or persisting invocation-only flags.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system",
+                "child-agent"
+              ],
+              "degraded_mode": "Invalid profile names, missing profile root resolution, missing selected skills, and provider setup failures return typed Gormes evidence before opening provider clients; raw skill paths, private profile roots, and provider secrets are not printed.",
+              "fixture": "cmd/gormes/chat_command_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:_apply_profile_override",
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:build_top_level_parser",
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:cmd_chat",
+                "./hermes-agent/cli.py@b816fd4e2:_parse_skills_argument",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:_default_spawn",
+                "cmd/gormes/main.go:newRootCommandWithRuntime",
+                "cmd/gormes/profile.go:defaultProfileCommandSeams",
+                "internal/skills/store.go:Runtime.BuildSkillBlockWithOptions"
+              ],
+              "ready_when": [
+                "Provider endpoint/API-key root flags + runtime resolution is complete, so `chat -q` can reuse the oneshot path and redaction behavior.",
+                "Gormes profile name/root helpers and the skills runtime are complete and can be wired without reading Hermes runtime homes.",
+                "The slice only adds the CLI invocation shim; Kanban process spawning, worker tools, and dashboard/slash surfaces remain separate rows."
+              ],
+              "not_ready_when": [
+                "The slice implements a full Hermes prompt-toolkit chat UI instead of delegating to existing Gormes TUI/oneshot paths.",
+                "The slice reads HERMES_HOME, ~/.hermes, live provider credentials, or an operator's real skills directory in tests.",
+                "The slice persists `--profile`, `--skills`, or `chat -q` values into config.toml or dotenv."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Hermes Kanban production worker process binding"
+              ],
+              "acceptance": [
+                "TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad proves `-p/--profile` resolves a Gormes profile root before `chat -q` loads config and never touches HERMES_HOME.",
+                "TestChatCommandQueryDispatchesOneshot proves `gormes chat -q <prompt>` and `gormes chat <prompt>` dispatch the exact prompt through the existing oneshot invocation instead of starting the TUI.",
+                "TestChatCommandSkillsFlagBuildsForcedSkillProvider proves repeated and comma-separated `--skills` values normalize to an explicit one-turn skill allowlist and do not mutate config or global skill roots.",
+                "TestChatCommandSkillsFlagRejectsMissingSkillBeforeOneshot proves missing selected skills return typed Gormes evidence before the oneshot/provider path runs.",
+                "TestChatCommandWithoutQueryDelegatesTUI proves bare `gormes chat` preserves the interactive chat behavior.",
+                "Root and chat help expose `-p/--profile`, `--skills`, and `chat -q` so the Kanban worker process row can build native Gormes argv without shelling out to Hermes."
+              ],
+              "note": "Added by the 2026-05-06 all-topic parity sweep. The top P1 Kanban production-worker row was not actually buildable because its not_ready_when requires the native root command to accept Hermes' profile/skills chat invocation shape. This row is the narrow CLI prerequisite rather than broadening the Kanban worker row.",
+              "write_scope": [
+                "cmd/gormes/main.go",
+                "cmd/gormes/chat_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestChatCommand(ProfileFlag|Query|SkillsFlag|WithoutQuery)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Chat invocation fixtures prove profile-root resolution, `chat -q` oneshot dispatch, forced skill allowlist wiring, TUI fallback for bare chat, and no Hermes home/config mutation."
+              ],
+              "evidence": {
+                "implementation": "cmd/gormes/main.go adds persistent -p/--profile and --skills flags, native chat -q/query dispatch through the existing oneshot path, Gormes-only profile root resolution before config loading, missing selected-skill validation before provider setup, forced one-turn skill allowlist wiring into the oneshot kernel skill provider, and bare chat TUI fallback. cmd/gormes/chat_command_test.go covers profile, query, skills, missing-skill evidence, and TUI fallback behavior without reading Hermes home or mutating config.",
+                "tests": "go test ./cmd/gormes -run '^TestChatCommand(ProfileFlag|Query|SkillsFlag|WithoutQuery)' -count=1; go test ./cmd/gormes -count=1; go test ./webpages/docs -count=1; (cd webpages/landing/legacy/go-renderer && go test ./... -count=1); (cd webpages/landing && npm run build); (cd webpages/landing && npm run test:e2e); (cd webpages/docs/www-tests && npm run test:e2e); go test ./... -count=1; go run ./cmd/progress validate; git diff --check"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/main.py profile preparse + chat parser and cli.py skills argument parsing",
+                "note": "Source-backed CLI prerequisite found while sweeping Kanban, CLI/profile, skills, and operator runtime surfaces."
+              }
+            },
+            {
               "name": "Hermes config.yaml Telegram compatibility bridge",
               "status": "complete",
               "contract": "Historical bridge row superseded by the Cross-agent config isolation contract: normal Gormes runtime must not read Hermes `config.yaml`; Telegram compatibility is preserved through `gormes migrate hermes` manifest/writer mapping and native env aliases for Hermes dotenv keys.",
