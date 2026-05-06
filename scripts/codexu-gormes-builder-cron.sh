@@ -90,6 +90,7 @@ You are Codex running from cron inside the Gormes repository.
 Use repo-local skills before substantive work:
 - gormes-skill-manager to route the task.
 - gormes-hermes-parity to sweep progress.json for new or stale parity work.
+- gormes-planner to turn parity findings into builder-ready progress rows.
 - gormes-builder to select and implement one row.
 - gormes-tdd-slice for red-green-refactor when tests are required.
 - gormes-git first, before row selection, and again after implementation is complete.
@@ -97,7 +98,9 @@ Use repo-local skills before substantive work:
 Task:
 First invoke gormes-git. If the worktree is dirty, commit every current safe change, make development green, and push origin development before selecting a new row. If the worktree is already clean, record that and continue.
 
-Then invoke gormes-hermes-parity against progress.json. Run a bounded all-topic weakness sweep: find source-backed missing tasks to add, stale complete rows to revisit, vague rows to sharpen, or existing builder-ready rows whose priority should rise. Cover the major Gormes/Hermes surfaces rather than only the most recent subsystem: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Record implementation intent only in docs/content/building-gormes/architecture_plan/progress.json and regenerate derived progress surfaces when it changes.
+Then invoke gormes-hermes-parity against progress.json. Run a bounded all-topic weakness sweep: find source-backed missing tasks to add, stale complete rows to revisit, vague rows to sharpen, or existing builder-ready rows whose priority should rise. Cover the major Gormes/Hermes surfaces rather than only the most recent subsystem: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows.
+
+Then invoke gormes-planner on the parity findings and current planned-row count. Convert findings into builder-ready progress.json row changes before implementation. Keep the queue completion-biased: add at most one new source-backed row per cycle, add no new P3/P4 rows while planned rows are 90 or higher, and prefer sharpening, de-duplicating, or reprioritizing existing rows when that is enough. Record implementation intent only in docs/content/building-gormes/architecture_plan/progress.json and regenerate derived progress surfaces when it changes.
 
 Then implement the highest-priority builder-ready new/planned progress.json row after that parity sweep. If the top candidate is not actually ready, pick the next highest-priority builder-ready row or fix the highest-priority failing row that is already in scope. Do exactly one bounded row.
 
