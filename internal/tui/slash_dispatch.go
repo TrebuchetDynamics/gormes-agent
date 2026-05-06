@@ -136,6 +136,7 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("scroll", mouseSlashHandler)
 	r.Register("save", saveSlashHandler)
 	r.Register("branch", branchSlashHandler)
+	r.Register("copy", copySlashHandler)
 	r.Register("browser", browserSlashHandler, WithBusyAvailable())
 	return r
 }
@@ -226,4 +227,37 @@ func mouseSlashHandler(input string, model *Model) SlashResult {
 		cmd = model.emitMouseModeCmd(parsed.next)
 	}
 	return SlashResult{Handled: true, StatusMessage: statusMessage, Cmd: cmd}
+}
+
+func copySlashHandler(input string, model *Model) SlashResult {
+	if model.clipboardWrite == nil {
+		return SlashResult{Handled: true, StatusMessage: "copy: clipboard unavailable"}
+	}
+	fields := strings.Fields(input)
+	arg := ""
+	if len(fields) > 1 {
+		arg = fields[1]
+	}
+	result := SelectComposerCopyText(model.frame.History, arg)
+	if !result.OK {
+		return SlashResult{Handled: true, StatusMessage: copyStatusForEvidence(result)}
+	}
+	if err := model.clipboardWrite(result.Text); err != nil {
+		return SlashResult{Handled: true, StatusMessage: "copy: clipboard failed: " + err.Error()}
+	}
+	return SlashResult{
+		Handled:       true,
+		StatusMessage: fmt.Sprintf("Copied assistant response #%d to clipboard", result.ResponseNumber),
+	}
+}
+
+func copyStatusForEvidence(result ComposerCopyResult) string {
+	switch result.Evidence {
+	case "tui_ingress_copy_invalid_index":
+		return "copy: invalid response number"
+	case "tui_ingress_copy_empty_response":
+		return fmt.Sprintf("copy: assistant response #%d has no visible text", result.ResponseNumber)
+	default:
+		return "copy: nothing to copy"
+	}
 }

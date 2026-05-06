@@ -45,6 +45,10 @@ type Options struct {
 	// MemoryDBPath-backed implementation in main.go so the TUI never
 	// opens a SQLite handle itself.
 	SessionExport SessionExportFunc
+	// ClipboardWrite is the injected clipboard writer invoked by /copy.
+	// nil keeps copy unavailable; production callers may wire OSC52 or a
+	// platform clipboard helper outside the TUI model.
+	ClipboardWrite func(string) error
 	// OfflineSmoke keeps plain-text submits inside the TUI. It is used by
 	// `gormes --offline` so the demo path proves the native UI without
 	// contacting a provider or enqueueing a kernel turn.
@@ -97,9 +101,10 @@ type Model struct {
 	// owned by a successful /branch fork. SessionID() prefers it over
 	// frame.SessionID so subsequent UI reads see the branch session even
 	// before the kernel acks the switch on its next render frame.
-	sessionID     string
-	sessionBranch SessionBranchFunc
-	sessionExport SessionExportFunc
+	sessionID      string
+	sessionBranch  SessionBranchFunc
+	sessionExport  SessionExportFunc
+	clipboardWrite func(string) error
 
 	slashRegistry *SlashRegistry
 
@@ -107,8 +112,8 @@ type Model struct {
 	// RenderFrame. These fields are updated by Update() when a frameMsg
 	// arrives so that View() can render the appropriate panel chrome.
 	ApprovalState *kernel.KernelApprovalState
-	ClarifyState *kernel.KernelClarifyState
-	SecretState  *kernel.KernelSecretState
+	ClarifyState  *kernel.KernelClarifyState
+	SecretState   *kernel.KernelSecretState
 }
 
 // NewModel constructs the Bubble Tea model. frames is the kernel's Render()
@@ -133,17 +138,18 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	ta.SetHeight(1)
 	ta.Focus()
 	return Model{
-		editor:        ta,
-		frames:        frames,
-		submit:        submit,
-		cancel:        cancel,
-		mouseTracking: opts.MouseTracking,
-		mouseModeCmd:  opts.MouseModeCmd,
-		sessionBranch: opts.SessionBranch,
-		busyGuard:     opts.BusyGuard,
-		sessionExport: opts.SessionExport,
-		offlineSmoke:  opts.OfflineSmoke,
-		slashRegistry: NewDefaultSlashRegistry(),
+		editor:         ta,
+		frames:         frames,
+		submit:         submit,
+		cancel:         cancel,
+		mouseTracking:  opts.MouseTracking,
+		mouseModeCmd:   opts.MouseModeCmd,
+		sessionBranch:  opts.SessionBranch,
+		busyGuard:      opts.BusyGuard,
+		sessionExport:  opts.SessionExport,
+		clipboardWrite: opts.ClipboardWrite,
+		offlineSmoke:   opts.OfflineSmoke,
+		slashRegistry:  NewDefaultSlashRegistry(),
 	}
 }
 

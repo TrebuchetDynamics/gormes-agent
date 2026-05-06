@@ -38207,8 +38207,8 @@
             },
             {
               "name": "Native TUI image/file drop + paste collapse ingress",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes native TUI ports Hermes Ink composer ingress behavior before provider wiring: pasted/dropped local paths are classified without confusing real slash commands, image files attach through an `image.attach` gateway seam with remainder text preserved, large pasted text collapses through a `paste.collapse` seam with readable paste labels, clipboard/OSC52 text fallback is used only for usable text, malformed or unterminated bracketed paste is flushed back to normal input, and external-editor/copy commands expand paste placeholders or copy assistant output without leaking reasoning scratchpads.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -38274,6 +38274,12 @@
               "done_signal": [
                 "Native TUI composer fixtures prove image/file drop classification, image.attach and paste.collapse RPC envelopes, bracketed-paste recovery, external-editor paste expansion, and copy redaction with fake seams only."
               ],
+              "note": "Complete after the 2026-05-06 all-topic Hermes parity sweep raised this row to P0. TDD added internal/tui/composer_ingress.go and internal/tuigateway/ingress_rpc.go with fixtures for Hermes file/drop classification, image.attach and input.detect_drop envelopes, paste.collapse envelopes, bracketed-paste recovery, external-editor paste expansion, and /copy assistant-output redaction through an injected clipboard writer. The slice uses fake seams only: no live terminal clipboard, editor process, gateway transport, provider, or image upload is required.",
+              "evidence": {
+                "implementation": "internal/tui/composer_ingress.go; internal/tui/model.go; internal/tui/slash_dispatch.go; internal/tuigateway/ingress_rpc.go",
+                "tests": "go test ./internal/tui -run 'TestTUIComposer|TestHermesKeybindings|TestSlashRegistry' -count=1; go test ./internal/tuigateway -run TestTUI.*Ingress -count=1; go test ./internal/tui ./internal/tuigateway -count=1",
+                "note": "Initial RED tests failed on missing DetectComposerDroppedFile/ComposerDropOptions, missing image.attach/input.detect_drop/paste.collapse RPC envelopes, missing paste recovery/expansion helpers, and missing ClipboardWrite model seam; GREEN runs passed after adding pure helpers and fakeable seams."
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 ui-tui/src/app/useComposerState.ts + cli file/image/editor/copy tests",
