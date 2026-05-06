@@ -57,6 +57,8 @@ var knownProviderModels = map[string]string{
 
 type setupCommandSeams struct {
 	IsTTY              func() bool
+	HasExistingInstall func() (bool, error)
+	ResetConfig        func() error
 	RunModelPicker     func(*cobra.Command) error
 	LoadCurrentModel   func() (cli.ProviderModel, error)
 	ChooseSetupAction  func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
@@ -92,6 +94,12 @@ func newSetupCommand() *cobra.Command {
 func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	if seams.IsTTY == nil {
 		seams.IsTTY = isStdinTTY
+	}
+	if seams.HasExistingInstall == nil {
+		seams.HasExistingInstall = defaultSetupHasExistingInstall
+	}
+	if seams.ResetConfig == nil {
+		seams.ResetConfig = resetSetupDefaultConfig
 	}
 	if seams.RunModelPicker == nil {
 		seams.RunModelPicker = func(cmd *cobra.Command) error {
@@ -141,38 +149,41 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			headless := nonInteractive || !seams.IsTTY()
+			if reset {
+				if err := seams.ResetConfig(); err != nil {
+					return err
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), "Configuration reset to defaults.")
+			}
+			if len(args) > 0 {
+				section := strings.ToLower(strings.TrimSpace(args[0]))
+				return runSetupSection(cmd, seams, section, nonInteractive)
+			}
+			if headless {
+				printSetupSections(cmd)
+				return nil
+			}
+			existing, err := seams.HasExistingInstall()
+			if err != nil {
+				return err
+			}
 			if quick {
-				return runSetupQuick(cmd, seams, nonInteractive || !seams.IsTTY())
+				if existing {
+					return runSetupQuick(cmd, seams, false)
+				}
+				return runSetupFirstTimeChoice(cmd, seams, false)
 			}
-			if reset || reconfigure {
-				return seams.RunFullWizard(cmd, true)
+			if reconfigure {
+				if existing {
+					return seams.RunFullWizard(cmd, false)
+				}
+				return runSetupFirstTimeChoice(cmd, seams, false)
 			}
-			if len(args) == 0 {
-				return runSetupRoot(cmd, seams, nonInteractive)
+			if existing {
+				return seams.RunFullWizard(cmd, false)
 			}
-			section := strings.ToLower(strings.TrimSpace(args[0]))
-			switch section {
-			case "provider":
-				return runSetupProviderSection(cmd, seams, nonInteractive)
-			case "model":
-				return runSetupModelSection(cmd, seams, nonInteractive)
-			case "agent":
-				return runSetupAgentSettingsSection(cmd, nonInteractive)
-			case "workspace":
-				return runSetupAgentSection(cmd, section, seams, nonInteractive)
-			case "bindings":
-				return runSetupBindingsSection(cmd, seams, nonInteractive)
-			case "tts":
-				return runSetupTTSSection(cmd, nonInteractive)
-			case "terminal":
-				return runSetupTerminalSection(cmd, nonInteractive)
-			case "gateway":
-				return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
-			case "tools":
-				return seams.RunSetupTools(cmd, nonInteractive || !seams.IsTTY())
-			default:
-				return setupSectionUnsupported(cmd, section)
-			}
+			return runSetupFirstTimeChoice(cmd, seams, false)
 		},
 	}
 	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "use defaults/env and never prompt")
@@ -184,9 +195,11 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 
 func defaultSetupCommandSeams() setupCommandSeams {
 	return setupCommandSeams{
-		IsTTY:             isStdinTTY,
-		LoadCurrentModel:  defaultSetupLoadCurrentModel,
-		ChooseSetupAction: promptSetupAction,
+		IsTTY:              isStdinTTY,
+		HasExistingInstall: defaultSetupHasExistingInstall,
+		ResetConfig:        resetSetupDefaultConfig,
+		LoadCurrentModel:   defaultSetupLoadCurrentModel,
+		ChooseSetupAction:  promptSetupAction,
 	}
 }
 
@@ -196,6 +209,52 @@ func defaultSetupLoadCurrentModel() (cli.ProviderModel, error) {
 		return cli.ProviderModel{}, err
 	}
 	return cli.ProviderModel{Provider: cfg.Hermes.Provider, Model: cfg.Hermes.Model}, nil
+}
+
+func defaultSetupHasExistingInstall() (bool, error) {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return false, fmt.Errorf("setup: load config: %w", err)
+	}
+	return strings.TrimSpace(cfg.Hermes.Provider) != "" ||
+		strings.TrimSpace(cfg.Hermes.Endpoint) != "" ||
+		strings.TrimSpace(os.Getenv("GORMES_API_KEY")) != "", nil
+}
+
+func resetSetupDefaultConfig() error {
+	path := config.ConfigPath()
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("setup reset: mkdir %s: %w", dir, err)
+	}
+	body, err := toml.Marshal(map[string]any{"_config_version": int64(config.CurrentConfigVersion)})
+	if err != nil {
+		return fmt.Errorf("setup reset: marshal defaults: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, ".config.toml.reset-*")
+	if err != nil {
+		return fmt.Errorf("setup reset: tempfile: %w", err)
+	}
+	tmpName := tmp.Name()
+	if _, err := tmp.Write(body); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("setup reset: write temp: %w", err)
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("setup reset: chmod temp: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("setup reset: close temp: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("setup reset: replace %s: %w", path, err)
+	}
+	return nil
 }
 
 func printSetupSections(cmd *cobra.Command) {
@@ -239,6 +298,68 @@ func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bo
 		return nil
 	default:
 		return setupSectionUnsupported(cmd, string(action))
+	}
+}
+
+func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
+	if nonInteractive || !seams.IsTTY() {
+		printSetupSections(cmd)
+		return nil
+	}
+	options := []setupMenuOption{
+		{Action: setupActionQuick, Label: "Quick setup - provider, model, and messaging"},
+		{Action: setupActionFull, Label: "Full setup - configure everything"},
+	}
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "No existing Gormes configuration was found.")
+	fmt.Fprintln(out, "How would you like to set up Gormes?")
+	fmt.Fprintln(out)
+	for i, option := range options {
+		prefix := "   (○)"
+		if i == 0 {
+			prefix = " → (●)"
+		}
+		fmt.Fprintf(out, "%s %s\n", prefix, option.Label)
+	}
+	fmt.Fprintln(out)
+	action, err := seams.ChooseSetupAction(cmd, options, 0)
+	if err != nil {
+		return err
+	}
+	switch action {
+	case setupActionQuick:
+		return runSetupQuick(cmd, seams, false)
+	case setupActionFull:
+		return seams.RunFullWizard(cmd, false)
+	case setupActionExit:
+		return nil
+	default:
+		return setupSectionUnsupported(cmd, string(action))
+	}
+}
+
+func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string, nonInteractive bool) error {
+	switch section {
+	case "provider":
+		return runSetupProviderSection(cmd, seams, nonInteractive)
+	case "model":
+		return runSetupModelSection(cmd, seams, nonInteractive)
+	case "agent":
+		return runSetupAgentSettingsSection(cmd, nonInteractive)
+	case "workspace":
+		return runSetupAgentSection(cmd, section, seams, nonInteractive)
+	case "bindings":
+		return runSetupBindingsSection(cmd, seams, nonInteractive)
+	case "tts":
+		return runSetupTTSSection(cmd, nonInteractive)
+	case "terminal":
+		return runSetupTerminalSection(cmd, nonInteractive)
+	case "gateway":
+		return seams.RunSetupGateway(cmd, nonInteractive || !seams.IsTTY())
+	case "tools":
+		return seams.RunSetupTools(cmd, nonInteractive || !seams.IsTTY())
+	default:
+		return setupSectionUnsupported(cmd, section)
 	}
 }
 
@@ -1431,4 +1552,15 @@ func setupSectionUnsupported(cmd *cobra.Command, section string) error {
 
 func setupSectionList() string {
 	return strings.Join(setupSections, "|")
+}
+
+func setupSectionOwnership(section string) string {
+	switch normalizeSetupChoice(section) {
+	case "model", "tts", "terminal", "gateway", "tools", "agent":
+		return "hermes_owned"
+	case "provider", "workspace", "bindings", "onboard":
+		return "gormes_owned_extension"
+	default:
+		return "unknown"
+	}
 }

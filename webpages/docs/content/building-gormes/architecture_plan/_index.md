@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 57/92 subphases shipped · 31 in progress · 4 planned
+**Overall:** 58/92 subphases shipped · 30 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 7/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 8/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -585,14 +585,14 @@ classification and row-backed implementation queue.
 - [x] Title auxiliary failure visibility
 - [x] Auto-naming sessions
 
-### 4.G — Credentials + OAuth 🔨
+### 4.G — Credentials + OAuth ✅
 
 - [x] Token vault
 - [x] Anthropic OAuth/keychain credential discovery
 - [x] Multi-account auth
 - [x] Credential non-ASCII sanitizer + one-shot warning
 - [x] Google OAuth flow + refresh seam
-- [ ] GitHub Copilot token exchange + Responses mode selector
+- [x] GitHub Copilot token exchange + Responses mode selector
 
 ### 4.H — Rate / Retry / Caching ✅
 

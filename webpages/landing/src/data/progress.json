@@ -17072,8 +17072,8 @@
             },
             {
               "name": "GitHub Copilot token exchange + Responses mode selector",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes ports Hermes Copilot credential and request-mode behavior behind native auth/transport seams: resolve COPILOT_GITHUB_TOKEN, GH_TOKEN, GITHUB_TOKEN, then optional gh CLI token in order; reject classic ghp_ PATs while accepting OAuth/fine-grained/app token shapes; exchange raw GitHub tokens for Copilot API JWTs with fingerprinted cache and raw-token fallback on exchange failure; build Copilot headers with Openai-Intent, x-initiator, and vision flags; and select Responses API mode for current GPT-5 Copilot model families while keeping GPT-5-mini and non-GPT models on chat mode.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -18737,7 +18737,7 @@
               "priority": "P1",
               "status": "planned",
               "contract": "The public Gormes docs site gives operators one coherent setup path from webpage entrypoint to first successful model turn and optional messaging gateway: the docs home, Getting Started, First Run, Provider Setup, Gateway Operations, Telegram Bot, CLI reference, config reference, environment reference, and provider reference pages must agree with the live `gormes --help`, `gormes setup --help`, `gormes model --help`, and `gormes gateway --help` command surface; they must link to active upstream Hermes provider/messaging docs under `upstream-hermes/` for parity context while clearly separating Gormes-ready commands from row-backed or fixture-only channels/providers.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -32915,6 +32915,7 @@
                 "../hermes-agent/tests/hermes_cli/test_setup_reconfigure.py@b816fd4e2",
                 "../hermes-agent/tests/hermes_cli/test_setup_noninteractive.py@b816fd4e2",
                 "cmd/gormes/setup.go",
+                "cmd/gormes/setup_entry_mode_test.go",
                 "cmd/gormes/setup_minimal_test.go"
               ],
               "ready_when": [
@@ -32947,7 +32948,7 @@
                 "TestSetupEntryMode_NoTTYAndNonInteractiveNeverPrompt proves no-TTY and explicit non-interactive runs do not call input/menu/password seams.",
                 "TestSetupSections_HermesOwnedVsGormesOwned proves Hermes six section choices and Gormes-owned extension sections are separately classified in help/text fixtures."
               ],
-              "note": "Added by the 2026-05-05 setup parity sweep at Gormes 9620cd4ae against Hermes b816fd4e2. Upstream tests now pin returning-user bare setup and `--reconfigure` as direct full-wizard paths, `--quick` as missing-items only, fresh install as quick/full choice, and `--reset` as default-config rewrite before headless guidance. Gormes' completed chooser remains useful but must be treated as an owned shell, not the current Hermes default entry mode.",
+              "note": "Added by the 2026-05-05 setup parity sweep at Gormes 9620cd4ae against Hermes b816fd4e2. Upstream tests now pin returning-user bare setup and `--reconfigure` as direct full-wizard paths, `--quick` as missing-items only, fresh install as quick/full choice, and `--reset` as default-config rewrite before headless guidance. Gormes' completed chooser remains useful but must be treated as an owned shell, not the current Hermes default entry mode. 2026-05-06 all-topic parity sweep promoted this row to P0 because setup entry semantics blocks CLI text fidelity and public setup/channel/provider docs; TDD then shipped cmd/gormes/setup_entry_mode_test.go plus setup.go routing/reset helpers. Evidence: go test ./cmd/gormes -run 'TestSetupEntryMode|TestSetupSections_HermesOwnedVsGormesOwned|TestSetupPromptSecret' -count=1 PASS; go test ./cmd/gormes -run '^TestSetup' -count=1 PASS.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/setup_entry_mode_test.go",

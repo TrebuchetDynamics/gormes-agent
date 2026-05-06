@@ -178,25 +178,22 @@ func TestSetupGatewayDoesNotStartGateway(t *testing.T) {
 	}
 }
 
-func TestSetupGatewayTopLevelRoutesThroughGatewaySeam(t *testing.T) {
+func TestSetupGatewaySectionRoutesThroughGatewaySeam(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 
 	gatewayCalls := 0
 	fake := &setupCommandFakeSeams{isTTY: true}
-	fake.chooseSetupAction = func(_ *cobra.Command, _ []setupMenuOption, _ int) (setupAction, error) {
-		return setupActionGateway, nil
-	}
 	fake.runSetupGateway = func(cmd *cobra.Command, nonInteractive bool) error {
 		gatewayCalls++
 		if nonInteractive {
-			t.Fatal("top-level interactive gateway setup was marked non-interactive")
+			t.Fatal("interactive gateway setup was marked non-interactive")
 		}
 		cmd.Println("gateway seam reached")
 		return nil
 	}
 
-	stdout, stderr, err := runSetupTestCommand(t, fake.seams())
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "gateway")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
