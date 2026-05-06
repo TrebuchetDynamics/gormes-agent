@@ -172,6 +172,7 @@ Maintenance:
   gormes status                     show runtime and progress blockers
   gormes usage                      show provider account usage
   gormes migrate hermes             import state from Hermes (dry-run)
+  gormes update                     update a managed source checkout
   gormes version                    print version
   gormes uninstall                  remove Gormes artifacts
 
@@ -195,7 +196,7 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newUninstallCommand(), newLogsCommand())
 	return root
 }
 

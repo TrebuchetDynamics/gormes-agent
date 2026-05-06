@@ -942,7 +942,7 @@ classification and row-backed implementation queue.
 - [ ] Diagnostics, backup, logs, and status CLI
 - [ ] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
-- [ ] Self-update command lifecycle safety
+- [x] Self-update command lifecycle safety
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard

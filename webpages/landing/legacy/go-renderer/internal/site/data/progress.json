@@ -35394,7 +35394,7 @@
             {
               "name": "Self-update command lifecycle safety",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "`gormes update` becomes a native, source-checkout-safe update command over the existing installer/runtime helpers: it detects managed checkout state, autostashes dirty local changes, switches back to the configured update branch when safe, prefers fast-forward pull with reset fallback evidence, restores or preserves stash state deterministically, mirrors output to an update log while ignoring SIGHUP on POSIX, restarts or reloads a live gateway only through validated service/runtime seams, and warns or kills stale dashboard processes before updated assets are served.",
               "contract_status": "validated",
               "slice_size": "large",
@@ -35468,9 +35468,25 @@
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "outputs": [
+                "cmd/gormes/update.go",
+                "cmd/gormes/update_command_test.go",
+                "cmd/gormes/main.go",
+                "internal/cli/update_lifecycle.go",
+                "internal/cli/update_lifecycle_test.go"
+              ],
+              "evidence": [
+                "RED: go test ./internal/cli -run 'TestUpdate|TestServiceRestart|TestBackupPolicy' -count=1 failed because UpdateLifecycleOptions, UpdateGitResult, RunUpdateLifecycle, UpdateReport, and update evidence kinds did not exist.",
+                "RED: go test ./cmd/gormes -run '^TestUpdateCommand' -count=1 failed because the native update command and injectable lifecycle seam did not exist.",
+                "GREEN: internal/cli/update_lifecycle.go adds a fakeable git-backed update lifecycle with managed-checkout detection, branch/detached-HEAD recovery, autostash create/restore/preserve paths, fast-forward pull with reset fallback evidence, typed auth/network/git failures, hangup/log mirror helpers, validated gateway restart evidence mapping, and stale dashboard kill/warn handling.",
+                "GREEN: cmd/gormes/update.go registers native `gormes update` with --branch, --check, --yes, --restart-gateway, and --kill-stale-dashboard flags, prints typed operator evidence, and returns recovery guidance on failed updates.",
+                "VALIDATION: go test ./internal/cli -run 'TestUpdate|TestServiceRestart|TestBackupPolicy' -count=1 PASS; go test ./cmd/gormes -run '^TestUpdateCommand' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS."
+              ],
               "done_signal": [
                 "Update fixtures prove autostash/branch recovery, friendly git failures, SIGHUP/log mirroring, validated gateway restart, stale dashboard handling, and no live git/service/network dependency."
               ],
+              "completed_at": "2026-05-06T17:45:48Z",
+              "note": "2026-05-06 bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Higher-priority open rows were blocked, draft-only, stale/vague, Gormes-owned enhancements, or broader than one bounded builder pass. This row was the highest-priority unblocked builder-ready Hermes-sourced operator/runtime weakness after prerequisite backup policy, service RestartSec parsing, service active-status polling, and gateway mutating-subcommand unavailability rows were complete. Complete: TDD added the native `gormes update` command plus fakeable update lifecycle helpers for safe checkout mutation evidence, autostash recovery, branch recovery, typed git failures, SIGHUP/log mirror handling, service-restart evidence mapping, and stale dashboard process handling without live git, service manager, network, or dashboard dependencies.",
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 hermes_cli/main.py cmd_update + tests/hermes_cli/test_update_*.py",
