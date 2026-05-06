@@ -35,8 +35,8 @@ func TestTrajectoryWriterConvertsScratchpadTags(t *testing.T) {
 	if evidence.Code != TrajectoryWriteCompleted {
 		t.Fatalf("evidence.Code = %q, want %q: %+v", evidence.Code, TrajectoryWriteCompleted, evidence)
 	}
-	if evidence.Path != samplesPath || !evidence.Completed || !evidence.Redacted {
-		t.Fatalf("evidence = %+v, want completed sample write at %q with redaction", evidence, samplesPath)
+	if evidence.Path != audit.RedactText(samplesPath) || !evidence.Completed || !evidence.Redacted {
+		t.Fatalf("evidence = %+v, want completed sample write at %q with redaction", evidence, audit.RedactText(samplesPath))
 	}
 	if _, err := os.Stat(failedPath); !os.IsNotExist(err) {
 		t.Fatalf("failed trajectory path exists or stat failed: %v", err)
@@ -77,8 +77,8 @@ func TestTrajectoryWriterIncompleteScratchpadRoutesFailed(t *testing.T) {
 	if evidence.Code != TrajectoryWriteCompleted {
 		t.Fatalf("evidence.Code = %q, want %q: %+v", evidence.Code, TrajectoryWriteCompleted, evidence)
 	}
-	if evidence.Path != failedPath || evidence.Completed {
-		t.Fatalf("evidence = %+v, want failed trajectory path %q and completed=false", evidence, failedPath)
+	if evidence.Path != audit.RedactText(failedPath) || evidence.Completed {
+		t.Fatalf("evidence = %+v, want failed trajectory path %q and completed=false", evidence, audit.RedactText(failedPath))
 	}
 	if _, err := os.Stat(samplesPath); !os.IsNotExist(err) {
 		t.Fatalf("sample trajectory path exists or stat failed: %v", err)
