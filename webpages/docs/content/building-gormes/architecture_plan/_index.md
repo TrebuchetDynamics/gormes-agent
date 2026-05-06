@@ -764,7 +764,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
 - [ ] Hermes plugin CLI lifecycle parity
-- [ ] Goncho Honcho plugin session config + async write compatibility
+- [x] Goncho Honcho plugin session config + async write compatibility
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture
 - [x] Hindsight memory setup blank-input preservation

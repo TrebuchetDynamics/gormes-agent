@@ -24954,7 +24954,7 @@
             {
               "name": "Goncho Honcho plugin session config + async write compatibility",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Goncho preserves Hermes Honcho plugin session/config behavior over local-first memory: Honcho baseUrl without an API key resolves to a local/self-hosted sentinel when the URL is plausible, obvious non-URL literals fail closed, host-level config overrides root settings, writeFrequency supports async/turn/session/integer modes, session names prefer manual override then title then session id/dirname/global workspace, async writes queue and flush deterministically, and pinPeerName can opt a single-user multi-platform deployment into one configured peer while the default keeps multi-user platform IDs isolated.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -25016,6 +25016,17 @@
               "done_signal": [
                 "Goncho fixtures prove Honcho plugin config precedence, self-hosted baseUrl sentinel behavior, writeFrequency routing, async flush/shutdown, session naming, and pinPeerName isolation/unification semantics locally."
               ],
+              "note": "Complete: the 2026-05-06 all-topic parity sweep selected this as the first medium, unblocked P1 builder-ready row after skipping ACP JSON-RPC as too large for one bounded cron slice and plugin CLI lifecycle as still blocked by broad third-party extension work. TDD added Go-native Honcho plugin compatibility helpers under internal/goncho: baseUrl local sentinel and fail-closed literal handling, host-over-root config precedence, writeFrequency parsing/routing, deterministic async queue flush/shutdown evidence, session-name resolution, and pinPeerName peer isolation/unification. The implementation is local-only and does not contact hosted Honcho, read live ~/.honcho/~/.hermes config, import Python plugin code, or rename public honcho_* tool surfaces.",
+              "evidence": [
+                "RED: go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1 failed on missing PluginConfig/async writer helper symbols.",
+                "GREEN: go test ./internal/goncho -run 'TestGonchoHoncho|TestGonchoWriteFrequency|TestGonchoSessionName|TestGonchoAsync|TestGonchoPinPeerName' -count=1 passed.",
+                "FOCUSED: go test ./internal/goncho ./internal/gonchotools -count=1 passed."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-06T00:00:00Z",
+                "last_success": "2026-05-06T00:00:00Z"
+              },
               "provenance": {
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b816fd4e2 tests/honcho_plugin/test_async_memory.py + test_pin_peer_name.py",
