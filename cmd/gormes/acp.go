@@ -43,7 +43,9 @@ func runACPServeCommand(cmd *cobra.Command) error {
 	runtime := acp.NewSessionRuntime(acp.SessionRuntimeConfig{
 		SessionMap: smap,
 	})
-	if err := acp.NewJSONRPCServer(runtime).Handle(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout()); err != nil {
+	server := acp.NewJSONRPCServer(runtime)
+	server.Diagnostics = acp.NewStdioDiagnostics(cmd.ErrOrStderr())
+	if err := server.Handle(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout()); err != nil {
 		return newExitCodeError(1, err)
 	}
 	return nil

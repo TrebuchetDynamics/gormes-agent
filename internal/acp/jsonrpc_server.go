@@ -12,8 +12,9 @@ import (
 const ACPProtocolVersion = 1
 
 type JSONRPCServer struct {
-	Runtime *SessionRuntime
-	Version string
+	Runtime     *SessionRuntime
+	Version     string
+	Diagnostics *StdioDiagnostics
 }
 
 func NewJSONRPCServer(runtime *SessionRuntime) *JSONRPCServer {
@@ -36,6 +37,7 @@ func (s *JSONRPCServer) Handle(ctx context.Context, in io.Reader, out io.Writer)
 		}
 		var req jsonRPCRequest
 		if err := json.Unmarshal([]byte(line), &req); err != nil {
+			s.reportStdioError("parse_error", "")
 			if err := enc.Encode(jsonRPCResponse{JSONRPC: "2.0", Result: nil, Error: &jsonRPCError{Code: -32700, Message: "parse error"}}); err != nil {
 				return err
 			}
@@ -158,7 +160,24 @@ func (s *JSONRPCServer) dispatch(ctx context.Context, req jsonRPCRequest, enc *j
 		}
 		return promptResult(result), nil
 	default:
+		if IsBenignProbeMethod(req.Method) {
+			s.reportBenignProbe(req.Method)
+		} else {
+			s.reportStdioError("method_not_found", req.Method)
+		}
 		return nil, &jsonRPCError{Code: -32601, Message: "method not found", Data: map[string]any{"method": req.Method}}
+	}
+}
+
+func (s *JSONRPCServer) reportBenignProbe(method string) {
+	if s != nil && s.Diagnostics != nil {
+		s.Diagnostics.BenignProbeSuppressed(method)
+	}
+}
+
+func (s *JSONRPCServer) reportStdioError(reason, method string) {
+	if s != nil && s.Diagnostics != nil {
+		s.Diagnostics.Error(reason, method)
 	}
 }
 

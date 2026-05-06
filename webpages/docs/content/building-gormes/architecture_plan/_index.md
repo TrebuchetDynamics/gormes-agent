@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 64/92 subphases shipped · 27 in progress · 1 planned
+**Overall:** 65/92 subphases shipped · 26 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 4/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -750,12 +750,12 @@ classification and row-backed implementation queue.
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
 
-### 5.H — ACP Integration 🔨
+### 5.H — ACP Integration ✅
 
 - [x] ACP server side
 - [x] ACP Client Bridge Mode
 - [x] ACP JSON-RPC stdio session/prompt closeout
-- [ ] ACP stdio benign ping/probe suppression
+- [x] ACP stdio benign ping/probe suppression
 
 ### 5.I — Plugins Architecture 🔨
 

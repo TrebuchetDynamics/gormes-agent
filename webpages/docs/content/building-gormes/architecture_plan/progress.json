@@ -24654,8 +24654,8 @@
             },
             {
               "name": "ACP stdio benign ping/probe suppression",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes' ACP stdio startup hygiene: the ACP entrypoint keeps stdout reserved for JSON-RPC frames, routes incidental logs to stderr, treats client probe methods such as bare ping, health, and healthcheck JSON-RPC requests as benign liveness checks, suppresses noisy background-task tracebacks for those probes, and still surfaces real ACP startup/session/tool errors with redacted evidence.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -24684,9 +24684,7 @@
                 "Any log line, status frame, or error text written to stdout can corrupt JSON-RPC transport framing.",
                 "Suppression matches broad unknown methods instead of narrowly classifying known benign ping/probe request shapes."
               ],
-              "blocked_by": [
-                "ACP JSON-RPC stdio session/prompt closeout"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "ACP editor launch smoke parity",
                 "ACP startup diagnostics closeout"
@@ -24700,10 +24698,11 @@
               ],
               "write_scope": [
                 "cmd/gormes/acp.go",
+                "internal/acp/jsonrpc_server.go",
                 "internal/acp/stdio_ping_suppression.go",
                 "internal/acp/stdio_ping_suppression_test.go",
                 "internal/acp/server.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe' -count=1",
@@ -24714,10 +24713,16 @@
               "done_signal": [
                 "ACP stdio fixtures prove stderr-only logging, benign ping suppression, visible real errors, malformed-input visibility, bounded redacted evidence, and no live editor/provider dependencies."
               ],
+              "note": "Complete: the 2026-05-06 ACP stdio TDD slice added a Go-native stderr-only diagnostics seam for `gormes acp serve`, exact benign-probe classification for ping/health/healthcheck, bounded redacted suppression counters, and visible non-probe parse/method diagnostics while preserving stdout as JSON-RPC frames only.",
+              "evidence": [
+                "RED: go test ./internal/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe|^TestACPUnknownNonProbe|^TestACPMalformedJSON' -count=1 failed on missing NewStdioDiagnostics and JSONRPCServer.Diagnostics.",
+                "GREEN: go test ./internal/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe|^TestACPUnknownNonProbe|^TestACPMalformedJSON' -count=1 passed.",
+                "ROW: go test ./cmd/gormes ./internal/acp -count=1 passed."
+              ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 acp_adapter/entry.py",
-                "note": "Hermes suppresses noisy ACP client health-probe tracebacks while preserving stdout JSON-RPC framing. Gormes has ACP manifest and command scaffolding but no executable row for stdio probe/log hygiene."
+                "note": "Hermes suppresses noisy ACP client health-probe tracebacks while preserving stdout JSON-RPC framing. Gormes now ports the behavior in the native ACP JSON-RPC server and Cobra entrypoint without starting an editor client or provider."
               }
             }
           ],
