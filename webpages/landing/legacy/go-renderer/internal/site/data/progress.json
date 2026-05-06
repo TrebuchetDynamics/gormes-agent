@@ -31607,8 +31607,8 @@
             },
             {
               "name": "CLI submitted user-message preview formatter",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes' submitted user-message scrollback preview as a pure internal/cli formatter: single-line submissions render the normal bullet line, multiline submissions render a bounded first-lines/last-lines preview, hidden middle content is replaced by a deterministic count, invalid preview config values fall back to safe defaults, tail lines can be disabled with last_lines=0, and display markup/control text is escaped before rendering.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -31658,7 +31658,7 @@
                 "internal/cli/user_message_preview.go",
                 "internal/cli/user_message_preview_test.go",
                 "internal/cli/output.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/cli -run '^TestUserMessagePreview' -count=1",
@@ -31669,10 +31669,29 @@
               "done_signal": [
                 "CLI preview fixtures prove default head/tail formatting, tail-disabled formatting, invalid-config fallback, no hidden marker for short input, escaped display text, single-line bullet behavior, and no TTY dependencies."
               ],
+              "note": "Complete 2026-05-06: RED added internal/cli/user_message_preview_test.go and failed on the missing FormatUserMessagePreview/UserMessagePreviewConfig API. GREEN added internal/cli/user_message_preview.go as a pure formatter matching Hermes' submitted-message preview contract: default first/tail lines, last_lines=0 tail suppression, Hermes-style numeric fallback/lower bounds, no hidden marker for short multiline input, bracket/control/ANSI neutralization, and single-line bullet rendering. The helper is not wired into TUI, prompt input, provider requests, transcript persistence, clipboard, file-drop, or command parsing.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 cli.py",
-                "note": "Hermes prints a bounded scrollback preview for submitted messages. Gormes has TUI user-preview surfaces but no source-backed internal/cli formatter row for the classic CLI preview behavior."
+                "note": "2026-05-06 all-topic parity sweep promoted this row: CLI/TUI prompt submission is an active Hermes operator surface, the upstream cli.py/test contract is current at b816fd4e2, blockers are complete, and the formatter is the smallest builder-ready slice after higher-priority P1 rows were broad, blocked, or non-Hermes-owned. Hermes prints a bounded scrollback preview for submitted messages. Gormes has TUI user-preview surfaces but no source-backed internal/cli formatter row for the classic CLI preview behavior."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/cli/user_message_preview.go:FormatUserMessagePreview",
+                  "internal/cli/user_message_preview.go:UserMessagePreviewConfig"
+                ],
+                "tests": [
+                  "internal/cli/user_message_preview_test.go:TestUserMessagePreviewDefaultHeadTail",
+                  "internal/cli/user_message_preview_test.go:TestUserMessagePreviewHideTail",
+                  "internal/cli/user_message_preview_test.go:TestUserMessagePreviewInvalidConfigFallsBack",
+                  "internal/cli/user_message_preview_test.go:TestUserMessagePreviewShortInputNoMarker",
+                  "internal/cli/user_message_preview_test.go:TestUserMessagePreviewEscapesMarkup",
+                  "internal/cli/user_message_preview_test.go:TestUserMessagePreviewSingleLineBullet"
+                ],
+                "verification": [
+                  "2026-05-06: go test ./internal/cli -run '^TestUserMessagePreview' -count=1 -> ok",
+                  "2026-05-06: go test ./internal/cli -count=1 -> ok"
+                ]
               }
             },
             {
@@ -36281,7 +36300,7 @@
                 "internal/gateway/status.go",
                 "cmd/gormes/gateway_status.go",
                 "cmd/gormes/gateway_status_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/gateway -run 'TestStaleCode' -count=1",
@@ -36298,7 +36317,7 @@
                   "hermes:d90f73bce gateway/run.py",
                   "hermes:d90f73bce tests/gateway/test_stale_code_self_check.py"
                 ],
-                "note": "Current Hermes replaced mtime-based stale-code detection after Gormes gateway lifecycle rows were split; this row revisits only stale-code self-check semantics."
+                "note": "2026-05-06 all-topic parity sweep kept this install/runtime row source-backed and corrected the canonical progress write_scope path, but left priority below the CLI preview formatter because it is not the narrowest ready slice for this pass. Current Hermes replaced mtime-based stale-code detection after Gormes gateway lifecycle rows were split; this row revisits only stale-code self-check semantics."
               }
             }
           ],
@@ -36557,7 +36576,7 @@
             {
               "name": "Windows installer (install.ps1 + install.cmd) parity",
               "status": "planned",
-              "note": "TDD slice 2 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): add `www.gormes.ai/internal/site/install.ps1` (native PowerShell) plus `install.cmd` wrapper that launches it, matching the Unix contract (user-scoped PATH, managed checkout, rerun-as-update, source-backed). Cover content/smoke assertions — PATH publication, managed checkout layout, release branch handling, and stable global command publication — via `install_windows_test.go` over fake toolchains; no live network calls in unit tests.",
+              "note": "2026-05-06 all-topic parity sweep revisited release/operator public-surface rows and left this as a vague umbrella that must be split before builder selection. TDD slice 2 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): add `www.gormes.ai/internal/site/install.ps1` (native PowerShell) plus `install.cmd` wrapper that launches it, matching the Unix contract (user-scoped PATH, managed checkout, rerun-as-update, source-backed). Cover content/smoke assertions — PATH publication, managed checkout layout, release branch handling, and stable global command publication — via `install_windows_test.go` over fake toolchains; no live network calls in unit tests.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -36919,7 +36938,7 @@
                 "internal/tuigateway/config_health_test.go",
                 "internal/tuigateway/personality.go",
                 "internal/tuigateway/media_personality_event_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tuigateway -run 'TestTUIConfigHealth|TestTUISessionOptions' -count=1",
@@ -36934,7 +36953,7 @@
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tui_gateway/server.py",
-                "note": "Hermes protects TUI startup from bare YAML sections and null personality maps; Gormes has personality helpers but not the config-health probe or nil-tolerant session-option contract."
+                "note": "2026-05-06 all-topic parity sweep confirmed this CLI/TUI row remains a small source-backed follow-up after the preview formatter and corrected the canonical progress write_scope path. Hermes protects TUI startup from bare YAML sections and null personality maps; Gormes has personality helpers but not the config-health probe or nil-tolerant session-option contract."
               }
             },
             {
@@ -40174,6 +40193,10 @@
               "not_ready_when": [
                 "Any event bus component not yet implemented"
               ],
+              "blocked_by": [
+                "Gateway channel adapters publish to event bus",
+                "Agent turn and tool execution events on bus"
+              ],
               "acceptance": [
                 "Telegram message → MessageReceived event → agent turn → tool execution → reply → delivery",
                 "TUI subscriber receives same events as gateway without coupling",
@@ -40190,7 +40213,7 @@
               "done_signal": [
                 "Integration test proves full message lifecycle through event bus with multiple subscribers"
               ],
-              "note": "Research-driven. This test is the proof that event-driven architecture works end-to-end. After this, adding a new subscriber (e.g., webhook, analytics) requires zero changes to agent or gateway."
+              "note": "2026-05-06 all-topic parity sweep marked this gateway/channels row blocked instead of builder-ready: the core bus is complete, but the channel-adapter and turn/tool event producer rows remain planned, so the integration test cannot honestly prove the full lifecycle yet. Research-driven. This test is the proof that event-driven architecture works end-to-end. After this, adding a new subscriber (e.g., webhook, analytics) requires zero changes to agent or gateway."
             }
           ]
         }

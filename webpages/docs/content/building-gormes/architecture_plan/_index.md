@@ -885,7 +885,7 @@ classification and row-backed implementation queue.
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
 - [x] CLI terminal control-response sanitizer
-- [ ] CLI submitted user-message preview formatter
+- [x] CLI submitted user-message preview formatter
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
