@@ -28274,9 +28274,9 @@
             },
             {
               "name": "Doctor GitHub CLI auth fallback",
-              "priority": "P3",
-              "status": "planned",
-              "contract": "`gormes doctor` reports GitHub readiness as pass or usable when no GITHUB_TOKEN/GH_TOKEN is configured but `gh auth status --json authenticated` proves an authenticated GitHub CLI session; missing gh, unauthenticated gh, malformed JSON, or command failures degrade with redacted evidence and never require network in tests.",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "`gormes doctor` reports GitHub readiness as pass/usable when no GITHUB_TOKEN/GH_TOKEN is configured but `gh auth status --json authenticated` exits successfully, matching active Hermes' doctor contract; missing gh, unauthenticated gh, timeouts, or command failures degrade with redacted evidence and never require network in tests.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -28284,11 +28284,11 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Doctor reports github_auth_unavailable, github_cli_missing, github_cli_unauthenticated, or github_cli_status_failed evidence without logging tokens, gh stdout/stderr bodies, or profile paths.",
+              "degraded_mode": "Doctor reports github_auth_unavailable, github_cli_missing, github_cli_unauthenticated, github_cli_timeout, or github_cli_status_failed evidence without logging tokens, gh stdout/stderr bodies, or profile paths.",
               "fixture": "cmd/gormes/doctor_github_auth_test.go; internal/doctor/github_auth_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/doctor.py@103f51ad3",
-                "../hermes-agent/tests/hermes_cli/test_doctor.py@103f51ad3",
+                "./hermes-agent/hermes_cli/doctor.py@b816fd4e2:run_doctor/_gh_authenticated",
+                "./hermes-agent/tests/hermes_cli/test_doctor.py@b816fd4e2:TestGitHubTokenCheck",
                 "cmd/gormes/doctor.go",
                 "internal/doctor/doctor.go"
               ],
@@ -28303,16 +28303,17 @@
               ],
               "acceptance": [
                 "TestDoctorGitHubAuthTokenEnvPasses proves GITHUB_TOKEN or GH_TOKEN still satisfies the check without invoking gh.",
-                "TestDoctorGitHubAuthFallsBackToGHCLI proves absent env tokens plus fake `gh auth status --json authenticated` authenticated=true returns pass/usable evidence.",
-                "TestDoctorGitHubAuthGHCLIUnauthenticatedWarns proves authenticated=false, missing gh, command failure, and malformed JSON return distinct redacted evidence.",
-                "TestDoctorCommandRendersGitHubAuthFallback proves text and JSON doctor output include the check result without leaking command output or tokens."
+                "TestDoctorGitHubAuthFallsBackToGHCLI proves absent env tokens plus fake `gh auth status --json authenticated` returncode 0 returns pass/usable evidence.",
+                "TestDoctorGitHubAuthGHCLIUnauthenticatedWarns proves missing gh, nonzero exit, timeout, and command failure return distinct redacted evidence.",
+                "TestDoctorCommandRendersGitHubAuthFallback proves doctor text output includes the check result without leaking command output or tokens."
               ],
+              "note": "Complete: internal/doctor now exposes an injectable GitHub auth doctor check, cmd/gormes renders it in doctor output, and fixtures prove env-token pass, gh CLI fallback, missing/nonzero/timeout/failure degraded evidence, and redaction without invoking a real gh binary. Validated with go test ./internal/doctor -run 'TestDoctorGitHubAuth' -count=1, go test ./cmd/gormes -run 'TestDoctor.*GitHubAuth' -count=1, go test ./cmd/gormes ./internal/doctor -count=1, go run ./cmd/progress validate, and git diff --check.",
               "write_scope": [
                 "cmd/gormes/doctor.go",
                 "cmd/gormes/doctor_github_auth_test.go",
                 "internal/doctor/doctor.go",
                 "internal/doctor/github_auth_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/doctor -run 'TestDoctorGitHubAuth' -count=1",
@@ -28326,8 +28327,8 @@
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:103f51ad3 hermes_cli/doctor.py",
-                "note": "Hermes now treats authenticated GitHub CLI state as sufficient when env tokens are absent; Gormes should mirror the operator diagnostic contract through injectable command seams."
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/doctor.py",
+                "note": "2026-05-06 parity sweep refreshed stale sibling-path refs to the active in-repo Hermes checkout and raised this from P3 to P2 because release/operator diagnostics should not warn when gh CLI auth is already usable."
               }
             },
             {

@@ -828,7 +828,7 @@ classification and row-backed implementation queue.
 - [x] Session shutdown memory transcript handoff
 - [x] Debug helpers
 - [x] Debug share paste sweep scheduler contract
-- [ ] Doctor GitHub CLI auth fallback
+- [x] Doctor GitHub CLI auth fallback
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
 - [x] Backend usage-limit stdin health bypass

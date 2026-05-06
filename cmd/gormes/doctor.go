@@ -26,6 +26,8 @@ func init() {
 	doctorCmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
 }
 
+var doctorGitHubAuthRunner = doctor.DefaultGitHubAuthStatusRunner
+
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
 	Short: "Verify Gormes runtime: provider readiness + built-in tools",
@@ -88,6 +90,10 @@ var doctorCmd = &cobra.Command{
 		fmt.Print(doctorWebToolsStatus(cfg).Format())
 		fmt.Print(doctorBrowserRuntimeStatus().Format())
 		fmt.Print(doctorACPBridgeStatus().Format())
+		fmt.Print(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
+			Env:             doctorGitHubAuthEnv(),
+			RunGHAuthStatus: doctorGitHubAuthRunner,
+		}).Format())
 		fmt.Print(doctorGonchoConfig(cfg).Format())
 
 		runtimeStatus := gateway.RuntimeStatus{}
@@ -126,6 +132,13 @@ var doctorCmd = &cobra.Command{
 		}
 		return nil
 	},
+}
+
+func doctorGitHubAuthEnv() map[string]string {
+	return map[string]string{
+		"GITHUB_TOKEN": os.Getenv("GITHUB_TOKEN"),
+		"GH_TOKEN":     os.Getenv("GH_TOKEN"),
+	}
 }
 
 func doctorWebToolsStatus(cfg config.Config) doctor.CheckResult {
