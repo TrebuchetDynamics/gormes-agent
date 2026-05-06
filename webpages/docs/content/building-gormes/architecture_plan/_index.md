@@ -232,7 +232,7 @@ classification and row-backed implementation queue.
 - [x] Telegram document/photo cache + batch attachment parity
 - [x] Discord authenticated attachment download safety
 - [x] Slack Block Kit approval buttons + action callback
-- [ ] Discord thread participation persistence
+- [x] Discord thread participation persistence
 - [x] Cross-platform image/document MEDIA delivery routing
 - [x] Telegram inline approval buttons + callback auth
 - [x] Telegram polling conflict + webhook secret startup guard

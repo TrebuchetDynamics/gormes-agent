@@ -26,6 +26,12 @@ type Config struct {
 	// AttachmentCacheDir stores Discord attachment downloads before the gateway
 	// sees local attachment descriptors. Empty uses the user cache dir.
 	AttachmentCacheDir string
+	// ThreadStatePath stores the bounded set of participated Discord threads.
+	// Empty uses GormesHome()/discord_threads.json.
+	ThreadStatePath string
+	// ThreadParticipationLimit caps persisted participated threads. Empty uses
+	// Hermes' 500-thread default.
+	ThreadParticipationLimit int
 	// AttachmentHTTPClient fetches SSRF-gated URL fallbacks in tests and
 	// production. Empty uses a bounded default client.
 	AttachmentHTTPClient *http.Client
@@ -41,6 +47,8 @@ type Bot struct {
 
 	threadsMu sync.RWMutex
 	threads   map[string]discordThread
+
+	participatedThreads *ThreadParticipationTracker
 }
 
 type discordThread struct {
@@ -63,13 +71,21 @@ func New(cfg Config, session discordSession, log *slog.Logger) *Bot {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Bot{
+	b := &Bot{
 		cfg:       cfg,
 		session:   session,
 		log:       log,
 		reactions: map[string]bool{},
 		threads:   map[string]discordThread{},
+		participatedThreads: NewThreadParticipationTracker(ThreadParticipationOptions{
+			Path:       cfg.ThreadStatePath,
+			MaxTracked: cfg.ThreadParticipationLimit,
+		}),
 	}
+	if ev := b.participatedThreads.LoadEvidence(); ev.Code != "" {
+		b.log.Warn("discord thread participation tracker reset", "evidence", ev.Code)
+	}
+	return b
 }
 
 func (b *Bot) Name() string { return "discord" }
@@ -176,6 +192,11 @@ func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Messag
 			guildID = thread.guildID
 		}
 	}
+	if threadID != "" {
+		if ev, err := b.participatedThreads.Mark(threadID); err != nil {
+			b.log.Warn("discord thread participation tracker write failed", "evidence", ev.Code)
+		}
+	}
 	messageID := strings.TrimSpace(m.ID)
 	return gateway.InboundEvent{
 		Platform:     "discord",
@@ -216,6 +237,10 @@ func (b *Bot) threadForMessageChannel(channelID string) (discordThread, bool) {
 	defer b.threadsMu.RUnlock()
 	thread, ok := b.threads[strings.TrimSpace(channelID)]
 	return thread, ok
+}
+
+func (b *Bot) hasParticipatedThread(threadID string) bool {
+	return b.participatedThreads.Contains(threadID)
 }
 
 func (b *Bot) toThreadLifecycleEvent(ch *discordgo.Channel) (gateway.InboundEvent, bool) {

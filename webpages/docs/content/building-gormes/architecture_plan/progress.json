@@ -5088,8 +5088,8 @@
             },
             {
               "name": "Discord thread participation persistence",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Discord thread participation state survives adapter restarts through a bounded persisted tracker so Gormes can distinguish known Discord threads without relying only on in-memory forum lifecycle events.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -5137,13 +5137,26 @@
               "done_signal": [
                 "Discord tracker fixtures prove empty start, persistence, restart loading, duplicate suppression, cap enforcement, and corrupt/missing state fallback in temp directories."
               ],
+              "note": "TDD landed 2026-05-06: Discord now has a bounded persisted thread participation tracker under the Gormes runtime home, logs redacted reset/write evidence, marks participated thread messages without depending on live Discord, and reloads known thread IDs across bot restarts while leaving in-memory forum metadata separate.",
+              "evidence": {
+                "implementation": [
+                  "internal/channels/discord/thread_participation.go implements a JSON-backed, atomically persisted, oldest-entry-evicting tracker with corrupt/missing-state fallback evidence.",
+                  "internal/channels/discord/bot.go initializes the tracker from Discord config/default Gormes state path and marks canonical thread IDs when thread messages become gateway inbound events.",
+                  "internal/channels/discord/thread_participation_test.go proves empty start, persistence, restart loading, duplicate suppression, deterministic cap eviction, corrupt/missing fallback, and bot restart loading without live Discord."
+                ],
+                "verification": [
+                  "RED: go test ./internal/channels/discord -run 'TestDiscordThreadParticipation' -count=1 failed on missing NewThreadParticipationTracker and ThreadParticipationOptions.",
+                  "GREEN: go test ./internal/channels/discord -run 'TestDiscordThreadParticipation' -count=1 passed.",
+                  "go test ./internal/channels/discord -count=1 passed."
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
                   "hermes:b816fd4e2 gateway/platforms/helpers.py",
                   "hermes:b816fd4e2 tests/gateway/test_discord_thread_persistence.py"
                 ],
-                "note": "Gormes' Discord thread map is currently in-memory; Hermes persists participation state across restarts."
+                "note": "Gormes' Discord thread map is currently in-memory; Hermes persists participation state across restarts. Raised from P2 to P1 by the 2026-05-06 all-topic parity sweep because this validated small slice directly unblocks the P1 Discord message admission + reply-mode policy row."
               }
             },
             {
