@@ -8,7 +8,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/events"
 )
 
-func TestTurnEventEmitter_Lifecycle(t *testing.T) {
+func TestTurnEvents_Lifecycle(t *testing.T) {
 	bus := events.NewInProcessEventBus()
 	defer bus.Close()
 	emitter := NewTurnEventEmitter(bus)
@@ -30,7 +30,7 @@ func TestTurnEventEmitter_Lifecycle(t *testing.T) {
 	}
 }
 
-func TestTurnEventEmitter_Error(t *testing.T) {
+func TestTurnEvents_Error(t *testing.T) {
 	bus := events.NewInProcessEventBus()
 	defer bus.Close()
 	emitter := NewTurnEventEmitter(bus)

@@ -191,27 +191,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Agent turn and tool execution events on bus
-
-- Phase: 5 / 5.V
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Agent turns (start, thought, action, observation, complete, error) and tool executions (start, progress, complete, error) are published as structured events on the bus. Enables TUI, web dashboard, and audit log to observe agent activity without polling.
-- Trust class: system
-- Ready when: Event bus exists (5.V row 1), Agent loop has hook points for event emission
-- Not ready when: Event bus not yet implemented, Agent loop cannot be refactored for hooks
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/turn_events.go`, `internal/hermes/turn_events_test.go`, `internal/tools/tool_events.go`
-- Test commands: `go test ./internal/hermes -run TestTurnEvents -count=1`, `go test ./internal/tools -run TestToolEvents -count=1`
-- Done signal: Event tests prove turn lifecycle emits all expected events with correct trace_id linking
-- Acceptance: TurnStart event emitted when agent begins processing, Thought event emitted for each reasoning step, ToolCall event emitted when tool is invoked, ToolResult event emitted when tool completes, TurnComplete event emitted with summary, All events carry trace_id linking them to a session turn
-- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/hermes/turn.go, internal/tools/executor.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Behavioral pattern extraction from session logs
+## 9. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -229,6 +209,26 @@ selection.
 - Done signal: Pattern extractor tests prove successful and failed patterns are correctly identified from log data
 - Acceptance: Pattern extractor identifies tool sequences with >80% success rate, Identifies tool sequences with <30% success rate (anti-patterns), Extracts reasoning patterns preceding successful tool calls, Patterns stored in Goncho as structured behavioral knowledge, Pattern extraction is offline (does not run during agent turns)
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Skill code execution runtime
+
+- Phase: 6 / 6.L
+- Owner: `skills`
+- Size: `large`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Skills are not just markdown instructions — they contain executable code that can be run in a sandboxed environment. This mirrors Voyager's code-as-action pattern: skills are validated, sandboxed, and can be composed by the agent at runtime.
+- Trust class: operator, system
+- Ready when: Skill loader parses structured skill files, Sandbox execution exists for tool calls
+- Not ready when: Skill files are plain text only (no code blocks), No sandbox isolation available
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/skills/code_executor.go`, `internal/skills/code_executor_test.go`, `internal/skills/skill_runtime.go`
+- Test commands: `go test ./internal/skills -run TestCodeExecutor -count=1`, `go test ./internal/skills -run TestSkillRuntime -count=1`
+- Done signal: Code executor tests prove skills with code blocks execute in sandbox with input/output contract
+- Acceptance: Skill files with code blocks are executable in sandbox, Execution is sandboxed with the same isolation as tool calls, Skill code has access to skill-defined dependencies, Execution timeout prevents runaway skills, Execution output is captured and returned to agent, Skill can define input parameters accepted from agent
+- Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

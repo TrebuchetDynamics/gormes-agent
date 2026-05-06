@@ -1039,7 +1039,7 @@ classification and row-backed implementation queue.
 
 - [x] Event bus core: pub/sub interface + in-process implementation
 - [ ] Gateway channel adapters publish to event bus
-- [ ] Agent turn and tool execution events on bus
+- [x] Agent turn and tool execution events on bus
 - [ ] Event bus integration test: full message flow
 
 ## Phase 6 — The Learning Loop (Soul) 🔨

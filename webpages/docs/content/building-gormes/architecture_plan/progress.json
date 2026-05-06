@@ -40308,10 +40308,10 @@
             },
             {
               "name": "Agent turn and tool execution events on bus",
-              "status": "planned",
-              "priority": "P2",
-              "contract": "Agent turns (start, thought, action, observation, complete, error) and tool executions (start, progress, complete, error) are published as structured events on the bus. Enables TUI, web dashboard, and audit log to observe agent activity without polling.",
-              "contract_status": "draft",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Agent turns (start, thought, action, observation, complete, error) and tool executions (start, output/progress, complete, error) are published as structured events on the bus through small Go emitters/wrappers. This unblocks the P1 full-flow gateway integration proof while preserving Hermes' callback-shaped tool/status surface for TUI, gateway, dashboard, and audit subscribers.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -40319,39 +40319,49 @@
               ],
               "source_refs": [
                 "docs/content/papers/agentic-os-design.md",
+                "hermes-agent/run_agent.py@b816fd4e2:925",
+                "hermes-agent/run_agent.py@b816fd4e2:9539",
+                "hermes-agent/run_agent.py@b816fd4e2:9780",
+                "hermes-agent/gateway/run.py@b816fd4e2:13370",
                 "internal/events/bus.go",
-                "internal/hermes/turn.go",
-                "internal/tools/executor.go"
+                "internal/hermes/turn_events.go",
+                "internal/tools/executor.go",
+                "internal/tools/tool_events.go"
               ],
               "ready_when": [
-                "Event bus exists (5.V row 1)",
-                "Agent loop has hook points for event emission"
+                "Event bus core is complete and validated.",
+                "Turn event emitter already exists in internal/hermes; this slice adds the missing tool execution event emitter/wrapper behind the existing tools.ToolExecutor interface."
               ],
               "not_ready_when": [
-                "Event bus not yet implemented",
-                "Agent loop cannot be refactored for hooks"
+                "The slice rewrites channel adapter dispatch, the kernel turn loop, or the full P1 event-bus integration row instead of adding the bounded producer event surface."
               ],
               "acceptance": [
-                "TurnStart event emitted when agent begins processing",
-                "Thought event emitted for each reasoning step",
-                "ToolCall event emitted when tool is invoked",
-                "ToolResult event emitted when tool completes",
-                "TurnComplete event emitted with summary",
-                "All events carry trace_id linking them to a session turn"
+                "TurnStart/Thought/Action/Observe/Complete/Error events remain covered by internal/hermes turn emitter tests.",
+                "ToolStart event is emitted when a wrapped ToolExecutor invocation begins.",
+                "ToolProgress or ToolOutput evidence is emitted for streamed tool output without leaking raw implementation-only errors as final messages.",
+                "ToolComplete event is emitted when the wrapped tool completes, and ToolError event is emitted for executor lookup errors or failed tool events.",
+                "Tool events carry source, trace_id, tool name, agent ID, and call ID/request metadata needed by gateway/TUI/dashboard subscribers."
               ],
               "write_scope": [
                 "internal/hermes/turn_events.go",
                 "internal/hermes/turn_events_test.go",
-                "internal/tools/tool_events.go"
+                "internal/tools/tool_events.go",
+                "internal/tools/tool_events_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/hermes -run TestTurnEvents -count=1",
                 "go test ./internal/tools -run TestToolEvents -count=1"
               ],
               "done_signal": [
-                "Event tests prove turn lifecycle emits all expected events with correct trace_id linking"
+                "Event tests prove turn lifecycle and wrapped tool execution emit structured, trace-linked bus events with completion and error paths."
               ],
-              "note": "Research-driven. OpenCode uses a global pub/sub event bus to decouple logic execution from terminal rendering. Gormes can do the same: TUI, web dashboard, and audit log become independent event subscribers."
+              "note": "Complete 2026-05-06: the all-topic Hermes/Gormes parity sweep raised this existing row to P1 instead of adding backlog because it blocked the P1 `Event bus integration test: full message flow` row. TDD added internal/tools/tool_events.go with ToolEventEmitter and EventingToolExecutor over the existing tools.ToolExecutor boundary, plus lifecycle/error fixtures that prove start/output/complete/error events carry source, trace_id, tool name, agent ID, call ID, metadata, and output/error evidence. Existing turn emitter tests were renamed to match the row selector so the Hermes-side gate is non-empty.",
+              "evidence": {
+                "implementation": "internal/tools/tool_events.go, internal/tools/tool_events_test.go, internal/hermes/turn_events_test.go",
+                "tests": "go test ./internal/hermes -run TestTurnEvents -count=1; go test ./internal/tools -run TestToolEvents -count=1",
+                "note": "Wrapped tool execution now mirrors Hermes' tool callback surface onto Gormes' shared event bus without changing channel adapters, the kernel loop, or the full-flow integration row."
+              }
             },
             {
               "name": "Event bus integration test: full message flow",
@@ -40368,17 +40378,18 @@
               "source_refs": [
                 "docs/content/papers/agentic-os-design.md",
                 "internal/events/bus.go",
+                "internal/hermes/turn_events.go",
+                "internal/tools/tool_events.go",
                 "internal/gateway/event_dispatch.go"
               ],
               "ready_when": [
-                "Event bus, gateway adapters, and turn events all exist (5.V rows 1-3)"
+                "Event bus and turn/tool event producers are complete; gateway channel adapters publish to event bus is complete."
               ],
               "not_ready_when": [
-                "Any event bus component not yet implemented"
+                "Gateway channel adapters publish to event bus is still planned or only partially implemented."
               ],
               "blocked_by": [
-                "Gateway channel adapters publish to event bus",
-                "Agent turn and tool execution events on bus"
+                "Gateway channel adapters publish to event bus"
               ],
               "acceptance": [
                 "Telegram message → MessageReceived event → agent turn → tool execution → reply → delivery",
@@ -40396,7 +40407,7 @@
               "done_signal": [
                 "Integration test proves full message lifecycle through event bus with multiple subscribers"
               ],
-              "note": "2026-05-06 all-topic parity sweep marked this gateway/channels row blocked instead of builder-ready: the core bus is complete, but the channel-adapter and turn/tool event producer rows remain planned, so the integration test cannot honestly prove the full lifecycle yet. Research-driven. This test is the proof that event-driven architecture works end-to-end. After this, adding a new subscriber (e.g., webhook, analytics) requires zero changes to agent or gateway."
+              "note": "2026-05-06 all-topic parity sweep marked this gateway/channels row blocked instead of builder-ready: the core bus and turn/tool event producer rows are now complete, but the channel-adapter event producer row remains planned, so the integration test cannot honestly prove the full lifecycle yet. Research-driven. This test is the proof that event-driven architecture works end-to-end. After this, adding a new subscriber (e.g., webhook, analytics) requires zero changes to agent or gateway."
             }
           ]
         }
