@@ -48,28 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 2. Hermes Kanban production worker process binding
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Gormes binds the fakeable Kanban dispatcher spawner to a production worker launcher that resolves Gormes profiles, builds the native gormes worker argv/env with Kanban context pins and the kanban-worker skill, redirects stdout/stderr to per-task logs with bounded rotation, records worker PID/run metadata, detects crashed worker PIDs, enforces per-task max-runtime caps through injected process controls, and reports worker_spawn_failed, worker_crashed, worker_timed_out, or task_circuit_open evidence without reading live Hermes config.
-- Trust class: operator, gateway, child-agent, system
-- Ready when: Hermes Kanban dispatcher and worker spawn loop is complete., The builder can inject fake process start, PID liveness, signal/kill, log filesystem, and clock seams; no unit test starts or kills a real worker process., Gormes profile name/root helpers are available for profile resolution without importing Hermes config.
-- Not ready when: The native root command cannot yet accept the Hermes `-p/--profile` and `--skills kanban-worker` invocation that this row's worker argv acceptance asserts., The implementation shells out to `hermes`, reads HERMES_HOME or ~/.hermes as live config, or uses Hermes Python helpers., Unit tests depend on a real subprocess, real PID table, real signal delivery, or the operator's PATH., The slice changes Kanban worker tools, dashboard routes, board registry semantics, or slash-command parsing instead of only production worker process binding.
-- Degraded mode: Missing gormes binaries, invalid profile names, unwritable workspaces/log paths, stale PIDs, process-kill failures, and max-runtime expiry return typed evidence and release or block the task according to the dispatcher failure policy without spawning Hermes Python or killing unrelated processes.
-- Fixture: `internal/kanban/process_spawner_test.go; internal/kanban/worker_lifecycle_test.go; internal/gateway/kanban_dispatcher_test.go`
-- Write scope: `internal/kanban/`, `internal/gateway/`, `internal/cli/`, `cmd/gormes/kanban.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/kanban -run 'TestKanban(ProcessSpawner\|WorkerLifecycle)' -count=1`, `go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1`, `go run ./cmd/progress validate`
-- Done signal: Kanban dispatcher production binding launches native Gormes workers through fakeable process seams, records PID/log/runtime evidence, reclaims crashed or timed-out workers, and never depends on Hermes Python or live subprocesses in tests.
-- Acceptance: Spawner fixtures prove the production launcher builds native `gormes -p <profile> --skills kanban-worker chat -q ...` argv, GORMES_KANBAN_* env, cwd, and redacted logs without any HERMES_* leak., Log fixtures prove per-task stdout/stderr paths are under the Gormes Kanban log root and rotate before spawn when over the configured limit., PID fixtures prove spawned PIDs are recorded on task and run rows, crashed workers are reclaimed with worker_crashed evidence, and stale or reused PID evidence does not kill unrelated processes., Runtime-cap fixtures prove expired tasks receive injected TERM/KILL-style process controls, record worker_timed_out evidence, and return to ready or blocked according to the failure policy., Gateway wiring fixtures prove production dispatcher config can use the process spawner while tests keep using the fake spawner seam.
-- Source refs: ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:_default_spawn, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:detect_crashed_workers, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:enforce_max_runtime, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:worker_logs_dir, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:heartbeat_worker, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatcher_spawn_injects_kanban_db_and_workspaces_root, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_promotes_ready_and_spawns, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_spawn_failure_releases_claim, internal/kanban/dispatcher.go, internal/kanban/store.go, internal/cli/profile_root.go, cmd/gormes/profile.go
-- Unblocks: Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces
-- Why now: Unblocks Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces.
-
-## 3. Channels Capabilities Introspection
+## 2. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 4. Prompt Fragment Include System
+## 3. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 5. Gateway probe auth/capability HTTP closeout
+## 4. Gateway probe auth/capability HTTP closeout
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -131,7 +110,7 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, ../openclaw/src/commands/gateway-status/probe-run.ts, internal/tools/gateway_discover.go, cmd/gormes/gateway.go, cmd/gormes/gateway_discover.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Transactional tool execution with snapshot/rollback
+## 5. Transactional tool execution with snapshot/rollback
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -151,7 +130,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Sandbox isolation depth selection
+## 6. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -171,7 +150,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Behavioral pattern extraction from session logs
+## 7. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -191,7 +170,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Skill code execution runtime
+## 8. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -211,7 +190,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Skill dependency resolution and composition
+## 9. Skill dependency resolution and composition
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -229,6 +208,26 @@ selection.
 - Done signal: Dependency tests prove circular deps rejected and chained composition works with error attribution
 - Acceptance: Skill dependency graph resolved at load time, Circular dependencies detected and rejected with clear error, Missing dependencies reported with skill name and missing dep, Agent can chain Skill A output → Skill B input, Composition failures surface which step in the chain failed, Load-time validation catches 100% of dependency errors before execution
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Skill validation on load with execution proof
+
+- Phase: 6 / 6.L
+- Owner: `skills`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: When a skill is loaded or created, run a lightweight validation: parse code blocks, execute in sandbox with a canary input, verify output contract. Skills that fail validation are marked as broken and not offered to the agent. Passing skills carry a 'validated' trust marker.
+- Trust class: system
+- Ready when: Skill code execution exists (6.L row 1)
+- Not ready when: No sandbox execution available for validation
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/skills/validator.go`, `internal/skills/validator_test.go`
+- Test commands: `go test ./internal/skills -run TestValidator -count=1`
+- Done signal: Validator tests prove broken skills are caught at load time with clear error messages
+- Acceptance: Skills validated on load before appearing in agent's tool list, Canary execution with minimal input verifies basic functionality, Broken skills marked with error details (not silently skipped), Validation is fast (<500ms per skill, runs in background goroutine), Operator can force-load a broken skill with explicit override flag, Validation results visible in skill registry status
+- Source refs: docs/content/papers/foundational-architectures.md, Voyager iterative prompting with execution feedback, internal/skills/loader.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

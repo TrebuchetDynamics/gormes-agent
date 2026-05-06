@@ -3,6 +3,7 @@ package kanban
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -13,9 +14,14 @@ import (
 
 type Dispatcher struct {
 	Store    *Store
-	Spawner  SpawnFunc
+	Spawner  WorkerSpawner
 	ClaimTTL time.Duration
 	Worker   string
+}
+
+type Runner struct {
+	Dispatcher Dispatcher
+	Options    DispatchOptions
 }
 
 type DispatchOptions struct {
@@ -45,13 +51,22 @@ type SpawnRequest struct {
 }
 
 type SpawnResult struct {
-	PID int
+	PID       int
+	StartedAt time.Time
 }
 
 type SpawnFunc func(context.Context, SpawnRequest) (SpawnResult, error)
 
 func (f SpawnFunc) SpawnKanbanWorker(ctx context.Context, req SpawnRequest) (SpawnResult, error) {
 	return f(ctx, req)
+}
+
+type WorkerSpawner interface {
+	SpawnKanbanWorker(context.Context, SpawnRequest) (SpawnResult, error)
+}
+
+func (r Runner) RunOnce(ctx context.Context) (DispatchResult, error) {
+	return r.Dispatcher.RunOnce(ctx, r.Options)
 }
 
 func (d Dispatcher) RunOnce(ctx context.Context, opts DispatchOptions) (DispatchResult, error) {
@@ -136,7 +151,7 @@ func (d Dispatcher) RunOnce(ctx context.Context, opts DispatchOptions) (Dispatch
 			WorkspacePath: workspace,
 			PID:           spawned.PID,
 		})
-		if err := d.Store.recordSpawned(ctx, claimed.ID, spawned.PID); err != nil {
+		if err := d.Store.recordSpawned(ctx, claimed.ID, ProcessStartResult{PID: spawned.PID, StartedAt: spawned.StartedAt}); err != nil {
 			return result, err
 		}
 	}
@@ -297,7 +312,11 @@ WHERE id = ? AND status = ?`, string(status), result, failures, message, taskID,
 	return blocked, nil
 }
 
-func (s *Store) recordSpawned(ctx context.Context, taskID string, pid int) error {
+func (s *Store) recordSpawned(ctx context.Context, taskID string, spawned ProcessStartResult) error {
+	startedAt := spawned.StartedAt.UTC()
+	if startedAt.IsZero() {
+		startedAt = s.now().UTC()
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin kanban spawn record: %w", err)
@@ -306,11 +325,15 @@ func (s *Store) recordSpawned(ctx context.Context, taskID string, pid int) error
 	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET spawn_failures = 0, last_spawn_error = '' WHERE id = ?`, taskID); err != nil {
 		return fmt.Errorf("clear kanban spawn failures %q: %w", taskID, err)
 	}
-	if err := insertRun(ctx, tx, taskID, RunOutcomeSpawned, "", s.now().UTC()); err != nil {
+	if err := insertRun(ctx, tx, taskID, RunOutcomeSpawned, "", startedAt); err != nil {
 		return err
 	}
-	if pid > 0 {
-		if err := insertEvent(ctx, tx, taskID, "spawned", fmt.Sprintf(`{"pid":%d}`, pid)); err != nil {
+	if spawned.PID > 0 {
+		payload, err := json.Marshal(workerSpawnEvent{PID: spawned.PID, StartedAt: startedAt.Format(time.RFC3339Nano)})
+		if err != nil {
+			return fmt.Errorf("encode kanban spawn event: %w", err)
+		}
+		if err := insertEvent(ctx, tx, taskID, "spawned", string(payload)); err != nil {
 			return err
 		}
 	}

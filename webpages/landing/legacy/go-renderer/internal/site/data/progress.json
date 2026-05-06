@@ -27522,9 +27522,9 @@
             {
               "name": "Hermes Kanban production worker process binding",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes binds the fakeable Kanban dispatcher spawner to a production worker launcher that resolves Gormes profiles, builds the native gormes worker argv/env with Kanban context pins and the kanban-worker skill, redirects stdout/stderr to per-task logs with bounded rotation, records worker PID/run metadata, detects crashed worker PIDs, enforces per-task max-runtime caps through injected process controls, and reports worker_spawn_failed, worker_crashed, worker_timed_out, or task_circuit_open evidence without reading live Hermes config.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -27547,15 +27547,22 @@
                 "internal/kanban/dispatcher.go",
                 "internal/kanban/store.go",
                 "internal/cli/profile_root.go",
-                "cmd/gormes/profile.go"
+                "cmd/gormes/profile.go",
+                "cmd/gormes/main.go:root --profile/--skills flags and chat command",
+                "cmd/gormes/chat_command_test.go:TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad",
+                "cmd/gormes/chat_command_test.go:TestChatCommandSkillsFlagBuildsForcedSkillProvider",
+                "internal/kanban/process_spawner.go",
+                "internal/kanban/worker_lifecycle.go",
+                "internal/gateway/kanban_dispatcher_test.go:TestManagerKanbanDispatcherUsesProductionProcessSpawnerRunner"
               ],
               "ready_when": [
                 "Hermes Kanban dispatcher and worker spawn loop is complete.",
                 "The builder can inject fake process start, PID liveness, signal/kill, log filesystem, and clock seams; no unit test starts or kills a real worker process.",
-                "Gormes profile name/root helpers are available for profile resolution without importing Hermes config."
+                "Gormes profile name/root helpers are available for profile resolution without importing Hermes config.",
+                "cmd/gormes chat command fixtures prove root `-p/--profile`, repeated `--skills`, and `chat -q` dispatch are available before provider setup."
               ],
               "not_ready_when": [
-                "The native root command cannot yet accept the Hermes `-p/--profile` and `--skills kanban-worker` invocation that this row's worker argv acceptance asserts.",
+                "The native root command fixtures stop proving the `gormes -p <profile> --skills kanban-worker chat -q ...` invocation that this row's worker argv acceptance asserts.",
                 "The implementation shells out to `hermes`, reads HERMES_HOME or ~/.hermes as live config, or uses Hermes Python helpers.",
                 "Unit tests depend on a real subprocess, real PID table, real signal delivery, or the operator's PATH.",
                 "The slice changes Kanban worker tools, dashboard routes, board registry semantics, or slash-command parsing instead of only production worker process binding."
@@ -27571,6 +27578,7 @@
                 "Runtime-cap fixtures prove expired tasks receive injected TERM/KILL-style process controls, record worker_timed_out evidence, and return to ready or blocked according to the failure policy.",
                 "Gateway wiring fixtures prove production dispatcher config can use the process spawner while tests keep using the fake spawner seam."
               ],
+              "note": "Complete: TDD added internal/kanban/process_spawner.go, internal/kanban/worker_lifecycle.go, and focused fixtures for native Gormes worker argv/env/log rotation, crashed worker reclaim, max-runtime stop, reused-PID protection, and gateway Manager use of a kanban.Runner backed by ProcessSpawner. The dispatcher now accepts the WorkerSpawner interface, records richer spawned PID/start metadata, and keeps tests hermetic through injected process starters/controllers.",
               "write_scope": [
                 "internal/kanban/",
                 "internal/gateway/",
@@ -27580,16 +27588,22 @@
               ],
               "test_commands": [
                 "go test ./internal/kanban -run 'TestKanban(ProcessSpawner|WorkerLifecycle)' -count=1",
+                "go test ./cmd/gormes -run 'TestChatCommand(ProfileFlag|SkillsFlag)' -count=1",
                 "go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Kanban dispatcher production binding launches native Gormes workers through fakeable process seams, records PID/log/runtime evidence, reclaims crashed or timed-out workers, and never depends on Hermes Python or live subprocesses in tests."
               ],
+              "evidence": {
+                "implementation": "internal/kanban/process_spawner.go; internal/kanban/worker_lifecycle.go; internal/kanban/dispatcher.go; internal/kanban/store.go; internal/gateway/kanban_dispatcher_test.go",
+                "tests": "go test ./internal/kanban -run 'TestKanban(ProcessSpawner|WorkerLifecycle)' -count=1; go test ./cmd/gormes -run 'TestChatCommand(ProfileFlag|SkillsFlag)' -count=1; go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1; go test ./internal/kanban ./internal/gateway -count=1",
+                "note": "All process and lifecycle tests use fake starters/controllers and temp Kanban stores; no Hermes checkout, live subprocess, real PID table, live profile config, or operator PATH is required."
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 hermes_cli/kanban_db.py _default_spawn + detect_crashed_workers + enforce_max_runtime",
-                "note": "Hermes defines the production process, PID, runtime-cap, and log semantics; Gormes ports them through native fakeable process seams. 2026-05-05 parity sweep refreshed refs to the in-repo Python upstream checkout and confirmed the Gormes dispatcher/gateway loop remains only partial until process spawner and worker lifecycle fixtures land. The 2026-05-06 all-topic weakness sweep left this row planned because the row still assumes Hermes-style `gormes -p <profile> --skills kanban-worker` root invocation, while the native Gormes CLI currently exposes profile switching through `gormes profile set` and has no root `--skills` flag."
+                "note": "Hermes defines the production process, PID, runtime-cap, and log semantics; Gormes ports them through native fakeable process seams. 2026-05-05 parity sweep refreshed refs to the in-repo Python upstream checkout and confirmed the Gormes dispatcher/gateway loop remains only partial until process spawner and worker lifecycle fixtures land. The 2026-05-06 all-topic weakness sweep rechecked the CLI surface and promoted this row to builder-ready after cmd/gormes/main.go and cmd/gormes/chat_command_test.go proved root `-p/--profile`, repeated `--skills`, and `chat -q` dispatch without Hermes-home reads."
               }
             },
             {

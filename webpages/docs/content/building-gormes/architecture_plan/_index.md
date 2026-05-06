@@ -814,7 +814,7 @@ classification and row-backed implementation queue.
 - [x] Multi-model coordination
 - [x] Hermes Kanban durable board core
 - [x] Hermes Kanban dispatcher and worker spawn loop
-- [ ] Hermes Kanban production worker process binding
+- [x] Hermes Kanban production worker process binding
 - [ ] Hermes Kanban worker tools and prompt gating
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
