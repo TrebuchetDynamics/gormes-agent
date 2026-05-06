@@ -806,6 +806,7 @@ classification and row-backed implementation queue.
 - [ ] Symlink-preserving atomic writer helper
 - [ ] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
+- [x] Terminal deleted-cwd recovery
 - [ ] search_files hidden-root and context-line parsing drift
 
 ### 5.M — Mixture of Agents 🔨

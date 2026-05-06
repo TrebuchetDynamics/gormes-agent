@@ -83,6 +83,93 @@ func TestTerminalToolDefaultWorkdirExpandsTilde(t *testing.T) {
 	}
 }
 
+func TestTerminalToolRecoversWhenConfiguredWorkdirDeleted(t *testing.T) {
+	root := t.TempDir()
+	deleted := filepath.Join(root, "child", "grandchild")
+	if err := os.MkdirAll(deleted, 0o755); err != nil {
+		t.Fatalf("mkdir deleted cwd: %v", err)
+	}
+	if err := os.RemoveAll(filepath.Join(root, "child")); err != nil {
+		t.Fatalf("remove cwd parent: %v", err)
+	}
+
+	tool := NewTerminalTool(TerminalToolConfig{Workdir: deleted, DefaultTimeout: 5 * time.Second})
+	out := executeTerminalTool(t, tool, `{"command":"pwd"}`)
+
+	if out["status"] != "completed" {
+		t.Fatalf("status = %v, want completed: %#v", out["status"], out)
+	}
+	if out["workdir"] != root {
+		t.Fatalf("workdir = %v, want nearest existing ancestor %q: %#v", out["workdir"], root, out)
+	}
+	if strings.TrimSpace(asString(out["output"])) != root {
+		t.Fatalf("output = %q, want pwd %q", out["output"], root)
+	}
+	if out["cwd_recovered"] != true {
+		t.Fatalf("cwd_recovered = %v, want true: %#v", out["cwd_recovered"], out)
+	}
+	if !strings.Contains(asString(out["cwd_recovery"]), "terminal_cwd_recovered") {
+		t.Fatalf("cwd_recovery = %v, want terminal_cwd_recovered evidence", out["cwd_recovery"])
+	}
+}
+
+func TestTerminalToolRecoversWhenProcessCWDDeleted(t *testing.T) {
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get original cwd: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(original); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	})
+
+	root := t.TempDir()
+	deleted := filepath.Join(root, "wedged")
+	if err := os.MkdirAll(deleted, 0o755); err != nil {
+		t.Fatalf("mkdir deleted cwd: %v", err)
+	}
+	if err := os.Chdir(deleted); err != nil {
+		t.Fatalf("chdir deleted cwd: %v", err)
+	}
+	if err := os.RemoveAll(deleted); err != nil {
+		t.Fatalf("remove current cwd: %v", err)
+	}
+
+	want := filepath.Clean(os.TempDir())
+	tool := NewTerminalTool(TerminalToolConfig{DefaultTimeout: 5 * time.Second})
+	out := executeTerminalTool(t, tool, `{"command":"pwd"}`)
+
+	if out["status"] != "completed" {
+		t.Fatalf("status = %v, want completed: %#v", out["status"], out)
+	}
+	if out["workdir"] != want {
+		t.Fatalf("workdir = %v, want temp dir %q: %#v", out["workdir"], want, out)
+	}
+	if strings.TrimSpace(asString(out["output"])) != want {
+		t.Fatalf("output = %q, want pwd %q", out["output"], want)
+	}
+	if out["cwd_recovered"] != true {
+		t.Fatalf("cwd_recovered = %v, want true: %#v", out["cwd_recovered"], out)
+	}
+}
+
+func TestTerminalToolExplicitMissingWorkdirStillErrors(t *testing.T) {
+	root := t.TempDir()
+	tool := NewTerminalTool(TerminalToolConfig{Workdir: root, DefaultTimeout: 5 * time.Second})
+	out := executeTerminalTool(t, tool, `{"command":"pwd","workdir":"missing"}`)
+
+	if out["status"] != "error" {
+		t.Fatalf("status = %v, want error: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "resolve working directory") {
+		t.Fatalf("error = %v, want resolve-working-directory evidence", out["error"])
+	}
+	if _, ok := out["cwd_recovered"]; ok {
+		t.Fatalf("explicit missing workdir should not recover: %#v", out)
+	}
+}
+
 func executeTerminalTool(t *testing.T, tool *TerminalTool, args string) map[string]any {
 	t.Helper()
 	raw, err := tool.Execute(context.Background(), json.RawMessage(args))

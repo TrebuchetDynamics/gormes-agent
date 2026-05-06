@@ -26850,6 +26850,75 @@
               }
             },
             {
+              "name": "Terminal deleted-cwd recovery",
+              "priority": "P0",
+              "status": "complete",
+              "contract": "Gormes foreground terminal execution recovers when the configured/session working directory has been deleted: before launching bash it resolves the nearest existing ancestor, falls back to the system temp directory only when no ancestor exists, records bounded recovery evidence, and avoids wedging later terminal calls on the same stale cwd.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing default/session cwd returns terminal_cwd_recovered evidence and runs from a real directory; explicit invalid per-call workdir requests still return resolve-working-directory errors instead of silently running elsewhere.",
+              "fixture": "internal/tools/terminal_tool_test.go::TestTerminalToolRecoversWhenConfiguredWorkdirDeleted",
+              "source_refs": [
+                "./hermes-agent/tools/environments/local.py@9644b8ae:_resolve_safe_cwd",
+                "./hermes-agent/tests/tools/test_local_env_cwd_recovery.py@9644b8ae",
+                "./hermes-agent/tools/process_registry.py@109c3e468:ProcessRegistry.start_process",
+                "internal/tools/terminal_tool.go",
+                "internal/tools/terminal_tool_test.go"
+              ],
+              "ready_when": [
+                "Native file task tool surface and Terminal cwd config bridge are complete, so foreground terminal execution already has a single cwd resolver to harden.",
+                "Tests can use t.TempDir and process-local cwd fixtures only; no PTY, background process registry, live gateway, provider, or private runtime home is required."
+              ],
+              "not_ready_when": [
+                "The slice ports PTY/background process registry behavior, Docker/SSH/Modal backends, or stateful file write/patch cwd tracking in the same pass.",
+                "The implementation silently rewrites explicit per-call invalid workdir requests instead of keeping those as operator-visible errors.",
+                "The recovery path reads real private Hermes/Gormes homes or logs full secrets."
+              ],
+              "blocked_by": [
+                "Native file task tool surface",
+                "Terminal cwd config bridge"
+              ],
+              "unblocks": [
+                "File write/patch staleness registry + cwd tracking",
+                "Terminal backend config parity"
+              ],
+              "acceptance": [
+                "TestTerminalToolRecoversWhenConfiguredWorkdirDeleted creates and removes a configured nested cwd, then proves terminal execution runs from the nearest existing ancestor and reports cwd_recovered evidence.",
+                "TestTerminalToolRecoversWhenProcessCWDDeleted deletes the process cwd fixture, then proves the default terminal tool falls back to the system temp directory and does not return resolve-working-directory.",
+                "TestTerminalToolExplicitMissingWorkdirStillErrors proves an explicit per-call missing workdir remains an error so typo paths are not silently redirected.",
+                "Existing terminal foreground, approval, Python hardline, background-unsupported, and tilde-expansion fixtures remain green."
+              ],
+              "note": "Complete 2026-05-06: RED TestTerminalToolRecoversWhenConfiguredWorkdirDeleted reproduced the stale configured cwd wedge, and RED TestTerminalToolRecoversWhenProcessCWDDeleted reproduced the deleted process cwd getwd failure. GREEN added a terminal cwd resolution result, nearest-existing-ancestor recovery for missing default/session cwd, tempdir fallback when the process cwd is gone, and bounded cwd_recovered evidence while preserving explicit per-call missing workdir errors. Focused row tests and full internal/tools package tests passed.",
+              "write_scope": [
+                "internal/tools/terminal_tool.go",
+                "internal/tools/terminal_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestTerminalTool(RecoversWhenConfiguredWorkdirDeleted|RecoversWhenProcessCWDDeleted|ExplicitMissingWorkdirStillErrors|RunsForegroundCommand|DefaultWorkdirExpandsTilde)' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Terminal fixtures prove deleted configured/current cwd recovery, explicit invalid workdir preservation, and unchanged foreground/approval behavior."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:9644b8ae tools/environments/local.py",
+                  "hermes:109c3e468 tools/process_registry.py"
+                ],
+                "note": "The 2026-05-06 all-topic parity sweep found this recent Hermes terminal wedge fix was not row-backed in Gormes. The Go slice intentionally covers only foreground terminal execution; PTY/background process registry behavior remains row-backed elsewhere."
+              }
+            },
+            {
               "name": "search_files hidden-root and context-line parsing drift",
               "priority": "P2",
               "status": "planned",
@@ -26917,8 +26986,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes b816fd4e2 file-state tests show the remaining File Ops + Patches weakness has moved from read guards into stateful edit safety: write_file and patch need read-token staleness checks, registry refresh after successful writes, and live cwd/task cwd path resolution. Gormes has native file task tools, read guards, and terminal.cwd validated, so the new builder-ready drift is the file staleness registry slice rather than broad checkpoint restore."
+            "last_upstream_check": "2026-05-06T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 plus recent terminal/file-operation fixes show the remaining File Ops + Patches weaknesses are stateful edit safety, terminal cwd recovery, and search_files drift. Gormes has native file task tools, read guards, and terminal.cwd validated; the 2026-05-06 all-topic sweep adds `Terminal deleted-cwd recovery` as the P0 foreground-terminal wedge fix while keeping file staleness and search drift as separate builder-ready slices."
           }
         },
         "5.M": {
