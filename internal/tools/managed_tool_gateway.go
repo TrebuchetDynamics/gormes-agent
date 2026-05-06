@@ -43,6 +43,10 @@ const (
 	// envelope, or returned isError=true inside an otherwise successful
 	// response.
 	ManagedGatewayEvidenceToolCallFailed ManagedGatewayEvidence = "tool_call_failed"
+
+	ManagedGatewayEvidenceMCPBreakerOpen    ManagedGatewayEvidence = ManagedGatewayEvidence(MCPCircuitEvidenceBreakerOpen)
+	ManagedGatewayEvidenceMCPHalfOpenFailed ManagedGatewayEvidence = ManagedGatewayEvidence(MCPCircuitEvidenceHalfOpenFailed)
+	ManagedGatewayEvidenceMCPReconnectReset ManagedGatewayEvidence = ManagedGatewayEvidence(MCPCircuitEvidenceReconnectReset)
 )
 
 // ManagedGatewayDefinition is the static config for a single managed-tool
@@ -73,8 +77,9 @@ type ManagedGatewayDefinition struct {
 // the HTTP MCP transport so fixtures can swap a fake managed gateway for a
 // fake MCP server without touching call sites.
 type ManagedGatewayBridge struct {
-	def    ManagedGatewayDefinition
-	client *HTTPClient
+	def     ManagedGatewayDefinition
+	client  *HTTPClient
+	breaker *MCPCircuitBreaker
 
 	initOnce  bool
 	initialed bool
@@ -128,7 +133,11 @@ func NewManagedGatewayBridge(def ManagedGatewayDefinition, transport http.RoundT
 	if err != nil {
 		return nil, fmt.Errorf("managed gateway: %w", err)
 	}
-	return &ManagedGatewayBridge{def: def, client: client}, nil
+	return &ManagedGatewayBridge{
+		def:     def,
+		client:  client,
+		breaker: NewMCPCircuitBreaker(MCPCircuitBreakerOptions{}),
+	}, nil
 }
 
 // hasAuthorizationHeader reports whether the supplied headers map already
@@ -205,14 +214,23 @@ func (b *ManagedGatewayBridge) CallTool(ctx context.Context, name string, argume
 	if b == nil {
 		return MCPCallResult{}, ManagedGatewayEvidenceUnavailable, errors.New("managed gateway: nil bridge")
 	}
-	res, err := b.client.CallTool(ctx, name, arguments)
+	res, circuitEvidence, err := CallMCPWithCircuitBreaker(ctx, b.breaker, b.def.Vendor, func(ctx context.Context) (MCPCallResult, error) {
+		return b.client.CallTool(ctx, name, arguments)
+	})
 	if err != nil {
-		return MCPCallResult{}, classifyCallToolError(err), err
+		return res, managedEvidenceFromMCPCircuit(circuitEvidence, classifyCallToolError(err)), err
 	}
 	if res.IsError {
-		return res, ManagedGatewayEvidenceToolCallFailed, nil
+		return res, managedEvidenceFromMCPCircuit(circuitEvidence, ManagedGatewayEvidenceToolCallFailed), nil
 	}
 	return res, ManagedGatewayEvidenceOK, nil
+}
+
+func (b *ManagedGatewayBridge) ResetCircuitBreakerAfterReconnect() ManagedGatewayEvidence {
+	if b == nil {
+		return ManagedGatewayEvidenceMCPReconnectReset
+	}
+	return ManagedGatewayEvidence(b.breaker.ResetAfterReconnect(b.def.Vendor))
 }
 
 // Close releases the underlying transport. Safe to call multiple times.
@@ -252,4 +270,21 @@ func classifyCallToolError(err error) ManagedGatewayEvidence {
 		return ManagedGatewayEvidenceAuthRequired
 	}
 	return ManagedGatewayEvidenceToolCallFailed
+}
+
+func managedEvidenceFromMCPCircuit(circuit MCPCircuitEvidence, fallback ManagedGatewayEvidence) ManagedGatewayEvidence {
+	switch circuit {
+	case "", MCPCircuitEvidenceOK:
+		return fallback
+	case MCPCircuitEvidenceBreakerOpen:
+		return ManagedGatewayEvidenceMCPBreakerOpen
+	case MCPCircuitEvidenceHalfOpenFailed:
+		return ManagedGatewayEvidenceMCPHalfOpenFailed
+	case MCPCircuitEvidenceReconnectReset:
+		return ManagedGatewayEvidenceMCPReconnectReset
+	case MCPCircuitEvidenceServerUnreachable, MCPCircuitEvidenceReconnectRequired:
+		return fallback
+	default:
+		return fallback
+	}
 }
