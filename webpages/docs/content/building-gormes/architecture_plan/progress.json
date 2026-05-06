@@ -26715,8 +26715,8 @@
             },
             {
               "name": "File write/patch staleness registry + cwd tracking",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes write_file and patch match Hermes' stateful file-edit safety: every read records a per-root path token, hash/mtime/size evidence, and live cwd/task context; write_file and patch reject stale edits when the file changed since the last read token; relative paths use the active terminal cwd/task cwd at operation time; successful writes update the registry; missing files, first writes, and external deletions return deterministic evidence without corrupting content.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -26784,10 +26784,29 @@
               "done_signal": [
                 "File tool fixtures prove stale write/patch rejection, registry refresh after successful edits, live cwd path resolution, and preservation of existing root/symlink guards."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_state_registry.go adds a per-root/task/path FileStateRegistry with redacted path, cwd, hash, size, mtime, and read-token evidence.",
+                  "internal/tools/file_task_tools.go records file_state on read_file, write_file, and patch outputs; stale write_file and patch attempts return file_stale/file_deleted/file_state_missing/file_state_cwd_mismatch without mutating content.",
+                  "internal/tools/file_task_tools.go resolves relative file-tool paths through the injected live task cwd when present, while preserving existing workspace-root and symlink escape guards."
+                ],
+                "tests": [
+                  "internal/tools/file_state_registry_test.go:TestFileStateRegistryReadWriteRoundTrip covers path/cwd/hash/size/mtime/read-token evidence and token refresh after write.",
+                  "internal/tools/file_state_registry_test.go:TestWriteFileRejectsStaleAfterExternalChange covers stale write rejection with external content preserved.",
+                  "internal/tools/file_state_registry_test.go:TestPatchRejectsStaleAfterExternalChange covers stale patch rejection without partial replacement.",
+                  "internal/tools/file_state_registry_test.go:TestSuccessfulWriteRefreshesState covers own-write registry refresh before a later patch.",
+                  "internal/tools/file_state_registry_test.go:TestRelativePathUsesLiveTaskCWD covers relative path resolution against injected live cwd instead of process/root cwd."
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestFileStateRegistry|Test.*Stale|TestRelativePathUsesLiveTaskCWD|TestWriteFileAndPatchTools' -count=1 failed with undefined NewFileStateRegistry and missing FileTaskToolConfig StateRegistry/TaskID/CWDResolver fields.",
+                  "GREEN: go test ./internal/tools -run 'TestFileStateRegistry|Test.*Stale|TestRelativePathUsesLiveTaskCWD|TestWriteFileAndPatchTools' -count=1 -> ok",
+                  "GREEN: go test ./internal/tools -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 tests/tools/test_file_staleness.py + test_file_state_registry.py + test_file_ops_cwd_tracking.py",
-                "note": "The completed native file task row deliberately deferred full Hermes stateful edit safety. These upstream tests identify the next builder-ready weakness."
+                "note": "2026-05-06 all-topic parity weakness sweep promoted this row to P0. CLI/TUI, provider/auth, gateway/channels, sessions/Goncho, install/runtime, browser, docs, and release surfaces all remain row-backed, but Hermes b816fd4e2 file-tool tests expose an active write-safety gap in Gormes: the existing native file tools could edit after stale reads without a per-root file-state registry or live task cwd evidence. Complete: TDD added FileStateRegistry, public file_state evidence on read/write/patch, stale edit rejection without mutation, own-write registry refresh, and live task cwd path resolution while preserving root/symlink guards."
               }
             },
             {

@@ -804,7 +804,7 @@ classification and row-backed implementation queue.
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
 - [x] Symlink-preserving atomic writer helper
-- [ ] File write/patch staleness registry + cwd tracking
+- [x] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
 - [x] Terminal deleted-cwd recovery
 - [ ] search_files hidden-root and context-line parsing drift

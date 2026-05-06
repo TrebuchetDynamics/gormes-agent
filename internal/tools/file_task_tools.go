@@ -28,9 +28,12 @@ const (
 
 // FileTaskToolConfig constrains local file tools to a workspace root.
 type FileTaskToolConfig struct {
-	Root         string
-	ReadGuard    *FileReadGuard
-	MaxReadChars int
+	Root          string
+	ReadGuard     *FileReadGuard
+	StateRegistry *FileStateRegistry
+	TaskID        string
+	CWDResolver   func() string
+	MaxReadChars  int
 }
 
 type ReadFileToolConfig = FileTaskToolConfig
@@ -73,7 +76,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(map[string]any{"error": "invalid read_file args: " + err.Error()})
 	}
-	resolved, rel, err := resolveWorkspaceFile(t.cfg.Root, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
@@ -131,6 +134,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 	if t.duplicateWindow(rel, offset, limit, info) {
+		state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
 		status := FileReadResult{
 			Path:        rel,
 			DedupStatus: FileReadDedupStatusUnchanged,
@@ -143,9 +147,10 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		if t.guard != nil {
 			status = t.guard.GuardRepeatedReadStatus(status)
 		}
-		return marshalReadFileStatus(rel, status)
+		return marshalReadFileStatus(rel, status, state)
 	}
 
+	state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
 	truncated := offset > 1 || endIdx < total
 	payload := map[string]any{
 		"path":             rel,
@@ -158,10 +163,20 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		"content_returned": true,
 		"truncated":        truncated,
 	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
+	}
 	if endIdx < total {
 		payload["hint"] = fmt.Sprintf("Continue with offset=%d to read the next window.", endIdx+1)
 	}
 	return marshalToolPayload(payload)
+}
+
+func (t *ReadFileTool) fileStateRegistry() *FileStateRegistry {
+	if t != nil && t.cfg.StateRegistry != nil {
+		return t.cfg.StateRegistry
+	}
+	return defaultFileStateRegistry
 }
 
 func (t *ReadFileTool) maxReadChars() int {
@@ -188,7 +203,7 @@ func (t *ReadFileTool) duplicateWindow(path string, offset, limit int, info os.F
 	return false
 }
 
-func marshalReadFileStatus(path string, read FileReadResult) (json.RawMessage, error) {
+func marshalReadFileStatus(path string, read FileReadResult, state FileStateSnapshot) (json.RawMessage, error) {
 	evidence := fileReadEvidenceWithPath(read.Evidence, path)
 	payload := map[string]any{
 		"path":             path,
@@ -207,6 +222,9 @@ func marshalReadFileStatus(path string, read FileReadResult) (json.RawMessage, e
 	}
 	if read.DedupStatus == FileReadStatusDedupStubBlocked {
 		payload["error"] = payload["message"]
+	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
 	}
 	return marshalToolPayload(payload)
 }
@@ -275,11 +293,7 @@ func (t *SearchFilesTool) Execute(ctx context.Context, args json.RawMessage) (js
 	if strings.TrimSpace(searchPath) == "" {
 		searchPath = "."
 	}
-	root, err := resolveWorkspaceRoot(t.cfg.Root)
-	if err != nil {
-		return marshalToolPayload(map[string]any{"error": err.Error()})
-	}
-	base, relBase, err := resolveWorkspacePath(root, searchPath)
+	base, relBase, root, _, err := resolveFileTaskPath(t.cfg, searchPath)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": searchPath, "error": err.Error()})
 	}
@@ -466,9 +480,13 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(map[string]any{"error": "invalid write_file args: " + err.Error()})
 	}
-	resolved, rel, err := resolveWorkspaceFile(t.cfg.Root, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
+	}
+	registry := fileTaskStateRegistry(t.cfg)
+	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
 	if isFileReadGuardStatusText([]byte(in.Content)) {
 		return marshalToolPayload(map[string]any{"path": rel, "error": ErrFileReadGuardStatusContent.Error()})
@@ -479,11 +497,16 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := os.WriteFile(resolved, []byte(in.Content), defaultWriteFileFileMode); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write file: " + err.Error()})
 	}
-	return marshalToolPayload(map[string]any{
+	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	payload := map[string]any{
 		"path":          rel,
 		"bytes_written": len([]byte(in.Content)),
 		"status":        "ok",
-	})
+	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
+	}
+	return marshalToolPayload(payload)
 }
 
 // PatchTool implements targeted replace edits under the workspace root.
@@ -532,9 +555,13 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if isFileReadGuardStatusText([]byte(in.NewString)) {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": ErrFileReadGuardStatusContent.Error()})
 	}
-	resolved, rel, err := resolveWorkspaceFile(t.cfg.Root, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
+	}
+	registry := fileTaskStateRegistry(t.cfg)
+	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
 	raw, err := os.ReadFile(resolved)
 	if err != nil {
@@ -559,11 +586,16 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if err := os.WriteFile(resolved, []byte(updated), defaultWriteFileFileMode); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write patched file: " + err.Error()})
 	}
-	return marshalToolPayload(map[string]any{
+	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	payload := map[string]any{
 		"path":         rel,
 		"replacements": replacements,
 		"status":       "ok",
-	})
+	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
+	}
+	return marshalToolPayload(payload)
 }
 
 func resolveWorkspaceFile(root, rawPath string) (string, string, error) {
@@ -572,6 +604,75 @@ func resolveWorkspaceFile(root, rawPath string) (string, string, error) {
 		return "", "", err
 	}
 	return resolveWorkspacePath(workspaceRoot, rawPath)
+}
+
+func resolveFileTaskPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
+	workspaceRoot, err := resolveWorkspaceRoot(cfg.Root)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	cwd, cwdRel, err := resolveFileTaskCWD(cfg, workspaceRoot)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	resolved, rel, err := resolveWorkspacePathFromBase(workspaceRoot, cwd, rawPath)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return resolved, rel, workspaceRoot, cwdRel, nil
+}
+
+func resolveFileTaskCWD(cfg FileTaskToolConfig, root string) (string, string, error) {
+	raw := ""
+	if cfg.CWDResolver != nil {
+		raw = strings.TrimSpace(cfg.CWDResolver())
+	} else if strings.TrimSpace(cfg.Root) == "" {
+		raw = strings.TrimSpace(os.Getenv("TERMINAL_CWD"))
+	}
+	if raw == "" || terminalCWDPlaceholder(raw) {
+		return root, ".", nil
+	}
+	expanded, err := expandUserPath(raw)
+	if err != nil {
+		return "", "", err
+	}
+	if !filepath.IsAbs(expanded) {
+		expanded = filepath.Join(root, expanded)
+	}
+	abs, err := filepath.Abs(expanded)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve task cwd: %w", err)
+	}
+	abs = filepath.Clean(abs)
+	if !pathWithinRoot(root, abs) {
+		return "", "", fmt.Errorf("task cwd %q is outside workspace root %q", raw, root)
+	}
+	if err := validateWorkspaceRealPath(root, abs); err != nil {
+		return "", "", err
+	}
+	return abs, workspaceRel(root, abs), nil
+}
+
+func resolveWorkspacePathFromBase(root, base, rawPath string) (string, string, error) {
+	path := strings.TrimSpace(rawPath)
+	if path == "" {
+		return "", "", errors.New("path is required")
+	}
+	expanded, err := expandUserPath(path)
+	if err != nil {
+		return "", "", err
+	}
+	if !filepath.IsAbs(expanded) {
+		expanded = filepath.Join(base, expanded)
+	}
+	return resolveWorkspacePath(root, expanded)
+}
+
+func fileTaskStateRegistry(cfg FileTaskToolConfig) *FileStateRegistry {
+	if cfg.StateRegistry != nil {
+		return cfg.StateRegistry
+	}
+	return defaultFileStateRegistry
 }
 
 func resolveWorkspaceRoot(root string) (string, error) {
