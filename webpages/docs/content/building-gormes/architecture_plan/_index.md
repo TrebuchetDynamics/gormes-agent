@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 58/92 subphases shipped · 30 in progress · 4 planned
+**Overall:** 59/92 subphases shipped · 30 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -96,7 +96,7 @@ classification and row-backed implementation queue.
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | 🔨 | 8/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -906,7 +906,7 @@ classification and row-backed implementation queue.
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
 - [x] Gormes setup full-wizard shell and branded summary
-- [ ] Hermes setup entry-mode and reset semantics
+- [x] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
 - [x] Gormes setup terminal TTS and agent-settings section bindings
@@ -951,7 +951,7 @@ classification and row-backed implementation queue.
 - [x] Interactive Onboarding
 - [x] Gormes onboard interactive action runner
 - [ ] CLI setup/onboard/help text fidelity matrix
-- [ ] Hermes CLI alias and suggestion fidelity matrix
+- [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
 - [ ] Gateway planned stop marker + WSL systemd PATH parity
 - [ ] Gateway stale-code self-check uses git HEAD SHA
@@ -998,7 +998,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [ ] Native TUI Ink behavioral transcript golden matrix
-- [ ] Channel/TUI iteration-limit finalization transcript fixture
+- [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
 - [ ] API server multimodal content preservation
@@ -1092,11 +1092,11 @@ classification and row-backed implementation queue.
 
 - [x] Regex-based auto-link extraction + brain-first lookup
 
-### 6.J — Agentic Memory Lifecycle (AgeMem) ⏳
+### 6.J — Agentic Memory Lifecycle (AgeMem) ✅
 
-- [ ] Memory operations as agent-callable tools
-- [ ] Agent-controlled memory retention with importance scoring
-- [ ] Cross-session memory continuity
+- [x] Memory operations as agent-callable tools
+- [x] Agent-controlled memory retention with importance scoring
+- [x] Cross-session memory continuity
 
 ### 6.K — Self-Evolution Engine (GEPA) 🔨
 

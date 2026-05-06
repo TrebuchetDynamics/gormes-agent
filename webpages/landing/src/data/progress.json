@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-06T01:04:33Z",
+    "last_updated": "2026-05-06T08:37:13Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -32897,10 +32897,10 @@
             },
             {
               "name": "Hermes setup entry-mode and reset semantics",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Align `gormes setup` entry-mode semantics with current Hermes where upstream owns behavior. For an existing install, bare `gormes setup` and `gormes setup --reconfigure` run the full setup wizard directly without the Gormes-owned top-level chooser; `--quick` runs only the missing-items quick path. For a fresh install, bare setup, `--reconfigure`, and `--quick` enter the first-time quick-vs-full choice. `--reset` rewrites default config before any noninteractive/no-TTY guidance. `--non-interactive` or no TTY must not prompt. Gormes-owned `provider`, `workspace`, `bindings`, and `onboard` surfaces remain documented extensions rather than Hermes section parity.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -35812,9 +35812,9 @@
             {
               "name": "Hermes CLI alias and suggestion fidelity matrix",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes login` and `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -38454,10 +38454,10 @@
             },
             {
               "name": "Channel/TUI iteration-limit finalization transcript fixture",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Add an end-to-end visible transcript fixture for Hermes-style max-tool-iteration exhaustion across kernel, gateway, and local TUI renderers. When the tool loop reaches the budget, Gormes must ask the provider for a single no-tools summary, deliver one final assistant message, clear live tool-progress/thinking indicators, and never expose raw loop-control errors such as `tool iteration limit exceeded`, duplicate final answers, or a stuck hourglass/progress row.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -38497,7 +38497,13 @@
                 "TestHermesBehavioralFidelity_FinalAssistantNotDuplicated proves local TUI output renders the summary once from history and not again from DraftText or live streaming state.",
                 "Existing kernel tests for DefaultMaxToolIterations=90 and toolless summary requests remain green."
               ],
-              "note": "Added by the 2026-05-04 behavioral parity audit. The kernel loop and gateway tool-progress rows are already complete, but the user-visible failure mode spans kernel summary, gateway coalescing, tool-progress cleanup, and TUI draft/history rendering; this row lives in Phase 5.Q so the already-shipped Phase 2 gateway lane stays closed while the remaining visible transcript fidelity work is tracked with TUI/API behavior.",
+              "note": "Added by the 2026-05-04 behavioral parity audit. The kernel loop and gateway tool-progress rows are already complete, but the user-visible failure mode spans kernel summary, gateway coalescing, tool-progress cleanup, and TUI draft/history rendering; this row lives in Phase 5.Q so the already-shipped Phase 2 gateway lane stays closed while the remaining visible transcript fidelity work is tracked with TUI/API behavior. 2026-05-06 all-topic parity sweep confirmed Kernel tool loop, Gateway stream/tool trace formatting fixture matrix, and Native TUI Hermes bottom-pinned chrome layout are complete, then promoted this row to P0 as the next builder-ready channel/TUI/tool-loop fidelity slice. TDD shipped gateway iteration-finalization transcript fixtures and TUI final-assistant duplicate suppression: idle frames with a completed assistant history message no longer render stale live tool progress, and a draft that duplicates the final assistant text is suppressed.",
+              "evidence": [
+                "RED: go test ./internal/tui -run 'TestHermesBehavioralFidelity_FinalAssistantNotDuplicated' -count=1 failed because renderConv rendered the final summary twice and leaked terminal tool progress after the final assistant history message.",
+                "GREEN: internal/tui/view.go now suppresses live tool progress on final idle frames with completed assistant history and suppresses duplicate final DraftText while preserving ordinary streaming draft/progress fixtures.",
+                "Gateway fixtures in internal/gateway/iteration_finalization_test.go prove one final summary send, no raw loop-control text, cleared tool-progress state after final, and bounded degraded summary-failure output.",
+                "VALIDATION: go test ./internal/gateway -run '^TestIterationLimitFinalization_' -count=1 PASS; go test ./internal/tui -run 'TestHermesBehavioralFidelity_FinalAssistantNotDuplicated' -count=1 PASS; go test ./internal/kernel -run 'TestKernel_DefaultToolIterationBudgetMatchesHermesBeyondTen|TestKernel_ToolIterationBudgetRequestsToollessSummary' -count=1 PASS; go test ./internal/gateway ./internal/tui ./internal/kernel -count=1 PASS."
+              ],
               "write_scope": [
                 "internal/gateway/iteration_finalization_test.go",
                 "internal/gateway/coalesce.go",
@@ -38521,12 +38527,7 @@
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:run_agent.py _handle_max_iterations + gateway progress_callback + ui-tui turnController",
                 "note": "Hermes defines the no-tools summary behavior; Gormes already mirrors the kernel path and needs a channel/TUI visible transcript fixture for behavioral fidelity."
-              },
-              "blocked_by": [
-                "Kernel tool loop",
-                "Gateway stream/tool trace formatting fixture matrix",
-                "Native TUI Hermes bottom-pinned chrome layout"
-              ]
+              }
             },
             {
               "name": "SSE streaming to Bubble Tea TUI",
@@ -41185,10 +41186,10 @@
           "items": [
             {
               "name": "Memory operations as agent-callable tools",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Expose memory operations as tools the agent can call directly: store_memory, retrieve_memory, update_memory, summarize_memories, forget_memory. The agent decides what to remember, not a heuristic pipeline. This is the core AgeMem (2026) pattern.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "memory",
               "trust_class": [
@@ -41243,10 +41244,10 @@
             },
             {
               "name": "Agent-controlled memory retention with importance scoring",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "The agent assigns importance scores to memories at store time and can adjust them later. Retention policy uses importance × recency decay curve. Low-importance old memories are candidates for summarization or forgetting. The agent periodically reviews and prunes.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
@@ -41297,10 +41298,10 @@
             },
             {
               "name": "Cross-session memory continuity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Memories persist across sessions with continuity guarantees. When a new session starts, the agent retrieves relevant past memories automatically (not all memories — relevance-filtered). Agent detects contradictions between old and new information and resolves them.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "memory",
               "trust_class": [
