@@ -41076,10 +41076,10 @@
           "items": [
             {
               "name": "Hermes skill_manage support-file and curator intent actions",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes extends the native `skill_manage` tool to match Hermes' current mutating skill contract: create/edit/patch/delete still operate on SKILL.md, patch can target supporting files, write_file/remove_file manage bounded supporting files, delete accepts curator intent through `absorbed_into`, pinned skills reject every write action with an unpin hint, optional agent-created guard scans can roll back blocked writes, and background-review-origin creates are the only creates marked agent-created for later curator maintenance",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -41137,7 +41137,7 @@
                 "TestSkillManagerAgentCreatedProvenance proves foreground create does not set created_by=agent, background-review-origin create does, edit/patch/write_file/remove_file bump patch usage, and delete forgets the usage record.",
                 "TestSkillManagerAgentCreatedGuard proves skills.guard_agent_created defaults off, truthy config enables scanner invocation, blocked scans roll back SKILL.md/support-file writes, and blocked content is not left on disk."
               ],
-              "note": "Hermes v0.12.0 made support-file mutation part of the public skill_manage contract and curator prompt: narrow content can be demoted into references/templates/scripts/assets, consolidation deletes declare absorbed_into, and pinned skills are a hard operator fence. Current Gormes skill_manage only exposes create/edit/patch/delete against SKILL.md, so background review and curator rows must not claim compatibility until this tool surface exists.",
+              "note": "Complete 2026-05-06: the all-topic Hermes parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No planned P0 rows remained after the sweep, and this unblocked Hermes v0.12.0 skill_manage gap was promoted to P0 because support-file mutation, absorbed_into curator intent, pinned-skill refusal, usage/provenance, and guard rollback are prerequisites for background review and curator compatibility. TDD extended native skill_manage with bounded support-file write/patch/remove actions, absorbed_into delete declarations, pinned write refusals with curator unpin hints, background-review-only agent-created provenance, patch usage accounting, delete cleanup, and optional guard rollback without live model, network, gateway, or real home-directory access.",
               "write_scope": [
                 "internal/tools/skill_manager.go",
                 "internal/tools/skill_manager_test.go",
@@ -41155,6 +41155,29 @@
               "done_signal": [
                 "Skill manager fixtures prove Hermes-compatible support-file writes/patches/removals, absorbed_into delete declarations, pinned-skill refusal, usage/provenance updates, and optional guard rollback without live model, network, gateway, or real home-directory access."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/tools/skill_manager.go: skill_manage schema and handlers now cover write_file, remove_file, support-file patch targets, absorbed_into delete intent, pinned-skill refusal, usage updates, background-review-origin provenance, and optional guard rollback.",
+                  "internal/skills/usage.go: curator-facing .usage.json records now persist agent-created provenance, pinned state, patch counts, and usage-record deletion.",
+                  "internal/subagent/skill_provenance.go: context helpers carry foreground vs background-review skill-write origin without requiring live subagent execution."
+                ],
+                "tests": [
+                  "internal/tools/skill_manager_test.go:TestSkillManagerSchema_HermesActions",
+                  "internal/tools/skill_manager_test.go:TestSkillManagerSupportFile_WritePatchRemove",
+                  "internal/tools/skill_manager_test.go:TestSkillManagerSupportFile_PathSafety",
+                  "internal/tools/skill_manager_test.go:TestSkillManagerAbsorbedIntoDelete",
+                  "internal/tools/skill_manager_test.go:TestSkillManagerPinnedGuard",
+                  "internal/tools/skill_manager_test.go:TestSkillManagerAgentCreatedProvenance",
+                  "internal/tools/skill_manager_test.go:TestSkillManagerAgentCreatedGuard",
+                  "internal/skills/usage_test.go:TestSkillUsageAgentCreatedPinnedPatchAndForget",
+                  "internal/subagent/skill_provenance_test.go:TestBackgroundReviewProvenance"
+                ],
+                "verification": [
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./internal/subagent -run 'TestSkillManager(Schema|SupportFile|AbsorbedInto|PinnedGuard|AgentCreated|AgentCreatedGuard)|TestSkillUsage|TestBackgroundReviewProvenance' -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go test ./internal/tools ./internal/skills ./internal/subagent -count=1 -> ok",
+                  "GOCACHE=/tmp/gormes-go-cache go run ./cmd/progress validate -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tools/skill_manager_tool.py + tests/tools/test_skill_manager_tool.py",
