@@ -322,8 +322,18 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				return nil, err
 			}
 			return discord.New(discord.Config{
-				AllowedChannelID:  cfg.Discord.AllowedChannelID,
-				FirstRunDiscovery: cfg.Discord.FirstRunDiscovery,
+				AllowedChannelID:       cfg.Discord.AllowedChannelID,
+				AllowedChannelIDs:      cfg.Discord.AllowedChannelIDs(),
+				IgnoredChannelIDs:      cfg.Discord.IgnoredChannelIDs(),
+				FreeResponseChannelIDs: cfg.Discord.FreeResponseChannelIDs(),
+				NoThreadChannelIDs:     cfg.Discord.NoThreadChannelIDs(),
+				RequireMention:         cfg.Discord.RequireMentionValue(true),
+				RequireMentionSet:      true,
+				AutoThread:             cfg.Discord.AutoThreadValue(true),
+				AutoThreadSet:          true,
+				AllowBots:              cfg.Discord.AllowBotsValue(),
+				ReplyToMode:            cfg.Discord.ReplyToModeValue(),
+				FirstRunDiscovery:      cfg.Discord.FirstRunDiscovery,
 			}, ds, log), nil
 		},
 		Slack: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {

@@ -12,23 +12,24 @@ import (
 var errMockDiscordAttachmentReadUnavailable = errors.New("mock discord attachment read unavailable")
 
 type mockSession struct {
-	mu              sync.Mutex
-	opened          bool
-	closed          bool
-	handlers        []interface{}
-	sent            []mockSent
-	complexSent     []mockComplexSent
-	edits           []mockEdit
-	reactionsAdded  []mockReaction
-	reactionsRemove []mockReaction
-	nextMsgID       int
-	openErr         error
-	sendErr         error
-	editErr         error
-	reactionErr     error
-	attachmentBytes map[string][]byte
-	attachmentErr   error
-	attachmentReads int
+	mu                   sync.Mutex
+	opened               bool
+	closed               bool
+	handlers             []interface{}
+	sent                 []mockSent
+	complexSent          []mockComplexSent
+	edits                []mockEdit
+	reactionsAdded       []mockReaction
+	reactionsRemove      []mockReaction
+	nextMsgID            int
+	openErr              error
+	sendErr              error
+	sendErrWhenReference error
+	editErr              error
+	reactionErr          error
+	attachmentBytes      map[string][]byte
+	attachmentErr        error
+	attachmentReads      int
 }
 
 type mockSent struct{ ChannelID, Content, MsgID string }
@@ -87,6 +88,9 @@ func (m *mockSession) ChannelMessageSendComplex(channelID string, data *discordg
 	defer m.mu.Unlock()
 	if m.sendErr != nil {
 		return nil, m.sendErr
+	}
+	if data != nil && data.Reference != nil && m.sendErrWhenReference != nil {
+		return nil, m.sendErrWhenReference
 	}
 	id := nextID(&m.nextMsgID)
 	sent := mockComplexSent{ChannelID: channelID, MsgID: id, Data: data}

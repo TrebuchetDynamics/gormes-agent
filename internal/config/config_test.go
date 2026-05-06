@@ -605,6 +605,99 @@ first_run_discovery = true
 	}
 }
 
+func TestLoad_DiscordAdmissionPolicyConfigFromFile(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	cfgDir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.toml"), []byte(`
+[discord]
+token = "bot-abc"
+allowed_channels = ["111", "222"]
+ignored_channels = "333,444"
+free_response_channels = 555
+no_thread_channels = ["666"]
+require_mention = false
+auto_thread = false
+reply_to_mode = "all"
+allow_bots = "mentions"
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := cfg.Discord.AllowedChannelIDs(), []string{"111", "222"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("AllowedChannelIDs = %v, want %v", got, want)
+	}
+	if got, want := cfg.Discord.IgnoredChannelIDs(), []string{"333", "444"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("IgnoredChannelIDs = %v, want %v", got, want)
+	}
+	if got, want := cfg.Discord.FreeResponseChannelIDs(), []string{"555"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("FreeResponseChannelIDs = %v, want %v", got, want)
+	}
+	if got, want := cfg.Discord.NoThreadChannelIDs(), []string{"666"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("NoThreadChannelIDs = %v, want %v", got, want)
+	}
+	if cfg.Discord.RequireMentionValue(true) {
+		t.Fatal("RequireMentionValue = true, want false from config")
+	}
+	if cfg.Discord.AutoThreadValue(true) {
+		t.Fatal("AutoThreadValue = true, want false from config")
+	}
+	if cfg.Discord.ReplyToModeValue() != "all" {
+		t.Fatalf("ReplyToModeValue = %q, want all", cfg.Discord.ReplyToModeValue())
+	}
+	if cfg.Discord.AllowBotsValue() != "mentions" {
+		t.Fatalf("AllowBotsValue = %q, want mentions", cfg.Discord.AllowBotsValue())
+	}
+	if !cfg.Discord.Enabled() {
+		t.Fatal("Discord Enabled = false, want token plus allowed_channels to enable")
+	}
+}
+
+func TestLoad_DiscordAdmissionPolicyEnvOverrides(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	t.Setenv("DISCORD_ALLOWED_CHANNELS", "env-1, env-2")
+	t.Setenv("DISCORD_IGNORED_CHANNELS", "*")
+	t.Setenv("DISCORD_FREE_RESPONSE_CHANNELS", "free-env")
+	t.Setenv("DISCORD_NO_THREAD_CHANNELS", "direct-env")
+	t.Setenv("DISCORD_REQUIRE_MENTION", "false")
+	t.Setenv("DISCORD_AUTO_THREAD", "false")
+	t.Setenv("DISCORD_REPLY_TO_MODE", "off")
+	t.Setenv("DISCORD_ALLOW_BOTS", "all")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := cfg.Discord.AllowedChannelIDs(), []string{"env-1", "env-2"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("AllowedChannelIDs = %v, want %v", got, want)
+	}
+	if got := cfg.Discord.IgnoredChannelIDs(); len(got) != 1 || got[0] != "*" {
+		t.Fatalf("IgnoredChannelIDs = %v, want [*]", got)
+	}
+	if cfg.Discord.RequireMentionValue(true) {
+		t.Fatal("RequireMentionValue = true, want false from env")
+	}
+	if cfg.Discord.AutoThreadValue(true) {
+		t.Fatal("AutoThreadValue = true, want false from env")
+	}
+	if cfg.Discord.ReplyToModeValue() != "off" {
+		t.Fatalf("ReplyToModeValue = %q, want off", cfg.Discord.ReplyToModeValue())
+	}
+	if cfg.Discord.AllowBotsValue() != "all" {
+		t.Fatalf("AllowBotsValue = %q, want all", cfg.Discord.AllowBotsValue())
+	}
+}
+
 func TestLoad_SlackFromFile(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)

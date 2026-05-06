@@ -104,19 +104,77 @@ type TelegramCfg struct {
 
 // DiscordCfg drives the Discord channel adapter.
 type DiscordCfg struct {
-	Token             string     `toml:"token" yaml:"token"`
-	TokenRef          *SecretRef `toml:"token_ref" yaml:"token_ref" json:"token_ref,omitempty"`
-	AllowedChannelID  string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
-	ServerActions     []string   `toml:"server_actions" yaml:"server_actions"`
-	CoalesceMs        int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FirstRunDiscovery bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	Token                string     `toml:"token" yaml:"token"`
+	TokenRef             *SecretRef `toml:"token_ref" yaml:"token_ref" json:"token_ref,omitempty"`
+	AllowedChannelID     string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	AllowedChannels      any        `toml:"allowed_channels" yaml:"allowed_channels"`
+	IgnoredChannels      any        `toml:"ignored_channels" yaml:"ignored_channels"`
+	FreeResponseChannels any        `toml:"free_response_channels" yaml:"free_response_channels"`
+	NoThreadChannels     any        `toml:"no_thread_channels" yaml:"no_thread_channels"`
+	RequireMention       any        `toml:"require_mention" yaml:"require_mention"`
+	AutoThread           any        `toml:"auto_thread" yaml:"auto_thread"`
+	ReplyToMode          string     `toml:"reply_to_mode" yaml:"reply_to_mode"`
+	AllowBots            string     `toml:"allow_bots" yaml:"allow_bots"`
+	ServerActions        []string   `toml:"server_actions" yaml:"server_actions"`
+	CoalesceMs           int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery    bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
 }
 
 func (c DiscordCfg) Enabled() bool {
 	if c.Token == "" {
 		return false
 	}
-	return c.AllowedChannelID != "" || c.FirstRunDiscovery
+	return c.AllowedChannelID != "" || len(flexibleStringList(c.AllowedChannels)) > 0 || c.FirstRunDiscovery
+}
+
+func (c DiscordCfg) AllowedChannelIDs() []string {
+	values := flexibleStringList(c.AllowedChannels)
+	if c.AllowedChannelID != "" {
+		values = append([]string{strings.TrimSpace(c.AllowedChannelID)}, values...)
+	}
+	return compactStrings(values)
+}
+
+func (c DiscordCfg) IgnoredChannelIDs() []string {
+	return flexibleStringList(c.IgnoredChannels)
+}
+
+func (c DiscordCfg) FreeResponseChannelIDs() []string {
+	return flexibleStringList(c.FreeResponseChannels)
+}
+
+func (c DiscordCfg) NoThreadChannelIDs() []string {
+	return flexibleStringList(c.NoThreadChannels)
+}
+
+func (c DiscordCfg) RequireMentionValue(defaultValue bool) bool {
+	return flexibleBool(c.RequireMention, defaultValue)
+}
+
+func (c DiscordCfg) AutoThreadValue(defaultValue bool) bool {
+	return flexibleBool(c.AutoThread, defaultValue)
+}
+
+func (c DiscordCfg) ReplyToModeValue() string {
+	switch strings.ToLower(strings.TrimSpace(c.ReplyToMode)) {
+	case "off":
+		return "off"
+	case "all":
+		return "all"
+	default:
+		return "first"
+	}
+}
+
+func (c DiscordCfg) AllowBotsValue() string {
+	switch strings.ToLower(strings.TrimSpace(c.AllowBots)) {
+	case "all":
+		return "all"
+	case "mentions":
+		return "mentions"
+	default:
+		return "none"
+	}
 }
 
 // SlackCfg drives the Slack Socket Mode channel adapter.
@@ -789,6 +847,38 @@ func loadEnv(cfg *Config) error {
 	if v := os.Getenv("GORMES_DISCORD_CHANNEL_ID"); v != "" {
 		cfg.Discord.AllowedChannelID = v
 	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_ALLOWED_CHANNELS"), os.Getenv("DISCORD_ALLOWED_CHANNELS")); v != "" {
+		cfg.Discord.AllowedChannels = parseEnvCSV(v)
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_IGNORED_CHANNELS"), os.Getenv("DISCORD_IGNORED_CHANNELS")); v != "" {
+		cfg.Discord.IgnoredChannels = parseEnvCSV(v)
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_FREE_RESPONSE_CHANNELS"), os.Getenv("DISCORD_FREE_RESPONSE_CHANNELS")); v != "" {
+		cfg.Discord.FreeResponseChannels = parseEnvCSV(v)
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_NO_THREAD_CHANNELS"), os.Getenv("DISCORD_NO_THREAD_CHANNELS")); v != "" {
+		cfg.Discord.NoThreadChannels = parseEnvCSV(v)
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_REQUIRE_MENTION"), os.Getenv("DISCORD_REQUIRE_MENTION")); v != "" {
+		parsed, err := parseEnvBool("DISCORD_REQUIRE_MENTION", v)
+		if err != nil {
+			return err
+		}
+		cfg.Discord.RequireMention = parsed
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_AUTO_THREAD"), os.Getenv("DISCORD_AUTO_THREAD")); v != "" {
+		parsed, err := parseEnvBool("DISCORD_AUTO_THREAD", v)
+		if err != nil {
+			return err
+		}
+		cfg.Discord.AutoThread = parsed
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_REPLY_TO_MODE"), os.Getenv("DISCORD_REPLY_TO_MODE")); v != "" {
+		cfg.Discord.ReplyToMode = v
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_DISCORD_ALLOW_BOTS"), os.Getenv("DISCORD_ALLOW_BOTS")); v != "" {
+		cfg.Discord.AllowBots = v
+	}
 	if v := os.Getenv("GORMES_DISCORD_SERVER_ACTIONS"); v != "" {
 		cfg.Discord.ServerActions = parseEnvCSV(v)
 	}
@@ -963,6 +1053,62 @@ func parseEnvCSV(value string) []string {
 		}
 	}
 	return out
+}
+
+func flexibleStringList(raw any) []string {
+	switch v := raw.(type) {
+	case nil:
+		return nil
+	case []string:
+		return compactStrings(v)
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			out = append(out, flexibleStringList(item)...)
+		}
+		return compactStrings(out)
+	case string:
+		return parseEnvCSV(v)
+	default:
+		return parseEnvCSV(fmt.Sprint(v))
+	}
+}
+
+func compactStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func flexibleBool(raw any, defaultValue bool) bool {
+	switch v := raw.(type) {
+	case nil:
+		return defaultValue
+	case bool:
+		return v
+	case string:
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "false", "0", "no", "off":
+			return false
+		case "true", "1", "yes", "on":
+			return true
+		default:
+			return defaultValue
+		}
+	default:
+		switch strings.ToLower(strings.TrimSpace(fmt.Sprint(v))) {
+		case "false", "0", "no", "off":
+			return false
+		case "true", "1", "yes", "on":
+			return true
+		default:
+			return defaultValue
+		}
+	}
 }
 
 func parseEnvInt64CSV(value string) []int64 {
