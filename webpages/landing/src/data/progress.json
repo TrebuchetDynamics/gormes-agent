@@ -41053,10 +41053,10 @@
             },
             {
               "name": "Hermes curator state transitions and run reports",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes maintains Hermes-compatible curator state for agent-created skills: first run defers and seeds state, configured interval/paused gates control later runs, active/stale/archived transitions use last activity, pinned and non-agent-created skills are never auto-touched, dry-run skips mutations, every run records recoverable report/backup evidence, removed skills are classified as consolidated or pruned, and cron job skill links are rewritten or restored when skill names change",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "skills",
               "trust_class": [
@@ -41074,8 +41074,12 @@
                 "./hermes-agent/tests/agent/test_curator_backup.py@b816fd4e2",
                 "./hermes-agent/tests/agent/test_curator_classification.py@b816fd4e2",
                 "./hermes-agent/tests/tools/test_skill_usage.py@b816fd4e2",
+                "internal/skills/curator.go",
+                "internal/skills/curator_test.go",
                 "internal/skills/usage.go",
-                "internal/skills/store.go"
+                "internal/skills/store.go",
+                "internal/cron/store.go",
+                "internal/cron/curator_skill_rewrite_test.go"
               ],
               "ready_when": [
                 "Hermes background review fork lifecycle is builder-ready or validated so agent-created skills can be attributed to the review origin.",
@@ -41110,7 +41114,7 @@
                 "TestCuratorRun_ClassificationReconciliation proves structured summaries, absorbed_into delete declarations, heuristic file/content evidence, and target existence checks classify removed skills as consolidated or pruned without false positives.",
                 "TestCuratorRun_CronSkillRewrite proves consolidated skills rewrite cron job skill references, pruned skills are removed from cron jobs, empty/no-change runs omit cron report sections, and rollback/restore can repair skill links."
               ],
-              "note": "Hermes v0.12.0 added an autonomous curator for agent-created skill maintenance. It is not just a score counter: it owns interval gating, .curator_state, pinned safeguards, activity-based stale/archive transitions, recoverable backups, dry-run behavior, logs/curator run reports, consolidation/pruning reconciliation, and cron skill-link rewrites. Gormes should port those invariants before exposing the CLI as available.",
+              "note": "Complete 2026-05-06: the all-topic Hermes parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 85, so this cycle added no new row and promoted this existing source-backed row to P0. TDD added a native curator state/run/report surface with deferred first-run gating, disabled/paused/interval decisions, agent-created skill stale/archive/reactivation transitions, pinned/manual/bundled safeguards, dry-run report-only behavior, run reports under logs/curator, recoverable tar.gz backups with unsafe path rejection and undoable rollback, consolidated-vs-pruned classification using absorbed_into declarations plus support-file heuristics, and cron skill-reference rewrite/restore helpers. No live LLM, gateway, network, or home-directory state is required by tests.",
               "write_scope": [
                 "internal/skills/curator.go",
                 "internal/skills/curator_test.go",

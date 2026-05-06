@@ -1071,7 +1071,7 @@ classification and row-backed implementation queue.
 ### 6.E — Feedback Loop 🔨
 
 - [x] Hermes curator auxiliary model routing slot
-- [ ] Hermes curator state transitions and run reports
+- [x] Hermes curator state transitions and run reports
 - [ ] Skill effectiveness scoring
 
 ### 6.F — Skill Surface 🔨

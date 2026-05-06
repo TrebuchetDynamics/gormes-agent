@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"go.etcd.io/bbolt"
@@ -143,4 +144,119 @@ func (s *Store) Delete(id string) error {
 		b := tx.Bucket([]byte(cronJobsBucket))
 		return b.Delete([]byte(id))
 	})
+}
+
+type SkillRefRewriteReport struct {
+	UpdatedJobs int `json:"updated_jobs"`
+	Replaced    int `json:"replaced"`
+	Removed     int `json:"removed"`
+}
+
+func (s *Store) SnapshotSkillRefs() (map[string][]string, error) {
+	out := map[string][]string{}
+	err := s.db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(cronJobsBucket))
+		return b.ForEach(func(k, v []byte) error {
+			var j Job
+			if err := json.Unmarshal(v, &j); err != nil {
+				return nil
+			}
+			out[j.ID] = append([]string(nil), j.Skills...)
+			return nil
+		})
+	})
+	return out, err
+}
+
+func (s *Store) RewriteSkillRefs(replacements map[string]string, removals []string) (SkillRefRewriteReport, error) {
+	removeSet := map[string]bool{}
+	for _, name := range removals {
+		if strings.TrimSpace(name) != "" {
+			removeSet[strings.TrimSpace(name)] = true
+		}
+	}
+	report := SkillRefRewriteReport{}
+	err := s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(cronJobsBucket))
+		return b.ForEach(func(k, v []byte) error {
+			var j Job
+			if err := json.Unmarshal(v, &j); err != nil {
+				return nil
+			}
+			next, replaced, removed := rewriteSkillList(j.Skills, replacements, removeSet)
+			if reflect.DeepEqual(next, j.Skills) {
+				return nil
+			}
+			j.Skills = next
+			blob, err := json.Marshal(j)
+			if err != nil {
+				return err
+			}
+			if err := b.Put(k, blob); err != nil {
+				return err
+			}
+			report.UpdatedJobs++
+			report.Replaced += replaced
+			report.Removed += removed
+			return nil
+		})
+	})
+	return report, err
+}
+
+func (s *Store) RestoreSkillRefs(snapshot map[string][]string) (int, error) {
+	var restored int
+	err := s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(cronJobsBucket))
+		for id, skills := range snapshot {
+			blob := b.Get([]byte(id))
+			if blob == nil {
+				continue
+			}
+			var j Job
+			if err := json.Unmarshal(blob, &j); err != nil {
+				continue
+			}
+			if reflect.DeepEqual(j.Skills, skills) {
+				continue
+			}
+			j.Skills = append([]string(nil), skills...)
+			next, err := json.Marshal(j)
+			if err != nil {
+				return err
+			}
+			if err := b.Put([]byte(id), next); err != nil {
+				return err
+			}
+			restored++
+		}
+		return nil
+	})
+	return restored, err
+}
+
+func rewriteSkillList(skills []string, replacements map[string]string, removals map[string]bool) ([]string, int, int) {
+	out := make([]string, 0, len(skills))
+	seen := map[string]bool{}
+	var replaced, removed int
+	for _, skill := range skills {
+		next := strings.TrimSpace(skill)
+		if next == "" {
+			continue
+		}
+		if removals[next] {
+			removed++
+			continue
+		}
+		if replacement := strings.TrimSpace(replacements[next]); replacement != "" {
+			next = replacement
+			replaced++
+		}
+		if seen[next] {
+			continue
+		}
+		seen[next] = true
+		out = append(out, next)
+	}
+	return out, replaced, removed
 }
