@@ -5,8 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	hermesclient "github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
@@ -54,11 +61,44 @@ type ExecutorConfig struct {
 	// should be reaped at run end. Nil is allowed (Run will record a
 	// cron_release_skipped_no_resource evidence entry).
 	RegisterRelease func(ctx context.Context, ledger *RunReleaseLedger, job Job)
+
+	// ScriptRunner executes an optional pre-run script and returns redacted
+	// evidence for prompt injection. Nil uses ShellCronScriptRunner.
+	ScriptRunner  CronScriptRunner
+	ScriptsRoot   string
+	ScriptTimeout time.Duration
+
+	// InactivityTimeout bounds idle provider/kernel streams. Zero is resolved
+	// from HERMES_CRON_TIMEOUT with the Hermes default of 10m; negative disables
+	// the idle timer.
+	InactivityTimeout time.Duration
+	LookupEnv         func(string) string
+
+	// Codex401Refresher is an injected auth-refresh seam for openai-codex cron
+	// runs. When it returns true after a 401 Submit error, the executor retries
+	// the same event once.
+	Codex401Refresher func(context.Context, Job, error) (bool, error)
 }
 
 func (c *ExecutorConfig) withDefaults() {
 	if c.CallTimeout <= 0 {
 		c.CallTimeout = 60 * time.Second
+	}
+	if c.ScriptTimeout <= 0 {
+		c.ScriptTimeout = 30 * time.Second
+	}
+	if strings.TrimSpace(c.ScriptsRoot) == "" {
+		c.ScriptsRoot = defaultCronScriptsRoot()
+	}
+	if c.LookupEnv == nil {
+		c.LookupEnv = os.Getenv
+	}
+	if c.InactivityTimeout == 0 {
+		if timeout, enabled := ResolveCronInactivityTimeout(c.LookupEnv); enabled {
+			c.InactivityTimeout = timeout
+		} else {
+			c.InactivityTimeout = -1
+		}
 	}
 }
 
@@ -123,10 +163,13 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 	promptHash := shortHash(job.Prompt)
 	const durableWorker = "cron-executor"
 	durableActive := e.startDurableCronRun(ctx, sessionID, job, promptHash, durableWorker)
+	restoreCWD := e.applyWorkdir(job)
+	defer restoreCWD()
 
 	// Subscribe BEFORE Submit so we don't miss the final frame.
 	frames := e.cfg.Kernel.Render()
 	done := make(chan string, 1) // receives the final assistant text
+	activity := make(chan kernel.RenderFrame, 1)
 	callCtx, cancel := context.WithTimeout(ctx, e.cfg.CallTimeout)
 	defer cancel()
 	go func() {
@@ -138,6 +181,10 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 				}
 				if f.SessionID != sessionID {
 					continue
+				}
+				select {
+				case activity <- f:
+				default:
 				}
 				if f.Phase != kernel.PhaseIdle {
 					continue
@@ -156,12 +203,13 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 	}()
 
 	// Submit.
-	submitErr := e.cfg.Kernel.Submit(kernel.PlatformEvent{
+	event := kernel.PlatformEvent{
 		Kind:      kernel.PlatformEventSubmit,
-		Text:      BuildPromptForJob(ctx, job, e.cfg.RunStore, e.log),
+		Text:      e.buildPromptForJob(ctx, job),
 		SessionID: sessionID,
 		CronJobID: job.ID,
-	})
+	}
+	submitErr := e.submitCronEvent(callCtx, job, event)
 	if submitErr != nil {
 		run := Run{
 			JobID:      job.ID,
@@ -179,27 +227,63 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 
 	// Wait for final text or timeout.
 	var finalText string
-	select {
-	case finalText = <-done:
-	case <-callCtx.Done():
-		// Timeout or parent ctx cancel — deliver a short failure notice.
-		notice := fmt.Sprintf("Cron job %s timed out after %s.", job.Name, e.cfg.CallTimeout)
-		_ = e.cfg.Sink.Deliver(context.Background(), notice)
-		run := Run{
-			JobID:         job.ID,
-			StartedAt:     startedAt,
-			FinishedAt:    time.Now().Unix(),
-			PromptHash:    promptHash,
-			Status:        "timeout",
-			Delivered:     true,
-			OutputPreview: truncate(notice, 200),
-			ErrorMsg:      "context deadline exceeded",
+	lastActivity := time.Now()
+	lastActivityDesc := "submit"
+	var inactivityTimer *time.Timer
+	var inactivityC <-chan time.Time
+	if e.cfg.InactivityTimeout > 0 {
+		inactivityTimer = time.NewTimer(e.cfg.InactivityTimeout)
+		defer inactivityTimer.Stop()
+		inactivityC = inactivityTimer.C
+	}
+	for {
+		select {
+		case finalText = <-done:
+			goto completed
+		case frame := <-activity:
+			lastActivity = time.Now()
+			lastActivityDesc = frame.Phase.String()
+			if inactivityTimer != nil {
+				resetTimer(inactivityTimer, e.cfg.InactivityTimeout)
+			}
+		case <-inactivityC:
+			err := cronInactivityError(job, time.Since(lastActivity), e.cfg.InactivityTimeout, lastActivityDesc)
+			notice := "Cron job " + job.Name + " " + err.Error() + "."
+			_ = e.cfg.Sink.Deliver(context.Background(), notice)
+			run := Run{
+				JobID:         job.ID,
+				StartedAt:     startedAt,
+				FinishedAt:    time.Now().Unix(),
+				PromptHash:    promptHash,
+				Status:        "timeout",
+				Delivered:     true,
+				OutputPreview: truncate(notice, 200),
+				ErrorMsg:      err.Error(),
+			}
+			e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
+			e.recordAndUpdateJob(ctx, job, run)
+			return err
+		case <-callCtx.Done():
+			// Timeout or parent ctx cancel — deliver a short failure notice.
+			notice := fmt.Sprintf("Cron job %s timed out after %s.", job.Name, e.cfg.CallTimeout)
+			_ = e.cfg.Sink.Deliver(context.Background(), notice)
+			run := Run{
+				JobID:         job.ID,
+				StartedAt:     startedAt,
+				FinishedAt:    time.Now().Unix(),
+				PromptHash:    promptHash,
+				Status:        "timeout",
+				Delivered:     true,
+				OutputPreview: truncate(notice, 200),
+				ErrorMsg:      "context deadline exceeded",
+			}
+			e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
+			e.recordAndUpdateJob(ctx, job, run)
+			return callCtx.Err()
 		}
-		e.failDurableCronRun(sessionID, durableWorker, durableActive, run.ErrorMsg)
-		e.recordAndUpdateJob(ctx, job, run)
-		return callCtx.Err()
 	}
 
+completed:
 	finished := time.Now().Unix()
 
 	// [SILENT] suppression?
@@ -259,6 +343,270 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 	e.recordAndUpdateJob(ctx, job, run)
 	return nil
+}
+
+func (e *Executor) buildPromptForJob(ctx context.Context, job Job) string {
+	job.Prompt = e.promptWithScript(ctx, job)
+	return BuildPromptForJob(ctx, job, e.cfg.RunStore, e.log)
+}
+
+func (e *Executor) promptWithScript(ctx context.Context, job Job) string {
+	if strings.TrimSpace(job.Script) == "" {
+		return job.Prompt
+	}
+	runner := e.cfg.ScriptRunner
+	if runner == nil {
+		runner = ShellCronScriptRunner{}
+	}
+	result := runner.RunCronScript(ctx, CronScriptRequest{
+		Path:        job.Script,
+		ScriptsRoot: e.cfg.ScriptsRoot,
+		Workdir:     job.Workdir,
+		Timeout:     e.cfg.ScriptTimeout,
+	})
+	output := strings.TrimSpace(result.Output)
+	if result.Success {
+		if output == "" {
+			output = "script produced no output"
+		}
+		return "## Script Output\n" +
+			"The following data was collected by a pre-run script. Use it as context for your analysis.\n\n" +
+			"```\n" + output + "\n```\n\n" +
+			job.Prompt
+	}
+	if output == "" {
+		output = "script failed without output"
+	}
+	return "## Script Error\n" +
+		"The data-collection script failed. Report this to the user.\n\n" +
+		"```\n" + output + "\n```\n\n" +
+		job.Prompt
+}
+
+func (e *Executor) applyWorkdir(job Job) func() {
+	workdir := strings.TrimSpace(job.Workdir)
+	if workdir == "" {
+		return func() {}
+	}
+	info, err := os.Stat(workdir)
+	if err != nil || !info.IsDir() {
+		e.log.Warn("cron: configured workdir unavailable; running without it", "job_id", job.ID, "workdir", workdir, "err", err)
+		return func() {}
+	}
+	prior, hadPrior := os.LookupEnv("TERMINAL_CWD")
+	_ = os.Setenv("TERMINAL_CWD", workdir)
+	return func() {
+		if hadPrior {
+			_ = os.Setenv("TERMINAL_CWD", prior)
+			return
+		}
+		_ = os.Unsetenv("TERMINAL_CWD")
+	}
+}
+
+func (e *Executor) submitCronEvent(ctx context.Context, job Job, event kernel.PlatformEvent) error {
+	err := e.cfg.Kernel.Submit(event)
+	if err == nil {
+		return nil
+	}
+	if e.cfg.Codex401Refresher == nil || !cronShouldRefreshCodex401(job, err) {
+		return err
+	}
+	ok, refreshErr := e.cfg.Codex401Refresher(ctx, job, err)
+	if refreshErr != nil {
+		return fmt.Errorf("codex auth refresh: %w", refreshErr)
+	}
+	if !ok {
+		return err
+	}
+	retryErr := e.cfg.Kernel.Submit(event)
+	if retryErr != nil {
+		return retryErr
+	}
+	return nil
+}
+
+func cronShouldRefreshCodex401(job Job, err error) bool {
+	if err == nil {
+		return false
+	}
+	provider := strings.ToLower(strings.TrimSpace(job.Provider))
+	if provider != "openai-codex" && provider != "codex" {
+		return false
+	}
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "401") || strings.Contains(text, "unauthorized")
+}
+
+type CronScriptRequest struct {
+	Path        string
+	ScriptsRoot string
+	Workdir     string
+	Timeout     time.Duration
+}
+
+type CronScriptResult struct {
+	Success bool
+	Output  string
+}
+
+type CronScriptRunner interface {
+	RunCronScript(context.Context, CronScriptRequest) CronScriptResult
+}
+
+type CronScriptRunnerFunc func(context.Context, CronScriptRequest) CronScriptResult
+
+func (f CronScriptRunnerFunc) RunCronScript(ctx context.Context, req CronScriptRequest) CronScriptResult {
+	return f(ctx, req)
+}
+
+type ShellCronScriptRunner struct{}
+
+func (ShellCronScriptRunner) RunCronScript(ctx context.Context, req CronScriptRequest) CronScriptResult {
+	path, err := resolveCronScriptPath(req.Path, req.ScriptsRoot)
+	if err != nil {
+		return CronScriptResult{Output: err.Error()}
+	}
+	timeout := req.Timeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
+	}
+	runCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	argv := cronScriptArgv(path)
+	cmd := exec.CommandContext(runCtx, argv[0], argv[1:]...)
+	cmd.Dir = filepath.Dir(path)
+	raw, runErr := cmd.CombinedOutput()
+	output := strings.TrimSpace(redactCronScriptText(string(raw)))
+	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
+		return CronScriptResult{Output: fmt.Sprintf("Script timed out after %s: %s", timeout, path)}
+	}
+	if runErr != nil {
+		if output == "" {
+			output = runErr.Error()
+		}
+		if exitErr, ok := runErr.(*exec.ExitError); ok {
+			return CronScriptResult{Output: fmt.Sprintf("Script exited with code %d\n%s", exitErr.ExitCode(), output)}
+		}
+		return CronScriptResult{Output: "Script execution failed: " + output}
+	}
+	return CronScriptResult{Success: true, Output: output}
+}
+
+func resolveCronScriptPath(rawPath, scriptsRoot string) (string, error) {
+	scriptsRoot = strings.TrimSpace(scriptsRoot)
+	if scriptsRoot == "" {
+		scriptsRoot = defaultCronScriptsRoot()
+	}
+	root, err := filepath.Abs(scriptsRoot)
+	if err != nil {
+		return "", fmt.Errorf("script root invalid: %w", err)
+	}
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		return "", fmt.Errorf("script root unavailable: %w", err)
+	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", fmt.Errorf("script root unavailable: %w", err)
+	}
+	raw := strings.TrimSpace(rawPath)
+	if raw == "" {
+		return "", errors.New("Script path is empty")
+	}
+	var candidate string
+	if filepath.IsAbs(raw) {
+		candidate = raw
+	} else {
+		candidate = filepath.Join(root, raw)
+	}
+	cleaned, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("Script path invalid: %w", err)
+	}
+	resolved := cleaned
+	if eval, err := filepath.EvalSymlinks(cleaned); err == nil {
+		resolved = eval
+	}
+	rel, err := filepath.Rel(root, resolved)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." {
+		return "", fmt.Errorf("Blocked: script path resolves outside the scripts directory (%s): %q", root, rawPath)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return "", fmt.Errorf("Script not found: %s", resolved)
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("Script path is not a file: %s", resolved)
+	}
+	return resolved, nil
+}
+
+func cronScriptArgv(path string) []string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".sh", ".bash":
+		return []string{"/bin/bash", path}
+	default:
+		if python, err := exec.LookPath("python3"); err == nil {
+			return []string{python, path}
+		}
+		return []string{"python", path}
+	}
+}
+
+func defaultCronScriptsRoot() string {
+	if home := strings.TrimSpace(os.Getenv("GORMES_HOME")); home != "" {
+		return filepath.Join(home, "scripts")
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, ".gormes", "scripts")
+	}
+	return filepath.Join(".", "scripts")
+}
+
+func redactCronScriptText(text string) string {
+	return cronScriptSecretPattern.ReplaceAllString(text, "${1}=[REDACTED]")
+}
+
+var cronScriptSecretPattern = regexp.MustCompile(`(?i)\b(token|api[_-]?key|secret|password)=\S+`)
+
+func ResolveCronInactivityTimeout(lookup func(string) string) (time.Duration, bool) {
+	if lookup == nil {
+		lookup = os.Getenv
+	}
+	raw := strings.TrimSpace(lookup("HERMES_CRON_TIMEOUT"))
+	if raw == "" {
+		return 10 * time.Minute, true
+	}
+	seconds, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 10 * time.Minute, true
+	}
+	if seconds <= 0 {
+		return 0, false
+	}
+	return time.Duration(seconds * float64(time.Second)), true
+}
+
+func resetTimer(timer *time.Timer, d time.Duration) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	timer.Reset(d)
+}
+
+func cronInactivityError(_ Job, idleFor, limit time.Duration, lastActivity string) error {
+	return fmt.Errorf("idle for %s (limit %s) after last activity %s", idleFor.Round(time.Millisecond), limit.Round(time.Millisecond), displayCronActivity(lastActivity))
+}
+
+func displayCronActivity(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "unknown"
+	}
+	return value
 }
 
 func (e *Executor) startDurableCronRun(ctx context.Context, id string, job Job, promptHash, workerID string) bool {

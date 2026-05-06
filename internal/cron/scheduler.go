@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
@@ -94,23 +95,36 @@ func (s *Scheduler) Start(ctx context.Context) error {
 }
 
 func (s *Scheduler) runTick(ctx context.Context, jobs []Job) {
-	var wg sync.WaitGroup
+	var parallel []Job
 	for _, job := range jobs {
+		jobCopy := job
+		if strings.TrimSpace(job.Workdir) != "" {
+			s.runOneJob(ctx, jobCopy)
+			continue
+		}
+		parallel = append(parallel, jobCopy)
+	}
+	var wg sync.WaitGroup
+	for _, job := range parallel {
 		jobCopy := job
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			defer func() {
-				if r := recover(); r != nil {
-					s.log.Warn("cron: panic in job",
-						"job_id", jobCopy.ID, "name", jobCopy.Name, "panic", r)
-				}
-			}()
-			s.cfg.Executor.Run(ctx, jobCopy)
+			s.runOneJob(ctx, jobCopy)
 		}()
 	}
 	wg.Wait()
 	s.cfg.MCPOrphanCleanup()
+}
+
+func (s *Scheduler) runOneJob(ctx context.Context, job Job) {
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Warn("cron: panic in job",
+				"job_id", job.ID, "name", job.Name, "panic", r)
+		}
+	}()
+	s.cfg.Executor.Run(ctx, job)
 }
 
 // Stop halts the ticker and waits for any running jobs (bounded by ctx).

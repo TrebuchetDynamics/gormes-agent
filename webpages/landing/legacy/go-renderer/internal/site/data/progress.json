@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-06T13:57:33Z",
+    "last_updated": "2026-05-06T15:41:21Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -30294,8 +30294,8 @@
             },
             {
               "name": "Cron script/workdir/inactivity execution binding",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes binds the already-modeled cron script and workdir fields into the native cron executor: pre-run scripts execute once per tick through injected runners, stdout/stderr/timeout evidence is folded into the prompt or alert envelope, workdir jobs run with TERMINAL_CWD and sequential partitioning, env/config state is restored after each run, inactivity timeout wraps provider stream activity, Codex 401 refresh uses the cron/gateway execution path, and cron state files keep owner-only permissions.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -30360,13 +30360,29 @@
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/cron/executor.go",
+                  "internal/cron/scheduler.go",
+                  "internal/cron/store.go",
+                  "internal/cron/script_workdir_execution_test.go",
+                  "internal/cron/inactivity_timeout_test.go"
+                ],
+                "tests": [
+                  "go test ./internal/cron -run 'TestCronScriptExecution|TestCronWorkdirExecution|TestCronInactivityTimeout|TestCronCodexExecutionPath|TestCronStateFilePermissions' -count=1",
+                  "go test ./internal/tools -run TestCronjobTool -count=1",
+                  "go test ./internal/cron ./internal/tools -count=1",
+                  "go run ./cmd/progress validate"
+                ],
+                "note": "Cron executor now binds injected pre-run script evidence into prompts, restores TERMINAL_CWD around workdir runs, interrupts idle provider streams through HERMES_CRON_TIMEOUT, retries Codex 401 submissions through an injected refresh seam, serializes workdir jobs before parallel jobs, and tightens cron state directory/file modes."
+              },
               "done_signal": [
                 "Cron executor fixtures prove script, workdir, inactivity timeout, Codex refresh, and file-permission behavior with injected runners and fake providers."
               ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 cron/scheduler.py + tests/cron",
-                "note": "Gormes had cron storage/action rows but lacked the executor behavior covered by Hermes' script, workdir, inactivity, Codex refresh, and permission tests."
+                "note": "Gormes had cron storage/action rows but lacked the executor behavior covered by Hermes' script, workdir, inactivity, Codex refresh, and permission tests. The 2026-05-06 all-topic parity sweep promoted this row to P0 because it is the highest-priority validated, unblocked runtime/operator slice after CLI/TUI, provider/auth, gateway/channel, tools, sessions/Goncho, install/runtime, browser, docs/public, and release/operator surfaces were checked."
               }
             },
             {
@@ -30511,8 +30527,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes 90a3e73d paste.rs cleanup, dbe50155 session-search recent-mode exclusion, and 500774e3/a59a98b1 shutdown memory handoff remain tracked. The 2026-05-05 parity sweep found a cron executor weakness: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover untracked script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Those are now split into `Cron script/workdir/inactivity execution binding` before no-agent script-only watchdog mode."
+            "last_upstream_check": "2026-05-06T15:30:05Z",
+            "origin_decision": "The 2026-05-06 all-topic parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows against Hermes b816fd4e2 plus Honcho e659b6b. CLI/setup, provider/auth, gateway live-turn, tool-loop, memory/Goncho, install/runtime, browser, docs, and release surfaces have either complete rows or lower-priority planned slices. The strongest builder-ready weakness remains cron execution: Gormes has native cron store/scheduler/action rows, but Hermes b816fd4e2 tests still cover unshipped script execution, workdir/TERMINAL_CWD binding, inactivity timeout, Codex 401 refresh, and owner-only cron file modes. Promote `Cron script/workdir/inactivity execution binding` to P0 before no-agent script-only watchdog mode."
           }
         },
         "5.O": {

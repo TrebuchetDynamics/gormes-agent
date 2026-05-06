@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"go.etcd.io/bbolt"
 )
@@ -29,6 +32,9 @@ type Store struct {
 // NewStore opens/creates the cron_jobs bucket and returns a ready-to-use
 // Store. Safe to call multiple times.
 func NewStore(db *bbolt.DB) (*Store, error) {
+	if err := secureCronStatePath(db.Path()); err != nil {
+		return nil, err
+	}
 	err := db.Update(func(tx *bbolt.Tx) error {
 		_, e := tx.CreateBucketIfNotExists([]byte(cronJobsBucket))
 		return e
@@ -37,6 +43,23 @@ func NewStore(db *bbolt.DB) (*Store, error) {
 		return nil, fmt.Errorf("cron: init bucket: %w", err)
 	}
 	return &Store{db: db}, nil
+}
+
+func secureCronStatePath(path string) error {
+	path = filepath.Clean(strings.TrimSpace(path))
+	if path == "." || path == "" {
+		return nil
+	}
+	dir := filepath.Dir(path)
+	if dir != "." && dir != "" {
+		if err := os.Chmod(dir, 0o700); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("cron: secure state dir: %w", err)
+		}
+	}
+	if err := os.Chmod(path, 0o600); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("cron: secure state file: %w", err)
+	}
+	return nil
 }
 
 // Create persists a new job. Fails with ErrJobNameTaken if Name is
