@@ -1,8 +1,9 @@
 ---
+weight: 3
 title: "Android / Termux"
 description: "Run Hermes Agent directly on an Android phone with Termux"
-weight: 3
 ---
+
 
 # Hermes on Android with Termux
 

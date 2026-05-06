@@ -10,6 +10,7 @@ manage context window usage efficiently across long conversations.
 Source files: `agent/context_engine.py` (ABC), `agent/context_compressor.py` (default engine),
 `agent/prompt_caching.py`, `gateway/run.py` (session hygiene), `run_agent.py` (search for `_compress_context`)
 
+
 ## Pluggable Context Engine
 
 Context management is built on the `ContextEngine` ABC (`agent/context_engine.py`). The built-in `ContextCompressor` is the default implementation, but plugins can replace it with alternative engines (e.g., Lossless Context Management).
@@ -35,7 +36,7 @@ Plugin engines are **never auto-activated** — the user must explicitly set `co
 
 Configure via `hermes plugins` → Provider Plugins → Context Engine, or edit `config.yaml` directly.
 
-For building a context engine plugin, see [Context Engine Plugins](../context-engine-plugin).
+For building a context engine plugin, see [Context Engine Plugins](../context-engine-plugin/).
 
 ## Dual Compression System
 
@@ -76,6 +77,7 @@ Located in `agent/context_compressor.py`. This is the **primary compression
 system** that runs inside the agent's tool loop with access to accurate,
 API-reported token counts.
 
+
 ## Configuration
 
 All compression settings are read from `config.yaml` under the `compression` key:
@@ -112,6 +114,7 @@ threshold_tokens     = 200,000 × 0.50 = 100,000
 tail_token_budget    = 100,000 × 0.20 = 20,000
 max_summary_tokens   = min(200,000 × 0.05, 12,000) = 10,000
 ```
+
 
 ## Compression Algorithm
 
@@ -152,6 +155,7 @@ to find the parent assistant message, keeping groups intact.
 
 > **Warning: Summary model context length**
 > The summary model must have a context window **at least as large** as the main agent model's. The entire middle section is sent to the summary model in a single `call_llm(task="compression")` call. If the summary model's context is smaller, the API returns a context-length error — `_generate_summary()` catches it, logs a warning, and returns `None`. The compressor then drops the middle turns **without a summary**, silently losing conversation context. This is the most common cause of degraded compaction quality.
+
 
 The middle turns are summarized using the auxiliary LLM with a structured
 template:
@@ -210,6 +214,7 @@ new progress is added, and obsolete information is removed.
 The `_previous_summary` field on the compressor instance stores the last summary
 text for this purpose.
 
+
 ## Before/After Example
 
 ### Before Compression (45 messages, ~95K tokens)
@@ -266,6 +271,7 @@ text for this purpose.
 [6] assistant: "I see the issue with the test fixtures..."
 [7] user:      "Great, also add error handling"
 ```
+
 
 ## Prompt Caching (Anthropic)
 
@@ -330,9 +336,9 @@ Prompt caching is automatically enabled when:
 - The provider supports `cache_control` (native Anthropic API or OpenRouter)
 
 ```yaml
-# config.yaml — TTL is configurable
-model:
-  cache_ttl: "5m"   # "5m" or "1h"
+# config.yaml — TTL is configurable (must be "5m" or "1h")
+prompt_caching:
+  cache_ttl: "5m"
 ```
 
 The CLI shows caching status at startup:
@@ -340,16 +346,7 @@ The CLI shows caching status at startup:
 💾 Prompt caching: ENABLED (Claude via OpenRouter, 5m TTL)
 ```
 
+
 ## Context Pressure Warnings
 
-The agent emits context pressure warnings at 85% of the compression threshold
-(not 85% of context — 85% of the threshold which is itself 50% of context):
-
-```
-⚠️  Context is 85% to compaction threshold (42,500/50,000 tokens)
-```
-
-After compression, if usage drops below 85% of threshold, the warning state
-is cleared. If compression fails to reduce below the warning level (the
-conversation is too dense), the warning persists but compression won't
-re-trigger until the threshold is exceeded again.
+Intermediate context-pressure warnings have been removed (see the iteration-budget block in `run_agent.py`, which notes: "No intermediate pressure warnings — they caused models to 'give up' prematurely on complex tasks"). Compression fires when prompt tokens reach the configured `compression.threshold` (default 50%) with no prior warning step; gateway session hygiene fires as the secondary safety net at 85% of the model's context window.

@@ -1,17 +1,23 @@
 ---
+weight: 11
 title: "Automate Anything with Cron"
 description: "Real-world automation patterns using Hermes cron — monitoring, reports, pipelines, and multi-skill workflows"
-weight: 11
 ---
+
 
 # Automate Anything with Cron
 
-The [daily briefing bot tutorial](../daily-briefing-bot) covers the basics. This guide goes further — five real-world automation patterns you can adapt for your own workflows.
+The [daily briefing bot tutorial](../daily-briefing-bot/) covers the basics. This guide goes further — five real-world automation patterns you can adapt for your own workflows.
 
-For the full feature reference, see [Scheduled Tasks (Cron)](../../user-guide/features/cron).
+For the full feature reference, see [Scheduled Tasks (Cron)](../../user-guide/features/cron/).
 
 > **Info: Key Concept**
 > Cron jobs run in fresh agent sessions with no memory of your current chat. Prompts must be **completely self-contained** — include everything the agent needs to know.
+
+
+> **Tip: Don't need the LLM? Use no-agent mode.**
+> For recurring watchdogs where the script already produces the exact message you want to send (memory alerts, disk alerts, CI pings, heartbeats), skip the LLM entirely with [script-only cron jobs](../cron-script-only/). Zero tokens, same scheduler. You can ask Hermes to set one up for you in chat — the `cronjob` tool knows when to pick `no_agent=True` and writes the script for you.
+
 
 ---
 
@@ -67,6 +73,7 @@ Set up the cron job:
 > **Tip: The [SILENT] Trick**
 > When the agent's final response contains `[SILENT]`, delivery is suppressed. This means you only get notified when something actually happens — no spam on quiet hours.
 
+
 ---
 
 ## Pattern 2: Weekly Report
@@ -117,6 +124,7 @@ Otherwise, provide a concise summary of the activity." --name "Repo watcher" --d
 
 > **Warning: Self-Contained Prompts**
 > Notice how the prompt includes the exact `gh` commands. The cron agent has no memory of previous runs or your preferences — spell everything out.
+
 
 ---
 
@@ -255,4 +263,4 @@ The `--deliver` flag controls where results go:
 
 ---
 
-*For the complete cron reference — all parameters, edge cases, and internals — see [Scheduled Tasks (Cron)](../../user-guide/features/cron).*
+*For the complete cron reference — all parameters, edge cases, and internals — see [Scheduled Tasks (Cron)](../../user-guide/features/cron/).*

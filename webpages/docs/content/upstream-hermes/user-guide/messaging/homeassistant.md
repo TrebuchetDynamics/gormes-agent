@@ -1,8 +1,10 @@
 ---
-title: "Home Assistant"
-description: "Control your smart home with Hermes Agent via Home Assistant integration."
+title: Home Assistant
+description: Control your smart home with Hermes Agent via Home Assistant integration.
+sidebar_label: Home Assistant
 weight: 5
 ---
+
 
 # Home Assistant Integration
 
@@ -35,6 +37,7 @@ HASS_URL=http://192.168.1.100:8123
 
 > **Info**
 > The `homeassistant` toolset is automatically enabled when `HASS_TOKEN` is set. Both the gateway platform and the device control tools activate from this single token.
+
 
 ### 3. Start the Gateway
 
@@ -127,6 +130,7 @@ The Home Assistant gateway adapter connects via WebSocket and subscribes to `sta
 > **Warning: Required Configuration**
 > By default, **no events are forwarded**. You must configure at least one of `watch_domains`, `watch_entities`, or `watch_all` to receive events. Without filters, a warning is logged at startup and all state changes are silently dropped.
 
+
 Configure which events the agent sees in `~/.hermes/config.yaml` under the Home Assistant platform's `extra` section:
 
 ```yaml
@@ -158,6 +162,7 @@ platforms:
 
 > **Tip**
 > Start with a focused set of domains — `climate`, `binary_sensor`, and `alarm_control_panel` cover the most useful automations. Add more as needed. Use `ignore_entities` to suppress noisy sensors like CPU temperature or uptime counters.
+
 
 ### Event Formatting
 
@@ -198,6 +203,7 @@ The Home Assistant tools enforce security restrictions:
 > - `rest_command` — HTTP requests from HA server (SSRF vector)
 >
 > Attempting to call services in these domains returns an error.
+
 
 Entity IDs are validated against the pattern `^[a-z_][a-z0-9_]*\.[a-z0-9_]+$` to prevent injection attacks.
 

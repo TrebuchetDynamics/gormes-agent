@@ -1,8 +1,9 @@
 ---
+weight: 5
 title: "WhatsApp"
 description: "Set up Hermes Agent as a WhatsApp bot via the built-in Baileys bridge"
-weight: 5
 ---
+
 
 # WhatsApp Setup
 
@@ -14,10 +15,12 @@ Hermes connects to WhatsApp through a built-in bridge based on **Baileys**. This
 > - **Don't send bulk/spam messages** — keep usage conversational
 > - **Don't automate outbound messaging** to people who haven't messaged first
 
+
 > **Warning: WhatsApp Web Protocol Updates**
 > WhatsApp periodically updates their Web protocol, which can temporarily break compatibility
 > with third-party bridges. When this happens, Hermes will update the bridge dependency. If the
 > bot stops working after a WhatsApp update, pull the latest Hermes version and re-pair.
+
 
 ## Two Modes
 
@@ -63,6 +66,7 @@ Once paired, the wizard confirms the connection and exits. Your session is saved
 > If the QR code looks garbled, make sure your terminal is at least 60 columns wide and supports
 > Unicode. You can also try a different terminal emulator.
 
+
 ---
 
 ## Step 2: Getting a Second Phone Number (Bot Mode)
@@ -100,9 +104,10 @@ WHATSAPP_ALLOWED_USERS=15551234567         # Comma-separated phone numbers (with
 
 > **Tip: Allow-all shorthand**
 > Setting `WHATSAPP_ALLOWED_USERS=*` allows **all** senders (equivalent to `WHATSAPP_ALLOW_ALL_USERS=true`).
-> This is consistent with [Signal group allowlists](../../../reference/environment-variables).
+> This is consistent with [Signal group allowlists](../../../reference/environment-variables/).
 > To use the pairing flow instead, remove both variables and rely on the
-> [DM pairing system](../../security#dm-pairing-system).
+> [DM pairing system](../../security/#dm-pairing-system).
+
 
 Optional behavior settings in `~/.hermes/config.yaml`:
 
@@ -187,7 +192,7 @@ Standard Markdown in AI responses is automatically converted to WhatsApp's nativ
 | `**bold**` | `*bold*` | **bold** |
 | `~~strikethrough~~` | `~strikethrough~` | ~~strikethrough~~ |
 | `# Heading` | `*Heading*` | Bold text (no native headings) |
-| Markdown link syntax | Rendered text `link text (url)` | Inline URL |
+| `[link text](url)` | `link text (url)` | Inline URL |
 
 Code blocks and inline code are preserved as-is since WhatsApp supports triple-backtick formatting natively.
 
@@ -207,7 +212,7 @@ When the agent calls tools (web search, file operations, etc.), WhatsApp display
 | **Logged out unexpectedly** | WhatsApp unlinks devices after long inactivity. Keep the phone on and connected to the network, then re-pair with `hermes whatsapp` if needed. |
 | **Bridge crashes or reconnect loops** | Restart the gateway, update Hermes, and re-pair if the session was invalidated by a WhatsApp protocol change. |
 | **Bot stops working after WhatsApp update** | Update Hermes to get the latest bridge version, then re-pair. |
-| **macOS: "Node.js not installed" but node works in terminal** | launchd services don't inherit your shell PATH. Run `hermes gateway install` to re-snapshot your current PATH into the plist, then `hermes gateway start`. See the [Gateway Service docs](.#macos-launchd) for details. |
+| **macOS: "Node.js not installed" but node works in terminal** | launchd services don't inherit your shell PATH. Run `hermes gateway install` to re-snapshot your current PATH into the plist, then `hermes gateway start`. See the [Gateway Service docs](../#macos-launchd) for details. |
 | **Messages not being received** | Verify `WHATSAPP_ALLOWED_USERS` includes the sender's number (with country code, no `+` or spaces), or set it to `*` to allow everyone. Set `WHATSAPP_DEBUG=true` in `.env` and restart the gateway to see raw message events in `bridge.log`. |
 | **Bot replies to strangers with a pairing code** | Set `whatsapp.unauthorized_dm_behavior: ignore` in `~/.hermes/config.yaml` if you want unauthorized DMs to be silently ignored instead. |
 
@@ -220,6 +225,7 @@ When the agent calls tools (web search, file operations, etc.), WhatsApp display
 > phone numbers (including country code, without the `+`), use `*` to allow everyone, or set
 > `WHATSAPP_ALLOW_ALL_USERS=true`. Without any of these, the gateway **denies all incoming
 > messages** as a safety measure.
+
 
 By default, unauthorized DMs still receive a pairing code reply. If you want a private WhatsApp number to stay completely silent to strangers, set:
 

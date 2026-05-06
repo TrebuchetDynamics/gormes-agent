@@ -1,8 +1,9 @@
 ---
+weight: 3
 title: "Discord"
 description: "Set up Hermes Agent as a Discord bot"
-weight: 3
 ---
+
 
 # Discord Setup
 
@@ -16,13 +17,14 @@ Before setup, here's the part most people want to know: how Hermes behaves once 
 |---------|----------|
 | **DMs** | Hermes responds to every message. No `@mention` needed. Each DM has its own session. |
 | **Server channels** | By default, Hermes only responds when you `@mention` it. If you post in a channel without mentioning it, Hermes ignores the message. |
-| **Free-response channels** | You can make specific channels mention-free with `DISCORD_FREE_RESPONSE_CHANNELS`, or disable mentions globally with `DISCORD_REQUIRE_MENTION=false`. |
+| **Free-response channels** | You can make specific channels mention-free with `DISCORD_FREE_RESPONSE_CHANNELS`, or disable mentions globally with `DISCORD_REQUIRE_MENTION=false`. Messages in these channels are answered inline — auto-threading is skipped so the channel stays a lightweight chat. |
 | **Threads** | Hermes replies in the same thread. Mention rules still apply unless that thread or its parent channel is configured as free-response. Threads stay isolated from the parent channel for session history. |
 | **Shared channels with multiple users** | By default, Hermes isolates session history per user inside the channel for safety and clarity. Two people talking in the same channel do not share one transcript unless you explicitly disable that. |
 | **Messages mentioning other users** | When `DISCORD_IGNORE_NO_MENTION` is `true` (the default), Hermes stays silent if a message @mentions other users but does **not** mention the bot. This prevents the bot from jumping into conversations directed at other people. Set to `false` if you want the bot to respond to all messages regardless of who is mentioned. This only applies in server channels, not DMs. |
 
 > **Tip**
 > If you want a normal bot-help channel where people can talk to Hermes without tagging it every time, add that channel to `DISCORD_FREE_RESPONSE_CHANNELS`.
+
 
 ### Discord Gateway Model
 
@@ -101,8 +103,10 @@ You'll land on the **General Information** page. Note the **Application ID** —
 > **Tip**
 > You can set a custom avatar and banner for your bot on this page. This is what users will see in Discord.
 
+
 > **Info: Private Bot Alternative**
 > If you prefer to keep your bot private (Public Bot = OFF), you **must** use the **Manual URL** method in Step 5 instead of the Installation tab. The Discord-provided link requires Public Bot to be enabled.
+
 
 ## Step 3: Enable Privileged Gateway Intents
 
@@ -121,8 +125,9 @@ On the **Bot** page, scroll down to **Privileged Gateway Intents**. You'll see t
 - Without **Message Content Intent**, your bot receives message events but the message text is empty — the bot literally cannot see what you typed.
 - Without **Server Members Intent**, the bot cannot resolve usernames for the allowed users list and may fail to identify who is messaging it.
 
-> **Warning**
+> **Warning: This is the #1 reason Discord bots don't work**
 > If your bot is online but never responds to messages, the **Message Content Intent** is almost certainly disabled. Go back to the [Developer Portal](https://discord.com/developers/applications), select your application → Bot → Privileged Gateway Intents, and make sure **Message Content Intent** is toggled ON. Click **Save Changes**.
+
 
 **Regarding server count:**
 - If your bot is in **fewer than 100 servers**, you can simply toggle intents on and off freely.
@@ -138,8 +143,9 @@ The bot token is the credential Hermes Agent uses to log in as your bot. Still o
 2. If you have two-factor authentication enabled on your Discord account, enter your 2FA code.
 3. Discord will display your new token. **Copy it immediately.**
 
-> **Warning**
-> The token is only displayed once. If you lose it, you'll need to reset it and generate a new one. Never share your token publicly or commit it to Git - anyone with this token has full control of your bot.
+> **Warning: Token shown only once**
+> The token is only displayed once. If you lose it, you'll need to reset it and generate a new one. Never share your token publicly or commit it to Git — anyone with this token has full control of your bot.
+
 
 Store the token somewhere safe (a password manager, for example). You'll need it in Step 8.
 
@@ -149,8 +155,9 @@ You need an OAuth2 URL to invite the bot to your server. There are two ways to d
 
 ### Option A: Using the Installation Tab (Recommended)
 
-> **Note**
+> **Note: Requires Public Bot**
 > This method requires **Public Bot** to be set to **ON** in Step 2. If you set Public Bot to OFF, use the Manual URL method below instead.
+
 
 1. In the left sidebar, click **Installation**.
 2. Under **Installation Contexts**, enable **Guild Install**.
@@ -201,6 +208,7 @@ These are the minimum permissions your bot needs:
 > **Info**
 > You need the **Manage Server** permission on the Discord server to invite a bot. If you don't see your server in the dropdown, ask a server admin to use the invite link instead.
 
+
 After authorizing, the bot will appear in your server's member list (it will show as offline until you start the Hermes gateway).
 
 ## Step 7: Find Your Discord User ID
@@ -216,6 +224,7 @@ Your User ID is a long number like `284102345871466496`.
 
 > **Tip**
 > Developer Mode also lets you copy **Channel IDs** and **Server IDs** the same way — right-click the channel or server name and select Copy ID. You'll need a Channel ID if you want to set a home channel manually.
+
 
 ## Step 8: Configure Hermes Agent
 
@@ -253,6 +262,7 @@ The bot should come online in Discord within a few seconds. Send it a message �
 > **Tip**
 > You can run `hermes gateway` in the background or as a systemd service for persistent operation. See the deployment docs for details.
 
+
 ## Configuration Reference
 
 Discord behavior is controlled through two files: **`~/.hermes/.env`** for credentials and env-level toggles, and **`~/.hermes/config.yaml`** for structured settings. Environment variables always take precedence over config.yaml values when both are set.
@@ -266,6 +276,7 @@ Discord behavior is controlled through two files: **`~/.hermes/.env`** for crede
 | `DISCORD_ALLOWED_ROLES` | No | — | Comma-separated Discord role IDs. Any member with one of these roles is authorized — OR semantics with `DISCORD_ALLOWED_USERS`. Auto-enables the **Server Members Intent** on connect. Useful when moderation teams churn: new mods get access as soon as the role is granted, no config push needed. |
 | `DISCORD_HOME_CHANNEL` | No | — | Channel ID where the bot sends proactive messages (cron output, reminders, notifications). |
 | `DISCORD_HOME_CHANNEL_NAME` | No | `"Home"` | Display name for the home channel in logs and status output. |
+| `DISCORD_COMMAND_SYNC_POLICY` | No | `"safe"` | Controls native slash-command startup sync. `"safe"` diffs existing global commands and only updates what changed, recreating commands when Discord metadata changes cannot be applied via patch. `"bulk"` preserves the old `tree.sync()` behavior. `"off"` skips startup sync entirely. |
 | `DISCORD_REQUIRE_MENTION` | No | `true` | When `true`, the bot only responds in server channels when `@mentioned`. Set to `false` to respond to all messages in every channel. |
 | `DISCORD_FREE_RESPONSE_CHANNELS` | No | — | Comma-separated channel IDs where the bot responds without requiring an `@mention`, even when `DISCORD_REQUIRE_MENTION` is `true`. |
 | `DISCORD_IGNORE_NO_MENTION` | No | `true` | When `true`, the bot stays silent if a message `@mentions` other users but does **not** mention the bot. Prevents the bot from jumping into conversations directed at other people. Only applies in server channels, not DMs. |
@@ -282,7 +293,7 @@ Discord behavior is controlled through two files: **`~/.hermes/.env`** for crede
 | `DISCORD_ALLOW_MENTION_REPLIED_USER` | No | `true` | When `true` (default), replying to a message pings the original author. |
 | `DISCORD_PROXY` | No | — | Proxy URL for Discord connections (HTTP, WebSocket, REST). Overrides `HTTPS_PROXY`/`ALL_PROXY`. Supports `http://`, `https://`, and `socks5://` schemes. |
 | `HERMES_DISCORD_TEXT_BATCH_DELAY_SECONDS` | No | `0.6` | Grace window the adapter waits before flushing a queued text chunk. Useful for smoothing streamed output. |
-| `HERMES_DISCORD_TEXT_BATCH_SPLIT_DELAY_SECONDS` | No | `0.1` | Delay between split chunks when a single message exceeds Discord's length limit. |
+| `HERMES_DISCORD_TEXT_BATCH_SPLIT_DELAY_SECONDS` | No | `2.0` | Delay between split chunks when a single message exceeds Discord's length limit. |
 
 ### Config File (`config.yaml`)
 
@@ -334,13 +345,15 @@ discord:
 
 If a thread's parent channel is in this list, the thread also becomes mention-free.
 
+Free-response channels also **skip auto-threading** — the bot replies inline rather than spinning off a new thread per message. This keeps the channel usable as a lightweight chat surface. If you want threading behavior, don't list the channel as free-response (use normal `@mention` flow instead).
+
 #### `discord.auto_thread`
 
 **Type:** boolean — **Default:** `true`
 
 When enabled, every `@mention` in a regular text channel automatically creates a new thread for the conversation. This keeps the main channel clean and gives each conversation its own isolated session history. Once a thread is created, subsequent messages in that thread don't require `@mention` — the bot knows it's already participating.
 
-Messages sent in existing threads or DMs are unaffected by this setting.
+Messages sent in existing threads or DMs are unaffected by this setting. Channels listed in `discord.free_response_channels` or `discord.no_thread_channels` also bypass auto-threading and get inline replies instead.
 
 #### `discord.reactions`
 
@@ -470,6 +483,34 @@ Hermes automatically registers installed skills as **native Discord Application 
 
 No extra configuration is needed — any skill installed via `hermes skills install` is automatically registered as a Discord slash command on the next gateway restart.
 
+### Disabling Slash Command Registration
+
+If you run multiple Hermes gateways against the same Discord application (e.g. staging + production), only one of them should own the global slash-command registration — otherwise the last startup wins and the registrations flap. Turn slash registration off on the "follower" gateway:
+
+```yaml
+gateway:
+  platforms:
+    discord:
+      extra:
+        slash_commands: false   # default: true
+```
+
+Leaving this at `true` on the "primary" gateway keeps the normal behavior — global `/`-menu commands for built-ins and installed skills.
+
+## Sending Media (`send_message` + `MEDIA:` tags)
+
+The Discord adapter supports native file uploads for every common media type via the `send_message` tool and inline `MEDIA:/path/to/file` tags emitted by the agent:
+
+| Type | How it's delivered |
+|---|---|
+| Images (PNG/JPG/WebP) | Native Discord image attachment with inline preview |
+| Animated GIFs | `send_animation` uploads as `animation.gif` so Discord plays it inline (not as a static thumbnail) |
+| Video (MP4/MOV) | `send_video` — native video player |
+| Audio / Voice | `send_voice` — native voice message when possible, file attachment otherwise |
+| Documents (PDF/ZIP/docx/etc.) | `send_document` — native attachment with download button |
+
+Discord's per-upload size limit depends on the server's boost tier (25 MB free, up to 500 MB). If Hermes gets an HTTP 413, the adapter falls back to a link pointing at the local cache path rather than failing silently.
+
 ## Home Channel
 
 You can designate a "home channel" where the bot sends proactive messages (such as cron job output, reminders, and notifications). There are two ways to set it:
@@ -498,8 +539,8 @@ Hermes Agent supports Discord voice messages:
 - **Discord voice channels**: Hermes can also join a voice channel, listen to users speaking, and talk back in the channel.
 
 For the full setup and operational guide, see:
-- [Voice Mode](../../features/voice-mode)
-- [Use Voice Mode with Hermes](../../../guides/use-voice-mode-with-hermes)
+- [Voice Mode](../../features/voice-mode/)
+- [Use Voice Mode with Hermes](../../../guides/use-voice-mode-with-hermes/)
 
 ## Forum Channels
 
@@ -567,6 +608,7 @@ If you intentionally want a shared room conversation, leave it off — just expe
 > **Warning**
 > Always set `DISCORD_ALLOWED_USERS` (or `DISCORD_ALLOWED_ROLES`) to restrict who can interact with the bot. Without either, the gateway denies all users by default as a safety measure. Only authorize people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
 
+
 ### Role-Based Access Control
 
 For servers where access is managed by roles instead of individual user lists (moderator teams, support staff, internal tooling), use `DISCORD_ALLOWED_ROLES` — a comma-separated list of role IDs. Any member with one of those roles is authorized.
@@ -612,4 +654,5 @@ DISCORD_ALLOW_MENTION_REPLIED_USER=true
 > **Tip**
 > Leave `everyone` and `roles` at `false` unless you know exactly why you need them. It is very easy for an LLM to produce the string `@everyone` inside a normal-looking response; without this protection, that would notify every member of your server.
 
-For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security).
+
+For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security/).

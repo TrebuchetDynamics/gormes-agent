@@ -1,8 +1,10 @@
 ---
-title: "Provider Routing"
-description: "Configure OpenRouter provider preferences to optimize for cost, speed, or quality."
+title: Provider Routing
+description: Configure OpenRouter provider preferences to optimize for cost, speed, or quality.
+sidebar_label: Provider Routing
 weight: 7
 ---
+
 
 # Provider Routing
 
@@ -26,6 +28,7 @@ provider_routing:
 
 > **Info**
 > Provider routing only applies when using OpenRouter. It has no effect with direct provider connections (e.g., connecting directly to the Anthropic API).
+
 
 ## Options
 
@@ -188,9 +191,10 @@ provider_data_collection    ← from provider_routing.data_collection
 >   data_collection: "deny"
 > ```
 
+
 ## Default Behavior
 
 When no `provider_routing` section is configured (the default), OpenRouter uses its own default routing logic, which generally balances cost and availability automatically.
 
 > **Tip: Provider Routing vs. Fallback Models**
-> Provider routing controls which **sub-providers within OpenRouter** handle your requests. For automatic failover to an entirely different provider when your primary model fails, see [Fallback Providers](../fallback-providers).
+> Provider routing controls which **sub-providers within OpenRouter** handle your requests. For automatic failover to an entirely different provider when your primary model fails, see [Fallback Providers](../fallback-providers/).

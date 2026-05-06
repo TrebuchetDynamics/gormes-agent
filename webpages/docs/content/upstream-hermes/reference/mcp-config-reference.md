@@ -1,16 +1,17 @@
 ---
+weight: 8
 title: "MCP Config Reference"
 description: "Reference for Hermes Agent MCP configuration keys, filtering semantics, and utility-tool policy"
-weight: 8
 ---
+
 
 # MCP Config Reference
 
 This page is the compact reference companion to the main MCP docs.
 
 For conceptual guidance, see:
-- [MCP (Model Context Protocol)](../../user-guide/features/mcp)
-- [Use MCP with Hermes](../../guides/use-mcp-with-hermes)
+- [MCP (Model Context Protocol)](../../user-guide/features/mcp/)
+- [Use MCP with Hermes](../../guides/use-mcp-with-hermes/)
 
 ## Root config shape
 

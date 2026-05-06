@@ -1,8 +1,9 @@
 ---
+weight: 11
 title: "ACP Editor Integration"
 description: "Use Hermes Agent inside ACP-compatible editors such as VS Code, Zed, and JetBrains"
-weight: 11
 ---
+
 
 # ACP Editor Integration
 
@@ -191,6 +192,6 @@ or by editing `~/.hermes/.env`.
 
 ## See also
 
-- [ACP Internals](../../../developer-guide/acp-internals)
-- [Provider Runtime Resolution](../../../developer-guide/provider-runtime)
-- [Tools Runtime](../../../developer-guide/tools-runtime)
+- [ACP Internals](../../../developer-guide/acp-internals/)
+- [Provider Runtime Resolution](../../../developer-guide/provider-runtime/)
+- [Tools Runtime](../../../developer-guide/tools-runtime/)

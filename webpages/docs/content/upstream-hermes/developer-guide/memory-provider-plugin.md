@@ -1,15 +1,17 @@
 ---
+weight: 8
 title: "Memory Provider Plugins"
 description: "How to build a memory provider plugin for Hermes Agent"
-weight: 8
 ---
+
 
 # Building a Memory Provider Plugin
 
 Memory provider plugins give Hermes Agent persistent, cross-session knowledge beyond the built-in MEMORY.md and USER.md. This guide covers how to build one.
 
 > **Tip**
-> Memory providers are one of two **provider plugin** types. The other is [Context Engine Plugins](../context-engine-plugin), which replace the built-in context compressor. Both follow the same pattern: single-select, config-driven, managed via `hermes plugins`.
+> Memory providers are one of two **provider plugin** types. The other is [Context Engine Plugins](../context-engine-plugin/), which replace the built-in context compressor. Both follow the same pattern: single-select, config-driven, managed via `hermes plugins`.
+
 
 ## Directory Structure
 
@@ -115,6 +117,7 @@ Fields with `secret: True` and `env_var` go to `.env`. Non-secret fields are pas
 
 > **Tip: Minimal vs Full Schema**
 > Every field in `get_config_schema()` is prompted during `hermes memory setup`. Providers with many options should keep the schema minimal — only include fields the user **must** configure (API key, required credentials). Document optional settings in a config file reference (e.g. `$HERMES_HOME/myprovider.json`) rather than prompting for them all during setup. This keeps the setup wizard fast while still supporting advanced configuration. See the Supermemory provider for an example — it only prompts for the API key; all other options live in `supermemory.json`.
+
 
 ## Save Config
 

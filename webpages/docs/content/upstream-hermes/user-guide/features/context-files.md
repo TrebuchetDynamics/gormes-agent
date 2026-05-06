@@ -1,8 +1,9 @@
 ---
+weight: 8
 title: "Context Files"
 description: "Project context files — .hermes.md, AGENTS.md, CLAUDE.md, global SOUL.md, and .cursorrules — automatically injected into every conversation"
-weight: 8
 ---
+
 
 # Context Files
 
@@ -21,6 +22,7 @@ Hermes Agent automatically discovers and loads context files that shape how it b
 
 > **Info: Priority system**
 > Only **one** project context type is loaded per session (first match wins): `.hermes.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules`. **SOUL.md** is always loaded independently as the agent identity (slot #1).
+
 
 ## AGENTS.md
 
@@ -50,6 +52,7 @@ Each subdirectory is checked at most once per session. The discovery also walks 
 > **Info**
 > Subdirectory context files go through the same [security scan](#security-prompt-injection-protection) as startup context files. Malicious files are blocked.
 
+
 ### Example AGENTS.md
 
 ```markdown
@@ -77,7 +80,7 @@ This is a Next.js 14 web application with a Python FastAPI backend.
 
 ## SOUL.md
 
-`SOUL.md` controls the agent's personality, tone, and communication style. See the [Personality](../personality) page for full details.
+`SOUL.md` controls the agent's personality, tone, and communication style. See the [Personality](../personality/) page for full details.
 
 **Location:**
 
@@ -164,6 +167,7 @@ If any threat pattern is detected, the file is blocked:
 > **Warning**
 > This scanner protects against common injection patterns, but it's not a substitute for reviewing context files in shared repositories. Always validate AGENTS.md content in projects you didn't author.
 
+
 ## Size Limits
 
 | Limit | Value |
@@ -188,6 +192,7 @@ When a file exceeds 20,000 characters, the truncation message reads:
 > 4. **Mention what NOT to do** — "never modify migration files directly"
 > 5. **List key paths and ports** — the agent uses these for terminal commands
 > 6. **Update as the project evolves** — stale context is worse than no context
+
 
 ### Per-Subdirectory Context
 

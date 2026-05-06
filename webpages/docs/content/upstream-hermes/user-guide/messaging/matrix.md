@@ -1,8 +1,9 @@
 ---
+weight: 9
 title: "Matrix"
 description: "Set up Hermes Agent as a Matrix bot"
-weight: 9
 ---
+
 
 # Matrix Setup
 
@@ -24,6 +25,7 @@ Before setup, here's the part most people want to know: how Hermes behaves once 
 
 > **Tip**
 > The bot automatically joins rooms when invited. Just invite the bot's Matrix user to any room and it will join and start responding.
+
 
 ### Session Model in Matrix
 
@@ -77,8 +79,10 @@ MATRIX_REACTIONS=true          # default: true — emoji reactions during proces
 > **Tip: Disabling reactions**
 > `MATRIX_REACTIONS=false` turns off the processing-lifecycle emoji reactions (👀/✅/❌) the bot posts on inbound messages. Useful for rooms where reaction events are noisy or aren't supported by all participating clients.
 
+
 > **Note**
 > If you are upgrading from a version that did not have `MATRIX_REQUIRE_MENTION`, the bot previously responded to all messages in rooms. To preserve that behavior, set `MATRIX_REQUIRE_MENTION=false`.
+
 
 This guide walks you through the full setup process — from creating your bot account to sending your first message.
 
@@ -136,8 +140,9 @@ curl -X POST https://your-server/_matrix/client/v3/login \
 
 The response includes an `access_token` field — copy it.
 
-> **Warning**
+> **Warning: Keep your access token safe**
 > The access token gives full access to the bot's Matrix account. Never share it publicly or commit it to Git. If compromised, revoke it by logging out all sessions for that user.
+
 
 ### Option B: Password Login
 
@@ -160,6 +165,7 @@ To find yours:
 
 > **Tip**
 > Matrix User IDs always start with `@` and contain a `:` followed by the server name. For example: `@alice:matrix.org`, `@bob:your-server.com`.
+
 
 ## Step 4: Configure Hermes Agent
 
@@ -227,6 +233,7 @@ The bot should connect to your homeserver and start syncing within a few seconds
 > **Tip**
 > You can run `hermes gateway` in the background or as a systemd service for persistent operation. See the deployment docs for details.
 
+
 ## End-to-End Encryption (E2EE)
 
 Hermes supports Matrix end-to-end encryption, so you can chat with your bot in encrypted rooms.
@@ -283,14 +290,14 @@ MATRIX_RECOVERY_KEY=EsT... your recovery key here
 
 On each startup, if `MATRIX_RECOVERY_KEY` is set, Hermes imports cross-signing keys from the homeserver's secure secret storage and signs the current device. This is idempotent and safe to leave enabled permanently.
 
-> **Warning**
-> If you delete `~/.hermes/platforms/matrix/store/crypto.db`, the bot loses its encryption identity. Simply restarting with the same device ID will **not** fully recover - the homeserver still holds one-time keys signed with the old identity key, and peers cannot establish new Olm sessions.
+> **Warning: Deleting the crypto store**
+> If you delete `~/.hermes/platforms/matrix/store/crypto.db`, the bot loses its encryption identity. Simply restarting with the same device ID will **not** fully recover — the homeserver still holds one-time keys signed with the old identity key, and peers cannot establish new Olm sessions.
 >
 > Hermes detects this condition on startup and refuses to enable E2EE, logging: `device XXXX has stale one-time keys on the server signed with a previous identity key`.
 >
 > **Easiest recovery: generate a new access token** (which gets a fresh device ID with no stale key history). See the "Upgrading from a previous version with E2EE" section below. This is the most reliable path and avoids touching the homeserver database.
 >
-> **Manual recovery** (advanced - keeps the same device ID):
+> **Manual recovery** (advanced — keeps the same device ID):
 >
 > 1. Stop Synapse and delete the old device from its database:
 >    ```bash
@@ -318,8 +325,10 @@ On each startup, if `MATRIX_RECOVERY_KEY` is set, Hermes imports cross-signing k
 >
 > Other Matrix clients (Element, matrix-commander) may cache the old device keys. After recovery, type `/discardsession` in Element to force a new encryption session with the bot.
 
+
 > **Info**
 > If `mautrix[encryption]` is not installed or `libolm` is missing, the bot falls back to a plain (unencrypted) client automatically. You'll see a warning in the logs.
+
 
 ## Home Room
 
@@ -339,6 +348,7 @@ MATRIX_HOME_ROOM=!abc123def456:matrix.example.org
 
 > **Tip**
 > To find a Room ID: in Element, go to the room → **Settings** → **Advanced** → the **Internal room ID** is shown there (starts with `!`).
+
 
 ## Troubleshooting
 
@@ -391,6 +401,7 @@ pip install 'hermes-agent[matrix]'
 
 > **Tip**
 > If you also manually deleted `crypto.db`, see the "Deleting the crypto store" warning in the E2EE section above — there are additional steps to clear stale one-time keys from the homeserver.
+
 
 If you previously used Hermes with `MATRIX_ENCRYPTION=true` and are upgrading to
 a version that uses the new SQLite-based crypto store, the bot's encryption
@@ -458,6 +469,7 @@ changed identity keys for the same device as suspicious.
 > encryption keys are gone. This only affects the transition; new messages work
 > normally.
 
+
 > **Tip**
 > **New installations are not affected.** This migration is only needed if you had
 > a working E2EE setup with a previous version of Hermes and are upgrading.
@@ -467,6 +479,7 @@ changed identity keys for the same device as suspicious.
 > clients to distrust the device (they see changed identity keys as a potential
 > security breach). A new access token gets a new device ID with no stale key
 > history, so other clients trust it immediately.
+
 
 ## Proxy Mode (E2EE on macOS)
 
@@ -598,8 +611,10 @@ Proxy mode is not limited to Matrix. Any platform adapter can use it — set `GA
 > **Tip**
 > Session continuity is maintained via the `X-Hermes-Session-Id` header. The host's API server tracks sessions by this ID, so conversations persist across messages just like they would with a local agent.
 
+
 > **Note**
 > **Limitations (v1):** Tool progress messages from the remote agent are not relayed back — the user sees the streamed final response only, not individual tool calls. Dangerous command approval prompts are handled on the host side, not relayed to the Matrix user. These can be addressed in future updates.
+
 
 ### Sync issues / bot falls behind
 
@@ -624,7 +639,8 @@ Proxy mode is not limited to Matrix. Any platform adapter can use it — set `GA
 > **Warning**
 > Always set `MATRIX_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default as a safety measure. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
 
-For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security).
+
+For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security/).
 
 ## Notes
 

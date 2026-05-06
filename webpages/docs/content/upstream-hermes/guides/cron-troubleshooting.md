@@ -1,8 +1,9 @@
 ---
+weight: 12
 title: "Cron Troubleshooting"
 description: "Diagnose and fix common Hermes cron issues — jobs not firing, delivery failures, skill loading errors, and performance problems"
-weight: 12
 ---
+
 
 # Cron Troubleshooting
 
@@ -222,4 +223,4 @@ If you've worked through this guide and the issue persists:
 
 ---
 
-*For the complete cron reference, see [Automate Anything with Cron](../automate-with-cron) and [Scheduled Tasks (Cron)](../../user-guide/features/cron).*
+*For the complete cron reference, see [Automate Anything with Cron](../automate-with-cron/) and [Scheduled Tasks (Cron)](../../user-guide/features/cron/).*

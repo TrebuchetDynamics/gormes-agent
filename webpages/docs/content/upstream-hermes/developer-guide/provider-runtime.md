@@ -1,8 +1,9 @@
 ---
+weight: 4
 title: "Provider Runtime Resolution"
 description: "How Hermes resolves providers, credentials, API modes, and auxiliary models at runtime"
-weight: 4
 ---
+
 
 # Provider Runtime Resolution
 
@@ -21,7 +22,7 @@ Primary implementation:
 - `hermes_cli/model_switch.py` — shared `/model` switch pipeline (CLI + gateway)
 - `agent/auxiliary_client.py` — auxiliary model routing
 
-If you are trying to add a new first-class inference provider, read [Adding Providers](../adding-providers) alongside this page.
+If you are trying to add a new first-class inference provider, read [Adding Providers](../adding-providers/) alongside this page.
 
 ## Resolution precedence
 
@@ -179,8 +180,9 @@ Hermes supports a configured fallback model/provider pair, allowing runtime fail
 ### What does NOT support fallback
 
 - **Subagent delegation** (`tools/delegate_tool.py`): subagents inherit the parent's provider but not the fallback config
-- **Cron jobs** (`cron/`): run with a fixed provider, no fallback mechanism
 - **Auxiliary tasks**: use their own independent provider auto-detection chain (see Auxiliary model routing above)
+
+Cron jobs **do** support fallback: `run_job()` reads `fallback_providers` (or legacy `fallback_model`) from `config.yaml` and passes it to `AIAgent(fallback_model=...)`, matching the gateway's `_load_fallback_model()` pattern. See [Cron Internals](../cron-internals/).
 
 ### Test coverage
 
@@ -188,6 +190,6 @@ See `tests/test_fallback_model.py` for comprehensive tests covering all supporte
 
 ## Related docs
 
-- [Agent Loop Internals](../agent-loop)
-- [ACP Internals](../acp-internals)
-- [Context Compression & Prompt Caching](../context-compression-and-caching)
+- [Agent Loop Internals](../agent-loop/)
+- [ACP Internals](../acp-internals/)
+- [Context Compression & Prompt Caching](../context-compression-and-caching/)

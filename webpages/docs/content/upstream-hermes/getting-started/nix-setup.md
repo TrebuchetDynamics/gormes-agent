@@ -1,8 +1,9 @@
 ---
+weight: 3
 title: "Nix & NixOS Setup"
 description: "Install and deploy Hermes Agent with Nix — from quick `nix run` to fully declarative NixOS module with container mode"
-weight: 3
 ---
+
 
 # Nix & NixOS Setup
 
@@ -20,6 +21,7 @@ Hermes Agent ships a Nix flake with three levels of integration:
 > **For non-NixOS users**, this only changes the install step. Everything after (`hermes setup`, `hermes gateway install`, config editing) works identically to the standard install.
 >
 > **For NixOS module users**, the entire lifecycle is different: configuration lives in `configuration.nix`, secrets go through sops-nix/agenix, the service is a systemd unit, and CLI config commands are blocked. You manage hermes the same way you manage any other NixOS service.
+
 
 ## Prerequisites
 
@@ -43,7 +45,7 @@ hermes setup
 hermes chat
 ```
 
-After `nix profile install`, `hermes`, `hermes-agent`, and `hermes-acp` are on your PATH. From here, the workflow is identical to the [standard installation](../installation) — `hermes setup` walks you through provider selection, `hermes gateway install` sets up a launchd (macOS) or systemd user service, and config lives in `~/.hermes/`.
+After `nix profile install`, `hermes`, `hermes-agent`, and `hermes-acp` are on your PATH. From here, the workflow is identical to the [standard installation](../installation/) — `hermes setup` walks you through provider selection, `hermes gateway install` sets up a launchd (macOS) or systemd user service, and config lives in `~/.hermes/`.
 
 <details>
 <summary><strong>Building from a local clone</strong></summary>
@@ -65,6 +67,7 @@ The flake exports `nixosModules.default` — a full NixOS service module that de
 
 > **Note**
 > This module requires NixOS. For non-NixOS systems (macOS, other Linux distros), use `nix profile install` and the standard CLI workflow above.
+
 
 ### Add the Flake Input
 
@@ -115,8 +118,10 @@ That's it. `nixos-rebuild switch` creates the `hermes` user, generates `config.y
 > services.hermes-agent.environmentFiles = [ "/var/lib/hermes/env" ];
 > ```
 
+
 > **Tip: addToSystemPackages**
 > Setting `addToSystemPackages = true` does two things: puts the `hermes` CLI on your system PATH **and** sets `HERMES_HOME` system-wide so the interactive CLI shares state (sessions, skills, cron) with the gateway service. Without it, running `hermes` in your shell creates a separate `~/.hermes/` directory.
+
 
 > **Info: Container-aware CLI**
 > When `container.enable = true` and `addToSystemPackages = true`, **every** `hermes` command on the host automatically routes into the managed container. This means your interactive CLI session runs inside the same environment as the gateway service — with access to all container-installed packages and tools.
@@ -151,6 +156,7 @@ That's it. `nixos-rebuild switch` creates the `hermes` user, generates `config.y
 > ```
 >
 > The CLI auto-detects when sudo is needed and uses it transparently. Without this, you'll need to run `sudo hermes chat` manually.
+
 
 ### Verify It Works
 
@@ -195,6 +201,7 @@ To enable container mode, add one line:
 > **Info**
 > Container mode auto-enables `virtualisation.docker.enable` via `mkDefault`. If you use Podman instead, set `container.backend = "podman"` and `virtualisation.docker.enable = false`.
 
+
 ---
 
 ## Configuration
@@ -223,8 +230,10 @@ Both are deep-merged at evaluation time. Nix-declared keys always win over keys 
 > **Note: Model naming**
 > `settings.model.default` uses the model identifier your provider expects. With [OpenRouter](https://openrouter.ai) (the default), these look like `"anthropic/claude-sonnet-4"` or `"google/gemini-3-flash"`. If you're using a provider directly (Anthropic, OpenAI), set `settings.model.base_url` to point at their API and use their native model IDs (e.g., `"claude-sonnet-4-20250514"`). When no `base_url` is set, Hermes defaults to OpenRouter.
 
+
 > **Tip: Discovering available config keys**
 > Run `nix build .#configKeys && cat result` to see every leaf config key extracted from Python's `DEFAULT_CONFIG`. You can paste your existing `config.yaml` into the `settings` attrset — the structure maps 1:1.
+
 
 <details>
 <summary><strong>Full example: all commonly customized settings</strong></summary>
@@ -313,7 +322,7 @@ Quick reference for the most common things Nix users want to customize:
 | Pass GPU access to container | `container.extraOptions` | `[ "--gpus" "all" ]` |
 | Use Podman instead of Docker | `container.backend` | `"podman"` |
 | Share state between host CLI and container | `container.hostUsers` | `[ "sidbin" ]` |
-| Add tools to the service PATH (native only) | `extraPackages` | `[ pkgs.pandoc pkgs.imagemagick ]` |
+| Make extra tools available to the agent | `extraPackages` | `[ pkgs.pandoc pkgs.imagemagick ]` |
 | Use a custom base image | `container.image` | `"ubuntu:24.04"` |
 | Override the hermes package | `package` | `inputs.hermes-agent.packages.${system}.default.override { ... }` |
 | Change state directory | `stateDir` | `"/opt/hermes"` |
@@ -325,6 +334,7 @@ Quick reference for the most common things Nix users want to customize:
 
 > **Danger: Never put API keys in `settings` or `environment`**
 > Values in Nix expressions end up in `/nix/store`, which is world-readable. Always use `environmentFiles` with a secrets manager.
+
 
 Both `environment` (non-secret vars) and `environmentFiles` (secret files) are merged into `$HERMES_HOME/.env` at activation time (`nixos-rebuild switch`). Hermes reads this file on every startup, so changes take effect with a `systemctl restart hermes-agent` — no container recreation needed.
 
@@ -428,6 +438,7 @@ The `mcpServers` option declaratively configures [MCP (Model Context Protocol)](
 
 > **Tip**
 > Environment variables in `env` values are resolved from `$HERMES_HOME/.env` at runtime. Use `environmentFiles` to inject secrets — never put tokens directly in Nix config.
+
 
 ### HTTP Transport (Remote Servers)
 
@@ -534,6 +545,7 @@ To change configuration, edit your Nix config and run `sudo nixos-rebuild switch
 > **Info**
 > This section is only relevant if you're using `container.enable = true`. Skip it for native mode deployments.
 
+
 When container mode is enabled, hermes runs inside a persistent Ubuntu container with the Nix-built binary bind-mounted read-only from the host:
 
 ```
@@ -581,9 +593,97 @@ The container is only recreated when its **identity hash** changes. The hash cov
 >
 > If the agent relies on specific packages, consider baking them into a custom image (`container.image = "my-registry/hermes-base:latest"`) or scripting their installation in the agent's SOUL.md.
 
+
 ### GC Root Protection
 
 The `preStart` script creates a GC root at `${stateDir}/.gc-root` pointing to the current hermes package. This prevents `nix-collect-garbage` from removing the running binary. If the GC root somehow breaks, restarting the service recreates it.
+
+---
+
+## Plugins
+
+The NixOS module supports declarative plugin installation — no imperative `hermes plugins install` needed.
+
+### Directory Plugins (`extraPlugins`)
+
+For plugins that are just a source tree with `plugin.yaml` + `__init__.py` (e.g., [hermes-lcm](https://github.com/stephenschoettler/hermes-lcm)):
+
+```nix
+services.hermes-agent.extraPlugins = [
+  (pkgs.fetchFromGitHub {
+    owner = "stephenschoettler";
+    repo = "hermes-lcm";
+    rev = "v0.7.0";
+    hash = "sha256-...";
+  })
+];
+```
+
+Plugins are symlinked into `$HERMES_HOME/plugins/` at activation time. Hermes discovers them via its normal directory scan. Removing a plugin from the list and running `nixos-rebuild switch` removes the symlink.
+
+### Entry-Point Plugins (`extraPythonPackages`)
+
+For pip-packaged plugins that register via `[project.entry-points."hermes_agent.plugins"]` (e.g., [rtk-hermes](https://github.com/ogallotti/rtk-hermes)):
+
+```nix
+services.hermes-agent.extraPythonPackages = [
+  (pkgs.python312Packages.buildPythonPackage {
+    pname = "rtk-hermes";
+    version = "1.0.0";
+    src = pkgs.fetchFromGitHub {
+      owner = "ogallotti";
+      repo = "rtk-hermes";
+      rev = "v1.0.0";
+      hash = "sha256-...";
+    };
+    format = "pyproject";
+    build-system = [ pkgs.python312Packages.setuptools ];
+  })
+];
+```
+
+The package's `site-packages` is added to PYTHONPATH in the hermes wrapper. `importlib.metadata` discovers the entry point at session start.
+
+### Combining Both
+
+A directory plugin with third-party Python dependencies needs both options:
+
+```nix
+services.hermes-agent = {
+  extraPlugins = [ my-plugin-src ];          # plugin source
+  extraPythonPackages = [ pkgs.python312Packages.redis ];  # its Python dep
+  extraPackages = [ pkgs.redis ];            # system binary it needs
+};
+```
+
+### Using the Overlay
+
+External flakes can override the package directly:
+
+```nix
+{
+  inputs.hermes-agent.url = "github:NousResearch/hermes-agent";
+  outputs = { hermes-agent, nixpkgs, ... }: {
+    nixpkgs.overlays = [ hermes-agent.overlays.default ];
+    # Then: pkgs.hermes-agent.override { extraPythonPackages = [...]; }
+  };
+}
+```
+
+### Plugin Configuration
+
+Plugins still need to be enabled in `config.yaml`. Add them via the declarative settings:
+
+```nix
+services.hermes-agent.settings.plugins.enabled = [
+  "hermes-lcm"
+  "rtk-rewrite"
+];
+```
+
+> **Note**
+> A build-time collision check prevents plugin packages from shadowing core hermes dependencies. If a plugin provides a package already in the sealed venv, `nixos-rebuild` fails with a clear error.
+
 
 ---
 
@@ -708,7 +808,9 @@ nix build .#checks.x86_64-linux.config-roundtrip    # merge script preserves use
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `extraArgs` | `listOf str` | `[]` | Extra args for `hermes gateway` |
-| `extraPackages` | `listOf package` | `[]` | Extra packages on service PATH (native mode only) |
+| `extraPackages` | `listOf package` | `[]` | Extra packages available to the agent. Added to the hermes user's per-user profile so terminal commands, skills, and cron jobs all see them |
+| `extraPlugins` | `listOf package` | `[]` | Directory plugin packages to symlink into `$HERMES_HOME/plugins/`. Each must contain `plugin.yaml` |
+| `extraPythonPackages` | `listOf package` | `[]` | Python packages added to PYTHONPATH for entry-point plugin discovery. Build with `python312Packages` |
 | `restart` | `str` | `"always"` | systemd `Restart=` policy |
 | `restartSec` | `int` | `5` | systemd `RestartSec=` value |
 
@@ -782,6 +884,7 @@ In container mode, the `current-package` symlink is updated and the agent picks 
 > **Tip: Podman users**
 > All `docker` commands below work the same with `podman`. Substitute accordingly if you set `container.backend = "podman"`.
 
+
 ### Service Logs
 
 ```bash
@@ -841,5 +944,6 @@ nix-store --query --roots $(docker exec hermes-agent readlink /data/current-pack
 | `hermes version` shows old version | Container not restarted | `systemctl restart hermes-agent` |
 | Permission denied on `/var/lib/hermes` | State dir is `0750 hermes:hermes` | Use `docker exec` or `sudo -u hermes` |
 | `nix-collect-garbage` removed hermes | GC root missing | Restart the service (preStart recreates the GC root) |
-| `no container with name or ID "hermes-agent"` (Podman) | Podman rootful container not visible to regular user | Add passwordless sudo for podman (see [Container-aware CLI](#container-aware-cli) section) |
+| `no container with name or ID "hermes-agent"` (Podman) | Podman rootful container not visible to regular user | Add passwordless sudo for podman (see [Container Mode](#container-mode) section) |
 | `unable to find user hermes` | Container still starting (entrypoint hasn't created user yet) | Wait a few seconds and retry — the CLI retries automatically |
+| Tool added via `extraPackages` not found in terminal | Requires `nixos-rebuild switch` to update the per-user profile | Rebuild and restart: `nixos-rebuild switch && systemctl restart hermes-agent` |

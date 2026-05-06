@@ -1,7 +1,9 @@
 ---
 title: "AI Providers"
+sidebar_label: "AI Providers"
 weight: 1
 ---
+
 
 # AI Providers
 
@@ -17,28 +19,34 @@ You need at least one way to connect to an LLM. Use `hermes model` to switch pro
 | **OpenAI Codex** | `hermes model` (ChatGPT OAuth, uses Codex models) |
 | **GitHub Copilot** | `hermes model` (OAuth device code flow, `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token`) |
 | **GitHub Copilot ACP** | `hermes model` (spawns local `copilot --acp --stdio`) |
-| **Anthropic** | `hermes model` (Claude Pro/Max via Claude Code auth, Anthropic API key, or manual setup-token) |
+| **Anthropic** | `hermes model` (Claude Max + extra usage credits via OAuth; also supports Anthropic API key or manual setup-token — see note below) |
 | **OpenRouter** | `OPENROUTER_API_KEY` in `~/.hermes/.env` |
 | **AI Gateway** | `AI_GATEWAY_API_KEY` in `~/.hermes/.env` (provider: `ai-gateway`) |
 | **z.ai / GLM** | `GLM_API_KEY` in `~/.hermes/.env` (provider: `zai`) |
 | **Kimi / Moonshot** | `KIMI_API_KEY` in `~/.hermes/.env` (provider: `kimi-coding`) |
 | **Kimi / Moonshot (China)** | `KIMI_CN_API_KEY` in `~/.hermes/.env` (provider: `kimi-coding-cn`; aliases: `kimi-cn`, `moonshot-cn`) |
 | **Arcee AI** | `ARCEEAI_API_KEY` in `~/.hermes/.env` (provider: `arcee`; aliases: `arcee-ai`, `arceeai`) |
+| **GMI Cloud** | `GMI_API_KEY` in `~/.hermes/.env` (provider: `gmi`; aliases: `gmi-cloud`, `gmicloud`) |
 | **MiniMax** | `MINIMAX_API_KEY` in `~/.hermes/.env` (provider: `minimax`) |
 | **MiniMax China** | `MINIMAX_CN_API_KEY` in `~/.hermes/.env` (provider: `minimax-cn`) |
-| **Alibaba Cloud** | `DASHSCOPE_API_KEY` in `~/.hermes/.env` (provider: `alibaba`, aliases: `dashscope`, `qwen`) |
+| **Alibaba Cloud** | `DASHSCOPE_API_KEY` in `~/.hermes/.env` (provider: `alibaba`) |
+| **Alibaba Coding Plan** | `DASHSCOPE_API_KEY` (provider: `alibaba-coding-plan`, alias: `alibaba_coding`) — separate billing SKU, different endpoint |
 | **Kilo Code** | `KILOCODE_API_KEY` in `~/.hermes/.env` (provider: `kilocode`) |
 | **Xiaomi MiMo** | `XIAOMI_API_KEY` in `~/.hermes/.env` (provider: `xiaomi`, aliases: `mimo`, `xiaomi-mimo`) |
+| **Tencent TokenHub** | `TOKENHUB_API_KEY` in `~/.hermes/.env` (provider: `tencent-tokenhub`, aliases: `tencent`, `tokenhub`, `tencentmaas`) |
 | **OpenCode Zen** | `OPENCODE_ZEN_API_KEY` in `~/.hermes/.env` (provider: `opencode-zen`) |
 | **OpenCode Go** | `OPENCODE_GO_API_KEY` in `~/.hermes/.env` (provider: `opencode-go`) |
 | **DeepSeek** | `DEEPSEEK_API_KEY` in `~/.hermes/.env` (provider: `deepseek`) |
 | **Hugging Face** | `HF_TOKEN` in `~/.hermes/.env` (provider: `huggingface`, aliases: `hf`) |
 | **Google / Gemini** | `GOOGLE_API_KEY` (or `GEMINI_API_KEY`) in `~/.hermes/.env` (provider: `gemini`) |
 | **Google Gemini (OAuth)** | `hermes model` → "Google Gemini (OAuth)" (provider: `google-gemini-cli`, free tier supported, browser PKCE login) |
+| **LM Studio** | `hermes model` → "LM Studio" (provider: `lmstudio`, optional `LM_API_KEY`) |
 | **Custom Endpoint** | `hermes model` → choose "Custom endpoint" (saved in `config.yaml`) |
 
 > **Tip: Model key alias**
 > In the `model:` config section, you can use either `default:` or `model:` as the key name for your model ID. Both `model: { default: my-model }` and `model: { model: my-model }` work identically.
+
+
 
 ### Google Gemini via OAuth (`google-gemini-cli`)
 
@@ -110,6 +118,7 @@ Gemini Code Assist quota  (project: 123-abc)
 > experience, use your own API key via the `gemini` provider instead. Hermes shows
 > an upfront warning and requires explicit confirmation before OAuth begins.
 
+
 **Custom OAuth client (optional):**
 
 If you'd rather register your own Google OAuth client — e.g., to keep quota
@@ -127,11 +136,14 @@ with the Generative Language API enabled.
 > **Info: Codex Note**
 > The OpenAI Codex provider authenticates via device code (open a URL, enter a code). Hermes stores the resulting credentials in its own auth store under `~/.hermes/auth.json` and can import existing Codex CLI credentials from `~/.codex/auth.json` when present. No Codex CLI installation is required.
 
+
 > **Warning**
-> Even when using Nous Portal, Codex, or a custom endpoint, some tools (vision, web summarization, MoA) use a separate "auxiliary" model — by default Gemini Flash via OpenRouter. An `OPENROUTER_API_KEY` enables these tools automatically. You can also configure which model and provider these tools use — see [Auxiliary Models](../../user-guide/configuration#auxiliary-models).
+> Even when using Nous Portal, Codex, or a custom endpoint, some tools (vision, web summarization, MoA) use a separate "auxiliary" model. By default (`auxiliary.*.provider: "auto"`), Hermes routes these tasks to your **main chat model** — the same model you picked in `hermes model`. You can override each task individually to route it to a cheaper/faster model (e.g. Gemini Flash on OpenRouter) — see [Auxiliary Models](../../user-guide/configuration/#auxiliary-models).
+
 
 > **Tip: Nous Tool Gateway**
-> Paid Nous Portal subscribers also get access to the **[Tool Gateway](../../user-guide/features/tool-gateway)** — web search, image generation, TTS, and browser automation routed through your subscription. No extra API keys needed. It's offered automatically during `hermes model` setup, or enable it later with `hermes tools`.
+> Paid Nous Portal subscribers also get access to the **[Tool Gateway](../../user-guide/features/tool-gateway/)** — web search, image generation, TTS, and browser automation routed through your subscription. No extra API keys needed. It's offered automatically during `hermes model` setup, or enable it later with `hermes tools`.
+
 
 ### Two Commands for Model Management
 
@@ -147,6 +159,12 @@ If you're trying to switch to a provider you haven't set up yet (e.g. you only h
 ### Anthropic (Native)
 
 Use Claude models directly through the Anthropic API — no OpenRouter proxy needed. Supports three auth methods:
+
+> **Caution: Requires Claude Max "extra usage" credits**
+> When you authenticate via `hermes model` → Anthropic OAuth (or via `hermes auth add anthropic --type oauth`), Hermes routes as Claude Code against your Anthropic account. **It only works if you're on a Claude Max plan and have purchased extra usage credits.** The base Max plan allowance (the usage included in Claude Code by default) is not consumed by Hermes — only the extra/overage credits you've added on top are. Claude Pro subscribers cannot use this path.
+>
+> If you don't have Max + extra credits, use an `ANTHROPIC_API_KEY` instead — requests are billed pay-per-token against that key's organization (standard API pricing, independent of any Claude subscription).
+
 
 ```bash
 # With an API key (pay-per-token)
@@ -176,6 +194,7 @@ model:
 
 > **Tip: Aliases**
 > `--provider claude` and `--provider claude-code` also work as shorthand for `--provider anthropic`.
+
 
 ### GitHub Copilot
 
@@ -207,6 +226,19 @@ If no token is found, `hermes model` offers an **OAuth device code login** — t
 >
 > If your `gh auth token` returns a `ghp_*` token, use `hermes model` to authenticate via OAuth instead.
 
+
+> **Info: Copilot auth behavior in Hermes**
+> Hermes sends a supported GitHub token (`gho_*`, `github_pat_*`, or `ghu_*`) directly to `api.githubcopilot.com` and includes Copilot-specific headers (`Editor-Version`, `Copilot-Integration-Id`, `Openai-Intent`, `x-initiator`).
+>
+> On HTTP 401, Hermes now performs a one-shot credential recovery before fallback:
+>
+> 1. Re-resolve token via the normal priority chain (`COPILOT_GITHUB_TOKEN` → `GH_TOKEN` → `GITHUB_TOKEN` → `gh auth token`)
+> 2. Rebuild the shared OpenAI client with refreshed headers
+> 3. Retry the request once
+>
+> Some older community proxies use `api.github.com/copilot_internal/v2/token` exchange flows. That endpoint can be unavailable for some account types (returns 404). Hermes therefore keeps direct-token auth as the primary path and relies on runtime credential refresh + retry for robustness.
+
+
 **API routing**: GPT-5+ models (except `gpt-5-mini`) automatically use the Responses API. All other models (GPT-4o, Claude, Gemini, etc.) use Chat Completions. Models are auto-detected from the live Copilot catalog.
 
 **`copilot-acp` — Copilot ACP agent backend**. Spawns the local Copilot CLI as a subprocess:
@@ -229,7 +261,7 @@ model:
 | `HERMES_COPILOT_ACP_COMMAND` | Override the Copilot CLI binary path (default: `copilot`) |
 | `HERMES_COPILOT_ACP_ARGS` | Override ACP args (default: `--acp --stdio`) |
 
-### First-Class Chinese AI Providers
+### First-Class API-Key Providers
 
 These providers have built-in support with dedicated provider IDs. Set the API key and use `--provider` to select:
 
@@ -262,22 +294,32 @@ hermes chat --provider alibaba --model qwen3.5-plus
 hermes chat --provider xiaomi --model mimo-v2-pro
 # Requires: XIAOMI_API_KEY in ~/.hermes/.env
 
+# Tencent TokenHub (Hy3 Preview)
+hermes chat --provider tencent-tokenhub --model hy3-preview
+# Requires: TOKENHUB_API_KEY in ~/.hermes/.env
+
 # Arcee AI (Trinity models)
 hermes chat --provider arcee --model trinity-large-thinking
 # Requires: ARCEEAI_API_KEY in ~/.hermes/.env
+
+# GMI Cloud
+# Use the exact model ID returned by GMI's /v1/models endpoint.
+hermes chat --provider gmi --model zai-org/GLM-5.1-FP8
+# Requires: GMI_API_KEY in ~/.hermes/.env
 ```
 
 Or set the provider permanently in `config.yaml`:
 ```yaml
 model:
-  provider: "zai"       # or: kimi-coding, kimi-coding-cn, minimax, minimax-cn, alibaba, xiaomi, arcee
-  default: "glm-5"
+  provider: "gmi"
+  default: "zai-org/GLM-5.1-FP8"
 ```
 
-Base URLs can be overridden with `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, or `XIAOMI_BASE_URL` environment variables.
+Base URLs can be overridden with `GLM_BASE_URL`, `KIMI_BASE_URL`, `MINIMAX_BASE_URL`, `MINIMAX_CN_BASE_URL`, `DASHSCOPE_BASE_URL`, `XIAOMI_BASE_URL`, `GMI_BASE_URL`, or `TOKENHUB_BASE_URL` environment variables.
 
 > **Note: Z.AI Endpoint Auto-Detection**
 > When using the Z.AI / GLM provider, Hermes automatically probes multiple endpoints (global, China, coding variants) to find one that accepts your API key. You don't need to set `GLM_BASE_URL` manually — the working endpoint is detected and cached automatically.
+
 
 ### xAI (Grok) — Responses API + Prompt Caching
 
@@ -287,7 +329,7 @@ When using xAI as a provider (any base URL containing `x.ai`), Hermes automatica
 
 No configuration is needed — caching activates automatically when an xAI endpoint is detected and a session ID is available. This reduces latency and cost for multi-turn conversations.
 
-xAI also ships a dedicated TTS endpoint (`/v1/tts`). Select **xAI TTS** in `hermes tools` → Voice & TTS, or see the [Voice & TTS](../../user-guide/features/tts#text-to-speech) page for config.
+xAI also ships a dedicated TTS endpoint (`/v1/tts`). Select **xAI TTS** in `hermes tools` → Voice & TTS, or see the [Voice & TTS](../../user-guide/features/tts/#text-to-speech) page for config.
 
 ### Ollama Cloud — Managed Ollama Models, OAuth + API Key
 
@@ -311,6 +353,7 @@ The model catalog is fetched dynamically from `ollama.com/v1/models` and cached 
 
 > **Tip: Ollama Cloud vs local Ollama**
 > Both speak the same OpenAI-compatible API. Cloud is a first-class provider (`--provider ollama-cloud`, `OLLAMA_API_KEY`); local Ollama is reached via the Custom Endpoint flow (base URL `http://localhost:11434/v1`, no key). Use cloud for large models you can't run locally; use local for privacy or offline work.
+
 
 ### AWS Bedrock
 
@@ -342,7 +385,7 @@ Authentication uses the standard boto3 chain: explicit `AWS_ACCESS_KEY_ID`/`AWS_
 
 Bedrock uses the **Converse API** under the hood — requests are translated to Bedrock's model-agnostic shape, so the same config works for Claude, Nova, DeepSeek, and Llama models. Set `BEDROCK_BASE_URL` only if you're calling a non-default regional endpoint.
 
-See the [AWS Bedrock guide](../../guides/aws-bedrock) for a walkthrough of IAM setup, region selection, and cross-region inference.
+See the [AWS Bedrock guide](../../guides/aws-bedrock/) for a walkthrough of IAM setup, region selection, and cross-region inference.
 
 ### Qwen Portal (OAuth)
 
@@ -369,6 +412,51 @@ Set `HERMES_QWEN_BASE_URL` only if the portal endpoint relocates (default: `http
 > **Tip: Qwen OAuth vs DashScope (Alibaba)**
 > `qwen-oauth` uses the consumer-facing Qwen Portal with OAuth login — ideal for individual users. The `alibaba` provider uses DashScope's enterprise API with a `DASHSCOPE_API_KEY` — ideal for programmatic / production workloads. Both route to Qwen-family models but live at different endpoints.
 
+
+### Alibaba Coding Plan
+
+If you're subscribed to Alibaba's **Coding Plan** (a pricing SKU separate from standard DashScope API access), Hermes exposes it as its own first-class provider: `alibaba-coding-plan`. Endpoint: `https://coding-intl.dashscope.aliyuncs.com/v1`. It's OpenAI-compatible like the regular `alibaba` provider but with a different base URL and billing surface.
+
+```yaml
+model:
+  provider: alibaba_coding     # alias for alibaba-coding-plan
+  model: qwen3-coder-plus
+```
+
+Or from the CLI:
+
+```bash
+hermes chat --provider alibaba_coding --model qwen3-coder-plus
+```
+
+`alibaba_coding` uses the same `DASHSCOPE_API_KEY` your `alibaba` entry already uses — no separate key needed, just a different routing target. Before this provider was registered, users who set `provider: alibaba_coding` in `config.yaml` silently fell through to OpenRouter routing.
+
+### MiniMax (OAuth)
+
+MiniMax-M2.7 via browser OAuth login — no API key needed. Pick **MiniMax (OAuth)** in `hermes model`, sign in through the browser, and Hermes persists the access + refresh tokens. Uses the Anthropic Messages-compatible endpoint (`/anthropic`) under the hood.
+
+```bash
+hermes model
+# → pick "MiniMax (OAuth)"
+# → browser opens; sign in with your MiniMax account (global or CN region)
+# → confirm — credentials are saved to ~/.hermes/auth.json
+
+hermes chat   # uses api.minimax.io/anthropic endpoint
+```
+
+Or configure `config.yaml`:
+```yaml
+model:
+  provider: "minimax-oauth"
+  default: "MiniMax-M2.7"
+```
+
+Supported models: `MiniMax-M2.7` (main) and `MiniMax-M2.7-highspeed` (wired as the default auxiliary model). The OAuth path ignores `MINIMAX_API_KEY` / `MINIMAX_BASE_URL`.
+
+> **Tip: MiniMax OAuth vs API key**
+> `minimax-oauth` uses MiniMax's consumer-facing portal with OAuth login — no billing setup required. The `minimax` and `minimax-cn` providers use `MINIMAX_API_KEY` / `MINIMAX_CN_API_KEY` — for programmatic access. See the [MiniMax OAuth guide](../../guides/minimax-oauth/) for a full walkthrough.
+
+
 ### NVIDIA NIM
 
 Nemotron and other open source models via [build.nvidia.com](https://build.nvidia.com) (free API key) or a local NIM endpoint.
@@ -391,6 +479,7 @@ model:
 
 > **Tip: Local NIM**
 > For on-prem deployments (DGX Spark, local GPU), set `NVIDIA_BASE_URL=http://localhost:8000/v1`. NIM exposes the same OpenAI-compatible chat completions API as build.nvidia.com, so switching between cloud and local is a one-line env-var change.
+
 
 ### Hugging Face Inference Providers
 
@@ -446,6 +535,7 @@ model:
 > **Warning: Legacy env vars**
 > `OPENAI_BASE_URL` and `LLM_MODEL` in `.env` are **removed**. Neither is read by any part of Hermes — `config.yaml` is the single source of truth for model and endpoint configuration. If you have stale entries in your `.env`, they are automatically cleared on the next `hermes setup` or config migration. Use `hermes model` or edit `config.yaml` directly.
 
+
 Both approaches persist to `config.yaml`, which is the source of truth for model, provider, and base URL.
 
 ### Switching Models with `/model`
@@ -456,6 +546,7 @@ Both approaches persist to `config.yaml`, which is the source of truth for model
 > **`/model`** (typed inside an active Hermes chat session) can only **switch between providers and models you've already set up**. It cannot add new providers, run OAuth, or prompt for API keys. If you've only configured one provider (e.g. OpenRouter), `/model` will only show models for that provider.
 >
 > **To add a new provider:** Exit your session (`Ctrl+C` or `/quit`), run `hermes model`, set up the new provider, then start a new session.
+
 
 Once you have at least one custom endpoint configured, you can switch models mid-session:
 
@@ -476,6 +567,7 @@ When switching providers, Hermes persists the base URL and provider to config so
 
 > **Tip**
 > `/model custom` (bare, no model name) queries your endpoint's `/models` API and auto-selects the model if exactly one is loaded. Useful for local servers running a single model.
+
 
 Everything below follows this same pattern — just change the URL, key, and model name.
 
@@ -540,6 +632,7 @@ model:
 >
 > **You cannot set context length through the OpenAI-compatible API** (`/v1/chat/completions`). It must be configured server-side or via a Modelfile. This is the #1 source of confusion when integrating Ollama with tools like Hermes.
 
+
 **Verify your context is set correctly:**
 
 ```bash
@@ -549,6 +642,7 @@ ollama ps
 
 > **Tip**
 > List available models with `ollama list`. Pull any model from the [Ollama library](https://ollama.com/library) with `ollama pull <model>`. Ollama handles GPU offloading automatically — no configuration needed for most setups.
+
 
 ---
 
@@ -590,6 +684,7 @@ Supported parsers: `hermes` (Qwen 2.5, Hermes 2/3), `llama3_json` (Llama 3.x), `
 > **Tip**
 > vLLM supports human-readable sizes: `--max-model-len 64k` (lowercase k = 1000, uppercase K = 1024).
 
+
 ---
 
 ### SGLang — Fast Serving with RadixAttention
@@ -621,6 +716,7 @@ hermes model
 
 > **Caution: SGLang defaults to 128 max output tokens**
 > If responses seem truncated, add `max_tokens` to your requests or set `--default-max-tokens` on the server. SGLang's default is only 128 tokens per response if not specified in the request.
+
 
 ---
 
@@ -660,8 +756,10 @@ This saves the endpoint to `config.yaml` so it persists across sessions.
 >
 > You can verify tool support is active by checking `http://localhost:8080/props` — the `chat_template` field should be present.
 
+
 > **Tip**
 > Download GGUF models from [Hugging Face](https://huggingface.co/models?library=gguf). Q4_K_M quantization offers the best balance of quality vs. memory usage.
+
 
 ---
 
@@ -680,22 +778,26 @@ Then configure Hermes:
 
 ```bash
 hermes model
-# Select "Custom endpoint (self-hosted / VLLM / etc.)"
-# Enter URL: http://localhost:1234/v1
-# Skip API key (LM Studio doesn't require one)
-# Enter model name
+# Select "LM Studio"
+# Press Enter to use http://localhost:1234/v1
+# Pick one of the discovered models
+# If LM Studio server auth is enabled, enter LM_API_KEY when prompted
 ```
 
-> **Caution: Context length often defaults to 2048**
-> LM Studio reads context length from the model's metadata, but many GGUF models report low defaults (2048 or 4096). **Always set context length explicitly** in the LM Studio model settings:
->
-> 1. Click the gear icon next to the model picker
-> 2. Set "Context Length" to at least 16384 (preferably 32768)
-> 3. Reload the model for the change to take effect
->
-> Alternatively, use the CLI: `lms load model-name --context-length 32768`
->
-> To set persistent per-model defaults: My Models tab → gear icon on the model → set context size.
+Hermes will automatically load a LM Studio model with 64K context length
+
+To change context length in LM Studio:
+
+1. Click the gear icon next to the model picker
+2. Set "Context Length" to at least 64000 for a smooth experience
+3. Reload the model for the change to take effect
+4. If your machine cannot fit 64000, consider using a smaller model with larger context lengths.
+
+Alternatively, use the CLI: `lms load model-name --context-length 64000`
+
+You can use the CLI to estimate if the model will fit: `lms load model-name --context-length 64000 --estimate-only`
+
+To set persistent per-model defaults: My Models tab → gear icon on the model → set context size.
 
 **Tool calling:** Supported since LM Studio 0.3.6. Models with native tool-calling training (Qwen 2.5, Llama 3.x, Mistral, Hermes) are auto-detected and shown with a tool badge. Other models use a generic fallback that may be less reliable.
 
@@ -707,6 +809,7 @@ Since Hermes Agent requires a Unix environment, Windows users run it inside WSL2
 
 > **Tip: Both in WSL2? No problem.**
 > If your model server also runs inside WSL2 (common for vLLM, SGLang, and llama-server), `localhost` works as expected — they share the same network namespace. Skip this section.
+
 
 #### Option 1: Mirrored Networking Mode (Recommended)
 
@@ -733,6 +836,7 @@ Available on **Windows 11 22H2+**, mirrored mode makes `localhost` work bidirect
 > ```powershell
 > Set-NetFirewallHyperVVMSetting -Name '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -DefaultInboundAction Allow
 > ```
+
 
 #### Option 2: Use the Windows Host IP (Windows 10 / older builds)
 
@@ -766,6 +870,7 @@ model:
 > sudo apt install libnss-mdns
 > curl http://$(hostname).local:11434/v1/models
 > ```
+
 
 #### Server Bind Address (Required for NAT Mode)
 
@@ -867,7 +972,7 @@ model:
 
 **Possible causes:**
 1. **Low output cap (`max_tokens`) on the server** — SGLang defaults to 128 tokens per response. Set `--default-max-tokens` on the server or configure Hermes with `model.max_tokens` in config.yaml. Note: `max_tokens` controls response length only — it is unrelated to how long your conversation history can be (that is `context_length`).
-2. **Context exhaustion** — The model filled its context window. Increase `model.context_length` or enable [context compression](../../user-guide/configuration#context-compression) in Hermes.
+2. **Context exhaustion** — The model filled its context window. Increase `model.context_length` or enable [context compression](../../user-guide/configuration/#context-compression) in Hermes.
 
 ---
 
@@ -926,6 +1031,7 @@ Routing profiles:
 > **Note**
 > ClawRouter requires a USDC-funded wallet on Base or Solana for payment. All requests route through BlockRun's backend API. Run `npx @blockrun/clawrouter doctor` to check wallet status.
 
+
 ---
 
 ### Other Compatible Providers
@@ -938,6 +1044,7 @@ Any service with an OpenAI-compatible API works. Some popular options:
 | [Groq](https://groq.com) | `https://api.groq.com/openai/v1` | Ultra-fast inference |
 | [DeepSeek](https://deepseek.com) | `https://api.deepseek.com/v1` | DeepSeek models |
 | [Fireworks AI](https://fireworks.ai) | `https://api.fireworks.ai/inference/v1` | Fast open model hosting |
+| [GMI Cloud](https://www.gmicloud.ai/) | `https://api.gmi-serving.com/v1` | Managed OpenAI-compatible inference |
 | [Cerebras](https://cerebras.ai) | `https://api.cerebras.ai/v1` | Wafer-scale chip inference |
 | [Mistral AI](https://mistral.ai) | `https://api.mistral.ai/v1` | Mistral models |
 | [OpenAI](https://openai.com) | `https://api.openai.com/v1` | Direct OpenAI access |
@@ -966,6 +1073,7 @@ model:
 >
 > Set `context_length` when auto-detection gets the window size wrong.
 > Set `model.max_tokens` only when you need to limit how long individual responses can be.
+
 
 Hermes uses a multi-source resolution chain to detect the correct context window for your model and provider:
 
@@ -1010,6 +1118,7 @@ custom_providers:
 > - You want to limit context below the model's maximum (e.g., 8k on a 128k model to save VRAM)
 > - You're running behind a proxy that doesn't expose `/v1/models`
 
+
 ---
 
 ### Named Custom Providers
@@ -1023,11 +1132,11 @@ custom_providers:
     # api_key omitted — Hermes uses "no-key-required" for keyless local servers
   - name: work
     base_url: https://gpu-server.internal.corp/v1
-    api_key: corp-api-key
+    key_env: CORP_API_KEY
     api_mode: chat_completions   # optional, auto-detected from URL
   - name: anthropic-proxy
     base_url: https://proxy.example.com/anthropic
-    api_key: proxy-key
+    key_env: ANTHROPIC_PROXY_KEY
     api_mode: anthropic_messages  # for Anthropic-compatible proxies
 ```
 
@@ -1055,10 +1164,11 @@ You can also select named custom providers from the interactive `hermes model` m
 | **Cost optimization** | ClawRouter or OpenRouter with `sort: "price"` |
 | **Maximum privacy** | Ollama, vLLM, or llama.cpp (fully local) |
 | **Enterprise / Azure** | Azure OpenAI with custom endpoint |
-| **Chinese AI models** | z.ai (GLM), Kimi/Moonshot (`kimi-coding` or `kimi-coding-cn`), MiniMax, or Xiaomi MiMo (first-class providers) |
+| **Chinese AI models** | z.ai (GLM), Kimi/Moonshot (`kimi-coding` or `kimi-coding-cn`), MiniMax, Xiaomi MiMo, or Tencent TokenHub (first-class providers) |
 
 > **Tip**
 > You can switch between providers at any time with `hermes model` — no restart required. Your conversation history, memory, and skills carry over regardless of which provider you use.
+
 
 ## Optional API Keys
 
@@ -1124,52 +1234,20 @@ fallback_model:
   provider: openrouter                    # required
   model: anthropic/claude-sonnet-4        # required
   # base_url: http://localhost:8000/v1    # optional, for custom endpoints
-  # api_key_env: MY_CUSTOM_KEY           # optional, env var name for custom endpoint API key
+  # key_env: MY_CUSTOM_KEY               # optional, env var name for custom endpoint API key
 ```
 
 When activated, the fallback swaps the model and provider mid-session without losing your conversation. It fires **at most once** per session.
 
-Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `deepseek`, `nvidia`, `xai`, `ollama-cloud`, `bedrock`, `ai-gateway`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `alibaba`, `custom`.
+Supported providers: `openrouter`, `nous`, `openai-codex`, `copilot`, `copilot-acp`, `anthropic`, `gemini`, `google-gemini-cli`, `qwen-oauth`, `huggingface`, `zai`, `kimi-coding`, `kimi-coding-cn`, `minimax`, `minimax-cn`, `minimax-oauth`, `deepseek`, `nvidia`, `xai`, `ollama-cloud`, `bedrock`, `ai-gateway`, `opencode-zen`, `opencode-go`, `kilocode`, `xiaomi`, `arcee`, `gmi`, `alibaba`, `tencent-tokenhub`, `custom`.
 
 > **Tip**
-> Fallback is configured exclusively through `config.yaml` — there are no environment variables for it. For full details on when it triggers, supported providers, and how it interacts with auxiliary tasks and delegation, see [Fallback Providers](../../user-guide/features/fallback-providers).
+> Fallback is configured exclusively through `config.yaml` — there are no environment variables for it. For full details on when it triggers, supported providers, and how it interacts with auxiliary tasks and delegation, see [Fallback Providers](../../user-guide/features/fallback-providers/).
 
-## Smart Model Routing
-
-Optional cheap-vs-strong routing lets Hermes keep your main model for complex work while sending very short/simple turns to a cheaper model.
-
-```yaml
-smart_model_routing:
-  enabled: true
-  max_simple_chars: 160
-  max_simple_words: 28
-  cheap_model:
-    provider: openrouter
-    model: google/gemini-2.5-flash
-    # base_url: http://localhost:8000/v1  # optional custom endpoint
-    # api_key_env: MY_CUSTOM_KEY          # optional env var name for that endpoint's API key
-```
-
-How it works:
-- If a turn is short, single-line, and does not look code/tool/debug heavy, Hermes may route it to `cheap_model`
-- If the turn looks complex, Hermes stays on your primary model/provider
-- If the cheap route cannot be resolved cleanly, Hermes falls back to the primary model automatically
-
-This is intentionally conservative. It is meant for quick, low-stakes turns like:
-- short factual questions
-- quick rewrites
-- lightweight summaries
-
-It will avoid routing prompts that look like:
-- coding/debugging work
-- tool-heavy requests
-- long or multi-line analysis asks
-
-Use this when you want lower latency or cost without fully changing your default model.
 
 ---
 
 ## See Also
 
-- [Configuration](../../user-guide/configuration) — General configuration (directory structure, config precedence, terminal backends, memory, compression, and more)
-- [Environment Variables](../../reference/environment-variables) — Complete reference of all environment variables
+- [Configuration](../../user-guide/configuration/) — General configuration (directory structure, config precedence, terminal backends, memory, compression, and more)
+- [Environment Variables](../../reference/environment-variables/) — Complete reference of all environment variables

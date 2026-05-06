@@ -1,25 +1,27 @@
 ---
+weight: 10
 title: "Voice Mode"
 description: "Real-time voice conversations with Hermes Agent — CLI, Telegram, Discord (DMs, text channels, and voice channels)"
-weight: 10
 ---
+
 
 # Voice Mode
 
 Hermes Agent supports full voice interaction across CLI and messaging platforms. Talk to the agent using your microphone, hear spoken replies, and have live voice conversations in Discord voice channels.
 
-If you want a practical setup walkthrough with recommended configurations and real usage patterns, see [Use Voice Mode with Hermes](../../../guides/use-voice-mode-with-hermes).
+If you want a practical setup walkthrough with recommended configurations and real usage patterns, see [Use Voice Mode with Hermes](../../../guides/use-voice-mode-with-hermes/).
 
 ## Prerequisites
 
 Before using voice features, make sure you have:
 
-1. **Hermes Agent installed** — `pip install hermes-agent` (see [Installation](../../../getting-started/installation))
+1. **Hermes Agent installed** — `pip install hermes-agent` (see [Installation](../../../getting-started/installation/))
 2. **An LLM provider configured** — run `hermes model` or set your preferred provider credentials in `~/.hermes/.env`
 3. **A working base setup** — run `hermes` to verify the agent responds to text before enabling voice
 
 > **Tip**
 > The `~/.hermes/` directory and default `config.yaml` are created automatically the first time you run `hermes`. You only need to create `~/.hermes/.env` manually for API keys.
+
 
 ## Overview
 
@@ -61,6 +63,7 @@ Optional local TTS provider: install `neutts` separately with `python -m pip ins
 > **Info**
 > `discord.py[voice]` installs **PyNaCl** (for voice encryption) and **opus bindings** automatically. This is required for Discord voice channel support.
 
+
 ### System Dependencies
 
 ```bash
@@ -98,9 +101,12 @@ ELEVENLABS_API_KEY=***           # ElevenLabs — premium quality
 > **Tip**
 > If `faster-whisper` is installed, voice mode works with **zero API keys** for STT. The model (~150 MB for `base`) downloads automatically on first use.
 
+
 ---
 
 ## CLI Voice Mode
+
+Voice mode is available in both the **classic CLI** (`hermes chat`) and the **TUI** (`hermes --tui`). Behavior is identical across both — same slash commands, same VAD silence detection, same streaming TTS, same hallucination filter. The TUI additionally forwards crash-forensic logs to `~/.hermes/logs/` so push-to-talk failures on exotic audio backends can be reported with a full stack trace rather than disappearing silently.
 
 ### Quick Start
 
@@ -136,6 +142,7 @@ This loop continues until you press **Ctrl+B** during recording (exits continuou
 > **Tip**
 > The record key is configurable via `voice.record_key` in `~/.hermes/config.yaml` (default: `ctrl+b`).
 
+
 ### Silence Detection
 
 Two-stage algorithm detects when you've finished speaking:
@@ -145,7 +152,7 @@ Two-stage algorithm detects when you've finished speaking:
 
 If no speech is detected at all for 15 seconds, recording stops automatically.
 
-Both `silence_threshold` and `silence_duration` are configurable in `config.yaml`.
+Both `silence_threshold` and `silence_duration` are configurable in `config.yaml`. You can also disable the record start/stop beeps with `voice.beep_enabled: false`.
 
 ### Streaming TTS
 
@@ -164,8 +171,8 @@ Whisper sometimes generates phantom text from silence or background noise ("Than
 ## Gateway Voice Reply (Telegram & Discord)
 
 If you haven't set up your messaging bots yet, see the platform-specific guides:
-- [Telegram Setup Guide](../../messaging/telegram)
-- [Discord Setup Guide](../../messaging/discord)
+- [Telegram Setup Guide](../../messaging/telegram/)
+- [Discord Setup Guide](../../messaging/discord/)
 
 Start the gateway to connect to your messaging platforms:
 
@@ -196,6 +203,7 @@ The bot supports two interaction modes on Discord:
 > ```bash
 > DISCORD_FREE_RESPONSE_CHANNELS=123456789,987654321
 > ```
+
 
 ### Commands
 
@@ -236,7 +244,7 @@ The most immersive voice feature: the bot joins a Discord voice channel, listens
 
 #### 1. Discord Bot Permissions
 
-If you already have a Discord bot set up for text (see [Discord Setup Guide](../../messaging/discord)), you need to add voice permissions.
+If you already have a Discord bot set up for text (see [Discord Setup Guide](../../messaging/discord/)), you need to add voice permissions.
 
 Go to the [Discord Developer Portal](https://discord.com/developers/applications) → your application → **Installation** → **Default Install Settings** → **Guild Install**:
 
@@ -265,6 +273,7 @@ Replace `YOUR_APP_ID` with your Application ID from the Developer Portal.
 
 > **Warning**
 > Re-inviting the bot to a server it's already in will update its permissions without removing it. You won't lose any data or configuration.
+
 
 #### 2. Privileged Gateway Intents
 
@@ -333,6 +342,7 @@ Use these in the Discord text channel where the bot is present:
 > **Info**
 > You must be in a voice channel before running `/voice join`. The bot joins the same VC you're in.
 
+
 ### How It Works
 
 When the bot joins a voice channel, it:
@@ -376,6 +386,7 @@ voice:
   record_key: "ctrl+b"            # Key to start/stop recording
   max_recording_seconds: 120       # Maximum recording length
   auto_tts: false                  # Auto-enable TTS when voice mode starts
+  beep_enabled: true               # Play record start/stop beeps
   silence_threshold: 200           # RMS level (0-32767) below which counts as silence
   silence_duration: 3.0            # Seconds of silence before auto-stop
 

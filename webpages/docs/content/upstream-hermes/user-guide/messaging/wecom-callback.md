@@ -3,14 +3,16 @@ title: "WeCom Callback (Self-Built App)"
 weight: 15
 ---
 
+
 # WeCom Callback (Self-Built App)
 
 Connect Hermes to WeCom (Enterprise WeChat) as a self-built enterprise application using the callback/webhook model.
 
 > **Info: WeCom Bot vs WeCom Callback**
 > Hermes supports two WeCom integration modes:
-> - **[WeCom Bot](../wecom)** — bot-style, connects via WebSocket. Simpler setup, works in group chats.
+> - **[WeCom Bot](../wecom/)** — bot-style, connects via WebSocket. Simpler setup, works in group chats.
 > - **WeCom Callback** (this page) — self-built app, receives encrypted XML callbacks. Shows as a first-class app in users' WeCom sidebar. Supports multi-corp routing.
+
 
 ## How It Works
 
@@ -60,8 +62,10 @@ WECOM_CALLBACK_ALLOWED_USERS=user1,user2
 ### 3. Start the Gateway
 
 ```bash
-hermes gateway start
+hermes gateway
 ```
+
+(Use `hermes gateway start` only after `hermes gateway install` has registered the systemd/launchd service.)
 
 The callback adapter starts an HTTP server on the configured port. WeCom will verify the callback URL via a GET request, then begin sending messages via POST.
 

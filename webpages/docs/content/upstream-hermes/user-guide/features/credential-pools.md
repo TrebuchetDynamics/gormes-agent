@@ -1,14 +1,16 @@
 ---
-title: "Credential Pools"
-description: "Pool multiple API keys or OAuth tokens per provider for automatic rotation and rate limit recovery."
+title: Credential Pools
+description: Pool multiple API keys or OAuth tokens per provider for automatic rotation and rate limit recovery.
+sidebar_label: Credential Pools
 weight: 9
 ---
+
 
 # Credential Pools
 
 Credential pools let you register multiple API keys or OAuth tokens for the same provider. When one key hits a rate limit or billing quota, Hermes automatically rotates to the next healthy key — keeping your session alive without switching providers.
 
-This is different from [fallback providers](../fallback-providers), which switch to a *different* provider entirely. Credential pools are same-provider rotation; fallback providers are cross-provider failover. Pools are tried first — if all pool keys are exhausted, *then* the fallback provider activates.
+This is different from [fallback providers](../fallback-providers/), which switch to a *different* provider entirely. Credential pools are same-provider rotation; fallback providers are cross-provider failover. Pools are tried first — if all pool keys are exhausted, *then* the fallback provider activates.
 
 ## How It Works
 
@@ -39,7 +41,7 @@ hermes auth add openrouter --api-key sk-or-v1-your-second-key
 # Add a second Anthropic key
 hermes auth add anthropic --type api-key --api-key sk-ant-api03-your-second-key
 
-# Add an Anthropic OAuth credential (Claude Code subscription)
+# Add an Anthropic OAuth credential (requires Claude Max plan + extra usage credits)
 hermes auth add anthropic --type oauth
 # Opens browser for OAuth login
 ```

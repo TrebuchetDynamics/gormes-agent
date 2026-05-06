@@ -1,8 +1,9 @@
 ---
+weight: 4
 title: "Slack"
 description: "Set up Hermes Agent as a Slack bot using Socket Mode"
-weight: 4
 ---
+
 
 # Slack Setup
 
@@ -14,6 +15,7 @@ behind firewalls, on your laptop, or on a private server.
 > Classic Slack apps (using RTM API) were **fully deprecated in March 2025**. Hermes uses the modern
 > Bolt SDK with Socket Mode. If you have an old classic app, you must create a new one following
 > the steps below.
+
 
 ## Overview
 
@@ -28,13 +30,36 @@ behind firewalls, on your laptop, or on a private server.
 
 ## Step 1: Create a Slack App
 
+The fastest path is to paste a manifest Hermes generates for you. It
+declares every built-in slash command (`/btw`, `/stop`, `/model`, …),
+every required OAuth scope, every event subscription, and enables Socket
+Mode — all at once.
+
+### Option A: From a Hermes-generated manifest (recommended)
+
+1. Generate the manifest:
+   ```bash
+   hermes slack manifest --write
+   ```
+   This writes `~/.hermes/slack-manifest.json` and prints paste-in
+   instructions.
+2. Go to [https://api.slack.com/apps](https://api.slack.com/apps) →
+   **Create New App** → **From an app manifest**
+3. Pick your workspace, paste the JSON contents, review, click **Next**
+   → **Create**
+4. Skip ahead to **Step 6: Install App to Workspace**. The manifest
+   handled scopes, events, and slash commands for you.
+
+### Option B: From scratch (manual)
+
 1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
 2. Click **Create New App**
 3. Choose **From scratch**
 4. Enter an app name (e.g., "Hermes Agent") and select your workspace
 5. Click **Create App**
 
-You'll land on the app's **Basic Information** page.
+You'll land on the app's **Basic Information** page. Continue with
+Steps 2–6 below.
 
 ---
 
@@ -58,7 +83,9 @@ Navigate to **Features → OAuth & Permissions** in the sidebar. Scroll to **Sco
 
 > **Caution: Missing scopes = missing features**
 > Without `channels:history` and `groups:history`, the bot **will not receive messages in channels** —
-> it will only work in DMs. These are the most commonly missed scopes.
+> it will only work in DMs. Without `files:read`, Hermes can chat but **cannot reliably read user-uploaded attachments**.
+> These are the most commonly missed scopes.
+
 
 **Optional scopes:**
 
@@ -83,11 +110,13 @@ Socket Mode lets the bot connect via WebSocket instead of requiring a public URL
 > **Tip**
 > You can always find or regenerate app-level tokens under **Settings → Basic Information → App-Level Tokens**.
 
+
 ---
 
 ## Step 4: Subscribe to Events
 
 This step is critical — it controls what messages the bot can see.
+
 
 1. In the sidebar, go to **Features → Event Subscriptions**
 2. Toggle **Enable Events** to ON
@@ -107,6 +136,8 @@ This step is critical — it controls what messages the bot can see.
 > `message.channels` (for public channels) and/or `message.groups` (for private channels).
 > Without these events, Slack simply never delivers channel messages to the bot.
 
+
+
 ---
 
 ## Step 5: Enable the Messages Tab
@@ -121,6 +152,7 @@ This step enables direct messages to the bot. Without it, users see **"Sending m
 > **Danger: Without this step, DMs are completely blocked**
 > Even with all the correct scopes and event subscriptions, Slack will not allow users to send direct messages to the bot unless the Messages Tab is enabled. This is a Slack platform requirement, not a Hermes configuration issue.
 
+
 ---
 
 ## Step 6: Install App to Workspace
@@ -134,6 +166,7 @@ This step enables direct messages to the bot. Without it, users see **"Sending m
 > **Tip**
 > If you change scopes or event subscriptions later, you **must reinstall the app** for the changes
 > to take effect. The Install App page will show a banner prompting you to do so.
+
 
 ---
 
@@ -195,6 +228,57 @@ The bot will **not** automatically join channels. You must invite it to each cha
 
 ---
 
+## Slash Commands
+
+Every Hermes command (`/btw`, `/stop`, `/new`, `/model`, `/help`, ...)
+is a native Slack slash command — exactly the way they work on Telegram
+and Discord. Type `/` in Slack and the autocomplete picker lists every
+Hermes command with its description.
+
+Under the hood: Hermes ships with a generated Slack app manifest (see
+Step 1, Option A) that declares every command in
+[`COMMAND_REGISTRY`](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/commands.py)
+as a slash command. In Socket Mode, Slack routes the command event
+through the WebSocket regardless of the manifest's `url` field.
+
+### Refreshing slash commands after updates
+
+When Hermes adds new commands (e.g. after `hermes update`), regenerate
+the manifest and update your Slack app:
+
+```bash
+hermes slack manifest --write
+```
+
+Then in Slack:
+1. Open [https://api.slack.com/apps](https://api.slack.com/apps) →
+   your Hermes app
+2. **Features → App Manifest → Edit**
+3. Paste the new contents of `~/.hermes/slack-manifest.json`
+4. **Save**. Slack will prompt to reinstall the app if scopes or slash
+   commands changed.
+
+### Legacy `/hermes <subcommand>` still works
+
+For backward compatibility with older manifests, you can still type
+`/hermes btw run the tests` — Hermes routes it the same way as `/btw
+run the tests`. Free-form questions also work: `/hermes what's the
+weather?` is treated as a regular message.
+
+### Advanced: emit only the slash-commands array
+
+If you maintain your Slack manifest by hand and just want the slash
+command list:
+
+```bash
+hermes slack manifest --slashes-only > /tmp/slashes.json
+```
+
+Paste that array into the `features.slash_commands` key of your
+existing manifest.
+
+---
+
 ## How the Bot Responds
 
 Understanding how Hermes behaves in different contexts:
@@ -207,6 +291,7 @@ Understanding how Hermes behaves in different contexts:
 
 > **Tip**
 > In channels, always @mention the bot to start a conversation. Once the bot is active in a thread, you can reply in that thread without mentioning it. Outside of threads, messages without @mention are ignored to prevent noise in busy channels.
+
 
 ---
 
@@ -263,6 +348,14 @@ slack:
   # but you can set this explicitly for consistency with other platforms)
   require_mention: true
 
+  # Prevent thread auto-engagement: only reply to channel messages that
+  # contain an explicit @mention. With this OFF (default), Slack can
+  # "auto-engage" — remembering past mentions in a thread and following
+  # up on bot-message replies, and resuming active sessions without a
+  # fresh mention. With strict_mention ON, every new channel message
+  # must @mention the bot before Hermes will respond.
+  strict_mention: false
+
   # Custom mention patterns that trigger the bot
   # (in addition to the default @mention detection)
   mention_patterns:
@@ -273,8 +366,13 @@ slack:
   reply_prefix: ""
 ```
 
+> **Tip: When to use `strict_mention`**
+> Set this to `true` in busy workspaces where Slack's default "the bot remembers this thread" behavior surprises users — for example, a long tech-support thread where the bot helped at the start and you'd rather it stay silent unless explicitly pinged again. DMs and active interactive sessions are unaffected.
+
+
 > **Info**
 > Slack supports both patterns: `@mention` required to start a conversation by default, but you can opt specific channels out via `SLACK_FREE_RESPONSE_CHANNELS` (comma-separated channel IDs) or `slack.free_response_channels` in `config.yaml`. Once the bot has an active session in a thread, subsequent thread replies do not require a mention. In DMs the bot always responds without needing a mention.
+
 
 ### Unauthorized User Handling
 
@@ -326,6 +424,7 @@ platforms:
 ```
 
 ---
+
 
 ## Home Channel
 
@@ -424,6 +523,34 @@ slack:
 
 Keys are Slack channel IDs (find them via channel details → "About" → scroll to bottom). All messages in the matching channel get the prompt injected as an ephemeral system instruction.
 
+## Per-Channel Skill Bindings
+
+Auto-load a skill whenever a new session starts in a specific channel or DM. Unlike per-channel prompts (which are injected on every turn), skill bindings inject the skill content as a user message at **session start** — it becomes part of the conversation history and does not need to be reloaded on subsequent turns.
+
+This is ideal for DMs or channels with a dedicated purpose (flashcards, a domain-specific Q&A bot, a support triage channel, etc.) where you don't want the model's own skill selector to decide whether to load on every short reply.
+
+```yaml
+slack:
+  channel_skill_bindings:
+    # DM channel — always runs in "german-flashcards" mode
+    - id: "D0ATH9TQ0G6"
+      skills:
+        - german-flashcards
+    # Research channel — preload multiple skills in order
+    - id: "C01RESEARCH"
+      skills:
+        - arxiv
+        - writing-plans
+    # Short form: single skill as a string
+    - id: "C02SUPPORT"
+      skill: hubspot-on-demand
+```
+
+Notes:
+- The binding matches by channel ID. For threaded messages in a bound channel, the thread inherits the parent channel's binding.
+- The skill is loaded only at session start (new session or after auto-reset). If you change the binding, run `/new` or wait for the session to auto-reset for it to take effect.
+- Combine with `channel_prompts` for per-channel tone/constraints on top of the skill's instructions.
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -435,7 +562,8 @@ Keys are Slack channel IDs (find them via channel details → "About" → scroll
 | "Sending messages to this app has been turned off" in DMs | Enable the **Messages Tab** in App Home settings (see Step 5) |
 | "not_authed" or "invalid_auth" errors | Regenerate your Bot Token and App Token, update `.env` |
 | Bot responds but can't post in a channel | Invite the bot to the channel with `/invite @Hermes Agent` |
-| "missing_scope" error | Add the required scope in OAuth & Permissions, then **reinstall** the app |
+| Bot can chat but can't read uploaded images/files | Add `files:read`, then **reinstall** the app. Hermes now surfaces attachment access diagnostics in-chat when Slack returns scope/auth/permission failures. |
+| `missing_scope` error | Add the required scope in OAuth & Permissions, then **reinstall** the app |
 | Socket disconnects frequently | Check your network; Bolt auto-reconnects but unstable connections cause lag |
 | Changed scopes/events but nothing changed | You **must reinstall** the app to your workspace after any scope or event subscription change |
 
@@ -460,6 +588,7 @@ If the bot isn't working in channels, verify **all** of the following:
 > **Always set `SLACK_ALLOWED_USERS`** with the Member IDs of authorized users. Without this setting,
 > the gateway will **deny all messages** by default as a safety measure. Never share your bot tokens —
 > treat them like passwords.
+
 
 - Tokens should be stored in `~/.hermes/.env` (file permissions `600`)
 - Rotate tokens periodically via the Slack app settings

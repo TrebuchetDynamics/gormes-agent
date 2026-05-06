@@ -1,8 +1,9 @@
 ---
+weight: 5
 title: "Adding Providers"
 description: "How to add a new inference provider to Hermes Agent — auth, runtime resolution, CLI flows, adapters, tests, and docs"
-weight: 5
 ---
+
 
 # Adding Providers
 
@@ -85,6 +86,7 @@ This path includes everything from Path A plus:
 
 > **Tip**
 > `hermes_cli/setup.py` does **not** need changes. The setup wizard delegates provider/model selection to `select_provider_and_model()` in `main.py` — any provider added there is automatically available in `hermes setup`.
+
 
 ### Additional for native / non-OpenAI providers
 
@@ -203,6 +205,7 @@ Update these in `hermes_cli/main.py`:
 > **Tip**
 > `hermes_cli/setup.py` does not need changes — it calls `select_provider_and_model()` from `main.py`, so your new provider appears in both `hermes model` and `hermes setup` automatically.
 
+
 ## Step 6: Keep auxiliary calls working
 
 Two files matter here:
@@ -251,7 +254,7 @@ Search for `api_mode` and audit every switch point. At minimum, verify:
 - `__init__` chooses the new `api_mode`
 - client construction works for the provider
 - `_build_api_kwargs()` knows how to format requests
-- `_api_call_with_interrupt()` dispatches to the right client call
+- `_interruptible_api_call()` dispatches to the right client call
 - interrupt / client rebuild paths work
 - response validation accepts the provider's shape
 - finish-reason extraction is correct
@@ -412,6 +415,6 @@ If you are hunting for all the places a provider touches, search these symbols:
 
 ## Related docs
 
-- [Provider Runtime Resolution](../provider-runtime)
-- [Architecture](../architecture)
-- [Contributing](../contributing)
+- [Provider Runtime Resolution](../provider-runtime/)
+- [Architecture](../architecture/)
+- [Contributing](../contributing/)

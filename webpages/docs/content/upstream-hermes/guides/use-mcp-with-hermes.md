@@ -1,8 +1,9 @@
 ---
+weight: 6
 title: "Use MCP with Hermes"
 description: "A practical guide to connecting MCP servers to Hermes Agent, filtering their tools, and using them safely in real workflows"
-weight: 6
 ---
+
 
 # Use MCP with Hermes
 
@@ -410,6 +411,6 @@ Not-great first servers:
 
 ## Related docs
 
-- [MCP (Model Context Protocol)](../../user-guide/features/mcp)
-- [FAQ](../../reference/faq)
-- [Slash Commands](../../reference/slash-commands)
+- [MCP (Model Context Protocol)](../../user-guide/features/mcp/)
+- [FAQ](../../reference/faq/)
+- [Slash Commands](../../reference/slash-commands/)

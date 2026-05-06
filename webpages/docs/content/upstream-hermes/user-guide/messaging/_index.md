@@ -1,26 +1,15 @@
 ---
-title: "Messaging Gateway"
-description: "Chat with Hermes from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Home Assistant, Mattermost, Matrix, DingTalk, Webhooks, or any OpenAI-compatible frontend via the API server — architecture and setup overview"
 weight: 1
+title: "Messaging Gateway"
+description: "Chat with Hermes from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Home Assistant, Mattermost, Matrix, DingTalk, Yuanbao, Webhooks, or any OpenAI-compatible frontend via the API server — architecture and setup overview"
 ---
+
 
 # Messaging Gateway
 
-Chat with Hermes from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Home Assistant, Mattermost, Matrix, DingTalk, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQ, or your browser. The gateway is a single background process that connects to all your configured platforms, handles sessions, runs cron jobs, and delivers voice messages.
+Chat with Hermes from Telegram, Discord, Slack, WhatsApp, Signal, SMS, Email, Home Assistant, Mattermost, Matrix, DingTalk, Feishu/Lark, WeCom, Weixin, BlueBubbles (iMessage), QQ, Yuanbao, or your browser. The gateway is a single background process that connects to all your configured platforms, handles sessions, runs cron jobs, and delivers voice messages.
 
-For the full voice feature set — including CLI microphone mode, spoken replies in messaging, and Discord voice-channel conversations — see [Voice Mode](../features/voice-mode) and [Use Voice Mode with Hermes](../../guides/use-voice-mode-with-hermes).
-
-## Porting Lens
-
-For Gormes, messaging is not just a list of adapters. Each page here represents a reusable integration pattern that may need a dedicated Go port:
-
-- bot SDK adapter
-- webhook adapter
-- HTTP callback adapter
-- OpenAI-compatible frontend surface
-- bridge-to-local-service adapter
-
-The table below captures the primary upstream method used for each messaging surface so port planning can focus on the real transport boundary, not just the platform name.
+For the full voice feature set — including CLI microphone mode, spoken replies in messaging, and Discord voice-channel conversations — see [Voice Mode](../features/voice-mode/) and [Use Voice Mode with Hermes](../../guides/use-voice-mode-with-hermes/).
 
 ## Platform Comparison
 
@@ -43,44 +32,9 @@ The table below captures the primary upstream method used for each messaging sur
 | Weixin | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
 | BlueBubbles | — | ✅ | ✅ | — | ✅ | ✅ | — |
 | QQ | ✅ | ✅ | ✅ | — | — | ✅ | — |
+| Yuanbao | ✅ | ✅ | ✅ | — | — | ✅ | ✅ |
 
 **Voice** = TTS audio replies and/or voice message transcription. **Images** = send/receive images. **Files** = send/receive file attachments. **Threads** = threaded conversations. **Reactions** = emoji reactions on messages. **Typing** = typing indicator while processing. **Streaming** = progressive message updates via editing.
-
-## Adapter Inventory for Go Porting
-
-| Surface | Method used upstream | Porting implication for Gormes |
-|---|---|---|
-| [Telegram](./telegram/) | Telegram Bot API adapter with long polling or webhook delivery | Strong reference adapter for chat, edits, attachments, and threads |
-| [Discord](./discord/) | Discord bot SDK adapter with text and voice-channel features | Split text adapter from voice runtime if porting incrementally |
-| [Slack](./slack/) | Slack Socket Mode adapter over Slack APIs | Preserve event normalization and threaded reply model |
-| [WhatsApp](./whatsapp/) | WhatsApp Business Cloud API adapter | Treat as a remote HTTP integration with media support |
-| [Signal](./signal/) | Signal integration through `signal-cli` REST bridge | Bridge pattern, not native SDK parity |
-| [SMS (Twilio)](./sms/) | Twilio messaging adapter | Narrow transport surface, useful as a minimal delivery adapter |
-| [Email](./email/) | IMAP and SMTP based adapter | Port inbound polling and outbound delivery separately |
-| [Home Assistant](./homeassistant/) | Home Assistant conversation integration | Not a generic messenger; more of a home-automation endpoint |
-| [Mattermost](./mattermost/) | Mattermost WebSocket or bot API adapter | Similar shape to Slack, but different auth and event details |
-| [Matrix](./matrix/) | Matrix adapter via a mautrix-style client, optionally with E2EE | Treat as a richer event system with attachment support |
-| [DingTalk](./dingtalk/) | DingTalk bot or WebSocket adapter | Enterprise chat integration with its own event and auth model |
-| [Feishu / Lark](./feishu/) | Feishu/Lark WebSocket or webhook adapter | Enterprise adapter with strong thread and file semantics |
-| [WeCom](./wecom/) | Enterprise WeChat adapter | Different from personal Weixin; keep enterprise auth separate |
-| [WeCom Callback](./wecom-callback/) | Self-built app callback receiver | HTTP callback pattern rather than a persistent bot loop |
-| [Weixin (WeChat)](./weixin/) | Personal WeChat bridge through iLink Bot API | Third-party bridge pattern, not official bot API parity |
-| [BlueBubbles (iMessage)](./bluebubbles/) | BlueBubbles macOS server bridge | Local companion-service bridge, not direct platform access |
-| [QQ Bot](./qqbot/) | Tencent QQ official bot API adapter | Platform-specific official bot transport |
-| [Webhooks](./webhooks/) | Generic inbound and outbound webhook adapter | Reusable pattern for light integrations and automation |
-| [Open WebUI](./open-webui/) | OpenAI-compatible frontend talking to the Hermes API server | Frontend surface riding on API compatibility, not a chat adapter |
-
-## Method Families
-
-Most of the messaging pages collapse into a few porting families:
-
-- **Direct bot SDK/API adapters** — Telegram, Discord, Slack, Mattermost, QQ
-- **Enterprise messaging adapters** — DingTalk, Feishu/Lark, WeCom
-- **Bridge adapters** — Signal, Weixin, BlueBubbles
-- **Generic transport surfaces** — Webhooks, Open WebUI, API-server-based consumers
-- **Non-chat endpoints** — Home Assistant, Email, SMS
-
-That grouping is usually more useful for Go port planning than platform-by-platform docs alone.
 
 ## Architecture
 
@@ -105,6 +59,7 @@ flowchart TB
     wx[Weixin]
     bb[BlueBubbles]
     qq[QQ]
+    yb[Yuanbao]
             api["API Server<br/>(OpenAI-compatible)"]
             wh[Webhooks]
         end
@@ -131,6 +86,7 @@ flowchart TB
     wx --> store
     bb --> store
     qq --> store
+    yb --> store
     api --> store
     wh --> store
     store --> agent
@@ -168,7 +124,6 @@ hermes gateway status --system         # Linux only: inspect the system service 
 |---------|-------------|
 | `/new` or `/reset` | Start a fresh conversation |
 | `/model [provider:model]` | Show or change the model (supports `provider:model` syntax) |
-| `/provider` | Show available providers with auth status |
 | `/personality [name]` | Set a personality |
 | `/retry` | Retry the last message |
 | `/undo` | Remove the last exchange |
@@ -268,6 +223,23 @@ Send any message while the agent is working to interrupt it. Key behaviors:
 - **Multiple messages are combined** — messages sent during interruption are joined into one prompt
 - **`/stop` command** — interrupts without queuing a follow-up message
 
+### Queue vs interrupt vs steer (busy-input mode)
+
+By default, messaging a busy agent interrupts it. Two other modes are available:
+
+- `queue` — follow-up messages wait and run as the next turn after the current task finishes.
+- `steer` — follow-up messages are injected into the current run via `/steer`, arriving at the agent after the next tool call. No interrupt, no new turn. Falls back to `queue` behavior if the agent hasn't started yet.
+
+```yaml
+display:
+  busy_input_mode: steer   # or queue, or interrupt (default)
+  busy_ack_enabled: true   # set to false to suppress the ⚡/⏳/⏩ chat reply entirely
+```
+
+The first time you message a busy agent on any platform, Hermes appends a one-line reminder to the busy-ack explaining the knob (`"💡 First-time tip — …"`). The reminder fires once per install — a flag under `onboarding.seen.busy_input_prompt` latches it. Delete that key to see the tip again.
+
+If you find the busy-ack noisy — especially with voice input or rapid-fire messages — set `display.busy_ack_enabled: false`. Your input is still queued/steered/interrupts as normal, only the chat reply is silenced.
+
 ## Tool Progress Notifications
 
 Control how much tool activity is displayed in `~/.hermes/config.yaml`:
@@ -343,6 +315,7 @@ HERMES_BACKGROUND_NOTIFICATIONS=result
 > **Tip**
 > Background tasks on messaging platforms are fire-and-forget — you don't need to wait or check on them. Results arrive in the same chat automatically when the task finishes.
 
+
 ## Service Management
 
 ### Linux (systemd)
@@ -371,6 +344,7 @@ Avoid keeping both the user and system gateway units installed at once unless yo
 > **Info: Multiple installations**
 > If you run multiple Hermes installations on the same machine (with different `HERMES_HOME` directories), each gets its own systemd service name. The default `~/.hermes` uses `hermes-gateway`; other installations use `hermes-gateway-<hash>`. The `hermes gateway` commands automatically target the correct service for your current `HERMES_HOME`.
 
+
 ### macOS (launchd)
 
 ```bash
@@ -390,8 +364,10 @@ The generated plist lives at `~/Library/LaunchAgents/ai.hermes.gateway.plist`. I
 > **Tip: PATH changes after install**
 > launchd plists are static — if you install new tools (e.g. a new Node.js version via nvm, or ffmpeg via Homebrew) after setting up the gateway, run `hermes gateway install` again to capture the updated PATH. The gateway will detect the stale plist and reload automatically.
 
+
 > **Info: Multiple installations**
 > Like the Linux systemd service, each `HERMES_HOME` directory gets its own launchd label. The default `~/.hermes` uses `ai.hermes.gateway`; other installations use `ai.hermes.gateway-<suffix>`.
+
 
 ## Platform-Specific Toolsets
 
@@ -417,27 +393,29 @@ Each platform has its own toolset:
 | Weixin | `hermes-weixin` | Full tools including terminal |
 | BlueBubbles | `hermes-bluebubbles` | Full tools including terminal |
 | QQBot | `hermes-qqbot` | Full tools including terminal |
+| Yuanbao | `hermes-yuanbao` | Full tools including terminal |
 | API Server | `hermes` (default) | Full tools including terminal |
 | Webhooks | `hermes-webhook` | Full tools including terminal |
 
 ## Next Steps
 
-- [Telegram Setup](telegram)
-- [Discord Setup](discord)
-- [Slack Setup](slack)
-- [WhatsApp Setup](whatsapp)
-- [Signal Setup](signal)
-- [SMS Setup (Twilio)](sms)
-- [Email Setup](email)
-- [Home Assistant Integration](homeassistant)
-- [Mattermost Setup](mattermost)
-- [Matrix Setup](matrix)
-- [DingTalk Setup](dingtalk)
-- [Feishu/Lark Setup](feishu)
-- [WeCom Setup](wecom)
-- [WeCom Callback Setup](wecom-callback)
-- [Weixin Setup (WeChat)](weixin)
-- [BlueBubbles Setup (iMessage)](bluebubbles)
-- [QQBot Setup](qqbot)
-- [Open WebUI + API Server](open-webui)
-- [Webhooks](webhooks)
+- [Telegram Setup](./telegram/)
+- [Discord Setup](./discord/)
+- [Slack Setup](./slack/)
+- [WhatsApp Setup](./whatsapp/)
+- [Signal Setup](./signal/)
+- [SMS Setup (Twilio)](./sms/)
+- [Email Setup](./email/)
+- [Home Assistant Integration](./homeassistant/)
+- [Mattermost Setup](./mattermost/)
+- [Matrix Setup](./matrix/)
+- [DingTalk Setup](./dingtalk/)
+- [Feishu/Lark Setup](./feishu/)
+- [WeCom Setup](./wecom/)
+- [WeCom Callback Setup](./wecom-callback/)
+- [Weixin Setup (WeChat)](./weixin/)
+- [BlueBubbles Setup (iMessage)](./bluebubbles/)
+- [QQBot Setup](./qqbot/)
+- [Yuanbao Setup](./yuanbao/)
+- [Open WebUI + API Server](./open-webui/)
+- [Webhooks](./webhooks/)

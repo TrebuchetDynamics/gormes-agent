@@ -1,13 +1,16 @@
 ---
 title: "Nous Tool Gateway"
 description: "Route web search, image generation, text-to-speech, and browser automation through your Nous subscription — no extra API keys needed"
+sidebar_label: "Tool Gateway"
 weight: 2
 ---
+
 
 # Nous Tool Gateway
 
 > **Tip: Get Started**
 > The Tool Gateway is included with paid Nous Portal subscriptions. **[Manage your subscription →](https://portal.nousresearch.com/manage-subscription)**
+
 
 The **Tool Gateway** lets paid [Nous Portal](https://portal.nousresearch.com) subscribers use web search, image generation, text-to-speech, and browser automation through their existing subscription — no need to sign up for separate API keys from Firecrawl, FAL, OpenAI, or Browser Use.
 
@@ -16,7 +19,7 @@ The **Tool Gateway** lets paid [Nous Portal](https://portal.nousresearch.com) su
 | Tool | What It Does | Direct Alternative |
 |------|--------------|--------------------|
 | **Web search & extract** | Search the web and extract page content via Firecrawl | `FIRECRAWL_API_KEY`, `EXA_API_KEY`, `PARALLEL_API_KEY`, `TAVILY_API_KEY` |
-| **Image generation** | Generate images via FAL (8 models: FLUX 2 Klein/Pro, GPT-Image, Nano Banana Pro, Ideogram, Recraft V4 Pro, Qwen, Z-Image) | `FAL_KEY` |
+| **Image generation** | Generate images via FAL (9 models: FLUX 2 Klein/Pro, GPT-Image 1.5/2, Nano Banana Pro, Ideogram V3, Recraft V4 Pro, Qwen, Z-Image Turbo) | `FAL_KEY` |
 | **Text-to-speech** | Convert text to speech via OpenAI TTS | `VOICE_TOOLS_OPENAI_KEY`, `ELEVENLABS_API_KEY` |
 | **Browser automation** | Control cloud browsers via Browser Use | `BROWSER_USE_API_KEY`, `BROWSERBASE_API_KEY` |
 

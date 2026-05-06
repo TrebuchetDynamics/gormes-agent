@@ -1,8 +1,9 @@
 ---
+weight: 7
 title: "Use SOUL.md with Hermes"
 description: "How to use SOUL.md to shape Hermes Agent's default voice, what belongs there, and how it differs from AGENTS.md and /personality"
-weight: 7
 ---
+
 
 # Use SOUL.md with Hermes
 
@@ -258,7 +259,7 @@ Move project instructions into `AGENTS.md` and keep `SOUL.md` focused on identit
 
 ## Related docs
 
-- [Personality & SOUL.md](../../user-guide/features/personality)
-- [Context Files](../../user-guide/features/context-files)
-- [Configuration](../../user-guide/configuration)
-- [Tips & Best Practices](../tips)
+- [Personality & SOUL.md](../../user-guide/features/personality/)
+- [Context Files](../../user-guide/features/context-files/)
+- [Configuration](../../user-guide/configuration/)
+- [Tips & Best Practices](../tips/)

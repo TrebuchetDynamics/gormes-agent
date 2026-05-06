@@ -1,8 +1,9 @@
 ---
+weight: 4
 title: "MCP (Model Context Protocol)"
 description: "Connect Hermes Agent to external tool servers via MCP — and control exactly which MCP tools Hermes loads"
-weight: 4
 ---
+
 
 # MCP (Model Context Protocol)
 
@@ -543,7 +544,7 @@ The gateway does NOT need to be running for read operations (listing conversatio
 
 ## Related docs
 
-- [Use MCP with Hermes](../../../guides/use-mcp-with-hermes)
-- [CLI Commands](../../../reference/cli-commands)
-- [Slash Commands](../../../reference/slash-commands)
-- [FAQ](../../../reference/faq)
+- [Use MCP with Hermes](../../../guides/use-mcp-with-hermes/)
+- [CLI Commands](../../../reference/cli-commands/)
+- [Slash Commands](../../../reference/slash-commands/)
+- [FAQ](../../../reference/faq/)

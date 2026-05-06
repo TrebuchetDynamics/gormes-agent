@@ -1,8 +1,9 @@
 ---
+weight: 5
 title: "Environments, Benchmarks & Data Generation"
 description: "Building RL training environments, running evaluation benchmarks, and generating SFT data with the Hermes-Agent Atropos integration"
-weight: 5
 ---
+
 
 # Environments, Benchmarks & Data Generation
 
@@ -17,10 +18,12 @@ All three share the same core: an **environment** class that defines tasks, runs
 > **Info: Repo environments vs RL training tools**
 > The Python environment framework documented here lives under the repo's `environments/` directory and is the implementation-level API for Hermes/Atropos integration. This is separate from the user-facing `rl_*` tools, which operate as an orchestration surface for remote RL training workflows.
 
+
 > **Tip: Quick Links**
 > - **Want to run benchmarks?** Jump to [Available Benchmarks](#available-benchmarks)
-> - **Want to train with RL?** See [RL Training Tools](../../user-guide/features/rl-training) for the agent-driven interface, or [Running Environments](#running-environments) for manual execution
+> - **Want to train with RL?** See [RL Training Tools](../../user-guide/features/rl-training/) for the agent-driven interface, or [Running Environments](#running-environments) for manual execution
 > - **Want to create a new environment?** See [Creating Environments](#creating-environments)
+
 
 ## Architecture
 
@@ -489,7 +492,7 @@ python my_env.py evaluate \
 - `WANDB_API_KEY` — for Weights & Biases metrics tracking
 - The `tinker-atropos` submodule (at `tinker-atropos/` in the repo)
 
-See [RL Training](../../user-guide/features/rl-training) for the agent-driven RL workflow.
+See [RL Training](../../user-guide/features/rl-training/) for the agent-driven RL workflow.
 
 ## Directory Structure
 
