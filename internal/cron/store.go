@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 
 	"go.etcd.io/bbolt"
 )
@@ -136,6 +137,32 @@ func (s *Store) Update(j Job) error {
 		}
 		return b.Put([]byte(j.ID), blob)
 	})
+}
+
+func (s *Store) ApplyRunCompletion(job Job, run Run, now time.Time, next CronNextRunDecisionFunc) (CronRunCompletionState, error) {
+	var completion CronRunCompletionState
+	err := s.db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte(cronJobsBucket))
+		blob := b.Get([]byte(job.ID))
+		if blob == nil {
+			return ErrJobNotFound
+		}
+		current := job
+		if err := json.Unmarshal(blob, &current); err != nil {
+			return err
+		}
+		completion = cronRunCompletionForJob(current, run, now, next)
+		if current.LastRunUnix > run.StartedAt && !completion.Terminal {
+			completion.Job.LastRunUnix = current.LastRunUnix
+			completion.Job.LastStatus = current.LastStatus
+		}
+		nextBlob, err := json.Marshal(completion.Job)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(completion.Job.ID), nextBlob)
+	})
+	return completion, err
 }
 
 // Delete removes a job by ID. No-op on missing keys (bbolt convention).

@@ -30347,8 +30347,8 @@
             },
             {
               "name": "Cron env-ref expansion + parallel run state serialization",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes cron scheduler safety drift: cron job execution expands `${VAR}` references from loaded config/env snapshots before worker execution and serializes concurrent job state updates so parallel runs cannot lose status, attempt, or output transitions.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -30361,10 +30361,10 @@
               "degraded_mode": "Missing env refs resolve to cron_env_ref_unresolved evidence and concurrent state-write conflicts retry or report cron_state_write_conflict without corrupting the job/run store.",
               "fixture": "internal/cron/scheduler_env_test.go; internal/cron/run_state_concurrency_test.go",
               "source_refs": [
-                "../hermes-agent/cron/scheduler.py@75bce317a",
-                "../hermes-agent/tests/cron/test_scheduler.py@75bce317a",
-                "../hermes-agent/cron/jobs.py@1c7f47a58",
-                "../hermes-agent/tests/cron/test_jobs.py@1c7f47a58",
+                "./hermes-agent/cron/scheduler.py@b816fd4e2:_expand_env_vars",
+                "./hermes-agent/tests/cron/test_scheduler.py@b816fd4e2:TestRunJobConfigEnvVarExpansion",
+                "./hermes-agent/cron/jobs.py@b816fd4e2:_jobs_file_lock",
+                "./hermes-agent/tests/cron/test_jobs.py@b816fd4e2:TestMarkJobRunConcurrency",
                 "internal/cron/scheduler.go",
                 "internal/cron/store.go",
                 "internal/cron/run_store.go",
@@ -30390,7 +30390,7 @@
                 "internal/cron/run_store.go",
                 "internal/cron/run_state_concurrency_test.go",
                 "internal/cron/executor.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1",
@@ -30404,10 +30404,16 @@
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
-                  "hermes:75bce317a cron/scheduler.py",
-                  "hermes:1c7f47a58 cron/jobs.py"
+                  "hermes:b816fd4e2 cron/scheduler.py",
+                  "hermes:b816fd4e2 cron/jobs.py"
                 ],
-                "note": "Direct nested Hermes cron drift captured as a small Go cron store/executor slice."
+                "note": "Direct nested Hermes cron drift captured as a small Go cron store/executor slice against active Hermes b816fd4e2."
+              },
+              "note": "Complete 2026-05-06: the bounded all-topic Hermes parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 76, so adding one row was allowed, but existing source-backed cron/operator work was already builder-ready. The sweep classified this row as stale-upstream/refinement-needed, refreshed source refs from older cron drift commits to active nested Hermes b816fd4e2, fixed the canonical progress write scope, and promoted it to P1 before implementation. TDD added a cron env-ref runtime boundary that expands `${VAR}` refs in model/provider/delivery/workdir/script/origin fields only for the active run, leaves unresolved refs literal, emits redacted cron_env_ref_unresolved evidence, and passes the expanded model to the kernel without persisting resolved values back into the job store. TDD also moved post-run job completion through a serialized bbolt transaction that reloads current job state, increments every parallel completion, records every run, and keeps final job status deterministic by latest started_at.",
+              "evidence": {
+                "implementation": "internal/cron/executor.go, internal/cron/store.go, internal/cron/scheduler_env_test.go, internal/cron/run_state_concurrency_test.go",
+                "tests": "go test ./internal/cron -run 'TestCronSchedulerExpandsConfigEnvRefs|TestCronRunStateParallelWritesSerialize' -count=1; go test ./internal/cron -count=1",
+                "note": "Cron fixtures prove env-ref expansion, unresolved redacted evidence, runtime-only expansion without persisted secret leakage, and serialized parallel run-state writes with deterministic latest-run status."
               }
             },
             {

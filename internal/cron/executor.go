@@ -158,12 +158,16 @@ func (e *Executor) RunWithRelease(ctx context.Context, job Job) (evidence []Rele
 // timeout, or ctx-cancel) so RunWithRelease can surface it to callers
 // alongside the release evidence; success paths return nil.
 func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
+	runtimeJob, envEvidence := ExpandCronJobEnvRefs(job, e.cfg.LookupEnv)
+	if len(envEvidence) > 0 {
+		e.log.Warn("cron: unresolved env refs", "job_id", job.ID, "evidence", envEvidence)
+	}
 	startedAt := time.Now().Unix()
 	sessionID := fmt.Sprintf("cron:%s:%d", job.ID, startedAt)
 	promptHash := shortHash(job.Prompt)
 	const durableWorker = "cron-executor"
 	durableActive := e.startDurableCronRun(ctx, sessionID, job, promptHash, durableWorker)
-	restoreCWD := e.applyWorkdir(job)
+	restoreCWD := e.applyWorkdir(runtimeJob)
 	defer restoreCWD()
 
 	// Subscribe BEFORE Submit so we don't miss the final frame.
@@ -205,11 +209,12 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 	// Submit.
 	event := kernel.PlatformEvent{
 		Kind:      kernel.PlatformEventSubmit,
-		Text:      e.buildPromptForJob(ctx, job),
+		Text:      e.buildPromptForJob(ctx, runtimeJob),
 		SessionID: sessionID,
+		Model:     runtimeJob.Model,
 		CronJobID: job.ID,
 	}
-	submitErr := e.submitCronEvent(callCtx, job, event)
+	submitErr := e.submitCronEvent(callCtx, runtimeJob, event)
 	if submitErr != nil {
 		run := Run{
 			JobID:      job.ID,
@@ -326,7 +331,7 @@ completed:
 	content := PrepareCronDeliveryContent(finalText)
 	outcome := DeliverCronDeliveryPlan(
 		context.Background(),
-		PlanCronDeliveryForJob(job, e.cfg.Directory),
+		PlanCronDeliveryForJob(runtimeJob, e.cfg.Directory),
 		content,
 		e.cfg.LiveDelivery,
 		e.cfg.Sink,
@@ -343,6 +348,64 @@ completed:
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 	e.recordAndUpdateJob(ctx, job, run)
 	return nil
+}
+
+const CronEnvRefUnresolved = "cron_env_ref_unresolved"
+
+type CronEnvRefEvidence struct {
+	Code     string `json:"code"`
+	Field    string `json:"field"`
+	Variable string `json:"variable"`
+}
+
+func (e CronEnvRefEvidence) String() string {
+	return e.Code + " field=" + e.Field + " variable=" + e.Variable
+}
+
+var cronEnvRefPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+
+func ExpandCronJobEnvRefs(job Job, lookup func(string) string) (Job, []CronEnvRefEvidence) {
+	if lookup == nil {
+		lookup = os.Getenv
+	}
+	out := job
+	var evidence []CronEnvRefEvidence
+	out.Model = expandCronEnvRefString("model", out.Model, lookup, &evidence)
+	out.Provider = expandCronEnvRefString("provider", out.Provider, lookup, &evidence)
+	out.Deliver = expandCronEnvRefString("deliver", out.Deliver, lookup, &evidence)
+	out.Workdir = expandCronEnvRefString("workdir", out.Workdir, lookup, &evidence)
+	out.Script = expandCronEnvRefString("script", out.Script, lookup, &evidence)
+	if out.Origin != nil {
+		origin := *out.Origin
+		origin.Platform = expandCronEnvRefString("origin.platform", origin.Platform, lookup, &evidence)
+		origin.ChatID = expandCronEnvRefString("origin.chat_id", origin.ChatID, lookup, &evidence)
+		origin.ThreadID = expandCronEnvRefString("origin.thread_id", origin.ThreadID, lookup, &evidence)
+		out.Origin = &origin
+	}
+	return out, evidence
+}
+
+func expandCronEnvRefString(field, value string, lookup func(string) string, evidence *[]CronEnvRefEvidence) string {
+	if value == "" || !strings.Contains(value, "${") {
+		return value
+	}
+	return cronEnvRefPattern.ReplaceAllStringFunc(value, func(token string) string {
+		match := cronEnvRefPattern.FindStringSubmatch(token)
+		if len(match) != 2 {
+			return token
+		}
+		name := match[1]
+		resolved := lookup(name)
+		if resolved == "" {
+			*evidence = append(*evidence, CronEnvRefEvidence{
+				Code:     CronEnvRefUnresolved,
+				Field:    field,
+				Variable: name,
+			})
+			return token
+		}
+		return resolved
+	})
 }
 
 func (e *Executor) buildPromptForJob(ctx context.Context, job Job) string {
@@ -681,12 +744,13 @@ func durableCronProgress(job Job, promptHash, phase string) (json.RawMessage, er
 }
 
 func (e *Executor) recordAndUpdateJob(ctx context.Context, job Job, run Run) {
-	completion := cronRunCompletionForJob(job, run, runCompletionNow(run), CronNextRunDecision)
+	completion, err := e.cfg.JobStore.ApplyRunCompletion(job, run, runCompletionNow(run), CronNextRunDecision)
+	if err != nil {
+		e.log.Warn("cron: failed to update job after run", "job_id", job.ID, "err", err)
+		completion = cronRunCompletionForJob(job, run, runCompletionNow(run), CronNextRunDecision)
+	}
 	if err := e.cfg.RunStore.RecordRun(ctx, completion.Run); err != nil {
 		e.log.Warn("cron: failed to record run", "job_id", job.ID, "err", err)
-	}
-	if err := e.cfg.JobStore.Update(completion.Job); err != nil {
-		e.log.Warn("cron: failed to update job after run", "job_id", job.ID, "err", err)
 	}
 }
 

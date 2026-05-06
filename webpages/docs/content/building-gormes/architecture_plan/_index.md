@@ -862,7 +862,7 @@ classification and row-backed implementation queue.
 - [ ] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
-- [ ] Cron env-ref expansion + parallel run state serialization
+- [x] Cron env-ref expansion + parallel run state serialization
 - [x] Cron script/workdir/inactivity execution binding
 - [ ] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
