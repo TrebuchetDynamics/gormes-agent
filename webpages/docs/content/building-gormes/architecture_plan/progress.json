@@ -36896,8 +36896,8 @@
             },
             {
               "name": "TUI gateway config health null-section probe",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes ports Hermes' TUI gateway config-health probe as a pure Go helper over decoded config maps: bare YAML/null top-level sections are reported with actionable empty-section guidance, display.personality with null or empty agent.personalities reports that the personality overlay will be skipped, and agent/session construction paths tolerate nil agent/display/personality maps without panics or unintended overlay activation.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -36957,10 +36957,27 @@
               "done_signal": [
                 "TUI config-health fixtures prove null-section warnings, null-personality skipped-overlay evidence, nil-tolerant session options, and no config/provider/TUI transport side effects."
               ],
+              "note": "Complete after the 2026-05-06 cron all-topic weakness sweep promoted this row to P0. TDD added pure internal/tuigateway config-health and session-option helpers that mirror active Hermes TUI gateway startup safety: bare YAML/null sections produce actionable warnings, active display.personality with empty/null agent.personalities reports skipped-overlay evidence, default personality aliases stay quiet, and nil agent/display sections build safe session options without starting the TUI gateway, reading config files, calling providers, or mutating session history.",
+              "completed_at": "2026-05-06T10:47:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/tuigateway/config_health.go adds ProbeConfigHealth and ResolveSessionOptions over decoded map[string]any fixtures only.",
+                  "internal/tuigateway/config_health_test.go covers null-section warnings, null-personality skipped-overlay evidence, default/none/neutral aliases, nil-tolerant session options, and display.personality not activating without agent.system_prompt."
+                ],
+                "tests": [
+                  "go test ./internal/tuigateway -run 'TestTUIConfigHealth|TestTUISessionOptions' -count=1",
+                  "go test ./internal/tuigateway -run 'TestValidatePersonality|TestRenderPersonalityPrompt' -count=1",
+                  "go test ./internal/tuigateway -count=1"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tuigateway -run 'TestTUIConfigHealth|TestTUISessionOptions' -count=1 failed on undefined ProbeConfigHealth and ResolveSessionOptions.",
+                  "GREEN: row-local TUI gateway helper tests passed after adding pure helpers."
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tui_gateway/server.py",
-                "note": "2026-05-06 all-topic parity sweep confirmed this CLI/TUI row remains a small source-backed follow-up after the preview formatter and corrected the canonical progress write_scope path. Hermes protects TUI startup from bare YAML sections and null personality maps; Gormes has personality helpers but not the config-health probe or nil-tolerant session-option contract."
+                "note": "2026-05-06 all-topic parity sweep confirmed this CLI/TUI row remains a small source-backed follow-up after the preview formatter and corrected the canonical progress write_scope path. Hermes protects TUI startup from bare YAML sections and null personality maps; Gormes has personality helpers but not the config-health probe or nil-tolerant session-option contract. 2026-05-06 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. No planned P0 row remained; P1 candidates were broad, blocked, or less bounded for one cron slice, so this validated unblocked row was promoted to P0 as the highest-priority builder-ready source-backed startup-safety slice."
               }
             },
             {

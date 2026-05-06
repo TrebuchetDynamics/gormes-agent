@@ -973,7 +973,7 @@ classification and row-backed implementation queue.
 - [x] TUI gateway completion path normalizer
 - [x] TUI gateway tool summary formatter
 - [x] TUI gateway image/personality/platform-event helpers
-- [ ] TUI gateway config health null-section probe
+- [x] TUI gateway config health null-section probe
 - [x] TUI mouse tracking config + slash toggle
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
