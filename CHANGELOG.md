@@ -8,6 +8,29 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.1.03] - 2026-05-06
+
+### Added
+- Home Assistant tool handlers and progress evidence for the completed parity
+  row.
+- Discord interaction authorization helpers for user, role, channel, ignored
+  channel, thread-parent, wildcard, and autocomplete visibility policies.
+- Execute-code mode resolution, trajectory writer redaction boundaries,
+  Telegram text batching, and gateway media-provider goal loop support.
+
+### Changed
+- Discord outbound sends now use safe `allowed_mentions` defaults, with
+  operator opt-in environment knobs for everyone, role, user, and replied-user
+  mention behavior.
+- Public docs, landing progress mirrors, benchmarks, and parity roadmap slices
+  were refreshed from current source evidence.
+
+### Fixed
+- Suppressed duplicate final TUI transcript output.
+- Stabilized cron validation gates, setup entry-mode behavior, Slack mention
+  gating, Telegram startup lifecycle, docs Astro builds, and non-ASCII
+  credential sanitization.
+
 ## [0.1.02] - 2026-05-05
 
 ### Added
@@ -101,7 +124,8 @@ inside the 0.x compatibility window.
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.02...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.03...HEAD
+[0.1.03]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.02...v0.1.03
 [0.1.02]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.01...v0.1.02
 [0.1.01]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0...v0.1.01
 [0.1.0]: https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.0

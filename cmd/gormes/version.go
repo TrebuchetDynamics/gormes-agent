@@ -7,7 +7,7 @@ import (
 )
 
 // Version marks the current operator-facing release line.
-var Version = "0.1.02"
+var Version = "0.1.03"
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
