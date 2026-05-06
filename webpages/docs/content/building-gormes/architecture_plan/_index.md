@@ -237,7 +237,7 @@ classification and row-backed implementation queue.
 - [ ] Slack mention/free-response gating + strict thread-memory guard
 - [ ] Discord interaction authorization + mention safety guards
 - [ ] Gateway processing lifecycle reactions for Telegram and Discord
-- [ ] Telegram text batching + caption merge parity
+- [x] Telegram text batching + caption merge parity
 - [ ] Cross-platform multi-image native batching
 - [ ] Discord message admission + reply-mode policy
 - [ ] Webhook dynamic route reload + signed rate-limit order

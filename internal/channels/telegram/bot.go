@@ -28,6 +28,9 @@ type Config struct {
 	// MediaBatchDelay is the debounce window for Telegram photo bursts and
 	// media_group albums. Empty uses the Hermes-compatible default.
 	MediaBatchDelay time.Duration
+	// TextBatchDelay is the quiet period before plain text updates are
+	// dispatched. Empty preserves the existing immediate-dispatch path.
+	TextBatchDelay time.Duration
 	// AudioTranscriber optionally turns Telegram voice/audio attachments into
 	// text before they reach the gateway. When nil or degraded, the adapter
 	// still emits deterministic attachment markers instead of blank turns.
@@ -61,6 +64,10 @@ type Bot struct {
 	photoSeq     uint64
 	photoBatches map[string]*telegramPhotoBatchEntry
 
+	textMu      sync.Mutex
+	textSeq     uint64
+	textBatches map[string]*telegramTextBatchEntry
+
 	approvalMu     sync.Mutex
 	approvalNextID uint64
 	approvalState  map[uint64]telegramApprovalState
@@ -90,6 +97,7 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 		client:        client,
 		log:           log,
 		photoBatches:  map[string]*telegramPhotoBatchEntry{},
+		textBatches:   map[string]*telegramTextBatchEntry{},
 		approvalState: map[uint64]telegramApprovalState{},
 	}
 }
@@ -129,6 +137,7 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 		b.log.Warn("telegram setMyCommands failed", "err", err)
 	}
 	defer b.cancelPhotoBatches()
+	defer b.cancelTextBatches(ctx)
 
 	ucfg := tgbotapi.NewUpdate(0)
 	ucfg.Timeout = 30
@@ -175,6 +184,9 @@ func (b *Bot) handleUpdate(ctx context.Context, inbox chan<- gateway.InboundEven
 	}
 	if ev, ok := b.toInboundEvent(ctx, u); ok {
 		if b.enqueuePhotoBatch(ctx, inbox, ev, u.Message) {
+			return nil
+		}
+		if b.enqueueTextBatch(ctx, inbox, ev) {
 			return nil
 		}
 		select {

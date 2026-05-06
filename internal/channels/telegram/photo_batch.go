@@ -79,8 +79,9 @@ func (b *Bot) pendingPhotoBatchCount() int {
 	return len(b.photoBatches)
 }
 
-func (b *Bot) Disconnect(_ context.Context) error {
+func (b *Bot) Disconnect(ctx context.Context) error {
 	b.cancelPhotoBatches()
+	b.cancelTextBatches(ctx)
 	if b.client != nil {
 		b.client.StopReceivingUpdates()
 	}
@@ -119,9 +120,7 @@ func telegramPhotoBatchKey(ev gateway.InboundEvent, mediaGroupID string) string 
 }
 
 func telegramMergePhotoBatch(first, next gateway.InboundEvent) gateway.InboundEvent {
-	if strings.TrimSpace(first.Text) == "" && strings.TrimSpace(next.Text) != "" {
-		first.Text = next.Text
-	}
+	first.Text = telegramMergeCaption(first.Text, next.Text)
 	first.Attachments = append(first.Attachments, next.Attachments...)
 	return first
 }

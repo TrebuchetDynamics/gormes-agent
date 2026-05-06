@@ -5484,7 +5484,8 @@
             },
             {
               "name": "Telegram text batching + caption merge parity",
-              "status": "planned",
+              "status": "complete",
+              "completed_at": "2026-05-06T06:37:45Z",
               "priority": "P1",
               "contract": "Telegram ingress matches Hermes' delayed text batching and caption merge behavior: rapid text updates from the same session are coalesced before gateway dispatch, different chats stay isolated, pending batch state is cleaned after flush/disconnect, and media captions merge by exact duplicate only without substring loss.",
               "contract_status": "validated",
@@ -5503,7 +5504,8 @@
                 "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_merge_caption",
                 "../hermes-agent/tests/gateway/test_telegram_text_batching.py@b816fd4e2",
                 "../hermes-agent/tests/gateway/test_telegram_caption_merge.py@b816fd4e2",
-                "internal/channels/telegram/bot.go"
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/photo_batch.go"
               ],
               "ready_when": [
                 "Telegram long-poll ingress, group mention gating, voice/audio markers, and photo album batching already have local test seams.",
@@ -5522,6 +5524,7 @@
               ],
               "write_scope": [
                 "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/photo_batch.go",
                 "internal/channels/telegram/text_batch.go",
                 "internal/channels/telegram/text_batch_test.go",
                 "internal/channels/telegram/caption_merge.go",
@@ -5537,6 +5540,21 @@
               "done_signal": [
                 "Telegram fake-update fixtures prove delayed same-chat text batching, chat/thread isolation, cleanup/drain behavior, exact caption deduplication, and unchanged group mention gating."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/channels/telegram/text_batch.go adds a timer-backed plain-text batching helper keyed by platform/chat/type/thread/user, with cleanup after flush and pending-drain behavior on disconnect.",
+                  "internal/channels/telegram/bot.go wires text batching after Telegram group mention gating and photo batching, so unauthorized group messages are never buffered and media/commands keep their existing paths.",
+                  "internal/channels/telegram/caption_merge.go adds Hermes-compatible exact-only caption deduplication, and internal/channels/telegram/photo_batch.go uses it for existing media_group/photo-burst coalescing."
+                ],
+                "tests": [
+                  "internal/channels/telegram/text_batch_test.go covers delayed single-message dispatch, rapid same-chat newline merge, different-chat isolation, disconnect drain cleanup, and mention-gate-before-buffering.",
+                  "internal/channels/telegram/caption_merge_test.go covers exact duplicate drops, substring preservation, longer-caption preservation, and multi-caption ordering."
+                ],
+                "verification": [
+                  "go test ./internal/channels/telegram -run 'TestTelegramTextBatch|TestTelegramCaptionMerge' -count=1 -> failed before implementation with missing text batch and caption merge symbols.",
+                  "go test ./internal/channels/telegram -run 'TestTelegramTextBatch|TestTelegramCaptionMerge' -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
