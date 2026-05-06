@@ -13,7 +13,6 @@ STATE_DIR="${GORMES_CODEXU_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/gorm
 LOG_DIR="${GORMES_CODEXU_LOG_DIR:-$STATE_DIR/logs}"
 LOCK_FILE="${GORMES_CODEXU_LOCK_FILE:-$STATE_DIR/run.lock}"
 CODEXU_BIN="${CODEXU_BIN:-codexu}"
-ALLOW_DIRTY="${GORMES_CODEXU_ALLOW_DIRTY:-0}"
 SKIP_REMOTE_SYNC="${GORMES_CODEXU_SKIP_REMOTE_SYNC:-0}"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR"
@@ -92,16 +91,19 @@ Use repo-local skills before substantive work:
 - gormes-skill-manager to route the task.
 - gormes-builder to select and implement one row.
 - gormes-tdd-slice for red-green-refactor when tests are required.
-- gormes-git after implementation is complete, so the dirty development branch is committed, made green, and pushed.
+- gormes-git first, before row selection, and again after implementation is complete.
 
 Task:
-Implement the highest-priority builder-ready new/planned progress.json row. If the top candidate is not actually ready, pick the next highest-priority builder-ready row or fix the highest-priority failing row that is already in scope. Do exactly one bounded row.
+First invoke gormes-git. If the worktree is dirty, commit every current safe change, make development green, and push origin development before selecting a new row. If the worktree is already clean, record that and continue.
+
+Then implement the highest-priority builder-ready new/planned progress.json row. If the top candidate is not actually ready, pick the next highest-priority builder-ready row or fix the highest-priority failing row that is already in scope. Do exactly one bounded row.
 
 Hard constraints:
 - Read AGENTS.md and the selected skill files before editing.
 - Stay on the existing development branch only. Do not create branches or worktrees.
 - Do not recreate cmd/planner-loop, cmd/builder-loop, or any autonomous loop binary.
 - Do not create a backlog outside docs/content/building-gormes/architecture_plan/progress.json.
+- Do not skip because the worktree is dirty. Dirty state means gormes-git is the first task.
 - Preserve any user or parallel-agent changes if they appear while working.
 - Use the row write_scope. If the row is wrong or vague, refine the row through the planner workflow and stop after validation.
 - Use TDD when the row has tests or observable behavior.
@@ -122,12 +124,10 @@ main() {
   log "starting codexu builder cron in $REPO_ROOT"
 
   ensure_development_branch
-  if [[ "$ALLOW_DIRTY" != "1" ]] && worktree_dirty; then
-    die "worktree is dirty; skipping automated builder run"
-  fi
-  sync_development_branch
-  if [[ "$ALLOW_DIRTY" != "1" ]] && worktree_dirty; then
-    die "worktree became dirty after sync; skipping automated builder run"
+  if worktree_dirty; then
+    log "worktree is dirty; codexu will run gormes-git first"
+  else
+    sync_development_branch
   fi
 
   local resolved_codexu
