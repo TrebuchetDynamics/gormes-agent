@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 58/92 subphases shipped · 29 in progress · 5 planned
+**Overall:** 57/92 subphases shipped · 30 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 8/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 7/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -180,6 +180,7 @@ classification and row-backed implementation queue.
 ### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
+- [ ] Gateway manual reset session-boundary hooks
 - [x] SessionContext prompt injection
 - [x] Hermes live-turn prompt assembly parity (channel-neutral)
 - [x] Live-turn SOUL.md and project context wiring (channel-neutral)
@@ -528,7 +529,7 @@ classification and row-backed implementation queue.
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
 
-### 4.B — Context Engine + Compression ✅
+### 4.B — Context Engine + Compression 🔨
 
 - [x] Long session management
 - [x] Context compression
@@ -542,13 +543,15 @@ classification and row-backed implementation queue.
 - [x] Context compressor image-token budget charge
 - [x] Context references stable-handle store
 - [x] Manual compression feedback + context references
+- [ ] Manual compression feedback renderer + focus parser
 - [x] ContextEngine compression-boundary callback vocabulary
 - [x] Kernel compression-boundary callback binding
 
-### 4.C — Native Prompt Builder ✅
+### 4.C — Native Prompt Builder 🔨
 
 - [x] Default agent identity / SOUL.md loader
 - [x] Context-file discovery + injection scan
+- [ ] Progressive subdirectory hint tracker
 - [x] Model-specific role and tool-use guidance
 - [x] Toolset-aware skills prompt snapshot
 - [x] Memory guidance constant + injection
@@ -569,9 +572,9 @@ classification and row-backed implementation queue.
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
 
-### 4.E — Trajectory + Insights 🔨
+### 4.E — Trajectory + Insights ✅
 
-- [ ] Trajectory writer + redaction gates
+- [x] Trajectory writer + redaction gates
 - [x] Trajectory compressor + compressed-evidence lineage
 - [x] Self-monitoring telemetry
 

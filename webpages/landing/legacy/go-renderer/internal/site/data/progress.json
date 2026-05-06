@@ -1519,6 +1519,77 @@
               "note": "TDD landed: gateway session-ID resolution now prefers stored handles, falls back deterministically to the chat-scoped key on empty/error paths, and freezes SessionSource/session-context prompt contracts in gateway tests."
             },
             {
+              "name": "Gateway manual reset session-boundary hooks",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' explicit session-boundary hook behavior for channel reset commands: `/new` and `/reset` fire an old-session finalize hook before resetting, then fire a new-session reset hook after the replacement session is established, preserve hook ordering evidence, continue reset success when a hook fails, and keep expiry-finalization hooks separate from manual reset hooks.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "Hook failures emit redacted session_boundary_hook_failed evidence and never block the operator-visible reset acknowledgement; missing hooks degrade to no-op without changing session map clearing or active-turn refusal behavior.",
+              "fixture": "internal/gateway/session_boundary_hooks_test.go",
+              "source_refs": [
+                "./hermes-agent/tests/gateway/test_session_boundary_hooks.py@b816fd4e2",
+                "./hermes-agent/tests/cli/test_session_boundary_hooks.py@b816fd4e2",
+                "./hermes-agent/tests/gateway/test_session_model_reset.py@b816fd4e2",
+                "internal/gateway/hooks.go",
+                "internal/gateway/manager.go:EventReset",
+                "internal/gateway/session_expiry_hooks_test.go"
+              ],
+              "ready_when": [
+                "Gateway hook registry and session expiry hook cleanup retry evidence are complete, so manual reset can reuse the existing in-process hook seam without inventing a second hook engine.",
+                "The worker can test with fake channels, fake kernels, fake session maps, and hook recorders only; no Telegram, Slack, Discord, SQLite session database, provider, or Hermes Python runtime is required.",
+                "This slice only adds manual reset boundary hook events and evidence; it does not change expiry scanning, cached-agent cleanup, or session key generation."
+              ],
+              "not_ready_when": [
+                "The slice changes reset command authorization, active-turn reset refusal, pairing/session key derivation, session expiry retry policy, or kernel ResetSession semantics.",
+                "A hook error prevents a successful reset from reaching the operator or leaks full prompt text, channel message text, provider credentials, local paths, or raw hook stdout/stderr.",
+                "The implementation merges manual `/new` reset hooks with expiry-finalization hooks so one path can double-fire the other."
+              ],
+              "blocked_by": [
+                "Gateway per-event hook registry",
+                "Session expiry hook cleanup retry evidence"
+              ],
+              "unblocks": [
+                "Plugin lifecycle reset/finalize parity",
+                "Gateway session reset notification parity"
+              ],
+              "acceptance": [
+                "TestGatewayManualResetFiresFinalizeBeforeResetHook proves an EventReset with an existing mapped session fires on_session_finalize for the old session, clears the mapping, then fires on_session_reset for the new session.",
+                "TestGatewayManualResetHookErrorDoesNotBlockReset proves a failing finalize or reset hook records redacted evidence and still sends `Session reset. Next message starts fresh.`.",
+                "TestGatewayManualResetDuringActiveTurnDoesNotFireHooks proves ErrResetDuringTurn preserves the existing refusal text and fires no boundary hooks.",
+                "TestGatewayManualResetHooksStaySeparateFromExpiryHooks proves FinalizeExpiredSessions still uses expiry_finalize evidence only and manual reset does not mark expiry_finalized metadata.",
+                "Existing TestManagerHooksReceiveLifecycle and TestManagerHooksSendLifecycle remain green, proving before/after receive/send hook behavior is unchanged."
+              ],
+              "write_scope": [
+                "internal/gateway/hooks.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/session_boundary_hooks_test.go",
+                "internal/gateway/hooks_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestGatewayManualReset|TestManagerHooks' -count=1",
+                "go test ./internal/gateway -run 'TestSessionExpiryHooks' -count=1",
+                "go test ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway reset-hook fixtures prove finalize-before-reset ordering, hook-error tolerance, active-turn no-fire behavior, expiry separation, and unchanged receive/send hook lifecycle."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 gateway/run.py + tests/gateway/test_session_boundary_hooks.py",
+                "note": "Hermes fires plugin lifecycle hooks around explicit `/new` and `/reset` session boundaries. Gormes already has generic gateway hooks and expiry finalization, but no row covering manual reset finalize/reset hook ordering."
+              }
+            },
+            {
               "name": "SessionContext prompt injection",
               "status": "complete",
               "note": "TDD landed: each inbound submit now injects a stable Current Session Context system block ahead of recall/user messages, covering source metadata plus deterministic delivery-target exposure."
@@ -14627,6 +14698,77 @@
               ]
             },
             {
+              "name": "Manual compression feedback renderer + focus parser",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes splits the stale manual-compression placeholder into a pure helper row: parse `/compress` commands into an optional focus topic, render Hermes-compatible manual-compression feedback from before/after message counts and token estimates, report no-op compression without a success banner, explain when fewer messages estimate as more tokens, and surface session-split evidence without mutating live history.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Manual compression unavailable, no-op compression, token-estimate increase, and session-split sync cases return manual_compression_* evidence with counts and approximate token totals only; raw prompt text, summaries, tool results, and provider payloads are never logged by the renderer.",
+              "fixture": "internal/hermes/manual_compression_feedback_test.go",
+              "source_refs": [
+                "./hermes-agent/agent/manual_compression_feedback.py@b816fd4e2:summarize_manual_compression",
+                "./hermes-agent/cli.py@b816fd4e2:_manual_compress",
+                "./hermes-agent/tests/cli/test_manual_compress.py@b816fd4e2",
+                "./hermes-agent/tests/cli/test_compress_focus.py@b816fd4e2",
+                "internal/hermes/context_engine.go:CompressionRequest",
+                "internal/hermes/context_engine.go:CompressionReport"
+              ],
+              "ready_when": [
+                "ContextEngine interface, compression token-budget rows, and context references stable-handle store are complete, so this helper can remain a pure renderer/parser without running summarization.",
+                "The worker can test with synthetic message-count/token-count structs and command strings only; no provider, kernel turn, summarizer, transcript store, TUI, channel, or context-reference expansion is required.",
+                "This slice replaces the manual-feedback portion of the stale `Manual compression feedback + context references` placeholder and leaves live context-reference expansion to a separate future row."
+              ],
+              "not_ready_when": [
+                "The slice invokes the ContextEngine Compress method, rewrites kernel message history, syncs live session ids, expands @ context references, or binds CLI/TUI slash dispatch.",
+                "The renderer prints raw message content, generated summaries, tool output, file paths, provider credentials, or full provider payloads.",
+                "The implementation reopens the completed context-reference parser/handle-store scope instead of adding manual compression feedback helpers."
+              ],
+              "blocked_by": [
+                "ContextEngine interface + status tool contract",
+                "Compression token-budget trigger + summary sizing",
+                "Context references stable-handle store"
+              ],
+              "unblocks": [
+                "CLI /compress runtime binding",
+                "Native TUI /compress command binding",
+                "Manual context-reference live expansion row"
+              ],
+              "acceptance": [
+                "TestManualCompressionFeedbackNoop proves equal before/after messages render `No changes from compression` and unchanged approximate token text without a compressed-success marker.",
+                "TestManualCompressionFeedbackCompressedTokenDelta proves changed message counts render `Compressed: before -> after messages` plus approximate before/after token totals.",
+                "TestManualCompressionFeedbackTokenEstimateRises proves after_count < before_count and after_tokens > before_tokens includes the denser-summary explanation.",
+                "TestParseManualCompressionFocus proves `/compress database schema` yields focus `database schema`, while `/compress` and `/compress   ` yield no focus.",
+                "TestManualCompressionSessionSplitEvidence proves old/new session ids and pending-title reset intent can be represented as redacted evidence without mutating a live CLI shell."
+              ],
+              "write_scope": [
+                "internal/hermes/manual_compression_feedback.go",
+                "internal/hermes/manual_compression_feedback_test.go",
+                "internal/hermes/context_engine.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run '^TestManualCompression' -count=1",
+                "go test ./internal/hermes -run '^TestContextEngine|^TestContextCompressor' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Manual compression fixtures prove focus parsing, no-op feedback, compressed feedback, rising-token explanation, redacted session-split evidence, and no summarizer/kernel/CLI side effects."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 agent/manual_compression_feedback.py + cli.py",
+                "note": "The existing `Manual compression feedback + context references` row is an inventory placeholder. This child row makes the manual-feedback behavior builder-ready while keeping live context-reference expansion separate."
+              }
+            },
+            {
               "name": "ContextEngine compression-boundary callback vocabulary",
               "priority": "P2",
               "status": "complete",
@@ -14931,6 +15073,74 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:agent/prompt_builder.py context-file discovery helpers",
                 "note": "Hermes prompt_builder.py defines the discovery precedence, injection scan, frontmatter stripping, and truncation behavior; Gormes should reimplement the behavior in Go as a pure helper before full prompt assembly."
+              }
+            },
+            {
+              "name": "Progressive subdirectory hint tracker",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' progressive subdirectory hint discovery as a pure prompt-context helper: after tool calls that mention paths or terminal workdirs, discover AGENTS.md/agents.md, CLAUDE.md/claude.md, or .cursorrules from newly visited directories and bounded ancestors, scan/truncate the hint content with the same safety policy as startup context files, format it as appendable tool-result context, and never mutate the system prompt or prompt-cache key.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "Unreadable directories, permission errors, malformed shell command strings, URLs, git remotes, already-loaded directories, empty hint files, and over-budget hint files return subdirectory_hint_* evidence or no-op results without blocking the tool result or widening filesystem access.",
+              "fixture": "internal/hermes/subdirectory_hints_test.go",
+              "source_refs": [
+                "./hermes-agent/agent/subdirectory_hints.py@b816fd4e2:SubdirectoryHintTracker",
+                "./hermes-agent/tests/agent/test_subdirectory_hints.py@b816fd4e2",
+                "./hermes-agent/agent/prompt_builder.py@b816fd4e2:_scan_context_content",
+                "internal/hermes/context_files.go:BuildContextFilesPrompt",
+                "internal/hermes/context_files_test.go"
+              ],
+              "ready_when": [
+                "Context-file discovery + injection scan is complete, so the implementation can reuse the existing scan/truncation behavior instead of duplicating prompt-injection policy.",
+                "The worker can test with t.TempDir project trees and synthetic tool call descriptors; no real tool execution, provider call, model call, channel, TUI, or live repository scan is required.",
+                "This row adds the pure tracker only; appending hints to actual tool results after tool execution remains a separate binding row."
+              ],
+              "not_ready_when": [
+                "The slice changes startup context-file precedence, injects hints into the system prompt, mutates prompt-cache identity, runs terminal commands, opens arbitrary live home directories, or binds the helper into tool execution.",
+                "The tracker loads more than one hint file per directory, walks unbounded ancestors, follows URLs/git remotes as paths, or logs full hint content when a scan blocks it.",
+                "Tests depend on current repository AGENTS.md, live ~/.gormes, live ~/.hermes, provider credentials, or platform-specific permission behavior."
+              ],
+              "blocked_by": [
+                "Context-file discovery + injection scan"
+              ],
+              "unblocks": [
+                "Tool-result subdirectory hint injection binding",
+                "Subagent tool-result context hint parity",
+                "Cron workdir project-context parity"
+              ],
+              "acceptance": [
+                "TestSubdirectoryHintsWorkingDirPreloaded proves the working directory is pre-marked as handled so startup context is not reloaded as a tool-result hint.",
+                "TestSubdirectoryHintsAncestorDiscovery proves reading backend/src/main.py discovers backend/AGENTS.md through a bounded ancestor walk and does not duplicate on a second read.",
+                "TestSubdirectoryHintsPathSources proves path, file_path, workdir, and terminal command tokens can discover hints, while URLs, git remotes, flags, and empty args are ignored.",
+                "TestSubdirectoryHintsPriorityAndFormatting proves AGENTS.md wins over CLAUDE.md/.cursorrules within one directory and renders `[Subdirectory context discovered: <relative path>]`.",
+                "TestSubdirectoryHintsScanTruncateAndPermissionErrors proves prompt-injection markers are blocked, large hints are truncated at the configured budget, and permission/read errors return no-op evidence without panic."
+              ],
+              "write_scope": [
+                "internal/hermes/subdirectory_hints.go",
+                "internal/hermes/subdirectory_hints_test.go",
+                "internal/hermes/context_files.go",
+                "internal/hermes/context_files_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run '^TestSubdirectoryHints|^TestContextFiles' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Subdirectory hint fixtures prove loaded-dir tracking, bounded ancestor discovery, path/workdir/terminal extraction, URL/git skip behavior, first-file priority, formatting, scan/truncation, and permission-error no-op behavior with no tool execution binding."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 agent/subdirectory_hints.py",
+                "note": "Hermes lazily appends subdirectory context after tool navigation so prompt caching is preserved. Gormes has startup context-file loading but no source-backed row for progressive tool-result hint discovery."
               }
             },
             {
@@ -15953,7 +16163,8 @@
             {
               "name": "Trajectory writer + redaction gates",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
+              "completed_at": "2026-05-06T07:09:30Z",
               "contract": "Gormes ports Hermes' opt-in trajectory writer as a native JSONL append boundary over transcript/kernel snapshots: scratchpad tags are converted to <think>, incomplete scratchpads route to failed-trajectory output, entries contain ShareGPT-style conversations plus timestamp/model/completed metadata, and all file/audit output is redacted before disk while write failures remain nonfatal evidence.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -16012,6 +16223,7 @@
               "done_signal": [
                 "Trajectory writer fixtures prove scratchpad conversion, failed-trajectory routing, append-only JSONL metadata, redaction, and nonfatal append failures without live provider calls."
               ],
+              "note": "Complete: TDD added internal/transcript/trajectory_writer.go as a pure Hermes-compatible JSONL append boundary over TrajectoryTurn snapshots. It converts REASONING_SCRATCHPAD tags to <think>, downgrades incomplete scratchpads into failed_trajectories output, appends timestamp/model/completed metadata, redacts secrets/platform tokens/home-shaped paths through the shared audit vocabulary, emits trajectory_writer audit evidence through an injected recorder, and returns nonfatal trajectory_write_failed evidence for append errors.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 agent/trajectory.py",

@@ -89,6 +89,7 @@ You are Codex running from cron inside the Gormes repository.
 
 Use repo-local skills before substantive work:
 - gormes-skill-manager to route the task.
+- gormes-hermes-parity to sweep progress.json for new or stale parity work.
 - gormes-builder to select and implement one row.
 - gormes-tdd-slice for red-green-refactor when tests are required.
 - gormes-git first, before row selection, and again after implementation is complete.
@@ -96,7 +97,9 @@ Use repo-local skills before substantive work:
 Task:
 First invoke gormes-git. If the worktree is dirty, commit every current safe change, make development green, and push origin development before selecting a new row. If the worktree is already clean, record that and continue.
 
-Then implement the highest-priority builder-ready new/planned progress.json row. If the top candidate is not actually ready, pick the next highest-priority builder-ready row or fix the highest-priority failing row that is already in scope. Do exactly one bounded row.
+Then invoke gormes-hermes-parity against progress.json. Run a bounded all-topic weakness sweep: find source-backed missing tasks to add, stale complete rows to revisit, vague rows to sharpen, or existing builder-ready rows whose priority should rise. Cover the major Gormes/Hermes surfaces rather than only the most recent subsystem: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Record implementation intent only in docs/content/building-gormes/architecture_plan/progress.json and regenerate derived progress surfaces when it changes.
+
+Then implement the highest-priority builder-ready new/planned progress.json row after that parity sweep. If the top candidate is not actually ready, pick the next highest-priority builder-ready row or fix the highest-priority failing row that is already in scope. Do exactly one bounded row.
 
 Hard constraints:
 - Read AGENTS.md and the selected skill files before editing.
@@ -104,6 +107,7 @@ Hard constraints:
 - Do not recreate cmd/planner-loop, cmd/builder-loop, or any autonomous loop binary.
 - Do not create a backlog outside docs/content/building-gormes/architecture_plan/progress.json.
 - Do not skip because the worktree is dirty. Dirty state means gormes-git is the first task.
+- Do not treat the parity sweep as implementation. It may add, revisit, prioritize, or sharpen progress rows; runtime code belongs to the subsequent builder/TDD step.
 - Preserve any user or parallel-agent changes if they appear while working.
 - Use the row write_scope. If the row is wrong or vague, refine the row through the planner workflow and stop after validation.
 - Use TDD when the row has tests or observable behavior.
