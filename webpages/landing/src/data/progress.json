@@ -15923,17 +15923,71 @@
           "items": [
             {
               "name": "Trajectory writer + redaction gates",
+              "priority": "P1",
               "status": "planned",
-              "note": "TDD: port `agent/trajectory.py` as an opt-in writer with deterministic message/tool snapshots, secret redaction, and failure-is-nonfatal behavior before broad telemetry capture.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "contract": "Gormes ports Hermes' opt-in trajectory writer as a native JSONL append boundary over transcript/kernel snapshots: scratchpad tags are converted to <think>, incomplete scratchpads route to failed-trajectory output, entries contain ShareGPT-style conversations plus timestamp/model/completed metadata, and all file/audit output is redacted before disk while write failures remain nonfatal evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Trajectory disabled, invalid output path, append failure, malformed snapshot data, and redaction failures return trajectory_disabled, trajectory_write_failed, or trajectory_redaction_failed evidence without blocking the turn or writing raw secrets.",
+              "fixture": "internal/transcript/trajectory_writer_test.go; internal/audit/trajectory_writer_test.go",
+              "source_refs": [
+                "./hermes-agent/agent/trajectory.py@b816fd4e2:convert_scratchpad_to_think",
+                "./hermes-agent/agent/trajectory.py@b816fd4e2:has_incomplete_scratchpad",
+                "./hermes-agent/agent/trajectory.py@b816fd4e2:save_trajectory",
+                "./hermes-agent/run_agent.py@b816fd4e2:_save_trajectory_to_file",
+                "./hermes-agent/agent/redact.py@b816fd4e2",
+                "internal/transcript/trajectory_compressor.go",
+                "internal/audit/jsonl.go",
+                "internal/audit/trajectory_link.go"
+              ],
+              "ready_when": [
+                "Trajectory compressor + compressed-evidence lineage and Self-monitoring telemetry are complete, so the writer can reuse redaction/audit vocabulary without live summarization.",
+                "The worker can build this as a pure append helper with t.TempDir JSONL files and injected clock/model metadata; no live provider, batch runner, or directory compressor is required.",
+                "Transcript/kernel snapshot structs expose enough role/content/tool-call data to build ShareGPT-style conversation entries without reading private session stores."
+              ],
+              "not_ready_when": [
+                "The slice opens provider connections, summarizes through an LLM, processes whole trajectory directories, implements batch_runner or trajectory_compressor CLI flags, or rewrites existing persisted sessions.",
+                "Raw API keys, bearer tokens, platform chat ids, local absolute home paths, or unredacted tool arguments appear in JSONL, audit records, errors, or logs.",
+                "A trajectory append failure blocks the user turn or marks the provider response failed."
+              ],
+              "blocked_by": [
+                "Trajectory compressor + compressed-evidence lineage",
+                "Self-monitoring telemetry"
+              ],
+              "acceptance": [
+                "TestTrajectoryWriterConvertsScratchpadTags proves <REASONING_SCRATCHPAD> blocks are converted to <think> in the saved conversation while ordinary content is unchanged.",
+                "TestTrajectoryWriterIncompleteScratchpadRoutesFailed proves an open scratchpad marks the entry completed=false and writes to the failed-trajectory sink.",
+                "TestTrajectoryWriterAppendsJSONLMetadata proves each append writes one JSON object with conversations, injected timestamp, model, and completed fields without replacing prior entries.",
+                "TestTrajectoryWriterRedactsSecrets proves API keys, bearer tokens, platform tokens, and home-directory-shaped paths are absent from JSONL, audit records, errors, and log evidence.",
+                "TestTrajectoryWriterAppendFailureNonfatal proves filesystem failures return trajectory_write_failed evidence without panicking or changing the completed response path."
+              ],
+              "write_scope": [
+                "internal/transcript/trajectory_writer.go",
+                "internal/transcript/trajectory_writer_test.go",
+                "internal/audit/trajectory_writer_test.go",
+                "internal/audit/jsonl.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/transcript -run TrajectoryWriter -count=1",
+                "go test ./internal/audit -run TrajectoryWriter -count=1",
+                "go test ./internal/transcript ./internal/audit -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Trajectory writer fixtures prove scratchpad conversion, failed-trajectory routing, append-only JSONL metadata, redaction, and nonfatal append failures without live provider calls."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 agent/trajectory.py",
+                "note": "Hermes defines trajectory JSONL shape and scratchpad handling; Gormes keeps the writer native and redacted while leaving directory compression and live summarization to existing/future trajectory rows."
+              }
             },
             {
               "name": "Trajectory compressor + compressed-evidence lineage",
@@ -21838,6 +21892,76 @@
               ]
             },
             {
+              "name": "Voice mode environment detector + audio provider seam",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' voice-mode environment detection into a Go-native, injectable audio-provider seam: SSH, container, WSL, Termux, missing PortAudio/sounddevice-equivalent probes, no-device, and provider-unavailable cases produce hard warnings or informational notices matching Hermes' voice-mode availability rules before any microphone capture or playback is attempted.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Headless, SSH, container, WSL-without-PulseAudio, missing audio dependencies, missing Termux:API app, no-device, and provider-probe failures return voice_mode_audio_not_available evidence with bounded warnings/notices instead of panicking, importing optional audio libraries at startup, or blocking STT/TTS tool registration.",
+              "fixture": "internal/tools/voice_mode_env_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/voice_mode.py@b816fd4e2:detect_audio_environment",
+                "./hermes-agent/tools/voice_mode.py@b816fd4e2:_voice_capture_install_hint",
+                "./hermes-agent/tools/voice_mode.py@b816fd4e2:_termux_microphone_command",
+                "./hermes-agent/tools/voice_mode.py@b816fd4e2:_termux_api_app_installed",
+                "internal/tools/voice_mode.go:VoiceModeProvider",
+                "internal/tools/voice_mode.go:NoopVoiceModeProvider"
+              ],
+              "ready_when": [
+                "Transcription tool contract, TTS tool contract + media delivery seam, and the existing VoiceModeRunner tests are complete.",
+                "The worker can test the detector with injected env/proc-version/command/device probes and fake clocks; no real microphone, speaker, Termux app, PulseAudio, PortAudio, sounddevice, or numpy dependency is required.",
+                "This slice does not need to bind native TUI record-key handling or gateway /voice command routing."
+              ],
+              "not_ready_when": [
+                "The slice records real audio, plays audio, shells out to live termux-microphone-record, imports platform audio libraries at package init, or changes provider-specific STT/TTS synthesis behavior.",
+                "Availability warnings include raw environment values, private hostnames, home paths, command output, or stack traces.",
+                "A missing audio environment disables unrelated text_to_speech or transcription tools."
+              ],
+              "blocked_by": [
+                "Transcription tool contract",
+                "TTS tool contract + media delivery seam"
+              ],
+              "unblocks": [
+                "Voice record-key config binding for native TUI",
+                "TTS synthesis + voice-mode state"
+              ],
+              "acceptance": [
+                "TestVoiceModeDetectSSHAndContainerWarnings proves SSH and container probes hard-fail availability with Hermes-style warnings.",
+                "TestVoiceModeDetectWSLPulseAudioNotice proves WSL with PULSE_SERVER remains available with a notice while WSL without it returns setup guidance.",
+                "TestVoiceModeDetectTermuxFallback proves Termux microphone command plus Termux:API app can satisfy capture availability even when PortAudio/device probes fail.",
+                "TestVoiceModeDetectorNoOptionalImportsAtInit proves constructing the detector does not import or require audio backends until an injected probe runs.",
+                "Existing VoiceModeRunner/VoiceModeTool tests continue to pass with NoopVoiceModeProvider degradation."
+              ],
+              "write_scope": [
+                "internal/tools/voice_mode.go",
+                "internal/tools/voice_mode_env.go",
+                "internal/tools/voice_mode_env_test.go",
+                "internal/tools/voice_mode_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestVoiceMode(Detect|Detector|Runner|Tool|Noop)' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Voice-mode environment fixtures prove SSH/container/WSL/Termux/no-device availability decisions and lazy audio probing without real microphone, speaker, or optional audio dependencies."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tools/voice_mode.py",
+                "note": "Gormes already has VoiceModeRunner and no-op provider tests, but broad voice-mode rows still hide the environment-probe contract that protects headless gateways and remote operators."
+              }
+            },
+            {
               "name": "Transcription tool contract",
               "status": "complete",
               "contract": "Native STT/transcription tool helper validates local audio input and provider selection before gateway media hooks call it: files must exist, be regular files, use supported audio suffixes, and stay under configured max bytes; explicit provider selection among local, local_command, groq, openai, mistral, and xai never silently falls back; auto mode chooses Hermes order local, groq, openai, mistral, xai from injected availability; model defaults and overrides are normalized per provider; tool results return transcript/provider/model/language on success or typed redacted error evidence on failure.",
@@ -25953,6 +26077,84 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:69d4800d tools/file_tools.py + tools/file_operations.py + tools/terminal_tool.py",
                 "note": "Ports the first safe local-task surface after the read guard helper rows. Full checkpoint restore, syntax lint, terminal background/process registry, PTY, and shell-backed cwd tracking remain separate follow-up slices."
+              }
+            },
+            {
+              "name": "Symlink-preserving atomic writer helper",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes adds a shared atomic replace helper that matches Hermes' symlink-safe config/state writes: regular files are atomically replaced, existing symlinks remain symlinks while their real targets receive the new bytes, broken symlinks create the target without replacing the link, and existing target permissions are preserved unless the caller explicitly supplies first-write permissions.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Permission-denied, symlink-loop, outside-root, temp-file, chmod, and rename failures return typed atomic_write_failed or atomic_write_symlink_escape evidence without deleting the original target, replacing the symlink, or leaking private absolute home paths.",
+              "fixture": "internal/tools/atomic_replace_test.go; internal/config/writer_test.go; cmd/gormes/secrets_command_test.go; internal/session/index_mirror_test.go",
+              "source_refs": [
+                "./hermes-agent/utils.py@b816fd4e2:atomic_replace",
+                "./hermes-agent/utils.py@b816fd4e2:atomic_json_write",
+                "./hermes-agent/utils.py@b816fd4e2:atomic_yaml_write",
+                "./hermes-agent/tests/test_atomic_replace_symlinks.py@b816fd4e2",
+                "internal/config/writer.go:writeTOMLAtomic",
+                "cmd/gormes/setup.go:writeSetupToolsConfig",
+                "cmd/gormes/secrets.go:writeSecretsSnapshotFile",
+                "internal/session/index_mirror.go:writeAtomic"
+              ],
+              "ready_when": [
+                "The worker can implement and test the helper under t.TempDir with ordinary files, live symlinks, broken symlinks, and permission fixtures; no private config home or live gateway state is needed.",
+                "The first migration scope is limited to Gormes config.toml writes, setup tools config writes, secrets-runtime snapshots, and session index mirror writes.",
+                "Existing config/security/session tests are green before the helper migration."
+              ],
+              "not_ready_when": [
+                "The slice rewrites every os.Rename-based writer in the repository, changes file-tool write_file semantics, or touches checkpoint rollback internals.",
+                "The helper replaces a symlink path with a regular file, follows symlinks outside the caller-approved root, or changes existing target permission bits unexpectedly.",
+                "Tests depend on platform-specific privileged chmod behavior without skip guards."
+              ],
+              "blocked_by": [
+                "Native file task tool surface"
+              ],
+              "unblocks": [
+                "File write/patch staleness registry + cwd tracking",
+                "Hermes config migration writer",
+                "OpenClaw migration writer and cleanup command"
+              ],
+              "acceptance": [
+                "TestAtomicReplacePreservesSymlink writes through a symlink and proves the symlink still exists, the real target has the new contents, and no sibling temp files remain.",
+                "TestAtomicReplaceBrokenSymlinkCreatesTarget proves a broken symlink keeps the link while creating the missing target with caller-supplied first-write permissions.",
+                "TestAtomicReplacePreservesExistingPermissions proves an existing target's mode survives a write through both direct and symlink paths.",
+                "Config/secrets/session fixtures prove writeTOMLAtomic, writeSetupToolsConfig, writeSecretsSnapshotFile, and session index mirror writes use the shared helper and retain their current redaction/permission guarantees.",
+                "Existing file-task and config writer tests remain green."
+              ],
+              "write_scope": [
+                "internal/tools/atomic_replace.go",
+                "internal/tools/atomic_replace_test.go",
+                "internal/config/writer.go",
+                "internal/config/writer_test.go",
+                "cmd/gormes/setup.go",
+                "cmd/gormes/setup_tools_test.go",
+                "cmd/gormes/secrets.go",
+                "cmd/gormes/secrets_command_test.go",
+                "internal/session/index_mirror.go",
+                "internal/session/index_mirror_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestAtomicReplace -count=1",
+                "go test ./internal/config ./cmd/gormes ./internal/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1",
+                "go test ./internal/tools ./internal/config ./cmd/gormes ./internal/session -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Atomic writer fixtures prove symlink preservation, broken-symlink target creation, permission preservation, and migrated config/secrets/session writers without touching live operator state."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tests/test_atomic_replace_symlinks.py",
+                "note": "Hermes fixed a managed-deployment regression where atomic rename replaced symlinked config/state files; Gormes currently has several raw temp-rename writers and should land a small shared helper before more write-capable tools expand."
               }
             },
             {

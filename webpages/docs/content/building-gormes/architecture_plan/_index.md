@@ -707,6 +707,7 @@ classification and row-backed implementation queue.
 ### 5.E — TTS / Voice / Transcription 🔨
 
 - [ ] Voice mode port
+- [ ] Voice mode environment detector + audio provider seam
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
@@ -796,6 +797,7 @@ classification and row-backed implementation queue.
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
+- [ ] Symlink-preserving atomic writer helper
 - [ ] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
 - [ ] search_files hidden-root and context-line parsing drift
