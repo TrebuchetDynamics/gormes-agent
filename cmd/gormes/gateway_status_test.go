@@ -208,6 +208,99 @@ func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
 }
 
+func TestGatewayStatusCommand_RendersStaleCodeRestartGuidance(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				GatewayState: gateway.GatewayStateRunning,
+				BootGitSHA:   "1111111111111111111111111111111111111111",
+				StaleCode: &gateway.RuntimeStaleCodeEvidence{
+					Status:           gateway.RuntimeStaleCodeStale,
+					BootGitSHA:       "1111111111111111111111111111111111111111",
+					CurrentGitSHA:    "2222222222222222222222222222222222222222",
+					Stale:            true,
+					RestartSuggested: true,
+					Evidence:         []string{"stale_code_head_changed", "stale_code_restart_gateway"},
+					Message:          "gateway restart recommended to load current git HEAD",
+				},
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status: gateway.RuntimeProcessValidationLive,
+				Live:   true,
+				PID:    4242,
+			},
+		},
+	})
+	defer restoreRuntimeStore()
+
+	stdout, stderr, err := executeGatewayStatusCommand(t)
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	for _, want := range []string{
+		"stale_code: stale boot=111111111111 current=222222222222 restart_suggested=true evidence=stale_code_head_changed,stale_code_restart_gateway",
+		"gateway restart recommended to load current git HEAD",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q\n%s", want, stdout)
+		}
+	}
+}
+
+func TestGatewayStatusCommand_JSONRendersStaleCodeEvidence(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          4242,
+				GatewayState: gateway.GatewayStateRunning,
+				BootGitSHA:   "1111111111111111111111111111111111111111",
+				StaleCode: &gateway.RuntimeStaleCodeEvidence{
+					Status:           gateway.RuntimeStaleCodeStale,
+					BootGitSHA:       "1111111111111111111111111111111111111111",
+					CurrentGitSHA:    "2222222222222222222222222222222222222222",
+					Stale:            true,
+					RestartSuggested: true,
+					Evidence:         []string{"stale_code_head_changed", "stale_code_restart_gateway"},
+					Message:          "gateway restart recommended to load current git HEAD",
+				},
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status: gateway.RuntimeProcessValidationLive,
+				Live:   true,
+				PID:    4242,
+			},
+		},
+	})
+	defer restoreRuntimeStore()
+
+	stdout, stderr, err := executeGatewayStatusCommand(t, "--json")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	var got struct {
+		Runtime struct {
+			StaleCode *gateway.RuntimeStaleCodeEvidence `json:"stale_code"`
+		} `json:"runtime"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway status --json returned invalid JSON: %v\n%s", err, stdout)
+	}
+	if got.Runtime.StaleCode == nil ||
+		got.Runtime.StaleCode.Status != gateway.RuntimeStaleCodeStale ||
+		!got.Runtime.StaleCode.RestartSuggested {
+		t.Fatalf("json stale_code = %+v, want stale restart evidence", got.Runtime.StaleCode)
+	}
+	if got.Runtime.StaleCode.BootGitSHA != "1111111111111111111111111111111111111111" ||
+		got.Runtime.StaleCode.CurrentGitSHA != "2222222222222222222222222222222222222222" {
+		t.Fatalf("json stale_code SHAs = %+v", got.Runtime.StaleCode)
+	}
+}
+
 func TestGatewayStatusCommand_JSONPairingPathHonorsGormesHome(t *testing.T) {
 	root := t.TempDir()
 	gormesHome := filepath.Join(root, "gormes-home")
@@ -261,6 +354,9 @@ func writeGatewayStatusConfig(t *testing.T, data []byte) {
 
 func executeGatewayStatusCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
+	if err := gatewayStatusCmd.Flags().Set("json", "false"); err != nil {
+		t.Fatalf("reset gateway status json flag: %v", err)
+	}
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCommand()
 	cmd.SetOut(&stdout)
