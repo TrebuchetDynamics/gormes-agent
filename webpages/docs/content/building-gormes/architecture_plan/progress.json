@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-06T08:37:13Z",
+    "last_updated": "2026-05-06T13:39:33Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -38361,8 +38361,9 @@
             },
             {
               "name": "Native TUI absolute path completion routing",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "completed_at": "2026-05-06T13:42:36Z",
+              "priority": "P0",
               "contract": "Native Bubble Tea TUI exposes a pure completion-request classifier that matches current Hermes Ink behavior: leading absolute paths and trailing absolute path tokens route to path completion with the correct replace offset, while real slash commands continue routing to slash completion and picker-owned `/model` and `/provider` inputs do not invoke generic completion.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -38399,7 +38400,7 @@
                 "internal/tui/completion_request.go",
                 "internal/tui/completion_request_test.go",
                 "internal/tui/slash_completion.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tui -run 'TestTUICompletionRequest|TestHermesSlashCompletion' -count=1",
@@ -38410,6 +38411,12 @@
               "done_signal": [
                 "Pure TUI completion-request fixtures prove absolute paths are path completions, real slash commands stay slash completions, and picker-owned slash inputs remain unclaimed."
               ],
+              "note": "2026-05-06 all-topic Hermes/Honcho weakness sweep promoted this row to P0 after checking CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Existing P0 closure rows for normal turns, provider usage, docs, Home Assistant tools, atomic writes, and file/terminal safety are complete; remaining P1 rows such as self-update and Goncho plugin config are broader. Complete: TDD added a pure CompletionRequestForInput classifier matching active Hermes Ink completionRequestForInput behavior. Real slash commands route to complete.slash with replaceFrom=1; leading and trailing absolute paths route to complete.path with the path token's replacement offset; relative path tokens route to path completion; /model and /provider stay unclaimed for picker-specific UI; plain text returns no generic completion request. Initial RED failed on missing TUICompletionRequest/CompletionRequestForInput, then focused TUI completion and tuigateway path-normalization tests passed.",
+              "evidence": {
+                "implementation": "internal/tui/completion_request.go; internal/tui/completion_request_test.go",
+                "tests": "go test ./internal/tui -run TestTUICompletionRequest -count=1 (RED failed before implementation); go test ./internal/tui -run 'TestTUICompletionRequest|TestHermesSlashCompletion' -count=1; go test ./internal/tuigateway -run TestNormalizeCompletionPath -count=1",
+                "note": "The classifier is pure: no Bubble Tea Program, terminal, filesystem stat, gateway RPC, provider call, or completion menu rendering is required."
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
@@ -39548,8 +39555,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, and `ui-tui/src/__tests__`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. The first 2026-05-05 sweep found terminal-helper drift in clipboard, OSC52, terminal setup, and truecolor tests; the second sweep found composer-ingress drift in image/file drop classification, image.attach, paste.collapse, bracketed-paste recovery, external-editor paste expansion, and copy redaction. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server, TUI terminal-helper, and TUI composer-ingress rows rather than reopening completed chat-completions, cron-admin, keybinding, or slash rows."
+            "last_upstream_check": "2026-05-06T13:39:33Z",
+            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, and `ui-tui/src/__tests__`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. The first 2026-05-05 sweep found terminal-helper drift in clipboard, OSC52, terminal setup, and truecolor tests; the second sweep found composer-ingress drift in image/file drop classification, image.attach, paste.collapse, bracketed-paste recovery, external-editor paste expansion, and copy redaction. The 2026-05-06 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; most high-risk surfaces are already row-backed or complete, but active Hermes `useCompletion` still has a small unbuilt path-vs-slash classifier. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server, TUI terminal-helper, TUI composer-ingress, and completion-routing rows rather than reopening completed chat-completions, cron-admin, keybinding, or slash rows."
           }
         },
         "5.R": {

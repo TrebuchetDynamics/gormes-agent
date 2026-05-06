@@ -995,7 +995,7 @@ classification and row-backed implementation queue.
 - [ ] Native TUI clipboard, OSC52, and terminal setup parity
 - [x] Native TUI image/file drop + paste collapse ingress
 - [x] Native TUI Hermes slash completion helpers
-- [ ] Native TUI absolute path completion routing
+- [x] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [x] Native TUI Ink behavioral transcript golden matrix
