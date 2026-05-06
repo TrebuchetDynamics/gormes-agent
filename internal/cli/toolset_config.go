@@ -173,7 +173,15 @@ func (cfg PlatformToolsetConfig) PlatformStatus(platform string) (PlatformToolse
 	}
 	selected, configured := cfg.PlatformToolsets[platform]
 	if !configured {
-		selected = append([]string(nil), defaultRuntimeToolsets...)
+		if platform == "api_server" {
+			if row, ok := manifest.Toolset(platformDefaultToolsets[platform]); ok {
+				selected = append([]string(nil), row.ResolvedTools...)
+			} else {
+				selected = append([]string(nil), defaultRuntimeToolsets...)
+			}
+		} else {
+			selected = append([]string(nil), defaultRuntimeToolsets...)
+		}
 		if homeAssistantDefaultPlatform(platform) {
 			if !hasHomeAssistantToken() {
 				report.Issues = append(report.Issues, PlatformToolsetIssue{

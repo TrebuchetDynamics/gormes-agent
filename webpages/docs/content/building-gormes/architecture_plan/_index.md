@@ -1012,7 +1012,7 @@ classification and row-backed implementation queue.
 - [x] API server detailed health endpoint
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
-- [ ] API server legacy jobs routes + default toolset
+- [x] API server legacy jobs routes + default toolset
 
 ### 5.R — Code Execution Mode Policy 🔨
 

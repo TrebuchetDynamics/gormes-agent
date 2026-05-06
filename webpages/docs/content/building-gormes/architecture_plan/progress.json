@@ -39459,8 +39459,8 @@
             },
             {
               "name": "API server legacy jobs routes + default toolset",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Native API server keeps Hermes' platform-facing job/toolset contract while using Gormes' cron/admin internals: `/api/jobs` and `/api/jobs/{id}` compatibility routes map to the validated cron admin list/create/get/update/delete/pause/resume/run behavior with the same auth/body/error guardrails, and platform api_server resolves the default `hermes-api-server` toolset unless platform_toolsets.api_server overrides it.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -39531,6 +39531,7 @@
               "done_signal": [
                 "API server fixtures prove legacy /api/jobs compatibility over native cron admin seams plus Hermes-compatible api_server default toolset and platform override behavior."
               ],
+              "note": "2026-05-06 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No planned P0 rows remained; this validated, unblocked gateway/API row was promoted to P0 because Hermes' public API-server jobs contract and hermes-api-server default toolset bind cron/operator flows, browser/homeassistant tool availability, dashboard clients, and release readiness. Complete: TDD added legacy /api/jobs routes over the native cron reader/mutator/trigger seams with include_disabled filtering, 12-hex job ID validation, OpenAI-style error envelopes, body/name/prompt/repeat validation, 200-compatible create/delete/run responses, redacted job views, and no scheduler/provider startup. TDD also made api_server's default PlatformStatus resolve Hermes' hermes-api-server toolset to concrete browser/web/homeassistant/file/code/delegation/todo/memory/session_search/cronjob tools while preserving platform_toolsets.api_server overrides. Evidence: go test ./internal/apiserver -run 'TestAPIServerJobsCompat|TestAPIServerCronAdmin' -count=1 PASS; go test ./internal/cli ./internal/tools -run 'TestAPIServerToolset|TestPlatformToolset' -count=1 PASS; go test ./internal/apiserver ./internal/cli ./internal/tools -count=1 PASS.",
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 tests/gateway/test_api_server_jobs.py + test_api_server_toolset.py",
