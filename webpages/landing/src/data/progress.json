@@ -1590,6 +1590,82 @@
               }
             },
             {
+              "name": "Gateway session reset notification parity",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' automatic session-reset read model and notification policy for channel sessions: idle, daily, and suspended reset decisions carry a stable reason string; replacement sessions record was_auto_reset, auto_reset_reason, and reset_had_activity without being treated as explicit fresh resets; operator notifications respect SessionResetPolicy.notify and notify_exclude_platforms defaults; and API/webhook-style platforms are excluded from unsolicited reset messages.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Expired, suspended, no-activity, notification-disabled, excluded-platform, and notification-send-failed cases return auto_reset_* evidence with session ids, reason, platform, and activity booleans only; message text, prompt content, provider credentials, and raw channel payloads remain redacted.",
+              "fixture": "internal/gateway/session_auto_reset_notify_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/session.py@b816fd4e2:SessionEntry",
+                "./hermes-agent/gateway/session.py@b816fd4e2:SessionStore._should_reset",
+                "./hermes-agent/gateway/session.py@b816fd4e2:SessionStore.get_or_create_session",
+                "./hermes-agent/gateway/config.py@b816fd4e2:SessionResetPolicy",
+                "./hermes-agent/gateway/run.py@b816fd4e2:GatewayManager._handle_message_with_agent auto-reset notification handling",
+                "./hermes-agent/tests/gateway/test_session_reset_notify.py@b816fd4e2",
+                "./hermes-agent/tests/gateway/test_fresh_reset_skill_injection.py@b816fd4e2",
+                "internal/config/config.go:RuntimeCfg",
+                "internal/gateway/manager.go:handleInbound",
+                "internal/session/directory.go:Metadata"
+              ],
+              "ready_when": [
+                "Gateway manual reset session-boundary hooks are planned and the worker can keep explicit reset hooks separate from auto-reset notices.",
+                "Session expiry hook cleanup retry evidence is complete, so auto-reset notification evidence can reuse existing session metadata and status seams without changing expiry finalization.",
+                "Tests can use fake clocks, fake session metadata, fake channels, and fake notification senders only; no live Telegram, Slack, Discord, API server, webhook, provider, or SQLite production store is required."
+              ],
+              "not_ready_when": [
+                "The slice changes manual /new semantics, fires manual reset hooks for idle/daily auto resets, mutates kernel ResetSession behavior, or changes session key derivation.",
+                "The implementation sends notifications to api_server/webhook by default, treats idle/daily auto resets as explicit fresh-reset skill injection, or loses reset_had_activity evidence.",
+                "Warnings include raw user message text, prompt/system context, channel payload bodies, provider credentials, or home-directory paths."
+              ],
+              "blocked_by": [
+                "Gateway manual reset session-boundary hooks",
+                "Session expiry hook cleanup retry evidence"
+              ],
+              "unblocks": [
+                "Fresh-reset skill injection closeout",
+                "Channel session lifecycle status surface"
+              ],
+              "acceptance": [
+                "TestGatewayAutoResetReasonDecision proves idle, daily, suspended, and none decisions return stable reason strings without mutating explicit reset state.",
+                "TestGatewayAutoResetSessionMetadata proves replacement sessions record was_auto_reset, auto_reset_reason, and reset_had_activity based on prior token/message activity.",
+                "TestGatewayAutoResetNotifyPolicyDefaults proves notify defaults true while api_server and webhook are excluded by default.",
+                "TestGatewayAutoResetNotifyPolicyOverrides proves notify=false suppresses all notices and custom notify_exclude_platforms suppress selected platforms only.",
+                "TestGatewayAutoResetDoesNotLookFresh proves idle/daily auto-reset sessions do not set the explicit fresh-reset flag used by skill injection, matching Hermes' manual-vs-auto boundary.",
+                "TestGatewayAutoResetNotificationSendFailureEvidence proves send failures produce redacted evidence and do not block session creation."
+              ],
+              "write_scope": [
+                "internal/gateway/session_auto_reset_notify.go",
+                "internal/gateway/session_auto_reset_notify_test.go",
+                "internal/gateway/manager.go",
+                "internal/session/directory.go",
+                "internal/config/config.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run '^TestGatewayAutoReset' -count=1",
+                "go test ./internal/session ./internal/config ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Auto-reset fixtures prove reason strings, metadata, notify defaults/excludes, manual-vs-auto freshness separation, send-failure evidence, and no live channel/provider dependencies."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 gateway/session.py + gateway/run.py",
+                "note": "Hermes distinguishes automatic idle/daily/suspended resets from explicit `/new` resets and controls channel notifications through SessionResetPolicy. Gormes has config fields and manual reset planning but no source-backed row for auto-reset notification semantics."
+              }
+            },
+            {
               "name": "SessionContext prompt injection",
               "status": "complete",
               "note": "TDD landed: each inbound submit now injects a stable Current Session Context system block ahead of recall/user messages, covering source metadata plus deterministic delivery-target exposure."
@@ -24391,6 +24467,74 @@
                 "upstream_ref": "hermes:b816fd4e2 tests/acp + tests/acp_adapter",
                 "note": "The existing Gormes ACP rows close manifest and local-client inventory; upstream active tests show the user-visible ACP stdio protocol remains unimplemented."
               }
+            },
+            {
+              "name": "ACP stdio benign ping/probe suppression",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' ACP stdio startup hygiene: the ACP entrypoint keeps stdout reserved for JSON-RPC frames, routes incidental logs to stderr, treats client probe methods such as bare ping, health, and healthcheck JSON-RPC requests as benign liveness checks, suppresses noisy background-task tracebacks for those probes, and still surfaces real ACP startup/session/tool errors with redacted evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Benign probe suppression emits acp_benign_probe_suppressed counters on stderr/status only; malformed JSON-RPC, auth/session/tool failures, and non-probe unknown methods remain visible as acp_stdio_error evidence without contaminating stdout frames or leaking prompt/tool payloads.",
+              "fixture": "internal/acp/stdio_ping_suppression_test.go",
+              "source_refs": [
+                "./hermes-agent/acp_adapter/entry.py@b816fd4e2:_BenignProbeMethodFilter",
+                "./hermes-agent/acp_adapter/entry.py@b816fd4e2:_setup_logging",
+                "./hermes-agent/tests/acp/test_ping_suppression.py@b816fd4e2",
+                "cmd/gormes/acp.go",
+                "internal/acp/server.go",
+                "internal/acp/server_manifest.go"
+              ],
+              "ready_when": [
+                "ACP server manifest and JSON-RPC stdio session/prompt closeout rows are complete enough to expose a Go ACP entrypoint seam.",
+                "The worker can test with in-memory stdio buffers, fake JSON-RPC requests, and fake logger sinks only; no editor client, provider, MCP server, filesystem session store, or Python ACP runtime is required.",
+                "This row owns entrypoint/log filtering only and does not implement missing ACP auth/session/tool surfaces."
+              ],
+              "not_ready_when": [
+                "The slice hides real ACP method errors, starts a live editor/ACP client, changes provider routing, or rewrites ACP session/tool protocol semantics.",
+                "Any log line, status frame, or error text written to stdout can corrupt JSON-RPC transport framing.",
+                "Suppression matches broad unknown methods instead of narrowly classifying known benign ping/probe request shapes."
+              ],
+              "blocked_by": [
+                "ACP JSON-RPC stdio session/prompt closeout"
+              ],
+              "unblocks": [
+                "ACP editor launch smoke parity",
+                "ACP startup diagnostics closeout"
+              ],
+              "acceptance": [
+                "TestACPStdioLogsRouteToStderr proves startup/info/error logs never write to stdout.",
+                "TestACPBenignPingSuppressed proves a bare JSON-RPC ping probe records suppressed evidence without a traceback or stdout contamination.",
+                "TestACPUnknownNonProbeStillVisible proves non-probe unknown methods still produce a structured JSON-RPC/error diagnostic.",
+                "TestACPMalformedJSONStillVisible proves malformed input is not classified as a benign probe.",
+                "TestACPProbeSuppressionIsBounded proves suppression counters are bounded/redacted and do not include prompt text, tool arguments, cwd, or provider credentials."
+              ],
+              "write_scope": [
+                "cmd/gormes/acp.go",
+                "internal/acp/stdio_ping_suppression.go",
+                "internal/acp/stdio_ping_suppression_test.go",
+                "internal/acp/server.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/acp -run '^TestACPStdio|^TestACPBenignPing|^TestACPProbe' -count=1",
+                "go test ./cmd/gormes ./internal/acp -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "ACP stdio fixtures prove stderr-only logging, benign ping suppression, visible real errors, malformed-input visibility, bounded redacted evidence, and no live editor/provider dependencies."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 acp_adapter/entry.py",
+                "note": "Hermes suppresses noisy ACP client health-probe tracebacks while preserving stdout JSON-RPC framing. Gormes has ACP manifest and command scaffolding but no executable row for stdio probe/log hygiene."
+              }
             }
           ],
           "drift_state": {
@@ -31197,6 +31341,76 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 cli.py",
                 "note": "Hermes fixed leaked terminal control responses after resize, multiplexer, and mouse-tracking events; Gormes has paste sanitizers but not this terminal-response boundary."
+              }
+            },
+            {
+              "name": "CLI submitted user-message preview formatter",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' submitted user-message scrollback preview as a pure internal/cli formatter: single-line submissions render the normal bullet line, multiline submissions render a bounded first-lines/last-lines preview, hidden middle content is replaced by a deterministic count, invalid preview config values fall back to safe defaults, tail lines can be disabled with last_lines=0, and display markup/control text is escaped before rendering.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Empty input, single-line input, malformed config, and overlong multiline input return user_message_preview_* evidence with counts only; raw prompt bodies, secrets, file contents, images, or pasted payloads are not logged by the helper.",
+              "fixture": "internal/cli/user_message_preview_test.go",
+              "source_refs": [
+                "./hermes-agent/cli.py@b816fd4e2:HermesCLI._format_submitted_user_message_preview",
+                "./hermes-agent/cli.py@b816fd4e2:HermesCLI._print_user_message_preview",
+                "./hermes-agent/cli.py@b816fd4e2:user_message_preview config parsing",
+                "./hermes-agent/tests/cli/test_cli_user_message_preview.py@b816fd4e2",
+                "internal/cli/output.go",
+                "internal/tui/hermes_chrome_test.go"
+              ],
+              "ready_when": [
+                "CLI banner/output helpers and terminal-control sanitizers are complete, so internal/cli already owns pure display-formatting helpers.",
+                "The worker can use string fixtures and config structs only; no TTY, Bubble Tea model, prompt_toolkit, clipboard, provider, file-drop, image, or command dispatch is required.",
+                "This slice is formatter-only and does not bind preview rendering into interactive CLI/TUI input loops."
+              ],
+              "not_ready_when": [
+                "The slice changes TUI viewport rendering, command parsing, file-drop detection, external editor behavior, clipboard/copy commands, provider request construction, or transcript persistence.",
+                "The formatter logs raw submitted prompts, pasted secrets, file contents, or image bytes.",
+                "Tests require an actual terminal width, prompt_toolkit, OSC52 clipboard, or interactive stdin."
+              ],
+              "blocked_by": [
+                "CLI banner/output formatting helpers",
+                "CLI terminal control-response sanitizer"
+              ],
+              "unblocks": [
+                "CLI input-loop preview binding",
+                "Native TUI submitted-message preview parity",
+                "CLI prompt ergonomics closeout"
+              ],
+              "acceptance": [
+                "TestUserMessagePreviewDefaultHeadTail proves a six-line prompt renders the first two and last two lines with a hidden-middle count.",
+                "TestUserMessagePreviewHideTail proves last_lines=0 renders only the configured first lines and a middle-count marker.",
+                "TestUserMessagePreviewInvalidConfigFallsBack proves first_lines<=0, non-numeric first_lines, and non-numeric last_lines fall back to safe defaults matching Hermes.",
+                "TestUserMessagePreviewShortInputNoMarker proves short multiline input with no hidden middle renders without an ellipsis/count marker.",
+                "TestUserMessagePreviewEscapesMarkup proves Rich/ANSI/control-style markup is escaped or neutralized before display.",
+                "TestUserMessagePreviewSingleLineBullet proves a single-line submission uses the normal bullet-line renderer without adding a hidden-count marker."
+              ],
+              "write_scope": [
+                "internal/cli/user_message_preview.go",
+                "internal/cli/user_message_preview_test.go",
+                "internal/cli/output.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run '^TestUserMessagePreview' -count=1",
+                "go test ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "CLI preview fixtures prove default head/tail formatting, tail-disabled formatting, invalid-config fallback, no hidden marker for short input, escaped display text, single-line bullet behavior, and no TTY dependencies."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 cli.py",
+                "note": "Hermes prints a bounded scrollback preview for submitted messages. Gormes has TUI user-preview surfaces but no source-backed internal/cli formatter row for the classic CLI preview behavior."
               }
             },
             {

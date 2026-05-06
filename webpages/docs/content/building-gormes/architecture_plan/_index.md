@@ -181,6 +181,7 @@ classification and row-backed implementation queue.
 
 - [x] Gateway session store + SessionSource parity
 - [ ] Gateway manual reset session-boundary hooks
+- [ ] Gateway session reset notification parity
 - [x] SessionContext prompt injection
 - [x] Hermes live-turn prompt assembly parity (channel-neutral)
 - [x] Live-turn SOUL.md and project context wiring (channel-neutral)
@@ -754,6 +755,7 @@ classification and row-backed implementation queue.
 - [x] ACP server side
 - [x] ACP Client Bridge Mode
 - [ ] ACP JSON-RPC stdio session/prompt closeout
+- [ ] ACP stdio benign ping/probe suppression
 
 ### 5.I — Plugins Architecture 🔨
 
@@ -882,6 +884,7 @@ classification and row-backed implementation queue.
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
 - [ ] CLI terminal control-response sanitizer
+- [ ] CLI submitted user-message preview formatter
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
