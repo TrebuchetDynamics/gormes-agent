@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-06T00:51:37Z",
+    "last_updated": "2026-05-06T01:04:33Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -4579,7 +4579,7 @@
             },
             {
               "name": "Telegram topic mode off/help/auth/debounce closeout",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gormes ports current Hermes Telegram topic-mode command semantics: `/topic help` shows usage without activating topic tables, `/topic off` disables topic mode and clears bindings idempotently, unauthorized users cannot toggle topic mode, BotFather screenshot/capability guidance is debounced per chat, and `/topic off` resets the debounce counters.",
               "contract_status": "validated",
@@ -4593,10 +4593,11 @@
               "degraded_mode": "Missing topic-mode storage or unsupported platform state returns telegram_topic_unavailable or telegram_topic_auth_denied evidence instead of enabling topic routing for unauthorized users or spamming repeated capability screenshots.",
               "fixture": "internal/gateway/telegram_topic_mode_test.go; internal/channels/telegram/bot_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/telegram.py@d35efb989",
-                "../hermes-agent/gateway/session_db.py@d35efb989:disable_telegram_topic_mode",
-                "../hermes-agent/tests/gateway/test_telegram_topic_mode.py@d35efb989",
+                "./hermes-agent/gateway/run.py@b816fd4e2:_handle_topic_command",
+                "./hermes-agent/hermes_state.py@b816fd4e2:disable_telegram_topic_mode",
+                "./hermes-agent/tests/gateway/test_telegram_topic_mode.py@b816fd4e2",
                 "internal/gateway/commands.go",
+                "internal/gateway/event.go",
                 "internal/gateway/manager.go",
                 "internal/channels/telegram/bot.go"
               ],
@@ -4617,10 +4618,14 @@
               ],
               "write_scope": [
                 "internal/gateway/commands.go",
+                "internal/gateway/event.go",
+                "internal/gateway/manager.go",
                 "internal/gateway/telegram_topic_mode.go",
                 "internal/gateway/telegram_topic_mode_test.go",
                 "internal/channels/telegram/bot.go",
                 "internal/channels/telegram/bot_test.go",
+                "internal/cli/command_registry.go",
+                "internal/progress/progress_test.go",
                 "webpages/docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -4632,19 +4637,44 @@
               "done_signal": [
                 "Telegram topic-mode fixtures prove help/off/auth/debounce behavior with fake stores and clocks and no live Bot API dependency."
               ],
+              "completed_at": "2026-05-06T01:02:12Z",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/telegram_topic_mode.go adds the fakeable TelegramTopicStore and TelegramTopicCapabilities seams plus help/off/auth/debounce command behavior.",
+                  "internal/gateway/commands.go and internal/gateway/event.go register /topic as an immediate gateway command that preserves the raw command body.",
+                  "internal/gateway/manager.go dispatches EventTopic through the new handler and keeps per-chat capability-hint debounce state with the injected manager clock.",
+                  "internal/channels/telegram/bot.go preserves Telegram Chat.Type on inbound events so /topic stays private-chat scoped.",
+                  "internal/cli/command_registry.go mirrors /topic in the shared policy registry so slash-command parity checks stay consistent."
+                ],
+                "tests": [
+                  "internal/gateway/telegram_topic_mode_test.go covers /topic help side-effect freedom, /topic off clearing and idempotence, authorization denial, five-minute capability guidance debounce, and /topic off debounce reset.",
+                  "internal/channels/telegram/bot_test.go covers Telegram setMyCommands exposure and private chat metadata for /topic help."
+                ],
+                "verification": [
+                  "go test ./internal/gateway -run 'TestTelegramTopic' -count=1 -> failed before implementation: missing TelegramTopicStore, TelegramTopicCapabilities, EventTopic, and TelegramTopicModeRecord.",
+                  "go test ./internal/channels/telegram -run 'Test.*Topic|TestBot_RunRegistersHermesTelegramCommands' -count=1 -> failed before implementation: missing EventTopic and topic command registration.",
+                  "go test ./internal/gateway -run 'TestTelegramTopic' -count=1 -> pass",
+                  "go test ./internal/channels/telegram -run 'Test.*Topic|TestBot_RunRegistersHermesTelegramCommands' -count=1 -> pass",
+                  "go test ./internal/gateway ./internal/channels/telegram ./internal/cli -count=1 -> pass",
+                  "go test ./internal/progress -count=1 -> pass",
+                  "go test ./... -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass",
+                  "git diff --check -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
-                  "hermes:d35efb989 gateway/platforms/telegram.py",
-                  "hermes:d35efb989 gateway/session_db.py",
-                  "hermes:d35efb989 tests/gateway/test_telegram_topic_mode.py"
+                  "hermes:b816fd4e2 gateway/run.py",
+                  "hermes:b816fd4e2 hermes_state.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_topic_mode.py"
                 ],
                 "note": "Gormes already preserves generic Telegram thread metadata; this row tracks the operator-visible topic-mode command semantics added upstream."
               }
             },
             {
               "name": "Telegram document/photo cache + batch attachment parity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Telegram document, video, and photo ingress matches Hermes' channel-visible media behavior: supported files are cached with bounded metadata, small text documents inject content into the submit text, unsupported or unverifiable files produce explicit operator-visible evidence, and photo bursts or albums are coalesced into one gateway event before submission.",
               "contract_status": "validated",
@@ -4685,7 +4715,9 @@
                 "internal/channels/telegram/client.go",
                 "internal/channels/telegram/document_cache.go",
                 "internal/channels/telegram/document_cache_test.go",
+                "internal/channels/telegram/photo_batch.go",
                 "internal/channels/telegram/photo_batch_test.go",
+                "internal/channels/telegram/mock_test.go",
                 "internal/gateway/event.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
@@ -4698,6 +4730,27 @@
               "done_signal": [
                 "Hermetic Telegram fixtures prove document cache, text injection caps, unsupported/oversize evidence, video classification, album/photo-burst coalescing, and disconnect cleanup without live Telegram access."
               ],
+              "completed_at": "2026-05-06T01:41:49Z",
+              "evidence": {
+                "implementation": [
+                  "internal/channels/telegram/document_cache.go adds Hermes-backed supported document/video type inference, 20 MB size verification, local cache writes, bounded SizeBytes metadata, small UTF-8 text/Markdown injection, and explicit unsupported/oversize/unavailable evidence.",
+                  "internal/channels/telegram/bot.go now normalizes Telegram document, native video, and photo messages alongside existing text/audio ingress without leaking cache paths into event text.",
+                  "internal/channels/telegram/photo_batch.go coalesces photo bursts and media_group albums into one gateway event, preserves the first caption, guards stale flush tasks with a sequence token, and clears pending timers on Run shutdown or Disconnect.",
+                  "internal/gateway/event.go extends attachment metadata with sizeBytes and SubmitText size evidence for cached inbound media."
+                ],
+                "tests": [
+                  "internal/channels/telegram/document_cache_test.go covers PDF cache descriptors, text injection ordering, binary/over-cap text suppression, unsupported/missing/oversize rejection evidence, MP4 document classification, and native video caching.",
+                  "internal/channels/telegram/photo_batch_test.go covers non-album burst coalescing, media_group album coalescing, first-caption preservation, cached photo descriptors, and pending batch cleanup on disconnect."
+                ],
+                "verification": [
+                  "go test ./internal/channels/telegram -run 'TestTelegramDocument|TestTelegramPhotoBatch|TestBot_ToInboundEvent' -count=1 -> failed before implementation: missing AttachmentCacheDir, SizeBytes, Disconnect, and pending photo batch lifecycle.",
+                  "go test ./internal/channels/telegram -run 'TestTelegramDocument|TestTelegramPhotoBatch|TestBot_ToInboundEvent' -count=1 -> pass",
+                  "go test ./internal/channels/telegram ./internal/gateway -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass",
+                  "git diff --check -> pass",
+                  "go test ./... -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [

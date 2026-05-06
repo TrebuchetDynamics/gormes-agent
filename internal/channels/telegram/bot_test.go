@@ -37,7 +37,7 @@ func TestBot_RunRegistersHermesTelegramCommands(t *testing.T) {
 	for _, cmd := range cfg.Commands {
 		seen[cmd.Command] = true
 	}
-	for _, want := range []string{"new", "retry", "undo", "title", "branch", "compress", "rollback", "snapshot", "stop", "approve", "deny", "background", "btw", "agents", "queue", "steer", "status"} {
+	for _, want := range []string{"new", "retry", "undo", "title", "branch", "compress", "rollback", "snapshot", "stop", "approve", "deny", "background", "btw", "agents", "queue", "steer", "status", "topic"} {
 		if !seen[want] {
 			t.Fatalf("setMyCommands missing %q in %#v", want, cfg.Commands)
 		}
@@ -129,6 +129,44 @@ func TestBot_ToInboundEvent_Submit(t *testing.T) {
 		}
 		if ev.Platform != "telegram" || ev.ChatID != "42" {
 			t.Errorf("got %+v", ev)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("no inbound event")
+	}
+}
+
+func TestBot_ToInboundEvent_TopicCommandPreservesPrivateMetadata(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = b.Run(ctx, inbox) }()
+
+	mc.updatesCh <- tgbotapi.Update{
+		UpdateID: 1,
+		Message: &tgbotapi.Message{
+			MessageID: 99,
+			Text:      "/topic help",
+			Chat:      &tgbotapi.Chat{ID: 42, Type: "private"},
+			From:      &tgbotapi.User{ID: 7, FirstName: "juan"},
+		},
+	}
+
+	select {
+	case ev := <-inbox:
+		if ev.Kind != gateway.EventTopic {
+			t.Fatalf("Kind = %v, want EventTopic", ev.Kind)
+		}
+		if ev.Text != "/topic help" {
+			t.Fatalf("Text = %q, want /topic help", ev.Text)
+		}
+		if ev.ChatType != "private" {
+			t.Fatalf("ChatType = %q, want private", ev.ChatType)
+		}
+		if ev.UserID != "7" {
+			t.Fatalf("UserID = %q, want 7", ev.UserID)
 		}
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("no inbound event")

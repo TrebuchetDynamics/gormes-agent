@@ -24,6 +24,7 @@ type mockClient struct {
 	DeleteMessageFn func(chatID int64, messageID int) error
 	telegramFiles   map[string]tgbotapi.File
 	downloads       map[string][]byte
+	downloadCalls   int
 	getFileErr      error
 	downloadErr     error
 }
@@ -91,6 +92,9 @@ func (m *mockClient) GetFile(config tgbotapi.FileConfig) (tgbotapi.File, error) 
 }
 
 func (m *mockClient) DownloadFile(_ context.Context, filePath string) ([]byte, error) {
+	m.mu.Lock()
+	m.downloadCalls++
+	m.mu.Unlock()
 	if m.downloadErr != nil {
 		return nil, m.downloadErr
 	}
@@ -147,6 +151,52 @@ func (m *mockClient) pushAudioUpdate(chatID int64, caption string, audio tgbotap
 			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
 		},
 	}
+}
+
+func (m *mockClient) pushDocumentUpdate(chatID int64, messageID int, caption string, document tgbotapi.Document) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID: messageID,
+			Caption:   caption,
+			Document:  &document,
+			Chat:      &tgbotapi.Chat{ID: chatID, Type: "private"},
+			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
+func (m *mockClient) pushPhotoUpdate(chatID int64, messageID int, caption, mediaGroupID string, photos []tgbotapi.PhotoSize) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID:    messageID,
+			Caption:      caption,
+			Photo:        photos,
+			MediaGroupID: mediaGroupID,
+			Chat:         &tgbotapi.Chat{ID: chatID, Type: "private"},
+			From:         &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
+func (m *mockClient) pushVideoUpdate(chatID int64, messageID int, caption string, video tgbotapi.Video) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID: messageID,
+			Caption:   caption,
+			Video:     &video,
+			Chat:      &tgbotapi.Chat{ID: chatID, Type: "private"},
+			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
+func (m *mockClient) downloadCallCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.downloadCalls
 }
 
 func (m *mockClient) sentMessages() []tgbotapi.Chattable {

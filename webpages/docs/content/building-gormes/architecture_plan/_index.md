@@ -226,8 +226,8 @@ classification and row-backed implementation queue.
 - [x] Gateway inbound dedup manager binding
 - [x] Email outbound Date header contract
 - [x] Telegram MarkdownV2 parse-mode rendering closeout
-- [ ] Telegram topic mode off/help/auth/debounce closeout
-- [ ] Telegram document/photo cache + batch attachment parity
+- [x] Telegram topic mode off/help/auth/debounce closeout
+- [x] Telegram document/photo cache + batch attachment parity
 - [ ] Discord authenticated attachment download safety
 - [ ] Slack Block Kit approval buttons + action callback
 - [ ] Discord thread participation persistence

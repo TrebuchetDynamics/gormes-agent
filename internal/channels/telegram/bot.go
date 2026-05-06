@@ -20,6 +20,12 @@ import (
 type Config struct {
 	AllowedChatID     int64
 	FirstRunDiscovery bool
+	// AttachmentCacheDir stores Telegram downloads before the channel emits
+	// normalized attachments to the gateway. Empty uses the user cache dir.
+	AttachmentCacheDir string
+	// MediaBatchDelay is the debounce window for Telegram photo bursts and
+	// media_group albums. Empty uses the Hermes-compatible default.
+	MediaBatchDelay time.Duration
 	// AudioTranscriber optionally turns Telegram voice/audio attachments into
 	// text before they reach the gateway. When nil or degraded, the adapter
 	// still emits deterministic attachment markers instead of blank turns.
@@ -40,6 +46,10 @@ type Bot struct {
 	cfg    Config
 	client telegramClient
 	log    *slog.Logger
+
+	photoMu      sync.Mutex
+	photoSeq     uint64
+	photoBatches map[string]*telegramPhotoBatchEntry
 }
 
 var _ gateway.Channel = (*Bot)(nil)
@@ -48,6 +58,7 @@ var _ gateway.MessageDeleter = (*Bot)(nil)
 var _ gateway.MediaSender = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
 var _ gateway.TypingCapable = (*Bot)(nil)
+var _ gateway.DisconnectCapable = (*Bot)(nil)
 
 const telegramCommandLimit = 100
 const telegramTypingRefreshInterval = 4 * time.Second
@@ -56,7 +67,12 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Bot{cfg: cfg, client: client, log: log}
+	return &Bot{
+		cfg:          cfg,
+		client:       client,
+		log:          log,
+		photoBatches: map[string]*telegramPhotoBatchEntry{},
+	}
 }
 
 func (b *Bot) Name() string { return "telegram" }
@@ -89,6 +105,7 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 	if err := b.registerCommands(); err != nil {
 		b.log.Warn("telegram setMyCommands failed", "err", err)
 	}
+	defer b.cancelPhotoBatches()
 
 	ucfg := tgbotapi.NewUpdate(0)
 	ucfg.Timeout = 30
@@ -104,6 +121,9 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 				return nil
 			}
 			if ev, ok := b.toInboundEvent(ctx, u); ok {
+				if b.enqueuePhotoBatch(ctx, inbox, ev, u.Message) {
+					continue
+				}
 				select {
 				case inbox <- ev:
 				case <-ctx.Done():
@@ -138,6 +158,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 	return gateway.InboundEvent{
 		Platform:    "telegram",
 		ChatID:      strconv.FormatInt(chatID, 10),
+		ChatType:    telegramChatType(u.Message.Chat),
 		UserID:      userID,
 		MsgID:       strconv.Itoa(u.Message.MessageID),
 		MessageID:   strconv.Itoa(u.Message.MessageID),
@@ -145,6 +166,13 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		Text:        body,
 		Attachments: attachments,
 	}, true
+}
+
+func telegramChatType(chat *tgbotapi.Chat) string {
+	if chat == nil {
+		return ""
+	}
+	return strings.TrimSpace(chat.Type)
 }
 
 func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbotapi.Message) (string, []gateway.Attachment) {
@@ -192,7 +220,46 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)
 	}
+	var prefixes []string
+	if msg.Document != nil {
+		prefix, marker, attachment := b.telegramDocumentAttachment(ctx, msg.Document)
+		if prefix != "" {
+			prefixes = append(prefixes, prefix)
+		}
+		if marker != "" {
+			markers = append(markers, marker)
+		}
+		if attachment != nil {
+			attachments = append(attachments, *attachment)
+		}
+	}
+	if msg.Video != nil {
+		marker, attachment := b.telegramVideoMessageAttachment(ctx, msg.Video)
+		if marker != "" {
+			markers = append(markers, marker)
+		}
+		if attachment != nil {
+			attachments = append(attachments, *attachment)
+		}
+	}
+	if len(msg.Photo) > 0 {
+		marker, attachment := b.telegramPhotoMessageAttachment(ctx, msg.Photo)
+		if marker != "" {
+			markers = append(markers, marker)
+		}
+		if attachment != nil {
+			attachments = append(attachments, *attachment)
+		}
+	}
 
+	if len(prefixes) > 0 {
+		prefix := strings.Join(prefixes, "\n\n")
+		if text == "" {
+			text = prefix
+		} else {
+			text = prefix + "\n\n" + text
+		}
+	}
 	for _, marker := range markers {
 		if marker == "" {
 			continue

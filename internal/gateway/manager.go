@@ -172,6 +172,13 @@ type ManagerConfig struct {
 	// the hard backstop.
 	GoalJudge    GoalJudge
 	GoalMaxTurns int
+	// TelegramTopicStore owns Telegram private-chat topic-mode state. Nil keeps
+	// topic mutations unavailable while still allowing /topic help to render.
+	TelegramTopicStore TelegramTopicStore
+	// TelegramTopicCapabilities checks BotFather/private-chat topic settings.
+	// Nil treats capabilities as unchecked and lets store-backed activation
+	// continue.
+	TelegramTopicCapabilities TelegramTopicCapabilitiesFunc
 }
 
 type KernelSubmitter interface {
@@ -259,6 +266,9 @@ type Manager struct {
 
 	kanbanDispatcherMu      sync.Mutex
 	kanbanDispatcherRunning bool
+
+	telegramTopicMu             sync.Mutex
+	telegramTopicCapabilityHint map[string]time.Time
 }
 
 type channelRunFailure struct {
@@ -468,18 +478,19 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		seams.ActiveProvider = cfg.LiveTurnActiveProvider
 	}
 	return &Manager{
-		cfg:                 cfg,
-		kernel:              k,
-		log:                 log,
-		channels:            map[string]Channel{},
-		reasoningState:      map[string]SessionReasoningState{},
-		inboundDedup:        NewMessageDeduplicator(defaultInboundDedupMaxSize),
-		liveTurnPromptSeams: seams,
-		agentRouter:         NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
-		agentRoutingEnabled: cfg.AgentRouting.Enabled,
-		agentRuntimes:       map[string]KernelSubmitter{},
-		agentRuntimeRender:  make(chan kernel.RenderFrame, kernel.RenderMailboxCap),
-		typingActionLast:    map[string]time.Time{},
+		cfg:                         cfg,
+		kernel:                      k,
+		log:                         log,
+		channels:                    map[string]Channel{},
+		reasoningState:              map[string]SessionReasoningState{},
+		inboundDedup:                NewMessageDeduplicator(defaultInboundDedupMaxSize),
+		liveTurnPromptSeams:         seams,
+		agentRouter:                 NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
+		agentRoutingEnabled:         cfg.AgentRouting.Enabled,
+		agentRuntimes:               map[string]KernelSubmitter{},
+		agentRuntimeRender:          make(chan kernel.RenderFrame, kernel.RenderMailboxCap),
+		typingActionLast:            map[string]time.Time{},
+		telegramTopicCapabilityHint: map[string]time.Time{},
 	}
 }
 
@@ -863,6 +874,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventGoal:
 		m.handleGoalCommand(ctx, ch, ev)
 		return nil
+	case EventTopic:
+		m.handleTelegramTopicCommand(ctx, ch, ev)
+		return nil
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
 		return nil
@@ -926,7 +940,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -1011,6 +1025,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventGoal:
 		m.handleGoalCommand(ctx, ch, ev)
+		return true
+	case EventTopic:
+		m.handleTelegramTopicCommand(ctx, ch, ev)
 		return true
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
