@@ -40355,9 +40355,9 @@
               "name": "Gateway channel adapters publish to event bus",
               "status": "planned",
               "priority": "P1",
-              "contract": "Each gateway channel adapter (Telegram, Discord, Slack, WhatsApp, WeChat) publishes incoming messages as standardized events on the bus, and subscribes to outgoing message events. Channel-specific translation lives in adapters; the bus carries channel-neutral events.",
+              "contract": "Inventory parent for binding gateway channel adapters to the shared event bus one channel at a time. Child slices publish channel-neutral message events with provenance while keeping channel-specific translation inside adapters; this parent must not be assigned directly.",
               "contract_status": "draft",
-              "slice_size": "large",
+              "slice_size": "umbrella",
               "execution_owner": "gateway",
               "trust_class": [
                 "system"
@@ -40365,41 +40365,99 @@
               "source_refs": [
                 "docs/content/papers/agentic-os-design.md",
                 "internal/events/bus.go",
-                "internal/channels/telegram/adapter.go",
-                "internal/channels/discord/adapter.go",
-                "internal/channels/slack/adapter.go"
+                "internal/gateway/event_dispatch.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/discord/bot.go",
+                "internal/slack/bot.go"
               ],
               "ready_when": [
-                "Event bus exists (5.V row 1)",
-                "Channel adapters are refactorable to add bus hooks"
+                "Event bus exists (5.V row 1).",
+                "Executable child rows cover one channel adapter or one outbound subscriber path at a time with exact write_scope and tests."
               ],
               "not_ready_when": [
-                "Event bus not yet implemented",
-                "Channel adapters too tightly coupled to refactor"
+                "This row is selected directly instead of a child channel-adapter slice.",
+                "The implementation tries to port Telegram, Discord, Slack, WhatsApp, and WeChat in one pass.",
+                "A child row cites non-existent adapter files or lacks provenance fields in its event payload."
+              ],
+              "unblocks": [
+                "Telegram gateway event-bus adapter"
               ],
               "acceptance": [
-                "Incoming Telegram message → MessageReceived event on bus",
-                "Incoming Discord message → MessageReceived event on bus",
-                "Incoming Slack message → MessageReceived event on bus",
-                "Outgoing reply event → channel-specific delivery by adapter subscriber",
-                "Channel adapter failures are isolated — one channel crash doesn't affect others",
-                "Message events carry channel provenance (source, channel_id, user_id)"
+                "Child rows prove incoming channel messages publish MessageReceived events with source, channel_id/chat_id, user_id, message_id, command kind, text/body, and trace_id.",
+                "Future outbound subscriber slices prove reply events can reach channel-specific delivery without coupling the kernel to platform SDKs.",
+                "Channel adapter event failures remain local to that adapter path and do not start or require a second event bus."
+              ],
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "no_test_required": "Inventory-only parent row; executable child rows carry focused event-bus adapter tests.",
+              "done_signal": [
+                "The parent remains non-selectable while channel-specific child rows provide runnable implementation and tests."
+              ],
+              "note": "2026-05-06 all-topic weakness sweep: this row previously cited non-existent adapter.go files and mixed five channels plus outbound delivery into one selectable P1 implementation. It is now an umbrella parent; execute child rows such as `Telegram gateway event-bus adapter` before adding Discord, Slack, WhatsApp, WeChat, or outbound subscriber slices."
+            },
+            {
+              "name": "Telegram gateway event-bus adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Telegram inbound events can be mirrored onto the shared event bus through a Go-native adapter that publishes the channel-neutral gateway.message.received topic with Telegram provenance, parsed command kind/body, chat/user/message/thread identifiers, and trace_id without changing Telegram polling or gateway turn execution.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system",
+                "gateway"
+              ],
+              "degraded_mode": "If the dispatcher or event bus is unavailable, the adapter returns telegram_event_bus_unavailable evidence to the caller and does not block the existing inbox submit path.",
+              "fixture": "internal/channels/telegram/bus_adapter_test.go",
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/channels/telegram/bot.go"
+              ],
+              "ready_when": [
+                "Event bus core is complete and validated.",
+                "Telegram Run already normalizes updates into gateway.InboundEvent values, so the slice can mirror those events without touching live Telegram polling."
+              ],
+              "not_ready_when": [
+                "The slice rewrites Telegram update polling, media parsing, reactions, or gateway turn execution.",
+                "The slice starts a second event bus or drops existing channel inbox delivery when event publication fails.",
+                "Tests require live Telegram credentials, network calls, or real GORMES_HOME state."
+              ],
+              "acceptance": [
+                "TestBusAdapter_PublishInboundMessageReceived proves a Telegram gateway.InboundEvent publishes exactly one gateway.message.received event with source=telegram, stable trace_id, event kind, body/text, chat_id, user_id, message_id, thread_id, and reply_to_message_id fields.",
+                "TestBusAdapter_PublishInboundRejectsNilDispatcher proves missing dispatcher returns typed telegram_event_bus_unavailable evidence instead of panicking.",
+                "Gateway dispatcher fixtures decode MessageEventPayload and prove provenance fields survive JSON marshaling."
               ],
               "write_scope": [
                 "internal/channels/telegram/bus_adapter.go",
-                "internal/channels/discord/bus_adapter.go",
-                "internal/channels/slack/bus_adapter.go",
+                "internal/channels/telegram/bus_adapter_test.go",
                 "internal/gateway/event_dispatch.go",
-                "internal/gateway/event_dispatch_test.go"
+                "internal/gateway/event_dispatch_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/gateway -run TestEventDispatch -count=1",
-                "go test ./internal/channels/telegram -run TestBusAdapter -count=1"
+                "go test ./internal/channels/telegram -run TestBusAdapter -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
               ],
               "done_signal": [
-                "Integration tests prove messages flow from channel→bus→agent and back through all adapter types"
+                "Telegram bus-adapter fixtures prove channel-neutral gateway.message.received publication with provenance and a non-panicking unavailable path, without live Telegram or changing existing inbox delivery."
               ],
-              "note": "Research-driven. Production pattern from OpenClaw, Pantalk, and Roger. Each channel adapter is an event publisher + subscriber. Adding a new channel means adding an adapter, not modifying the kernel."
+              "note": "TDD landed: `internal/gateway` now exposes a typed MessageEventPayload and helper that preserves gateway.InboundEvent provenance, parsed kind, body, and trace ID through JSON event publication. `internal/channels/telegram` adds a small BusAdapter that mirrors normalized Telegram inbound events to gateway.message.received, derives a stable fallback trace ID, returns telegram_event_bus_unavailable for missing dispatchers, and does not touch polling or the existing inbox submit path.",
+              "evidence": {
+                "implementation": "internal/gateway/event_dispatch.go, internal/channels/telegram/bus_adapter.go",
+                "tests": "go test ./internal/gateway -run TestEventDispatch -count=1; go test ./internal/channels/telegram -run TestBusAdapter -count=1",
+                "note": "Gateway and Telegram fixtures prove message payload round-trip, Telegram provenance fields, and nil-dispatcher degraded evidence without live Telegram."
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible Telegram inbound normalization",
+                "note": "The shared event bus is a Gormes-owned architecture row; Telegram inbound fields come from the existing Hermes-compatible gateway.InboundEvent normalization path."
+              }
             },
             {
               "name": "Agent turn and tool execution events on bus",

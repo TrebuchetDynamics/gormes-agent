@@ -171,27 +171,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Gateway channel adapters publish to event bus
-
-- Phase: 5 / 5.V
-- Owner: `gateway`
-- Size: `large`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Each gateway channel adapter (Telegram, Discord, Slack, WhatsApp, WeChat) publishes incoming messages as standardized events on the bus, and subscribes to outgoing message events. Channel-specific translation lives in adapters; the bus carries channel-neutral events.
-- Trust class: system
-- Ready when: Event bus exists (5.V row 1), Channel adapters are refactorable to add bus hooks
-- Not ready when: Event bus not yet implemented, Channel adapters too tightly coupled to refactor
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/channels/telegram/bus_adapter.go`, `internal/channels/discord/bus_adapter.go`, `internal/channels/slack/bus_adapter.go`, `internal/gateway/event_dispatch.go`, `internal/gateway/event_dispatch_test.go`
-- Test commands: `go test ./internal/gateway -run TestEventDispatch -count=1`, `go test ./internal/channels/telegram -run TestBusAdapter -count=1`
-- Done signal: Integration tests prove messages flow from channel→bus→agent and back through all adapter types
-- Acceptance: Incoming Telegram message → MessageReceived event on bus, Incoming Discord message → MessageReceived event on bus, Incoming Slack message → MessageReceived event on bus, Outgoing reply event → channel-specific delivery by adapter subscriber, Channel adapter failures are isolated — one channel crash doesn't affect others, Message events carry channel provenance (source, channel_id, user_id)
-- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 9. Behavioral pattern extraction from session logs
+## 8. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -211,7 +191,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Skill code execution runtime
+## 9. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -229,6 +209,26 @@ selection.
 - Done signal: Code executor tests prove skills with code blocks execute in sandbox with input/output contract
 - Acceptance: Skill files with code blocks are executable in sandbox, Execution is sandboxed with the same isolation as tool calls, Skill code has access to skill-defined dependencies, Execution timeout prevents runaway skills, Execution output is captured and returned to agent, Skill can define input parameters accepted from agent
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Skill dependency resolution and composition
+
+- Phase: 6 / 6.L
+- Owner: `skills`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P3`
+- Contract: Skills can declare dependencies on other skills. The runtime resolves the dependency graph before execution. The agent can compose skills by chaining: output of Skill A feeds into input of Skill B. Dependencies are validated at load time.
+- Trust class: operator
+- Ready when: Skill code execution exists (6.L row 1), Skills have structured metadata with dependency declarations
+- Not ready when: Skills have no dependency model, Code execution runtime not available
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/skills/dependency_resolver.go`, `internal/skills/dependency_resolver_test.go`, `internal/skills/composer.go`
+- Test commands: `go test ./internal/skills -run TestDependencyResolver -count=1`, `go test ./internal/skills -run TestComposer -count=1`
+- Done signal: Dependency tests prove circular deps rejected and chained composition works with error attribution
+- Acceptance: Skill dependency graph resolved at load time, Circular dependencies detected and rejected with clear error, Missing dependencies reported with skill name and missing dep, Agent can chain Skill A output → Skill B input, Composition failures surface which step in the chain failed, Load-time validation catches 100% of dependency errors before execution
+- Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

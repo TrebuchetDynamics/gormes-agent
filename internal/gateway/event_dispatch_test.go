@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"encoding/json"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -26,6 +27,51 @@ func TestEventDispatcher_PublishMessageReceived(t *testing.T) {
 
 	if received.Load() != 1 {
 		t.Fatalf("received %d events, want 1", received.Load())
+	}
+}
+
+func TestEventDispatcher_MessageEventPayloadRoundTrip(t *testing.T) {
+	bus := events.NewInProcessEventBus()
+	defer bus.Close()
+
+	delivered := make(chan events.Event, 1)
+	bus.Subscribe(TopicMessageReceived, func(e events.Event) {
+		delivered <- e
+	})
+
+	disp := NewEventDispatcher(bus)
+	payload := MessageEventPayload{
+		Platform:         "telegram",
+		ChatID:           "42",
+		ChatType:         "private",
+		UserID:           "7",
+		UserName:         "Ada",
+		ThreadID:         "1",
+		MessageID:        "99",
+		MsgID:            "99",
+		ReplyToMessageID: "",
+		Kind:             "submit",
+		Text:             "hello",
+		Body:             "hello",
+	}
+	if err := disp.PublishMessageReceived("telegram", "trace-tg-99", payload); err != nil {
+		t.Fatalf("PublishMessageReceived: %v", err)
+	}
+
+	select {
+	case got := <-delivered:
+		if got.Source != "telegram" || got.TraceID != "trace-tg-99" {
+			t.Fatalf("event provenance = source:%q trace:%q, want telegram/trace-tg-99", got.Source, got.TraceID)
+		}
+		var decoded MessageEventPayload
+		if err := json.Unmarshal(got.Payload, &decoded); err != nil {
+			t.Fatalf("payload decode: %v", err)
+		}
+		if decoded != payload {
+			t.Fatalf("decoded payload = %+v, want %+v", decoded, payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for message payload event")
 	}
 }
 
