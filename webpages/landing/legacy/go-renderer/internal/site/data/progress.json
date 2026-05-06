@@ -5538,7 +5538,7 @@
             },
             {
               "name": "Discord interaction authorization + mention safety guards",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Discord native interaction surfaces use the same admission policy as message ingress and default to safe mention behavior: allowed_mentions blocks everyone/here and role pings unless explicitly opted in, slash commands honor user, role, allowed-channel, ignored-channel, and thread-parent gates, component buttons honor user-or-role allowlists, and unauthorized skill autocomplete cannot leak the installed skill catalog.",
               "contract_status": "validated",
@@ -5586,7 +5586,7 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/channels/discord -run 'TestDiscordAllowedMentions|TestDiscordInteractionAuth|TestDiscordComponentAuth' -count=1",
+                "go test ./internal/channels/discord -run 'TestDiscordAllowedMentions|TestDiscordInteractionAuth|TestDiscordComponentAuth|TestDiscordSkillAutocomplete' -count=1",
                 "go test ./internal/channels/discord ./internal/gateway -run 'Discord|AgentRouter|Skill' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
@@ -5594,6 +5594,7 @@
               "done_signal": [
                 "Discord fake-interaction fixtures prove safe allowed_mentions defaults, slash auth parity, component role/user auth, fail-closed malformed contexts, and no unauthorized skill catalog leaks."
               ],
+              "note": "Completed in the 2026-05-06 parity sweep: internal/channels/discord now sends outbound messages with safe AllowedMentions defaults, exposes pure interaction/component auth helpers for user, role, allowed-channel, ignored-channel, thread-parent, missing-payload, and wildcard policy cases, and hides skill autocomplete choices from unauthorized contexts without live Discord calls.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [

@@ -262,7 +262,10 @@ func (b *Bot) toThreadLifecycleEvent(ch *discordgo.Channel) (gateway.InboundEven
 }
 
 func (b *Bot) Send(_ context.Context, chatID, text string) (string, error) {
-	msg, err := b.session.ChannelMessageSend(chatID, text)
+	msg, err := b.session.ChannelMessageSendComplex(chatID, &discordgo.MessageSend{
+		Content:         text,
+		AllowedMentions: BuildAllowedMentionsFromEnv(),
+	})
 	if err != nil {
 		return "", fmt.Errorf("discord: send: %w", err)
 	}
@@ -285,6 +288,7 @@ func (b *Bot) SendMedia(_ context.Context, chatID, replyToMsgID string, media ga
 		targetChannelID = strings.TrimSpace(chatID)
 	}
 	data := &discordgo.MessageSend{
+		AllowedMentions: BuildAllowedMentionsFromEnv(),
 		Files: []*discordgo.File{{
 			Name:   filepath.Base(mediaPath),
 			Reader: file,

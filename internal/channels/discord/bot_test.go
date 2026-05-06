@@ -128,8 +128,8 @@ func TestBot_Send(t *testing.T) {
 	if id == "" {
 		t.Errorf("empty id")
 	}
-	sent := ms.sentSnapshot()
-	if len(sent) != 1 || sent[0].Content != "hi" {
+	sent := ms.complexSnapshot()
+	if len(sent) != 1 || sent[0].Data == nil || sent[0].Data.Content != "hi" {
 		t.Errorf("sent = %+v", sent)
 	}
 }
@@ -154,8 +154,8 @@ func TestBot_SendPlaceholder(t *testing.T) {
 	if id == "" {
 		t.Errorf("empty id")
 	}
-	sent := ms.sentSnapshot()
-	if len(sent) != 1 || !strings.Contains(sent[0].Content, "⏳") {
+	sent := ms.complexSnapshot()
+	if len(sent) != 1 || sent[0].Data == nil || !strings.Contains(sent[0].Data.Content, "⏳") {
 		t.Errorf("placeholder content = %+v", sent)
 	}
 }
@@ -279,8 +279,11 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 	}
 
 	waitForDiscord(t, 500*time.Millisecond, func() bool {
-		sent := ms.sentSnapshot()
-		return len(sent) >= 1 && (sent[0].Content == "partial" || sent[0].Content == "done")
+		sent := ms.complexSnapshot()
+		if len(sent) == 0 || sent[0].Data == nil {
+			return false
+		}
+		return sent[0].Data.Content == "partial" || sent[0].Data.Content == "done"
 	})
 }
 

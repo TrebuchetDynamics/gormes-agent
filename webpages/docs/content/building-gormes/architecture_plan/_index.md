@@ -237,7 +237,7 @@ classification and row-backed implementation queue.
 - [x] Telegram inline approval buttons + callback auth
 - [x] Telegram polling conflict + webhook secret startup guard
 - [x] Slack mention/free-response gating + strict thread-memory guard
-- [ ] Discord interaction authorization + mention safety guards
+- [x] Discord interaction authorization + mention safety guards
 - [ ] Gateway processing lifecycle reactions for Telegram and Discord
 - [x] Telegram text batching + caption merge parity
 - [ ] Cross-platform multi-image native batching
