@@ -58,6 +58,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	}) {
 		reg.MustRegister(tool)
 	}
+	tools.RegisterHomeAssistantTools(reg, tools.HomeAssistantConfig{})
 	registerAudioTools(reg, cfg)
 	registerImageGenerationTool(reg, cfg)
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
