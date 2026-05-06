@@ -26364,8 +26364,8 @@
             },
             {
               "name": "Email allowlist pre-dispatch loop guard",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Email ingress drops non-allowlisted senders before thread-context construction or gateway dispatch, while an empty allowlist permits all senders and allowlisted senders proceed with the existing reply-thread contract, preventing mail loops and unauthorized model submits.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -26378,8 +26378,10 @@
               "degraded_mode": "Dropped senders produce email_sender_denied evidence with redacted sender/domain fields and no provider call, gateway event, thread read, or outbound reply.",
               "fixture": "internal/channels/email/allowlist_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/email.py@fd9c32c0",
-                "../hermes-agent/tests/gateway/test_email.py@fd9c32c0",
+                "./hermes-agent/gateway/platforms/email.py@b816fd4e2:EmailAdapter._dispatch_message",
+                "./hermes-agent/tests/gateway/test_email.py@b816fd4e2:TestDispatchMessage.test_non_allowlisted_sender_dropped",
+                "./hermes-agent/tests/gateway/test_email.py@b816fd4e2:TestDispatchMessage.test_allowlisted_sender_proceeds",
+                "./hermes-agent/tests/gateway/test_email.py@b816fd4e2:TestDispatchMessage.test_empty_allowlist_allows_all",
                 "internal/channels/email/contract.go",
                 "internal/channels/email/contract_test.go"
               ],
@@ -26405,7 +26407,7 @@
                 "internal/channels/email/contract.go",
                 "internal/channels/email/contract_test.go",
                 "internal/channels/email/allowlist_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/channels/email -run 'Allowlist|Dispatch|Thread' -count=1",
@@ -26416,10 +26418,28 @@
               "done_signal": [
                 "Email fixtures prove denied senders are dropped before dispatch/thread context, empty allowlists remain permissive, allowlisted senders proceed, and denial evidence is redacted."
               ],
+              "note": "Complete: TDD added a pure DispatchInboundWithAllowlist contract seam for native email ingress. The allowlist check runs immediately after RFC 822 From parsing and before body extraction, reply-thread construction, or gateway dispatch callbacks. Empty allowlists preserve existing NormalizeInbound behavior, exact sender allowlists compare case-insensitively, denied senders return email_sender_denied evidence, and redacted evidence never includes the full private address, message body, or auth headers.",
+              "evidence": {
+                "implementation": [
+                  "internal/channels/email/contract.go:DispatchInboundWithAllowlist",
+                  "internal/channels/email/contract.go:SenderDeniedEvidence"
+                ],
+                "tests": [
+                  "internal/channels/email/allowlist_test.go:TestEmailAllowlistEmptyPermitsAll",
+                  "internal/channels/email/allowlist_test.go:TestEmailAllowlistAllowedSenderProceeds",
+                  "internal/channels/email/allowlist_test.go:TestEmailAllowlistDeniedSenderDropsBeforeDispatch",
+                  "internal/channels/email/allowlist_test.go:TestEmailAllowlistDeniedSenderRedactsEvidence"
+                ],
+                "verification": [
+                  "RED: go test ./internal/channels/email -run 'Allowlist|Dispatch|Thread' -count=1 failed on undefined DispatchInboundWithAllowlist/InboundDispatchOptions",
+                  "GREEN: go test ./internal/channels/email -run 'Allowlist|Dispatch|Thread' -count=1 -> ok",
+                  "go test ./internal/channels/email -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:fd9c32c0 gateway/platforms/email.py",
-                "note": "Direct Hermes email safety drift; Gormes applies it at the native email contract seam before live IMAP/SMTP transport work."
+                "upstream_ref": "hermes:b816fd4e2 gateway/platforms/email.py:_dispatch_message",
+                "note": "2026-05-06 all-topic parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing rows already cover most observed gaps; this source-backed gateway safety row was the smallest unblocked builder-ready gap, so it was promoted from P2 to P1 and its stale sibling-checkout source refs/write_scope path were corrected before implementation. Direct Hermes email safety drift; Gormes applies it at the native email contract seam before live IMAP/SMTP transport work."
               }
             }
           ]

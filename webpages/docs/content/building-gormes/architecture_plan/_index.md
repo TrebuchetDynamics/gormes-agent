@@ -790,7 +790,7 @@ classification and row-backed implementation queue.
 - [x] Trust-class enforcement in shared tool executor
 - [x] Secrets Runtime Controls
 - [x] Security Audit Command
-- [ ] Email allowlist pre-dispatch loop guard
+- [x] Email allowlist pre-dispatch loop guard
 
 ### 5.K — Code Execution ✅
 

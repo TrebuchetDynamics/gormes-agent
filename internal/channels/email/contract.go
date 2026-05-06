@@ -35,6 +35,32 @@ type NormalizedInbound struct {
 	Reply ReplyTarget
 }
 
+// InboundDispatchOptions controls the pure email ingress contract before a
+// live IMAP/SMTP adapter exists.
+type InboundDispatchOptions struct {
+	AllowedSenders     []string
+	BuildThreadContext func(NormalizedInbound) error
+	Dispatch           func(gateway.InboundEvent) error
+}
+
+// SenderDeniedEvidence is bounded denial evidence for non-allowlisted email.
+type SenderDeniedEvidence struct {
+	Code   string
+	Sender string
+	Domain string
+	Reason string
+}
+
+// InboundDispatchResult reports whether an RFC 822 message was accepted,
+// dropped by policy, or ignored because it had no usable sender/body.
+type InboundDispatchResult struct {
+	Accepted   bool
+	Dropped    bool
+	Normalized bool
+	Inbound    NormalizedInbound
+	Evidence   SenderDeniedEvidence
+}
+
 // NormalizeInbound parses an RFC 822 message into the shared gateway contract.
 func NormalizeInbound(raw []byte) (NormalizedInbound, bool, error) {
 	msg, err := mail.ReadMessage(bufio.NewReader(bytes.NewReader(raw)))
@@ -47,6 +73,59 @@ func NormalizeInbound(raw []byte) (NormalizedInbound, bool, error) {
 		return NormalizedInbound{}, false, nil
 	}
 
+	return normalizeInboundMessage(msg, from)
+}
+
+// DispatchInboundWithAllowlist applies the Hermes email sender allowlist before
+// constructing thread context or dispatching a gateway event.
+func DispatchInboundWithAllowlist(raw []byte, opts InboundDispatchOptions) (InboundDispatchResult, error) {
+	msg, err := mail.ReadMessage(bufio.NewReader(bytes.NewReader(raw)))
+	if err != nil {
+		return InboundDispatchResult{}, fmt.Errorf("email: parse message: %w", err)
+	}
+	from, ok := firstAddress(msg.Header.Get("From"))
+	if !ok {
+		return InboundDispatchResult{}, nil
+	}
+	sender := normalizeEmailAddress(from.Address)
+	if !emailSenderAllowed(sender, opts.AllowedSenders) {
+		return InboundDispatchResult{
+			Dropped: true,
+			Evidence: SenderDeniedEvidence{
+				Code:   "email_sender_denied",
+				Sender: evidenceSender(sender),
+				Domain: emailAddressDomain(sender),
+				Reason: "sender_not_allowlisted",
+			},
+		}, nil
+	}
+
+	inbound, ok, err := normalizeInboundMessage(msg, from)
+	if err != nil {
+		return InboundDispatchResult{}, err
+	}
+	if !ok {
+		return InboundDispatchResult{}, nil
+	}
+	result := InboundDispatchResult{
+		Accepted:   true,
+		Normalized: true,
+		Inbound:    inbound,
+	}
+	if opts.BuildThreadContext != nil {
+		if err := opts.BuildThreadContext(inbound); err != nil {
+			return result, fmt.Errorf("email: build thread context: %w", err)
+		}
+	}
+	if opts.Dispatch != nil {
+		if err := opts.Dispatch(inbound.Event); err != nil {
+			return result, fmt.Errorf("email: dispatch inbound: %w", err)
+		}
+	}
+	return result, nil
+}
+
+func normalizeInboundMessage(msg *mail.Message, from *mail.Address) (NormalizedInbound, bool, error) {
 	body, err := extractBody(msg.Header.Get("Content-Type"), msg.Body)
 	if err != nil {
 		return NormalizedInbound{}, false, err
@@ -81,6 +160,44 @@ func NormalizeInbound(raw []byte) (NormalizedInbound, bool, error) {
 		},
 		Reply: reply,
 	}, true, nil
+}
+
+func normalizeEmailAddress(addr string) string {
+	return strings.ToLower(strings.TrimSpace(addr))
+}
+
+func emailSenderAllowed(sender string, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, candidate := range allowed {
+		if normalizeEmailAddress(candidate) == sender {
+			return true
+		}
+	}
+	return false
+}
+
+func emailAddressDomain(sender string) string {
+	_, domain, ok := strings.Cut(sender, "@")
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(domain)
+}
+
+func evidenceSender(sender string) string {
+	local, domain, ok := strings.Cut(sender, "@")
+	if !ok {
+		if local == "" {
+			return "***"
+		}
+		return local[:1] + "***"
+	}
+	if local == "" {
+		return "***@" + domain
+	}
+	return local[:1] + "***@" + domain
 }
 
 func firstAddress(raw string) (*mail.Address, bool) {
