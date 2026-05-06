@@ -5205,10 +5205,17 @@
             },
             {
               "name": "Telegram polling conflict + webhook secret startup guard",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Telegram startup matches Hermes' safety behavior: polling mode clears stale webhooks before getUpdates, repeated 409 polling conflicts retry before becoming a typed fatal error, startup network failures are marked retryable, token-scoped locks prevent same-host double polling, and webhook mode refuses to start without an explicit secret token.",
               "contract_status": "validated",
+              "evidence": [
+                "internal/channels/telegram/startup_lifecycle.go adds typed TelegramStartupError evidence for telegram_bot_token_lock, telegram_polling_conflict, telegram_connect_error, and telegram_webhook_secret_missing before message ingress begins.",
+                "internal/channels/telegram/bot.go::Run now prepares startup before command registration, clears stale webhooks with tgbotapi.DeleteWebhookConfig{DropPendingUpdates:false}, and consumes updates through an explicit long-poll loop so 409 conflicts and startup network failures are classifiable instead of disappearing into SDK logs.",
+                "internal/channels/telegram/client.go and real_client.go expose Token and GetUpdates seams; cmd/gormes gateway and telegram both pass config.GatewayLockDir so production same-token locks live under the Gormes state root rather than the operator cwd.",
+                "internal/channels/telegram/startup_lifecycle_test.go proves webhook cleanup, token-lock fatal evidence plus release on shutdown, retry-before-fatal polling conflicts, retryable/redacted DNS failures, and TELEGRAM_WEBHOOK_SECRET fail-closed behavior with no live Telegram token or network.",
+                "go test ./internal/channels/telegram -run 'TestTelegramStartup|TestPollingConflict|TestWebhookSecret' -count=1 and go test ./cmd/gormes ./internal/channels/telegram -run 'Telegram|Gateway' -count=1 pass."
+              ],
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -5219,12 +5226,14 @@
               "degraded_mode": "Startup failures surface telegram_bot_token_lock, telegram_polling_conflict, telegram_connect_error_retryable, or telegram_webhook_secret_missing evidence; Gormes never starts an unauthenticated webhook endpoint or runs two same-token polling loops on the same host.",
               "fixture": "internal/channels/telegram/startup_lifecycle_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:connect",
-                "../hermes-agent/tests/gateway/test_telegram_conflict.py@b816fd4e2",
-                "../hermes-agent/tests/gateway/test_telegram_webhook_secret.py@b816fd4e2",
+                "./hermes-agent/gateway/platforms/telegram.py@b816fd4e2:connect",
+                "./hermes-agent/tests/gateway/test_telegram_conflict.py@b816fd4e2",
+                "./hermes-agent/tests/gateway/test_telegram_webhook_secret.py@b816fd4e2",
                 "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go",
                 "internal/channels/telegram/real_client.go",
-                "cmd/gormes/gateway.go"
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go"
               ],
               "ready_when": [
                 "Telegram long-poll ingress is complete, so the row only hardens startup and fatal-error behavior around the existing update loop.",
@@ -5245,9 +5254,11 @@
                 "internal/channels/telegram/bot.go",
                 "internal/channels/telegram/client.go",
                 "internal/channels/telegram/real_client.go",
+                "internal/channels/telegram/mock_test.go",
                 "internal/channels/telegram/startup_lifecycle.go",
                 "internal/channels/telegram/startup_lifecycle_test.go",
                 "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -5266,7 +5277,7 @@
                   "hermes:b816fd4e2 tests/gateway/test_telegram_conflict.py",
                   "hermes:b816fd4e2 tests/gateway/test_telegram_webhook_secret.py"
                 ],
-                "note": "Gormes has a basic long-poll adapter, but Hermes now treats polling conflicts and webhook-secret enforcement as explicit operator-visible startup contracts."
+                "note": "Gormes now ports Hermes' Telegram startup safety contract through a native typed startup lifecycle. The adapter remains long-poll based, but stale webhook cleanup, same-token local locking, bounded conflict retries, retryable redacted startup network failures, and webhook-secret fail-closed behavior are fixture-backed."
               }
             },
             {

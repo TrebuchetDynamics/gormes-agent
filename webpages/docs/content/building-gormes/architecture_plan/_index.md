@@ -233,7 +233,7 @@ classification and row-backed implementation queue.
 - [ ] Discord thread participation persistence
 - [x] Cross-platform image/document MEDIA delivery routing
 - [x] Telegram inline approval buttons + callback auth
-- [ ] Telegram polling conflict + webhook secret startup guard
+- [x] Telegram polling conflict + webhook secret startup guard
 - [ ] Slack mention/free-response gating + strict thread-memory guard
 - [ ] Discord interaction authorization + mention safety guards
 - [ ] Gateway processing lifecycle reactions for Telegram and Discord

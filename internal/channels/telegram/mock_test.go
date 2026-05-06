@@ -31,6 +31,8 @@ type mockClient struct {
 	downloadCalls   int
 	getFileErr      error
 	downloadErr     error
+	token           string
+	GetUpdatesFn    func(context.Context, tgbotapi.UpdateConfig) ([]tgbotapi.Update, error)
 }
 
 type mockUpload struct {
@@ -51,8 +53,38 @@ func newMockClient() *mockClient {
 	}
 }
 
+func (m *mockClient) Token() string {
+	return m.token
+}
+
 func (m *mockClient) GetUpdatesChan(_ tgbotapi.UpdateConfig) tgbotapi.UpdatesChannel {
 	return m.updatesCh
+}
+
+func (m *mockClient) GetUpdates(ctx context.Context, cfg tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+	if m.GetUpdatesFn != nil {
+		return m.GetUpdatesFn(ctx, cfg)
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case update, ok := <-m.updatesCh:
+		if !ok {
+			return nil, context.Canceled
+		}
+		updates := []tgbotapi.Update{update}
+		for {
+			select {
+			case next, ok := <-m.updatesCh:
+				if !ok {
+					return updates, nil
+				}
+				updates = append(updates, next)
+			default:
+				return updates, nil
+			}
+		}
+	}
 }
 
 func (m *mockClient) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {

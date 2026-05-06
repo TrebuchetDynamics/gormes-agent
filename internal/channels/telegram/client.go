@@ -14,8 +14,17 @@ import (
 // this interface tight means the Bot code never pulls a live HTTP dep into
 // a test binary.
 type telegramClient interface {
+	// Token returns the bot token identity used only for local same-token
+	// startup locks. Implementations must not log or persist the raw value.
+	Token() string
+
 	// GetUpdatesChan starts long-poll and returns the Updates channel.
 	GetUpdatesChan(cfg tgbotapi.UpdateConfig) tgbotapi.UpdatesChannel
+
+	// GetUpdates performs one long-poll request. Bot.Run uses this instead of
+	// the SDK channel helper so startup can classify polling conflicts and
+	// retryable network failures before they disappear into SDK logs.
+	GetUpdates(ctx context.Context, cfg tgbotapi.UpdateConfig) ([]tgbotapi.Update, error)
 
 	// Send sends OR edits depending on the Chattable type (NewMessage vs
 	// NewEditMessageText). Returns the resulting Message; edit calls return

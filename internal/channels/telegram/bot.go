@@ -41,6 +41,13 @@ type Config struct {
 	// enabled skill slash commands) appended to the canonical Hermes menu.
 	DynamicCommands  []gateway.PlatformCommand
 	ApprovalResolver gateway.ApprovalResolver
+	// TokenLockDir stores machine-local same-token polling locks. Empty uses
+	// the gateway package default; cmd/gormes passes config.GatewayLockDir.
+	TokenLockDir string
+	// PollingConflictRetryDelay bounds tests and preserves Hermes' retry
+	// ladder in production when zero.
+	PollingConflictRetryDelay time.Duration
+	tokenLocker               telegramTokenLocker
 }
 
 // Bot implements gateway.Channel plus the editing capabilities the shared
@@ -57,6 +64,10 @@ type Bot struct {
 	approvalMu     sync.Mutex
 	approvalNextID uint64
 	approvalState  map[uint64]telegramApprovalState
+
+	startupMu            sync.Mutex
+	startupLock          telegramTokenLock
+	pollingConflictCount int
 }
 
 var _ gateway.Channel = (*Bot)(nil)
@@ -110,6 +121,10 @@ func (b *Bot) registerCommands() error {
 }
 
 func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
+	if err := b.prepareStartup(ctx); err != nil {
+		return err
+	}
+	defer b.releaseStartupTokenLock(context.Background())
 	if err := b.registerCommands(); err != nil {
 		b.log.Warn("telegram setMyCommands failed", "err", err)
 	}
@@ -117,35 +132,58 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 
 	ucfg := tgbotapi.NewUpdate(0)
 	ucfg.Timeout = 30
-	updates := b.client.GetUpdatesChan(ucfg)
 
 	for {
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			b.client.StopReceivingUpdates()
 			return nil
-		case u, ok := <-updates:
-			if !ok {
+		}
+		updates, err := b.client.GetUpdates(ctx, ucfg)
+		if err != nil {
+			again, err := b.handlePollingError(ctx, err)
+			if err != nil {
+				b.client.StopReceivingUpdates()
+				return err
+			}
+			if !again {
+				b.client.StopReceivingUpdates()
 				return nil
 			}
-			if u.CallbackQuery != nil {
-				if b.handleCallbackQuery(ctx, u.CallbackQuery) {
-					continue
-				}
-				continue
+			continue
+		}
+		if len(updates) > 0 {
+			b.pollingConflictCount = 0
+		}
+		for _, u := range updates {
+			if u.UpdateID >= ucfg.Offset {
+				ucfg.Offset = u.UpdateID + 1
 			}
-			if ev, ok := b.toInboundEvent(ctx, u); ok {
-				if b.enqueuePhotoBatch(ctx, inbox, ev, u.Message) {
-					continue
-				}
-				select {
-				case inbox <- ev:
-				case <-ctx.Done():
-					return nil
-				}
+			if err := b.handleUpdate(ctx, inbox, u); err != nil {
+				b.client.StopReceivingUpdates()
+				return err
 			}
 		}
 	}
+}
+
+func (b *Bot) handleUpdate(ctx context.Context, inbox chan<- gateway.InboundEvent, u tgbotapi.Update) error {
+	if u.CallbackQuery != nil {
+		if b.handleCallbackQuery(ctx, u.CallbackQuery) {
+			return nil
+		}
+		return nil
+	}
+	if ev, ok := b.toInboundEvent(ctx, u); ok {
+		if b.enqueuePhotoBatch(ctx, inbox, ev, u.Message) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case inbox <- ev:
+		}
+	}
+	return nil
 }
 
 func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.InboundEvent, bool) {

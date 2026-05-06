@@ -31,8 +31,33 @@ func NewRealClient(token string) (telegramClient, error) {
 	return &realClient{api: api}, nil
 }
 
+func (r *realClient) Token() string {
+	if r == nil || r.api == nil {
+		return ""
+	}
+	return r.api.Token
+}
+
 func (r *realClient) GetUpdatesChan(cfg tgbotapi.UpdateConfig) tgbotapi.UpdatesChannel {
 	return r.api.GetUpdatesChan(cfg)
+}
+
+func (r *realClient) GetUpdates(ctx context.Context, cfg tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+	type result struct {
+		updates []tgbotapi.Update
+		err     error
+	}
+	done := make(chan result, 1)
+	go func() {
+		updates, err := r.api.GetUpdates(cfg)
+		done <- result{updates: updates, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case res := <-done:
+		return res.updates, res.err
+	}
 }
 
 func (r *realClient) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {

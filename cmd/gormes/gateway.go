@@ -313,6 +313,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				BotUsername:       cfg.Telegram.BotUsername,
 				AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
 				DynamicCommands:   gatewayTelegramDynamicCommands(context.Background(), cfg),
+				TokenLockDir:      config.GatewayLockDir(),
 			}, tc, log), nil
 		},
 		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
