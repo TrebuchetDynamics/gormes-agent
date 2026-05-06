@@ -26,6 +26,9 @@ type Canceller func()
 type Options struct {
 	MouseTracking bool
 	MouseModeCmd  func(enabled bool) tea.Cmd
+	// VoiceRecordKey is the Hermes-compatible voice.record_key value used
+	// by the pure key resolver. Empty falls back to Ctrl+B.
+	VoiceRecordKey string
 	// SessionBranch is the injected fork helper invoked by the /branch
 	// slash command. nil disables /branch (handler returns
 	// `branch: store unavailable`); cmd/gormes wires the real
@@ -91,11 +94,12 @@ type Model struct {
 	cancel   Canceller
 	inFlight bool // true between a user submit and the next terminal frame
 
-	mouseTracking bool
-	mouseModeCmd  func(enabled bool) tea.Cmd
-	statusMessage string
-	busyGuard     BusyInputEvaluator
-	offlineSmoke  bool
+	mouseTracking  bool
+	mouseModeCmd   func(enabled bool) tea.Cmd
+	voiceRecordKey string
+	statusMessage  string
+	busyGuard      BusyInputEvaluator
+	offlineSmoke   bool
 
 	// sessionID, when non-empty, is the locally-tracked active session
 	// owned by a successful /branch fork. SessionID() prefers it over
@@ -144,6 +148,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		cancel:         cancel,
 		mouseTracking:  opts.MouseTracking,
 		mouseModeCmd:   opts.MouseModeCmd,
+		voiceRecordKey: opts.VoiceRecordKey,
 		sessionBranch:  opts.SessionBranch,
 		busyGuard:      opts.BusyGuard,
 		sessionExport:  opts.SessionExport,

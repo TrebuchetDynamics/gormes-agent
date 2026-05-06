@@ -719,7 +719,7 @@ classification and row-backed implementation queue.
 - [x] MiniMax TTS v1 text_to_speech raw-audio compatibility
 - [x] TTS provider matrix + dotenv/command-provider resolution
 - [ ] TTS synthesis + voice-mode state
-- [ ] Voice record-key config binding for native TUI
+- [x] Voice record-key config binding for native TUI
 
 ### 5.F — Skills System (Remaining) 🔨
 

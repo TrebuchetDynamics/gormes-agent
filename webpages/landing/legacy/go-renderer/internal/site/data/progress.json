@@ -22939,8 +22939,8 @@
             },
             {
               "name": "Voice record-key config binding for native TUI",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes native TUI and voice mode honor a Hermes-compatible voice.record_key setting end to end: config parse and setup surfaces preserve the key, slash/status output reports it, and the key resolver uses the configured shortcut instead of a hardcoded default while malformed, reserved, or unsupported modifier combinations fall back with evidence.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -22953,14 +22953,15 @@
               "degraded_mode": "Malformed or reserved record_key values return voice_record_key_invalid or voice_record_key_reserved evidence and fall back to the default key without disabling STT/TTS or leaking config file contents.",
               "fixture": "internal/tools/voice_mode_test.go; internal/tui/hermes_keybindings_test.go",
               "source_refs": [
-                "../hermes-agent/cli.py@20428f5e6",
-                "../hermes-agent/hermes_cli/voice.py@20428f5e6",
-                "../hermes-agent/tui_gateway/server.py@20428f5e6",
-                "../hermes-agent/ui-tui/src/lib/platform.ts@20428f5e6",
-                "../hermes-agent/ui-tui/src/app/useInputHandlers.ts@20428f5e6",
-                "../hermes-agent/tests/hermes_cli/test_voice_wrapper.py@20428f5e6",
-                "../hermes-agent/tests/test_tui_gateway_server.py@20428f5e6",
-                "../hermes-agent/ui-tui/src/__tests__@20428f5e6",
+                "./hermes-agent/hermes_cli/voice.py@b816fd4e2:voice_record_key_from_config",
+                "./hermes-agent/hermes_cli/voice.py@b816fd4e2:normalize_voice_record_key_for_prompt_toolkit",
+                "./hermes-agent/hermes_cli/voice.py@b816fd4e2:format_voice_record_key_for_status",
+                "./hermes-agent/tui_gateway/server.py@b816fd4e2:_voice_record_key",
+                "./hermes-agent/tui_gateway/server.py@b816fd4e2:voice.toggle",
+                "./hermes-agent/ui-tui/src/lib/platform.ts@b816fd4e2:isVoiceToggleKey",
+                "./hermes-agent/ui-tui/src/app/useInputHandlers.ts@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_voice_wrapper.py@b816fd4e2",
+                "./hermes-agent/tests/test_tui_gateway_server.py@b816fd4e2",
                 "internal/tools/voice_mode.go",
                 "internal/tui/hermes_keybindings_test.go",
                 "cmd/gormes/config_command_test.go"
@@ -22985,34 +22986,58 @@
                 "TestVoiceStatusShowsConfiguredRecordKey proves slash/status rendering includes the active record key in a bounded operator-visible field."
               ],
               "write_scope": [
+                "internal/config/config.go",
+                "internal/config/writer.go",
                 "internal/tools/voice_mode.go",
                 "internal/tools/voice_mode_test.go",
-                "internal/tui/hermes_keybindings.go",
+                "internal/tools/voice_record_key.go",
+                "internal/tools/voice_record_key_test.go",
+                "internal/tui/update.go",
                 "internal/tui/hermes_keybindings_test.go",
                 "cmd/gormes/setup.go",
                 "cmd/gormes/config_command_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools ./internal/tui ./cmd/gormes -run 'Voice.*RecordKey|HermesKey.*Voice|Config.*Voice' -count=1",
-                "go test ./internal/tools ./internal/tui ./cmd/gormes -count=1",
+                "go test ./internal/tools ./internal/tui ./internal/config ./cmd/gormes -run 'Voice.*RecordKey|HermesKey.*Voice|Config.*Voice' -count=1",
+                "go test ./internal/tools ./internal/tui ./internal/config ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
                 "Voice config and TUI fixtures prove voice.record_key parses, displays, falls back safely, and controls recording without a hardcoded shortcut or live audio runtime."
               ],
+              "completed_at": "2026-05-06T22:43:42Z",
+              "evidence": {
+                "implementation": [
+                  "internal/tools/voice_record_key.go adds the Hermes-compatible voice.record_key parser, prompt_toolkit/status formatting, reserved-key fallback evidence, and event matcher.",
+                  "internal/tui/update.go and internal/tui/model.go wire the configured voice.record_key through the pure key resolver and Bubble Tea Ctrl-letter events without starting live audio capture.",
+                  "internal/config/config.go and internal/config/writer.go add the [voice] record_key config surface, default, env override, and TOML writer allowlist entry.",
+                  "cmd/gormes/main.go and cmd/gormes/remote_tui.go pass the loaded voice.record_key into native and remote TUI model options.",
+                  "internal/tools/voice_mode.go exposes bounded voice status formatting that includes the active record key and fallback evidence."
+                ],
+                "tests": [
+                  "internal/tools/voice_record_key_test.go covers default/override parsing, display/prompt_toolkit normalization, malformed input fallback, reserved key fallback, and event matching.",
+                  "internal/tui/hermes_keybindings_test.go covers configured voice key resolution, reserved fallback to Ctrl+B, and Bubble Tea Ctrl-letter key handling without submitting prompt text.",
+                  "cmd/gormes/config_command_test.go covers `gormes config set voice.record_key ctrl+space` TOML persistence and config load.",
+                  "internal/tools/voice_mode_test.go covers voice status rendering with configured and reserved record keys."
+                ],
+                "verification": [
+                  "go test ./internal/tools ./internal/tui ./internal/config ./cmd/gormes -run 'Voice.*RecordKey|HermesKey.*Voice|Config.*Voice' -count=1 -> pass",
+                  "go test ./internal/tools ./internal/tui ./internal/config ./cmd/gormes -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:20428f5e6 voice.record_key TUI binding",
-                "note": "Hermes recently fixed voice.record_key across CLI, gateway protocol, and TUI; Gormes scopes the parity row to native config/status/keybinding behavior."
+                "upstream_ref": "hermes:b816fd4e2 voice.record_key TUI binding",
+                "note": "2026-05-06 bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned row count is 74; no new row was added. Planned P1 rows are blocked, draft-only, or not honest to select, while this row has complete STT/TTS prerequisites and active Hermes b816fd4e2 evidence for config extraction, status formatting, gateway responses, and TUI key matching. Promote to P1 as the highest unblocked small Hermes-sourced builder slice for this cycle."
               }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes remains the TTS/STT/voice-mode source of truth. Gormes has the transcription helper, Telegram STT ingress, and TTS tool/media delivery seam; current drift is split into MiniMax v1 raw-audio compatibility, TTS provider matrix/dotenv/command-provider resolution, voice record-key config binding, and full voice-mode state. Keep provider-specific synthesis/config and platform delivery separated so voice work does not reopen completed STT rows."
+            "last_upstream_check": "2026-05-06T00:00:00Z",
+            "origin_decision": "Hermes b816fd4e2 remains the TTS/STT/voice-mode source of truth. The 2026-05-06 all-topic weakness sweep found the current unblocked small Hermes-sourced weakness in voice.record_key config/status/TUI binding after checking CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Gormes has the transcription helper, Telegram STT ingress, TTS tool/media delivery seam, and voice environment detector complete; keep provider-specific synthesis/config and platform delivery separated so voice work does not reopen completed STT rows."
           }
         },
         "5.F": {

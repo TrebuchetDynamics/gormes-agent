@@ -4,6 +4,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
 // TestHermesKeybindings_AltEnterAndCtrlJInsertNewline proves multi-line input
@@ -176,9 +180,9 @@ func TestHermesKeybindings_BusyModeUnavailableDoesNotSubmitSlash(t *testing.T) {
 // busy_input_mode contract called out in the row's contract field.
 func TestHermesKeybindings_EnterPlainTextHonorsBusyInputMode(t *testing.T) {
 	cases := []struct {
-		name   string
-		state  HermesInputState
-		want   HermesAction
+		name  string
+		state HermesInputState
+		want  HermesAction
 	}{
 		{"idle plain text submits", HermesInputState{Text: "hello", Phase: HermesPhaseIdle}, HermesActionSubmit},
 		{"running interrupt mode", HermesInputState{Text: "hello", Phase: HermesPhaseRunning, BusyInputMode: HermesBusyInterrupt}, HermesActionInterrupt},
@@ -212,6 +216,57 @@ func TestHermesKeybindings_CtrlLForcesRedraw(t *testing.T) {
 	}
 	if got.ExitProcess {
 		t.Fatalf("Ctrl+L must not exit")
+	}
+}
+
+func TestHermesKeybindings_VoiceRecordKeyResolverUsesConfiguredKey(t *testing.T) {
+	st := HermesInputState{VoiceRecordKey: "ctrl+o"}
+	got := ResolveHermesKey(HermesKeyEvent{Kind: HermesKeyRune, Ch: "o", Ctrl: true}, st)
+	if got.Action != HermesActionToggleVoiceRecording {
+		t.Fatalf("configured Ctrl+O = %v, want HermesActionToggleVoiceRecording", got.Action)
+	}
+
+	oldDefault := ResolveHermesKey(HermesKeyEvent{Kind: HermesKeyRune, Ch: "b", Ctrl: true}, st)
+	if oldDefault.Action == HermesActionToggleVoiceRecording {
+		t.Fatalf("Ctrl+B toggled voice even though voice.record_key is ctrl+o")
+	}
+
+	named := ResolveHermesKey(HermesKeyEvent{Kind: HermesKeySpace, Ctrl: true}, HermesInputState{VoiceRecordKey: "ctrl+space"})
+	if named.Action != HermesActionToggleVoiceRecording {
+		t.Fatalf("configured Ctrl+Space = %v, want HermesActionToggleVoiceRecording", named.Action)
+	}
+}
+
+func TestHermesKeybindings_VoiceRecordKeyMalformedAndReservedFallback(t *testing.T) {
+	reserved := ResolveHermesKey(HermesKeyEvent{Kind: HermesKeyCtrlC}, HermesInputState{VoiceRecordKey: "ctrl+c"})
+	if reserved.Action == HermesActionToggleVoiceRecording {
+		t.Fatal("reserved ctrl+c must not become the voice toggle")
+	}
+
+	defaulted := ResolveHermesKey(HermesKeyEvent{Kind: HermesKeyRune, Ch: "b", Ctrl: true}, HermesInputState{VoiceRecordKey: "ctrl+c"})
+	if defaulted.Action != HermesActionToggleVoiceRecording {
+		t.Fatalf("reserved voice.record_key fallback Ctrl+B = %v, want voice toggle", defaulted.Action)
+	}
+}
+
+func TestHermesKeybindings_VoiceRecordTeaKeyUsesConfiguredKey(t *testing.T) {
+	sub := &nopSubmitter{}
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{VoiceRecordKey: "ctrl+o"})
+
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlO})
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T, want tui.Model", next)
+	}
+	runTestCmd(t, cmd)
+
+	if sub.calls != 0 {
+		t.Fatalf("voice record key reached Submitter %d time(s), want 0", sub.calls)
+	}
+	if !strings.Contains(updated.statusMessage, "Ctrl+O") || !strings.Contains(updated.statusMessage, "voice_record_key_ok") {
+		t.Fatalf("statusMessage = %q, want configured key evidence", updated.statusMessage)
 	}
 }
 

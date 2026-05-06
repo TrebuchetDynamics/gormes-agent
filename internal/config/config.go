@@ -36,6 +36,7 @@ type Config struct {
 	Display    DisplayCfg        `toml:"display" yaml:"display"`
 	TUI        TUICfg            `toml:"tui" yaml:"tui"`
 	Input      InputCfg          `toml:"input" yaml:"input"`
+	Voice      VoiceCfg          `toml:"voice" yaml:"voice"`
 	Auxiliary  AuxiliaryCfg      `toml:"auxiliary" yaml:"auxiliary"`
 	Curator    CuratorCfg        `toml:"curator" yaml:"curator"`
 	Telegram   TelegramCfg       `toml:"telegram" yaml:"telegram"`
@@ -385,6 +386,10 @@ type InputCfg struct {
 	MaxLines int `toml:"max_lines" yaml:"max_lines"`
 }
 
+type VoiceCfg struct {
+	RecordKey string `toml:"record_key" yaml:"record_key"`
+}
+
 type InferenceValueSource string
 
 const (
@@ -542,6 +547,7 @@ func defaults() Config {
 		},
 		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
+		Voice: VoiceCfg{RecordKey: "ctrl+b"},
 		Auxiliary: AuxiliaryCfg{
 			Curator: AuxiliaryTaskCfg{
 				Provider:  "auto",
@@ -829,6 +835,9 @@ func loadEnv(cfg *Config) error {
 			return err
 		}
 		cfg.TUI.MouseTracking = parsed
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_VOICE_RECORD_KEY")); v != "" {
+		cfg.Voice.RecordKey = v
 	}
 	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_TOKEN"), os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_TOKEN")); v != "" {
 		cfg.Telegram.BotToken = v
@@ -1157,6 +1166,10 @@ func validateConfig(cfg *Config) error {
 	cfg.Terminal.CWD = strings.TrimSpace(cfg.Terminal.CWD)
 	if cfg.Terminal.CWD == "" {
 		cfg.Terminal.CWD = "."
+	}
+	cfg.Voice.RecordKey = strings.TrimSpace(cfg.Voice.RecordKey)
+	if cfg.Voice.RecordKey == "" {
+		cfg.Voice.RecordKey = "ctrl+b"
 	}
 	if strings.TrimSpace(cfg.Runtime.TerminalBackend) == "" {
 		cfg.Runtime.TerminalBackend = cfg.Terminal.Backend

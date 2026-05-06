@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -212,6 +213,18 @@ func TestVoiceModeRunnerGetSet(t *testing.T) {
 	}
 	if result.Success || result.Evidence != VoiceModeEvidenceInvalidArguments {
 		t.Fatalf("empty chatID result = %+v, want failure/invalid_arguments", result)
+	}
+}
+
+func TestVoiceStatusShowsConfiguredRecordKey(t *testing.T) {
+	status := FormatVoiceModeStatus("voice_only", "ctrl+o")
+	if !strings.Contains(status, "voice_only") || !strings.Contains(status, "Ctrl+O") || !strings.Contains(status, string(VoiceRecordKeyEvidenceOK)) {
+		t.Fatalf("status = %q, want mode, Ctrl+O, and ok evidence", status)
+	}
+
+	fallback := FormatVoiceModeStatus("all", "ctrl+c")
+	if !strings.Contains(fallback, "Ctrl+B") || !strings.Contains(fallback, string(VoiceRecordKeyEvidenceReserved)) {
+		t.Fatalf("reserved status = %q, want default Ctrl+B and reserved evidence", fallback)
 	}
 }
 
@@ -580,9 +593,9 @@ func (f *fakeVoiceModeSTTProvider) Transcribe(_ context.Context, req Transcripti
 
 // fakeVoiceModeAudioProvider is a fake audio provider for testing.
 type fakeVoiceModeAudioProvider struct {
-	available    bool
-	playCalled   bool
-	stopCalled   bool
+	available     bool
+	playCalled    bool
+	stopCalled    bool
 	recordStarted bool
 }
 

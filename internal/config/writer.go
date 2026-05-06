@@ -31,6 +31,7 @@ var allowedTOMLSections = map[string]struct{}{
 	"gateway":    {},
 	"tui":        {},
 	"input":      {},
+	"voice":      {},
 	"telegram":   {},
 	"discord":    {},
 	"slack":      {},

@@ -109,6 +109,37 @@ func TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads(t *testing.T) {
 	}
 }
 
+func TestConfigCommand_SetVoiceRecordKeyWritesTOMLAndLoads(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "set", "voice.record_key", "ctrl+space")
+	if err != nil {
+		t.Fatalf("set voice.record_key: %v stderr=%s", err, stderr)
+	}
+	if !strings.Contains(stdout, "voice.record_key") || !strings.Contains(stdout, config.ConfigPath()) {
+		t.Fatalf("stdout = %q, want voice.record_key and config path", stdout)
+	}
+
+	tomlBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	body := string(tomlBody)
+	if !strings.Contains(body, "[voice]") ||
+		(!strings.Contains(body, `record_key = 'ctrl+space'`) && !strings.Contains(body, `record_key = "ctrl+space"`)) {
+		t.Fatalf("config.toml missing voice.record_key:\n%s", tomlBody)
+	}
+
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("Load after voice.record_key write: %v", err)
+	}
+	if cfg.Voice.RecordKey != "ctrl+space" {
+		t.Fatalf("loaded voice.record_key = %q, want ctrl+space", cfg.Voice.RecordKey)
+	}
+}
+
 func TestConfigCommand_SetAPIKeyWritesEnvFileNotTOML(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	cmd := newRootCommandWithRuntime(rootRuntime{})
