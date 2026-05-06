@@ -93,7 +93,7 @@ Use repo-local skills before substantive work:
 - gormes-planner to turn parity findings into builder-ready progress rows.
 - gormes-builder to select and implement one row.
 - gormes-tdd-slice for red-green-refactor when tests are required.
-- gormes-git first, before row selection, and again after implementation is complete.
+- gormes-git first, before row selection, again after implementation is complete, and for CI/CD-green repair.
 
 Task:
 First invoke gormes-git. If the worktree is dirty, commit every current safe change, make development green, and push origin development before selecting a new row. If the worktree is already clean, record that and continue.
@@ -103,6 +103,8 @@ Then invoke gormes-hermes-parity against progress.json. Run a bounded all-topic 
 Then invoke gormes-planner on the parity findings and current planned-row count. Convert findings into builder-ready progress.json row changes before implementation. Keep the queue completion-biased: add at most one new source-backed row per cycle, add no new P3/P4 rows while planned rows are 90 or higher, and prefer sharpening, de-duplicating, or reprioritizing existing rows when that is enough. Record implementation intent only in docs/content/building-gormes/architecture_plan/progress.json and regenerate derived progress surfaces when it changes.
 
 Then implement the highest-priority builder-ready new/planned progress.json row after that parity sweep. If the top candidate is not actually ready, pick the next highest-priority builder-ready row or fix the highest-priority failing row that is already in scope. Do exactly one bounded row.
+
+After the final gormes-git push, verify CI/CD for the pushed development HEAD when GitHub status is available. Use gh run/status commands to wait for in-progress checks, inspect failing logs, and repair red CI/CD on development before selecting another parity row. If remote CI/CD cannot be queried, report ci_status=unknown with the exact command failure and do not claim CI/CD is green from local gates alone.
 
 Hard constraints:
 - Read AGENTS.md and the selected skill files before editing.
@@ -117,6 +119,7 @@ Hard constraints:
 - When a row is complete, update progress evidence/status and regenerate derived progress surfaces with go run ./cmd/progress write.
 - Run the row test commands, then the required repo gate: go test ./... -count=1, go run ./cmd/progress validate, and git diff --check. Run docs/landing public-surface gates when docs or web assets changed.
 - Finish by invoking gormes-git to commit all current work coherently and push origin development. If this cannot be done, leave the worktree and log in a clearly recoverable state; do not force push.
+- If CI/CD is red after a push, make the next loop task a focused CI repair. Do not start new parity or builder work until the development branch is locally green and remote CI/CD is green or explicitly ci_status=unknown due to an unavailable GitHub status query.
 PROMPT
 }
 
