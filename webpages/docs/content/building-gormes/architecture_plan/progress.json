@@ -5621,8 +5621,9 @@
             },
             {
               "name": "Gateway processing lifecycle reactions for Telegram and Discord",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "completed_at": "2026-05-06T18:03:19Z",
+              "priority": "P1",
               "contract": "Gateway processing lifecycle hooks drive channel-native reactions for supported platforms: in-progress reactions are set when a turn starts, success/failure terminal reactions are set when the turn completes, cancellation suppresses terminal success/failure, and reaction failures never break message processing or final delivery.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -5639,8 +5640,9 @@
                 "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:on_processing_start",
                 "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:on_processing_complete",
                 "internal/gateway/channel.go:ReactionCapable",
-                "internal/channels/discord/bot.go:ReactToMessage",
-                "internal/channels/telegram/bot.go"
+                "internal/gateway/reaction_lifecycle.go",
+                "internal/channels/discord/bot.go:OnProcessingStart",
+                "internal/channels/telegram/bot.go:OnProcessingStart"
               ],
               "ready_when": [
                 "gateway.ReactionCapable already exists and Discord implements a basic ReactToMessage helper, so the row can focus on manager lifecycle binding and Telegram parity.",
@@ -5678,13 +5680,20 @@
               "done_signal": [
                 "Gateway and fake-channel fixtures prove best-effort processing reactions across Telegram and Discord, including disabled configs, missing IDs, API failures, cancellation suppression, and unchanged non-reaction channels."
               ],
+              "note": "2026-05-06 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No planned P0 rows remained; planned P1 rows were blocked, draft-only, or owned/non-Hermes surfaces for this cycle. This row was the highest unblocked builder-ready Hermes-sourced gateway/channel slice because upstream Hermes b816fd4e2 has explicit Telegram and Discord processing-reaction fixtures while Gormes only had a Discord start-reaction helper and no manager lifecycle outcome binding. Complete: TDD added a channel-neutral ProcessingOutcome enum, manager start/terminal lifecycle hooks, Telegram setMessageReaction support behind TELEGRAM_REACTIONS with disabled-by-default behavior, Discord reaction swap/remove behavior behind DISCORD_REACTIONS with enabled-by-default behavior, and best-effort error handling that does not block final delivery.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
                   "hermes:b816fd4e2 tests/gateway/test_telegram_reactions.py",
                   "hermes:b816fd4e2 tests/gateway/test_discord_reactions.py"
                 ],
-                "note": "Gormes exposes a ReactionCapable interface but the manager does not yet bind processing lifecycle outcomes to Telegram/Discord reaction behavior."
+                "note": "Hermes defines processing start/success/failure/cancelled reactions for Telegram and Discord; Gormes now ports the behavior through native gateway lifecycle hooks and fakeable channel adapters."
+              },
+              "evidence": {
+                "implementation": "internal/gateway/channel.go; internal/gateway/reaction_lifecycle.go; internal/gateway/manager.go; internal/channels/telegram/bot.go; internal/channels/discord/bot.go",
+                "tests": "internal/gateway/reaction_lifecycle_test.go; internal/channels/telegram/reactions_test.go; internal/channels/discord/reactions_test.go",
+                "verification": "go test ./internal/gateway -run 'TestReactionLifecycle|TestManager.*Reaction' -count=1; go test ./internal/channels/telegram ./internal/channels/discord -run 'Test.*Reaction' -count=1; go test ./internal/gateway ./internal/channels/telegram ./internal/channels/discord -count=1",
+                "note": "RED failed on missing ProcessingOutcome and adapter lifecycle methods; GREEN proves manager start/success/cancelled outcomes, reaction-error nonfatal delivery, Telegram disabled/default-enabled env behavior, Telegram terminal emojis, Discord default-enabled/disabled/cancelled swaps, and swallowed platform reaction errors."
               }
             },
             {

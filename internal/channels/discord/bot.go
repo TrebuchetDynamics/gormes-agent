@@ -17,6 +17,8 @@ import (
 
 const (
 	ackEmoji        = "👀"
+	successEmoji    = "✅"
+	failureEmoji    = "❌"
 	placeholderText = "⏳"
 )
 
@@ -505,4 +507,43 @@ func (b *Bot) ReactToMessage(_ context.Context, chatID, msgID string) (func(), e
 		b.reactionsMu.Unlock()
 		_ = b.session.MessageReactionRemoveMe(chatID, msgID, ackEmoji)
 	}, nil
+}
+
+func discordReactionsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("DISCORD_REACTIONS"))) {
+	case "false", "0", "no":
+		return false
+	default:
+		return true
+	}
+}
+
+func (b *Bot) OnProcessingStart(_ context.Context, chatID, msgID string) error {
+	if !discordReactionsEnabled() || strings.TrimSpace(chatID) == "" || strings.TrimSpace(msgID) == "" {
+		return nil
+	}
+	if err := b.session.MessageReactionAdd(chatID, msgID, ackEmoji); err != nil {
+		b.log.Debug("discord reaction add failed", "emoji", ackEmoji, "err", err)
+	}
+	return nil
+}
+
+func (b *Bot) OnProcessingComplete(_ context.Context, chatID, msgID string, outcome gateway.ProcessingOutcome) error {
+	if !discordReactionsEnabled() || strings.TrimSpace(chatID) == "" || strings.TrimSpace(msgID) == "" {
+		return nil
+	}
+	if err := b.session.MessageReactionRemoveMe(chatID, msgID, ackEmoji); err != nil {
+		b.log.Debug("discord reaction remove failed", "emoji", ackEmoji, "err", err)
+	}
+	switch outcome {
+	case gateway.ProcessingOutcomeSuccess:
+		if err := b.session.MessageReactionAdd(chatID, msgID, successEmoji); err != nil {
+			b.log.Debug("discord reaction add failed", "emoji", successEmoji, "err", err)
+		}
+	case gateway.ProcessingOutcomeFailure:
+		if err := b.session.MessageReactionAdd(chatID, msgID, failureEmoji); err != nil {
+			b.log.Debug("discord reaction add failed", "emoji", failureEmoji, "err", err)
+		}
+	}
+	return nil
 }

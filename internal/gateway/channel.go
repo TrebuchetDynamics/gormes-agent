@@ -96,8 +96,20 @@ type TypingActionCapable interface {
 	SendChatAction(ctx context.Context, chatID, action string) error
 }
 
+// ProcessingOutcome is the channel-neutral terminal state for best-effort
+// processing reactions.
+type ProcessingOutcome string
+
+const (
+	ProcessingOutcomeSuccess   ProcessingOutcome = "success"
+	ProcessingOutcomeFailure   ProcessingOutcome = "failure"
+	ProcessingOutcomeCancelled ProcessingOutcome = "cancelled"
+)
+
 // ReactionCapable is implemented by channels that can react to inbound
-// messages. The returned undo function must be idempotent.
+// message processing lifecycle events. Implementations must treat missing IDs,
+// disabled reaction config, and platform API failures as non-fatal.
 type ReactionCapable interface {
-	ReactToMessage(ctx context.Context, chatID, msgID string) (undo func(), err error)
+	OnProcessingStart(ctx context.Context, chatID, msgID string) error
+	OnProcessingComplete(ctx context.Context, chatID, msgID string, outcome ProcessingOutcome) error
 }

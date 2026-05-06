@@ -238,7 +238,7 @@ classification and row-backed implementation queue.
 - [x] Telegram polling conflict + webhook secret startup guard
 - [x] Slack mention/free-response gating + strict thread-memory guard
 - [x] Discord interaction authorization + mention safety guards
-- [ ] Gateway processing lifecycle reactions for Telegram and Discord
+- [x] Gateway processing lifecycle reactions for Telegram and Discord
 - [x] Telegram text batching + caption merge parity
 - [ ] Cross-platform multi-image native batching
 - [x] Discord message admission + reply-mode policy

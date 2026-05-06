@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -84,9 +85,11 @@ var _ gateway.MediaSender = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
 var _ gateway.TypingCapable = (*Bot)(nil)
 var _ gateway.DisconnectCapable = (*Bot)(nil)
+var _ gateway.ReactionCapable = (*Bot)(nil)
 
 const telegramCommandLimit = 100
 const telegramTypingRefreshInterval = 4 * time.Second
+const telegramReactionEndpoint = "setMessageReaction"
 
 func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	if log == nil {
@@ -103,6 +106,66 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 }
 
 func (b *Bot) Name() string { return "telegram" }
+
+func telegramReactionsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("TELEGRAM_REACTIONS"))) {
+	case "true", "1", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+func (b *Bot) OnProcessingStart(ctx context.Context, chatID, msgID string) error {
+	if !telegramReactionsEnabled() {
+		return nil
+	}
+	b.setReaction(ctx, chatID, msgID, "👀")
+	return nil
+}
+
+func (b *Bot) OnProcessingComplete(ctx context.Context, chatID, msgID string, outcome gateway.ProcessingOutcome) error {
+	if !telegramReactionsEnabled() || outcome == gateway.ProcessingOutcomeCancelled {
+		return nil
+	}
+	emoji := "👎"
+	if outcome == gateway.ProcessingOutcomeSuccess {
+		emoji = "👍"
+	}
+	b.setReaction(ctx, chatID, msgID, emoji)
+	return nil
+}
+
+func (b *Bot) setReaction(_ context.Context, chatID, msgID, emoji string) {
+	chatID = strings.TrimSpace(chatID)
+	msgID = strings.TrimSpace(msgID)
+	if chatID == "" || msgID == "" || b.client == nil {
+		return
+	}
+	chatInt, err := strconv.ParseInt(chatID, 10, 64)
+	if err != nil {
+		b.log.Debug("telegram reaction skipped: invalid chat id")
+		return
+	}
+	msgInt, err := strconv.Atoi(msgID)
+	if err != nil {
+		b.log.Debug("telegram reaction skipped: invalid message id")
+		return
+	}
+	params := tgbotapi.Params{}
+	params.AddNonZero64("chat_id", chatInt)
+	params.AddNonZero("message_id", msgInt)
+	if err := params.AddInterface("reaction", []map[string]string{{
+		"type":  "emoji",
+		"emoji": emoji,
+	}}); err != nil {
+		b.log.Debug("telegram reaction skipped: encode reaction", "err", err)
+		return
+	}
+	if _, err := b.client.UploadFiles(telegramReactionEndpoint, params, nil); err != nil {
+		b.log.Debug("telegram reaction failed", "err", err)
+	}
+}
 
 func (b *Bot) registerCommands() error {
 	commands := gateway.TelegramBotCommandsWith(b.cfg.DynamicCommands)
