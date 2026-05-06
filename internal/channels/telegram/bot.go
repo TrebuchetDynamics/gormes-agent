@@ -41,6 +41,9 @@ type Config struct {
 	RequireMention bool
 	// BotUsername is the bare bot handle used to recognise group mentions.
 	BotUsername string
+	// BotUserID is optional and lets Telegram text_mention entities target the
+	// bot by user ID when Telegram does not emit an @username mention.
+	BotUserID int64
 	// DynamicCommands are optional runtime-discovered commands (for example
 	// enabled skill slash commands) appended to the canonical Hermes menu.
 	DynamicCommands  []gateway.PlatformCommand
@@ -270,7 +273,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 	text, attachments := b.telegramInboundTextAndAttachments(ctx, u.Message)
 
 	if b.cfg.RequireMention && telegramIsGroupChat(u.Message.Chat) {
-		if !telegramGroupMentionGateAddressed(text, u.Message.Entities, b.cfg.BotUsername, true) {
+		if !telegramGroupMentionGateMessageAddressed(u.Message, b.cfg.BotUsername, b.cfg.BotUserID, true) {
 			return gateway.InboundEvent{}, false
 		}
 	}

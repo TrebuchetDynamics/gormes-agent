@@ -6330,8 +6330,8 @@
             },
             {
               "name": "Telegram entity-only mention boundary closeout",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Telegram require-mention gating must use Telegram entities only, not substring scans: mention entities in text or captions match the configured bot username case-insensitively; text_mention entities match the bot user ID for private-name mentions; malformed offsets/lengths, different usernames, different user IDs, and bare @bot substrings without mention entities are rejected. Email-like strings, hostnames, superstring usernames, underscore suffixes, URLs, and code-block text containing @bot do not address the bot unless Telegram supplied a real mention/text_mention entity.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -6344,8 +6344,8 @@
               "degraded_mode": "If entity boundary parsing is unavailable, Gormes keeps require-mention fail-closed for groups and reports telegram_mention_boundary_unavailable rather than processing substring-only @handles.",
               "fixture": "internal/channels/telegram/mention_boundary_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_message_mentions_bot",
-                "../hermes-agent/tests/gateway/test_telegram_mention_boundaries.py@b816fd4e2",
+                "./hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_message_mentions_bot",
+                "./hermes-agent/tests/gateway/test_telegram_mention_boundaries.py@b816fd4e2",
                 "internal/channels/telegram/group_mention.go",
                 "internal/channels/telegram/group_mention_test.go",
                 "internal/channels/telegram/group_mention_binding_test.go"
@@ -6383,13 +6383,27 @@
               "done_signal": [
                 "Telegram entity fixtures prove mention/caption/text_mention matches, substring false-positive rejection, malformed entity fail-closed behavior, and unchanged require-mention binding."
               ],
+              "note": "Complete: TDD landed internal/channels/telegram/mention_boundary_test.go, added caption-entity gating, and added optional Config.BotUserID support for Telegram text_mention entities. The adapter now evaluates text/entities and caption/caption_entities, rejects substring-only @handles in emails, hostnames, URLs, code spans, and superstrings, rejects other text_mention user IDs, and fails closed on malformed entity ranges without live Telegram traffic.",
+              "outputs": [
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/mention_boundary_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "evidence": [
+                "RED: go test ./internal/channels/telegram -run '^TestTelegramMentionBoundary_CaptionMentionAccepted$' -count=1 failed because caption mention entities were ignored.",
+                "RED: go test ./internal/channels/telegram -run '^TestTelegramMentionBoundary_TextMentionTargetsConfiguredBotUserID$' -count=1 failed on missing BotUserID support.",
+                "RED: go test ./internal/channels/telegram -run '^TestTelegramMentionBoundary_TextMentionDoesNotRequireUsername$' -count=1 failed because text_mention was gated behind username presence.",
+                "GREEN: go test ./internal/channels/telegram -run 'TestTelegram(MentionBoundary|GroupMentionGate)' -count=1 passed.",
+                "GREEN: go test ./internal/channels/telegram -count=1 passed."
+              ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
                   "hermes:b816fd4e2 gateway/platforms/telegram.py",
                   "hermes:b816fd4e2 tests/gateway/test_telegram_mention_boundaries.py"
                 ],
-                "note": "The earlier Gormes require-mention rows covered bot_command suffix and basic mention entities, but Hermes now carries a stricter entity-only boundary contract for text/caption mentions and substring false positives."
+                "note": "2026-05-06 all-topic weakness sweep: raised to P1 because this is the highest-priority builder-ready gateway/channel safety closeout after P1 Kanban/event-bus rows remained blocked or draft. The earlier Gormes require-mention rows covered bot_command suffix and basic mention entities, but Hermes now carries a stricter entity-only boundary contract for text/caption mentions and substring false positives."
               }
             },
             {
