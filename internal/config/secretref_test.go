@@ -76,6 +76,9 @@ func TestSecretRefFileProviderRejectsInsecureOrRelativePaths(t *testing.T) {
 	if err := os.WriteFile(insecure, []byte(`{"token":"sk-readable"}`), 0o644); err != nil {
 		t.Fatalf("write insecure secret file: %v", err)
 	}
+	if err := os.Chmod(insecure, 0o644); err != nil {
+		t.Fatalf("chmod insecure secret file: %v", err)
+	}
 	resolver := NewSecretResolver(SecretResolverConfig{
 		Secrets: SecretsCfg{Providers: map[string]SecretProviderCfg{
 			"filemain": {Source: SecretRefSourceFile, Path: insecure, Mode: SecretProviderModeJSON},
