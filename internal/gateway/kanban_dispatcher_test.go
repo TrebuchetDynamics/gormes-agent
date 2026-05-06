@@ -184,10 +184,11 @@ func TestManagerKanbanDispatcherUsesProductionProcessSpawnerRunner(t *testing.T)
 	if req.Binary != "gormes" {
 		t.Fatalf("Binary = %q, want gormes", req.Binary)
 	}
-	status, err := statusStore.ReadRuntimeStatus(ctx)
-	if err != nil {
-		t.Fatalf("ReadRuntimeStatus: %v", err)
-	}
+	var status RuntimeStatus
+	waitFor(t, 200*time.Millisecond, func() bool {
+		status, err = statusStore.ReadRuntimeStatus(ctx)
+		return err == nil && status.KanbanDispatcher.Spawned == 1
+	})
 	if status.KanbanDispatcher.Spawned != 1 {
 		t.Fatalf("kanban spawned = %d, want 1", status.KanbanDispatcher.Spawned)
 	}

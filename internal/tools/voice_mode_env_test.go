@@ -59,6 +59,7 @@ func TestVoiceModeDetectWSLPulseAudioNotice(t *testing.T) {
 func TestVoiceModeDetectTermuxFallback(t *testing.T) {
 	t.Run("termux api microphone satisfies capture without PortAudio", func(t *testing.T) {
 		env := VoiceModeEnvironmentDetector{
+			Env:                     map[string]string{},
 			IsTermux:                true,
 			TermuxMicrophoneCommand: "/data/data/com.termux/files/usr/bin/termux-microphone-record",
 			TermuxAPIAppInstalled:   true,
@@ -75,6 +76,7 @@ func TestVoiceModeDetectTermuxFallback(t *testing.T) {
 
 	t.Run("missing termux api app is explicit setup guidance", func(t *testing.T) {
 		env := VoiceModeEnvironmentDetector{
+			Env:                     map[string]string{},
 			IsTermux:                true,
 			TermuxMicrophoneCommand: "/data/data/com.termux/files/usr/bin/termux-microphone-record",
 			AudioProbe: func(context.Context) VoiceModeAudioProbeResult {
@@ -92,6 +94,7 @@ func TestVoiceModeDetectTermuxFallback(t *testing.T) {
 func TestVoiceModeDetectorNoOptionalImportsAtInit(t *testing.T) {
 	probeCalls := 0
 	detector := VoiceModeEnvironmentDetector{
+		Env: map[string]string{},
 		AudioProbe: func(context.Context) VoiceModeAudioProbeResult {
 			probeCalls++
 			return VoiceModeAudioProbeResult{Status: VoiceModeAudioProbeNoDevices}
