@@ -5,11 +5,11 @@
   "scripts": {
     "sync:content": "node ./scripts/sync-starlight-content.mjs",
     "predev": "npm run sync:content",
-    "dev": "astro dev",
+    "dev": "node ../scripts/with-compatible-node.mjs astro dev",
     "prebuild": "npm run sync:content",
-    "build": "astro build",
+    "build": "node ../scripts/with-compatible-node.mjs astro build",
     "postbuild": "node ./scripts/copy-progress-json.mjs",
-    "preview": "astro preview"
+    "preview": "node ../scripts/with-compatible-node.mjs astro preview"
   },
   "dependencies": {
     "@astrojs/starlight": "latest",
