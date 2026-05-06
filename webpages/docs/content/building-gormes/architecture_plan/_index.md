@@ -567,7 +567,7 @@ classification and row-backed implementation queue.
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
 - [x] Model pricing/capability registry fixtures
-- [ ] Ollama Cloud models.dev suffix normalization
+- [x] Ollama Cloud models.dev suffix normalization
 - [ ] Model catalog cache + preferred-provider live merge
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection

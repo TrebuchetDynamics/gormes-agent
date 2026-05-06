@@ -31,6 +31,16 @@ func newModelCommand() *cobra.Command {
 }
 
 func newModelCommandWithSeams(seams modelCommandSeams) *cobra.Command {
+	chooseModel := seams.ChooseModel
+	if chooseModel != nil {
+		chooseModel = func(provider string, current string) (string, error) {
+			model, err := seams.ChooseModel(provider, current)
+			if err != nil {
+				return "", err
+			}
+			return hermes.NormalizeProviderModelID(provider, model), nil
+		}
+	}
 	cmd := &cobra.Command{
 		Use:          "model",
 		Short:        "Interactively select the active model/provider",
@@ -42,7 +52,7 @@ func newModelCommandWithSeams(seams modelCommandSeams) *cobra.Command {
 				LoadCurrent:      seams.LoadCurrent,
 				ListProviders:    seams.ListProviders,
 				ChooseProvider:   seams.ChooseProvider,
-				ChooseModel:      seams.ChooseModel,
+				ChooseModel:      chooseModel,
 				PersistSelection: seams.PersistSelection,
 			})
 			selection, err := picker.Pick(cmd.Context())

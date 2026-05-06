@@ -15983,8 +15983,8 @@
             },
             {
               "name": "Ollama Cloud models.dev suffix normalization",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Gormes normalizes Ollama Cloud model IDs from models.dev before merging static metadata with live provider/model picker data, stripping Hermes-compatible `:cloud` and `-cloud` suffixes while preserving unsuffixed IDs and deduplicating clean live IDs.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -16022,7 +16022,7 @@
                 "internal/hermes/ollama_cloud_models_test.go",
                 "cmd/gormes/model.go",
                 "cmd/gormes/model_picker_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/hermes -run 'TestOllamaCloud' -count=1",
@@ -16032,6 +16032,13 @@
               ],
               "done_signal": [
                 "Ollama Cloud fixtures prove Hermes suffix normalization and duplicate suppression without live models.dev or provider calls."
+              ],
+              "note": "Complete 2026-05-06: TDD added internal/hermes/ollama_cloud_models_test.go and the native NormalizeOllamaCloudModelID, NormalizeProviderModelID, and MergeOllamaCloudModelEntries helpers. Fixtures prove `:cloud` and `-cloud` stripping for Ollama Cloud only, preserve unsuffixed and non-Ollama IDs, merge live API entries before normalized models.dev entries, and keep live metadata precedence. `gormes model` now normalizes an Ollama Cloud selected model before persistence/output, so suffixed models.dev IDs are not saved or shown by the picker. The slice uses static fixtures only and does not refresh the full models.dev snapshot, call Ollama Cloud, or change generic routing.",
+              "evidence": [
+                "RED: go test ./internal/hermes -run 'TestOllamaCloud' -count=1 failed on undefined NormalizeOllamaCloudModelID, NormalizeProviderModelID, and MergeOllamaCloudModelEntries.",
+                "RED: go test ./cmd/gormes -run 'TestModel.*OllamaCloud|TestModelPicker.*OllamaCloud' -count=1 failed because the picker persisted qwen3-coder:480b-cloud unchanged.",
+                "GREEN: go test ./internal/hermes -run 'TestOllamaCloud' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes -run 'TestModel.*OllamaCloud|TestModelPicker.*OllamaCloud' -count=1 passed."
               ],
               "provenance": {
                 "origin_type": "upstream",
@@ -16306,8 +16313,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes 25ba6a4a added session-scoped reasoning-effort overrides on top of existing model override/routing behavior, and 2c56dce0 tightened custom-provider model switch behavior for named endpoints and configured aliases. Gormes has validated per-turn model selection, pure model routing, and embedded metadata rows, but Hermes b816fd4e2 model catalog tests show a remaining cache/live-merge weakness: manifest validation, stale cache fallback, AI Gateway pricing/free-model promotion, and preferred-provider models.dev merge for opencode-go/opencode-zen. That is tracked as `Model catalog cache + preferred-provider live merge` without changing runtime routing policy."
+            "last_upstream_check": "2026-05-06T00:00:00Z",
+            "origin_decision": "The 2026-05-06 all-topic Hermes parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Normal-turn, Goncho, CLI/auth/config, gateway, browser, installer, and TUI proof rows remain row-backed or complete; the builder-ready provider/model weakness is Hermes eadf34633 Ollama Cloud model ID normalization. Promote `Ollama Cloud models.dev suffix normalization` to P1 because duplicated or suffixed Ollama Cloud IDs break the operator model picker before broader model-catalog cache/live-merge work. Hermes b816fd4e2 model catalog tests still show the wider cache/live-merge weakness: manifest validation, stale cache fallback, AI Gateway pricing/free-model promotion, and preferred-provider models.dev merge for opencode-go/opencode-zen. That remains tracked as `Model catalog cache + preferred-provider live merge` without changing runtime routing policy."
           }
         },
         "4.E": {
