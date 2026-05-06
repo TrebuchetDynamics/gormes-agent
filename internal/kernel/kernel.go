@@ -29,6 +29,9 @@ var ErrEventMailboxFull = errors.New("kernel: event mailbox full")
 
 // DefaultMaxToolIterations matches upstream Hermes' normal-turn default.
 const DefaultMaxToolIterations = 90
+const defaultMaxEmptyResponseRetries = 3
+
+type FallbackClientFactory func(context.Context, hermes.ModelRoute) (hermes.Client, error)
 
 type Config struct {
 	Model    string
@@ -74,6 +77,12 @@ type Config struct {
 	// per stream attempt (Route-B reconnect). Default 30s when zero.
 	// Exceeding this budget fails the turn with "reconnect time budget exhausted".
 	MaxReconnectDuration time.Duration
+	// Fallback activates a Hermes-compatible fallback model/provider after
+	// repeated empty provider responses. The factory is injected so tests and
+	// runtime wiring can create provider clients without importing config here.
+	Fallback                hermes.FallbackModelPolicy
+	FallbackClientFactory   FallbackClientFactory
+	MaxEmptyResponseRetries int
 }
 
 type SkillProvider interface {
@@ -425,6 +434,15 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 	if k.cfg.ContextEngine != nil {
 		request.Tools = append(request.Tools, k.cfg.ContextEngine.ToolDescriptors()...)
 	}
+	primaryClient := k.client
+	defer func() { k.client = primaryClient }()
+	fallbackRoutes := append([]hermes.ModelRoute(nil), k.cfg.Fallback.Routes...)
+	if !k.cfg.Fallback.Enabled {
+		fallbackRoutes = nil
+	}
+	fallbackIndex := 0
+	emptyResponses := 0
+	maxEmptyResponses := k.maxEmptyResponseRetries()
 	maxIter := k.cfg.MaxToolIterations
 	if maxIter <= 0 {
 		maxIter = DefaultMaxToolIterations
@@ -565,6 +583,22 @@ toolLoop:
 			break toolLoop
 		}
 		k.updateContextEngineUsage(finalDelta)
+		if len(fallbackRoutes) > 0 && emptyFinalResponse(k.draft, finalDelta) {
+			emptyResponses++
+			if emptyResponses <= maxEmptyResponses {
+				gotFinal = false
+				finalDelta = hermes.Event{}
+				k.phase = PhaseReconnecting
+				k.emitFrame("empty response retry")
+				continue toolLoop
+			}
+			if k.activateFallback(ctx, &request, fallbackRoutes, &fallbackIndex) {
+				emptyResponses = 0
+				gotFinal = false
+				finalDelta = hermes.Event{}
+				continue toolLoop
+			}
+		}
 
 		if finalDelta.FinishReason != "tool_calls" {
 			// Normal end of turn. Exit the tool loop to finalise.
@@ -697,6 +731,7 @@ toolLoop:
 	}
 
 	prov.LogDone(k.log)
+	k.client = primaryClient
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model
 	k.activeReasoning = hermes.ReasoningEffortEvidence{}

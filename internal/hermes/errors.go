@@ -154,6 +154,13 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 		return providerError(ProviderErrorUnknown, ClassUnknown, httpErr.Status, message, false)
 	}
 	message := err.Error()
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &syntaxErr) || errors.As(err, &typeErr) {
+		out := providerError(ProviderErrorRetryable, ClassRetryable, 0, message, true)
+		out.ShouldFallback = true
+		return out
+	}
 	combined := strings.ToLower(message)
 	if containsAny(combined, rateLimitPatterns) {
 		out := providerError(ProviderErrorRateLimit, ClassRetryable, 0, message, true)

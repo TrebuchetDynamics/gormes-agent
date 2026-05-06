@@ -1592,7 +1592,7 @@
             {
               "name": "Gateway session reset notification parity",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes' automatic session-reset read model and notification policy for channel sessions: idle, daily, and suspended reset decisions carry a stable reason string; replacement sessions record was_auto_reset, auto_reset_reason, and reset_had_activity without being treated as explicit fresh resets; operator notifications respect SessionResetPolicy.notify and notify_exclude_platforms defaults; and API/webhook-style platforms are excluded from unsolicited reset messages.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -19225,12 +19225,6 @@
                 "Fallback activation hides malformed JSON under generic ValueError/non-retryable evidence.",
                 "Tests require live provider keys, models.dev network access, or a real compressor/provider call."
               ],
-              "blocked_by": [
-                "Resilient provider chain dispatch",
-                "Hermes provider registry and alias manifest",
-                "Smart Model Routing",
-                "Context compressor provider-cap boundary"
-              ],
               "unblocks": [
                 "Provider-tool-memory golden transcript suite",
                 "Release readiness e2e gate"
@@ -19260,10 +19254,26 @@
               "done_signal": [
                 "Provider fallback fixtures prove Hermes-compatible config parsing, fallback activation, JSONDecodeError retryability, compressor budget update, and no stale fallback CLI resurrection."
               ],
+              "note": "Complete: TDD added Hermes fallback activation coverage for config normalization, malformed provider JSON retryability, empty-response fallback activation, and compressor context updates. The kernel now retries empty final responses only when a fallback chain is configured, activates the first available fallback client after exhaustion, emits fallback_activated evidence, and updates the active context-engine provider/model without restoring the retired fallback CLI surface.",
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/model_routing.go normalizes single-object and ordered-list fallback_model configs into fallback routes while dropping incomplete entries.",
+                  "internal/hermes/errors.go classifies JSON syntax/type corruption as retryable and fallback-eligible.",
+                  "internal/kernel/provider_fallback.go activates fallback clients after empty-response exhaustion and updates compressor/model context with the fallback provider and model.",
+                  "internal/kernel/kernel.go gates empty-response retries to configured fallback chains so ordinary empty mock completions keep existing behavior."
+                ],
+                "tests": [
+                  "internal/hermes/fallback_activation_test.go covers fallback config normalization and JSONDecodeError retryability.",
+                  "internal/kernel/provider_fallback_test.go covers empty-response fallback activation and compressor context updates.",
+                  "go test ./internal/hermes -run 'TestFallback|TestModelRouter|TestContextCompressor' -count=1 -> ok",
+                  "go test ./internal/kernel -run 'Test.*Fallback|Test.*Retry' -count=1 -> ok",
+                  "go test ./internal/hermes ./internal/kernel -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 tests/run_agent/test_provider_fallback.py + test_fallback_model.py + test_jsondecodeerror_retryable.py + test_compressor_fallback_update.py",
-                "note": "The existing complete row proves generic chain dispatch. This row tracks the current Hermes agent-loop semantics still absent from that broad fallback slice."
+                "note": "The existing complete row proves generic chain dispatch. This row tracks the current Hermes agent-loop semantics still absent from that broad fallback slice. The 2026-05-06 all-topic parity sweep confirmed the provider registry, model routing, and context-compressor prerequisites are complete, so the stale blocked_by metadata was removed for builder selection."
               }
             }
           ]
