@@ -205,7 +205,7 @@ classification and row-backed implementation queue.
 - [x] Gateway active-turn policy manifest closeout
 - [x] Gateway conversational session metadata refresh
 - [x] Gateway session token accounting parity
-- [ ] Gateway startup allowlist + weak credential guard
+- [x] Gateway startup allowlist + weak credential guard
 - [x] Telegram voice/audio inbound attachment markers
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
@@ -357,6 +357,7 @@ classification and row-backed implementation queue.
 - [x] Steer slash command registry + queue fallback
 - [x] Mid-run steer injection between tool calls
 - [x] Gateway-handled slash commands bypass active-session guard
+- [x] Gateway persistent goal loop + continuation judge
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
@@ -617,7 +618,7 @@ classification and row-backed implementation queue.
 - [x] Swarm feature-level parity audit for Hermes/Honcho map
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
-- [ ] Hermes website docs mirror coverage gate
+- [x] Hermes website docs mirror coverage gate
 - [ ] Gormes setup/channel/provider docs webpage parity gate
 - [x] Native runtime provider gateway binding
 - [x] Hermes compatibility namespace retirement boundary
@@ -701,6 +702,7 @@ classification and row-backed implementation queue.
 - [x] Image input mode router + native content parts
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
+- [x] Image generation provider registry + plugin dispatch
 
 ### 5.E — TTS / Voice / Transcription 🔨
 
@@ -709,6 +711,7 @@ classification and row-backed implementation queue.
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
 - [ ] MiniMax TTS v1 text_to_speech raw-audio compatibility
+- [x] TTS provider matrix + dotenv/command-provider resolution
 - [ ] TTS synthesis + voice-mode state
 - [ ] Voice record-key config binding for native TUI
 
@@ -1145,6 +1148,7 @@ classification and row-backed implementation queue.
 - [x] Yuanbao protocol envelope + markdown fixtures
 - [x] Yuanbao media/sticker attachment normalization
 - [x] Yuanbao gateway runtime + toolset registration
+- [ ] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
 
 <!-- PROGRESS:END -->

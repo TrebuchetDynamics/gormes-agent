@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-03T16:26:00Z",
+    "last_updated": "2026-05-06T00:51:37Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -3233,7 +3233,7 @@
             {
               "name": "Gateway startup allowlist + weak credential guard",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes gateway admission startup safety before channel runtimes connect: startup reports when no platform/global allowlist or allow-all override is configured; platform placeholder tokens such as `***`, `changeme`, `your_api_key`, and `placeholder` disable the affected enabled platform with redacted evidence; and API-server wildcard/network hosts refuse placeholder keys while loopback-only development hosts remain allowed.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -3292,6 +3292,28 @@
               "done_signal": [
                 "Gateway admission fixtures prove startup allowlist warnings, platform placeholder-token disabling, and network-exposed API-server placeholder-key refusal without live adapters or token leaks."
               ],
+              "completed_at": "2026-05-06T00:51:37Z",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/admission.go adds channel-neutral startup admission helpers for allowlist warning evidence and placeholder-token detection.",
+                  "cmd/gormes/gateway.go evaluates startup admission before connecting gateway platforms and on reload, disabling weak placeholder-token configs with redacted evidence.",
+                  "cmd/gormes/dashboard.go routes dashboard/API-server startup through the checked constructor with loopback-only dashboard binding.",
+                  "internal/apiserver/server.go adds NewServerChecked and ValidateStartupSecurity so wildcard or network-exposed hosts refuse weak development API keys before listen."
+                ],
+                "tests": [
+                  "internal/gateway/admission_test.go covers allowlist-warning suppression and platform placeholder-token reports.",
+                  "cmd/gormes/gateway_admission_test.go covers gateway config mutation, redacted warning codes, disabled placeholders, and empty/disabled token handling.",
+                  "internal/apiserver/auth_test.go covers network-exposed placeholder-key refusal and loopback development allowance."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run 'TestGateway.*Allowlist|TestGateway.*WeakCredential' -count=1 -> failed before implementation because the gateway startup admission helpers did not exist.",
+                  "go test ./internal/gateway ./internal/apiserver -run 'TestGateway.*Admission|TestAPIServer.*WeakKey' -count=1 -> failed before implementation because gateway admission and API-server startup validation did not exist.",
+                  "go test ./cmd/gormes -run 'TestGateway.*Allowlist|TestGateway.*WeakCredential' -count=1 -> pass",
+                  "go test ./internal/gateway ./internal/apiserver -run 'TestGateway.*Admission|TestAPIServer.*WeakKey' -count=1 -> pass",
+                  "go test ./cmd/gormes ./internal/gateway ./internal/apiserver -count=1 -> pass",
+                  "go test ./... -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tests/gateway/test_allowlist_startup_check.py + test_weak_credential_guard.py",
@@ -9018,12 +9040,95 @@
                 "last_attempt": "2026-04-29T04:17:00Z",
                 "last_success": "2026-04-29T04:17:00Z"
               }
+            },
+            {
+              "name": "Gateway persistent goal loop + continuation judge",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-06T00:08:30Z",
+              "contract": "Gormes ports Hermes `/goal` as a session-scoped gateway loop: goals persist in session metadata, support status/pause/resume/clear/done states and a max-turn budget, setting a goal queues the first turn, post-turn evaluation uses a fail-open auxiliary judge, continuation prompts are queued only when the judge says continue, user messages take priority and pause the loop for that turn, and mid-run `/goal` only allows safe inspection/control commands.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing session metadata, unavailable auxiliary judge, malformed judge JSON, exhausted budgets, queue failures, or active-turn unsafe goal changes return goal_* evidence and continue safely without wedging the session, losing the user message, or starting an unbounded loop.",
+              "fixture": "internal/gateway/goal_loop_test.go; internal/session/goal_state_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/goals.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_goals.py@b816fd4e2",
+                "./hermes-agent/gateway/run.py@b816fd4e2:_handle_goal_command",
+                "./hermes-agent/gateway/run.py@b816fd4e2:_post_turn_goal_continuation",
+                "./hermes-agent/tests/gateway/test_goal_verdict_send.py@b816fd4e2",
+                "internal/cli/command_registry.go",
+                "internal/gateway/commands.go",
+                "internal/gateway/manager.go"
+              ],
+              "ready_when": [
+                "Gateway-handled slash commands bypass active-session guard is complete, so safe mid-run command routing exists.",
+                "Session metadata and active-turn queue tests can run with fake stores, fake auxiliary judge clients, and fake gateway events; no provider, live gateway transport, or Hermes Python runtime is required.",
+                "`/goal` is currently recognized but unavailable, so this row can flip the command only after behavior is fixture-locked."
+              ],
+              "not_ready_when": [
+                "The slice calls a live auxiliary model in tests, stores goal state globally instead of per session, or runs continuations without a budget.",
+                "User-submitted messages are appended behind an automatic goal continuation instead of taking priority.",
+                "Setting a new arbitrary goal mid-run bypasses the active-turn guard."
+              ],
+              "blocked_by": [
+                "Gateway-handled slash commands bypass active-session guard"
+              ],
+              "acceptance": [
+                "TestGoalStatePersistsPerSession proves set/status/pause/resume/clear/done state round-trips through session metadata and a second manager sees the active goal.",
+                "TestGoalJudgeFailOpen proves empty responses, malformed JSON, missing auxiliary clients, and judge errors return continue evidence rather than skipping or failing the session.",
+                "TestGatewayGoalCommandQueuesInitialTurn proves `/goal ship it` stores the goal and enqueues the first submit through the existing session route.",
+                "TestGatewayGoalPostTurnContinuationBudget proves done stops, continue queues exactly one bounded continuation prompt, budget exhaustion pauses with evidence, and user messages pause continuation for that turn.",
+                "TestGatewayGoalActiveTurnPolicy proves mid-run status/pause/resume/clear are allowed while setting a new goal returns safe busy evidence."
+              ],
+              "write_scope": [
+                "internal/session/goal_state.go",
+                "internal/session/goal_state_test.go",
+                "internal/session/directory.go",
+                "internal/gateway/goal_loop.go",
+                "internal/gateway/goal_loop_test.go",
+                "internal/gateway/event.go",
+                "internal/gateway/commands.go",
+                "internal/gateway/commands_test.go",
+                "internal/gateway/manager.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "evidence": [
+                "go test ./internal/session ./internal/gateway -run 'TestGoal(State|Judge|Gateway)' -count=1 -> pass",
+                "go test ./internal/session ./internal/gateway ./internal/cli -count=1 -> pass",
+                "go test ./... -count=1 -> pass",
+                "go test ./webpages/docs -count=1 -> pass",
+                "go run ./cmd/progress validate -> pass",
+                "git diff --check -> pass"
+              ],
+              "test_commands": [
+                "go test ./internal/session ./internal/gateway -run 'TestGoal(State|Judge|Gateway)' -count=1",
+                "go test ./internal/session ./internal/gateway ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway and session fixtures prove `/goal` persists per session, controls active goals, fail-open judges completion, and queues bounded continuations without live providers."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/goals.py + gateway/run.py",
+                "note": "Hermes exposes `/goal` as a persistent cross-turn gateway loop; Gormes currently only recognizes it as unavailable."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T11:44:19Z",
-            "origin_decision": "Hermes 635253b9 remains the donor for busy-input /steer behavior. Gormes has the pure parser/preview helper, and the backend usage-limit/stdin health bypass is validated, so the registry/queue fallback row is fixture-ready again. Mid-run kernel injection and gateway-safe active-session bypass remain separate dependent rows."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes 635253b9 remains the donor for busy-input /steer behavior and Hermes b816fd4e2 adds a separate `/goal` loop with per-session persistence, fail-open judging, and bounded post-turn continuations. Gormes has completed steer and active-turn command bypass; the remaining weakness is now tracked as `Gateway persistent goal loop + continuation judge` rather than leaving `/goal` as a recognized-unavailable command."
           }
         },
         "2.G": {
@@ -17891,21 +17996,22 @@
             {
               "name": "Hermes website docs mirror coverage gate",
               "priority": "P1",
-              "status": "planned",
-              "contract": "Gormes docs keep the upstream Hermes documentation mirror source-backed from the active nested Hermes repo: docs tests discover `./hermes-agent/website/docs` before legacy sibling paths, compare every active Hermes Markdown/category docs file against `webpages/docs/content/upstream-hermes`, and report missing, extra, or unsanitized pages with exact paths so operator docs drift cannot hide behind a skipped mirror test.",
-              "contract_status": "draft",
+              "status": "complete",
+              "contract": "Gormes docs keep the upstream Hermes documentation mirror source-backed from the active nested Hermes repo: docs tests discover `./hermes-agent/website/docs` before legacy sibling paths, compare every active public-safe Hermes Markdown/category docs file against `webpages/docs/content/upstream-hermes`, and report missing, extra, or unsanitized pages with exact paths so operator docs drift cannot hide behind a skipped mirror test. Existing Gormes public-docs safety policy excludes high-risk upstream godmode/red-team skill pages from the published mirror and catalog.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Docs validation reports hermes_docs_source_missing, hermes_docs_mirror_missing, hermes_docs_mirror_extra, hermes_docs_docusaurus_syntax, or hermes_docs_link_unresolved evidence instead of silently skipping when Hermes is checked out under `./hermes-agent`.",
+              "degraded_mode": "Docs validation reports hermes_docs_source_missing, hermes_docs_mirror_missing, hermes_docs_mirror_extra, hermes_docs_docusaurus_syntax, or hermes_docs_link_unresolved evidence instead of silently skipping when Hermes is checked out under `./hermes-agent`; high-risk upstream skill docs remain excluded by the public-docs safety gate.",
               "fixture": "webpages/docs/docs_test.go::TestMirroredDocsCoverage",
               "source_refs": [
                 "./hermes-agent/website/docs@b816fd4e2",
                 "./hermes-agent/docs@b816fd4e2",
-                "webpages/docs/docs_test.go:sourceDocsRoot",
+                "webpages/docs/docs_test.go:selectedSourceDocsRoot",
+                "webpages/docs/docs_test.go:isExcludedUpstreamMirrorSource",
                 "webpages/docs/content/upstream-hermes/"
               ],
               "ready_when": [
@@ -17927,9 +18033,10 @@
                 "The mirror includes active upstream operator docs that are currently absent from Gormes, including `developer-guide/browser-supervisor.md`, `user-guide/configuring-models.md`, `user-guide/features/curator.md`, `user-guide/features/goals.md`, `user-guide/features/kanban.md`, `user-guide/features/kanban-tutorial.md`, `user-guide/features/spotify.md`, `reference/model-catalog.md`, `guides/azure-foundry.md`, `guides/cron-script-only.md`, `guides/github-pr-review-agent.md`, `guides/minimax-oauth.md`, `guides/webhook-github-pr-review.md`, `user-guide/messaging/teams.md`, and `user-guide/messaging/yuanbao.md`.",
                 "Generated category pages map upstream `_category_.json` files to Gormes `_index.md` pages, and copied Markdown passes the existing portability hazard and internal-link tests.",
                 "The failure message lists the first missing/extra paths plus the selected upstream source root, so future Hermes docs additions are immediately actionable.",
-                "`go test ./webpages/docs -run TestMirroredDocsCoverage -count=1` fails before the mirror refresh and passes after the mirror refresh without network access."
+                "`go test ./webpages/docs -run TestMirroredDocsCoverage -count=1` fails before the mirror refresh and passes after the mirror refresh without network access.",
+                "The mirror preserves the existing public-docs safety gate by excluding upstream godmode/red-team skill pages and scrubbing high-risk catalog rows while still failing on ordinary missing upstream docs."
               ],
-              "note": "2026-05-05 docs-focused parity sweep found active Hermes docs under `./hermes-agent/website/docs` with 290 source files, while Gormes' `webpages/docs/content/upstream-hermes` mirror has 127 Markdown pages. The existing mirror coverage test still looks at a legacy sibling `../../../website/docs` path and skips in this workspace, so new Hermes docs such as curator, Kanban, goals, Spotify, Teams, Yuanbao, browser supervisor, model catalog, and PR-review guides are not surfaced as drift. This row makes that documentation fidelity gap builder-ready without copying pages in the parity sweep.",
+              "note": "Completed 2026-05-06: TestMirroredDocsCoverage now uses the active nested Hermes checkout and the mirror has been refreshed under upstream-hermes/. Existing Gormes public-docs safety policy excludes high-risk upstream godmode/red-team skill docs and catalog rows; all other active Hermes website Markdown/MDX/category docs are covered by the mirror test.",
               "write_scope": [
                 "webpages/docs/docs_test.go",
                 "webpages/docs/content/upstream-hermes/",
@@ -17942,12 +18049,35 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Docs mirror coverage resolves the nested Hermes docs source, mirrored upstream-Hermes pages match the active source inventory, and docs tests fail on future missing pages with exact path evidence."
+                "Docs mirror coverage resolves the nested Hermes docs source, mirrored upstream-Hermes pages match the active public-safe source inventory, and docs tests fail on future missing pages with exact path evidence."
               ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 website/docs/**",
                 "note": "Hermes owns the operator documentation contract; Gormes mirrors it under `upstream-hermes/` while keeping Gormes-native docs separate."
+              },
+              "completed_at": "2026-05-06T00:39:52Z",
+              "evidence": {
+                "implementation": [
+                  "webpages/docs/docs_test.go:selectedSourceDocsRoot discovers ./hermes-agent/website/docs before sibling/reference/legacy fallbacks.",
+                  "webpages/docs/docs_test.go:TestMirroredDocsCoverage now reports selected source root plus first missing/extra mirrored paths.",
+                  "webpages/docs/docs_test.go strips inline code spans before link resolution so code examples like `[link](url)` are not treated as docs links.",
+                  "webpages/docs/content/upstream-hermes mirrors the active Hermes website docs inventory with Docusaurus category files mapped to _index.md pages.",
+                  "The mirror sanitizer removed Docusaurus admonition fences, root-relative non-image markdown links, MDX imports/components, stale dashboard-plugins.md, and high-risk godmode catalog/page entries."
+                ],
+                "tests": [
+                  "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1",
+                  "go test ./webpages/docs -run 'TestMirroredDocsCoverage|TestPublicDocsExcludeHighRiskUpstreamSkill|TestDocsContentAvoidsPortabilityHazards|TestDocsInternalLinksResolve|TestDocsContentRendersViaGoldmark' -count=1",
+                  "go test ./webpages/docs -count=1"
+                ],
+                "verification": [
+                  "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1 -> failed before mirror refresh: missing 167 active upstream-Hermes pages and stale dashboard-plugins.md extra.",
+                  "go test ./webpages/docs -run 'TestMirroredDocsCoverage|TestPublicDocsExcludeHighRiskUpstreamSkill|TestDocsContentAvoidsPortabilityHazards|TestDocsInternalLinksResolve|TestDocsContentRendersViaGoldmark' -count=1 -> pass",
+                  "go test ./webpages/docs -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass",
+                  "git diff --check -> pass",
+                  "go test ./... -count=1 -> pass"
+                ]
               }
             },
             {
@@ -21431,12 +21561,99 @@
                 "origin_type": "hybrid",
                 "note": "Hermes has Python image tooling; Gormes first owns a Go-native artifact/result envelope before binding any provider-specific image model."
               }
+            },
+            {
+              "name": "Image generation provider registry + plugin dispatch",
+              "priority": "P2",
+              "status": "complete",
+              "completed_at": "2026-05-06T00:23:30Z",
+              "contract": "Gormes ports Hermes image-generation provider registration and dispatch before live image model parity claims: providers register behind a Go-native interface, names are non-empty and sorted, duplicate names replace prior providers deterministically, image_gen.provider config wins when registered, FAL remains the preferred fallback when multiple providers are present and no config is set, missing configured providers degrade with provider_not_registered evidence, and the image_generation tool force-refreshes plugin discovery once before returning a missing-provider error.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing plugins, invalid provider registrations, absent configured providers, unavailable providers, provider errors, and artifact write failures return image_generation_* or provider_not_registered evidence without exposing prompts, API keys, or raw binary data.",
+              "fixture": "internal/tools/image_generation_provider_test.go; internal/plugins/image_gen_provider_test.go",
+              "source_refs": [
+                "./hermes-agent/agent/image_gen_registry.py@b816fd4e2",
+                "./hermes-agent/agent/image_gen_provider.py@b816fd4e2",
+                "./hermes-agent/tools/image_generation_tool.py@b816fd4e2",
+                "./hermes-agent/tests/agent/test_image_gen_registry.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_image_generation_plugin_dispatch.py@b816fd4e2",
+                "./hermes-agent/tests/plugins/image_gen/test_openai_provider.py@b816fd4e2",
+                "./hermes-agent/tests/plugins/image_gen/test_openai_codex_provider.py@b816fd4e2",
+                "./hermes-agent/tests/plugins/image_gen/test_xai_provider.py@b816fd4e2",
+                "internal/tools/image_generation_result.go",
+                "internal/plugins/loader.go"
+              ],
+              "ready_when": [
+                "Image generation result contract and Plugin SDK are complete, so provider dispatch can return the existing artifact envelope without executing plugin runtime code in tests.",
+                "Tests can use fake providers, temp config files, and fake plugin discovery hooks; no OpenAI, xAI, FAL, Codex, browser, or network credential is required."
+              ],
+              "not_ready_when": [
+                "The slice calls live image APIs, imports Hermes Python plugins, or embeds raw images in transcripts.",
+                "A configured but missing provider silently falls back without operator-visible evidence.",
+                "Plugin discovery refresh can loop indefinitely or execute arbitrary plugin runtime code while resolving provider names."
+              ],
+              "blocked_by": [
+                "Image generation result contract",
+                "Plugin SDK"
+              ],
+              "acceptance": [
+                "TestImageGenProviderRegistryRegisterLookupAndSort proves non-provider values and empty names fail, duplicate names replace deterministically, and list output is sorted.",
+                "TestImageGenActiveProviderResolution proves single-provider auto-selection, FAL preference, explicit config win, missing-config fallback evidence, and empty registry nil behavior.",
+                "TestImageGenerationDispatchRoutesConfiguredPluginProvider proves the tool calls the configured fake provider and returns provider/model/aspect_ratio through the existing artifact envelope.",
+                "TestImageGenerationDispatchForceRefreshesPluginsOnce proves an initial miss triggers one forced plugin discovery pass before success or provider_not_registered evidence.",
+                "TestImageGenerationPluginProviderErrorsAreRedacted proves provider exceptions and unavailable providers do not leak prompt text, API keys, or raw binary content."
+              ],
+              "write_scope": [
+                "internal/tools/image_generation_provider.go",
+                "internal/tools/image_generation_provider_test.go",
+                "internal/tools/image_generation_result.go",
+                "internal/tools/image_generation.go",
+                "internal/plugins/image_gen_provider.go",
+                "internal/plugins/image_gen_provider_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_image.go",
+                "cmd/gormes/registry_image_slim.go",
+                "cmd/gormes/registry_test.go",
+                "internal/config/config.go",
+                "internal/config/writer.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "evidence": [
+                "go test ./internal/tools ./internal/plugins -run 'TestImageGen|TestImageGeneration' -count=1 -> pass",
+                "go test ./cmd/gormes ./internal/tools ./internal/plugins -count=1 -> pass",
+                "go test -tags slim ./cmd/gormes ./internal/tools -count=1 -> pass",
+                "go test -tags gormes_lite ./cmd/gormes -count=1 -> pass",
+                "go test ./webpages/docs -count=1 -> pass",
+                "go test ./... -count=1 -> pass",
+                "go run ./cmd/progress validate -> pass",
+                "git diff --check -> pass"
+              ],
+              "test_commands": [
+                "go test ./internal/tools ./internal/plugins -run 'TestImageGen|TestImageGeneration' -count=1",
+                "go test ./cmd/gormes ./internal/tools ./internal/plugins -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Image generation fixtures prove provider registration, active-provider resolution, plugin dispatch refresh, and redacted missing-provider degradation without live image APIs."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 agent/image_gen_registry.py + tools/image_generation_tool.py",
+                "note": "The existing Gormes image row proves result envelopes only; Hermes also exposes provider registry and plugin dispatch behavior."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T13:57:25Z",
-            "origin_decision": "Hermes ec671c41 added native image routing, image-aware compression pressure, image-too-large classification, and shrink recovery. Gormes still lacks the full multimodal surface, so Phase 5.D remains upstream-led but split into pure routing, classification/retry, and result-envelope rows before any UI/gateway/provider transport binding."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes ec671c41 added native image routing, image-aware compression pressure, image-too-large classification, and shrink recovery; Hermes b816fd4e2 image_gen tests add provider registry and plugin dispatch contracts. Gormes has pure routing, shrink retry, and artifact result envelopes, but provider selection/refresh remains missing and is now tracked as `Image generation provider registry + plugin dispatch` before any live image API binding."
           }
         },
         "5.E": {
@@ -21747,9 +21964,92 @@
               }
             },
             {
+              "name": "TTS provider matrix + dotenv/command-provider resolution",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports the Hermes TTS provider/config matrix behind fakeable synthesis seams: built-in providers cannot be shadowed by command providers, `tts.providers.<name>` wins over legacy per-provider blocks, command providers render input/output placeholders with quoted context and bounded timeout cleanup, provider API keys resolve from env or Gormes dotenv state, global and per-provider speed values are normalized/clamped, provider-specific max_text_length caps are enforced, local KittenTTS/Piper dependencies degrade lazily, and MiniMax endpoint/body compatibility remains delegated to the dedicated MiniMax row.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing optional SDKs, missing dotenv/env API keys, invalid command-provider config, command timeouts, command failures, overlong text, unsupported output formats, and provider import failures return redacted tts_* evidence without disabling unrelated providers or leaking command output, prompts, paths outside temp roots, or API keys.",
+              "fixture": "internal/tools/tts_provider_matrix_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/tts_tool.py@b816fd4e2",
+                "./hermes-agent/tools/voice_mode.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_command_providers.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_dotenv_fallback.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_speed.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_max_text_length.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_gemini.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_mistral.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_kittentts.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_tts_piper.py@b816fd4e2",
+                "internal/tools/tts_tool.go",
+                "internal/tools/tts_command_provider.go",
+                "internal/tools/tts_providers.go",
+                "cmd/gormes/registry_audio.go",
+                "internal/config/config.go"
+              ],
+              "ready_when": [
+                "TTS tool contract + media delivery seam is complete and provider calls can be injected as fakes.",
+                "Tests can use temp files, fake dotenv/config maps, fake command runners, fake provider clients, and fake import probes; no Edge TTS, OpenAI, ElevenLabs, xAI, MiniMax, Mistral, Gemini, KittenTTS, Piper, ffmpeg, sounddevice, or live network is required.",
+                "Keep voice-mode microphone state and channel media delivery outside this provider/config slice."
+              ],
+              "not_ready_when": [
+                "The slice starts real audio playback/capture, downloads local TTS models, calls live cloud TTS APIs, or shells out in tests without an injected command runner.",
+                "Command providers can shadow built-in openai/edge/piper provider names.",
+                "Dotenv-only credentials fail even though Gormes auth/config state contains the relevant API key."
+              ],
+              "blocked_by": [
+                "TTS tool contract + media delivery seam"
+              ],
+              "acceptance": [
+                "TestTTSCommandProviderResolution proves built-in names cannot be shadowed, providers-block config wins legacy config, implied type=command works, unsupported types and blank commands degrade, and names resolve case-insensitively.",
+                "TestTTSCommandProviderExecution proves input_path/output_path template rendering, shell-quote context fields, timeout cleanup, voice_compatible opt-in, output format resolution, and max_text_length lookup with fake command runners.",
+                "TestTTSDotenvFallbackPerProvider proves ElevenLabs, xAI, MiniMax, Mistral, Gemini, and OpenAI-compatible paths read dotenv/env values through the Gormes config seam without freezing stale helpers.",
+                "TestTTSSpeedAndCapMatrix proves Edge rate strings, OpenAI speed clamping, provider-over-global precedence, and provider-specific max_text_length caps match Hermes fixtures.",
+                "TestTTSLocalProviderLazyDependencyEvidence proves KittenTTS and Piper imports are lazy and missing dependencies produce provider-specific evidence without blocking other providers."
+              ],
+              "write_scope": [
+                "internal/tools/tts_tool.go",
+                "internal/tools/tts_command_provider.go",
+                "internal/tools/tts_providers.go",
+                "internal/tools/tts_provider_matrix_test.go",
+                "internal/config/config.go",
+                "internal/config/writer.go",
+                "cmd/gormes/registry_audio.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestTTS(CommandProvider|Dotenv|Speed|Cap|LocalProvider)' -count=1",
+                "go test ./internal/tools ./internal/config -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "TTS provider matrix fixtures prove command-provider resolution/execution, dotenv-backed credentials, speed/cap normalization, and lazy local-provider degradation without live audio or cloud calls."
+              ],
+              "evidence": [
+                "2026-05-05: go test ./internal/tools -run 'TestTTS(CommandProvider|Dotenv|Speed|Cap|LocalProvider)' -count=1 -> pass",
+                "2026-05-05: go test ./internal/tools ./internal/config ./cmd/gormes -count=1 -> pass",
+                "2026-05-05: go test ./... -count=1 -> pass",
+                "2026-05-05: go run ./cmd/progress validate && git diff --check -> pass"
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tools/tts_tool.py",
+                "note": "The generic TTS tool row is complete, but Hermes has concrete provider/config behavior that the umbrella `TTS synthesis + voice-mode state` row does not make builder-ready."
+              }
+            },
+            {
               "name": "TTS synthesis + voice-mode state",
               "status": "planned",
-              "note": "TDD: port `tools/tts_tool.py`, `tools/voice_mode.py`, and `tools/neutts_synth.py` behind a sidecar-friendly interface with cached samples and nonfatal missing-dependency behavior.",
+              "note": "Umbrella only after the provider/config split. Provider matrix, MiniMax raw-audio drift, media delivery, and record-key binding are tracked by concrete rows; future splits should focus on voice-mode state, microphone capture/playback, and any remaining NeuTTS sample-cache behavior.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -21831,7 +22131,12 @@
                 "note": "Hermes recently fixed voice.record_key across CLI, gateway protocol, and TUI; Gormes scopes the parity row to native config/status/keybinding behavior."
               }
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "porting",
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes remains the TTS/STT/voice-mode source of truth. Gormes has the transcription helper, Telegram STT ingress, and TTS tool/media delivery seam; current drift is split into MiniMax v1 raw-audio compatibility, TTS provider matrix/dotenv/command-provider resolution, voice record-key config binding, and full voice-mode state. Keep provider-specific synthesis/config and platform delivery separated so voice work does not reopen completed STT rows."
+          }
         },
         "5.F": {
           "name": "Skills System (Remaining)",
@@ -41414,6 +41719,75 @@
               }
             },
             {
+              "name": "Microsoft Teams adapter plugin seam",
+              "priority": "P3",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' Microsoft Teams platform as a disabled-by-default plugin-backed channel seam before live Bot Framework binding: config resolves TEAMS_CLIENT_ID, TEAMS_CLIENT_SECRET, TEAMS_TENANT_ID, and TEAMS_PORT from env or explicit platform config with redacted status; plugin registration exposes teams with TEAMS_ALLOWED_USERS, TEAMS_ALLOW_ALL_USERS, max message length 28000, and setup guidance; fake runtime tests normalize personal/group/channel activities, prefer AAD object IDs, filter self messages, deduplicate activity IDs, strip `<at>...</at>` bot mentions, cache image attachments as PHOTO events, and send text/typing/adaptive approval cards through fake app clients.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing SDK/aiohttp equivalents, missing credentials, invalid ports, unauthorized approval clicks, app-not-initialized sends, attachment-cache failures, and connect/start failures return teams_* evidence without starting a live HTTP server, exposing client secrets, or widening default channel toolsets.",
+              "fixture": "internal/channels/teams/runtime_test.go; cmd/gormes/teams_gateway_test.go",
+              "source_refs": [
+                "./hermes-agent/plugins/platforms/teams/adapter.py@b816fd4e2",
+                "./hermes-agent/plugins/platforms/teams/plugin.yaml@b816fd4e2",
+                "./hermes-agent/tests/gateway/test_teams.py@b816fd4e2",
+                "./hermes-agent/website/docs/user-guide/messaging/teams.md@b816fd4e2",
+                "internal/gateway/channel.go",
+                "internal/channels/threadtext/",
+                "cmd/gormes/gateway.go"
+              ],
+              "ready_when": [
+                "Shared gateway manager registration, plugin metadata loading, and regional adapter backlog patterns are validated.",
+                "Tests can inject fake Teams app clients, fake activity objects, fake attachment cache functions, fake approval stores, and temp config/env values; no Microsoft Teams SDK, aiohttp, Bot Framework app, public tunnel, or network listener is required.",
+                "This row only makes the platform visible as disabled/fakeable; live Bot Framework HTTP binding remains a later transport row."
+              ],
+              "not_ready_when": [
+                "The slice starts a live webhook server, imports a Teams SDK in Go tests, contacts Microsoft endpoints, or writes real HOME dotenv files.",
+                "Teams credentials or approval card payloads leak client_secret, tenant secrets, or command strings beyond bounded previews.",
+                "Teams is enabled by default or its toolset becomes available on CLI/cron/non-Teams platforms."
+              ],
+              "blocked_by": [
+                "Plugin SDK",
+                "Gateway platform manifest + disabled regional adapter inventory"
+              ],
+              "acceptance": [
+                "TestTeamsConfigAndPluginRegistration proves env/config precedence, default/custom port, dependency status, redacted missing-credential evidence, TEAMS_ALLOWED_USERS/TEAMS_ALLOW_ALL_USERS metadata, max_message_length=28000, and setup function availability.",
+                "TestTeamsInboundActivityNormalization proves personal/group/channel chat types, AAD-object user IDs, tenant/guild IDs, mention stripping, self-message filtering, duplicate activity suppression, and message_id preservation.",
+                "TestTeamsImageAttachmentNormalization proves image content_url attachments enter gateway PHOTO events through an injected cache helper and cache failures keep the text event with degraded evidence.",
+                "TestTeamsSendTextTypingAndApprovalCards proves fake app sends text chunks, typing indicators, adaptive approval cards with once/session/always/deny buttons, stored conversation references, unauthorized click denial, and already-resolved approval evidence.",
+                "TestTeamsGatewayRegistrationDisabledByDefault proves `gormes gateway` lists Teams as configured-unavailable until explicitly enabled with fake credentials and never starts a live listener in unit tests."
+              ],
+              "write_scope": [
+                "internal/channels/teams/",
+                "internal/config/teams_config.go",
+                "cmd/gormes/teams_gateway_test.go",
+                "cmd/gormes/gateway.go",
+                "internal/cli/toolset_config.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/teams ./internal/config -run '^TestTeams' -count=1",
+                "go test ./cmd/gormes -run 'TestTeamsGateway|TestGateway.*Teams' -count=1",
+                "go test ./internal/cli -run 'Test.*Toolset.*Teams' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Teams fixtures prove disabled-by-default config/plugin status, fake inbound normalization, fake send/typing/adaptive-card approval behavior, and gateway registration without live Microsoft services."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 plugins/platforms/teams/adapter.py",
+                "note": "Hermes exposes Teams as a platform plugin; Gormes has no teams channel package, so the first row is a fakeable disabled adapter seam."
+              }
+            },
+            {
               "name": "QQ Bot transport/bootstrap layer",
               "status": "planned",
               "contract": "Fakeable Official QQ Bot transport bootstrap binds the existing QQ Bot shared-chassis seam to token, gateway, websocket, and REST clients without live QQ: config resolves app_id/client_secret from explicit values or QQ_APP_ID/QQ_CLIENT_SECRET, applies markdown support and DM/group allowlist policies, acquires an app-id platform lock, uses an HTTP redirect guard for token/media requests, fetches token and gateway URL through injected clients, consumes websocket READY/RESUMED/dispatch/heartbeat frames with sequence tracking, builds REST message bodies for markdown/plain/truncated replies, waits for reconnect before sends, and returns retryable send evidence on timeout or close.",
@@ -41495,8 +41869,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T02:20:01Z",
-            "origin_decision": "Hermes ab687963 adds a full Yuanbao platform with protocol, markdown, media/sticker, gateway runtime, tools, bundled skill, and user docs. Gormes has no Yuanbao implementation, so Phase 7.E remains upstream-led for this adapter and is split into protocol/markdown, media/sticker, then disabled-by-default runtime/toolset registration. Keep the adapter thin and fixture-first; Goncho/Honcho memory naming is unaffected."
+            "last_upstream_check": "2026-05-05T00:00:00Z",
+            "origin_decision": "Hermes ab687963 adds a full Yuanbao platform and Hermes b816fd4e2 also exposes Microsoft Teams as a plugin platform. Gormes has completed Yuanbao fixture/runtime seams, while Teams has no Go channel package yet; the gap is now tracked as `Microsoft Teams adapter plugin seam` before any live Bot Framework transport binding. Keep regional/device adapters thin, disabled by default, and fixture-first; Goncho/Honcho memory naming is unaffected."
           }
         }
       }
