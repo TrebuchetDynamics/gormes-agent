@@ -87,15 +87,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 60/92 subphases shipped · 30 in progress · 2 planned
+**Overall:** 62/92 subphases shipped · 28 in progress · 2 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 9/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 10/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 4/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -632,10 +632,10 @@ classification and row-backed implementation queue.
 
 - [x] Shell blocklist + filesystem scoping + permission approval
 
-### 4.K — Provider Fallback Chain 🔨
+### 4.K — Provider Fallback Chain ✅
 
 - [x] Resilient provider chain dispatch
-- [ ] Hermes fallback activation + classifier carve-outs
+- [x] Hermes fallback activation + classifier carve-outs
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 
@@ -735,7 +735,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration 🔨
+### 5.G — MCP Integration ✅
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -746,7 +746,7 @@ classification and row-backed implementation queue.
 - [x] MCP OAuth state store + noninteractive auth errors
 - [x] MCP OAuth refresh + 401 session-expired recovery
 - [x] Managed tool gateway bridge
-- [ ] MCP circuit breaker cooldown + reconnect reset
+- [x] MCP circuit breaker cooldown + reconnect reset
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
 

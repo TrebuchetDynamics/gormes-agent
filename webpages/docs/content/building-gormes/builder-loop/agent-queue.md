@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Hermes fallback activation + classifier carve-outs
-
-- Phase: 4 / 4.K
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Gormes extends the existing provider fallback chain from generic dispatch into Hermes' current agent-loop behavior: fallback_model accepts a single object or ordered list, ignores missing provider/model entries without panics, normalizes supported fallback providers through the provider registry, activates fallback after empty-response retry exhaustion, updates compressor/model context after activation, and treats malformed provider JSON as retryable transport corruption rather than a local validation error.
-- Trust class: operator, system
-- Ready when: Provider registry and alias manifest can resolve fallback providers such as openrouter, zai, kimi-coding, minimax, openai-codex, and nous without live credentials., Existing provider fallback chain and model-router helpers are complete, so this slice can adapt loop activation without inventing a second fallback dispatcher., Context compressor budget helpers expose an update path for the active provider/model after route changes.
-- Not ready when: The slice reintroduces the removed/stale Hermes fallback CLI command surface instead of implementing runtime fallback behavior., Fallback activation hides malformed JSON under generic ValueError/non-retryable evidence., Tests require live provider keys, models.dev network access, or a real compressor/provider call.
-- Degraded mode: Fallback status reports fallback_config_invalid, fallback_unavailable, fallback_activated, fallback_jsondecode_retryable, or compressor_fallback_updated evidence without exposing provider credentials or silently retrying a non-retryable local validation error.
-- Fixture: `internal/hermes/fallback_activation_test.go; internal/kernel/provider_fallback_test.go`
-- Write scope: `internal/hermes/fallback_chain.go`, `internal/hermes/model_routing.go`, `internal/hermes/error_classifier.go`, `internal/hermes/context_compressor_budget.go`, `internal/kernel/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run 'TestFallback\|TestModelRouter\|TestContextCompressor' -count=1`, `go test ./internal/kernel -run 'Test.*Fallback\|Test.*Retry' -count=1`, `go test ./internal/hermes ./internal/kernel -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Provider fallback fixtures prove Hermes-compatible config parsing, fallback activation, JSONDecodeError retryability, compressor budget update, and no stale fallback CLI resurrection.
-- Acceptance: TestFallbackConfigNormalizesOrderedList accepts one fallback object or an ordered list, drops incomplete entries, preserves first valid fallback_model, and stores the full fallback_chain for iteration., TestFallbackActivationAfterEmptyResponses exhausts the Hermes empty-response retry budget, switches to the first valid fallback route, and returns the fallback response with visible fallback_activated evidence., TestFallbackJSONDecodeErrorRetryable proves provider JSONDecodeError/malformed response corruption is excluded from local validation and can trigger retry/fallback instead of immediate abort., TestCompressorBudgetUpdatesAfterFallback proves the active compressor/model context reflects the fallback provider/model after activation., Existing TestProviderChain_* and provider error classifier fixtures remain green.
-- Source refs: ../hermes-agent/tests/run_agent/test_provider_fallback.py@b816fd4e2, ../hermes-agent/tests/run_agent/test_fallback_model.py@b816fd4e2, ../hermes-agent/tests/run_agent/test_jsondecodeerror_retryable.py@b816fd4e2, ../hermes-agent/tests/run_agent/test_compressor_fallback_update.py@b816fd4e2, ../hermes-agent/tests/run_agent/test_run_agent.py@b816fd4e2:TestEmptyResponseRetriesThenFallback, internal/hermes/fallback_chain.go, internal/hermes/model_routing.go, internal/hermes/context_compressor_budget.go, internal/kernel/retry.go
-- Unblocks: Provider-tool-memory golden transcript suite, Release readiness e2e gate
-- Why now: Unblocks Provider-tool-memory golden transcript suite, Release readiness e2e gate.
-
-## 2. Extension Lifecycle Hook System
+## 1. Extension Lifecycle Hook System
 
 - Phase: 5 / 5.I
 - Owner: `tools`
@@ -69,7 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 3. Hermes Kanban production worker process binding
+## 2. Hermes Kanban production worker process binding
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces
 - Why now: Unblocks Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces.
 
-## 4. Channels Capabilities Introspection
+## 3. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 5. Prompt Fragment Include System
+## 4. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -132,7 +111,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 6. ACP bridge client compatibility
+## 5. ACP bridge client compatibility
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -152,7 +131,7 @@ selection.
 - Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Gateway discover/probe command
+## 6. Gateway discover/probe command
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -172,7 +151,7 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Transactional tool execution with snapshot/rollback
+## 7. Transactional tool execution with snapshot/rollback
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -192,7 +171,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Sandbox isolation depth selection
+## 8. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -212,7 +191,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Gateway channel adapters publish to event bus
+## 9. Gateway channel adapters publish to event bus
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -230,6 +209,26 @@ selection.
 - Done signal: Integration tests prove messages flow from channel→bus→agent and back through all adapter types
 - Acceptance: Incoming Telegram message → MessageReceived event on bus, Incoming Discord message → MessageReceived event on bus, Incoming Slack message → MessageReceived event on bus, Outgoing reply event → channel-specific delivery by adapter subscriber, Channel adapter failures are isolated — one channel crash doesn't affect others, Message events carry channel provenance (source, channel_id, user_id)
 - Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Agent turn and tool execution events on bus
+
+- Phase: 5 / 5.V
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Agent turns (start, thought, action, observation, complete, error) and tool executions (start, progress, complete, error) are published as structured events on the bus. Enables TUI, web dashboard, and audit log to observe agent activity without polling.
+- Trust class: system
+- Ready when: Event bus exists (5.V row 1), Agent loop has hook points for event emission
+- Not ready when: Event bus not yet implemented, Agent loop cannot be refactored for hooks
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/turn_events.go`, `internal/hermes/turn_events_test.go`, `internal/tools/tool_events.go`
+- Test commands: `go test ./internal/hermes -run TestTurnEvents -count=1`, `go test ./internal/tools -run TestToolEvents -count=1`
+- Done signal: Event tests prove turn lifecycle emits all expected events with correct trace_id linking
+- Acceptance: TurnStart event emitted when agent begins processing, Thought event emitted for each reasoning step, ToolCall event emitted when tool is invoked, ToolResult event emitted when tool completes, TurnComplete event emitted with summary, All events carry trace_id linking them to a session turn
+- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/hermes/turn.go, internal/tools/executor.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

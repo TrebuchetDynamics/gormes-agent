@@ -19193,7 +19193,7 @@
             {
               "name": "Hermes fallback activation + classifier carve-outs",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes extends the existing provider fallback chain from generic dispatch into Hermes' current agent-loop behavior: fallback_model accepts a single object or ordered list, ignores missing provider/model entries without panics, normalizes supported fallback providers through the provider registry, activates fallback after empty-response retry exhaustion, updates compressor/model context after activation, and treats malformed provider JSON as retryable transport corruption rather than a local validation error.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -19273,7 +19273,7 @@
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 tests/run_agent/test_provider_fallback.py + test_fallback_model.py + test_jsondecodeerror_retryable.py + test_compressor_fallback_update.py",
-                "note": "The existing complete row proves generic chain dispatch. This row tracks the current Hermes agent-loop semantics still absent from that broad fallback slice. The 2026-05-06 all-topic parity sweep confirmed the provider registry, model routing, and context-compressor prerequisites are complete, so the stale blocked_by metadata was removed for builder selection."
+                "note": "The existing complete row proves generic chain dispatch. This row tracks the current Hermes agent-loop semantics still absent from that broad fallback slice. The 2026-05-06 all-topic parity sweep re-ran the row tests and marked the stale planned row complete."
               }
             }
           ]
@@ -24188,7 +24188,7 @@
             {
               "name": "MCP circuit breaker cooldown + reconnect reset",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "MCP tool calls maintain Hermes-compatible per-server recovery state: repeated call failures trip a circuit breaker, calls before cooldown short-circuit without touching the session, the first call after cooldown is a half-open probe, probe success closes the breaker, probe failure reopens it, and a successful OAuth reconnect clears stale breaker counts even if the immediate post-reconnect retry still fails.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -24222,11 +24222,6 @@
                 "Breaker reset waits for a successful post-reconnect tool call instead of resetting on the successful reconnect signal.",
                 "Shutdown and reconnect events race so reconnect wins over shutdown when both are set."
               ],
-              "blocked_by": [
-                "Managed tool gateway bridge",
-                "MCP OAuth refresh + 401 session-expired recovery",
-                "Gormes mcp login browser callback flow"
-              ],
               "unblocks": [
                 "Release readiness e2e gate",
                 "Long-running MCP server stability"
@@ -24256,10 +24251,23 @@
               "done_signal": [
                 "MCP fixtures prove cooldown/half-open/reopen behavior, reconnect reset, shutdown precedence, probe cleanup, and no live MCP/OAuth dependency."
               ],
+              "note": "Complete: TDD added a Go-native MCP circuit breaker with per-server failure counts, cooldown-gated half-open probes, reconnect reset evidence, lifecycle reconnect/shutdown event precedence, and a fakeable probe helper that skips disabled servers and closes probe sessions. Managed gateway tool calls now route through the breaker and surface mcp_breaker_open/mcp_half_open_failed evidence without touching the gateway before cooldown.",
+              "evidence": {
+                "implementation": [
+                  "internal/tools/mcp_client.go defines MCPCircuitBreaker, CallMCPWithCircuitBreaker, MCPServerLifecycle, and ProbeMCPServerTools with fake clock/session seams.",
+                  "internal/tools/managed_tool_gateway.go wires ManagedGatewayBridge.CallTool through the circuit breaker and maps breaker evidence onto managed-gateway degraded evidence."
+                ],
+                "tests": [
+                  "internal/tools/mcp_circuit_breaker_test.go covers short-circuit, half-open success, half-open failure, reconnect reset, and managed-gateway evidence.",
+                  "internal/tools/mcp_reconnect_test.go covers shutdown-over-reconnect precedence and disabled/failed probe cleanup.",
+                  "go test ./internal/tools -run 'TestMCP(CircuitBreaker|Reconnect|Probe)' -count=1 -> ok",
+                  "go test ./internal/tools -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 tests/tools/test_mcp_circuit_breaker.py + test_mcp_reconnect_signal.py + test_mcp_probe.py",
-                "note": "Gormes has the MCP config/discovery/OAuth seams, but current progress did not track Hermes' call-level recovery state. This row closes that operational stability gap."
+                "note": "Gormes has the MCP config/discovery/OAuth seams, but current progress did not track Hermes' call-level recovery state. The 2026-05-06 all-topic parity sweep confirmed managed gateway, OAuth refresh, and mcp login prerequisites are shipped, so the stale blocked_by metadata was removed for builder selection."
               }
             },
             {
