@@ -15236,8 +15236,8 @@
             },
             {
               "name": "Progressive subdirectory hint tracker",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes' progressive subdirectory hint discovery as a pure prompt-context helper: after tool calls that mention paths or terminal workdirs, discover AGENTS.md/agents.md, CLAUDE.md/claude.md, or .cursorrules from newly visited directories and bounded ancestors, scan/truncate the hint content with the same safety policy as startup context files, format it as appendable tool-result context, and never mutate the system prompt or prompt-cache key.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -15285,7 +15285,7 @@
                 "internal/hermes/subdirectory_hints_test.go",
                 "internal/hermes/context_files.go",
                 "internal/hermes/context_files_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/hermes -run '^TestSubdirectoryHints|^TestContextFiles' -count=1",
@@ -15295,6 +15295,13 @@
               ],
               "done_signal": [
                 "Subdirectory hint fixtures prove loaded-dir tracking, bounded ancestor discovery, path/workdir/terminal extraction, URL/git skip behavior, first-file priority, formatting, scan/truncation, and permission-error no-op behavior with no tool execution binding."
+              ],
+              "note": "2026-05-06 bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Higher-priority open rows were blocked, draft-only, or Gormes/OpenClaw-owned rather than the next Hermes-sourced builder slice: Kanban worker rows need CLI invocation/tool prerequisites, event-bus integration depends on producer rows, plugin lifecycle is still blocked by third-party-extension work, self-update is large and prerequisite-heavy, ACP bridge/discover-probe rows are owned OpenClaw enhancements, and gateway discover/probe has existing code but stale/wrong acceptance that should be refined separately. This row is the highest unblocked small Hermes-sourced weakness: Gormes has startup context-file loading, normal-turn prompt assembly, provider/auth rows, gateway/channel rows, Goncho/normal-turn memory, browser/tool progress, setup/docs/release gates, and TUI rows covered or row-backed, but lacked Hermes' progressive tool-result subdirectory context hints. Complete: TDD added internal/hermes/subdirectory_hints.go and subdirectory_hints_test.go. The pure tracker preloads the working directory, extracts path/file_path/workdir and terminal command path tokens, skips empty args/flags/URLs/git remotes, walks bounded ancestors, loads only the first hint file per directory by AGENTS/CLAUDE/.cursorrules priority, reuses the context-file scan/truncation helpers, preserves blocked prompt-injection markers, returns typed stat/read/empty/loaded evidence, formats appendable `[Subdirectory context discovered: <relative path>]` sections, and does not bind tool execution or mutate prompt assembly.",
+              "evidence": [
+                "RED: go test ./internal/hermes -run '^TestSubdirectoryHintsAncestorDiscovery$' -count=1 failed on undefined NewSubdirectoryHintTracker and SubdirectoryHintOptions.",
+                "RED: go test ./internal/hermes -run '^TestSubdirectoryHintsPathSourcesPriorityAndSafety$' -count=1 failed first because blocked prompt-injection markers were truncated, then because stat-error evidence was absent.",
+                "GREEN: go test ./internal/hermes -run '^TestSubdirectoryHints|^TestContextFiles' -count=1 passed.",
+                "GREEN: go test ./internal/hermes -count=1 passed."
               ],
               "provenance": {
                 "origin_type": "upstream",
