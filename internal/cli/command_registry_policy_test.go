@@ -138,6 +138,31 @@ func TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands(t *testing.T) {
 	}
 }
 
+func TestCommandRegistryCuratorCommandAvailableOnCLISurface(t *testing.T) {
+	cmd, ok := ResolveCommandPolicy("/curator status")
+	if !ok {
+		t.Fatal("ResolveCommandPolicy(/curator status) not found")
+	}
+	if cmd.Surface != CommandSurfaceCLI {
+		t.Fatalf("/curator Surface = %q, want %q", cmd.Surface, CommandSurfaceCLI)
+	}
+	if cmd.ActiveTurnPolicy != ActiveTurnPolicyBypass {
+		t.Fatalf("/curator policy = %q, want %q for local CLI status/run/control surface", cmd.ActiveTurnPolicy, ActiveTurnPolicyBypass)
+	}
+	if !cmd.Ported {
+		t.Fatal("/curator Ported = false, want true after curator CLI surface landed")
+	}
+	want := []string{"status", "run", "pause", "resume", "pin", "unpin", "backup", "rollback", "restore"}
+	if len(cmd.Subcommands) != len(want) {
+		t.Fatalf("/curator Subcommands = %v, want %v", cmd.Subcommands, want)
+	}
+	for i, sub := range want {
+		if cmd.Subcommands[i] != sub {
+			t.Errorf("/curator Subcommands[%d] = %q, want %q (full=%v)", i, cmd.Subcommands[i], sub, cmd.Subcommands)
+		}
+	}
+}
+
 func TestCommandRegistryPolicyBusyVerdictForUnknownIsUnavailable(t *testing.T) {
 	v := EvaluateActiveTurnVerdict("/no-such-command-xyzzy", true)
 	if v.Known {

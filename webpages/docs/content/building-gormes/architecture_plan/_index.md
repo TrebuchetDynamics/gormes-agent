@@ -1077,7 +1077,7 @@ classification and row-backed implementation queue.
 ### 6.F — Skill Surface 🔨
 
 - [x] Hermes skill_manage support-file and curator intent actions
-- [ ] Hermes curator command surface
+- [x] Hermes curator command surface
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface
 

@@ -135,6 +135,20 @@ func TestParseInboundText(t *testing.T) {
 	}
 }
 
+func TestGatewayCommandCuratorRemainsUnavailable(t *testing.T) {
+	cmd, ok := ResolveCommand("/curator status")
+	if !ok {
+		t.Fatal("/curator did not resolve through gateway CommandRegistry")
+	}
+	if cmd.ActiveTurnPolicy != CommandActiveTurnPolicyUnavailable {
+		t.Fatalf("/curator gateway policy = %q, want %q", cmd.ActiveTurnPolicy, CommandActiveTurnPolicyUnavailable)
+	}
+	kind, body := ParseInboundText("/curator status")
+	if kind != EventSubmit || body != "/curator status" {
+		t.Fatalf("ParseInboundText(/curator status) = (%v, %q), want unavailable command preserved as submit body", kind, body)
+	}
+}
+
 func TestGatewayHelpLinesDerivedFromRegistry(t *testing.T) {
 	lines := GatewayHelpLines()
 	if len(lines) == 0 {

@@ -41268,10 +41268,10 @@
             },
             {
               "name": "Hermes curator command surface",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "`gormes curator` replaces the current unavailable placeholder with Hermes-compatible status, run, pause, resume, pin, unpin, backup, rollback, and restore commands over the native curator state/report engine",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -41309,8 +41309,9 @@
                 "TestCuratorCommand_BackupRollbackRestore lists/creates snapshots, supports newest or selected rollback, requires confirmation unless -y/--yes is passed, restores archived skills, and reports cancelled rollback without mutation.",
                 "Command registry fixtures flip `curator` from unavailable to available on the CLI surface while gateway active-turn command policy remains explicit."
               ],
-              "note": "Gormes currently registers `curator` as unavailable. Hermes v0.12.0 exposes `hermes curator status|run|pause|resume|pin|unpin|backup|rollback|restore`; the Go CLI should become available only after the native state/report engine exists.",
+              "note": "Complete 2026-05-06: the all-topic parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 84, so no new P3/P4 row was added. The sweep promoted this existing row to P0 because its blocker `Hermes curator state transitions and run reports` is complete/validated, current Hermes exposes `hermes curator status|run|pause|resume|pin|unpin|backup|rollback|restore`, and Gormes still registered `curator` as unavailable on CLI/gateway command surfaces. TDD added the native `gormes curator` command group over internal/skills.Curator with status rankings/counts, dry-run report-only execution, pause/resume state, pin/unpin safeguards for non-agent/bundled skills, manual snapshots, newest/id rollback with confirmation bypass, archived-skill restore, root command registration, and CLI registry availability while gateway slash-command policy remains explicitly unavailable. Other P1 candidates remain blocked or too broad: Kanban process binding depends on root `--skills` CLI parity, Kanban worker tools depend on dispatcher context, event-bus integration depends on producer rows, and ACP bridge is OpenClaw/client-bridge scope rather than the next Hermes parity closure.",
               "write_scope": [
+                "cmd/gormes/main.go",
                 "cmd/gormes/curator.go",
                 "cmd/gormes/curator_test.go",
                 "internal/cli/command_registry.go",
@@ -41326,6 +41327,19 @@
               "done_signal": [
                 "Curator CLI fixtures prove Hermes-compatible status/run/control/backup/rollback/restore commands over injected native curator state, and command registry policy no longer exposes curator as an unavailable CLI placeholder."
               ],
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/curator.go: native curator command group over internal/skills.Curator, backup, rollback, and archived restore helpers",
+                  "cmd/gormes/main.go: root command registration and help entry",
+                  "cmd/gormes/curator_test.go: CLI fixtures for status, dry-run, pause/resume, pin/unpin, backup/rollback/restore, and root registration",
+                  "internal/cli/command_registry.go: CLI curator policy flipped from unavailable to ported bypass with subcommands",
+                  "internal/cli/command_registry_policy_test.go and internal/gateway/commands_test.go: CLI availability and gateway-unavailable policy fixtures"
+                ],
+                "tests": [
+                  "go test ./cmd/gormes ./internal/cli ./internal/gateway -run 'TestCuratorCommand|TestCommandRegistry|TestGatewayCommand' -count=1 -> ok",
+                  "go test ./cmd/gormes ./internal/cli ./internal/gateway -count=1 -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 hermes_cli/curator.py",

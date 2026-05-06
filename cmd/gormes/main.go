@@ -166,6 +166,7 @@ Memory and sessions:
 Tools and skills:
   gormes skills list                list installed skills
   gormes skills install <url>       install a direct SKILL.md URL
+  gormes curator status             inspect background skill maintenance
   gormes plugins list               list installed plugins
   gormes mcp login <server>         refresh OAuth for one MCP server
 
@@ -201,7 +202,7 @@ Docs: https://docs.gormes.ai`,
 		flag.NoOptDefVal = "last"
 	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newUninstallCommand(), newLogsCommand())
 	return root
 }
 
