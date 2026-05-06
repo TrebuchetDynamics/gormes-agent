@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -87,5 +88,37 @@ func TestACPClientCommandRequireExistingMissingSessionExits1WithEvidence(t *test
 	}
 	if result.OK || result.Evidence.Code != acp.ClientEvidenceRowBacked || result.Evidence.Reason != "session_key_not_found" {
 		t.Fatalf("result = %+v, want row-backed missing session evidence", result)
+	}
+}
+
+func TestACPServeCommandRunsJSONRPCOverStdio(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runTUI: func(*cobra.Command, []string) error {
+			t.Fatal("runTUI was called")
+			return nil
+		},
+	})
+	var stdout, stderr bytes.Buffer
+	cmd.SetIn(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}` + "\n"))
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"acp", "serve"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr.String(), stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want no JSON-RPC transport contamination", stderr.String())
+	}
+	var frame map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &frame); err != nil {
+		t.Fatalf("stdout is not one clean JSON-RPC frame: %v\nstdout=%s", err, stdout.String())
+	}
+	result := frame["result"].(map[string]any)
+	caps := result["agentCapabilities"].(map[string]any)
+	if caps["loadSession"] != true {
+		t.Fatalf("loadSession = %#v, want true", caps["loadSession"])
 	}
 }

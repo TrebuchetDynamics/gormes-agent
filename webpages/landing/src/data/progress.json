@@ -24537,8 +24537,8 @@
             },
             {
               "name": "ACP JSON-RPC stdio session/prompt closeout",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes replaces ACP manifest/client-only parity with a live Go-native ACP stdio JSON-RPC server that supports initialize/image capability, provider authentication, new/load/resume/cancel, prompt streaming/final closeout, history/title/usage events, slash command interception, queued/steer prompt behavior, CWD translation, permission approvals, and clean stdout framing.",
               "contract_status": "validated",
               "slice_size": "large",
@@ -24603,6 +24603,14 @@
               ],
               "done_signal": [
                 "ACP JSON-RPC fixtures prove live stdio session/prompt/permission/multimodal behavior without Hermes Python or editor subprocesses."
+              ],
+              "note": "Complete: the 2026-05-06 all-topic Hermes parity sweep raised this to P0 after source-ledger, CLI/auth manifest, TUI slash, Goncho/Honcho memory, provider/auth/rate/usage, and gateway/channel focused checks passed. TDD added a Go-native ACP JSON-RPC stdio server and session runtime under internal/acp plus `gormes acp serve`. The slice supports initialize with image/load/resume capabilities, provider authentication matching, ACP-only session persistence/restoration through the existing session map, Windows-drive CWD translation, cancel, prompt streaming/final closeout with duplicate-final suppression, title/usage events, idle /steer and queued prompt draining, per-session permission cache isolation, and clean stdout JSON-RPC framing without Hermes Python, editor subprocesses, live providers, or terminal dependencies.",
+              "evidence": [
+                "RED: go test ./internal/acp -run 'TestACPJSONRPC' -count=1 failed on missing NewSessionRuntime/NewJSONRPCServer/PromptRunnerFunc types.",
+                "RED: go test ./cmd/gormes -run TestACPServeCommandRunsJSONRPCOverStdio -count=1 failed because `acp serve` was unregistered and Cobra help contaminated stdout.",
+                "GREEN: go test ./internal/acp -run 'TestACPJSONRPC' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes -run TestACPServeCommandRunsJSONRPCOverStdio -count=1 passed.",
+                "ROW: go test ./internal/acp -run 'TestACPJSONRPC|TestClient|TestACPServerManifest' -count=1; go test ./cmd/gormes -run TestACP -count=1; go test ./internal/acp ./cmd/gormes -count=1 passed."
               ],
               "provenance": {
                 "origin_type": "upstream",

@@ -18,8 +18,35 @@ func newACPCommand() *cobra.Command {
 		Use:   "acp",
 		Short: "Run ACP bridge tools",
 	}
+	cmd.AddCommand(newACPServeCommand())
 	cmd.AddCommand(newACPClientCommand())
 	return cmd
+}
+
+func newACPServeCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "serve",
+		Short: "Run the Go-native ACP JSON-RPC stdio server",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runACPServeCommand(cmd)
+		},
+	}
+}
+
+func runACPServeCommand(cmd *cobra.Command) error {
+	smap, err := session.OpenBolt(config.SessionDBPath())
+	if err != nil {
+		return newExitCodeError(2, fmt.Errorf("acp server session store unavailable: %w", err))
+	}
+	defer smap.Close()
+
+	runtime := acp.NewSessionRuntime(acp.SessionRuntimeConfig{
+		SessionMap: smap,
+	})
+	if err := acp.NewJSONRPCServer(runtime).Handle(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout()); err != nil {
+		return newExitCodeError(1, err)
+	}
+	return nil
 }
 
 func newACPClientCommand() *cobra.Command {
