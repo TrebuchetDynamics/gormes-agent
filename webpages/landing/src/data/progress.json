@@ -1521,7 +1521,7 @@
             {
               "name": "Gateway manual reset session-boundary hooks",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports Hermes' explicit session-boundary hook behavior for channel reset commands: `/new` and `/reset` fire an old-session finalize hook before resetting, then fire a new-session reset hook after the replacement session is established, preserve hook ordering evidence, continue reset success when a hook fails, and keep expiry-finalization hooks separate from manual reset hooks.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -39320,7 +39320,7 @@
               "name": "Execution-mode resolver + config precedence",
               "priority": "P1",
               "status": "planned",
-              "contract": "Gormes exposes a pure execute-code mode resolver that returns `off`, `strict`, or `project` from environment override, config value, and default in that precedence order; unknown values fall back to the default with redacted warning evidence, and the token set is frozen before cwd/interpreter/runtime wiring lands.",
+              "contract": "Gormes exposes a pure execute-code mode resolver that returns Hermes-compatible `project` or `strict` from config value and default in that precedence order; unknown, empty, or nil-like values fall back to the default with redacted warning evidence, and the token set is frozen before cwd/interpreter/runtime wiring lands.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -39328,35 +39328,35 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Unknown or empty mode values produce execute_code_mode_invalid evidence and fall back to the configured default without constructing a sandbox, opening files, or running code.",
+              "degraded_mode": "Unknown, empty, or nil-like mode values produce execute_code_mode_invalid evidence and fall back to the configured default without constructing a sandbox, opening files, or running code.",
               "fixture": "internal/tools/execute_code_mode_test.go",
               "source_refs": [
                 "../hermes-agent/tests/tools/test_code_execution_modes.py@b816fd4e2",
                 "../hermes-agent/tests/tools/test_local_shell_init.py@b816fd4e2",
                 "../hermes-agent/tests/tools/test_shared_container_task_id.py@b816fd4e2",
                 "../hermes-agent/tests/tools/test_modal_sandbox_fixes.py@b816fd4e2",
-                "../hermes-agent/tools/code_execution.py@b816fd4e2",
+                "../hermes-agent/tools/code_execution_tool.py@b816fd4e2:_get_execution_mode",
                 "internal/tools/execute_code.go",
                 "internal/tools/terminal_tool.go"
               ],
               "ready_when": [
                 "Sandboxed exec is complete and currently blocks code execution through a stable envelope; this row only adds a pure resolver and cannot relax that guard.",
-                "Tests can inject env/config/default values without reading operator config, starting containers, creating cwd sandboxes, or invoking interpreters.",
+                "Tests can inject config/default values without reading operator config, starting containers, creating cwd sandboxes, or invoking interpreters.",
                 "The follow-up strict/project/default rows remain planned for cwd/interpreter/runtime binding after the token/precedence contract is locked."
               ],
               "not_ready_when": [
                 "The slice changes execute_code runtime behavior, runs Python/shell, creates containers, changes filesystem/network access, or selects cwd/interpreter paths.",
-                "The slice adds modes beyond off/strict/project without a new source-backed planner row.",
+                "The slice adds modes beyond project/strict, introduces an env override, or adds an `off` mode without a new source-backed planner row.",
                 "The slice changes the 5.K Sandboxed exec blocked-result envelope."
               ],
               "acceptance": [
-                "TestExecuteCodeModeResolverEnvOverridesConfig proves GORMES_EXECUTE_CODE_MODE wins over config and default for off/strict/project.",
-                "TestExecuteCodeModeResolverConfigFallback proves config is used when env is unset or empty and default is used when both are empty.",
-                "TestExecuteCodeModeResolverInvalidValuesWarnAndDefault proves unknown env/config values return execute_code_mode_invalid evidence and the default mode without leaking raw secrets.",
-                "TestExecuteCodeModeResolverFreezesTokenSet proves only off, strict, and project are accepted tokens.",
+                "TestExecuteCodeModeResolverConfigValue proves config accepts project, strict, case-insensitive values, and surrounding whitespace.",
+                "TestExecuteCodeModeResolverDefaultFallback proves the default is used when config is empty, absent, or nil-like.",
+                "TestExecuteCodeModeResolverInvalidValuesWarnAndDefault proves unknown config/default values return execute_code_mode_invalid evidence and the safe default mode without leaking raw secrets.",
+                "TestExecuteCodeModeResolverFreezesTokenSet proves only project and strict are accepted tokens.",
                 "Existing Sandboxed exec tests remain byte-stable because the resolver is not wired into runtime execution in this slice."
               ],
-              "note": "Revisited 2026-05-05 from an inventory-only placeholder into a builder-ready pure resolver row. It intentionally stops before CWD, interpreter, container, and sandbox execution changes so the completed 5.K blocked-result contract remains stable.",
+              "note": "Complete: TDD landed a pure execute-code mode resolver in internal/tools/execute_code.go, corrected against current Hermes b816fd4e2 where `_get_execution_mode` reads `code_execution.mode` from config only and accepts project/strict. Fixtures in internal/tools/execute_code_mode_test.go prove config value normalization, default fallback for absent/empty/nil-like config, invalid config/default evidence without raw value leakage, and a frozen project/strict token set. The slice intentionally did not wire the resolver into runtime execution, add env override/off-mode, select cwd/interpreter/container behavior, or change the completed 5.K blocked-result sandbox envelope.",
               "write_scope": [
                 "internal/tools/execute_code.go",
                 "internal/tools/execute_code_mode_test.go",
@@ -39369,12 +39369,12 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Execute-code mode resolver fixtures prove env/config/default precedence, invalid-value evidence, and frozen off/strict/project tokens without runtime execution changes."
+                "Execute-code mode resolver fixtures prove config/default precedence, invalid-value evidence, and frozen project/strict tokens without runtime execution changes."
               ],
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 tests/tools/test_code_execution_modes.py",
-                "note": "Gormes' code-execution policy rows were placeholders; Hermes has active mode-precedence behavior that should be ported as a small pure helper before runtime semantics."
+                "note": "Gormes' code-execution policy rows were placeholders; Hermes has active config/default mode behavior that should be ported as a small pure helper before runtime semantics."
               }
             },
             {

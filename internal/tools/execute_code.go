@@ -18,7 +18,96 @@ const (
 	defaultExecuteCodeStdoutLimit = 50 * 1024
 	defaultExecuteCodeStderrLimit = 10 * 1024
 	pythonRuntimeDisabledMessage  = "Python runtime execution is disabled in Gormes"
+
+	ExecuteCodeModeEvidenceInvalid = "execute_code_mode_invalid"
 )
+
+type ExecuteCodeMode string
+
+const (
+	ExecuteCodeModeProject ExecuteCodeMode = "project"
+	ExecuteCodeModeStrict  ExecuteCodeMode = "strict"
+)
+
+type ExecuteCodeModeResolverInput struct {
+	ConfigSet   bool
+	ConfigValue any
+	Default     ExecuteCodeMode
+}
+
+type ExecuteCodeModeResolution struct {
+	Mode     ExecuteCodeMode
+	Evidence []ExecuteCodeModeEvidence
+}
+
+type ExecuteCodeModeEvidence struct {
+	Code    string
+	Source  string
+	Message string
+}
+
+func ResolveExecuteCodeMode(input ExecuteCodeModeResolverInput) ExecuteCodeModeResolution {
+	var evidence []ExecuteCodeModeEvidence
+	if input.ConfigSet {
+		if mode, ok := normalizeExecuteCodeMode(input.ConfigValue); ok {
+			return ExecuteCodeModeResolution{Mode: mode}
+		}
+		evidence = append(evidence, invalidExecuteCodeModeEvidence("config"))
+	}
+
+	defaultMode, ok := normalizeDefaultExecuteCodeMode(input.Default)
+	if !ok {
+		evidence = append(evidence, invalidExecuteCodeModeEvidence("default"))
+		defaultMode = ExecuteCodeModeProject
+	}
+	return ExecuteCodeModeResolution{Mode: defaultMode, Evidence: evidence}
+}
+
+func ValidExecuteCodeModes() []ExecuteCodeMode {
+	return []ExecuteCodeMode{ExecuteCodeModeProject, ExecuteCodeModeStrict}
+}
+
+func IsValidExecuteCodeMode(mode ExecuteCodeMode) bool {
+	_, ok := normalizeExecuteCodeMode(mode)
+	return ok
+}
+
+func normalizeDefaultExecuteCodeMode(mode ExecuteCodeMode) (ExecuteCodeMode, bool) {
+	if strings.TrimSpace(string(mode)) == "" {
+		return ExecuteCodeModeProject, true
+	}
+	return normalizeExecuteCodeMode(mode)
+}
+
+func normalizeExecuteCodeMode(value any) (ExecuteCodeMode, bool) {
+	if value == nil {
+		return "", false
+	}
+	var raw string
+	switch v := value.(type) {
+	case ExecuteCodeMode:
+		raw = string(v)
+	case string:
+		raw = v
+	default:
+		raw = fmt.Sprint(v)
+	}
+	mode := ExecuteCodeMode(strings.ToLower(strings.TrimSpace(raw)))
+	switch mode {
+	case ExecuteCodeModeProject, ExecuteCodeModeStrict:
+		return mode, true
+	default:
+		return "", false
+	}
+}
+
+func invalidExecuteCodeModeEvidence(source string) ExecuteCodeModeEvidence {
+	return ExecuteCodeModeEvidence{
+		Code:    ExecuteCodeModeEvidenceInvalid,
+		Source:  source,
+		Message: "execute_code mode must be one of: project, strict",
+	}
+}
 
 // CodeExecutionRequest is the sandbox contract consumed by execute_code.
 type CodeExecutionRequest struct {

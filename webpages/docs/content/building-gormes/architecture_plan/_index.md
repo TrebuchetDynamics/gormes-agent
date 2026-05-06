@@ -180,7 +180,7 @@ classification and row-backed implementation queue.
 ### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
-- [ ] Gateway manual reset session-boundary hooks
+- [x] Gateway manual reset session-boundary hooks
 - [ ] Gateway session reset notification parity
 - [x] SessionContext prompt injection
 - [x] Hermes live-turn prompt assembly parity (channel-neutral)
