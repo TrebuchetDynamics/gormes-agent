@@ -1,8 +1,10 @@
 ---
+weight: 2
+sidebar_label: "Google Workspace"
 title: "Google Workspace — Gmail, Calendar, Drive, Sheets & Docs"
 description: "Send email, manage calendar events, search Drive, read/write Sheets, and access Docs — all through OAuth2-authenticated Google APIs"
-weight: 2
 ---
+
 
 # Google Workspace Skill
 
@@ -21,6 +23,7 @@ The setup is fully agent-driven — ask Hermes to set up Google Workspace and it
 
 > **Tip: Email-only users**
 > If you only need email (no Calendar/Drive/Sheets), use the **himalaya** skill instead — it works with a Gmail App Password and takes 2 minutes. No Google Cloud project needed.
+
 
 ## Gmail
 
@@ -127,6 +130,7 @@ $GAPI calendar delete EVENT_ID
 
 > **Warning**
 > Calendar times **must** include a timezone offset (e.g. `-07:00`) or use UTC (`Z`). Bare datetimes like `2026-03-01T10:00:00` are ambiguous and will be treated as UTC.
+
 
 ## Drive
 

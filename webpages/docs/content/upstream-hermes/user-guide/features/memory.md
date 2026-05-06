@@ -1,8 +1,9 @@
 ---
+weight: 3
 title: "Persistent Memory"
 description: "How Hermes Agent remembers across sessions — MEMORY.md, USER.md, and session search"
-weight: 3
 ---
+
 
 # Persistent Memory
 
@@ -21,6 +22,7 @@ Both are stored in `~/.hermes/memories/` and are injected into the system prompt
 
 > **Info**
 > Character limits keep memory focused. When memory is full, the agent consolidates or replaces entries to make room for new information.
+
 
 ## How Memory Appears in the System Prompt
 
@@ -217,4 +219,4 @@ hermes memory setup      # pick a provider and configure it
 hermes memory status     # check what's active
 ```
 
-See the [Memory Providers](../memory-providers) guide for full details on each provider, setup instructions, and comparison.
+See the [Memory Providers](../memory-providers/) guide for full details on each provider, setup instructions, and comparison.

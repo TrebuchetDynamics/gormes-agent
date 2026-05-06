@@ -55,7 +55,8 @@ type Metadata struct {
 	// field as sticky-true: once set it cannot be cleared by a plain
 	// PutMetadata call. Use MetadataTitleStore.SetTitle to clear it atomically
 	// (that path uses a read-modify-write that bypasses the sticky guard).
-	TitleManuallySet bool `json:"title_manually_set,omitempty"`
+	TitleManuallySet bool       `json:"title_manually_set,omitempty"`
+	Goal             *GoalState `json:"goal,omitempty"`
 }
 
 // ExpiryFinalizeStatus is persisted evidence for gateway session-expiry
@@ -90,6 +91,7 @@ func normalizeMetadata(meta Metadata) Metadata {
 	if meta.TokensOutTotal < 0 {
 		meta.TokensOutTotal = 0
 	}
+	meta.Goal = CloneGoalState(meta.Goal)
 	return meta
 }
 
@@ -168,6 +170,9 @@ func mergeMetadata(existing, incoming Metadata) (Metadata, error) {
 	}
 	if incoming.TokensOutTotal > out.TokensOutTotal {
 		out.TokensOutTotal = incoming.TokensOutTotal
+	}
+	if incoming.Goal != nil {
+		out.Goal = CloneGoalState(incoming.Goal)
 	}
 	return finalizeMetadata(out), nil
 }

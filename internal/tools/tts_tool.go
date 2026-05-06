@@ -34,11 +34,12 @@ const (
 // TTSConfig controls the native text-to-speech helper. Provider is optional;
 // empty uses Hermes' default edge provider when available.
 type TTSConfig struct {
-	Disabled      bool
-	Provider      string
-	OutputDir     string
-	MaxTextLength int
-	Now           func() time.Time
+	Disabled       bool
+	Provider       string
+	OutputDir      string
+	MaxTextLength  int
+	ProviderConfig map[string]any
+	Now            func() time.Time
 }
 
 // TTSRequest is the public helper input. Provider is intentionally not exposed
@@ -111,8 +112,7 @@ func (r *TTSRunner) Synthesize(ctx context.Context, req TTSRequest) TTSResult {
 	if cfg.Disabled {
 		return ttsFailure("", TTSEvidenceDisabled, "TTS is disabled")
 	}
-	text, truncated := normalizeTTSText(req.Text, cfg.maxTextLength())
-	if text == "" {
+	if strings.TrimSpace(req.Text) == "" {
 		return ttsFailure("", TTSEvidenceInvalidArguments, "text is required")
 	}
 	providerName, provider, evidence := r.selectProvider(ctx, req.Provider)
@@ -120,7 +120,11 @@ func (r *TTSRunner) Synthesize(ctx context.Context, req TTSRequest) TTSResult {
 		requested := firstNonEmptyTTS(req.Provider, cfg.Provider, defaultTTSProvider)
 		return ttsFailure(requested, evidence, "no TTS provider available")
 	}
-	outputPath, validation := r.outputPath(req.OutputPath, providerName, req.Platform)
+	text, truncated := normalizeTTSText(req.Text, cfg.maxTextLength(providerName, provider))
+	if text == "" {
+		return ttsFailure(providerName, TTSEvidenceInvalidArguments, "text is required")
+	}
+	outputPath, validation := r.outputPath(req.OutputPath, providerName, provider, req.Platform)
 	if validation.Evidence != "" {
 		return validation
 	}
@@ -157,11 +161,16 @@ func (r *TTSRunner) Synthesize(ctx context.Context, req TTSRequest) TTSResult {
 	}
 }
 
-func (c TTSConfig) maxTextLength() int {
+func (c TTSConfig) maxTextLength(providerName string, provider TTSProvider) int {
 	if c.MaxTextLength > 0 {
 		return c.MaxTextLength
 	}
-	return defaultTTSMaxTextLength
+	if limiter, ok := provider.(interface{ MaxTextLength() int }); ok {
+		if maxLen := limiter.MaxTextLength(); maxLen > 0 {
+			return maxLen
+		}
+	}
+	return TTSProviderMaxTextLengthForConfig(providerName, c.ProviderConfig)
 }
 
 func (r *TTSRunner) selectProvider(ctx context.Context, requested string) (string, TTSProvider, TTSEvidence) {
@@ -173,8 +182,16 @@ func (r *TTSRunner) selectProvider(ctx context.Context, requested string) (strin
 		}
 		return explicit, provider, ""
 	}
-	for _, name := range []string{"edge", "openai", "elevenlabs", "minimax", "mistral", "xai", "gemini", "neutts"} {
+	for _, name := range []string{"edge", "openai", "elevenlabs", "minimax", "mistral", "xai", "gemini", "neutts", "kittentts", "piper"} {
 		provider := r.providers[name]
+		if provider != nil && provider.Available(ctx) {
+			return name, provider, ""
+		}
+	}
+	for name, provider := range r.providers {
+		if isBuiltinTTSProviderName(name) {
+			continue
+		}
 		if provider != nil && provider.Available(ctx) {
 			return name, provider, ""
 		}
@@ -182,7 +199,7 @@ func (r *TTSRunner) selectProvider(ctx context.Context, requested string) (strin
 	return "", nil, TTSEvidenceProviderUnavailable
 }
 
-func (r *TTSRunner) outputPath(raw, provider, platform string) (string, TTSResult) {
+func (r *TTSRunner) outputPath(raw, provider string, ttsProvider TTSProvider, platform string) (string, TTSResult) {
 	value := strings.TrimSpace(raw)
 	if strings.ContainsRune(value, 0) {
 		return "", ttsFailure(provider, TTSEvidenceInvalidArguments, "output path contains NUL")
@@ -196,8 +213,11 @@ func (r *TTSRunner) outputPath(raw, provider, platform string) (string, TTSResul
 		if r.cfg.Now != nil {
 			now = r.cfg.Now().UTC()
 		}
-		ext := ".mp3"
-		if shouldPreferOpusForTTS(provider, platform) {
+		ext := preferredTTSAudioExt(ttsProvider)
+		if ext == "" {
+			ext = ".mp3"
+		}
+		if ext == ".mp3" && shouldPreferOpusForTTS(provider, platform) {
 			ext = ".ogg"
 		}
 		value = filepath.Join(outputDir, "tts_"+now.Format("20060102_150405")+ext)
@@ -207,6 +227,18 @@ func (r *TTSRunner) outputPath(raw, provider, platform string) (string, TTSResul
 		return "", ttsFailure(provider, TTSEvidenceUnsupportedAudioFormat, "unsupported audio format")
 	}
 	return cleaned, TTSResult{}
+}
+
+func preferredTTSAudioExt(provider TTSProvider) string {
+	formatter, ok := provider.(interface{ PreferredOutputFormat() string })
+	if !ok {
+		return ""
+	}
+	format := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(formatter.PreferredOutputFormat())), ".")
+	if format == "" || !isSupportedCommandTTSOutputFormat(format) {
+		return ""
+	}
+	return "." + format
 }
 
 func normalizeTTSText(text string, maxLen int) (string, bool) {

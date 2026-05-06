@@ -192,11 +192,13 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 
 	bot := telegram.New(telegram.Config{
 		AllowedChatID:     cfg.Telegram.AllowedChatID,
+		AllowedUserIDs:    cfg.Telegram.AllowedUserIDs,
 		FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
 		RequireMention:    cfg.Telegram.RequireMention,
 		BotUsername:       cfg.Telegram.BotUsername,
 		AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
 		DynamicCommands:   gatewayTelegramDynamicCommands(rootCtx, cfg),
+		TokenLockDir:      config.GatewayLockDir(),
 	}, tc, slog.Default())
 	go ext.Run(rootCtx)
 

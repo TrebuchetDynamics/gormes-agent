@@ -3,6 +3,7 @@ package slack
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -14,10 +15,15 @@ import (
 )
 
 type Config struct {
-	AllowedChannelID string
-	ReplyInThread    bool
-	CoalesceMs       int
-	SessionMap       session.Map
+	AllowedChannelID     string
+	ReplyInThread        bool
+	CoalesceMs           int
+	SessionMap           session.Map
+	ApprovalResolver     gateway.ApprovalResolver
+	RequireMention       any
+	StrictMention        any
+	FreeResponseChannels any
+	LookupEnv            func(string) string
 }
 
 type Bot struct {
@@ -32,6 +38,10 @@ type Bot struct {
 	nextTicket uint64
 	reserved   *reservedTurn
 	current    *turnBinding
+
+	approvalResolved map[string]bool
+	approvalBlocks   map[string][]SlackBlock
+	mentionedThreads map[string]struct{}
 }
 
 type reservedTurn struct {
@@ -55,7 +65,18 @@ func New(cfg Config, client Client, k *kernel.Kernel, log *slog.Logger) *Bot {
 	if cfg.CoalesceMs <= 0 {
 		cfg.CoalesceMs = 1000
 	}
-	return &Bot{cfg: cfg, client: client, kernel: k, log: log}
+	if cfg.RequireMention == nil {
+		cfg.RequireMention = false
+	}
+	return &Bot{
+		cfg:              cfg,
+		client:           client,
+		kernel:           k,
+		log:              log,
+		approvalResolved: map[string]bool{},
+		approvalBlocks:   map[string][]SlackBlock{},
+		mentionedThreads: map[string]struct{}{},
+	}
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -97,6 +118,13 @@ func (b *Bot) handleEvent(ctx context.Context, e Event) {
 		return
 	}
 
+	if e.ApprovalAction != nil {
+		if err := b.handleApprovalAction(ctx, e); err != nil {
+			b.log.Warn("slack approval action failed", "request_id", e.RequestID, "err", err)
+		}
+		return
+	}
+
 	if e.UserID == "" || e.UserID == b.selfUserID {
 		return
 	}
@@ -110,6 +138,36 @@ func (b *Bot) handleEvent(ctx context.Context, e Event) {
 	threadTS := b.replyThreadTS(e)
 	text := strings.TrimSpace(e.Text)
 	kind, body := gateway.ParseInboundText(text)
+	if kind == gateway.EventSubmit {
+		policy := ResolveMentionPolicy(MentionPolicyConfig{
+			RequireMention:       b.cfg.RequireMention,
+			StrictMention:        b.cfg.StrictMention,
+			FreeResponseChannels: b.cfg.FreeResponseChannels,
+			LookupEnv:            b.cfg.LookupEnv,
+		})
+		decision := EvaluateMentionGate(policy, MentionGateInput{
+			ChannelID:       e.ChannelID,
+			UserID:          e.UserID,
+			BotUserID:       b.selfUserID,
+			Text:            text,
+			Timestamp:       e.Timestamp,
+			ThreadTS:        e.ThreadTS,
+			ChatType:        e.ChatType,
+			ActiveSession:   b.activeSessionForThread(ctx, e),
+			ThreadMentioned: b.mentionedThread(e.ThreadTS),
+		})
+		for _, evidence := range decision.Evidence {
+			b.log.Warn(evidence.Code, "source", evidence.Source, "reason", evidence.Reason)
+		}
+		if !decision.Process {
+			return
+		}
+		if decision.RememberThread {
+			b.rememberMentionedThread(e.ThreadTS)
+		}
+		text = decision.Text
+		kind, body = gateway.ParseInboundText(text)
+	}
 	switch kind {
 	case gateway.EventStart:
 		_, _ = b.client.PostMessage(ctx, e.ChannelID, threadTS, slackHelpText())
@@ -155,6 +213,35 @@ func (b *Bot) handleEvent(ctx context.Context, e Event) {
 	default:
 		return
 	}
+}
+
+func (b *Bot) activeSessionForThread(ctx context.Context, e Event) bool {
+	if b.cfg.SessionMap == nil || !isSlackThreadReply(e.ThreadTS, e.Timestamp) {
+		return false
+	}
+	sessionID, err := b.cfg.SessionMap.Get(ctx, SessionKey(e.ChannelID))
+	return err == nil && strings.TrimSpace(sessionID) != ""
+}
+
+func (b *Bot) rememberMentionedThread(threadTS string) {
+	threadTS = strings.TrimSpace(threadTS)
+	if threadTS == "" {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.mentionedThreads[threadTS] = struct{}{}
+}
+
+func (b *Bot) mentionedThread(threadTS string) bool {
+	threadTS = strings.TrimSpace(threadTS)
+	if threadTS == "" {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, ok := b.mentionedThreads[threadTS]
+	return ok
 }
 
 func slackHelpText() string {
@@ -333,17 +420,48 @@ func (b *Bot) deliverCurrent(ctx context.Context, text string) error {
 	return b.deliverBinding(ctx, binding, text)
 }
 
+func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
+	mediaPath := strings.TrimSpace(media.Path)
+	if mediaPath == "" {
+		return "", fmt.Errorf("slack: media path is required")
+	}
+	threadTS := strings.TrimSpace(media.ThreadID)
+	if threadTS == "" {
+		threadTS = strings.TrimSpace(replyToMsgID)
+	}
+	return b.client.UploadFile(ctx, chatID, threadTS, mediaPath)
+}
+
 func (b *Bot) deliverBinding(ctx context.Context, binding turnBinding, text string) error {
 	if binding.channelID == "" {
 		return nil
 	}
+	content := gateway.PrepareMediaDeliveryContent(text)
+	deliveryText := content.Text
+	if strings.TrimSpace(deliveryText) == "" && len(content.Media) > 0 {
+		deliveryText = "Media attached."
+	}
 	if binding.placeholderTS != "" {
-		if err := b.client.UpdateMessage(ctx, binding.channelID, binding.placeholderTS, text); err == nil {
-			return nil
+		if err := b.client.UpdateMessage(ctx, binding.channelID, binding.placeholderTS, deliveryText); err == nil {
+			return b.deliverBindingMedia(ctx, binding, content.Media)
 		}
 	}
-	_, err := b.client.PostMessage(ctx, binding.channelID, binding.threadTS, text)
-	return err
+	if _, err := b.client.PostMessage(ctx, binding.channelID, binding.threadTS, deliveryText); err != nil {
+		return err
+	}
+	return b.deliverBindingMedia(ctx, binding, content.Media)
+}
+
+func (b *Bot) deliverBindingMedia(ctx context.Context, binding turnBinding, media []gateway.OutboundMedia) error {
+	for _, item := range media {
+		if item.ThreadID == "" {
+			item.ThreadID = binding.threadTS
+		}
+		if _, err := b.SendMedia(ctx, binding.channelID, "", item); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (b *Bot) placeholderTS() string {

@@ -21,7 +21,10 @@ const (
 	maxAuditCollectionItems = 64
 )
 
-var auditSecretPattern = regexp.MustCompile(`(?i)(bearer\s+)[a-z0-9._~+/=-]+|sk-[a-z0-9._-]{8,}|secret[-_a-z0-9]*|token[-_a-z0-9]*`)
+var (
+	auditSecretPattern   = regexp.MustCompile(`(?i)(bearer\s+)[a-z0-9._~+/=-]+|sk-[a-z0-9._-]{8,}|xox[abprs]-[a-z0-9._-]{8,}|\b[0-9]{6,}:[a-z0-9_-]{20,}\b|secret[-_a-z0-9]*|token[-_a-z0-9]*`)
+	auditHomePathPattern = regexp.MustCompile(`(?i)(?:/home|/users)/[a-z0-9._-]+(?:/[^\s"'<>]*)?`)
+)
 
 // Recorder captures one tool-execution audit record.
 type Recorder interface {
@@ -42,6 +45,17 @@ type Record struct {
 	Error           string          `json:"error"`
 }
 
+type TrajectoryWriteAuditInput struct {
+	Timestamp time.Time
+	SessionID string
+	Model     string
+	Path      string
+	Code      string
+	Completed bool
+	Redacted  bool
+	Error     string
+}
+
 // JSONLWriter appends audit records to a JSONL file.
 type JSONLWriter struct {
 	path string
@@ -50,6 +64,32 @@ type JSONLWriter struct {
 
 func NewJSONLWriter(path string) *JSONLWriter {
 	return &JSONLWriter{path: strings.TrimSpace(path)}
+}
+
+func TrajectoryWriteAuditRecord(in TrajectoryWriteAuditInput) Record {
+	status := "completed"
+	if strings.Contains(strings.ToLower(strings.TrimSpace(in.Code)), "failed") || strings.TrimSpace(in.Error) != "" {
+		status = "failed"
+	}
+	args, err := json.Marshal(map[string]any{
+		"code":      strings.TrimSpace(in.Code),
+		"model":     RedactText(strings.TrimSpace(in.Model)),
+		"path":      RedactText(strings.TrimSpace(in.Path)),
+		"completed": in.Completed,
+		"redacted":  in.Redacted,
+	})
+	if err != nil {
+		args = json.RawMessage(`null`)
+	}
+	return Record{
+		Timestamp: in.Timestamp,
+		Source:    "trajectory_writer",
+		SessionID: strings.TrimSpace(in.SessionID),
+		Tool:      "trajectory_write",
+		Args:      args,
+		Status:    status,
+		Error:     RedactText(in.Error),
+	}
 }
 
 func (w *JSONLWriter) Record(rec Record) error {
@@ -223,14 +263,20 @@ func sanitizeAuditError(text string) string {
 	return truncateAuditString(redactAuditText(text), maxAuditErrorRunes)
 }
 
-func redactAuditText(text string) string {
-	return auditSecretPattern.ReplaceAllStringFunc(text, func(match string) string {
+// RedactText applies the shared audit redaction vocabulary to free-form text.
+func RedactText(text string) string {
+	text = auditSecretPattern.ReplaceAllStringFunc(text, func(match string) string {
 		lower := strings.ToLower(match)
 		if strings.HasPrefix(lower, "bearer ") {
 			return match[:7] + "[redacted]"
 		}
 		return "[redacted]"
 	})
+	return auditHomePathPattern.ReplaceAllString(text, "[redacted-home]")
+}
+
+func redactAuditText(text string) string {
+	return RedactText(text)
 }
 
 func truncateAuditStringRight(text string, limit int) string {

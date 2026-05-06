@@ -1,8 +1,9 @@
 ---
+weight: 9
 title: "Context Engine Plugins"
 description: "How to build a context engine plugin that replaces the built-in ContextCompressor"
-weight: 9
 ---
+
 
 # Building a Context Engine Plugin
 
@@ -58,10 +59,15 @@ class LCMEngine(ContextEngine):
     def should_compress(self, prompt_tokens: int = None) -> bool:
         """Return True if compaction should fire this turn."""
 
-    def compress(self, messages: list, current_tokens: int = None) -> list:
+    def compress(self, messages: list, current_tokens: int = None,
+                 focus_topic: str = None) -> list:
         """Compact the message list and return a new (possibly shorter) list.
 
         The returned list must be a valid OpenAI-format message sequence.
+
+        ``focus_topic`` is an optional topic string from manual
+        ``/compress <focus>``; engines that support guided compression should
+        prioritise preserving information related to it, others may ignore it.
         """
 ```
 
@@ -184,6 +190,6 @@ See `tests/agent/test_context_engine.py` for the full ABC contract test suite.
 
 ## See also
 
-- [Context Compression and Caching](../context-compression-and-caching) — how the built-in compressor works
-- [Memory Provider Plugins](../memory-provider-plugin) — analogous single-select plugin system for memory
-- [Plugins](../../user-guide/features/plugins) — general plugin system overview
+- [Context Compression and Caching](../context-compression-and-caching/) — how the built-in compressor works
+- [Memory Provider Plugins](../memory-provider-plugin/) — analogous single-select plugin system for memory
+- [Plugins](../../user-guide/features/plugins/) — general plugin system overview

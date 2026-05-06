@@ -9,6 +9,7 @@ for use as training data, debugging artifacts, and reinforcement learning datase
 
 Source files: `agent/trajectory.py`, `run_agent.py` (search for `_save_trajectory`), `batch_runner.py`
 
+
 ## File Naming Convention
 
 Trajectories are written to files in the current working directory:
@@ -22,6 +23,7 @@ The batch runner (`batch_runner.py`) writes to a custom output file per batch
 (e.g., `batch_001_output.jsonl`) with additional metadata fields.
 
 You can override the filename via the `filename` parameter in `save_trajectory()`.
+
 
 ## JSONL Entry Format
 
@@ -66,6 +68,7 @@ The `tool_stats` and `tool_error_counts` dictionaries are normalized to include
 ALL possible tools (from `model_tools.TOOL_TO_TOOLSET_MAP`) with zero defaults,
 ensuring consistent schema across entries for HuggingFace dataset loading.
 
+
 ## Conversations Array (ShareGPT Format)
 
 The `conversations` array uses ShareGPT role conventions:
@@ -108,6 +111,7 @@ The `conversations` array uses ShareGPT role conventions:
   "completed": true
 }
 ```
+
 
 ## Normalization Rules
 
@@ -175,6 +179,7 @@ It follows the Hermes function-calling prompt template with:
 Tool definitions include `name`, `description`, `parameters`, and `required`
 (set to `null` to match the canonical format).
 
+
 ## Loading Trajectories
 
 Trajectories are standard JSONL — load with any JSON-lines reader:
@@ -210,6 +215,7 @@ ds = load_dataset("json", data_files="trajectory_samples.jsonl")
 
 The normalized `tool_stats` schema ensures all entries have the same columns,
 preventing Arrow schema mismatch errors during dataset loading.
+
 
 ## Controlling Trajectory Saving
 

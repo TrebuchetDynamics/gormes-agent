@@ -290,7 +290,7 @@ func TestAstroBuild_IndexShowsBlueGormesAgentLogo(t *testing.T) {
 func runDocsAstroBuild(t *testing.T, dest string) {
 	t.Helper()
 	docsAstroBuild.once.Do(func() {
-		docsAstroBuild.dir, docsAstroBuild.err = os.MkdirTemp("", "gormes-docs-astro-build-*")
+		docsAstroBuild.dir, docsAstroBuild.err = os.MkdirTemp(".", ".gormes-docs-astro-build-*")
 		if docsAstroBuild.err != nil {
 			return
 		}

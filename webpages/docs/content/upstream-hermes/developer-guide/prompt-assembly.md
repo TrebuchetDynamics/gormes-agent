@@ -1,8 +1,9 @@
 ---
+weight: 5
 title: "Prompt Assembly"
 description: "How Hermes builds the system prompt, preserves cache stability, and injects ephemeral layers"
-weight: 5
 ---
+
 
 # Prompt Assembly
 
@@ -241,6 +242,6 @@ The architecture is intentionally optimized to:
 
 ## Related docs
 
-- [Context Compression & Prompt Caching](../context-compression-and-caching)
-- [Session Storage](../session-storage)
-- [Gateway Internals](../gateway-internals)
+- [Context Compression & Prompt Caching](../context-compression-and-caching/)
+- [Session Storage](../session-storage/)
+- [Gateway Internals](../gateway-internals/)

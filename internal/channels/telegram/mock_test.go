@@ -2,7 +2,9 @@ package telegram
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,17 +17,29 @@ type mockClient struct {
 	mu        sync.Mutex
 	sent      []tgbotapi.Chattable
 	requests  []tgbotapi.Chattable
+	uploads   []mockUpload
 	deleted   []tgbotapi.Chattable
 	nextMsgID int
 	stopped   bool
 
 	SendFn          func(c tgbotapi.Chattable) (tgbotapi.Message, error)
 	RequestFn       func(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
+	UploadFilesFn   func(endpoint string, params tgbotapi.Params, files []tgbotapi.RequestFile) (*tgbotapi.APIResponse, error)
 	DeleteMessageFn func(chatID int64, messageID int) error
 	telegramFiles   map[string]tgbotapi.File
 	downloads       map[string][]byte
+	downloadCalls   int
 	getFileErr      error
 	downloadErr     error
+	token           string
+	GetUpdatesFn    func(context.Context, tgbotapi.UpdateConfig) ([]tgbotapi.Update, error)
+}
+
+type mockUpload struct {
+	Endpoint string
+	Params   tgbotapi.Params
+	Files    []tgbotapi.RequestFile
+	MsgID    int
 }
 
 var _ telegramClient = (*mockClient)(nil)
@@ -39,8 +53,38 @@ func newMockClient() *mockClient {
 	}
 }
 
+func (m *mockClient) Token() string {
+	return m.token
+}
+
 func (m *mockClient) GetUpdatesChan(_ tgbotapi.UpdateConfig) tgbotapi.UpdatesChannel {
 	return m.updatesCh
+}
+
+func (m *mockClient) GetUpdates(ctx context.Context, cfg tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+	if m.GetUpdatesFn != nil {
+		return m.GetUpdatesFn(ctx, cfg)
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case update, ok := <-m.updatesCh:
+		if !ok {
+			return nil, context.Canceled
+		}
+		updates := []tgbotapi.Update{update}
+		for {
+			select {
+			case next, ok := <-m.updatesCh:
+				if !ok {
+					return updates, nil
+				}
+				updates = append(updates, next)
+			default:
+				return updates, nil
+			}
+		}
+	}
 }
 
 func (m *mockClient) Send(c tgbotapi.Chattable) (tgbotapi.Message, error) {
@@ -64,6 +108,28 @@ func (m *mockClient) Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error
 		return m.RequestFn(c)
 	}
 	return &tgbotapi.APIResponse{Ok: true}, nil
+}
+
+func (m *mockClient) UploadFiles(endpoint string, params tgbotapi.Params, files []tgbotapi.RequestFile) (*tgbotapi.APIResponse, error) {
+	m.mu.Lock()
+	id := m.nextMsgID
+	m.nextMsgID++
+	copiedParams := make(tgbotapi.Params, len(params))
+	for k, v := range params {
+		copiedParams[k] = v
+	}
+	copiedFiles := append([]tgbotapi.RequestFile(nil), files...)
+	m.uploads = append(m.uploads, mockUpload{Endpoint: endpoint, Params: copiedParams, Files: copiedFiles, MsgID: id})
+	m.mu.Unlock()
+
+	if m.UploadFilesFn != nil {
+		return m.UploadFilesFn(endpoint, params, files)
+	}
+	result, err := json.Marshal(tgbotapi.Message{MessageID: id})
+	if err != nil {
+		return nil, fmt.Errorf("marshal telegram mock upload response: %w", err)
+	}
+	return &tgbotapi.APIResponse{Ok: true, Result: result}, nil
 }
 
 func (m *mockClient) DeleteMessage(chatID int64, messageID int) error {
@@ -91,6 +157,9 @@ func (m *mockClient) GetFile(config tgbotapi.FileConfig) (tgbotapi.File, error) 
 }
 
 func (m *mockClient) DownloadFile(_ context.Context, filePath string) ([]byte, error) {
+	m.mu.Lock()
+	m.downloadCalls++
+	m.mu.Unlock()
 	if m.downloadErr != nil {
 		return nil, m.downloadErr
 	}
@@ -149,6 +218,52 @@ func (m *mockClient) pushAudioUpdate(chatID int64, caption string, audio tgbotap
 	}
 }
 
+func (m *mockClient) pushDocumentUpdate(chatID int64, messageID int, caption string, document tgbotapi.Document) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID: messageID,
+			Caption:   caption,
+			Document:  &document,
+			Chat:      &tgbotapi.Chat{ID: chatID, Type: "private"},
+			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
+func (m *mockClient) pushPhotoUpdate(chatID int64, messageID int, caption, mediaGroupID string, photos []tgbotapi.PhotoSize) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID:    messageID,
+			Caption:      caption,
+			Photo:        photos,
+			MediaGroupID: mediaGroupID,
+			Chat:         &tgbotapi.Chat{ID: chatID, Type: "private"},
+			From:         &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
+func (m *mockClient) pushVideoUpdate(chatID int64, messageID int, caption string, video tgbotapi.Video) {
+	m.updatesCh <- tgbotapi.Update{
+		UpdateID: 0,
+		Message: &tgbotapi.Message{
+			MessageID: messageID,
+			Caption:   caption,
+			Video:     &video,
+			Chat:      &tgbotapi.Chat{ID: chatID, Type: "private"},
+			From:      &tgbotapi.User{ID: chatID, FirstName: "tester"},
+		},
+	}
+}
+
+func (m *mockClient) downloadCallCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.downloadCalls
+}
+
 func (m *mockClient) sentMessages() []tgbotapi.Chattable {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -162,6 +277,14 @@ func (m *mockClient) requestMessages() []tgbotapi.Chattable {
 	defer m.mu.Unlock()
 	out := make([]tgbotapi.Chattable, len(m.requests))
 	copy(out, m.requests)
+	return out
+}
+
+func (m *mockClient) uploadRequests() []mockUpload {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]mockUpload, len(m.uploads))
+	copy(out, m.uploads)
 	return out
 }
 

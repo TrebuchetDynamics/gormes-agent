@@ -1,8 +1,9 @@
 ---
+weight: 9
 title: "Tools Runtime"
 description: "Runtime behavior of the tool registry, toolsets, dispatch, and terminal environments"
-weight: 9
 ---
+
 
 # Tools Runtime
 
@@ -213,6 +214,7 @@ The terminal system supports multiple backends:
 - singularity
 - modal
 - daytona
+- vercel_sandbox
 
 It also supports:
 
@@ -227,7 +229,7 @@ Tool calls may execute sequentially or concurrently depending on the tool mix an
 
 ## Related docs
 
-- [Toolsets Reference](../../reference/toolsets-reference)
-- [Built-in Tools Reference](../../reference/tools-reference)
-- [Agent Loop Internals](../agent-loop)
-- [ACP Internals](../acp-internals)
+- [Toolsets Reference](../../reference/toolsets-reference/)
+- [Built-in Tools Reference](../../reference/tools-reference/)
+- [Agent Loop Internals](../agent-loop/)
+- [ACP Internals](../acp-internals/)

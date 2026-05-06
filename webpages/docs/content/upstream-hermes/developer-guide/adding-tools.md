@@ -1,12 +1,25 @@
 ---
+weight: 2
 title: "Adding Tools"
 description: "How to add a new tool to Hermes Agent — schemas, handlers, registration, and toolsets"
-weight: 2
 ---
+
 
 # Adding Tools
 
-Before writing a tool, ask yourself: **should this be a [skill](../creating-skills) instead?**
+Before writing a tool, ask yourself: **should this be a [skill](../creating-skills/) instead?**
+
+> **Warning: Built-in Core Tools Only**
+> This page is for adding a **built-in Hermes tool** to the repository itself.
+> If you want a personal, project-local, or otherwise custom tool without
+> modifying Hermes core, use the plugin route instead:
+>
+> - [Plugins](../../user-guide/features/plugins/)
+> - [Build a Hermes Plugin](../../guides/build-a-hermes-plugin/)
+>
+> Default to plugins for most custom tool creation. Only follow this page when
+> you explicitly want to ship a new built-in tool in `tools/` and `toolsets.py`.
+
 
 Make it a **Skill** when the capability can be expressed as instructions + shell commands + existing tools (arXiv search, git workflows, Docker management, PDF processing).
 
@@ -21,7 +34,7 @@ Adding a tool touches **2 files**:
 
 Any `tools/*.py` file with a top-level `registry.register()` call is auto-discovered at startup — no manual import list required.
 
-## Step 1: Create the Tool File
+## Step 1: Create the Built-in Tool File
 
 Every tool file follows the same structure:
 
@@ -35,11 +48,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 # --- Availability check ---
 
 def check_weather_requirements() -> bool:
     """Return True if the tool's dependencies are available."""
     return bool(os.getenv("WEATHER_API_KEY"))
+
 
 # --- Handler ---
 
@@ -53,6 +68,7 @@ def weather_tool(location: str, units: str = "metric") -> str:
         return json.dumps({"location": location, "temp": 22, "units": units})
     except Exception as e:
         return json.dumps({"error": str(e)})
+
 
 # --- Schema ---
 
@@ -76,6 +92,7 @@ WEATHER_SCHEMA = {
         "required": ["location"]
     }
 }
+
 
 # --- Registration ---
 
@@ -101,7 +118,8 @@ registry.register(
 > - The `check_fn` is called when building tool definitions — if it returns `False`, the tool is silently excluded
 > - The `handler` receives `(args: dict, **kwargs)` where `args` is the LLM's tool call arguments
 
-## Step 2: Add to a Toolset
+
+## Step 2: Add the Built-in Tool to a Toolset
 
 In `toolsets.py`, add the tool name:
 
@@ -187,7 +205,7 @@ OPTIONAL_ENV_VARS = {
 
 - [ ] Tool file created with handler, schema, check function, and registration
 - [ ] Added to appropriate toolset in `toolsets.py`
-- [ ] Discovery import added to `model_tools.py`
+- [ ] Confirmed this really should be a built-in/core tool and not a plugin
 - [ ] Handler returns JSON strings, errors returned as `{"error": "..."}`
 - [ ] Optional: API key added to `OPTIONAL_ENV_VARS` in `hermes_cli/config.py`
 - [ ] Optional: Added to `toolset_distributions.py` for batch processing

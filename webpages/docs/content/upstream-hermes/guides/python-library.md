@@ -1,8 +1,9 @@
 ---
+weight: 5
 title: "Using Hermes as a Python Library"
 description: "Embed AIAgent in your own Python scripts, web apps, or automation pipelines — no CLI required"
-weight: 5
 ---
+
 
 # Using Hermes as a Python Library
 
@@ -33,6 +34,7 @@ hermes-agent @ git+https://github.com/NousResearch/hermes-agent.git
 > **Tip**
 > The same environment variables used by the CLI are required when using Hermes as a library. At minimum, set `OPENROUTER_API_KEY` (or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` if using direct provider access).
 
+
 ---
 
 ## Basic Usage
@@ -54,6 +56,7 @@ print(response)
 
 > **Warning**
 > Always set `quiet_mode=True` when embedding Hermes in your own code. Without it, the agent prints CLI spinners, progress indicators, and other terminal output that will clutter your application's output.
+
 
 ---
 
@@ -114,6 +117,7 @@ agent = AIAgent(
 
 > **Tip**
 > Use `enabled_toolsets` when you want a minimal, locked-down agent (e.g., only web search for a research bot). Use `disabled_toolsets` when you want most capabilities but need to restrict specific ones (e.g., no terminal access in a shared environment).
+
 
 ---
 
@@ -219,6 +223,7 @@ for prompt, result in zip(prompts, results):
 
 > **Warning**
 > Always create a **new `AIAgent` instance per thread or task**. The agent maintains internal state (conversation history, tool sessions, iteration counters) that is not thread-safe to share.
+
 
 ---
 
@@ -327,6 +332,7 @@ print(review)
 > - Set **`skip_context_files=True`** if you don't want `AGENTS.md` files from the working directory loaded into the system prompt.
 > - Set **`skip_memory=True`** to prevent the agent from reading or writing persistent memory — recommended for stateless API endpoints.
 > - The `platform` parameter (e.g., `"discord"`, `"telegram"`) injects platform-specific formatting hints so the agent adapts its output style.
+
 
 > **Warning**
 > - **Thread safety**: Create one `AIAgent` per thread or task. Never share an instance across concurrent calls.

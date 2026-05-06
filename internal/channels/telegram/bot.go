@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -19,7 +20,17 @@ import (
 // kept here so SDK-specific entrypoints can reuse the typed values.
 type Config struct {
 	AllowedChatID     int64
+	AllowedUserIDs    []int64
 	FirstRunDiscovery bool
+	// AttachmentCacheDir stores Telegram downloads before the channel emits
+	// normalized attachments to the gateway. Empty uses the user cache dir.
+	AttachmentCacheDir string
+	// MediaBatchDelay is the debounce window for Telegram photo bursts and
+	// media_group albums. Empty uses the Hermes-compatible default.
+	MediaBatchDelay time.Duration
+	// TextBatchDelay is the quiet period before plain text updates are
+	// dispatched. Empty preserves the existing immediate-dispatch path.
+	TextBatchDelay time.Duration
 	// AudioTranscriber optionally turns Telegram voice/audio attachments into
 	// text before they reach the gateway. When nil or degraded, the adapter
 	// still emits deterministic attachment markers instead of blank turns.
@@ -31,7 +42,15 @@ type Config struct {
 	BotUsername string
 	// DynamicCommands are optional runtime-discovered commands (for example
 	// enabled skill slash commands) appended to the canonical Hermes menu.
-	DynamicCommands []gateway.PlatformCommand
+	DynamicCommands  []gateway.PlatformCommand
+	ApprovalResolver gateway.ApprovalResolver
+	// TokenLockDir stores machine-local same-token polling locks. Empty uses
+	// the gateway package default; cmd/gormes passes config.GatewayLockDir.
+	TokenLockDir string
+	// PollingConflictRetryDelay bounds tests and preserves Hermes' retry
+	// ladder in production when zero.
+	PollingConflictRetryDelay time.Duration
+	tokenLocker               telegramTokenLocker
 }
 
 // Bot implements gateway.Channel plus the editing capabilities the shared
@@ -40,6 +59,22 @@ type Bot struct {
 	cfg    Config
 	client telegramClient
 	log    *slog.Logger
+
+	photoMu      sync.Mutex
+	photoSeq     uint64
+	photoBatches map[string]*telegramPhotoBatchEntry
+
+	textMu      sync.Mutex
+	textSeq     uint64
+	textBatches map[string]*telegramTextBatchEntry
+
+	approvalMu     sync.Mutex
+	approvalNextID uint64
+	approvalState  map[uint64]telegramApprovalState
+
+	startupMu            sync.Mutex
+	startupLock          telegramTokenLock
+	pollingConflictCount int
 }
 
 var _ gateway.Channel = (*Bot)(nil)
@@ -48,6 +83,7 @@ var _ gateway.MessageDeleter = (*Bot)(nil)
 var _ gateway.MediaSender = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
 var _ gateway.TypingCapable = (*Bot)(nil)
+var _ gateway.DisconnectCapable = (*Bot)(nil)
 
 const telegramCommandLimit = 100
 const telegramTypingRefreshInterval = 4 * time.Second
@@ -56,7 +92,14 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Bot{cfg: cfg, client: client, log: log}
+	return &Bot{
+		cfg:           cfg,
+		client:        client,
+		log:           log,
+		photoBatches:  map[string]*telegramPhotoBatchEntry{},
+		textBatches:   map[string]*telegramTextBatchEntry{},
+		approvalState: map[uint64]telegramApprovalState{},
+	}
 }
 
 func (b *Bot) Name() string { return "telegram" }
@@ -86,32 +129,73 @@ func (b *Bot) registerCommands() error {
 }
 
 func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
+	if err := b.prepareStartup(ctx); err != nil {
+		return err
+	}
+	defer b.releaseStartupTokenLock(context.Background())
 	if err := b.registerCommands(); err != nil {
 		b.log.Warn("telegram setMyCommands failed", "err", err)
 	}
+	defer b.cancelPhotoBatches()
+	defer b.cancelTextBatches(ctx)
 
 	ucfg := tgbotapi.NewUpdate(0)
 	ucfg.Timeout = 30
-	updates := b.client.GetUpdatesChan(ucfg)
 
 	for {
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			b.client.StopReceivingUpdates()
 			return nil
-		case u, ok := <-updates:
-			if !ok {
+		}
+		updates, err := b.client.GetUpdates(ctx, ucfg)
+		if err != nil {
+			again, err := b.handlePollingError(ctx, err)
+			if err != nil {
+				b.client.StopReceivingUpdates()
+				return err
+			}
+			if !again {
+				b.client.StopReceivingUpdates()
 				return nil
 			}
-			if ev, ok := b.toInboundEvent(ctx, u); ok {
-				select {
-				case inbox <- ev:
-				case <-ctx.Done():
-					return nil
-				}
+			continue
+		}
+		if len(updates) > 0 {
+			b.pollingConflictCount = 0
+		}
+		for _, u := range updates {
+			if u.UpdateID >= ucfg.Offset {
+				ucfg.Offset = u.UpdateID + 1
+			}
+			if err := b.handleUpdate(ctx, inbox, u); err != nil {
+				b.client.StopReceivingUpdates()
+				return err
 			}
 		}
 	}
+}
+
+func (b *Bot) handleUpdate(ctx context.Context, inbox chan<- gateway.InboundEvent, u tgbotapi.Update) error {
+	if u.CallbackQuery != nil {
+		if b.handleCallbackQuery(ctx, u.CallbackQuery) {
+			return nil
+		}
+		return nil
+	}
+	if ev, ok := b.toInboundEvent(ctx, u); ok {
+		if b.enqueuePhotoBatch(ctx, inbox, ev, u.Message) {
+			return nil
+		}
+		if b.enqueueTextBatch(ctx, inbox, ev) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case inbox <- ev:
+		}
+	}
+	return nil
 }
 
 func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.InboundEvent, bool) {
@@ -138,6 +222,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 	return gateway.InboundEvent{
 		Platform:    "telegram",
 		ChatID:      strconv.FormatInt(chatID, 10),
+		ChatType:    telegramChatType(u.Message.Chat),
 		UserID:      userID,
 		MsgID:       strconv.Itoa(u.Message.MessageID),
 		MessageID:   strconv.Itoa(u.Message.MessageID),
@@ -145,6 +230,13 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		Text:        body,
 		Attachments: attachments,
 	}, true
+}
+
+func telegramChatType(chat *tgbotapi.Chat) string {
+	if chat == nil {
+		return ""
+	}
+	return strings.TrimSpace(chat.Type)
 }
 
 func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbotapi.Message) (string, []gateway.Attachment) {
@@ -192,7 +284,46 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)
 	}
+	var prefixes []string
+	if msg.Document != nil {
+		prefix, marker, attachment := b.telegramDocumentAttachment(ctx, msg.Document)
+		if prefix != "" {
+			prefixes = append(prefixes, prefix)
+		}
+		if marker != "" {
+			markers = append(markers, marker)
+		}
+		if attachment != nil {
+			attachments = append(attachments, *attachment)
+		}
+	}
+	if msg.Video != nil {
+		marker, attachment := b.telegramVideoMessageAttachment(ctx, msg.Video)
+		if marker != "" {
+			markers = append(markers, marker)
+		}
+		if attachment != nil {
+			attachments = append(attachments, *attachment)
+		}
+	}
+	if len(msg.Photo) > 0 {
+		marker, attachment := b.telegramPhotoMessageAttachment(ctx, msg.Photo)
+		if marker != "" {
+			markers = append(markers, marker)
+		}
+		if attachment != nil {
+			attachments = append(attachments, *attachment)
+		}
+	}
 
+	if len(prefixes) > 0 {
+		prefix := strings.Join(prefixes, "\n\n")
+		if text == "" {
+			text = prefix
+		} else {
+			text = prefix + "\n\n" + text
+		}
+	}
 	for _, marker := range markers {
 		if marker == "" {
 			continue
@@ -315,20 +446,91 @@ func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media 
 			return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
 		}
 	}
+	if strings.TrimSpace(media.ThreadID) != "" {
+		return b.sendMediaWithThread(id, replyID, media)
+	}
 	var msg tgbotapi.Message
-	if media.AsVoice {
-		cfg := tgbotapi.NewVoice(id, tgbotapi.FilePath(mediaPath))
+	switch gateway.ClassifyOutboundMedia(media) {
+	case gateway.OutboundMediaKindAudio:
+		if media.AsVoice {
+			cfg := tgbotapi.NewVoice(id, tgbotapi.FilePath(mediaPath))
+			cfg.ReplyToMessageID = replyID
+			msg, err = b.client.Send(cfg)
+		} else {
+			cfg := tgbotapi.NewAudio(id, tgbotapi.FilePath(mediaPath))
+			cfg.ReplyToMessageID = replyID
+			msg, err = b.client.Send(cfg)
+		}
+	case gateway.OutboundMediaKindImage:
+		cfg := tgbotapi.NewPhoto(id, tgbotapi.FilePath(mediaPath))
 		cfg.ReplyToMessageID = replyID
 		msg, err = b.client.Send(cfg)
-	} else {
-		cfg := tgbotapi.NewAudio(id, tgbotapi.FilePath(mediaPath))
+	case gateway.OutboundMediaKindDocument:
+		cfg := tgbotapi.NewDocument(id, tgbotapi.FilePath(mediaPath))
 		cfg.ReplyToMessageID = replyID
 		msg, err = b.client.Send(cfg)
+	case gateway.OutboundMediaKindVideo:
+		cfg := tgbotapi.NewVideo(id, tgbotapi.FilePath(mediaPath))
+		cfg.ReplyToMessageID = replyID
+		msg, err = b.client.Send(cfg)
+	default:
+		return "", fmt.Errorf("telegram: unsupported media type")
 	}
 	if err != nil {
 		return "", err
 	}
 	return strconv.Itoa(msg.MessageID), nil
+}
+
+func (b *Bot) sendMediaWithThread(chatID int64, replyID int, media gateway.OutboundMedia) (string, error) {
+	threadID, err := strconv.Atoi(strings.TrimSpace(media.ThreadID))
+	if err != nil {
+		return "", fmt.Errorf("telegram: invalid thread ID %q: %w", media.ThreadID, err)
+	}
+	mediaPath := strings.TrimSpace(media.Path)
+	endpoint, field, err := telegramMediaUploadEndpoint(media)
+	if err != nil {
+		return "", err
+	}
+	params := tgbotapi.Params{}
+	params.AddNonZero64("chat_id", chatID)
+	params.AddNonZero("reply_to_message_id", replyID)
+	params.AddNonZero("message_thread_id", threadID)
+	if gateway.ClassifyOutboundMedia(media) == gateway.OutboundMediaKindVideo {
+		params.AddBool("supports_streaming", true)
+	}
+	resp, err := b.client.UploadFiles(endpoint, params, []tgbotapi.RequestFile{{
+		Name: field,
+		Data: tgbotapi.FilePath(mediaPath),
+	}})
+	if err != nil {
+		return "", err
+	}
+	var msg tgbotapi.Message
+	if resp != nil && len(resp.Result) > 0 {
+		if err := json.Unmarshal(resp.Result, &msg); err != nil {
+			return "", err
+		}
+	}
+	return strconv.Itoa(msg.MessageID), nil
+}
+
+func telegramMediaUploadEndpoint(media gateway.OutboundMedia) (endpoint, field string, err error) {
+	switch gateway.ClassifyOutboundMedia(media) {
+	case gateway.OutboundMediaKindAudio:
+		if media.AsVoice {
+			return "sendVoice", "voice", nil
+		}
+		return "sendAudio", "audio", nil
+	case gateway.OutboundMediaKindImage:
+		return "sendPhoto", "photo", nil
+	case gateway.OutboundMediaKindDocument:
+		return "sendDocument", "document", nil
+	case gateway.OutboundMediaKindVideo:
+		return "sendVideo", "video", nil
+	default:
+		return "", "", fmt.Errorf("telegram: unsupported media type")
+	}
 }
 
 func (b *Bot) SendPlaceholder(ctx context.Context, chatID string) (string, error) {

@@ -1,8 +1,9 @@
 ---
+weight: 7
 title: "Gateway Internals"
 description: "How the messaging gateway boots, authorizes users, routes sessions, and delivers messages"
-weight: 7
 ---
+
 
 # Gateway Internals
 
@@ -12,7 +13,7 @@ The messaging gateway is the long-running process that connects Hermes to 14+ ex
 
 | File | Purpose |
 |------|---------|
-| `gateway/run.py` | `GatewayRunner` — main loop, slash commands, message dispatch (~9,000 lines) |
+| `gateway/run.py` | `GatewayRunner` — main loop, slash commands, message dispatch (~12,000 lines) |
 | `gateway/session.py` | `SessionStore` — conversation persistence and session key construction |
 | `gateway/delivery.py` | Outbound message delivery to target platforms/channels |
 | `gateway/pairing.py` | DM pairing flow for user authorization |
@@ -20,7 +21,7 @@ The messaging gateway is the long-running process that connects Hermes to 14+ ex
 | `gateway/hooks.py` | Hook discovery, loading, and lifecycle event dispatch |
 | `gateway/mirror.py` | Cross-session message mirroring for `send_message` |
 | `gateway/status.py` | Token lock management for profile-scoped gateway instances |
-| `gateway/builtin_hooks/` | Always-registered hooks (e.g., BOOT.md system prompt hook) |
+| `gateway/builtin_hooks/` | Extension point for always-registered hooks (none shipped) |
 | `gateway/platforms/` | Platform adapters (one per messaging platform) |
 
 ## Architecture Overview
@@ -46,7 +47,7 @@ The messaging gateway is the long-running process that connects Hermes to 14+ ex
 │                     ▼                           │
 │                 SessionStore                    │
 │              (SQLite persistence)               │
-└─────────────────────────────────────────────────┘
+└───────┴─────────────┴─────────────┴─────────────┘
 ```
 
 ## Message Flow
@@ -252,8 +253,8 @@ The gateway runs as a long-lived process, managed via:
 
 ## Related Docs
 
-- [Session Storage](../session-storage)
-- [Cron Internals](../cron-internals)
-- [ACP Internals](../acp-internals)
-- [Agent Loop Internals](../agent-loop)
-- [Messaging Gateway (User Guide)](../../user-guide/messaging)
+- [Session Storage](../session-storage/)
+- [Cron Internals](../cron-internals/)
+- [ACP Internals](../acp-internals/)
+- [Agent Loop Internals](../agent-loop/)
+- [Messaging Gateway (User Guide)](../../user-guide/messaging/)

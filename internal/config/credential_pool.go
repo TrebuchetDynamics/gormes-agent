@@ -585,6 +585,9 @@ func normalizeCredentialEntries(entries []PooledCredential) []PooledCredential {
 		if out[i].Source == "" {
 			out[i].Source = "manual"
 		}
+		out[i].AccessToken = sanitizeCredentialValue("ACCESS_TOKEN", out[i].AccessToken)
+		out[i].RefreshToken = sanitizeCredentialValue("REFRESH_TOKEN", out[i].RefreshToken)
+		out[i].AgentKey = sanitizeCredentialValue("AGENT_KEY", out[i].AgentKey)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Priority == out[j].Priority {

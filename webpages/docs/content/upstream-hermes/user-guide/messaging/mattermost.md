@@ -1,8 +1,9 @@
 ---
+weight: 8
 title: "Mattermost"
 description: "Set up Hermes Agent as a Mattermost bot"
-weight: 8
 ---
+
 
 # Mattermost Setup
 
@@ -23,6 +24,7 @@ Before setup, here's the part most people want to know: how Hermes behaves once 
 
 > **Tip**
 > If you want Hermes to reply as threaded conversations (nested under your original message), set `MATTERMOST_REPLY_MODE=thread`. The default is `off`, which sends flat messages in the channel.
+
 
 ### Session Model in Mattermost
 
@@ -64,6 +66,7 @@ Bot accounts must be enabled on your Mattermost server before you can create one
 > **Info**
 > If you don't have System Admin access, ask your Mattermost administrator to enable bot accounts and create one for you.
 
+
 ## Step 2: Create a Bot Account
 
 1. In Mattermost, click the **☰** menu (top-left) → **Integrations** → **Bot Accounts**.
@@ -76,13 +79,15 @@ Bot accounts must be enabled on your Mattermost server before you can create one
 4. Click **Create Bot Account**.
 5. Mattermost will display the **bot token**. **Copy it immediately.**
 
-> **Warning**
-> The bot token is only displayed once when you create the bot account. If you lose it, you'll need to regenerate it from the bot account settings. Never share your token publicly or commit it to Git - anyone with this token has full control of the bot.
+> **Warning: Token shown only once**
+> The bot token is only displayed once when you create the bot account. If you lose it, you'll need to regenerate it from the bot account settings. Never share your token publicly or commit it to Git — anyone with this token has full control of the bot.
+
 
 Store the token somewhere safe (a password manager, for example). You'll need it in Step 5.
 
 > **Tip**
 > You can also use a **personal access token** instead of a bot account. Go to **Profile** → **Security** → **Personal Access Tokens** → **Create Token**. This is useful if you want Hermes to post as your own user rather than a separate bot user.
+
 
 ## Step 3: Add the Bot to Channels
 
@@ -106,6 +111,7 @@ Your User ID is a 26-character alphanumeric string like `3uo8dkh1p7g1mfk49ear5fz
 > **Warning**
 > Your User ID is **not** your username. The username is what appears after `@` (e.g., `@alice`). The User ID is a long alphanumeric identifier that Mattermost uses internally.
 
+
 **Alternative**: You can also get your User ID via the API:
 
 ```bash
@@ -115,6 +121,7 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 
 > **Tip**
 > To get a **Channel ID**: click the channel name → **View Info**. The Channel ID is shown in the info panel. You'll need this if you want to set a home channel manually.
+
 
 ## Step 5: Configure Hermes Agent
 
@@ -171,6 +178,7 @@ The bot should connect to your Mattermost server within a few seconds. Send it a
 
 > **Tip**
 > You can run `hermes gateway` in the background or as a systemd service for persistent operation. See the deployment docs for details.
+
 
 ## Home Channel
 
@@ -296,7 +304,8 @@ Keys are Mattermost channel IDs (find them in the channel URL or via the API). A
 > **Warning**
 > Always set `MATTERMOST_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default as a safety measure. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
 
-For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security).
+
+For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security/).
 
 ## Notes
 

@@ -15,8 +15,9 @@ import (
 )
 
 type setupCommandFakeSeams struct {
-	isTTY   bool
-	current cli.ProviderModel
+	isTTY        bool
+	freshInstall bool
+	current      cli.ProviderModel
 
 	modelPickerCalls int
 	loadedCurrent    int
@@ -34,8 +35,12 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 	if f.current.Model == "" {
 		f.current.Model = "gpt-5.5"
 	}
+	existingInstall := !f.freshInstall
 	return setupCommandSeams{
 		IsTTY: func() bool { return f.isTTY },
+		HasExistingInstall: func() (bool, error) {
+			return existingInstall, nil
+		},
 		RunModelPicker: func(cmd *cobra.Command) error {
 			f.modelPickerCalls++
 			return nil
@@ -91,13 +96,13 @@ func TestSetupNoSectionNonTTYPrintsSectionList(t *testing.T) {
 	}
 }
 
-func TestSetupNoSectionInteractiveMenuShowsTopLevelChoices(t *testing.T) {
+func TestSetupNoSectionFreshInstallShowsQuickFullChoice(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 
 	var captured []setupMenuOption
 	var defaultIndex int
-	fake := &setupCommandFakeSeams{isTTY: true}
+	fake := &setupCommandFakeSeams{isTTY: true, freshInstall: true}
 	fake.chooseSetupAction = func(_ *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
 		captured = append([]setupMenuOption(nil), options...)
 		defaultIndex = defaultOption
@@ -112,22 +117,17 @@ func TestSetupNoSectionInteractiveMenuShowsTopLevelChoices(t *testing.T) {
 		t.Fatalf("default menu index = %d, want Quick Setup at 0", defaultIndex)
 	}
 	for _, want := range []string{
-		"What would you like to do?",
-		"Quick Setup - configure missing items only",
-		"Full Setup - reconfigure everything",
-		"Model & Provider",
-		"Terminal Backend",
-		"Messaging Platforms (Gateway)",
-		"Tools",
-		"Agent Settings",
-		"Exit",
+		"No existing Gormes configuration was found.",
+		"How would you like to set up Gormes?",
+		"Quick setup - provider, model, and messaging",
+		"Full setup - configure everything",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	if len(captured) != 8 || captured[0].Action != setupActionQuick || captured[7].Action != setupActionExit {
-		t.Fatalf("captured menu = %#v, want Quick..Exit eight-option menu", captured)
+	if len(captured) != 2 || captured[0].Action != setupActionQuick || captured[1].Action != setupActionFull {
+		t.Fatalf("captured menu = %#v, want Quick/Full menu", captured)
 	}
 	if _, err := os.Stat(config.ConfigPath()); !os.IsNotExist(err) {
 		t.Fatalf("exit-only setup mutated config path %s: %v", config.ConfigPath(), err)
@@ -270,22 +270,22 @@ func TestSetupMenuIgnoresArrowEscapeNoiseBeforeSelection(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 
-	gatewayCalls := 0
-	fake := &setupCommandFakeSeams{isTTY: true}
-	fake.runSetupGateway = func(_ *cobra.Command, nonInteractive bool) error {
-		gatewayCalls++
+	fullCalls := 0
+	fake := &setupCommandFakeSeams{isTTY: true, freshInstall: true}
+	fake.runFullWizard = func(_ *cobra.Command, nonInteractive bool) error {
+		fullCalls++
 		if nonInteractive {
-			t.Fatal("interactive gateway menu selection was marked non-interactive")
+			t.Fatal("interactive full setup selection was marked non-interactive")
 		}
 		return nil
 	}
 
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "\x1b[B\x1b[A5\n")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "\x1b[B\x1b[A2\n")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	if gatewayCalls != 1 {
-		t.Fatalf("gateway setup calls = %d, want 1 after selecting option 5", gatewayCalls)
+	if fullCalls != 1 {
+		t.Fatalf("full setup calls = %d, want 1 after selecting option 2", fullCalls)
 	}
 	if strings.Contains(stdout, "↑↓ navigate") {
 		t.Fatalf("line-prompt setup menu advertised unsupported arrow navigation:\n%s", stdout)
@@ -549,23 +549,29 @@ func TestSetupAgentWorkspaceBindingsSectionsAreImplemented(t *testing.T) {
 	}
 }
 
-func TestSetupResetReconfigureRunsFullWizard(t *testing.T) {
-	for _, args := range [][]string{{"--reset"}, {"--reconfigure"}, {"model", "--reset"}} {
-		t.Run(strings.Join(args, "_"), func(t *testing.T) {
-			fake := &setupCommandFakeSeams{isTTY: true}
-			stdout, stderr, err := runSetupTestCommand(t, fake.seams(), args...)
-			if err != nil {
-				t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
-			}
-			for _, want := range []string{"Setup Complete", "gormes setup", config.ConfigPath(), config.EnvPath()} {
-				if !strings.Contains(stdout, want) {
-					t.Fatalf("missing %q stdout=%s stderr=%s", want, stdout, stderr)
-				}
-			}
-			if fake.modelPickerCalls != 0 {
-				t.Fatalf("reset/reconfigure invoked picker %d times", fake.modelPickerCalls)
-			}
-		})
+func TestSetupReconfigureRunsFullWizard(t *testing.T) {
+	fullCalls := 0
+	fake := &setupCommandFakeSeams{isTTY: true}
+	seams := fake.seams()
+	seams.RunFullWizard = func(cmd *cobra.Command, nonInteractive bool) error {
+		fullCalls++
+		if nonInteractive {
+			t.Fatal("interactive reconfigure was marked non-interactive")
+		}
+		printSetupSummary(cmd)
+		return nil
+	}
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--reconfigure")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if fullCalls != 1 {
+		t.Fatalf("RunFullWizard calls = %d, want 1", fullCalls)
+	}
+	for _, want := range []string{"Setup Complete", "gormes setup", config.ConfigPath(), config.EnvPath()} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("missing %q stdout=%s stderr=%s", want, stdout, stderr)
+		}
 	}
 }
 

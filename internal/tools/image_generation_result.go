@@ -1,4 +1,3 @@
-
 package tools
 
 import (
@@ -31,6 +30,10 @@ const (
 	// provider-level failure during generation. The Reason field carries
 	// a redacted human-readable description.
 	ImageGenerationStatusProviderError ImageGenerationStatus = "image_generation_provider_error"
+
+	// ImageGenerationStatusProviderNotRegistered indicates image_gen.provider
+	// names a plugin provider that is not currently registered.
+	ImageGenerationStatusProviderNotRegistered ImageGenerationStatus = "provider_not_registered"
 )
 
 // ImageGenerationEnvelope is the stable, transcript-safe result of an image
@@ -150,7 +153,7 @@ func BuildImageGenerationEnvelope(req ImageGenerationRequest) (ImageGenerationEn
 	if req.Err != nil {
 		status := req.ErrorStatus
 		switch status {
-		case ImageGenerationStatusUnavailable, ImageGenerationStatusProviderError:
+		case ImageGenerationStatusUnavailable, ImageGenerationStatusProviderError, ImageGenerationStatusProviderNotRegistered:
 			// ok
 		default:
 			status = ImageGenerationStatusProviderError

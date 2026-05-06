@@ -35,7 +35,15 @@ type HTTPError struct {
 }
 
 func (e *HTTPError) Error() string {
-	return http.StatusText(e.Status) + ": " + sanitizeProviderErrorBody(e.Body)
+	status := strings.TrimSpace(http.StatusText(e.Status))
+	body := sanitizeProviderErrorBody(e.Body)
+	if body == "" {
+		return status
+	}
+	if status == "" || strings.EqualFold(status, body) {
+		return body
+	}
+	return status + ": " + body
 }
 
 const maxRetryAfterHint = 16 * time.Second
@@ -51,25 +59,25 @@ func newHTTPError(status int, body string, header http.Header) *HTTPError {
 type ProviderErrorKind string
 
 const (
-	ProviderErrorUnknown            ProviderErrorKind = "unknown"
-	ProviderErrorRateLimit          ProviderErrorKind = "rate_limit"
-	ProviderErrorAuth               ProviderErrorKind = "auth"
-	ProviderErrorAuthPermanent      ProviderErrorKind = "auth_permanent"
-	ProviderErrorBilling            ProviderErrorKind = "billing"
-	ProviderErrorContext            ProviderErrorKind = "context"
-	ProviderErrorContextOverflow    ProviderErrorKind = "context_overflow"
-	ProviderErrorImageTooLarge      ProviderErrorKind = "image_too_large"
-	ProviderErrorRetryable          ProviderErrorKind = "retryable"
-	ProviderErrorNonRetryable       ProviderErrorKind = "non_retryable"
-	ProviderErrorOverloaded         ProviderErrorKind = "overloaded"
-	ProviderErrorServerError        ProviderErrorKind = "server_error"
-	ProviderErrorTimeout            ProviderErrorKind = "timeout"
-	ProviderErrorPayloadTooLarge    ProviderErrorKind = "payload_too_large"
-	ProviderErrorModelNotFound      ProviderErrorKind = "model_not_found"
-	ProviderErrorPolicyBlocked      ProviderErrorKind = "provider_policy_blocked"
-	ProviderErrorFormatError        ProviderErrorKind = "format_error"
-	ProviderErrorThinkingSignature  ProviderErrorKind = "thinking_signature"
-	ProviderErrorLongContextTier    ProviderErrorKind = "long_context_tier"
+	ProviderErrorUnknown           ProviderErrorKind = "unknown"
+	ProviderErrorRateLimit         ProviderErrorKind = "rate_limit"
+	ProviderErrorAuth              ProviderErrorKind = "auth"
+	ProviderErrorAuthPermanent     ProviderErrorKind = "auth_permanent"
+	ProviderErrorBilling           ProviderErrorKind = "billing"
+	ProviderErrorContext           ProviderErrorKind = "context"
+	ProviderErrorContextOverflow   ProviderErrorKind = "context_overflow"
+	ProviderErrorImageTooLarge     ProviderErrorKind = "image_too_large"
+	ProviderErrorRetryable         ProviderErrorKind = "retryable"
+	ProviderErrorNonRetryable      ProviderErrorKind = "non_retryable"
+	ProviderErrorOverloaded        ProviderErrorKind = "overloaded"
+	ProviderErrorServerError       ProviderErrorKind = "server_error"
+	ProviderErrorTimeout           ProviderErrorKind = "timeout"
+	ProviderErrorPayloadTooLarge   ProviderErrorKind = "payload_too_large"
+	ProviderErrorModelNotFound     ProviderErrorKind = "model_not_found"
+	ProviderErrorPolicyBlocked     ProviderErrorKind = "provider_policy_blocked"
+	ProviderErrorFormatError       ProviderErrorKind = "format_error"
+	ProviderErrorThinkingSignature ProviderErrorKind = "thinking_signature"
+	ProviderErrorLongContextTier   ProviderErrorKind = "long_context_tier"
 )
 
 func (k ProviderErrorKind) String() string {
@@ -358,6 +366,18 @@ func sanitizeProviderErrorBody(body string) string {
 	if strings.Contains(lower, "<html") || strings.Contains(lower, "<!doctype html") || strings.Contains(lower, "<svg") {
 		return "provider returned HTML error body"
 	}
+	var decoded any
+	if json.Unmarshal([]byte(body), &decoded) == nil {
+		message, code, _ := providerBodySignals(decoded)
+		switch {
+		case message != "":
+			body = message
+		case code != "":
+			body = code
+		default:
+			return "provider returned JSON error body"
+		}
+	}
 	body = strings.ReplaceAll(body, "\r", " ")
 	body = strings.ReplaceAll(body, "\n", " ")
 	body = strings.Join(strings.Fields(body), " ")
@@ -385,7 +405,15 @@ func providerBodySignals(v any) (message, code, raw string) {
 		}
 		return message, code, raw
 	}
-	message = stringField(obj["message"])
+	if errText := stringField(obj["error"]); errText != "" {
+		code = errText
+		message = firstStringField(obj, "error_description", "message", "detail")
+		if message == "" {
+			message = errText
+		}
+		return message, code, ""
+	}
+	message = firstStringField(obj, "message", "detail", "error_description")
 	code = firstStringField(obj, "code", "error_code", "type")
 	return message, code, ""
 }

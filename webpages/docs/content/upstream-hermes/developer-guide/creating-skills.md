@@ -1,8 +1,9 @@
 ---
+weight: 3
 title: "Creating Skills"
 description: "How to create skills for Hermes Agent — SKILL.md format, guidelines, and publishing"
-weight: 3
 ---
+
 
 # Creating Skills
 
@@ -173,7 +174,8 @@ required_environment_variables:
 The user can skip setup and keep loading the skill. Hermes never exposes the raw secret value to the model. Gateway and messaging sessions show local setup guidance instead of collecting secrets in-band.
 
 > **Tip: Sandbox Passthrough**
-> When your skill is loaded, any declared `required_environment_variables` that are set are **automatically passed through** to `execute_code` and `terminal` sandboxes — including remote backends like Docker and Modal. Your skill's scripts can access `$TENOR_API_KEY` (or `os.environ["TENOR_API_KEY"]` in Python) without the user needing to configure anything extra. See [Environment Variable Passthrough](../../user-guide/security#environment-variable-passthrough) for details.
+> When your skill is loaded, any declared `required_environment_variables` that are set are **automatically passed through** to `execute_code` and `terminal` sandboxes — including remote backends like Docker and Modal. Your skill's scripts can access `$TENOR_API_KEY` (or `os.environ["TENOR_API_KEY"]` in Python) without the user needing to configure anything extra. See [Environment Variable Passthrough](../../user-guide/security/#environment-variable-passthrough) for details.
+
 
 Legacy `prerequisites.env_vars` remains supported as a backward-compatible alias.
 
@@ -229,6 +231,7 @@ Each entry supports:
 > **Tip: When to use which**
 > Use `required_environment_variables` for API keys, tokens, and other **secrets** (stored in `~/.hermes/.env`, never shown to the model). Use `config` for **paths, preferences, and non-sensitive settings** (stored in `config.yaml`, visible in config show).
 
+
 ### Credential File Requirements (OAuth tokens, etc.)
 
 Skills that use OAuth or file-based credentials can declare files that need to be mounted into remote sandboxes. This is for credentials stored as **files** (not env vars) — typically OAuth token files produced by a setup script.
@@ -253,6 +256,7 @@ When loaded, Hermes checks if these files exist. Missing files trigger `setup_ne
 > **Tip: When to use which**
 > Use `required_environment_variables` for simple API keys and tokens (strings stored in `~/.hermes/.env`). Use `required_credential_files` for OAuth token files, client secrets, service account JSON, certificates, or any credential that's a file on disk.
 
+
 See the `skills/productivity/google-workspace/SKILL.md` for a complete example using both.
 
 ## Skill Guidelines
@@ -268,6 +272,45 @@ Put the most common workflow first. Edge cases and advanced usage go at the bott
 ### Include Helper Scripts
 
 For XML/JSON parsing or complex logic, include helper scripts in `scripts/` — don't expect the LLM to write parsers inline every time.
+
+#### Referencing bundled scripts from SKILL.md
+
+When a skill is loaded, the activation message exposes the absolute skill directory as `[Skill directory: /abs/path]` and also substitutes two template tokens anywhere in the SKILL.md body:
+
+| Token | Replaced with |
+|---|---|
+| `${HERMES_SKILL_DIR}` | Absolute path to the skill's directory |
+| `${HERMES_SESSION_ID}` | The active session id (left in place if there is no session) |
+
+So a SKILL.md can tell the agent to run a bundled script directly with:
+
+```markdown
+To analyse the input, run:
+
+    node ${HERMES_SKILL_DIR}/scripts/analyse.js <input>
+```
+
+The agent sees the substituted absolute path and invokes the `terminal` tool with a ready-to-run command — no path math, no extra `skill_view` round-trip. Disable substitution globally with `skills.template_vars: false` in `config.yaml`.
+
+#### Inline shell snippets (opt-in)
+
+Skills can also embed inline shell snippets written as `` !`cmd` `` in the SKILL.md body. When enabled, each snippet's stdout is inlined into the message before the agent reads it, so skills can inject dynamic context:
+
+```markdown
+Current date: !`date -u +%Y-%m-%d`
+Git branch: !`git -C ${HERMES_SKILL_DIR} rev-parse --abbrev-ref HEAD`
+```
+
+This is **off by default** — any snippet in a SKILL.md runs on the host without approval, so only enable it for skill sources you trust:
+
+```yaml
+# config.yaml
+skills:
+  inline_shell: true
+  inline_shell_timeout: 10   # seconds per snippet
+```
+
+Snippets run with the skill directory as their working directory, and output is capped at 4000 characters. Failures (timeouts, non-zero exits) show up as a short `[inline-shell error: ...]` marker instead of breaking the whole skill.
 
 ### Test It
 

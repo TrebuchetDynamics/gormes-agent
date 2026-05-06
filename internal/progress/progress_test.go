@@ -453,12 +453,12 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
 	if got := routing.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.5 = %q, want in_progress while Telegram topic-mode closeout is planned", got)
+		t.Fatalf("Phase 2.B.5 = %q, want in_progress while gateway routing rows remain planned", got)
 	}
 	routingItems := itemsByName(routing.Items)
 	topicCloseout := routingItems["Telegram topic mode off/help/auth/debounce closeout"]
-	if topicCloseout.Status != StatusPlanned || topicCloseout.ContractStatus != ContractStatusValidated {
-		t.Fatalf("Phase 2.B.5 topic closeout = status %q contract_status %q, want planned/validated", topicCloseout.Status, topicCloseout.ContractStatus)
+	if topicCloseout.Status != StatusComplete || topicCloseout.ContractStatus != ContractStatusValidated {
+		t.Fatalf("Phase 2.B.5 topic closeout = status %q contract_status %q, want complete/validated", topicCloseout.Status, topicCloseout.ContractStatus)
 	}
 	if !strings.Contains(topicCloseout.Contract, "/topic off") || !strings.Contains(topicCloseout.Contract, "debounced") {
 		t.Fatalf("Phase 2.B.5 topic closeout contract = %q, want /topic off debounce detail", topicCloseout.Contract)

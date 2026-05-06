@@ -1,12 +1,13 @@
 ---
+weight: 15
 title: "Automation Templates"
 description: "Ready-to-use automation recipes — scheduled tasks, GitHub event triggers, API webhooks, and multi-skill workflows"
-weight: 15
 ---
+
 
 # Automation Templates
 
-Copy-paste recipes for common automation patterns. Each template uses Hermes's built-in [cron scheduler](../../user-guide/features/cron) for time-based triggers and [webhook platform](../../user-guide/messaging/webhooks) for event-driven triggers.
+Copy-paste recipes for common automation patterns. Each template uses Hermes's built-in [cron scheduler](../../user-guide/features/cron/) for time-based triggers and [webhook platform](../../user-guide/messaging/webhooks/) for event-driven triggers.
 
 Every template works with **any model** — not locked to a single provider.
 
@@ -18,6 +19,7 @@ Every template works with **any model** — not locked to a single provider.
 > | **API Call** | External service POSTs JSON to your endpoint | Webhook platform (config.yaml routes or `hermes webhook subscribe`) |
 >
 > All three support delivery to Telegram, Discord, Slack, SMS, email, GitHub comments, or local files.
+
 
 ---
 

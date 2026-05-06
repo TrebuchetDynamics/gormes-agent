@@ -1,8 +1,9 @@
 ---
+weight: 8
 title: "Security"
 description: "Security model, dangerous command approval, user authorization, container isolation, and production deployment best practices"
-weight: 8
 ---
+
 
 # Security
 
@@ -43,6 +44,7 @@ approvals:
 > **Warning**
 > Setting `approvals.mode: off` disables all safety prompts. Use only in trusted environments (CI/CD, containers, etc.).
 
+
 ### YOLO Mode
 
 YOLO mode bypasses **all** dangerous command approval prompts for the current session. It can be activated three ways:
@@ -64,7 +66,30 @@ The `/yolo` command is a **toggle** — each use flips the mode on or off:
 YOLO mode is available in both CLI and gateway sessions. Internally, it sets the `HERMES_YOLO_MODE` environment variable which is checked before every command execution.
 
 > **Danger**
-> YOLO mode disables **all** dangerous command safety checks for the session. Use only when you fully trust the commands being generated (e.g., well-tested automation scripts in disposable environments).
+> YOLO mode disables **all** dangerous command safety checks for the session — **except** the hardline blocklist (see below). Use only when you fully trust the commands being generated (e.g., well-tested automation scripts in disposable environments).
+
+
+### Hardline Blocklist (Always-On Floor)
+
+Some commands are so catastrophic — irreversible filesystem wipes, fork bombs, direct block-device writes — that Hermes refuses to run them **regardless** of:
+
+- `--yolo` / `/yolo` toggled on
+- `approvals.mode: off`
+- Cron jobs running in headless `approve` mode
+- User explicitly clicking "allow always"
+
+The blocklist is the floor below `--yolo`. It trips **before** the approval layer even sees the command, and there's no override flag. Patterns currently covered (not exhaustive; kept in sync with `tools/approval.py::UNRECOVERABLE_BLOCKLIST`):
+
+| Pattern | Why it's hardline |
+|---|---|
+| `rm -rf /` and obvious variants | Wipes the filesystem root |
+| `rm -rf --no-preserve-root /` | The explicit "yes I mean root" variant |
+| `:(){ :\|:& };:` (bash fork bomb) | Pegs the host until reboot |
+| `mkfs.*` on a mounted root device | Formats the live system |
+| `dd if=/dev/zero of=/dev/sd*` | Zeroes a physical disk |
+| Piping untrusted URLs to `sh` at the rootfs top level | Remote-code-execution attack vector too broad to approve |
+
+If you hit the blocklist, the tool call returns an explanatory error to the agent and nothing runs. If a legitimate workflow needs one of these commands (you're the operator of a wipe-and-reinstall pipeline, for example), run it outside the agent.
 
 ### Approval Timeout
 
@@ -95,7 +120,7 @@ The following patterns trigger approval prompts (defined in `tools/approval.py`)
 | `DELETE FROM` (without WHERE) | SQL DELETE without WHERE |
 | `TRUNCATE TABLE` | SQL TRUNCATE |
 | `> /etc/` | Overwrite system config |
-| `systemctl stop/disable/mask` | Stop/disable system services |
+| `systemctl stop/restart/disable/mask` | Stop/restart/disable system services |
 | `kill -9 -1` | Kill all processes |
 | `pkill -9` | Force kill processes |
 | Fork bomb patterns | Fork bombs |
@@ -113,7 +138,8 @@ The following patterns trigger approval prompts (defined in `tools/approval.py`)
 | `gateway run` with `&`/`disown`/`nohup`/`setsid` | Prevents starting gateway outside service manager |
 
 > **Info**
-> **Container bypass**: When running in `docker`, `singularity`, `modal`, or `daytona` backends, dangerous command checks are **skipped** because the container itself is the security boundary. Destructive commands inside a container can't harm the host.
+> **Container bypass**: When running in `docker`, `singularity`, `modal`, `daytona`, or `vercel_sandbox` backends, dangerous command checks are **skipped** because the container itself is the security boundary. Destructive commands inside a container can't harm the host.
+
 
 ### Approval Flow (CLI)
 
@@ -160,6 +186,7 @@ These patterns are loaded at startup and silently approved in all future session
 > **Tip**
 > Use `hermes config edit` to review or remove patterns from your permanent allowlist.
 
+
 ## User Authorization (Gateway)
 
 When running the messaging gateway, Hermes controls who can interact with the bot through a layered authorization system.
@@ -204,6 +231,7 @@ GATEWAY_ALLOW_ALL_USERS=true
 > Set GATEWAY_ALLOW_ALL_USERS=true in ~/.hermes/.env to allow open access,
 > or configure platform allowlists (e.g., TELEGRAM_ALLOWED_USERS=your_id).
 > ```
+
 
 ### DM Pairing System
 
@@ -306,10 +334,12 @@ terminal:
 - **Ephemeral mode** (`container_persistent: false`): Uses tmpfs for workspace — everything is lost on cleanup
 
 > **Tip**
-> For production gateway deployments, use `docker`, `modal`, or `daytona` backend to isolate agent commands from your host system. This eliminates the need for dangerous command approval entirely.
+> For production gateway deployments, use `docker`, `modal`, `daytona`, or `vercel_sandbox` backend to isolate agent commands from your host system. This eliminates the need for dangerous command approval entirely.
+
 
 > **Warning**
 > If you add names to `terminal.docker_forward_env`, those variables are intentionally injected into the container for terminal commands. This is useful for task-specific credentials like `GITHUB_TOKEN`, but it also means code running in the container can read and exfiltrate them.
+
 
 ## Terminal Backend Security Comparison
 
@@ -321,6 +351,7 @@ terminal:
 | **singularity** | Container | ❌ Skipped | HPC environments |
 | **modal** | Cloud sandbox | ❌ Skipped | Scalable cloud isolation |
 | **daytona** | Cloud sandbox | ❌ Skipped | Persistent cloud workspaces |
+| **vercel_sandbox** | Cloud microVM | ❌ Skipped | Cloud execution with snapshot persistence |
 
 ## Environment Variable Passthrough {#environment-variable-passthrough}
 
@@ -346,6 +377,7 @@ After loading this skill, `TENOR_API_KEY` passes through to `execute_code`, `ter
 
 > **Info: Docker & Modal**
 > Prior to v0.5.1, Docker's `forward_env` was a separate system from the skill passthrough. They are now merged — skill-declared env vars are automatically forwarded into Docker containers and Modal sandboxes without needing to add them to `docker_forward_env` manually.
+
 
 **2. Config-based passthrough (manual)**
 
@@ -457,7 +489,7 @@ security:
 
 When a blocked URL is requested, the tool returns an error explaining the domain is blocked by policy. The blocklist is enforced across `web_search`, `web_extract`, `browser_navigate`, and all URL-capable tools.
 
-See [Website Blocklist](../configuration#website-blocklist) in the configuration guide for full details.
+See [Website Blocklist](../configuration/#website-blocklist) in the configuration guide for full details.
 
 ### SSRF Protection
 
@@ -470,7 +502,20 @@ All URL-capable tools (web search, web extract, vision, browser) validate URLs b
 - **Cloud metadata hostnames**: `metadata.google.internal`, `metadata.goog`
 - **Reserved, multicast, and unspecified addresses**
 
-SSRF protection is always active and cannot be disabled. DNS failures are treated as blocked (fail-closed). Redirect chains are re-validated at each hop to prevent redirect-based bypasses.
+SSRF protection is always active for internet-facing use and DNS failures are treated as blocked (fail-closed). Redirect chains are re-validated at each hop to prevent redirect-based bypasses.
+
+#### Intentionally allowing private URLs
+
+Some setups legitimately need private/internal URL access — home networks that resolve `home.arpa` to RFC 1918 space, LAN-only Ollama/llama.cpp endpoints, internal wikis, cloud metadata debugging, and the like. For those cases there's a global opt-out:
+
+```yaml
+security:
+  allow_private_urls: true   # default: false
+```
+
+When on, web tools, the browser, vision URL fetches, and gateway media downloads no longer reject RFC 1918 / loopback / link-local / CGNAT / cloud-metadata destinations. **This is a deliberate trust boundary** — only enable it on machines where the agent running arbitrary prompt-injected URLs against the local network is an acceptable risk. Public-facing gateways should leave it off.
+
+The host-substring guard (which blocks lookalike Unicode domain tricks even when the underlying IP is public) stays on regardless of this setting.
 
 ### Tirith Pre-Exec Security Scanning
 

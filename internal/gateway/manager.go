@@ -167,6 +167,18 @@ type ManagerConfig struct {
 	// ReloadConfig returns a freshly loaded manager config for reloadable
 	// runtime fields. Errors keep the last-good manager config active.
 	ReloadConfig func(context.Context) (ManagerConfig, error)
+	// GoalJudge is the optional auxiliary completion judge for the persistent
+	// /goal loop. Nil deliberately fails open to continuation; GoalMaxTurns is
+	// the hard backstop.
+	GoalJudge    GoalJudge
+	GoalMaxTurns int
+	// TelegramTopicStore owns Telegram private-chat topic-mode state. Nil keeps
+	// topic mutations unavailable while still allowing /topic help to render.
+	TelegramTopicStore TelegramTopicStore
+	// TelegramTopicCapabilities checks BotFather/private-chat topic settings.
+	// Nil treats capabilities as unchecked and lets store-backed activation
+	// continue.
+	TelegramTopicCapabilities TelegramTopicCapabilitiesFunc
 }
 
 type KernelSubmitter interface {
@@ -254,6 +266,9 @@ type Manager struct {
 
 	kanbanDispatcherMu      sync.Mutex
 	kanbanDispatcherRunning bool
+
+	telegramTopicMu             sync.Mutex
+	telegramTopicCapabilityHint map[string]time.Time
 }
 
 type channelRunFailure struct {
@@ -463,18 +478,19 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		seams.ActiveProvider = cfg.LiveTurnActiveProvider
 	}
 	return &Manager{
-		cfg:                 cfg,
-		kernel:              k,
-		log:                 log,
-		channels:            map[string]Channel{},
-		reasoningState:      map[string]SessionReasoningState{},
-		inboundDedup:        NewMessageDeduplicator(defaultInboundDedupMaxSize),
-		liveTurnPromptSeams: seams,
-		agentRouter:         NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
-		agentRoutingEnabled: cfg.AgentRouting.Enabled,
-		agentRuntimes:       map[string]KernelSubmitter{},
-		agentRuntimeRender:  make(chan kernel.RenderFrame, kernel.RenderMailboxCap),
-		typingActionLast:    map[string]time.Time{},
+		cfg:                         cfg,
+		kernel:                      k,
+		log:                         log,
+		channels:                    map[string]Channel{},
+		reasoningState:              map[string]SessionReasoningState{},
+		inboundDedup:                NewMessageDeduplicator(defaultInboundDedupMaxSize),
+		liveTurnPromptSeams:         seams,
+		agentRouter:                 NewAgentRouter(cfg.AgentRouting.Agents, cfg.AgentRouting.Bindings),
+		agentRoutingEnabled:         cfg.AgentRouting.Enabled,
+		agentRuntimes:               map[string]KernelSubmitter{},
+		agentRuntimeRender:          make(chan kernel.RenderFrame, kernel.RenderMailboxCap),
+		typingActionLast:            map[string]time.Time{},
+		telegramTopicCapabilityHint: map[string]time.Time{},
 	}
 }
 
@@ -855,6 +871,12 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
 		return nil
+	case EventGoal:
+		m.handleGoalCommand(ctx, ch, ev)
+		return nil
+	case EventTopic:
+		m.handleTelegramTopicCommand(ctx, ch, ev)
+		return nil
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
 		return nil
@@ -918,7 +940,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -1000,6 +1022,12 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
+		return true
+	case EventGoal:
+		m.handleGoalCommand(ctx, ch, ev)
+		return true
+	case EventTopic:
+		m.handleTelegramTopicCommand(ctx, ch, ev)
 		return true
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
@@ -1280,6 +1308,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	platform := m.turnPlatform
 	chatID := m.turnChatID
 	msgID := m.turnMsgID
+	threadID := strings.TrimSpace(m.turnSource.ThreadID)
 	replyToMsgID := m.replyTargetForTurn(msgID)
 	sessionID := m.turnSessionID
 	lastUserText := m.turnLastUserText
@@ -1304,9 +1333,10 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	m.dispatchToolProgress(ctx, ch, platform, chatID, f)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
-		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
+		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID, threadID) {
 			if f.Phase == kernel.PhaseIdle {
 				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
+				m.handleGoalPostTurnContinuation(ctx, ch, f)
 			}
 			m.drainNextFollowUp(ctx)
 		}
@@ -1325,10 +1355,11 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		} else {
 			m.sendFinalPages(ctx, ch, chatID, "", finalPages)
 		}
-		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, threadID, media)
 		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 		m.maybeSendVerboseHint(ctx, ch, platform, chatID, f)
 		m.clearToolProgress()
+		m.handleGoalPostTurnContinuation(ctx, ch, f)
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		text := m.formatError(platform, f)
@@ -1415,12 +1446,12 @@ func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform
 	m.toolProgressMu.Unlock()
 }
 
-func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID string) bool {
+func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID, threadID string) bool {
 	switch f.Phase {
 	case kernel.PhaseIdle:
 		finalPages, media := m.formatFinalDeliveryPages(ch.Name(), f)
 		m.sendFinalPages(ctx, ch, chatID, replyToMsgID, finalPages)
-		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, threadID, media)
 		return true
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatError(ch.Name(), f))
@@ -1958,7 +1989,7 @@ func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (st
 	content := PrepareMediaDeliveryContent(FinalAssistantText(f))
 	text := content.Text
 	if strings.TrimSpace(text) == "" && len(content.Media) > 0 {
-		text = "Audio attached."
+		text = "Media attached."
 	}
 	if platform == "telegram" {
 		return FormatFinalTelegramText(text), content.Media
@@ -1974,7 +2005,7 @@ func (m *Manager) formatFinalDeliveryPages(platform string, f kernel.RenderFrame
 	return paginatePlainText(text), media
 }
 
-func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID string, media []OutboundMedia) {
+func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID, threadID string, media []OutboundMedia) {
 	if len(media) == 0 || ch == nil {
 		return
 	}
@@ -1986,6 +2017,9 @@ func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToM
 		return
 	}
 	for _, item := range media {
+		if item.ThreadID == "" {
+			item.ThreadID = threadID
+		}
 		if _, err := sender.SendMedia(ctx, chatID, replyToMsgID, item); err != nil {
 			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 				Platform:      ch.Name(),

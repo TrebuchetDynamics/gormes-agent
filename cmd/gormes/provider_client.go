@@ -85,21 +85,29 @@ func resolveCodexOAuthHTTPClientCredentials(endpoint, apiKey, credentialHome str
 	}
 	pool, evidence, err := config.LoadCredentialPool(config.CredentialPoolOptions{HermesHome: credentialHome, Provider: config.CodexOAuthProvider})
 	if err != nil {
-		return "", "", fmt.Errorf("%s credential pool unavailable: %s", config.CodexOAuthProvider, evidence.Code)
+		return "", "", codexOAuthSetupError(evidence.Code)
 	}
 	credential, selection := pool.Select()
 	if credential == nil {
-		return "", "", fmt.Errorf("%s credential unavailable: %s", config.CodexOAuthProvider, selection.Code)
+		return "", "", codexOAuthSetupError(selection.Code)
 	}
 	resolvedEndpoint := strings.TrimRight(strings.TrimSpace(firstNonEmpty(endpoint, credential.InferenceBaseURL, credential.BaseURL)), "/")
 	resolvedAPIKey := strings.TrimSpace(credential.AccessToken)
 	if resolvedEndpoint == "" {
-		return "", "", fmt.Errorf("%s credential missing inference base URL", config.CodexOAuthProvider)
+		return "", "", codexOAuthSetupError("credential_missing_inference_base_url")
 	}
 	if resolvedAPIKey == "" {
-		return "", "", fmt.Errorf("%s credential missing access token", config.CodexOAuthProvider)
+		return "", "", codexOAuthSetupError("credential_missing_access_token")
 	}
 	return resolvedEndpoint, resolvedAPIKey, nil
+}
+
+func codexOAuthSetupError(reason string) error {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "credential_unavailable"
+	}
+	return fmt.Errorf("%s credential unavailable: run `gormes auth add %s --type oauth` (status=%s)", config.CodexOAuthProvider, config.CodexOAuthProvider, reason)
 }
 
 func normalizeProviderName(provider string) string {

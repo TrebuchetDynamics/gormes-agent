@@ -1,14 +1,15 @@
 ---
+weight: 12
 title: "Working with Skills"
 description: "Find, install, use, and create skills — on-demand knowledge that teaches Hermes new workflows"
-weight: 12
 ---
+
 
 # Working with Skills
 
 Skills are on-demand knowledge documents that teach Hermes how to handle specific tasks — from generating ASCII art to managing GitHub PRs. This guide walks you through using them day to day.
 
-For the full technical reference, see [Skills System](../../user-guide/features/skills).
+For the full technical reference, see [Skills System](../../user-guide/features/skills/).
 
 ---
 
@@ -94,6 +95,10 @@ hermes skills install official/research/arxiv
 
 # Install from the hub in a chat session
 /skills install official/creative/songwriting-and-ai-music
+
+# Install a single-file SKILL.md directly from any HTTP(S) URL
+hermes skills install https://sharethis.chat/SKILL.md
+/skills install https://example.com/SKILL.md --name my-skill
 ```
 
 What happens:
@@ -103,6 +108,7 @@ What happens:
 
 > **Tip**
 > Installed skills take effect in new sessions. If you want it available in the current session, use `/reset` to start fresh, or add `--now` to invalidate the prompt cache immediately (costs more tokens on the next turn).
+
 
 ### Verifying Installation
 
@@ -130,7 +136,7 @@ skill_view("writing-plans")
 
 Plugin skills are **not** listed in the system prompt and don't appear in `skills_list`. They're opt-in — load them explicitly when you know a plugin provides one. When loaded, the agent sees a banner listing sibling skills from the same plugin.
 
-For how to ship skills in your own plugin, see [Build a Hermes Plugin → Bundle skills](../build-a-hermes-plugin#bundle-skills).
+For how to ship skills in your own plugin, see [Build a Hermes Plugin → Bundle skills](../build-a-hermes-plugin/#bundle-skills).
 
 ---
 
@@ -238,6 +244,7 @@ The skill appears automatically — no registration needed. Drop it in `~/.herme
 > **Info**
 > The agent can also create and update skills itself using `skill_manage`. After solving a complex problem, Hermes may offer to save the approach as a skill for next time.
 
+
 ---
 
 ## Per-Platform Skill Management
@@ -281,4 +288,4 @@ Both are persistent across sessions, but they serve different purposes:
 
 ---
 
-*For the complete skills reference — frontmatter fields, conditional activation, external directories, and more — see [Skills System](../../user-guide/features/skills).*
+*For the complete skills reference — frontmatter fields, conditional activation, external directories, and more — see [Skills System](../../user-guide/features/skills/).*

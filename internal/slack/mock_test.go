@@ -15,6 +15,13 @@ type outputCall struct {
 	updated   bool
 }
 
+type uploadCall struct {
+	channelID string
+	threadTS  string
+	filePath  string
+	fileID    string
+}
+
 type mockClient struct {
 	mu         sync.Mutex
 	events     chan Event
@@ -23,11 +30,13 @@ type mockClient struct {
 	ackCount   map[string]int
 	callLog    []string
 	outputLog  []outputCall
+	uploadLog  []uploadCall
 	threadByTS map[string]string
 
 	AckErr    error
 	PostErr   error
 	UpdateErr error
+	UploadErr error
 	AckFn     func(string) error
 	RunErr    error
 	RunFn     func(context.Context, func(Event)) error
@@ -125,6 +134,24 @@ func (m *mockClient) UpdateMessage(_ context.Context, channelID, ts, text string
 	return nil
 }
 
+func (m *mockClient) UploadFile(_ context.Context, channelID, threadTS, filePath string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.UploadErr != nil {
+		return "", m.UploadErr
+	}
+	id := fmt.Sprintf("F%06d", m.nextTS)
+	m.nextTS++
+	m.callLog = append(m.callLog, "upload:"+id)
+	m.uploadLog = append(m.uploadLog, uploadCall{
+		channelID: channelID,
+		threadTS:  threadTS,
+		filePath:  filePath,
+		fileID:    id,
+	})
+	return id, nil
+}
+
 func (m *mockClient) pushEvent(e Event) {
 	m.events <- e
 }
@@ -140,6 +167,14 @@ func (m *mockClient) outputs() []outputCall {
 	defer m.mu.Unlock()
 	out := make([]outputCall, len(m.outputLog))
 	copy(out, m.outputLog)
+	return out
+}
+
+func (m *mockClient) uploads() []uploadCall {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]uploadCall, len(m.uploadLog))
+	copy(out, m.uploadLog)
 	return out
 }
 

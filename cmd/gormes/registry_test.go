@@ -37,6 +37,9 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	if _, ok := reg.Get("clarify"); !ok {
 		t.Fatal("clarify not registered")
 	}
+	if _, ok := reg.Get("image_generate"); !ok {
+		t.Fatal("image_generate not registered")
+	}
 	for _, name := range []string{"read_file", "search_files", "write_file", "patch", "terminal"} {
 		if _, ok := reg.Get(name); !ok {
 			t.Fatalf("%s not registered", name)
@@ -50,6 +53,29 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	for _, name := range []string{"browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_cdp", "browser_dialog", "web_search", "web_extract", "web_crawl"} {
 		if _, ok := reg.Get(name); !ok {
 			t.Fatalf("%s not registered", name)
+		}
+	}
+}
+
+func TestBuildDefaultRegistryHomeAssistantRequiresToken(t *testing.T) {
+	t.Setenv("HASS_TOKEN", "")
+	reg := buildDefaultRegistry(context.Background(), config.Config{}, nil, "")
+	for _, name := range []string{"ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service"} {
+		if _, ok := reg.Get(name); ok {
+			t.Fatalf("%s registered without HASS_TOKEN", name)
+		}
+	}
+
+	t.Setenv("HASS_TOKEN", "test-token")
+	t.Setenv("HASS_URL", "http://homeassistant.local:8123")
+	reg = buildDefaultRegistry(context.Background(), config.Config{}, nil, "")
+	for _, name := range []string{"ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service"} {
+		tool, ok := reg.Get(name)
+		if !ok {
+			t.Fatalf("%s not registered with HASS_TOKEN", name)
+		}
+		if strings.Contains(string(tool.Schema()), "test-token") {
+			t.Fatalf("%s schema leaked HASS_TOKEN: %s", name, tool.Schema())
 		}
 	}
 }

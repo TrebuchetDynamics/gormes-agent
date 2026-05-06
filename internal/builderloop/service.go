@@ -96,7 +96,7 @@ func InstallService(ctx context.Context, opts ServiceInstallOptions) error {
 		WorkDir:      opts.WorkDir,
 		ExecArgs:     opts.ExecArgs,
 	})
-	if err := os.WriteFile(unitPath, []byte(unit), 0o644); err != nil {
+	if err := writeUnitFile(unitPath, unit); err != nil {
 		return err
 	}
 
@@ -249,7 +249,14 @@ func writeAuditUnitFile(path string, force bool, contents string) error {
 			return err
 		}
 	}
-	return os.WriteFile(path, []byte(contents), 0o644)
+	return writeUnitFile(path, contents)
+}
+
+func writeUnitFile(path string, contents string) error {
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o644)
 }
 
 type AuditServiceUnitOptions struct {

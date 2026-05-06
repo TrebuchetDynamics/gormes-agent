@@ -29,6 +29,8 @@ type Config struct {
 
 	Hermes     HermesCfg         `toml:"hermes" yaml:"hermes"`
 	Runtime    RuntimeCfg        `toml:"runtime" yaml:"runtime"`
+	TTS        map[string]any    `toml:"tts" yaml:"tts"`
+	ImageGen   map[string]any    `toml:"image_gen" yaml:"image_gen"`
 	Gateway    GatewayCfg        `toml:"gateway" yaml:"gateway"`
 	Terminal   TerminalCfg       `toml:"terminal" yaml:"terminal"`
 	Display    DisplayCfg        `toml:"display" yaml:"display"`
@@ -117,14 +119,18 @@ func (c DiscordCfg) Enabled() bool {
 
 // SlackCfg drives the Slack Socket Mode channel adapter.
 type SlackCfg struct {
-	Enabled           bool       `toml:"enabled" yaml:"enabled"`
-	BotToken          string     `toml:"bot_token" yaml:"bot_token"`
-	BotTokenRef       *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
-	AppToken          string     `toml:"app_token" yaml:"app_token"`
-	AppTokenRef       *SecretRef `toml:"app_token_ref" yaml:"app_token_ref" json:"app_token_ref,omitempty"`
-	AllowedChannelID  string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
-	CoalesceMs        int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FirstRunDiscovery bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	Enabled              bool       `toml:"enabled" yaml:"enabled"`
+	BotToken             string     `toml:"bot_token" yaml:"bot_token"`
+	BotTokenRef          *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
+	AppToken             string     `toml:"app_token" yaml:"app_token"`
+	AppTokenRef          *SecretRef `toml:"app_token_ref" yaml:"app_token_ref" json:"app_token_ref,omitempty"`
+	AllowedChannelID     string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	CoalesceMs           int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery    bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	RequireMention       any        `toml:"require_mention" yaml:"require_mention"`
+	StrictMention        any        `toml:"strict_mention" yaml:"strict_mention"`
+	ReplyInThread        bool       `toml:"reply_in_thread" yaml:"reply_in_thread"`
+	FreeResponseChannels any        `toml:"free_response_channels" yaml:"free_response_channels"`
 }
 
 type CronCfg struct {
@@ -453,6 +459,7 @@ func defaults() Config {
 			SessionResetAfterMinutes:  1440,
 			SessionResetMemorySummary: true,
 		},
+		TTS: map[string]any{},
 		Terminal: TerminalCfg{
 			CWD: ".",
 		},
@@ -491,6 +498,8 @@ func defaults() Config {
 			Enabled:           false,
 			CoalesceMs:        1000,
 			FirstRunDiscovery: false,
+			RequireMention:    true,
+			ReplyInThread:     true,
 		},
 		Security: SecurityCfg{
 			WebsiteBlocklist: WebsiteBlocklistCfg{
@@ -786,6 +795,22 @@ func loadEnv(cfg *Config) error {
 			return err
 		}
 		cfg.Slack.FirstRunDiscovery = parsed
+	}
+	if v := os.Getenv("GORMES_SLACK_REQUIRE_MENTION"); v != "" {
+		cfg.Slack.RequireMention = v
+	}
+	if v := os.Getenv("GORMES_SLACK_STRICT_MENTION"); v != "" {
+		cfg.Slack.StrictMention = v
+	}
+	if v := os.Getenv("GORMES_SLACK_FREE_RESPONSE_CHANNELS"); v != "" {
+		cfg.Slack.FreeResponseChannels = v
+	}
+	if v := os.Getenv("GORMES_SLACK_REPLY_IN_THREAD"); v != "" {
+		parsed, err := parseEnvBool("GORMES_SLACK_REPLY_IN_THREAD", v)
+		if err != nil {
+			return err
+		}
+		cfg.Slack.ReplyInThread = parsed
 	}
 	if v := os.Getenv("GORMES_SKILLS_ROOT"); v != "" {
 		cfg.Skills.Root = v

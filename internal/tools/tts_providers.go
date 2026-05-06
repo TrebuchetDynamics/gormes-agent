@@ -3,6 +3,7 @@
 package tools
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -11,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +20,7 @@ import (
 
 // Default TTS configuration values
 const (
-	DefaultEdgeTTSVoice        = "en-US-AriaNeural"
+	DefaultEdgeTTSVoice       = "en-US-AriaNeural"
 	DefaultEdgeTTSRegion      = "eastus"
 	DefaultOpenAIVoice        = "alloy"
 	DefaultOpenAIModel        = "gpt-4o-mini-tts"
@@ -28,22 +30,62 @@ const (
 	DefaultOpenAIContentType  = "application/json"
 
 	// Provider names (normalized)
-	ProviderNameEdge   = "edge"
-	ProviderNameOpenAI = "openai"
+	ProviderNameEdge       = "edge"
+	ProviderNameOpenAI     = "openai"
+	ProviderNameElevenLabs = "elevenlabs"
+	ProviderNameMiniMax    = "minimax"
+	ProviderNameGemini     = "gemini"
+	ProviderNameNeuTTS     = "neutts"
+	ProviderNameKittenTTS  = "kittentts"
+	ProviderNamePiper      = "piper"
 
 	// Max text lengths per provider
-	MaxTextLengthEdge   = 5000
-	MaxTextLengthOpenAI = 4096
+	MaxTextLengthEdge       = 5000
+	MaxTextLengthOpenAI     = 4096
+	MaxTextLengthXAI        = 15000
+	MaxTextLengthMiniMax    = 10000
+	MaxTextLengthMistral    = 4000
+	MaxTextLengthGemini     = 5000
+	MaxTextLengthElevenLabs = 10000
+	MaxTextLengthNeuTTS     = 2000
+	MaxTextLengthKittenTTS  = 2000
+	MaxTextLengthPiper      = 5000
 )
+
+var elevenLabsModelMaxTextLength = map[string]int{
+	"eleven_v3":              5000,
+	"eleven_ttv_v3":          5000,
+	"eleven_multilingual_v2": 10000,
+	"eleven_multilingual_v1": 10000,
+	"eleven_english_sts_v2":  10000,
+	"eleven_english_sts_v1":  10000,
+	"eleven_flash_v2":        30000,
+	"eleven_flash_v2_5":      40000,
+}
+
+var builtinTTSProviderOrder = []string{
+	ProviderNameEdge,
+	ProviderNameElevenLabs,
+	ProviderNameOpenAI,
+	ProviderNameMiniMax,
+	ProviderNameXAI,
+	ProviderNameMistral,
+	ProviderNameGemini,
+	ProviderNameNeuTTS,
+	ProviderNameKittenTTS,
+	ProviderNamePiper,
+}
 
 // TTSProviderConfig holds HTTP provider-specific settings. It is passed to
 // providers at construction time; zero value uses defaults.
 type TTSProviderConfig struct {
 	// Common settings
-	Voice  string // Provider-specific voice identifier
-	Speed  float64
-	APIKey string // API key for HTTP providers
-	Region string // Azure region for Edge TTS
+	Voice          string // Provider-specific voice identifier
+	Speed          float64
+	APIKey         string // API key for HTTP providers
+	Region         string // Azure region for Edge TTS
+	EnvLookup      func(string) (string, bool)
+	ProviderConfig map[string]any
 
 	// OpenAI-specific
 	OpenAIBaseURL string
@@ -53,6 +95,157 @@ type TTSProviderConfig struct {
 
 	// Timeout for HTTP requests (0 = use default)
 	Timeout time.Duration
+}
+
+type TTSProviderCredential struct {
+	Provider   string
+	APIKey     string
+	SourceName string
+}
+
+func BuiltinTTSProviderNames() []string {
+	out := make([]string, len(builtinTTSProviderOrder))
+	copy(out, builtinTTSProviderOrder)
+	return out
+}
+
+func isBuiltinTTSProviderName(provider string) bool {
+	provider = normalizeTTSProviderName(provider)
+	for _, name := range builtinTTSProviderOrder {
+		if provider == name {
+			return true
+		}
+	}
+	return false
+}
+
+func ResolveTTSProviderCredential(provider string, cfg TTSProviderConfig) TTSProviderCredential {
+	provider = normalizeTTSProviderName(provider)
+	if strings.TrimSpace(cfg.APIKey) != "" {
+		return TTSProviderCredential{Provider: provider, APIKey: strings.TrimSpace(cfg.APIKey), SourceName: "config"}
+	}
+	names := ttsCredentialEnvNames(provider)
+	value, source := lookupTTSProviderEnv(cfg, names...)
+	return TTSProviderCredential{Provider: provider, APIKey: value, SourceName: source}
+}
+
+func ttsCredentialEnvNames(provider string) []string {
+	switch normalizeTTSProviderName(provider) {
+	case ProviderNameEdge:
+		return []string{"GORMES_TTS_EDGE_KEY", "GORMES_AZURE_TTS_KEY"}
+	case ProviderNameOpenAI:
+		return []string{"GORMES_TTS_OPENAI_KEY", "OPENAI_API_KEY"}
+	case ProviderNameElevenLabs:
+		return []string{"ELEVENLABS_API_KEY"}
+	case ProviderNameXAI:
+		return []string{"XAI_API_KEY"}
+	case ProviderNameMiniMax:
+		return []string{"MINIMAX_API_KEY"}
+	case ProviderNameMistral:
+		return []string{"MISTRAL_API_KEY"}
+	case ProviderNameGemini:
+		return []string{"GEMINI_API_KEY", "GOOGLE_API_KEY"}
+	default:
+		return nil
+	}
+}
+
+func lookupTTSProviderEnv(cfg TTSProviderConfig, names ...string) (string, string) {
+	filtered := make([]string, 0, len(names))
+	for _, name := range names {
+		if strings.TrimSpace(name) != "" {
+			filtered = append(filtered, strings.TrimSpace(name))
+		}
+	}
+	if len(filtered) == 0 {
+		return "", ""
+	}
+	if cfg.EnvLookup != nil {
+		for _, name := range filtered {
+			if value, ok := cfg.EnvLookup(name); ok && strings.TrimSpace(value) != "" {
+				return strings.TrimSpace(value), name
+			}
+		}
+		return "", ""
+	}
+	for _, name := range filtered {
+		if value, ok := os.LookupEnv(name); ok && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value), name
+		}
+	}
+	dotenv := readGormesDotenvValues()
+	for _, name := range filtered {
+		if value := strings.TrimSpace(dotenv[name]); value != "" {
+			return value, name
+		}
+	}
+	return "", ""
+}
+
+func readGormesDotenvValues() map[string]string {
+	path := filepath.Join(gormesHomeForTTS(), ".env")
+	file, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+
+	values := map[string]string{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimLeft(scanner.Text(), " \t")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") || strings.HasPrefix(line, "export\t") {
+			line = strings.TrimLeft(line[len("export"):], " \t")
+		}
+		eq := strings.IndexByte(line, '=')
+		if eq <= 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:eq])
+		if key == "" {
+			continue
+		}
+		values[key] = unquoteTTSProviderDotenvValue(line[eq+1:])
+	}
+	return values
+}
+
+func gormesHomeForTTS() string {
+	if value := strings.TrimSpace(os.Getenv("GORMES_HOME")); value != "" {
+		return value
+	}
+	if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+		return filepath.Join(home, ".gormes")
+	}
+	return ".gormes"
+}
+
+func unquoteTTSProviderDotenvValue(raw string) string {
+	raw = strings.TrimLeft(raw, " \t")
+	if raw == "" {
+		return ""
+	}
+	switch raw[0] {
+	case '"':
+		end := strings.LastIndex(raw[1:], `"`)
+		if end < 0 {
+			return raw[1:]
+		}
+		value := raw[1 : 1+end]
+		replacer := strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r", `\"`, `"`, `\\`, `\`)
+		return replacer.Replace(value)
+	case '\'':
+		end := strings.IndexByte(raw[1:], '\'')
+		if end < 0 {
+			return raw[1:]
+		}
+		return raw[1 : 1+end]
+	default:
+		return strings.TrimRight(raw, " \t\r")
+	}
 }
 
 // httpTimeout returns the effective request timeout.
@@ -65,7 +258,7 @@ func (c TTSProviderConfig) httpTimeout() time.Duration {
 
 // edgeTTSBaseURL returns the base URL for Edge TTS, allowing override for testing.
 func (c TTSProviderConfig) edgeTTSBaseURL() string {
-	if baseURL := os.Getenv("GORMES_TTS_EDGE_BASE_URL"); baseURL != "" {
+	if baseURL, _ := lookupTTSProviderEnv(c, "GORMES_TTS_EDGE_BASE_URL"); baseURL != "" {
 		return baseURL
 	}
 	return fmt.Sprintf(DefaultEdgeTTSBaseURL, c.Region)
@@ -93,10 +286,7 @@ func NewTTSEdgeProvider(config TTSProviderConfig) *TTSEdgeProvider {
 		}
 	}
 	if cfg.APIKey == "" {
-		cfg.APIKey = os.Getenv("GORMES_TTS_EDGE_KEY")
-		if cfg.APIKey == "" {
-			cfg.APIKey = os.Getenv("GORMES_AZURE_TTS_KEY")
-		}
+		cfg.APIKey = ResolveTTSProviderCredential(ProviderNameEdge, cfg).APIKey
 	}
 	if cfg.Voice == "" {
 		cfg.Voice = DefaultEdgeTTSVoice
@@ -167,18 +357,17 @@ func (p *TTSEdgeProvider) Synthesize(ctx context.Context, req TTSProviderRequest
 
 // buildEdgeTTSSSML creates an SSML document for Edge TTS.
 func buildEdgeTTSSSML(text, voice string, speed float64) string {
-	rate := "+0%"
-	if speed != 1.0 && speed > 0 {
-		pct := int((speed - 1.0) * 100)
-		if pct > 0 {
-			rate = fmt.Sprintf("+%d%%", pct)
-		} else if pct < 0 {
-			rate = fmt.Sprintf("%d%%", pct)
-		}
+	escaped := escapeSSML(text)
+	rate := EdgeTTSRateString(speed)
+	if rate == "" {
+		return fmt.Sprintf(
+			`<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='%s'>%s</voice></speak>`,
+			voice, escaped,
+		)
 	}
 	return fmt.Sprintf(
 		`<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='%s'><prosody rate='%s'>%s</prosody></voice></speak>`,
-		voice, rate, escapeSSML(text),
+		voice, rate, escaped,
 	)
 }
 
@@ -206,13 +395,10 @@ func NewTTSOpenAIProvider(config TTSProviderConfig) *TTSOpenAIProvider {
 		cfg.Timeout = 60 * time.Second
 	}
 	if cfg.APIKey == "" {
-		cfg.APIKey = os.Getenv("GORMES_TTS_OPENAI_KEY")
-		if cfg.APIKey == "" {
-			cfg.APIKey = os.Getenv("OPENAI_API_KEY")
-		}
+		cfg.APIKey = ResolveTTSProviderCredential(ProviderNameOpenAI, cfg).APIKey
 	}
 	if cfg.OpenAIBaseURL == "" {
-		cfg.OpenAIBaseURL = os.Getenv("GORMES_TTS_OPENAI_BASE_URL")
+		cfg.OpenAIBaseURL, _ = lookupTTSProviderEnv(cfg, "GORMES_TTS_OPENAI_BASE_URL")
 		if cfg.OpenAIBaseURL == "" {
 			cfg.OpenAIBaseURL = DefaultOpenAIBaseURL
 		}
@@ -251,24 +437,15 @@ func (p *TTSOpenAIProvider) Synthesize(ctx context.Context, req TTSProviderReque
 		format = "opus"
 	}
 
-	speed := p.config.Speed
-	if speed <= 0 {
-		speed = 1.0
-	}
-	// Clamp speed to OpenAI's valid range
-	if speed < 0.25 {
-		speed = 0.25
-	}
-	if speed > 4.0 {
-		speed = 4.0
-	}
-
 	payload := map[string]any{
 		"model":           model,
 		"input":           req.Text,
 		"voice":           voice,
 		"response_format": format,
-		"speed":           speed,
+	}
+	speed := OpenAITTSSpeed(p.config.Speed)
+	if speed != 1.0 {
+		payload["speed"] = speed
 	}
 
 	body, err := json.Marshal(payload)
@@ -335,12 +512,7 @@ func ValidateTTSProviderConfig(provider string, cfg TTSProviderConfig) error {
 	switch provider {
 	case ProviderNameEdge:
 		if cfg.APIKey == "" {
-			// Check environment as fallback
-			key := os.Getenv("GORMES_TTS_EDGE_KEY")
-			if key == "" {
-				key = os.Getenv("GORMES_AZURE_TTS_KEY")
-			}
-			if key == "" {
+			if ResolveTTSProviderCredential(provider, cfg).APIKey == "" {
 				return errors.New("Edge TTS requires GORMES_TTS_EDGE_KEY or GORMES_AZURE_TTS_KEY")
 			}
 		}
@@ -348,14 +520,21 @@ func ValidateTTSProviderConfig(provider string, cfg TTSProviderConfig) error {
 
 	case ProviderNameOpenAI:
 		if cfg.APIKey == "" {
-			key := os.Getenv("GORMES_TTS_OPENAI_KEY")
-			if key == "" {
-				key = os.Getenv("OPENAI_API_KEY")
-			}
-			if key == "" {
+			if ResolveTTSProviderCredential(provider, cfg).APIKey == "" {
 				return errors.New("OpenAI TTS requires GORMES_TTS_OPENAI_KEY or OPENAI_API_KEY")
 			}
 		}
+		return nil
+
+	case ProviderNameElevenLabs, ProviderNameMiniMax, ProviderNameXAI, ProviderNameMistral, ProviderNameGemini:
+		if cfg.APIKey == "" {
+			if ResolveTTSProviderCredential(provider, cfg).APIKey == "" {
+				return fmt.Errorf("%s TTS API key not configured", provider)
+			}
+		}
+		return nil
+
+	case ProviderNameNeuTTS, ProviderNameKittenTTS, ProviderNamePiper:
 		return nil
 
 	case "auto", "":
@@ -368,11 +547,59 @@ func ValidateTTSProviderConfig(provider string, cfg TTSProviderConfig) error {
 
 // TTSProviderMaxTextLength returns the maximum input length for a provider.
 func TTSProviderMaxTextLength(provider string) int {
+	return TTSProviderMaxTextLengthForConfig(provider, nil)
+}
+
+func TTSProviderMaxTextLengthForConfig(provider string, ttsConfig map[string]any) int {
+	key := normalizeTTSProviderName(provider)
+	if key == "" {
+		return defaultTTSMaxTextLength
+	}
+	if section := mapFromAny(lookupCaseInsensitiveAny(ttsConfig, key)); section != nil {
+		if override := positiveIntFromAny(section["max_text_length"]); override > 0 {
+			return override
+		}
+	}
+	if !isBuiltinTTSProviderName(key) {
+		if named := namedTTSProviderConfig(ttsConfig, key); isTTSCommandProviderConfig(named) {
+			if override := positiveIntFromAny(named["max_text_length"]); override > 0 {
+				return override
+			}
+			return defaultCommandTTSMaxTextLength
+		}
+	}
+	if key == ProviderNameElevenLabs {
+		section := mapFromAny(lookupCaseInsensitiveAny(ttsConfig, key))
+		modelID := "eleven_multilingual_v2"
+		if section != nil {
+			if configured := stringFromAny(section["model_id"]); configured != "" {
+				modelID = configured
+			}
+		}
+		if maxLen := elevenLabsModelMaxTextLength[strings.TrimSpace(modelID)]; maxLen > 0 {
+			return maxLen
+		}
+		return MaxTextLengthElevenLabs
+	}
 	switch normalizeTTSProviderName(provider) {
 	case ProviderNameEdge:
 		return MaxTextLengthEdge
 	case ProviderNameOpenAI:
 		return MaxTextLengthOpenAI
+	case ProviderNameXAI:
+		return MaxTextLengthXAI
+	case ProviderNameMiniMax:
+		return MaxTextLengthMiniMax
+	case ProviderNameMistral:
+		return MaxTextLengthMistral
+	case ProviderNameGemini:
+		return MaxTextLengthGemini
+	case ProviderNameNeuTTS:
+		return MaxTextLengthNeuTTS
+	case ProviderNameKittenTTS:
+		return MaxTextLengthKittenTTS
+	case ProviderNamePiper:
+		return MaxTextLengthPiper
 	default:
 		return defaultTTSMaxTextLength
 	}
@@ -385,4 +612,95 @@ func parseSpeed(s string) float64 {
 		return 1.0
 	}
 	return v
+}
+
+func TTSSpeedForProvider(provider string, ttsConfig map[string]any) float64 {
+	provider = normalizeTTSProviderName(provider)
+	speed := floatFromAny(lookupCaseInsensitiveAny(ttsConfig, "speed"))
+	if section := mapFromAny(lookupCaseInsensitiveAny(ttsConfig, provider)); section != nil {
+		if providerSpeed := floatFromAny(lookupCaseInsensitiveAny(section, "speed")); providerSpeed > 0 {
+			speed = providerSpeed
+		}
+	}
+	if speed <= 0 {
+		return 1.0
+	}
+	return speed
+}
+
+func EdgeTTSRateString(speed float64) string {
+	if speed <= 0 || speed == 1.0 {
+		return ""
+	}
+	pct := int((speed - 1.0) * 100)
+	if pct == 0 {
+		return ""
+	}
+	if pct > 0 {
+		return fmt.Sprintf("+%d%%", pct)
+	}
+	return fmt.Sprintf("%d%%", pct)
+}
+
+func OpenAITTSSpeed(speed float64) float64 {
+	if speed <= 0 {
+		return 1.0
+	}
+	if speed < 0.25 {
+		return 0.25
+	}
+	if speed > 4.0 {
+		return 4.0
+	}
+	return speed
+}
+
+type TTSProviderStatus struct {
+	Provider  string
+	Available bool
+	Evidence  TTSEvidence
+	Error     string
+}
+
+type LazyLocalTTSProvider struct {
+	provider string
+	probe    func(context.Context) error
+}
+
+func NewLazyLocalTTSProvider(provider string, probe func(context.Context) error) *LazyLocalTTSProvider {
+	return &LazyLocalTTSProvider{
+		provider: normalizeTTSProviderName(provider),
+		probe:    probe,
+	}
+}
+
+func (p *LazyLocalTTSProvider) Available(ctx context.Context) bool {
+	return p.DependencyStatus(ctx).Available
+}
+
+func (p *LazyLocalTTSProvider) DependencyStatus(ctx context.Context) TTSProviderStatus {
+	if p == nil {
+		return TTSProviderStatus{Evidence: TTSEvidenceProviderUnavailable, Error: "no local TTS provider configured"}
+	}
+	provider := firstNonEmptyTTS(p.provider, "local")
+	if p.probe == nil {
+		return TTSProviderStatus{Provider: provider, Available: true, Evidence: TTSEvidenceOK}
+	}
+	if err := p.probe(ctx); err != nil {
+		return TTSProviderStatus{
+			Provider:  provider,
+			Available: false,
+			Evidence:  TTSEvidenceProviderUnavailable,
+			Error:     redactTTSText(err.Error()),
+		}
+	}
+	return TTSProviderStatus{Provider: provider, Available: true, Evidence: TTSEvidenceOK}
+}
+
+func (p *LazyLocalTTSProvider) Synthesize(ctx context.Context, req TTSProviderRequest) (TTSProviderResult, error) {
+	status := p.DependencyStatus(ctx)
+	if !status.Available {
+		return TTSProviderResult{}, errors.New(status.Error)
+	}
+	return TTSProviderResult{}, fmt.Errorf("%s TTS synthesis provider is not wired in this build", firstNonEmptyTTS(status.Provider, req.Provider))
 }

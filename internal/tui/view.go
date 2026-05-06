@@ -212,16 +212,42 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 
 func conversationForcedBlocks(f kernel.RenderFrame, wrap lipgloss.Style, compact bool) []string {
 	var blocks []string
-	if progress := conversationToolProgressBlock(f, compact); progress != "" {
-		blocks = append(blocks, progress)
+	if !frameHasFinalAssistant(f) {
+		if progress := conversationToolProgressBlock(f, compact); progress != "" {
+			blocks = append(blocks, progress)
+		}
 	}
-	if f.DraftText != "" {
+	if f.DraftText != "" && !draftDuplicatesFinalAssistant(f) {
 		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrap, compact))
 	}
 	if f.LastError != "" {
 		blocks = append(blocks, conversationErrorBlock(f.LastError, compact))
 	}
 	return blocks
+}
+
+func frameHasFinalAssistant(f kernel.RenderFrame) bool {
+	if f.Phase != kernel.PhaseIdle {
+		return false
+	}
+	return strings.TrimSpace(lastAssistantContent(f.History)) != ""
+}
+
+func draftDuplicatesFinalAssistant(f kernel.RenderFrame) bool {
+	draft := strings.TrimSpace(f.DraftText)
+	if draft == "" || f.Phase != kernel.PhaseIdle {
+		return false
+	}
+	return draft == strings.TrimSpace(lastAssistantContent(f.History))
+}
+
+func lastAssistantContent(history []hermes.Message) string {
+	for i := len(history) - 1; i >= 0; i-- {
+		if history[i].Role == "assistant" {
+			return history[i].Content
+		}
+	}
+	return ""
 }
 
 func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {

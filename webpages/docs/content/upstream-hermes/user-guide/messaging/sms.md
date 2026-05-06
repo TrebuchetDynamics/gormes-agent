@@ -1,15 +1,18 @@
 ---
+weight: 8
+sidebar_label: "SMS (Twilio)"
 title: "SMS (Twilio)"
 description: "Set up Hermes Agent as an SMS chatbot via Twilio"
-weight: 8
 ---
+
 
 # SMS Setup (Twilio)
 
 Hermes connects to SMS through the [Twilio](https://www.twilio.com/) API. People text your Twilio phone number and get AI responses back — same conversational experience as Telegram or Discord, but over standard text messages.
 
 > **Info: Shared Credentials**
-> The SMS gateway shares credentials with the optional [telephony skill](../../../reference/skills-catalog). If you've already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
+> The SMS gateway shares credentials with the optional [telephony skill](../../../reference/skills-catalog/). If you've already set up Twilio for voice calls or one-off SMS, the gateway works with the same `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_PHONE_NUMBER`.
+
 
 ---
 
@@ -80,6 +83,7 @@ Twilio needs to know where to send incoming messages. In the [Twilio Console](ht
 > ```
 >
 > Set the resulting public URL as your Twilio webhook.
+
 
 **Set `SMS_WEBHOOK_URL` to the same URL you configured in Twilio.** This is required for Twilio signature validation — the adapter will refuse to start without it:
 
@@ -170,6 +174,7 @@ SMS_ALLOW_ALL_USERS=true
 
 > **Warning**
 > SMS has no built-in encryption. Don't use SMS for sensitive operations unless you understand the security implications. For sensitive use cases, prefer Signal or Telegram.
+
 
 ---
 

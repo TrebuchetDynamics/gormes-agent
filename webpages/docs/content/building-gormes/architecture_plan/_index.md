@@ -87,16 +87,16 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 62/92 subphases shipped · 25 in progress · 5 planned
+**Overall:** 59/92 subphases shipped · 30 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 10/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 6/12 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 8/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -180,6 +180,8 @@ classification and row-backed implementation queue.
 ### 2.B.5 — Session Context + Delivery Routing 🔨
 
 - [x] Gateway session store + SessionSource parity
+- [x] Gateway manual reset session-boundary hooks
+- [ ] Gateway session reset notification parity
 - [x] SessionContext prompt injection
 - [x] Hermes live-turn prompt assembly parity (channel-neutral)
 - [x] Live-turn SOUL.md and project context wiring (channel-neutral)
@@ -205,6 +207,7 @@ classification and row-backed implementation queue.
 - [x] Gateway active-turn policy manifest closeout
 - [x] Gateway conversational session metadata refresh
 - [x] Gateway session token accounting parity
+- [x] Gateway startup allowlist + weak credential guard
 - [x] Telegram voice/audio inbound attachment markers
 - [x] DeliveryRouter + --deliver target parsing
 - [x] Gateway stream consumer for agent-event fan-out
@@ -225,7 +228,29 @@ classification and row-backed implementation queue.
 - [x] Gateway inbound dedup manager binding
 - [x] Email outbound Date header contract
 - [x] Telegram MarkdownV2 parse-mode rendering closeout
-- [ ] Telegram topic mode off/help/auth/debounce closeout
+- [x] Telegram topic mode off/help/auth/debounce closeout
+- [x] Telegram document/photo cache + batch attachment parity
+- [x] Discord authenticated attachment download safety
+- [x] Slack Block Kit approval buttons + action callback
+- [ ] Discord thread participation persistence
+- [x] Cross-platform image/document MEDIA delivery routing
+- [x] Telegram inline approval buttons + callback auth
+- [x] Telegram polling conflict + webhook secret startup guard
+- [x] Slack mention/free-response gating + strict thread-memory guard
+- [x] Discord interaction authorization + mention safety guards
+- [ ] Gateway processing lifecycle reactions for Telegram and Discord
+- [x] Telegram text batching + caption merge parity
+- [ ] Cross-platform multi-image native batching
+- [ ] Discord message admission + reply-mode policy
+- [ ] Webhook dynamic route reload + signed rate-limit order
+- [ ] Slack/Discord channel-scoped skills, prompts, and reload resync
+- [ ] Telegram fallback transport + polling reconnect recovery
+- [ ] Telegram sticker vision adapter binding
+- [ ] Discord native slash/thread command registration parity
+- [ ] Telegram entity-only mention boundary closeout
+- [ ] Telegram forum thread fallback + send retry safety
+- [ ] Telegram semantic MarkdownV2 formatter + table rewrite
+- [ ] Gateway platform reconnect isolation + channel health limits
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -244,6 +269,7 @@ classification and row-backed implementation queue.
 - [x] Hermes gateway platform registry manifest
 - [x] Navivox stdio protocol control-plane tracer
 - [x] Navivox QR pairing descriptor CLI
+- [x] Navivox Flutter voice morph surface
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -333,6 +359,7 @@ classification and row-backed implementation queue.
 - [x] Steer slash command registry + queue fallback
 - [x] Mid-run steer injection between tool calls
 - [x] Gateway-handled slash commands bypass active-session guard
+- [x] Gateway persistent goal loop + continuation judge
 
 ### 2.G — OS-AI Spine: Skills Runtime ✅
 
@@ -503,7 +530,7 @@ classification and row-backed implementation queue.
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
 
-### 4.B — Context Engine + Compression ✅
+### 4.B — Context Engine + Compression 🔨
 
 - [x] Long session management
 - [x] Context compression
@@ -517,13 +544,15 @@ classification and row-backed implementation queue.
 - [x] Context compressor image-token budget charge
 - [x] Context references stable-handle store
 - [x] Manual compression feedback + context references
+- [ ] Manual compression feedback renderer + focus parser
 - [x] ContextEngine compression-boundary callback vocabulary
 - [x] Kernel compression-boundary callback binding
 
-### 4.C — Native Prompt Builder ✅
+### 4.C — Native Prompt Builder 🔨
 
 - [x] Default agent identity / SOUL.md loader
 - [x] Context-file discovery + injection scan
+- [ ] Progressive subdirectory hint tracker
 - [x] Model-specific role and tool-use guidance
 - [x] Toolset-aware skills prompt snapshot
 - [x] Memory guidance constant + injection
@@ -539,13 +568,14 @@ classification and row-backed implementation queue.
 - [x] Provider-enforced context-length resolver
 - [x] Model pricing/capability registry fixtures
 - [ ] Ollama Cloud models.dev suffix normalization
+- [ ] Model catalog cache + preferred-provider live merge
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
 
-### 4.E — Trajectory + Insights 🔨
+### 4.E — Trajectory + Insights ✅
 
-- [ ] Trajectory writer + redaction gates
+- [x] Trajectory writer + redaction gates
 - [x] Trajectory compressor + compressed-evidence lineage
 - [x] Self-monitoring telemetry
 
@@ -560,7 +590,9 @@ classification and row-backed implementation queue.
 - [x] Token vault
 - [x] Anthropic OAuth/keychain credential discovery
 - [x] Multi-account auth
+- [x] Credential non-ASCII sanitizer + one-shot warning
 - [x] Google OAuth flow + refresh seam
+- [x] GitHub Copilot token exchange + Responses mode selector
 
 ### 4.H — Rate / Retry / Caching ✅
 
@@ -591,7 +623,7 @@ classification and row-backed implementation queue.
 - [x] Swarm feature-level parity audit for Hermes/Honcho map
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
-- [ ] Hermes website docs mirror coverage gate
+- [x] Hermes website docs mirror coverage gate
 - [ ] Gormes setup/channel/provider docs webpage parity gate
 - [x] Native runtime provider gateway binding
 - [x] Hermes compatibility namespace retirement boundary
@@ -600,9 +632,10 @@ classification and row-backed implementation queue.
 
 - [x] Shell blocklist + filesystem scoping + permission approval
 
-### 4.K — Provider Fallback Chain ✅
+### 4.K — Provider Fallback Chain 🔨
 
 - [x] Resilient provider chain dispatch
+- [ ] Hermes fallback activation + classifier carve-outs
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 
@@ -629,6 +662,7 @@ classification and row-backed implementation queue.
 - [x] Discord tool split + platform-scoped toolsets
 - [x] Discord tool limit coercion helper
 - [x] Home Assistant HASS_TOKEN platform-toolset carveout
+- [x] Home Assistant tool handlers + service safety validation
 - [x] Pure core tools first
 - [x] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract
@@ -673,14 +707,17 @@ classification and row-backed implementation queue.
 - [x] Image input mode router + native content parts
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
+- [x] Image generation provider registry + plugin dispatch
 
 ### 5.E — TTS / Voice / Transcription 🔨
 
 - [ ] Voice mode port
+- [ ] Voice mode environment detector + audio provider seam
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
 - [ ] MiniMax TTS v1 text_to_speech raw-audio compatibility
+- [x] TTS provider matrix + dotenv/command-provider resolution
 - [ ] TTS synthesis + voice-mode state
 - [ ] Voice record-key config binding for native TUI
 
@@ -698,7 +735,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration ✅
+### 5.G — MCP Integration 🔨
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -709,13 +746,16 @@ classification and row-backed implementation queue.
 - [x] MCP OAuth state store + noninteractive auth errors
 - [x] MCP OAuth refresh + 401 session-expired recovery
 - [x] Managed tool gateway bridge
+- [ ] MCP circuit breaker cooldown + reconnect reset
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
 
-### 5.H — ACP Integration ✅
+### 5.H — ACP Integration 🔨
 
 - [x] ACP server side
 - [x] ACP Client Bridge Mode
+- [ ] ACP JSON-RPC stdio session/prompt closeout
+- [ ] ACP stdio benign ping/probe suppression
 
 ### 5.I — Plugins Architecture 🔨
 
@@ -723,6 +763,8 @@ classification and row-backed implementation queue.
 - [x] Dashboard theme/plugin extension status contract
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
+- [ ] Hermes plugin CLI lifecycle parity
+- [ ] Goncho Honcho plugin session config + async write compatibility
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture
 - [x] Hindsight memory setup blank-input preservation
@@ -761,6 +803,8 @@ classification and row-backed implementation queue.
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
+- [ ] Symlink-preserving atomic writer helper
+- [ ] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
 - [ ] search_files hidden-root and context-line parsing drift
 
@@ -818,6 +862,7 @@ classification and row-backed implementation queue.
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
 - [ ] Cron env-ref expansion + parallel run state serialization
+- [ ] Cron script/workdir/inactivity execution binding
 - [ ] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
 
@@ -838,6 +883,8 @@ classification and row-backed implementation queue.
 - [x] CLI contextual first-touch onboarding hint renderers
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
+- [ ] CLI terminal control-response sanitizer
+- [ ] CLI submitted user-message preview formatter
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
@@ -859,7 +906,7 @@ classification and row-backed implementation queue.
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
 - [x] Gormes setup full-wizard shell and branded summary
-- [ ] Hermes setup entry-mode and reset semantics
+- [x] Hermes setup entry-mode and reset semantics
 - [x] Gormes setup tools checklist command binding
 - [x] Gormes setup gateway platform checklist command binding
 - [x] Gormes setup terminal TTS and agent-settings section bindings
@@ -892,7 +939,9 @@ classification and row-backed implementation queue.
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
+- [ ] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
+- [ ] Self-update command lifecycle safety
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
@@ -902,7 +951,7 @@ classification and row-backed implementation queue.
 - [x] Interactive Onboarding
 - [x] Gormes onboard interactive action runner
 - [ ] CLI setup/onboard/help text fidelity matrix
-- [ ] Hermes CLI alias and suggestion fidelity matrix
+- [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
 - [ ] Gateway planned stop marker + WSL systemd PATH parity
 - [ ] Gateway stale-code self-check uses git HEAD SHA
@@ -923,6 +972,7 @@ classification and row-backed implementation queue.
 - [x] TUI gateway completion path normalizer
 - [x] TUI gateway tool summary formatter
 - [x] TUI gateway image/personality/platform-event helpers
+- [ ] TUI gateway config health null-section probe
 - [x] TUI mouse tracking config + slash toggle
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
@@ -941,14 +991,17 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes status bar renderer
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
+- [ ] Native TUI clipboard, OSC52, and terminal setup parity
+- [ ] Native TUI image/file drop + paste collapse ingress
 - [x] Native TUI Hermes slash completion helpers
 - [ ] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [ ] Native TUI Ink behavioral transcript golden matrix
-- [ ] Channel/TUI iteration-limit finalization transcript fixture
+- [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
+- [ ] API server multimodal content preservation
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence
 - [x] Gateway proxy mode forwarding contract
@@ -958,10 +1011,11 @@ classification and row-backed implementation queue.
 - [x] API server detailed health endpoint
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
+- [ ] API server legacy jobs routes + default toolset
 
-### 5.R — Code Execution Mode Policy ⏳
+### 5.R — Code Execution Mode Policy 🔨
 
-- [ ] Execution-mode resolver + config precedence
+- [x] Execution-mode resolver + config precedence
 - [ ] Strict-mode CWD + interpreter parity
 - [ ] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over
@@ -1038,11 +1092,11 @@ classification and row-backed implementation queue.
 
 - [x] Regex-based auto-link extraction + brain-first lookup
 
-### 6.J — Agentic Memory Lifecycle (AgeMem) ⏳
+### 6.J — Agentic Memory Lifecycle (AgeMem) ✅
 
-- [ ] Memory operations as agent-callable tools
-- [ ] Agent-controlled memory retention with importance scoring
-- [ ] Cross-session memory continuity
+- [x] Memory operations as agent-callable tools
+- [x] Agent-controlled memory retention with importance scoring
+- [x] Cross-session memory continuity
 
 ### 6.K — Self-Evolution Engine (GEPA) 🔨
 
@@ -1065,6 +1119,7 @@ classification and row-backed implementation queue.
 - [x] Inbound event normalization + session identity
 - [x] Reply/send contract on shared chassis
 - [ ] Signal transport/bootstrap layer
+- [ ] Signal markdown bodyRanges + attachment rate scheduler
 
 ### 7.B — Email + SMS Adapters ✅
 
@@ -1104,6 +1159,7 @@ classification and row-backed implementation queue.
 - [x] Yuanbao protocol envelope + markdown fixtures
 - [x] Yuanbao media/sticker attachment normalization
 - [x] Yuanbao gateway runtime + toolset registration
+- [ ] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
 
 <!-- PROGRESS:END -->

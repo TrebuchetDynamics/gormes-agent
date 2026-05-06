@@ -5,7 +5,10 @@
 // normalization, session-map persistence, and outbound routing.
 package gateway
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // EventKind is the normalized command kind on an inbound message.
 type EventKind int
@@ -58,6 +61,10 @@ const (
 	EventRetry
 	// EventUndo handles /undo (remove the last user/assistant exchange).
 	EventUndo
+	// EventGoal handles /goal state and continuation loop controls.
+	EventGoal
+	// EventTopic handles Telegram private-chat topic-mode controls.
+	EventTopic
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -107,6 +114,10 @@ func (k EventKind) String() string {
 		return "retry"
 	case EventUndo:
 		return "undo"
+	case EventGoal:
+		return "goal"
+	case EventTopic:
+		return "topic"
 	default:
 		return "unknown"
 	}
@@ -249,6 +260,7 @@ type Attachment struct {
 	MediaType string `json:"mediaType,omitempty"`
 	FileName  string `json:"fileName,omitempty"`
 	SourceID  string `json:"sourceId,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
 
@@ -276,6 +288,9 @@ func (a Attachment) submitLine() string {
 	}
 	if sourceID := strings.TrimSpace(a.SourceID); sourceID != "" {
 		meta = append(meta, "sourceId="+sourceID)
+	}
+	if a.SizeBytes > 0 {
+		meta = append(meta, "sizeBytes="+strconv.FormatInt(a.SizeBytes, 10))
 	}
 	if errText := strings.TrimSpace(a.Error); errText != "" {
 		meta = append(meta, "error="+errText)

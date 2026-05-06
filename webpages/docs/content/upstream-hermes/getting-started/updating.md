@@ -1,8 +1,9 @@
 ---
+weight: 3
 title: "Updating & Uninstalling"
 description: "How to update Hermes Agent to the latest version or uninstall it"
-weight: 3
 ---
+
 
 # Updating & Uninstalling
 
@@ -19,14 +20,38 @@ This pulls the latest code, updates dependencies, and prompts you to configure a
 > **Tip**
 > `hermes update` automatically detects new configuration options and prompts you to add them. If you skipped that prompt, you can manually run `hermes config check` to see missing options, then `hermes config migrate` to interactively add them.
 
+
 ### What happens during an update
 
 When you run `hermes update`, the following steps occur:
 
-1. **Git pull** — pulls the latest code from the `main` branch and updates submodules
-2. **Dependency install** — runs `uv pip install -e ".[all]"` to pick up new or changed dependencies
-3. **Config migration** — detects new config options added since your version and prompts you to set them
-4. **Gateway auto-restart** — if the gateway service is running (systemd on Linux, launchd on macOS), it is **automatically restarted** after the update completes so the new code takes effect immediately
+1. **Pairing-data snapshot** — a lightweight pre-update state snapshot is saved (covers `~/.hermes/pairing/`, Feishu comment rules, and other state files that get modified at runtime). Rollbackable via `hermes backup restore --state pre-update`.
+2. **Git pull** — pulls the latest code from the `main` branch and updates submodules
+3. **Dependency install** — runs `uv pip install -e ".[all]"` to pick up new or changed dependencies
+4. **Config migration** — detects new config options added since your version and prompts you to set them
+5. **Gateway auto-restart** — running gateways are refreshed after the update completes so the new code takes effect immediately. Service-managed gateways (systemd on Linux, launchd on macOS) are restarted through the service manager. Manual gateways are relaunched automatically when Hermes can map the running PID back to a profile.
+
+### Preview-only: `hermes update --check`
+
+Want to know if you're behind `origin/main` before actually pulling? Run `hermes update --check` — it fetches, prints your local commit and the latest remote commit side-by-side, and exits `0` if in sync or `1` if behind. No files are modified, no gateway is restarted. Useful in scripts and cron jobs that gate on "is there an update".
+
+### Full pre-update backup: `--backup`
+
+For high-value profiles (production gateways, shared team installs) you can opt into a full pre-pull backup of `HERMES_HOME` (config, auth, sessions, skills, pairing):
+
+```bash
+hermes update --backup
+```
+
+Or make it the default for every run:
+
+```yaml
+# ~/.hermes/config.yaml
+update:
+  backup: true
+```
+
+`--backup` was the always-on behavior in earlier builds, but it was adding minutes to every update on large homes, so it's now opt-in. The lightweight pairing-data snapshot above still runs unconditionally.
 
 Expected output looks like:
 
@@ -39,7 +64,7 @@ Already up to date.  (or: Updating abc1234..def5678)
 ✅ Dependencies updated
 🔍 Checking for new config options...
 ✅ Config is up to date  (or: Found 2 new options — running migration...)
-🔄 Restarting gateway service...
+🔄 Restarting gateways...
 ✅ Gateway restarted
 ✅ Hermes Agent updated successfully!
 ```
@@ -56,6 +81,7 @@ Already up to date.  (or: Updating abc1234..def5678)
 
 > **Warning: Dirty working tree after update**
 > If `git status --short` shows unexpected changes after `hermes update`, stop and inspect them before continuing. This usually means local modifications were reapplied on top of the updated code, or a dependency step refreshed lockfiles.
+
 
 ### If your terminal disconnects mid-update
 
@@ -88,7 +114,7 @@ You can also update directly from Telegram, Discord, Slack, or WhatsApp by sendi
 /update
 ```
 
-This pulls the latest code, updates dependencies, and restarts the gateway. The bot will briefly go offline during the restart (typically 5–15 seconds) and then resume.
+This pulls the latest code, updates dependencies, and restarts running gateways. The bot will briefly go offline during the restart (typically 5–15 seconds) and then resume.
 
 ### Manual Update
 
@@ -141,6 +167,7 @@ uv pip install -e ".[all]"
 > **Warning**
 > Rolling back may cause config incompatibilities if new options were added. Run `hermes config check` after rolling back and remove any unrecognized options from `config.yaml` if you encounter errors.
 
+
 ### Note for Nix users
 
 If you installed via Nix flake, updates are managed through the Nix package manager:
@@ -159,7 +186,7 @@ Nix installations are immutable — rollback is handled by Nix's generation syst
 nix profile rollback
 ```
 
-See [Nix Setup](../nix-setup) for more details.
+See [Nix Setup](../nix-setup/) for more details.
 
 ---
 

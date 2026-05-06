@@ -99,8 +99,11 @@ func TestCommandRegistryGoalCommandTracksHermesRegistry(t *testing.T) {
 	if !ok {
 		t.Fatal("ResolveCommandPolicy(/goal status) not found")
 	}
-	if cmd.ActiveTurnPolicy != ActiveTurnPolicyUnavailable {
-		t.Fatalf("/goal policy = %q, want %q until persistent-goal loop lands", cmd.ActiveTurnPolicy, ActiveTurnPolicyUnavailable)
+	if cmd.ActiveTurnPolicy != ActiveTurnPolicyBypass {
+		t.Fatalf("/goal policy = %q, want %q for gateway-safe status/pause/resume/clear", cmd.ActiveTurnPolicy, ActiveTurnPolicyBypass)
+	}
+	if !cmd.Ported {
+		t.Fatal("/goal Ported = false, want true after persistent-goal loop landed")
 	}
 	want := []string{"pause", "resume", "clear", "status"}
 	if len(cmd.Subcommands) != len(want) {

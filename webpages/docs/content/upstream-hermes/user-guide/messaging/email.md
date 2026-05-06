@@ -1,8 +1,9 @@
 ---
+weight: 7
 title: "Email"
 description: "Set up Hermes Agent as an email assistant via IMAP/SMTP"
-weight: 7
 ---
+
 
 # Email Setup
 
@@ -10,6 +11,7 @@ Hermes can receive and reply to emails using standard IMAP and SMTP protocols. S
 
 > **Info: No External Dependencies**
 > The Email adapter uses Python's built-in `imaplib`, `smtplib`, and `email` modules. No additional packages or external services are required.
+
 
 ---
 
@@ -143,6 +145,7 @@ Email access follows the same pattern as all other Hermes platforms:
 > **Warning**
 > **Always configure `EMAIL_ALLOWED_USERS`.** Without it, anyone who knows the agent's email address could send commands. The agent has terminal access by default.
 
+
 ---
 
 ## Troubleshooting
@@ -163,6 +166,7 @@ Email access follows the same pattern as all other Hermes platforms:
 
 > **Warning**
 > **Use a dedicated email account.** Don't use your personal email — the agent stores the password in `.env` and has full inbox access via IMAP.
+
 
 - Use **App Passwords** instead of your main password (required for Gmail with 2FA)
 - Set `EMAIL_ALLOWED_USERS` to restrict who can interact with the agent

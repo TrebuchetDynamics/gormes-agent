@@ -1,8 +1,9 @@
 ---
+weight: 1
 title: "Tips & Best Practices"
 description: "Practical advice to get the most out of Hermes Agent — prompt tips, CLI shortcuts, context files, memory, cost optimization, and security"
-weight: 1
 ---
+
 
 # Tips & Best Practices
 
@@ -61,6 +62,7 @@ Type `/` and press **Tab** to see all available commands. This includes built-in
 > **Tip**
 > Use `/verbose` to cycle through tool output display modes: **off → new → all → verbose**. The "all" mode is great for watching what the agent does; "off" is cleanest for simple Q&A.
 
+
 ## Context Files
 
 ### AGENTS.md: Your Project's Brain
@@ -79,7 +81,7 @@ Create an `AGENTS.md` in your project root with architecture decisions, coding c
 
 Want Hermes to have a stable default voice? Edit `~/.hermes/SOUL.md` (or `$HERMES_HOME/SOUL.md` if you use a custom Hermes home). Hermes now seeds a starter SOUL automatically and uses that global file as the instance-wide personality source.
 
-For a full walkthrough, see [Use SOUL.md with Hermes](../use-soul-with-hermes).
+For a full walkthrough, see [Use SOUL.md with Hermes](../use-soul-with-hermes/).
 
 ```markdown
 # Soul
@@ -101,6 +103,7 @@ Hermes loads the top-level `AGENTS.md` from the current working directory at ses
 > **Tip**
 > Keep context files focused and concise. Every character counts against your token budget since they're injected into every single message.
 
+
 ## Memory & Skills
 
 ### Memory vs. Skills: What Goes Where
@@ -121,6 +124,7 @@ After a productive session, say "remember this for next time" and the agent will
 
 > **Warning**
 > Memory is a frozen snapshot — changes made during a session don't appear in the system prompt until the next session starts. The agent writes to disk immediately, but the prompt cache isn't invalidated mid-session.
+
 
 ## Performance & Cost
 
@@ -147,6 +151,7 @@ Use `/model` to switch models mid-session. Use a frontier model (Claude Sonnet/O
 > **Tip**
 > Run `/usage` periodically to see your token consumption. Run `/insights` for a broader view of usage patterns over the last 30 days.
 
+
 ## Messaging Tips
 
 ### Set a Home Channel
@@ -167,6 +172,7 @@ Use `/verbose` to control how much tool activity you see. In messaging platforms
 
 > **Tip**
 > On messaging platforms, sessions auto-reset after idle time (default: 24 hours) or daily at 4 AM. Adjust per-platform in `~/.hermes/config.yaml` if you need longer sessions.
+
 
 ## Security
 
@@ -209,6 +215,7 @@ Hermes checks every command against a curated list of dangerous patterns before 
 
 > **Warning**
 > When running in a container backend (Docker, Singularity, Modal, Daytona), dangerous command checks are **skipped** because the container is the security boundary. Make sure your container images are properly locked down.
+
 
 ### Use Allowlists for Messaging Bots
 

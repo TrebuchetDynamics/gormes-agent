@@ -51,6 +51,7 @@ func PrepareMediaDeliveryContent(finalText string) MediaDeliveryContent {
 		out.Media = append(out.Media, OutboundMedia{
 			Path:    mediaPath,
 			AsVoice: strings.Contains(tag, "[[audio_as_voice]]"),
+			Kind:    OutboundMediaKindForPath(mediaPath),
 		})
 		out.Evidence = append(out.Evidence, MediaDeliveryEvidenceRecord{
 			Code:   MediaDeliveryEvidenceExtracted,
@@ -88,11 +89,34 @@ func cleanOutboundMediaPath(raw string) (string, bool) {
 }
 
 func supportedOutboundMediaExt(ext string) bool {
+	return outboundMediaKindForExt(ext) != ""
+}
+
+// ClassifyOutboundMedia returns the explicit media kind or infers it from the
+// local file extension for older call sites that only populated Path.
+func ClassifyOutboundMedia(media OutboundMedia) OutboundMediaKind {
+	if media.Kind != "" {
+		return media.Kind
+	}
+	return OutboundMediaKindForPath(media.Path)
+}
+
+func OutboundMediaKindForPath(path string) OutboundMediaKind {
+	return outboundMediaKindForExt(filepath.Ext(path))
+}
+
+func outboundMediaKindForExt(ext string) OutboundMediaKind {
 	switch strings.ToLower(strings.TrimSpace(ext)) {
 	case ".mp3", ".ogg", ".opus", ".wav", ".m4a", ".aac", ".flac":
-		return true
+		return OutboundMediaKindAudio
+	case ".png", ".jpg", ".jpeg", ".webp":
+		return OutboundMediaKindImage
+	case ".mp4":
+		return OutboundMediaKindVideo
+	case ".pdf", ".csv", ".txt", ".zip":
+		return OutboundMediaKindDocument
 	default:
-		return false
+		return ""
 	}
 }
 

@@ -1,8 +1,9 @@
 ---
+weight: 2
 title: "Skills System"
 description: "On-demand knowledge documents — progressive disclosure, agent-managed skills, and the Skills Hub"
-weight: 2
 ---
+
 
 # Skills System
 
@@ -14,8 +15,8 @@ You can also point Hermes at **external skill directories** — additional folde
 
 See also:
 
-- [Bundled Skills Catalog](../../../reference/skills-catalog)
-- [Official Optional Skills Catalog](../../../reference/optional-skills-catalog)
+- [Bundled Skills Catalog](../../../reference/skills-catalog/)
+- [Official Optional Skills Catalog](../../../reference/optional-skills-catalog/)
 
 ## Using Skills
 
@@ -32,7 +33,7 @@ Every installed skill is automatically available as a slash command:
 /excalidraw
 ```
 
-The bundled `plan` skill is a good example of a skill-backed slash command with custom behavior. Running `/plan [request]` tells Hermes to inspect context if needed, write a markdown implementation plan instead of executing the task, and save the result under `.hermes/plans/` relative to the active workspace/backend working directory.
+The bundled `plan` skill is a good example. Running `/plan [request]` loads the skill's instructions, telling Hermes to inspect context if needed, write a markdown implementation plan instead of executing the task, and save the result under `.hermes/plans/` relative to the active workspace/backend working directory.
 
 You can also interact with skills through natural conversation:
 
@@ -145,7 +146,7 @@ required_environment_variables:
 
 When a missing value is encountered, Hermes asks for it securely only when the skill is actually loaded in the local CLI. You can skip setup and keep using the skill. Messaging surfaces never ask for secrets in chat — they tell you to use `hermes setup` or `~/.hermes/.env` locally instead.
 
-Once set, declared env vars are **automatically passed through** to `execute_code` and `terminal` sandboxes — the skill's scripts can use `$TENOR_API_KEY` directly. For non-skill env vars, use the `terminal.env_passthrough` config option. See [Environment Variable Passthrough](../../security#environment-variable-passthrough) for details.
+Once set, declared env vars are **automatically passed through** to `execute_code` and `terminal` sandboxes — the skill's scripts can use `$TENOR_API_KEY` directly. For non-skill env vars, use the `terminal.env_passthrough` config option. See [Environment Variable Passthrough](../../security/#environment-variable-passthrough) for details.
 
 ### Skill Config Settings
 
@@ -163,7 +164,7 @@ metadata:
 
 Settings are stored under `skills.config` in your config.yaml. `hermes config migrate` prompts for unconfigured settings, and `hermes config show` displays them. When a skill loads, its resolved config values are injected into the context so the agent knows the configured values automatically.
 
-See [Skill Settings](../../configuration#skill-settings) and [Creating Skills — Config Settings](../../../developer-guide/creating-skills#config-settings-configyaml) for details.
+See [Skill Settings](../../configuration/#skill-settings) and [Creating Skills — Config Settings](../../../developer-guide/creating-skills/#config-settings-configyaml) for details.
 
 ## Skill Directory Structure
 
@@ -255,6 +256,7 @@ The agent can create, update, and delete its own skills via the `skill_manage` t
 > **Tip**
 > The `patch` action is preferred for updates — it's more token-efficient than `edit` because only the changed text appears in the tool call.
 
+
 ## Skills Hub
 
 Browse, search, install, and manage skills from online registries, `skills.sh`, direct well-known skill endpoints, and official optional skills.
@@ -272,6 +274,8 @@ hermes skills install openai/skills/k8s           # Install with security scan
 hermes skills install official/security/1password
 hermes skills install skills-sh/vercel-labs/json-render/json-render-react --force
 hermes skills install well-known:https://mintlify.com/docs/.well-known/skills/mintlify
+hermes skills install https://sharethis.chat/SKILL.md              # Direct URL (single-file SKILL.md)
+hermes skills install https://example.com/SKILL.md --name my-skill # Override name when frontmatter has none
 hermes skills list --source hub                   # List hub-installed skills
 hermes skills check                               # Check installed hub skills for upstream updates
 hermes skills update                              # Reinstall hub skills with upstream changes when needed
@@ -291,6 +295,7 @@ hermes skills tap add myorg/skills-repo           # Add a custom GitHub source
 | `official` | `official/security/1password` | Optional skills shipped with Hermes. |
 | `skills-sh` | `skills-sh/vercel-labs/agent-skills/vercel-react-best-practices` | Searchable via `hermes skills search <query> --source skills-sh`. Hermes resolves alias-style skills when the skills.sh slug differs from the repo folder. |
 | `well-known` | `well-known:https://mintlify.com/docs/.well-known/skills/mintlify` | Skills served directly from `/.well-known/skills/index.json` on a website. Search using the site or docs URL. |
+| `url` | `https://sharethis.chat/SKILL.md` | Direct HTTP(S) URL to a single-file `SKILL.md`. Name resolution: frontmatter → URL slug → interactive prompt → `--name` flag. |
 | `github` | `openai/skills/k8s` | Direct GitHub repo/path installs and custom taps. |
 | `clawhub`, `lobehub`, `claude-marketplace` | Source-specific identifiers | Community or marketplace integrations. |
 
@@ -302,7 +307,7 @@ Hermes currently integrates with these skills ecosystems and discovery sources:
 
 These are maintained in the Hermes repository itself and install with builtin trust.
 
-- Catalog: [Official Optional Skills Catalog](../../../reference/optional-skills-catalog)
+- Catalog: [Official Optional Skills Catalog](../../../reference/optional-skills-catalog/)
 - Source in repo: `optional-skills/`
 - Example:
 
@@ -383,6 +388,35 @@ Hermes can search and convert agent entries from LobeHub's public catalog into i
 - Backing repo: [lobehub/lobe-chat-agents](https://github.com/lobehub/lobe-chat-agents)
 - Hermes source id: `lobehub`
 
+#### 8. Direct URL (`url`)
+
+Install a single-file `SKILL.md` directly from any HTTP(S) URL — useful when an author hosts a skill on their own site (no hub listing, no GitHub path to type). Hermes fetches the URL, parses the YAML frontmatter, security-scans it, and installs.
+
+- Hermes source id: `url`
+- Identifier: the URL itself (no prefix needed)
+- Scope: **single-file `SKILL.md`** only. Multi-file skills with `references/` or `scripts/` need a manifest and should be published via one of the other sources above.
+
+```bash
+hermes skills install https://sharethis.chat/SKILL.md
+hermes skills install https://example.com/my-skill/SKILL.md --category productivity
+```
+
+Name resolution, in order:
+1. `name:` field in the SKILL.md YAML frontmatter (recommended — every well-formed skill has one).
+2. Parent directory name from the URL path (e.g. `.../my-skill/SKILL.md` → `my-skill`, or `.../my-skill.md` → `my-skill`), when it's a valid identifier (`^[a-z][a-z0-9_-]*$`).
+3. Interactive prompt on a terminal with a TTY.
+4. On non-interactive surfaces (the `/skills install` slash command inside the TUI, gateway platforms, scripts), a clean error pointing at the `--name` override.
+
+```bash
+# Frontmatter has no name and the URL slug is unhelpful — supply one:
+hermes skills install https://example.com/SKILL.md --name sharethis-chat
+
+# Or inside a chat session:
+/skills install https://example.com/SKILL.md --name sharethis-chat
+```
+
+Trust level is always `community` — the same security scan runs as for every other source. The URL is stored as the install identifier, so `hermes skills update` re-fetches from the same URL automatically when you want to refresh.
+
 ### Security scanning and `--force`
 
 All hub-installed skills go through a **security scanner** that checks for data exfiltration, prompt injection, destructive commands, supply-chain signals, and other threats.
@@ -430,6 +464,7 @@ This uses the stored source identifier plus the current upstream bundle content 
 > **Tip: GitHub rate limits**
 > Skills hub operations use the GitHub API, which has a rate limit of 60 requests/hour for unauthenticated users. If you see rate-limit errors during install or search, set `GITHUB_TOKEN` in your `.env` file to increase the limit to 5,000 requests/hour. The error message includes an actionable hint when this happens.
 
+
 ## Bundled skill updates (`hermes skills reset`)
 
 Hermes ships with a set of bundled skills in `skills/` inside the repo. On install and on every `hermes update`, a sync pass copies those into `~/.hermes/skills/` and records a manifest at `~/.hermes/skills/.bundled_manifest` mapping each skill name to the content hash at the time it was synced (the **origin hash**).
@@ -465,6 +500,7 @@ The same command works in chat as a slash command:
 
 > **Note: Profiles**
 > Each profile has its own `.bundled_manifest` under its own `HERMES_HOME`, so `hermes -p coder skills reset <name>` only affects that profile.
+
 
 ### Slash commands (inside chat)
 

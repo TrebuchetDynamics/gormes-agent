@@ -1,8 +1,9 @@
 ---
+weight: 8
 title: "Open WebUI"
 description: "Connect Open WebUI to Hermes Agent via the OpenAI-compatible API server"
-weight: 8
 ---
+
 
 # Open WebUI Integration
 
@@ -26,11 +27,15 @@ Open WebUI talks to Hermes server-to-server, so you do not need `API_SERVER_CORS
 
 ### 1. Enable the API server
 
-Add to `~/.hermes/.env`:
+```bash
+hermes config set API_SERVER_ENABLED true
+hermes config set API_SERVER_KEY your-secret-key
+```
+
+`hermes config set` auto-routes the flag to `config.yaml` and the secret to `~/.hermes/.env`. If the gateway is already running, restart it so the change takes effect:
 
 ```bash
-API_SERVER_ENABLED=true
-API_SERVER_KEY=your-secret-key
+hermes gateway stop && hermes gateway
 ```
 
 ### 2. Start Hermes Agent gateway
@@ -45,12 +50,25 @@ You should see:
 [API Server] API server listening on http://127.0.0.1:8642
 ```
 
-### 3. Start Open WebUI
+### 3. Verify the API server is reachable
+
+```bash
+curl -s http://127.0.0.1:8642/health
+# {"status": "ok", ...}
+
+curl -s -H "Authorization: Bearer your-secret-key" http://127.0.0.1:8642/v1/models
+# {"object":"list","data":[{"id":"hermes-agent", ...}]}
+```
+
+If `/health` fails, the gateway didn't pick up `API_SERVER_ENABLED=true` — restart it. If `/v1/models` returns `401`, your `Authorization` header doesn't match `API_SERVER_KEY`.
+
+### 4. Start Open WebUI
 
 ```bash
 docker run -d -p 3000:8080 \
   -e OPENAI_API_BASE_URL=http://host.docker.internal:8642/v1 \
   -e OPENAI_API_KEY=your-secret-key \
+  -e ENABLE_OLLAMA_API=false \
   --add-host=host.docker.internal:host-gateway \
   -v open-webui:/app/backend/data \
   --name open-webui \
@@ -58,7 +76,11 @@ docker run -d -p 3000:8080 \
   ghcr.io/open-webui/open-webui:main
 ```
 
-### 4. Open the UI
+`ENABLE_OLLAMA_API=false` suppresses the default Ollama backend, which would otherwise show up empty and clutter the model picker. Omit it if you actually have Ollama running alongside.
+
+First launch takes 15–30 seconds: Open WebUI downloads sentence-transformer embedding models (~150MB) the first time it starts. Wait for `docker logs open-webui` to settle before opening the UI.
+
+### 5. Open the UI
 
 Go to **http://localhost:3000**. Create your admin account (the first user becomes admin). You should see your agent in the model dropdown (named after your profile, or **hermes-agent** for the default profile). Start chatting!
 
@@ -77,6 +99,7 @@ services:
     environment:
       - OPENAI_API_BASE_URL=http://host.docker.internal:8642/v1
       - OPENAI_API_KEY=your-secret-key
+      - ENABLE_OLLAMA_API=false
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: always
@@ -111,6 +134,7 @@ Your agent model should now appear in the model dropdown (named after your profi
 > **Warning**
 > Environment variables only take effect on Open WebUI's **first launch**. After that, connection settings are stored in its internal database. To change them later, use the Admin UI or delete the Docker volume and start fresh.
 
+
 ## API Type: Chat Completions vs Responses
 
 Open WebUI supports two API modes when connecting to a backend:
@@ -138,6 +162,7 @@ With the Responses API, Open WebUI sends requests in the Responses format (`inpu
 > **Note**
 > Open WebUI currently manages conversation history client-side even in Responses mode — it sends the full message history in each request rather than using `previous_response_id`. The main advantage of Responses mode today is the structured event stream: text deltas, `function_call`, and `function_call_output` items arrive as OpenAI Responses SSE events instead of Chat Completions chunks.
 
+
 ## How It Works
 
 When you send a message in Open WebUI:
@@ -153,6 +178,7 @@ Your agent has access to all the same tools and capabilities as when using the C
 
 > **Tip: Tool Progress**
 > With streaming enabled (the default), you'll see brief inline indicators as tools run — the tool emoji and its key argument. These appear in the response stream before the agent's final answer, giving you visibility into what's happening behind the scenes.
+
 
 ## Configuration Reference
 
@@ -178,8 +204,9 @@ Your agent has access to all the same tools and capabilities as when using the C
 
 - **Check the URL has `/v1` suffix**: `http://host.docker.internal:8642/v1` (not just `:8642`)
 - **Verify the gateway is running**: `curl http://localhost:8642/health` should return `{"status": "ok"}`
-- **Check model listing**: `curl http://localhost:8642/v1/models` should return a list with `hermes-agent`
+- **Check model listing**: `curl -H "Authorization: Bearer your-secret-key" http://localhost:8642/v1/models` should return a list with `hermes-agent`
 - **Docker networking**: From inside Docker, `localhost` means the container, not your host. Use `host.docker.internal` or `--network=host`.
+- **Empty Ollama backend shadowing the picker**: If you omitted `ENABLE_OLLAMA_API=false`, Open WebUI shows an empty Ollama section above your Hermes models. Restart the container with `-e ENABLE_OLLAMA_API=false` or disable Ollama in **Admin Settings → Connections**.
 
 ### Connection test passes but no models load
 
@@ -195,7 +222,7 @@ Make sure your `OPENAI_API_KEY` in Open WebUI matches the `API_SERVER_KEY` in He
 
 ## Multi-User Setup with Profiles
 
-To run separate Hermes instances per user — each with their own config, memory, and skills — use [profiles](../../profiles). Each profile runs its own API server on a different port and automatically advertises the profile name as the model in Open WebUI.
+To run separate Hermes instances per user — each with their own config, memory, and skills — use [profiles](../../profiles/). Each profile runs its own API server on a different port and automatically advertises the profile name as the model in Open WebUI.
 
 ### 1. Create profiles and configure API servers
 
@@ -234,6 +261,7 @@ The model dropdown will show `alice` and `bob` as distinct models. You can assig
 > ```bash
 > hermes -p alice config set API_SERVER_MODEL_NAME "Alice's Agent"
 > ```
+
 
 ## Linux Docker (no Docker Desktop)
 

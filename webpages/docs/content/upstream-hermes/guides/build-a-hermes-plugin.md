@@ -1,8 +1,10 @@
 ---
+weight: 9
+sidebar_label: "Build a Plugin"
 title: "Build a Hermes Plugin"
 description: "Step-by-step guide to building a complete Hermes plugin with tools, hooks, data files, and skills"
-weight: 9
 ---
+
 
 # Build a Hermes Plugin
 
@@ -128,6 +130,7 @@ _SAFE_MATH = {
     "factorial": math.factorial,
 }
 
+
 def calculate(args: dict, **kwargs) -> str:
     """Evaluate a math expression safely.
 
@@ -149,17 +152,20 @@ def calculate(args: dict, **kwargs) -> str:
     except Exception as e:
         return json.dumps({"expression": expression, "error": f"Invalid: {e}"})
 
+
 # Conversion tables — values are in base units
 _LENGTH = {"m": 1, "km": 1000, "mi": 1609.34, "ft": 0.3048, "in": 0.0254, "cm": 0.01}
 _WEIGHT = {"kg": 1, "g": 0.001, "lb": 0.453592, "oz": 0.0283495}
 _DATA = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
 _TIME = {"s": 1, "ms": 0.001, "min": 60, "hr": 3600, "day": 86400}
 
+
 def _convert_temp(value, from_u, to_u):
     # Normalize to Celsius
     c = {"F": (value - 32) * 5/9, "K": value - 273.15}.get(from_u, value)
     # Convert to target
     return {"F": c * 9/5 + 32, "K": c + 273.15}.get(to_u, c)
+
 
 def unit_convert(args: dict, **kwargs) -> str:
     """Convert between units."""
@@ -220,6 +226,7 @@ def _on_post_tool_call(tool_name, args, result, task_id, **kwargs):
         _call_log.pop(0)
     logger.debug("Tool called: %s (session %s)", tool_name, task_id)
 
+
 def register(ctx):
     """Wire schemas to handlers and register hooks."""
     ctx.register_tool(name="calculate",    toolset="calculator",
@@ -236,7 +243,23 @@ def register(ctx):
 - `ctx.register_tool()` puts your tool in the registry — the model sees it immediately
 - `ctx.register_hook()` subscribes to lifecycle events
 - `ctx.register_cli_command()` registers a CLI subcommand (e.g. `hermes my-plugin <subcommand>`)
+- `ctx.register_command()` registers an in-session slash command (e.g. `/myplugin <args>` inside CLI / gateway chat) — see [Register slash commands](#register-slash-commands) below
+- `ctx.dispatch_tool(name, arguments)` — call any other tool (built-in or from another plugin) with the parent agent's context (approvals, credentials, task_id) wired up automatically. Useful from slash-command handlers that need to invoke `terminal`, `read_file`, or any other tool as if the model had called it directly.
 - If this function crashes, the plugin is disabled but Hermes continues fine
+
+**`dispatch_tool` example — a slash command that runs a tool:**
+
+```python
+def handle_scan(ctx, argstr):
+    """Implement /scan by invoking the terminal tool through the registry."""
+    result = ctx.dispatch_tool("terminal", {"command": f"find . -name '{argstr}'"})
+    return result  # returned to the caller's chat UI
+
+def register(ctx):
+    ctx.register_command("scan", handle_scan, help="Find files matching a glob")
+```
+
+The dispatched tool goes through the normal approval, redaction, and budget pipelines — it's a real tool invocation, not a shortcut around them.
 
 ## Step 6: Test it
 
@@ -342,6 +365,7 @@ skill_view("my-workflow")              # → built-in version (unchanged)
 > **Tip: Legacy pattern**
 > The old `shutil.copy2` pattern (copying a skill into `~/.hermes/skills/`) still works but creates name collision risk with built-in skills. Prefer `ctx.register_skill()` for new plugins.
 
+
 ### Gate on environment variables
 
 If your plugin needs an API key:
@@ -402,18 +426,18 @@ def register(ctx):
 
 ### Hook reference
 
-Each hook is documented in full on the **[Event Hooks reference](../../user-guide/features/hooks#plugin-hooks)** — callback signatures, parameter tables, exactly when each fires, and examples. Here's the summary:
+Each hook is documented in full on the **[Event Hooks reference](../../user-guide/features/hooks/#plugin-hooks)** — callback signatures, parameter tables, exactly when each fires, and examples. Here's the summary:
 
 | Hook | Fires when | Callback signature | Returns |
 |------|-----------|-------------------|---------|
-| [`pre_tool_call`](../../user-guide/features/hooks#pre_tool_call) | Before any tool executes | `tool_name: str, args: dict, task_id: str` | ignored |
-| [`post_tool_call`](../../user-guide/features/hooks#post_tool_call) | After any tool returns | `tool_name: str, args: dict, result: str, task_id: str` | ignored |
-| [`pre_llm_call`](../../user-guide/features/hooks#pre_llm_call) | Once per turn, before the tool-calling loop | `session_id: str, user_message: str, conversation_history: list, is_first_turn: bool, model: str, platform: str` | [context injection](#pre_llm_call-context-injection) |
-| [`post_llm_call`](../../user-guide/features/hooks#post_llm_call) | Once per turn, after the tool-calling loop (successful turns only) | `session_id: str, user_message: str, assistant_response: str, conversation_history: list, model: str, platform: str` | ignored |
-| [`on_session_start`](../../user-guide/features/hooks#on_session_start) | New session created (first turn only) | `session_id: str, model: str, platform: str` | ignored |
-| [`on_session_end`](../../user-guide/features/hooks#on_session_end) | End of every `run_conversation` call + CLI exit | `session_id: str, completed: bool, interrupted: bool, model: str, platform: str` | ignored |
-| [`on_session_finalize`](../../user-guide/features/hooks#on_session_finalize) | CLI/gateway tears down an active session | `session_id: str \| None, platform: str` | ignored |
-| [`on_session_reset`](../../user-guide/features/hooks#on_session_reset) | Gateway swaps in a new session key (`/new`, `/reset`) | `session_id: str, platform: str` | ignored |
+| [`pre_tool_call`](../../user-guide/features/hooks/#pre_tool_call) | Before any tool executes | `tool_name: str, args: dict, task_id: str` | ignored |
+| [`post_tool_call`](../../user-guide/features/hooks/#post_tool_call) | After any tool returns | `tool_name: str, args: dict, result: str, task_id: str, duration_ms: int` | ignored |
+| [`pre_llm_call`](../../user-guide/features/hooks/#pre_llm_call) | Once per turn, before the tool-calling loop | `session_id: str, user_message: str, conversation_history: list, is_first_turn: bool, model: str, platform: str` | [context injection](#pre_llm_call-context-injection) |
+| [`post_llm_call`](../../user-guide/features/hooks/#post_llm_call) | Once per turn, after the tool-calling loop (successful turns only) | `session_id: str, user_message: str, assistant_response: str, conversation_history: list, model: str, platform: str` | ignored |
+| [`on_session_start`](../../user-guide/features/hooks/#on_session_start) | New session created (first turn only) | `session_id: str, model: str, platform: str` | ignored |
+| [`on_session_end`](../../user-guide/features/hooks/#on_session_end) | End of every `run_conversation` call + CLI exit | `session_id: str, completed: bool, interrupted: bool, model: str, platform: str` | ignored |
+| [`on_session_finalize`](../../user-guide/features/hooks/#on_session_finalize) | CLI/gateway tears down an active session | `session_id: str \| None, platform: str` | ignored |
+| [`on_session_reset`](../../user-guide/features/hooks/#on_session_reset) | Gateway swaps in a new session key (`/new`, `/reset`) | `session_id: str, platform: str` | ignored |
 
 Most hooks are fire-and-forget observers — their return values are ignored. The exception is `pre_llm_call`, which can inject context into the conversation.
 
@@ -550,7 +574,7 @@ def register(ctx):
 
 After registration, users can run `hermes my-plugin status`, `hermes my-plugin config`, etc.
 
-**Memory provider plugins** use a convention-based approach instead: add a `register_cli(subparser)` function to your plugin's `cli.py` file. The memory plugin discovery system finds it automatically — no `ctx.register_cli_command()` call needed. See the [Memory Provider Plugin guide](../../developer-guide/memory-provider-plugin#adding-cli-commands) for details.
+**Memory provider plugins** use a convention-based approach instead: add a `register_cli(subparser)` function to your plugin's `cli.py` file. The memory plugin discovery system finds it automatically — no `ctx.register_cli_command()` call needed. See the [Memory Provider Plugin guide](../../developer-guide/memory-provider-plugin/#adding-cli-commands) for details.
 
 **Active-provider gating:** Memory plugin CLI commands only appear when their provider is the active `memory.provider` in config. If a user hasn't set up your provider, your CLI commands won't clutter the help output.
 
@@ -607,8 +631,9 @@ def register(ctx):
 
 > **Tip**
 > This guide covers **general plugins** (tools, hooks, slash commands, CLI commands). For specialized plugin types, see:
-> - [Memory Provider Plugins](../../developer-guide/memory-provider-plugin) — cross-session knowledge backends
-> - [Context Engine Plugins](../../developer-guide/context-engine-plugin) — alternative context management strategies
+> - [Memory Provider Plugins](../../developer-guide/memory-provider-plugin/) — cross-session knowledge backends
+> - [Context Engine Plugins](../../developer-guide/context-engine-plugin/) — alternative context management strategies
+
 
 ### Distribute via pip
 
@@ -624,6 +649,43 @@ my-plugin = "my_plugin_package"
 pip install hermes-plugin-calculator
 # Plugin auto-discovered on next hermes startup
 ```
+
+### Distribute for NixOS
+
+NixOS users can install your plugin declaratively if you provide a `pyproject.toml` with entry points:
+
+**Entry-point plugins** (recommended for distribution):
+```nix
+# User's configuration.nix
+services.hermes-agent.extraPythonPackages = [
+  (pkgs.python312Packages.buildPythonPackage {
+    pname = "my-plugin";
+    version = "1.0.0";
+    src = pkgs.fetchFromGitHub {
+      owner = "you";
+      repo = "hermes-my-plugin";
+      rev = "v1.0.0";
+      hash = "sha256-...";  # nix-prefetch-url --unpack
+    };
+    format = "pyproject";
+    build-system = [ pkgs.python312Packages.setuptools ];
+  })
+];
+```
+
+**Directory plugins** (no `pyproject.toml` needed):
+```nix
+services.hermes-agent.extraPlugins = [
+  (pkgs.fetchFromGitHub {
+    owner = "you";
+    repo = "hermes-my-plugin";
+    rev = "v1.0.0";
+    hash = "sha256-...";
+  })
+];
+```
+
+See the [Nix Setup guide](../../getting-started/nix-setup/#plugins) for complete documentation including overlay usage and collision checking.
 
 ## Common mistakes
 

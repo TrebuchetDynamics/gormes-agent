@@ -54,12 +54,12 @@ var FALModels = map[string]FALModelMetadata{
 			"enable_safety_checker": false,
 		},
 		Supports: map[string]bool{
-			"prompt":                  true,
-			"image_size":               true,
-			"num_inference_steps":      true,
-			"seed":                     true,
-			"output_format":            true,
-			"enable_safety_checker":    true,
+			"prompt":                true,
+			"image_size":            true,
+			"num_inference_steps":   true,
+			"seed":                  true,
+			"output_format":         true,
+			"enable_safety_checker": true,
 		},
 		Upscale: false,
 	},
@@ -75,24 +75,24 @@ var FALModels = map[string]FALModelMetadata{
 		},
 		Defaults: map[string]any{
 			"num_inference_steps":   50,
-			"guidance_scale":       4.5,
-			"num_images":           1,
+			"guidance_scale":        4.5,
+			"num_images":            1,
 			"output_format":         "png",
 			"enable_safety_checker": false,
-			"safety_tolerance":     "5",
-			"sync_mode":            true,
+			"safety_tolerance":      "5",
+			"sync_mode":             true,
 		},
 		Supports: map[string]bool{
-			"prompt":                  true,
-			"image_size":               true,
-			"num_inference_steps":      true,
-			"guidance_scale":           true,
-			"num_images":               true,
-			"output_format":            true,
-			"enable_safety_checker":    true,
-			"safety_tolerance":         true,
-			"sync_mode":                true,
-			"seed":                     true,
+			"prompt":                true,
+			"image_size":            true,
+			"num_inference_steps":   true,
+			"guidance_scale":        true,
+			"num_images":            true,
+			"output_format":         true,
+			"enable_safety_checker": true,
+			"safety_tolerance":      true,
+			"sync_mode":             true,
+			"seed":                  true,
 		},
 		Upscale: true,
 	},
@@ -108,20 +108,20 @@ var FALModels = map[string]FALModelMetadata{
 		},
 		Defaults: map[string]any{
 			"num_inference_steps":     8,
-			"num_images":             1,
-			"output_format":          "png",
-			"enable_safety_checker":  false,
+			"num_images":              1,
+			"output_format":           "png",
+			"enable_safety_checker":   false,
 			"enable_prompt_expansion": false,
 		},
 		Supports: map[string]bool{
 			"prompt":                  true,
-			"image_size":               true,
-			"num_inference_steps":      true,
-			"num_images":               true,
-			"seed":                     true,
-			"output_format":            true,
-			"enable_safety_checker":    true,
-			"enable_prompt_expansion":  true,
+			"image_size":              true,
+			"num_inference_steps":     true,
+			"num_images":              true,
+			"seed":                    true,
+			"output_format":           true,
+			"enable_safety_checker":   true,
+			"enable_prompt_expansion": true,
 		},
 		Upscale: false,
 	},
@@ -142,16 +142,16 @@ var FALModels = map[string]FALModelMetadata{
 			"resolution":       "1K",
 		},
 		Supports: map[string]bool{
-			"prompt":             true,
-			"aspect_ratio":       true,
-			"num_images":         true,
-			"output_format":      true,
-			"safety_tolerance":   true,
-			"seed":               true,
-			"sync_mode":          true,
-			"resolution":         true,
-			"enable_web_search":  true,
-			"limit_generations":  true,
+			"prompt":            true,
+			"aspect_ratio":      true,
+			"num_images":        true,
+			"output_format":     true,
+			"safety_tolerance":  true,
+			"seed":              true,
+			"sync_mode":         true,
+			"resolution":        true,
+			"enable_web_search": true,
+			"limit_generations": true,
 		},
 		Upscale: false,
 	},
@@ -223,8 +223,8 @@ var FALModels = map[string]FALModelMetadata{
 		},
 		Supports: map[string]bool{
 			"prompt":          true,
-			"image_size":       true,
-			"rendering_speed":  true,
+			"image_size":      true,
+			"rendering_speed": true,
 			"expand_prompt":   true,
 			"style":           true,
 			"seed":            true,
@@ -245,11 +245,11 @@ var FALModels = map[string]FALModelMetadata{
 			"enable_safety_checker": false,
 		},
 		Supports: map[string]bool{
-			"prompt":                  true,
-			"image_size":               true,
-			"enable_safety_checker":    true,
-			"colors":                   true,
-			"background_color":         true,
+			"prompt":                true,
+			"image_size":            true,
+			"enable_safety_checker": true,
+			"colors":                true,
+			"background_color":      true,
 		},
 		Upscale: false,
 	},
@@ -266,20 +266,20 @@ var FALModels = map[string]FALModelMetadata{
 		Defaults: map[string]any{
 			"num_inference_steps": 30,
 			"guidance_scale":      2.5,
-			"num_images":           1,
-			"output_format":        "png",
+			"num_images":          1,
+			"output_format":       "png",
 			"acceleration":        "regular",
 		},
 		Supports: map[string]bool{
-			"prompt":                  true,
-			"image_size":               true,
-			"num_inference_steps":      true,
-			"guidance_scale":           true,
-			"num_images":               true,
-			"output_format":            true,
-			"acceleration":             true,
-			"seed":                     true,
-			"sync_mode":                true,
+			"prompt":              true,
+			"image_size":          true,
+			"num_inference_steps": true,
+			"guidance_scale":      true,
+			"num_images":          true,
+			"output_format":       true,
+			"acceleration":        true,
+			"seed":                true,
+			"sync_mode":           true,
 		},
 		Upscale: false,
 	},
@@ -294,44 +294,48 @@ type ImageGenConfig struct {
 	FALAPIKey    string
 	Timeout      time.Duration
 	Now          func() time.Time
+	// PluginDiscovery is called once without force and, for configured provider
+	// misses, once with force before returning provider_not_registered evidence.
+	PluginDiscovery ImageGenPluginDiscovery
 }
 
 // ImageGenRequest is the public helper/tool input for image generation.
 type ImageGenRequest struct {
-	Prompt             string
-	AspectRatio        string
-	Model              string
-	OutputDir          string
-	NumImages          int
-	Seed               *int
-	NumInferenceSteps  *int
-	GuidanceScale      *float64
-	OutputFormat       *string
+	Prompt            string
+	AspectRatio       string
+	Model             string
+	OutputDir         string
+	NumImages         int
+	Seed              *int
+	NumInferenceSteps *int
+	GuidanceScale     *float64
+	OutputFormat      *string
 }
 
 // ImageGenResult is the redacted helper/tool result envelope.
 type ImageGenResult struct {
-	Success  bool                  `json:"success"`
-	ImageURL string                `json:"image_url,omitempty"`
-	FilePath string                `json:"file_path,omitempty"`
-	Provider string                `json:"provider,omitempty"`
-	Model    string                `json:"model,omitempty"`
-	Evidence ImageGenerationStatus `json:"evidence"`
-	Error    string                `json:"error,omitempty"`
+	Success     bool                  `json:"success"`
+	ImageURL    string                `json:"image_url,omitempty"`
+	FilePath    string                `json:"file_path,omitempty"`
+	Provider    string                `json:"provider,omitempty"`
+	Model       string                `json:"model,omitempty"`
+	AspectRatio string                `json:"aspect_ratio,omitempty"`
+	Evidence    ImageGenerationStatus `json:"evidence"`
+	Error       string                `json:"error,omitempty"`
 }
 
 // ImageProviderRequest is the normalized provider call input.
 type ImageProviderRequest struct {
-	Prompt             string
-	AspectRatio        string
-	SizeStyle          string
-	Size               string
-	Model              string
-	NumImages          int
-	Seed               *int
-	OutputFormat       string
-	NumInferenceSteps  *int
-	GuidanceScale      *float64
+	Prompt            string
+	AspectRatio       string
+	SizeStyle         string
+	Size              string
+	Model             string
+	NumImages         int
+	Seed              *int
+	OutputFormat      string
+	NumInferenceSteps *int
+	GuidanceScale     *float64
 }
 
 // ImageProviderResult is the provider-specific response.
@@ -340,6 +344,7 @@ type ImageProviderResult struct {
 	Width     int
 	Height    int
 	Provider  string
+	Model     string
 	MediaType string
 	Upscaled  bool
 }
@@ -354,29 +359,37 @@ type ImageGenerator interface {
 type imageGenEvidence string
 
 const (
-	imageGenEvidenceOK                  imageGenEvidence = "image_gen_ok"
-	imageGenEvidenceDisabled           imageGenEvidence = "image_gen_disabled"
-	imageGenEvidenceInvalidArguments   imageGenEvidence = "image_gen_invalid_arguments"
-	imageGenEvidenceProviderUnavailable imageGenEvidence = "image_gen_provider_unavailable"
-	imageGenEvidenceAPIError           imageGenEvidence = "image_gen_api_error"
+	imageGenEvidenceOK                    imageGenEvidence = "image_gen_ok"
+	imageGenEvidenceDisabled              imageGenEvidence = "image_gen_disabled"
+	imageGenEvidenceInvalidArguments      imageGenEvidence = "image_gen_invalid_arguments"
+	imageGenEvidenceProviderUnavailable   imageGenEvidence = "image_gen_provider_unavailable"
+	imageGenEvidenceProviderNotRegistered imageGenEvidence = "provider_not_registered"
+	imageGenEvidenceAPIError              imageGenEvidence = "image_gen_api_error"
 )
 
 // ImageGenRunner validates inputs and dispatches to injected providers.
 type ImageGenRunner struct {
-	cfg       ImageGenConfig
-	providers map[string]ImageGenerator
+	cfg      ImageGenConfig
+	registry *ImageGenProviderRegistry
 }
 
 // NewImageGenRunner creates a runner with cloned providers.
 func NewImageGenRunner(cfg ImageGenConfig, providers map[string]ImageGenerator) *ImageGenRunner {
-	cloned := make(map[string]ImageGenerator, len(providers))
+	registry := NewImageGenProviderRegistry()
 	for name, provider := range providers {
 		key := normalizeImageProviderName(name)
 		if key != "" && provider != nil {
-			cloned[key] = provider
+			_ = registry.RegisterNamed(key, provider)
 		}
 	}
-	return &ImageGenRunner{cfg: cfg, providers: cloned}
+	return NewImageGenRunnerWithRegistry(cfg, registry)
+}
+
+func NewImageGenRunnerWithRegistry(cfg ImageGenConfig, registry *ImageGenProviderRegistry) *ImageGenRunner {
+	if registry == nil {
+		registry = NewImageGenProviderRegistry()
+	}
+	return &ImageGenRunner{cfg: cfg, registry: registry}
 }
 
 // Generate produces an image from the given request.
@@ -401,14 +414,17 @@ func (r *ImageGenRunner) Generate(ctx context.Context, req ImageGenRequest) Imag
 		model = DefaultFLUXModel
 	}
 
-	providerName, provider, evidence := r.selectProvider(ctx, req)
+	providerName, provider, evidence := r.selectProvider(ctx)
 	if evidence != "" {
 		return imageGenFailure(providerName, evidence, "no image generation provider available")
 	}
 
 	meta, ok := FALModels[model]
 	if !ok {
-		return imageGenFailure(providerName, imageGenEvidenceAPIError, fmt.Sprintf("unknown model: %s", model))
+		if providerName == "fal" {
+			return imageGenFailure(providerName, imageGenEvidenceAPIError, fmt.Sprintf("unknown model: %s", model))
+		}
+		meta = FALModels[DefaultFLUXModel]
 	}
 
 	sizeStyle := meta.SizeStyle
@@ -440,36 +456,51 @@ func (r *ImageGenRunner) Generate(ctx context.Context, req ImageGenRequest) Imag
 		GuidanceScale:     req.GuidanceScale,
 	})
 	if err != nil {
-		return imageGenFailure(providerName, imageGenEvidenceAPIError, redactImageGenError(err.Error()))
+		return imageGenFailure(providerName, imageGenEvidenceAPIError, redactImageGenErrorForPrompt(err.Error(), req.Prompt))
+	}
+	resultModel := providerResult.Model
+	if resultModel == "" {
+		resultModel = model
+	}
+	resultProvider := providerResult.Provider
+	if resultProvider == "" {
+		resultProvider = providerName
 	}
 
 	return ImageGenResult{
-		Success:  true,
-		ImageURL: providerResult.ImageURL,
-		Provider: providerResult.Provider,
-		Model:    model,
-		Evidence: ImageGenerationStatusOK,
+		Success:     true,
+		ImageURL:    providerResult.ImageURL,
+		Provider:    resultProvider,
+		Model:       resultModel,
+		AspectRatio: aspectRatio,
+		Evidence:    ImageGenerationStatusOK,
 	}
 }
 
-func (r *ImageGenRunner) selectProvider(ctx context.Context, req ImageGenRequest) (string, ImageGenerator, imageGenEvidence) {
+func (r *ImageGenRunner) selectProvider(ctx context.Context) (string, ImageGenerator, imageGenEvidence) {
 	explicit := normalizeImageProviderName(r.cfg.Provider)
 	if explicit != "" && explicit != "auto" {
-		provider := r.providers[explicit]
-		if provider == nil || !provider.Available(ctx) {
-			return "", nil, imageGenEvidenceProviderUnavailable
+		if r.cfg.PluginDiscovery != nil {
+			_ = r.cfg.PluginDiscovery.EnsureImageGenProvidersDiscovered(ctx, false)
 		}
-		return explicit, provider, ""
-	}
-	if provider := r.providers["fal"]; provider != nil && provider.Available(ctx) {
-		return "fal", provider, ""
-	}
-	for name, provider := range r.providers {
-		if provider != nil && provider.Available(ctx) {
-			return name, provider, ""
+		resolved := r.registry.ResolveActive(ctx, explicit)
+		if resolved.Provider == nil && resolved.Evidence == ImageGenerationStatusProviderNotRegistered && r.cfg.PluginDiscovery != nil {
+			_ = r.cfg.PluginDiscovery.EnsureImageGenProvidersDiscovered(ctx, true)
+			resolved = r.registry.ResolveActive(ctx, explicit)
 		}
+		if resolved.Provider == nil {
+			if resolved.Evidence == ImageGenerationStatusProviderNotRegistered {
+				return resolved.Name, nil, imageGenEvidenceProviderNotRegistered
+			}
+			return resolved.Name, nil, imageGenEvidenceProviderUnavailable
+		}
+		return resolved.Name, resolved.Provider, ""
 	}
-	return "", nil, imageGenEvidenceProviderUnavailable
+	resolved := r.registry.ResolveActive(ctx, "")
+	if resolved.Provider == nil {
+		return "", nil, imageGenEvidenceProviderUnavailable
+	}
+	return resolved.Name, resolved.Provider, ""
 }
 
 func normalizeImageProviderName(provider string) string {
@@ -503,9 +534,16 @@ var imageGenSecretPatterns = []*regexp.Regexp{
 }
 
 func redactImageGenError(text string) string {
+	return redactImageGenErrorForPrompt(text, "")
+}
+
+func redactImageGenErrorForPrompt(text, prompt string) string {
 	redacted := strings.TrimSpace(text)
 	for _, pattern := range imageGenSecretPatterns {
 		redacted = pattern.ReplaceAllString(redacted, "[redacted]")
+	}
+	if prompt = strings.TrimSpace(prompt); prompt != "" {
+		redacted = strings.ReplaceAll(redacted, prompt, "[redacted_prompt]")
 	}
 	if len(redacted) > 240 {
 		redacted = redacted[:240] + "..."

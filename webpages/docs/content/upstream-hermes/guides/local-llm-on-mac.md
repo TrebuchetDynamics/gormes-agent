@@ -1,8 +1,9 @@
 ---
+weight: 2
 title: "Run Local LLMs on Mac"
 description: "Set up a local OpenAI-compatible LLM server on macOS with llama.cpp or MLX, including model selection, memory optimization, and real benchmarks on Apple Silicon"
-weight: 2
 ---
+
 
 # Run Local LLMs on Mac
 
@@ -19,6 +20,7 @@ Both expose an OpenAI-compatible `/v1/chat/completions` endpoint. Hermes works w
 
 > **Info: Apple Silicon only**
 > This guide targets Macs with Apple Silicon (M1 and later). Intel Macs will work with llama.cpp but without GPU acceleration — expect significantly slower performance.
+
 
 ---
 
@@ -65,6 +67,7 @@ huggingface-cli download unsloth/Qwen3.5-9B-GGUF Qwen3.5-9B-Q4_K_M.gguf --local-
 
 > **Tip: Gated models**
 > Some models on Hugging Face require authentication. Run `huggingface-cli login` first if you get a 401 or 404 error.
+
 
 ### Start the server
 

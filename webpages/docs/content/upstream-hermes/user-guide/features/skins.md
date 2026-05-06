@@ -1,8 +1,9 @@
 ---
+weight: 10
 title: "Skins & Themes"
 description: "Customize the Hermes CLI with built-in and user-defined skins"
-weight: 10
 ---
+
 
 # Skins & Themes
 
@@ -95,7 +96,7 @@ Text strings used throughout the CLI interface.
 | `welcome` | Welcome message shown at CLI startup | `Welcome to Hermes Agent! Type your message or /help for commands.` |
 | `goodbye` | Message shown on exit | `Goodbye! ⚕` |
 | `response_label` | Label on the response box header | ` ⚕ Hermes ` |
-| `prompt_symbol` | Symbol before the user input prompt | `❯ ` |
+| `prompt_symbol` | Symbol before the user input prompt (bare token, renderers add a trailing space) | `❯` |
 | `help_header` | Header text for the `/help` command output | `(^_^)? Available Commands` |
 
 ### Other top-level keys
@@ -167,7 +168,7 @@ branding:
   welcome: "Welcome to My Agent! Type your message or /help for commands."
   goodbye: "See you later! ⚡"
   response_label: " ⚡ My Agent "
-  prompt_symbol: "⚡ ❯ "
+  prompt_symbol: "⚡"
   help_header: "(⚡) Available Commands"
 
 tool_prefix: "┊"
@@ -257,7 +258,7 @@ npm start
 6. Click **Save** to write the skin YAML to `~/.hermes/skins/`.
 7. Click **Activate** to set it as the current skin (updates `display.skin` in `config.yaml`).
 
-Hermes Mod respects the `HERMES_HOME` environment variable, so it works with [profiles](../../profiles) too.
+Hermes Mod respects the `HERMES_HOME` environment variable, so it works with [profiles](../../profiles/) too.
 
 ## Operational notes
 

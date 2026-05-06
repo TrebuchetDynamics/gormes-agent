@@ -1,8 +1,9 @@
 ---
+weight: 10
 title: "DingTalk"
 description: "Set up Hermes Agent as a DingTalk chatbot"
-weight: 10
 ---
+
 
 # DingTalk Setup
 
@@ -67,8 +68,9 @@ pip install dingtalk-stream httpx alibabacloud-dingtalk
    - **Description**: optional
 5. After creating, navigate to **Credentials & Basic Info** to find your **Client ID** (AppKey) and **Client Secret** (AppSecret). Copy both.
 
-> **Warning**
+> **Warning: Credentials shown only once**
 > The Client Secret is only displayed once when you create the app. If you lose it, you'll need to regenerate it. Never share these credentials publicly or commit them to Git.
+
 
 ## Step 2: Enable the Robot Capability
 
@@ -78,6 +80,7 @@ pip install dingtalk-stream httpx alibabacloud-dingtalk
 
 > **Tip**
 > Stream Mode is the recommended setup. It uses a long-lived WebSocket connection initiated from your machine, so you don't need a public IP, domain name, or webhook endpoint. This works behind NAT, firewalls, and on local machines.
+
 
 ## Step 3: Find Your DingTalk User ID
 
@@ -106,6 +109,7 @@ Select **DingTalk** when prompted. The setup wizard can authorize via one of two
 > **Note: openClaw branding disclosure**
 > Because DingTalk's `verification_uri_complete` is hardcoded to the openClaw identity at the API layer, the QR currently authorizes under an `openClaw` source string until Alibaba / DingTalk-Real-AI registers a Hermes-specific template server-side. This is purely how DingTalk presents the consent screen — the bot you create is fully yours and private to your tenant.
 
+
 ### Option B: Manual Configuration
 
 Add the following to your `~/.hermes/.env` file:
@@ -120,15 +124,38 @@ DINGTALK_ALLOWED_USERS=user-id-1
 
 # Multiple allowed users (comma-separated)
 # DINGTALK_ALLOWED_USERS=user-id-1,user-id-2
+
+# Optional: group-chat gating (mirrors Slack/Telegram/Discord/WhatsApp)
+# DINGTALK_REQUIRE_MENTION=true
+# DINGTALK_FREE_RESPONSE_CHATS=cidABC==,cidDEF==
+# DINGTALK_MENTION_PATTERNS=^小马
+# DINGTALK_HOME_CHANNEL=cidXXXX==
+# DINGTALK_ALLOW_ALL_USERS=true
 ```
 
 Optional behavior settings in `~/.hermes/config.yaml`:
 
 ```yaml
 group_sessions_per_user: true
+
+gateway:
+  platforms:
+    dingtalk:
+      extra:
+        # Require @mention in groups before the bot replies (parity with Slack/Telegram/Discord).
+        # DMs ignore this — the bot always replies in 1:1 chats.
+        require_mention: true
+
+        # Per-platform allowlist. When set, only these DingTalk user IDs can interact with the bot
+        # (same semantics as DINGTALK_ALLOWED_USERS, but scoped here instead of in .env).
+        allowed_users:
+          - user-id-1
+          - user-id-2
 ```
 
 - `group_sessions_per_user: true` keeps each participant's context isolated inside shared group chats
+- `require_mention: true` prevents the bot from responding to every group message — it only answers when someone @-mentions it
+- `allowed_users` under `dingtalk.extra` is an alternative to `DINGTALK_ALLOWED_USERS`; if both are set, they're merged
 
 ### Start the Gateway
 
@@ -142,6 +169,7 @@ The bot should connect to DingTalk's Stream Mode within a few seconds. Send it a
 
 > **Tip**
 > You can run `hermes gateway` in the background or as a systemd service for persistent operation. See the deployment docs for details.
+
 
 ## Features
 
@@ -241,7 +269,8 @@ pip install dingtalk-stream httpx
 > **Warning**
 > Always set `DINGTALK_ALLOWED_USERS` to restrict who can interact with the bot. Without it, the gateway denies all users by default as a safety measure. Only add User IDs of people you trust — authorized users have full access to the agent's capabilities, including tool use and system access.
 
-For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security).
+
+For more information on securing your Hermes Agent deployment, see the [Security Guide](../../security/).
 
 ## Notes
 

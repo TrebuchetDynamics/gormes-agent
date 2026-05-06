@@ -1,10 +1,15 @@
 package discord
 
 import (
+	"context"
+	"errors"
+	"io"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+var errMockDiscordAttachmentReadUnavailable = errors.New("mock discord attachment read unavailable")
 
 type mockSession struct {
 	mu              sync.Mutex
@@ -12,6 +17,7 @@ type mockSession struct {
 	closed          bool
 	handlers        []interface{}
 	sent            []mockSent
+	complexSent     []mockComplexSent
 	edits           []mockEdit
 	reactionsAdded  []mockReaction
 	reactionsRemove []mockReaction
@@ -20,14 +26,27 @@ type mockSession struct {
 	sendErr         error
 	editErr         error
 	reactionErr     error
+	attachmentBytes map[string][]byte
+	attachmentErr   error
+	attachmentReads int
 }
 
 type mockSent struct{ ChannelID, Content, MsgID string }
+type mockComplexSent struct {
+	ChannelID string
+	MsgID     string
+	Data      *discordgo.MessageSend
+	FileNames []string
+	FileBytes [][]byte
+}
 type mockEdit struct{ ChannelID, MsgID, Content string }
 type mockReaction struct{ ChannelID, MsgID, Emoji string }
 
 func newMockSession() *mockSession {
-	return &mockSession{nextMsgID: 1000}
+	return &mockSession{
+		nextMsgID:       1000,
+		attachmentBytes: map[string][]byte{},
+	}
 }
 
 func (m *mockSession) Open() error {
@@ -63,6 +82,30 @@ func (m *mockSession) ChannelMessageSend(channelID, content string) (*discordgo.
 	return &discordgo.Message{ID: id, ChannelID: channelID, Content: content}, nil
 }
 
+func (m *mockSession) ChannelMessageSendComplex(channelID string, data *discordgo.MessageSend) (*discordgo.Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.sendErr != nil {
+		return nil, m.sendErr
+	}
+	id := nextID(&m.nextMsgID)
+	sent := mockComplexSent{ChannelID: channelID, MsgID: id, Data: data}
+	if data != nil {
+		for _, file := range data.Files {
+			if file == nil {
+				continue
+			}
+			sent.FileNames = append(sent.FileNames, file.Name)
+			if file.Reader != nil {
+				body, _ := io.ReadAll(file.Reader)
+				sent.FileBytes = append(sent.FileBytes, body)
+			}
+		}
+	}
+	m.complexSent = append(m.complexSent, sent)
+	return &discordgo.Message{ID: id, ChannelID: channelID}, nil
+}
+
 func (m *mockSession) ChannelMessageEdit(channelID, messageID, content string) (*discordgo.Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -88,6 +131,24 @@ func (m *mockSession) MessageReactionRemoveMe(channelID, messageID, emoji string
 	defer m.mu.Unlock()
 	m.reactionsRemove = append(m.reactionsRemove, mockReaction{channelID, messageID, emoji})
 	return nil
+}
+
+func (m *mockSession) ReadAttachment(_ context.Context, attachment *discordgo.MessageAttachment) ([]byte, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.attachmentReads++
+	if m.attachmentErr != nil {
+		return nil, m.attachmentErr
+	}
+	if attachment == nil {
+		return nil, errMockDiscordAttachmentReadUnavailable
+	}
+	for _, key := range []string{attachment.ID, attachment.URL, attachment.Filename} {
+		if data, ok := m.attachmentBytes[key]; ok {
+			return append([]byte(nil), data...), nil
+		}
+	}
+	return nil, errMockDiscordAttachmentReadUnavailable
 }
 
 func (m *mockSession) deliver(msg *discordgo.MessageCreate) bool {
@@ -150,6 +211,14 @@ func (m *mockSession) sentSnapshot() []mockSent {
 	return out
 }
 
+func (m *mockSession) complexSnapshot() []mockComplexSent {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]mockComplexSent, len(m.complexSent))
+	copy(out, m.complexSent)
+	return out
+}
+
 func (m *mockSession) editsSnapshot() []mockEdit {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -170,6 +239,12 @@ func (m *mockSession) closedSnapshot() bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.closed
+}
+
+func (m *mockSession) attachmentReadCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.attachmentReads
 }
 
 func nextID(n *int) string {

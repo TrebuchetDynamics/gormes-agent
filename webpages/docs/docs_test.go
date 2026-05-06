@@ -14,9 +14,13 @@ import (
 )
 
 const (
-	sourceDocsRoot  = "../../../website/docs"
 	docsContentRoot = "./content"
 )
+
+type sourceDocsRootCandidate struct {
+	label string
+	path  string
+}
 
 var (
 	bannedPatterns = []struct {
@@ -31,6 +35,12 @@ var (
 	}
 	markdownLinkPattern = regexp.MustCompile(`\[[^\]]+\]\(([^)]+)\)`)
 )
+
+var upstreamHermesSupplementPages = map[string]struct{}{
+	"upstream-hermes/good-and-bad.md":     {},
+	"upstream-hermes/gormes-takeaways.md": {},
+	"upstream-hermes/source-study.md":     {},
+}
 
 var (
 	gatewayDonorMapRequiredHeadings = []string{
@@ -140,7 +150,8 @@ var nativeDocsPages = map[string]struct{}{
 }
 
 func TestMirroredDocsCoverage(t *testing.T) {
-	sourcePaths := collectSourceDocs(t)
+	sourceRoot, sourceLabel := selectedSourceDocsRoot(t)
+	sourcePaths := collectSourceDocs(t, sourceRoot)
 	contentPaths := collectContentDocs(t)
 
 	expected := make(map[string]struct{}, len(sourcePaths))
@@ -150,22 +161,42 @@ func TestMirroredDocsCoverage(t *testing.T) {
 
 	seen := make(map[string]struct{}, len(contentPaths))
 	for _, rel := range contentPaths {
+		if !strings.HasPrefix(rel, "upstream-hermes/") {
+			continue
+		}
 		seen[rel] = struct{}{}
 	}
 
+	var missing []string
 	for rel := range expected {
 		if _, ok := seen[rel]; !ok {
-			t.Fatalf("missing mirrored path %s", rel)
+			missing = append(missing, rel)
 		}
 	}
+	sort.Strings(missing)
+
+	var unexpected []string
 	for rel := range seen {
 		if _, ok := expected[rel]; ok {
 			continue
 		}
-		if _, ok := nativeDocsPages[rel]; ok {
+		if _, ok := upstreamHermesSupplementPages[rel]; ok {
 			continue
 		}
-		t.Fatalf("unexpected content file %s", rel)
+		unexpected = append(unexpected, rel)
+	}
+	sort.Strings(unexpected)
+
+	if len(missing) > 0 || len(unexpected) > 0 {
+		t.Fatalf(
+			"mirrored docs coverage mismatch using source root %s (%s): missing %d [%s]; unexpected %d [%s]",
+			sourceLabel,
+			sourceRoot,
+			len(missing),
+			strings.Join(firstStrings(missing, 12), ", "),
+			len(unexpected),
+			strings.Join(firstStrings(unexpected, 12), ", "),
+		)
 	}
 }
 
@@ -235,8 +266,9 @@ func TestDocsInternalLinksResolve(t *testing.T) {
 				continue
 			}
 
-			for _, match := range markdownLinkPattern.FindAllStringSubmatch(line, -1) {
-				if strings.HasPrefix(strings.TrimSpace(line), "![") {
+			linkScanLine := stripInlineCodeSpans(line)
+			for _, match := range markdownLinkPattern.FindAllStringSubmatch(linkScanLine, -1) {
+				if strings.HasPrefix(strings.TrimSpace(linkScanLine), "![") {
 					continue
 				}
 				link := strings.TrimSpace(match[1])
@@ -347,12 +379,53 @@ func TestGatewayDonorMapInvariants(t *testing.T) {
 	}
 }
 
-func collectSourceDocs(t *testing.T) []string {
+func selectedSourceDocsRoot(t *testing.T) (string, string) {
 	t.Helper()
 
-	if _, err := os.Stat(sourceDocsRoot); os.IsNotExist(err) {
-		t.Skipf("upstream website docs source not present in standalone Gormes repo: %s", sourceDocsRoot)
+	repoRoot := findRepoRoot(t)
+	candidates := []sourceDocsRootCandidate{
+		{label: "./hermes-agent/website/docs", path: filepath.Join(repoRoot, "hermes-agent", "website", "docs")},
+		{label: "../hermes-agent/website/docs", path: filepath.Join(repoRoot, "..", "hermes-agent", "website", "docs")},
+		{label: "references/hermes-agent/website/docs", path: filepath.Join(repoRoot, "references", "hermes-agent", "website", "docs")},
+		{label: "../../../website/docs", path: filepath.Clean(filepath.Join("..", "..", "..", "website", "docs"))},
 	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate.path); err == nil && info.IsDir() {
+			return candidate.path, candidate.label
+		}
+	}
+
+	var labels []string
+	for _, candidate := range candidates {
+		labels = append(labels, candidate.label)
+	}
+	t.Skipf("upstream website docs source not present in standalone Gormes repo; checked %s", strings.Join(labels, ", "))
+	return "", ""
+}
+
+func findRepoRoot(t *testing.T) string {
+	t.Helper()
+
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			if _, err := os.Stat(filepath.Join(dir, "AGENTS.md")); err == nil {
+				return dir
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("could not locate repository root from %s", dir)
+		}
+		dir = parent
+	}
+}
+
+func collectSourceDocs(t *testing.T, sourceDocsRoot string) []string {
+	t.Helper()
 
 	var paths []string
 	err := filepath.WalkDir(sourceDocsRoot, func(path string, d os.DirEntry, err error) error {
@@ -367,6 +440,9 @@ func collectSourceDocs(t *testing.T) []string {
 			return err
 		}
 		if !isMirroredSourceFile(rel) {
+			return nil
+		}
+		if isExcludedUpstreamMirrorSource(rel) {
 			return nil
 		}
 		paths = append(paths, filepath.ToSlash(rel))
@@ -414,7 +490,22 @@ func isMirroredSourceFile(rel string) bool {
 	case "_category_.json", "index.md":
 		return true
 	}
-	return filepath.Ext(rel) == ".md"
+	switch filepath.Ext(rel) {
+	case ".md", ".mdx":
+		return true
+	default:
+		return false
+	}
+}
+
+func isExcludedUpstreamMirrorSource(rel string) bool {
+	switch filepath.ToSlash(rel) {
+	case "user-guide/skills/godmode.md",
+		"user-guide/skills/bundled/red-teaming/red-teaming-godmode.md":
+		return true
+	default:
+		return false
+	}
 }
 
 func mapSourceToContent(rel string) string {
@@ -430,7 +521,36 @@ func mapSourceToContent(rel string) string {
 	if strings.HasSuffix(rel, "/_category_.json") {
 		return mirrorPrefix + strings.TrimSuffix(rel, "_category_.json") + "_index.md"
 	}
+	if strings.HasSuffix(rel, ".mdx") {
+		return mirrorPrefix + strings.TrimSuffix(rel, ".mdx") + ".md"
+	}
 	return mirrorPrefix + rel
+}
+
+func firstStrings(values []string, limit int) []string {
+	if len(values) <= limit {
+		return values
+	}
+	return values[:limit]
+}
+
+func stripInlineCodeSpans(line string) string {
+	var b strings.Builder
+	b.Grow(len(line))
+	inCode := false
+	for _, r := range line {
+		if r == '`' {
+			inCode = !inCode
+			b.WriteRune(' ')
+			continue
+		}
+		if inCode {
+			b.WriteRune(' ')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func scanForHazards(t *testing.T, rel, raw string) {

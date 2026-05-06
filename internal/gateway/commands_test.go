@@ -119,7 +119,7 @@ func TestParseInboundText(t *testing.T) {
 		{name: "tts", text: "/tts speed fast", wantKind: EventTTS, wantBody: "/tts speed fast"},
 		{name: "retry immediate", text: "/retry", wantKind: EventRetry, wantBody: "/retry"},
 		{name: "undo unavailable", text: "/undo", wantKind: EventSubmit, wantBody: "/undo"},
-		{name: "goal unavailable", text: "/goal status", wantKind: EventSubmit, wantBody: "/goal status"},
+		{name: "goal", text: "/goal status", wantKind: EventGoal, wantBody: "/goal status"},
 		{name: "status", text: "/status", wantKind: EventStatus, wantBody: ""},
 		{name: "verbose", text: "/verbose", wantKind: EventVerbose, wantBody: ""},
 		{name: "unknown slash", text: "/wat", wantKind: EventUnknown, wantBody: ""},

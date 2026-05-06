@@ -1,8 +1,9 @@
 ---
+weight: 14
 title: "AWS Bedrock"
 description: "Use Hermes Agent with Amazon Bedrock — native Converse API, IAM authentication, Guardrails, and cross-region inference"
-weight: 14
 ---
+
 
 # AWS Bedrock
 
@@ -22,6 +23,7 @@ Hermes Agent supports Amazon Bedrock as a native provider using the **Converse A
 
 > **Tip: EC2 / ECS / Lambda**
 > On AWS compute, attach an IAM role with `AmazonBedrockFullAccess` and you're done. No API keys, no `.env` configuration — Hermes detects the instance role automatically.
+
 
 ## Quick Start
 
@@ -103,6 +105,7 @@ Bedrock models use **inference profile IDs** for on-demand invocation. The `herm
 
 > **Info: Cross-Region Inference**
 > Models prefixed with `us.` use cross-region inference profiles, which provide better capacity and automatic failover across AWS regions. Models prefixed with `global.` route across all available regions worldwide.
+
 
 ## Switching Models Mid-Session
 

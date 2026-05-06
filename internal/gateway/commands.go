@@ -78,6 +78,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "browser", Description: "Connect browser tools to your live Chrome via CDP", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "busy", Description: "Control what Enter does while Gormes is working", Kind: EventBusy, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "tts", Description: "Configure text-to-speech", Kind: EventTTS, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
+	{Name: "topic", Description: "Manage Telegram multi-session topics", Kind: EventTopic, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "clear", Description: "Clear screen and start a new session", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "commands", Description: "Browse all commands and skills", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "config", Description: "Show current configuration", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -86,7 +87,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "debug", Description: "Upload debug report and get shareable links", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "details", Description: "Toggle detailed activity sections", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "fast", Description: "Toggle fast mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "goal", Description: "Set a standing goal Gormes works on across turns until achieved", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "goal", Description: "Set a standing goal Gormes works on across turns until achieved", Kind: EventGoal, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "history", Description: "Show conversation history", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "image", Description: "Attach a local image file for your next prompt", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "insights", Description: "Show usage insights and analytics", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -227,7 +228,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

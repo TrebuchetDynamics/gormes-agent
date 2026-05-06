@@ -1,113 +1,65 @@
 ---
-title: "Upstream Hermes · Reference"
-weight: 300
+weight: 0
+title: "Hermes Agent Documentation"
+description: "The self-improving AI agent built by Nous Research. A built-in learning loop that creates skills from experience, improves them during use, and remembers across sessions."
+hide_table_of_contents: true
 ---
 
-# Upstream Hermes · Reference
 
-> These pages document the **Python upstream** `NousResearch/hermes-agent`. Gormes is porting these capabilities gradually — track progress in [§5 Final Purge](../building-gormes/architecture_plan/phase-5-final-purge/) of the roadmap. Features described here may or may not be shipping in Gormes today.
+# Hermes Agent
 
-The content below is preserved verbatim from the upstream docs so operators evaluating Gormes can see the full Hermes stack in context. Anything that lands in native Go graduates out of this section into [Using Gormes](../using-gormes/).
+The self-improving AI agent built by [Nous Research](https://nousresearch.com). The only agent with a built-in learning loop — it creates skills from experience, improves them during use, nudges itself to persist knowledge, and builds a deepening model of who you are across sessions.
 
-## Study Snapshot
+<div style={{display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap'}}>
+  <a href="./getting-started/installation/" style={{display: 'inline-block', padding: '0.6rem 1.2rem', backgroundColor: '#FFD700', color: '#07070d', borderRadius: '8px', fontWeight: 600, textDecoration: 'none'}}>Get Started →</a>
+  <a href="https://github.com/NousResearch/hermes-agent" style={{display: 'inline-block', padding: '0.6rem 1.2rem', border: '1px solid rgba(255,215,0,0.2)', borderRadius: '8px', textDecoration: 'none'}}>View on GitHub</a>
+</div>
 
-- Upstream studied: `/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent`
-- Upstream commit: `b288934d`
-- Gormes repo studied: `/home/xel/git/sages-openclaw/workspace-gormes/gormes-agent`
-- Date: 2026-04-27
+## What is Hermes Agent?
 
-## 2026-04-27 Security And Tooling Drift Check
+It's not a coding copilot tethered to an IDE or a chatbot wrapper around a single API. It's an **autonomous agent** that gets more capable the longer it runs. It lives wherever you put it — a $5 VPS, a GPU cluster, or serverless infrastructure (Daytona, Modal) that costs nearly nothing when idle. Talk to it from Telegram while it works on a cloud VM you never SSH into yourself. It's not tied to your laptop.
 
-Hermes `b288934d` is current in the synchronized sibling repo. Honcho remains
-at `e659b6b`; no new Goncho/Honcho memory row is
-needed from this Hermes sync, and Gormes keeps the internal `goncho` package
-name while preserving public `honcho_*` compatibility surfaces.
+## Quick Links
 
-- WhatsApp identity drift: `91512b82` and `6993e566` reject traversal-like and
-  non-ASCII identifiers before alias expansion. Gormes already avoids Hermes'
-  filesystem `lid-mapping-*` files, but now tracks a Phase 2.B.4
-  `WhatsApp ASCII identifier guard` row so the Go alias graph cannot promote
-  unsafe raw peers into session keys or outbound pairing state.
-- Hook consent drift: `e19854d8` parses `hooks_auto_accept` strictly so quoted
-  false-like strings and non-bool scalars do not authorize executable hooks.
-  Gormes now tracks this as a parser-only Phase 5.J approval/security row
-  before any native auto-accept config or CLI wiring is exposed.
-- Provider timeout drift: `16e243e0` and `366351b9` make Hermes provider timeout
-  lookup fail closed when config loading raises. Gormes has no equivalent
-  provider timeout config surface yet, so this is recorded as a future provider
-  config hardening lesson rather than a runtime row in this pass.
-- Discord tool drift: `b288934d` coerces model-provided Discord `limit`
-  arguments to integers before clamping. Gormes only has descriptor-level
-  Discord tools today, so the roadmap adds a pure Phase 5.A
-  `Discord tool limit coercion helper` before REST handlers land.
+| | |
+|---|---|
+| 🚀 **[Installation](./getting-started/installation/)** | Install in 60 seconds on Linux, macOS, or WSL2 |
+| 📖 **[Quickstart Tutorial](./getting-started/quickstart/)** | Your first conversation and key features to try |
+| 🗺️ **[Learning Path](./getting-started/learning-path/)** | Find the right docs for your experience level |
+| ⚙️ **[Configuration](./user-guide/configuration/)** | Config file, providers, models, and options |
+| 💬 **[Messaging Gateway](./user-guide/messaging/)** | Set up Telegram, Discord, Slack, or WhatsApp |
+| 🔧 **[Tools & Toolsets](./user-guide/features/tools/)** | 68 built-in tools and how to configure them |
+| 🧠 **[Memory System](./user-guide/features/memory/)** | Persistent memory that grows across sessions |
+| 📚 **[Skills System](./user-guide/features/skills/)** | Procedural memory the agent creates and reuses |
+| 🔌 **[MCP Integration](./user-guide/features/mcp/)** | Connect to MCP servers, filter their tools, and extend Hermes safely |
+| 🧭 **[Use MCP with Hermes](./guides/use-mcp-with-hermes/)** | Practical MCP setup patterns, examples, and tutorials |
+| 🎙️ **[Voice Mode](./user-guide/features/voice-mode/)** | Real-time voice interaction in CLI, Telegram, Discord, and Discord VC |
+| 🗣️ **[Use Voice Mode with Hermes](./guides/use-voice-mode-with-hermes/)** | Hands-on setup and usage patterns for Hermes voice workflows |
+| 🎭 **[Personality & SOUL.md](./user-guide/features/personality/)** | Define Hermes' default voice with a global SOUL.md |
+| 📄 **[Context Files](./user-guide/features/context-files/)** | Project context files that shape every conversation |
+| 🔒 **[Security](./user-guide/security/)** | Command approval, authorization, container isolation |
+| 💡 **[Tips & Best Practices](./guides/tips/)** | Quick wins to get the most out of Hermes |
+| 🏗️ **[Architecture](./developer-guide/architecture/)** | How it works under the hood |
+| ❓ **[FAQ & Troubleshooting](./reference/faq/)** | Common questions and solutions |
 
-## 2026-04-27 MCP And Gateway Drift Check
+## Key Features
 
-Hermes `cb51baec` was current in the synchronized sibling repo. Honcho remained
-at `e659b6b` and Gormes-owned remained at `c78c3d0`; no new Goncho/Honcho memory row
-is needed from this sync, and Gormes keeps the internal `goncho` package name
-while preserving public `honcho_*` compatibility surfaces.
+- **A closed learning loop** — Agent-curated memory with periodic nudges, autonomous skill creation, skill self-improvement during use, FTS5 cross-session recall with LLM summarization, and [Honcho](https://github.com/plastic-labs/honcho) dialectic user modeling
+- **Runs anywhere, not just your laptop** — 6 terminal backends: local, Docker, SSH, Daytona, Singularity, Modal. Daytona and Modal offer serverless persistence — your environment hibernates when idle, costing nearly nothing
+- **Lives where you do** — CLI, Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Email, SMS, DingTalk, Feishu, WeCom, BlueBubbles, Home Assistant — 15+ platforms from one gateway
+- **Built by model trainers** — Created by [Nous Research](https://nousresearch.com), the lab behind Hermes, Nomos, and Psyche. Works with [Nous Portal](https://portal.nousresearch.com), [OpenRouter](https://openrouter.ai), OpenAI, or any endpoint
+- **Scheduled automations** — Built-in cron with delivery to any platform
+- **Delegates & parallelizes** — Spawn isolated subagents for parallel workstreams. Programmatic Tool Calling via `execute_code` collapses multi-step pipelines into single inference calls
+- **Open standard skills** — Compatible with [agentskills.io](https://agentskills.io). Skills are portable, shareable, and community-contributed via the Skills Hub
+- **Full web control** — Search, extract, browse, vision, image generation, TTS
+- **MCP support** — Connect to any MCP server for extended tool capabilities
+- **Research-ready** — Batch processing, trajectory export, RL training with Atropos. Built by [Nous Research](https://nousresearch.com) — the lab behind Hermes, Nomos, and Psyche models
 
-- MCP/cron drift: `930494d6` reaps orphaned MCP stdio subprocesses only after
-  a cron tick has joined all siblings. Gormes now tracks this as a small
-  Phase 5.G row over native MCP stdio and cron seams.
-- Browser security drift: `7317d69f` treats quoted false-like config values as
-  false in SSRF guards. Gormes now tracks this as a pure Phase 5.C browser
-  safety helper before native browser provider wiring.
-- Busy steer drift: `635253b9` adds `steer` as a busy input mode. Gormes
-  already had a steering row; it is now refined to exact source refs and a
-  smaller registry/fallback write scope.
-- Telegram streaming drift: `b16f9d43` ports openclaw#72038 so long-running
-  Telegram streamed previews finalize as a fresh message after
-  `fresh_final_after_seconds` (default 60s) and best-effort delete the stale
-  preview. Gormes now tracks this as three small Phase 2.B.5 rows: a shared
-  gateway eligibility helper, a shared send/delete fallback, then Telegram
-  config + deleteMessage wiring.
-- The upstream configuration mirror now includes the
-  `streaming.fresh_final_after_seconds` field so the study docs match the
-  synchronized sibling repo.
+## For LLMs and coding agents
 
-## 2026-04-26 Drift Check
+Machine-readable entry points to this documentation:
 
-Hermes `755a2804` is current in the synchronized sibling repo. The meaningful
-post-roadmap drift is not the release-author-map commit itself; it is the
-preceding gateway/tooling fixes now represented in the Gormes plan:
+- **[`/llms.txt`](https://hermesagent.ai/llms.txt)** — curated index of every doc page with short descriptions. ~17 KB, safe to load into an LLM context.
+- **[`/llms-full.txt`](https://hermesagent.ai/llms-full.txt)** — every doc page concatenated into a single markdown file for one-shot ingestion. ~1.8 MB.
 
-- Slack ingress drift: `6087e040`, `c0d25df3`, and `f414df3a` add readable
-  rich_text quote/list extraction, link-unfurl preview text, bot-parent thread
-  context, and team-scoped thread cache keys. Gormes now tracks these as small
-  Phase 2.B.5 context/delivery rows over `internal/slack` and
-  `internal/gateway` so the completed Slack chassis subphase stays closed.
-- Home Assistant toolset drift: `4921b269` keeps `homeassistant` available for
-  cron/CLI defaults when `HASS_TOKEN` is set while leaving other default-off
-  toolsets disabled. Gormes now tracks this as a Phase 5.A toolset resolver row.
-- Shutdown/memory cleanup drift: `18beb69b`, `bf05b8f4`, and `2d86e97a` reinforce
-  the existing Gormes rule that background providers and gateway agents need
-  explicit shutdown drains. The current Gormes memory/gateway closeout rows
-  already cover the Go-native drain contract, so no new runtime row was added.
-
-## Porting Lens
-
-Because Gormes is porting Hermes to Go, this section is also the upstream capability ledger:
-
-- [Source Study](./source-study/) adds a code-grounded reading of the local upstream tree studied for Gormes architecture work.
-- [Good and Bad](./good-and-bad/) separates Hermes design moves worth keeping from coupling risks Gormes should avoid.
-- [Gormes Takeaways](./gormes-takeaways/) translates the source study into Go-native architecture decisions.
-- [Features Overview](./user-guide/features/overview/) now enumerates the full upstream feature surface and the primary method Hermes uses to implement each feature.
-- [Messaging Gateway](./user-guide/messaging/) now enumerates each adapter and the transport or SDK pattern it uses upstream.
-- [Developer Guide](./developer-guide/) now enumerates the implementation subsystems and the primary runtime method Hermes uses for each one.
-- [Reference](./reference/) now enumerates the operator and configuration surfaces that a Go port still has to expose.
-
-**Honcho is an explicit porting target in this section.** It is not just a single feature page: upstream Hermes treats Honcho as a memory-provider plugin, a dedicated `hermes honcho` command family, a provider-specific env/config surface, and a provider-owned tool surface (`honcho_profile`, `honcho_search`, `honcho_context`, `honcho_reasoning`, `honcho_conclude`).
-
-In both pages, **method used** means the dominant upstream implementation mechanism or integration pattern. It is there to help Go port planning, not to force a line-by-line Python clone.
-
-## Sections
-
-- **Source Study** - local code study for Gormes architecture decisions
-- **Guides** — task-oriented how-tos
-- **Developer Guide** — architectural deep dives
-- **Integrations** — platform-specific setup (Bedrock, voice, Telegram, …)
-- **Reference** — API/CLI material
-- **User Guide** — operator workflows
-- **Getting Started** — first-run setup (use [Using Gormes → Quickstart](../using-gormes/quickstart/) for the Go-native path)
+Both files also resolve at `/docs/llms.txt` and `/docs/llms-full.txt`. Generated fresh on every deploy.
