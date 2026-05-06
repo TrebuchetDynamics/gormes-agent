@@ -29531,10 +29531,10 @@
               ]
             },
             {
-              "name": "Gateway discover/probe command",
+              "name": "Gateway probe auth/capability HTTP closeout",
               "status": "planned",
-              "priority": "P1",
-              "contract": "Add OpenClaw-style gateway discovery/probe commands for Gormes operators: discover local/remote gateway endpoints, probe auth/health/capabilities, and return redacted structured evidence for unavailable, unauthenticated, and mismatched gateways.",
+              "priority": "P2",
+              "contract": "Close the remaining OpenClaw-style gateway probe gap after the completed TCP discover/probe slice: probe authenticated HTTP health/capabilities endpoints with redacted evidence for unavailable, unauthenticated, unsupported, and mismatched gateways.",
               "contract_status": "draft",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -29542,39 +29542,45 @@
                 "operator",
                 "gateway"
               ],
-              "degraded_mode": "Probe failures show endpoint, status code, and auth source classification without leaking bearer tokens or gateway passwords.",
-              "fixture": "cmd/gormes/gateway_discover_test.go",
+              "degraded_mode": "HTTP probe failures show endpoint, status code, and auth source classification without leaking bearer tokens, gateway passwords, or SecretRef values.",
+              "fixture": "cmd/gormes/gateway_probe_http_test.go",
               "source_refs": [
                 "../openclaw/src/cli/gateway-secret-options.ts",
                 "../openclaw/src/security/audit-gateway-auth-selection.test.ts",
+                "../openclaw/src/commands/gateway-status/probe-run.ts",
+                "internal/tools/gateway_discover.go",
                 "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_discover.go",
                 "internal/apiserver/server.go"
               ],
               "ready_when": [
-                "Gateway status and doctor endpoints are stable enough to probe without live network dependencies in tests."
+                "The base Gateway Discover and Probe row is complete, so this closeout can build on the existing `gormes gateway probe` command without duplicating TCP reachability.",
+                "Gateway status, health, and capabilities endpoints are stable enough to probe with hermetic httptest servers and fake auth sources."
               ],
               "not_ready_when": [
-                "The slice requires a live Telegram or Discord gateway to pass tests."
+                "The slice requires a live Telegram, Discord, Slack, or gateway process to pass tests.",
+                "The slice reimplements Bonjour/TCP discovery instead of layering HTTP auth/capability probes over the completed gateway_discover contract."
               ],
               "acceptance": [
-                "gormes gateway discover reports candidate local endpoints and active PID/status evidence.",
-                "gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, and malformed response.",
-                "Output redacts tokens/passwords and includes exact probe counts."
+                "gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, unsupported capability, and malformed response.",
+                "Output redacts bearer tokens, gateway passwords, and SecretRef values while preserving auth-source classification.",
+                "The completed TCP discover/probe behavior remains covered by the Gateway Discover and Probe row and is not duplicated here."
               ],
               "write_scope": [
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_discover.go",
-                "cmd/gormes/gateway_discover_test.go",
+                "cmd/gormes/gateway_probe_http_test.go",
                 "internal/apiserver/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Discover|Gateway.*Probe' -count=1",
+                "go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP|Gateway.*Capability' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Gateway discover/probe gives operators redacted connection evidence without reading source code."
-              ]
+                "Gateway HTTP probe closeout gives operators redacted auth, health, and capability evidence without reading source code or contacting live channels."
+              ],
+              "note": "2026-05-06 all-topic parity sweep: the previous `Gateway discover/probe command` row overlapped the complete `Gateway Discover and Probe` row, whose implementation covers Bonjour/TCP discovery, reachability, runtime-status merge, and usage-cost. This row now tracks only the residual authenticated HTTP health/capability probe behavior; priority lowered to P2 so it no longer outranks source-backed P1 Hermes rows."
             },
             {
               "name": "Safety-critical panic and swallowed-error closeout",
@@ -40291,9 +40297,9 @@
             {
               "name": "Hermes background review fork lifecycle",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "After turns that trigger memory or skill review, Gormes can launch a quiet background review fork that inherits the active runtime credentials, runs only memory and skills toolsets, writes to shared stores without mutating parent history, emits one attributed self-improvement summary, and always cleans up approval callbacks and memory providers",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -40340,7 +40346,7 @@
                 "TestBackgroundReviewFork_EmitsAttributedSummary proves CLI/gateway callbacks receive exactly one `Self-improvement review` summary when memory or skills were updated.",
                 "TestBackgroundReviewFork_Cleanup proves approval callbacks are auto-deny during the run, cleared after the run, and memory providers are shutdown before close."
               ],
-              "note": "Hermes v0.12.0 made the after-turn self-improvement review concrete: it forks an AIAgent with the active runtime binding, memory+skills toolsets, auto-deny approvals, parent session attribution, prompt-history isolation, and explicit `Self-improvement review` user-facing summaries. Gormes already has the toolset-restriction policy; this row wires the lifecycle without adding curator scheduling yet.",
+              "note": "Hermes v0.12.0 made the after-turn self-improvement review concrete: it forks an AIAgent with the active runtime binding, memory+skills toolsets, auto-deny approvals, parent session attribution, prompt-history isolation, and explicit `Self-improvement review` user-facing summaries. Gormes already has the toolset-restriction policy; this row wires the lifecycle without adding curator scheduling yet. Completed 2026-05-06 with RED evidence from `go test ./internal/hermes -run TestBackgroundReviewFork -count=1` failing on missing background review lifecycle types, then GREEN evidence from the focused Hermes slice and the row package commands.",
               "write_scope": [
                 "internal/hermes/background_review.go",
                 "internal/hermes/background_review_test.go",

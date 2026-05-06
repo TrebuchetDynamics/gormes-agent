@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 64/92 subphases shipped · 26 in progress · 2 planned
+**Overall:** 64/92 subphases shipped · 27 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -849,7 +849,7 @@ classification and row-backed implementation queue.
 - [x] SecretRef runtime snapshot activation
 - [x] OpenClaw security audit --deep --fix
 - [ ] ACP bridge client compatibility
-- [ ] Gateway discover/probe command
+- [ ] Gateway probe auth/capability HTTP closeout
 - [x] Safety-critical panic and swallowed-error closeout
 - [x] Session Health Monitoring
 - [x] Evidence-Before-Claims Quality Gate
@@ -1046,9 +1046,9 @@ classification and row-backed implementation queue.
 
 *Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.*
 
-### 6.A — Complexity Detector ⏳
+### 6.A — Complexity Detector 🔨
 
-- [ ] Hermes background review fork lifecycle
+- [x] Hermes background review fork lifecycle
 - [ ] Heuristic or LLM-scored signal
 
 ### 6.B — Skill Extractor ✅

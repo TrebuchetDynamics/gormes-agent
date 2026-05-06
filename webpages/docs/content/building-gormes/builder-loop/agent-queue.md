@@ -131,24 +131,24 @@ selection.
 - Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Gateway discover/probe command
+## 6. Gateway probe auth/capability HTTP closeout
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
 - Size: `small`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Add OpenClaw-style gateway discovery/probe commands for Gormes operators: discover local/remote gateway endpoints, probe auth/health/capabilities, and return redacted structured evidence for unavailable, unauthenticated, and mismatched gateways.
+- Priority: `P2`
+- Contract: Close the remaining OpenClaw-style gateway probe gap after the completed TCP discover/probe slice: probe authenticated HTTP health/capabilities endpoints with redacted evidence for unavailable, unauthenticated, unsupported, and mismatched gateways.
 - Trust class: operator, gateway
-- Ready when: Gateway status and doctor endpoints are stable enough to probe without live network dependencies in tests.
-- Not ready when: The slice requires a live Telegram or Discord gateway to pass tests.
-- Degraded mode: Probe failures show endpoint, status code, and auth source classification without leaking bearer tokens or gateway passwords.
-- Fixture: `cmd/gormes/gateway_discover_test.go`
-- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_discover.go`, `cmd/gormes/gateway_discover_test.go`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Discover\|Gateway.*Probe' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway discover/probe gives operators redacted connection evidence without reading source code.
-- Acceptance: gormes gateway discover reports candidate local endpoints and active PID/status evidence., gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, and malformed response., Output redacts tokens/passwords and includes exact probe counts.
-- Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
+- Ready when: The base Gateway Discover and Probe row is complete, so this closeout can build on the existing `gormes gateway probe` command without duplicating TCP reachability., Gateway status, health, and capabilities endpoints are stable enough to probe with hermetic httptest servers and fake auth sources.
+- Not ready when: The slice requires a live Telegram, Discord, Slack, or gateway process to pass tests., The slice reimplements Bonjour/TCP discovery instead of layering HTTP auth/capability probes over the completed gateway_discover contract.
+- Degraded mode: HTTP probe failures show endpoint, status code, and auth source classification without leaking bearer tokens, gateway passwords, or SecretRef values.
+- Fixture: `cmd/gormes/gateway_probe_http_test.go`
+- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_discover.go`, `cmd/gormes/gateway_probe_http_test.go`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP\|Gateway.*Capability' -count=1`, `go run ./cmd/progress validate`
+- Done signal: Gateway HTTP probe closeout gives operators redacted auth, health, and capability evidence without reading source code or contacting live channels.
+- Acceptance: gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, unsupported capability, and malformed response., Output redacts bearer tokens, gateway passwords, and SecretRef values while preserving auth-source classification., The completed TCP discover/probe behavior remains covered by the Gateway Discover and Probe row and is not duplicated here.
+- Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, ../openclaw/src/commands/gateway-status/probe-run.ts, internal/tools/gateway_discover.go, cmd/gormes/gateway.go, cmd/gormes/gateway_discover.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 7. Transactional tool execution with snapshot/rollback
