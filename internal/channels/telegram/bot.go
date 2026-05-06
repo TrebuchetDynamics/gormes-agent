@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -382,20 +383,91 @@ func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media 
 			return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
 		}
 	}
+	if strings.TrimSpace(media.ThreadID) != "" {
+		return b.sendMediaWithThread(id, replyID, media)
+	}
 	var msg tgbotapi.Message
-	if media.AsVoice {
-		cfg := tgbotapi.NewVoice(id, tgbotapi.FilePath(mediaPath))
+	switch gateway.ClassifyOutboundMedia(media) {
+	case gateway.OutboundMediaKindAudio:
+		if media.AsVoice {
+			cfg := tgbotapi.NewVoice(id, tgbotapi.FilePath(mediaPath))
+			cfg.ReplyToMessageID = replyID
+			msg, err = b.client.Send(cfg)
+		} else {
+			cfg := tgbotapi.NewAudio(id, tgbotapi.FilePath(mediaPath))
+			cfg.ReplyToMessageID = replyID
+			msg, err = b.client.Send(cfg)
+		}
+	case gateway.OutboundMediaKindImage:
+		cfg := tgbotapi.NewPhoto(id, tgbotapi.FilePath(mediaPath))
 		cfg.ReplyToMessageID = replyID
 		msg, err = b.client.Send(cfg)
-	} else {
-		cfg := tgbotapi.NewAudio(id, tgbotapi.FilePath(mediaPath))
+	case gateway.OutboundMediaKindDocument:
+		cfg := tgbotapi.NewDocument(id, tgbotapi.FilePath(mediaPath))
 		cfg.ReplyToMessageID = replyID
 		msg, err = b.client.Send(cfg)
+	case gateway.OutboundMediaKindVideo:
+		cfg := tgbotapi.NewVideo(id, tgbotapi.FilePath(mediaPath))
+		cfg.ReplyToMessageID = replyID
+		msg, err = b.client.Send(cfg)
+	default:
+		return "", fmt.Errorf("telegram: unsupported media type")
 	}
 	if err != nil {
 		return "", err
 	}
 	return strconv.Itoa(msg.MessageID), nil
+}
+
+func (b *Bot) sendMediaWithThread(chatID int64, replyID int, media gateway.OutboundMedia) (string, error) {
+	threadID, err := strconv.Atoi(strings.TrimSpace(media.ThreadID))
+	if err != nil {
+		return "", fmt.Errorf("telegram: invalid thread ID %q: %w", media.ThreadID, err)
+	}
+	mediaPath := strings.TrimSpace(media.Path)
+	endpoint, field, err := telegramMediaUploadEndpoint(media)
+	if err != nil {
+		return "", err
+	}
+	params := tgbotapi.Params{}
+	params.AddNonZero64("chat_id", chatID)
+	params.AddNonZero("reply_to_message_id", replyID)
+	params.AddNonZero("message_thread_id", threadID)
+	if gateway.ClassifyOutboundMedia(media) == gateway.OutboundMediaKindVideo {
+		params.AddBool("supports_streaming", true)
+	}
+	resp, err := b.client.UploadFiles(endpoint, params, []tgbotapi.RequestFile{{
+		Name: field,
+		Data: tgbotapi.FilePath(mediaPath),
+	}})
+	if err != nil {
+		return "", err
+	}
+	var msg tgbotapi.Message
+	if resp != nil && len(resp.Result) > 0 {
+		if err := json.Unmarshal(resp.Result, &msg); err != nil {
+			return "", err
+		}
+	}
+	return strconv.Itoa(msg.MessageID), nil
+}
+
+func telegramMediaUploadEndpoint(media gateway.OutboundMedia) (endpoint, field string, err error) {
+	switch gateway.ClassifyOutboundMedia(media) {
+	case gateway.OutboundMediaKindAudio:
+		if media.AsVoice {
+			return "sendVoice", "voice", nil
+		}
+		return "sendAudio", "audio", nil
+	case gateway.OutboundMediaKindImage:
+		return "sendPhoto", "photo", nil
+	case gateway.OutboundMediaKindDocument:
+		return "sendDocument", "document", nil
+	case gateway.OutboundMediaKindVideo:
+		return "sendVideo", "video", nil
+	default:
+		return "", "", fmt.Errorf("telegram: unsupported media type")
+	}
 }
 
 func (b *Bot) SendPlaceholder(ctx context.Context, chatID string) (string, error) {

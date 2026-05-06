@@ -1,6 +1,9 @@
 package gateway
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestHookAutoAcceptParser_BoolValues(t *testing.T) {
 	tests := []struct {
@@ -106,6 +109,56 @@ func TestHookAutoAcceptParser_EnvEvidence(t *testing.T) {
 	})
 
 	assertHookAutoAcceptDecision(t, got, true, hookAutoAcceptAcceptedByEnv)
+}
+
+func TestGatewayApprovalChoiceParser(t *testing.T) {
+	tests := []struct {
+		value string
+		want  ApprovalChoice
+		ok    bool
+	}{
+		{value: "once", want: ApprovalChoiceOnce, ok: true},
+		{value: " SESSION ", want: ApprovalChoiceSession, ok: true},
+		{value: "always", want: ApprovalChoiceAlways, ok: true},
+		{value: "deny", want: ApprovalChoiceDeny, ok: true},
+		{value: "approved", ok: false},
+		{value: "", ok: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			got, ok := ParseApprovalChoice(tt.value)
+			if ok != tt.ok {
+				t.Fatalf("ok = %v, want %v", ok, tt.ok)
+			}
+			if got != tt.want {
+				t.Fatalf("choice = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGatewayApprovalResolverFunc(t *testing.T) {
+	var got ApprovalResolution
+	resolver := ApprovalResolverFunc(func(_ context.Context, res ApprovalResolution) error {
+		got = res
+		return nil
+	})
+
+	err := resolver.ResolveGatewayApproval(context.Background(), ApprovalResolution{
+		SessionKey: "slack:C123:sess-1",
+		Choice:     ApprovalChoiceOnce,
+		Platform:   "slack",
+		ChatID:     "C123",
+		MessageID:  "1711111111.000100",
+		ActorID:    "U42",
+	})
+	if err != nil {
+		t.Fatalf("ResolveGatewayApproval: %v", err)
+	}
+	if got.SessionKey != "slack:C123:sess-1" || got.Choice != ApprovalChoiceOnce || got.Platform != "slack" {
+		t.Fatalf("resolution = %+v, want Slack once resolution", got)
+	}
 }
 
 func assertHookAutoAcceptDecision(t *testing.T, got hookAutoAcceptDecision, wantAccept bool, wantCode hookAutoAcceptEvidence) {

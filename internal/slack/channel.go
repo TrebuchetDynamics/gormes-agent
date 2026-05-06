@@ -2,6 +2,7 @@ package slack
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -21,7 +22,10 @@ type Channel struct {
 	threadContext   *ThreadContextCache
 }
 
-var _ gateway.Channel = (*Channel)(nil)
+var (
+	_ gateway.Channel     = (*Channel)(nil)
+	_ gateway.MediaSender = (*Channel)(nil)
+)
 
 func NewChannel(client Client, log *slog.Logger) *Channel {
 	if log == nil {
@@ -111,6 +115,21 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 
 func (c *Channel) Send(ctx context.Context, chatID, text string) (string, error) {
 	return c.client.PostMessage(ctx, chatID, c.threadForChannel(chatID), text)
+}
+
+func (c *Channel) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
+	mediaPath := strings.TrimSpace(media.Path)
+	if mediaPath == "" {
+		return "", fmt.Errorf("slack: media path is required")
+	}
+	threadTS := strings.TrimSpace(media.ThreadID)
+	if threadTS == "" {
+		threadTS = strings.TrimSpace(replyToMsgID)
+	}
+	if threadTS == "" {
+		threadTS = c.threadForChannel(chatID)
+	}
+	return c.client.UploadFile(ctx, chatID, threadTS, mediaPath)
 }
 
 func (c *Channel) rememberThread(channelID, threadTS string) {

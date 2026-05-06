@@ -3,6 +3,7 @@ package slack
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ type Config struct {
 	ReplyInThread    bool
 	CoalesceMs       int
 	SessionMap       session.Map
+	ApprovalResolver gateway.ApprovalResolver
 }
 
 type Bot struct {
@@ -32,6 +34,9 @@ type Bot struct {
 	nextTicket uint64
 	reserved   *reservedTurn
 	current    *turnBinding
+
+	approvalResolved map[string]bool
+	approvalBlocks   map[string][]SlackBlock
 }
 
 type reservedTurn struct {
@@ -55,7 +60,14 @@ func New(cfg Config, client Client, k *kernel.Kernel, log *slog.Logger) *Bot {
 	if cfg.CoalesceMs <= 0 {
 		cfg.CoalesceMs = 1000
 	}
-	return &Bot{cfg: cfg, client: client, kernel: k, log: log}
+	return &Bot{
+		cfg:              cfg,
+		client:           client,
+		kernel:           k,
+		log:              log,
+		approvalResolved: map[string]bool{},
+		approvalBlocks:   map[string][]SlackBlock{},
+	}
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -94,6 +106,13 @@ func (b *Bot) Run(ctx context.Context) error {
 func (b *Bot) handleEvent(ctx context.Context, e Event) {
 	if err := b.client.Ack(e.RequestID); err != nil {
 		b.log.Warn("slack ack failed", "request_id", e.RequestID, "err", err)
+		return
+	}
+
+	if e.ApprovalAction != nil {
+		if err := b.handleApprovalAction(ctx, e); err != nil {
+			b.log.Warn("slack approval action failed", "request_id", e.RequestID, "err", err)
+		}
 		return
 	}
 
@@ -333,17 +352,48 @@ func (b *Bot) deliverCurrent(ctx context.Context, text string) error {
 	return b.deliverBinding(ctx, binding, text)
 }
 
+func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
+	mediaPath := strings.TrimSpace(media.Path)
+	if mediaPath == "" {
+		return "", fmt.Errorf("slack: media path is required")
+	}
+	threadTS := strings.TrimSpace(media.ThreadID)
+	if threadTS == "" {
+		threadTS = strings.TrimSpace(replyToMsgID)
+	}
+	return b.client.UploadFile(ctx, chatID, threadTS, mediaPath)
+}
+
 func (b *Bot) deliverBinding(ctx context.Context, binding turnBinding, text string) error {
 	if binding.channelID == "" {
 		return nil
 	}
+	content := gateway.PrepareMediaDeliveryContent(text)
+	deliveryText := content.Text
+	if strings.TrimSpace(deliveryText) == "" && len(content.Media) > 0 {
+		deliveryText = "Media attached."
+	}
 	if binding.placeholderTS != "" {
-		if err := b.client.UpdateMessage(ctx, binding.channelID, binding.placeholderTS, text); err == nil {
-			return nil
+		if err := b.client.UpdateMessage(ctx, binding.channelID, binding.placeholderTS, deliveryText); err == nil {
+			return b.deliverBindingMedia(ctx, binding, content.Media)
 		}
 	}
-	_, err := b.client.PostMessage(ctx, binding.channelID, binding.threadTS, text)
-	return err
+	if _, err := b.client.PostMessage(ctx, binding.channelID, binding.threadTS, deliveryText); err != nil {
+		return err
+	}
+	return b.deliverBindingMedia(ctx, binding, content.Media)
+}
+
+func (b *Bot) deliverBindingMedia(ctx context.Context, binding turnBinding, media []gateway.OutboundMedia) error {
+	for _, item := range media {
+		if item.ThreadID == "" {
+			item.ThreadID = binding.threadTS
+		}
+		if _, err := b.SendMedia(ctx, binding.channelID, "", item); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (b *Bot) placeholderTS() string {

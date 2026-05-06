@@ -23,11 +23,23 @@ type ReplySender interface {
 	SendReply(ctx context.Context, chatID, replyToMsgID, text string) (msgID string, err error)
 }
 
+// OutboundMediaKind classifies local files for native platform send paths.
+type OutboundMediaKind string
+
+const (
+	OutboundMediaKindAudio    OutboundMediaKind = "audio"
+	OutboundMediaKindDocument OutboundMediaKind = "document"
+	OutboundMediaKindImage    OutboundMediaKind = "image"
+	OutboundMediaKindVideo    OutboundMediaKind = "video"
+)
+
 // OutboundMedia is a local file that should be delivered through a platform's
 // native media path instead of being shown as a raw MEDIA tag in assistant text.
 type OutboundMedia struct {
-	Path    string
-	AsVoice bool
+	Path     string
+	AsVoice  bool
+	Kind     OutboundMediaKind
+	ThreadID string
 }
 
 // MediaSender is implemented by channels that can send local files as native

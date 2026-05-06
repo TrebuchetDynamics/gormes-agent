@@ -43,6 +43,10 @@ func (r *realClient) Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error
 	return r.api.Request(c)
 }
 
+func (r *realClient) UploadFiles(endpoint string, params tgbotapi.Params, files []tgbotapi.RequestFile) (*tgbotapi.APIResponse, error) {
+	return r.api.UploadFiles(endpoint, params, files)
+}
+
 func (r *realClient) DeleteMessage(chatID int64, messageID int) error {
 	_, err := r.api.Request(tgbotapi.NewDeleteMessage(chatID, messageID))
 	return err

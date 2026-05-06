@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -20,6 +23,12 @@ const (
 type Config struct {
 	AllowedChannelID  string
 	FirstRunDiscovery bool
+	// AttachmentCacheDir stores Discord attachment downloads before the gateway
+	// sees local attachment descriptors. Empty uses the user cache dir.
+	AttachmentCacheDir string
+	// AttachmentHTTPClient fetches SSRF-gated URL fallbacks in tests and
+	// production. Empty uses a bounded default client.
+	AttachmentHTTPClient *http.Client
 }
 
 type Bot struct {
@@ -45,6 +54,7 @@ var (
 	_ gateway.Channel            = (*Bot)(nil)
 	_ gateway.DisconnectCapable  = (*Bot)(nil)
 	_ gateway.MessageEditor      = (*Bot)(nil)
+	_ gateway.MediaSender        = (*Bot)(nil)
 	_ gateway.PlaceholderCapable = (*Bot)(nil)
 	_ gateway.ReactionCapable    = (*Bot)(nil)
 )
@@ -116,7 +126,7 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 		if m.Author == nil || m.Author.Bot {
 			return
 		}
-		ev, ok := b.toInboundEvent(m.Message)
+		ev, ok := b.toInboundEventWithContext(ctx, m.Message)
 		if !ok {
 			return
 		}
@@ -138,7 +148,14 @@ func (b *Bot) Disconnect(context.Context) error {
 }
 
 func (b *Bot) toInboundEvent(m *discordgo.Message) (gateway.InboundEvent, bool) {
-	text := strings.TrimSpace(m.Content)
+	return b.toInboundEventWithContext(context.Background(), m)
+}
+
+func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Message) (gateway.InboundEvent, bool) {
+	text, attachments := b.discordInboundTextAndAttachments(ctx, m)
+	if strings.TrimSpace(text) == "" && len(attachments) == 0 {
+		return gateway.InboundEvent{}, false
+	}
 	kind, body := gateway.ParseInboundText(text)
 
 	userID := ""
@@ -172,6 +189,7 @@ func (b *Bot) toInboundEvent(m *discordgo.Message) (gateway.InboundEvent, bool) 
 		MessageID:    messageID,
 		Kind:         kind,
 		Text:         body,
+		Attachments:  attachments,
 	}, true
 }
 
@@ -247,6 +265,42 @@ func (b *Bot) Send(_ context.Context, chatID, text string) (string, error) {
 	msg, err := b.session.ChannelMessageSend(chatID, text)
 	if err != nil {
 		return "", fmt.Errorf("discord: send: %w", err)
+	}
+	return msg.ID, nil
+}
+
+func (b *Bot) SendMedia(_ context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
+	mediaPath := strings.TrimSpace(media.Path)
+	if mediaPath == "" {
+		return "", fmt.Errorf("discord: media path is required")
+	}
+	file, err := os.Open(mediaPath)
+	if err != nil {
+		return "", fmt.Errorf("discord: media unavailable")
+	}
+	defer file.Close()
+
+	targetChannelID := strings.TrimSpace(media.ThreadID)
+	if targetChannelID == "" {
+		targetChannelID = strings.TrimSpace(chatID)
+	}
+	data := &discordgo.MessageSend{
+		Files: []*discordgo.File{{
+			Name:   filepath.Base(mediaPath),
+			Reader: file,
+		}},
+	}
+	if replyToMsgID = strings.TrimSpace(replyToMsgID); replyToMsgID != "" {
+		failIfMissing := false
+		data.Reference = &discordgo.MessageReference{
+			MessageID:       replyToMsgID,
+			ChannelID:       targetChannelID,
+			FailIfNotExists: &failIfMissing,
+		}
+	}
+	msg, err := b.session.ChannelMessageSendComplex(targetChannelID, data)
+	if err != nil {
+		return "", fmt.Errorf("discord: send media: %w", err)
 	}
 	return msg.ID, nil
 }

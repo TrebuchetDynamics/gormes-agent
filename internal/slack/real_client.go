@@ -2,6 +2,10 @@ package slack
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -108,9 +112,67 @@ func (c *realClient) PostMessage(ctx context.Context, channelID, threadTS, text 
 	return ts, nil
 }
 
+func (c *realClient) PostBlockMessage(ctx context.Context, channelID, threadTS, text string, blocks []SlackBlock) (string, error) {
+	apiBlocks, err := slackBlocksToAPI(blocks)
+	if err != nil {
+		return "", err
+	}
+	opts := []slackapi.MsgOption{
+		slackapi.MsgOptionText(text, false),
+		slackapi.MsgOptionBlocks(apiBlocks...),
+	}
+	if threadTS != "" {
+		opts = append(opts, slackapi.MsgOptionTS(threadTS))
+	}
+	_, ts, err := c.api.PostMessageContext(ctx, channelID, opts...)
+	if err != nil {
+		return "", err
+	}
+	return ts, nil
+}
+
 func (c *realClient) UpdateMessage(ctx context.Context, channelID, ts, text string) error {
 	_, _, _, err := c.api.UpdateMessageContext(ctx, channelID, ts, slackapi.MsgOptionText(text, false))
 	return err
+}
+
+func (c *realClient) UpdateBlockMessage(ctx context.Context, channelID, ts, text string, blocks []SlackBlock) error {
+	apiBlocks, err := slackBlocksToAPI(blocks)
+	if err != nil {
+		return err
+	}
+	_, _, _, err = c.api.UpdateMessageContext(
+		ctx,
+		channelID,
+		ts,
+		slackapi.MsgOptionText(text, false),
+		slackapi.MsgOptionBlocks(apiBlocks...),
+	)
+	return err
+}
+
+func (c *realClient) UploadFile(ctx context.Context, channelID, threadTS, filePath string) (string, error) {
+	mediaPath := strings.TrimSpace(filePath)
+	if mediaPath == "" {
+		return "", fmt.Errorf("slack: media path is required")
+	}
+	if _, err := os.Stat(mediaPath); err != nil {
+		return "", fmt.Errorf("slack: media unavailable")
+	}
+	file, err := c.api.UploadFileContext(ctx, slackapi.UploadFileParameters{
+		File:            mediaPath,
+		Filename:        filepath.Base(mediaPath),
+		Title:           filepath.Base(mediaPath),
+		Channel:         channelID,
+		ThreadTimestamp: threadTS,
+	})
+	if err != nil {
+		return "", err
+	}
+	if file == nil {
+		return "", nil
+	}
+	return file.ID, nil
 }
 
 func (c *realClient) handleSocketEvent(evt socketmode.Event, fn func(Event)) {
@@ -120,7 +182,7 @@ func (c *realClient) handleSocketEvent(evt socketmode.Event, fn func(Event)) {
 	case socketmode.EventTypeSlashCommand:
 		c.handleSlashCommand(evt, fn)
 	case socketmode.EventTypeInteractive:
-		_ = c.autoAck(evt.Request)
+		c.handleInteractive(evt, fn)
 	}
 }
 
@@ -188,9 +250,95 @@ func (c *realClient) handleSlashCommand(evt socketmode.Event, fn func(Event)) {
 	})
 }
 
+func (c *realClient) handleInteractive(evt socketmode.Event, fn func(Event)) {
+	if evt.Request == nil {
+		return
+	}
+
+	callback, ok := evt.Data.(slackapi.InteractionCallback)
+	if !ok {
+		_ = c.autoAck(evt.Request)
+		return
+	}
+	action := firstSlackApprovalBlockAction(callback)
+	if action == nil || fn == nil {
+		_ = c.autoAck(evt.Request)
+		return
+	}
+
+	requestID := evt.Request.EnvelopeID
+	c.mu.Lock()
+	c.pending[requestID] = *evt.Request
+	c.mu.Unlock()
+
+	channelID := firstNonEmpty(callback.Channel.ID, callback.Container.ChannelID)
+	messageTS := firstNonEmpty(callback.Message.Timestamp, callback.MessageTs, callback.Container.MessageTs)
+	userName := firstNonEmpty(callback.User.Name, callback.User.ID)
+	fn(Event{
+		RequestID: requestID,
+		ChannelID: channelID,
+		TeamID:    callback.Team.ID,
+		UserID:    callback.User.ID,
+		Timestamp: messageTS,
+		ThreadTS:  callback.Container.ThreadTs,
+		ApprovalAction: &ApprovalAction{
+			ActionID:   action.ActionID,
+			SessionKey: action.Value,
+			MessageTS:  messageTS,
+			ChannelID:  channelID,
+			UserID:     callback.User.ID,
+			UserName:   userName,
+		},
+	})
+}
+
+func firstSlackApprovalBlockAction(callback slackapi.InteractionCallback) *slackapi.BlockAction {
+	if callback.Type != slackapi.InteractionTypeBlockActions {
+		return nil
+	}
+	for _, action := range callback.ActionCallback.BlockActions {
+		if action != nil && isSlackApprovalAction(action.ActionID) {
+			return action
+		}
+	}
+	return nil
+}
+
 func (c *realClient) autoAck(req *socketmode.Request) error {
 	if req == nil {
 		return nil
 	}
 	return c.ackFn(*req)
+}
+
+type rawSlackAPIBlock SlackBlock
+
+func (b rawSlackAPIBlock) BlockType() slackapi.MessageBlockType {
+	block := SlackBlock(b)
+	blockType, _ := block["type"].(string)
+	return slackapi.MessageBlockType(blockType)
+}
+
+func (b rawSlackAPIBlock) ID() string {
+	block := SlackBlock(b)
+	blockID, _ := block["block_id"].(string)
+	return blockID
+}
+
+func (b rawSlackAPIBlock) MarshalJSON() ([]byte, error) {
+	return json.Marshal(SlackBlock(b))
+}
+
+func slackBlocksToAPI(blocks []SlackBlock) ([]slackapi.Block, error) {
+	if blocks == nil {
+		return nil, nil
+	}
+	out := make([]slackapi.Block, 0, len(blocks))
+	for _, block := range blocks {
+		if _, err := json.Marshal(block); err != nil {
+			return nil, err
+		}
+		out = append(out, rawSlackAPIBlock(block))
+	}
+	return out, nil
 }

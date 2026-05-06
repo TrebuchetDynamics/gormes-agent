@@ -25,6 +25,10 @@ type telegramClient interface {
 	// Request sends non-message Telegram API requests such as setMyCommands.
 	Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
 
+	// UploadFiles sends a Telegram file endpoint with explicit params. It is
+	// used for Bot API fields not exposed by this SDK version's config structs.
+	UploadFiles(endpoint string, params tgbotapi.Params, files []tgbotapi.RequestFile) (*tgbotapi.APIResponse, error)
+
 	// DeleteMessage removes a bot-posted message through the Bot API
 	// deleteMessage request path.
 	DeleteMessage(chatID int64, messageID int) error

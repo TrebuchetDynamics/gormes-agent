@@ -2,7 +2,9 @@ package telegram
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,18 +17,27 @@ type mockClient struct {
 	mu        sync.Mutex
 	sent      []tgbotapi.Chattable
 	requests  []tgbotapi.Chattable
+	uploads   []mockUpload
 	deleted   []tgbotapi.Chattable
 	nextMsgID int
 	stopped   bool
 
 	SendFn          func(c tgbotapi.Chattable) (tgbotapi.Message, error)
 	RequestFn       func(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error)
+	UploadFilesFn   func(endpoint string, params tgbotapi.Params, files []tgbotapi.RequestFile) (*tgbotapi.APIResponse, error)
 	DeleteMessageFn func(chatID int64, messageID int) error
 	telegramFiles   map[string]tgbotapi.File
 	downloads       map[string][]byte
 	downloadCalls   int
 	getFileErr      error
 	downloadErr     error
+}
+
+type mockUpload struct {
+	Endpoint string
+	Params   tgbotapi.Params
+	Files    []tgbotapi.RequestFile
+	MsgID    int
 }
 
 var _ telegramClient = (*mockClient)(nil)
@@ -65,6 +76,28 @@ func (m *mockClient) Request(c tgbotapi.Chattable) (*tgbotapi.APIResponse, error
 		return m.RequestFn(c)
 	}
 	return &tgbotapi.APIResponse{Ok: true}, nil
+}
+
+func (m *mockClient) UploadFiles(endpoint string, params tgbotapi.Params, files []tgbotapi.RequestFile) (*tgbotapi.APIResponse, error) {
+	m.mu.Lock()
+	id := m.nextMsgID
+	m.nextMsgID++
+	copiedParams := make(tgbotapi.Params, len(params))
+	for k, v := range params {
+		copiedParams[k] = v
+	}
+	copiedFiles := append([]tgbotapi.RequestFile(nil), files...)
+	m.uploads = append(m.uploads, mockUpload{Endpoint: endpoint, Params: copiedParams, Files: copiedFiles, MsgID: id})
+	m.mu.Unlock()
+
+	if m.UploadFilesFn != nil {
+		return m.UploadFilesFn(endpoint, params, files)
+	}
+	result, err := json.Marshal(tgbotapi.Message{MessageID: id})
+	if err != nil {
+		return nil, fmt.Errorf("marshal telegram mock upload response: %w", err)
+	}
+	return &tgbotapi.APIResponse{Ok: true, Result: result}, nil
 }
 
 func (m *mockClient) DeleteMessage(chatID int64, messageID int) error {
@@ -212,6 +245,14 @@ func (m *mockClient) requestMessages() []tgbotapi.Chattable {
 	defer m.mu.Unlock()
 	out := make([]tgbotapi.Chattable, len(m.requests))
 	copy(out, m.requests)
+	return out
+}
+
+func (m *mockClient) uploadRequests() []mockUpload {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]mockUpload, len(m.uploads))
+	copy(out, m.uploads)
 	return out
 }
 

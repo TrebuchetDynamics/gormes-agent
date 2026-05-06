@@ -1308,6 +1308,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	platform := m.turnPlatform
 	chatID := m.turnChatID
 	msgID := m.turnMsgID
+	threadID := strings.TrimSpace(m.turnSource.ThreadID)
 	replyToMsgID := m.replyTargetForTurn(msgID)
 	sessionID := m.turnSessionID
 	lastUserText := m.turnLastUserText
@@ -1332,7 +1333,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	m.dispatchToolProgress(ctx, ch, platform, chatID, f)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
-		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
+		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID, threadID) {
 			if f.Phase == kernel.PhaseIdle {
 				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 				m.handleGoalPostTurnContinuation(ctx, ch, f)
@@ -1354,7 +1355,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		} else {
 			m.sendFinalPages(ctx, ch, chatID, "", finalPages)
 		}
-		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, threadID, media)
 		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 		m.maybeSendVerboseHint(ctx, ch, platform, chatID, f)
 		m.clearToolProgress()
@@ -1445,12 +1446,12 @@ func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform
 	m.toolProgressMu.Unlock()
 }
 
-func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID string) bool {
+func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFrame, chatID, replyToMsgID, threadID string) bool {
 	switch f.Phase {
 	case kernel.PhaseIdle:
 		finalPages, media := m.formatFinalDeliveryPages(ch.Name(), f)
 		m.sendFinalPages(ctx, ch, chatID, replyToMsgID, finalPages)
-		m.deliverMedia(ctx, ch, chatID, replyToMsgID, media)
+		m.deliverMedia(ctx, ch, chatID, replyToMsgID, threadID, media)
 		return true
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatError(ch.Name(), f))
@@ -1988,7 +1989,7 @@ func (m *Manager) formatFinalDelivery(platform string, f kernel.RenderFrame) (st
 	content := PrepareMediaDeliveryContent(FinalAssistantText(f))
 	text := content.Text
 	if strings.TrimSpace(text) == "" && len(content.Media) > 0 {
-		text = "Audio attached."
+		text = "Media attached."
 	}
 	if platform == "telegram" {
 		return FormatFinalTelegramText(text), content.Media
@@ -2004,7 +2005,7 @@ func (m *Manager) formatFinalDeliveryPages(platform string, f kernel.RenderFrame
 	return paginatePlainText(text), media
 }
 
-func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID string, media []OutboundMedia) {
+func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToMsgID, threadID string, media []OutboundMedia) {
 	if len(media) == 0 || ch == nil {
 		return
 	}
@@ -2016,6 +2017,9 @@ func (m *Manager) deliverMedia(ctx context.Context, ch Channel, chatID, replyToM
 		return
 	}
 	for _, item := range media {
+		if item.ThreadID == "" {
+			item.ThreadID = threadID
+		}
 		if _, err := sender.SendMedia(ctx, chatID, replyToMsgID, item); err != nil {
 			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 				Platform:      ch.Name(),
