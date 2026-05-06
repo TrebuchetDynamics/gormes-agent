@@ -998,7 +998,7 @@ classification and row-backed implementation queue.
 - [ ] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
-- [ ] Native TUI Ink behavioral transcript golden matrix
+- [x] Native TUI Ink behavioral transcript golden matrix
 - [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server

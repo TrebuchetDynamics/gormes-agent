@@ -38503,9 +38503,9 @@
             {
               "name": "Native TUI Ink behavioral transcript golden matrix",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Add deterministic text snapshots for the active Hermes Ink full-screen transcript/composer behavior as a single Gormes-visible sequence: user rows, assistant rows, tool-trail/thinking rows, tool-result boxes, queued-message rows, sticky prompt/status rule, live streaming assistant draft, and final assistant history. The matrix must prove Gormes' Bubble Tea renderer preserves visible ordering and duplication rules while keeping Gormes-owned branding differences explicit.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -38547,7 +38547,13 @@
                 "TestHermesBehavioralFidelity_FinalAssistantNotDuplicated proves a completed assistant response appears once in history and not again as a live draft.",
                 "TestHermesBehavioralFidelity_NoLegacyPromptToolkitChrome proves the snapshot contains no Telemetry/Soul sidebar, standalone prompt_toolkit rules, `phase:` debug footer, or stale Hermes product label beyond explicitly allowed upstream source refs."
               ],
-              "note": "Added by the 2026-05-04 behavioral parity audit. Existing complete TUI rows prove individual chrome/status/panel helpers; this follow-up pins cross-component visible transcript behavior against active Hermes Ink sources so future UI work does not regress into legacy prompt_toolkit or dashboard/sidebar patterns.",
+              "note": "Added by the 2026-05-04 behavioral parity audit. Existing complete TUI rows prove individual chrome/status/panel helpers; this follow-up pins cross-component visible transcript behavior against active Hermes Ink sources so future UI work does not regress into legacy prompt_toolkit or dashboard/sidebar patterns. 2026-05-06 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; this row remained the highest-priority Hermes-source-backed builder-ready TUI weakness with all dependencies complete, so the builder pass shipped it.",
+              "evidence": [
+                "RED: go test ./internal/tui -run '^TestHermesBehavioralFidelity_' -count=1 failed because HermesChromeInput lacked queued/sticky composer rows for the active Ink ComposerPane snapshot.",
+                "GREEN: internal/tui/hermes_chrome.go now supports queued-message and sticky-prompt rows above the status rule; internal/tui/view.go now renders tool-result messages as a distinct transcript block before assistant prose.",
+                "Snapshot coverage in internal/tui/hermes_behavioral_fidelity_test.go proves Ink transcript order, tool trail/result separation, queued-message and sticky-prompt placement, final-assistant duplicate suppression, and no legacy prompt_toolkit/sidebar/Hermes-label leakage.",
+                "VALIDATION: go test ./internal/tui -run '^TestHermesBehavioralFidelity_' -count=1 PASS; go test ./internal/tui -count=1 PASS."
+              ],
               "write_scope": [
                 "internal/tui/hermes_behavioral_fidelity_test.go",
                 "internal/tui/hermes_chrome.go",
