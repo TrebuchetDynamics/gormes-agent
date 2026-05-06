@@ -33,6 +33,8 @@ func TestDiscordAttachmentPrefersAuthenticatedBytesAndPreservesMetadata(t *testi
 
 	b := New(Config{
 		AllowedChannelID:   "parent-42",
+		RequireMentionSet:  true,
+		RequireMention:     false,
 		AttachmentCacheDir: cacheDir,
 		AttachmentHTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			fallbackCalls.Add(1)

@@ -27,7 +27,7 @@ func TestDiscordForumChannelDetection_Fixture(t *testing.T) {
 
 func TestBot_ForumPostMessageUsesParentChatAndCanonicalThreadID(t *testing.T) {
 	ms := newMockSession()
-	b := New(Config{AllowedChannelID: "forum-100"}, ms, nil)
+	b := New(Config{AllowedChannelID: "forum-100", RequireMentionSet: true, RequireMention: false}, ms, nil)
 	inbox := make(chan gateway.InboundEvent, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -15,7 +15,7 @@ import (
 
 func TestDiscordSessionSourceMetadata_ForumPostFlowsIntoSessionContext(t *testing.T) {
 	ms := newMockSession()
-	b := New(Config{AllowedChannelID: "forum-100"}, ms, nil)
+	b := New(Config{AllowedChannelID: "forum-100", RequireMentionSet: true, RequireMention: false}, ms, nil)
 	fk := newSessionSourceMetadataKernel()
 	m := gateway.NewManagerWithSubmitter(gateway.ManagerConfig{
 		AllowedChats: map[string]string{"discord": "forum-100"},
