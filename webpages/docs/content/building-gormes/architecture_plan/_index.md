@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 62/92 subphases shipped · 28 in progress · 2 planned
+**Overall:** 63/92 subphases shipped · 27 in progress · 2 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 10/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 4/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
@@ -530,7 +530,7 @@ classification and row-backed implementation queue.
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
 
-### 4.B — Context Engine + Compression 🔨
+### 4.B — Context Engine + Compression ✅
 
 - [x] Long session management
 - [x] Context compression
@@ -544,7 +544,7 @@ classification and row-backed implementation queue.
 - [x] Context compressor image-token budget charge
 - [x] Context references stable-handle store
 - [x] Manual compression feedback + context references
-- [ ] Manual compression feedback renderer + focus parser
+- [x] Manual compression feedback renderer + focus parser
 - [x] ContextEngine compression-boundary callback vocabulary
 - [x] Kernel compression-boundary callback binding
 

@@ -14852,8 +14852,8 @@
             },
             {
               "name": "Manual compression feedback renderer + focus parser",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes splits the stale manual-compression placeholder into a pure helper row: parse `/compress` commands into an optional focus topic, render Hermes-compatible manual-compression feedback from before/after message counts and token estimates, report no-op compression without a success banner, explain when fewer messages estimate as more tokens, and surface session-split evidence without mutating live history.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -14903,10 +14903,10 @@
                 "internal/hermes/manual_compression_feedback.go",
                 "internal/hermes/manual_compression_feedback_test.go",
                 "internal/hermes/context_engine.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/hermes -run '^TestManualCompression' -count=1",
+                "go test ./internal/hermes -run '^TestManualCompression|^TestParseManualCompression' -count=1",
                 "go test ./internal/hermes -run '^TestContextEngine|^TestContextCompressor' -count=1",
                 "go test ./internal/hermes -count=1",
                 "go run ./cmd/progress validate",
@@ -14915,6 +14915,12 @@
               "done_signal": [
                 "Manual compression fixtures prove focus parsing, no-op feedback, compressed feedback, rising-token explanation, redacted session-split evidence, and no summarizer/kernel/CLI side effects."
               ],
+              "note": "Complete 2026-05-06: the bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Open P1 rows were either blocked, draft-owned OpenClaw enhancements, or not actually ready for Hermes parity because their prerequisite CLI invocation surface is absent. This row was raised as the highest unblocked small Hermes-sourced builder slice. TDD added internal/hermes/manual_compression_feedback.go and manual_compression_feedback_test.go, locking focus parsing, no-op feedback without success marker, token delta formatting, denser-summary explanation, and redacted session-split evidence without running summarization, mutating history, or binding CLI/TUI slash dispatch.",
+              "evidence": {
+                "implementation": "internal/hermes/manual_compression_feedback.go",
+                "tests": "go test ./internal/hermes -run '^TestManualCompression|^TestParseManualCompression' -count=1",
+                "note": "Pure helper fixtures match Hermes b816fd4e2 manual_compression_feedback.py and cli.py focus/session-split behavior while keeping live compression binding as a future row."
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 agent/manual_compression_feedback.py + cli.py",
@@ -27428,6 +27434,7 @@
                 "Gormes profile name/root helpers are available for profile resolution without importing Hermes config."
               ],
               "not_ready_when": [
+                "The native root command cannot yet accept the Hermes `-p/--profile` and `--skills kanban-worker` invocation that this row's worker argv acceptance asserts.",
                 "The implementation shells out to `hermes`, reads HERMES_HOME or ~/.hermes as live config, or uses Hermes Python helpers.",
                 "Unit tests depend on a real subprocess, real PID table, real signal delivery, or the operator's PATH.",
                 "The slice changes Kanban worker tools, dashboard routes, board registry semantics, or slash-command parsing instead of only production worker process binding."
@@ -27461,7 +27468,7 @@
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 hermes_cli/kanban_db.py _default_spawn + detect_crashed_workers + enforce_max_runtime",
-                "note": "Hermes defines the production process, PID, runtime-cap, and log semantics; Gormes ports them through native fakeable process seams. 2026-05-05 parity sweep refreshed refs to the in-repo Python upstream checkout and confirmed the Gormes dispatcher/gateway loop remains only partial until process spawner and worker lifecycle fixtures land."
+                "note": "Hermes defines the production process, PID, runtime-cap, and log semantics; Gormes ports them through native fakeable process seams. 2026-05-05 parity sweep refreshed refs to the in-repo Python upstream checkout and confirmed the Gormes dispatcher/gateway loop remains only partial until process spawner and worker lifecycle fixtures land. The 2026-05-06 all-topic weakness sweep left this row planned because the row still assumes Hermes-style `gormes -p <profile> --skills kanban-worker` root invocation, while the native Gormes CLI currently exposes profile switching through `gormes profile set` and has no root `--skills` flag."
               }
             },
             {
