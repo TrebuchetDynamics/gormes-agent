@@ -716,7 +716,7 @@ classification and row-backed implementation queue.
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
-- [ ] MiniMax TTS v1 text_to_speech raw-audio compatibility
+- [x] MiniMax TTS v1 text_to_speech raw-audio compatibility
 - [x] TTS provider matrix + dotenv/command-provider resolution
 - [ ] TTS synthesis + voice-mode state
 - [ ] Voice record-key config binding for native TUI

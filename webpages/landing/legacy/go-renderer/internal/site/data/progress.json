@@ -20525,11 +20525,11 @@
             },
             {
               "name": "Terminal deleted-cwd recovery guard",
-              "priority": "P2",
+              "priority": "P3",
               "status": "planned",
-              "contract": "Terminal/local environment execution recovers when the process or persistent-shell cwd has been deleted: foreground tool calls resolve through configured terminal.cwd or a safe workspace fallback, background process spawn refuses deleted cwd before subprocess creation, and persistent-shell state resets with explicit evidence instead of panicking.",
-              "contract_status": "validated",
-              "slice_size": "small",
+              "contract": "Residual terminal/local environment deleted-cwd parity after the completed foreground terminal recovery row: future background process spawn must reject deleted cwd before subprocess creation, and future persistent-shell state must reset with explicit evidence instead of panicking.",
+              "contract_status": "draft",
+              "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
                 "operator",
@@ -20547,10 +20547,12 @@
                 "internal/config/config.go"
               ],
               "ready_when": [
-                "Native file task tool surface and Terminal cwd config bridge are complete, so terminal execution already has a configured Workdir seam.",
-                "Tests can use temp directories removed after setup plus fake command runners; no persistent shell, PTY, provider, or background process registry runtime is required."
+                "A native background process registry or persistent shell state seam exists in Gormes and can be tested with fake process controls.",
+                "Tests can use temp directories removed after setup plus fake command runners; no live PTY, provider, gateway, or user session state is required."
               ],
               "not_ready_when": [
+                "The slice only reimplements the completed foreground terminal cwd recovery row under 5.L.",
+                "Gormes still rejects background=true before any background process registry or persistent shell state exists.",
                 "The slice implements full background process registry, PTY persistence, Docker/SSH backends, or service restart behavior.",
                 "Deleted cwd recovery falls back to `/` or the developer home directory without explicit operator evidence.",
                 "A missing configured terminal.cwd is silently ignored when the caller explicitly configured it."
@@ -20570,7 +20572,7 @@
                 "internal/tools/terminal_cwd_recovery_test.go",
                 "internal/tools/environment_contract.go",
                 "internal/config/config.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run 'TestTerminal.*DeletedCWD|TestPersistentShell.*DeletedCWD|TestTerminalBackground.*DeletedCWD' -count=1",
@@ -20587,7 +20589,7 @@
                   "hermes:109c3e468 tools/process_registry.py",
                   "hermes:9644b8ae6 tools/environments/local.py"
                 ],
-                "note": "Hermes fixed deleted-cwd crashes in both process registry and local persistent shell paths; Gormes ports the invariant around its native terminal/config seams."
+                "note": "2026-05-06 all-topic weakness sweep found the foreground deleted-cwd behavior is already covered by complete row `Terminal deleted-cwd recovery` in 5.L. This residual row is intentionally not builder-ready until Gormes has native background process or persistent-shell state seams to exercise."
               }
             },
             {
@@ -22728,8 +22730,8 @@
             },
             {
               "name": "MiniMax TTS v1 text_to_speech raw-audio compatibility",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Gormes ports current Hermes MiniMax TTS provider drift: default MiniMax synthesis uses `https://api.minimax.chat/v1/text_to_speech`, model `speech-01`, voice `female-shaonv`, a flat `{model,text,voice_id}` payload, and accepts raw audio responses while keeping the legacy JSON/hex response parser as fallback compatibility.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -22742,8 +22744,8 @@
               "degraded_mode": "MiniMax endpoint, HTTP status, content-type, and response-shape failures return typed redacted tts_api_error evidence without leaking API keys, request text, or provider URLs containing credentials.",
               "fixture": "internal/tools/tts_minimax_test.go",
               "source_refs": [
-                "../hermes-agent/tools/tts_tool.py@687547191:MiniMaxTTSSynthesizer",
-                "../hermes-agent/tests/tools/test_tts_speed.py@687547191",
+                "./hermes-agent/tools/tts_tool.py@b816fd4e2:_generate_minimax_tts",
+                "./hermes-agent/tests/tools/test_tts_speed.py@b816fd4e2:TestMinimaxTtsSpeed",
                 "internal/tools/tts_tool.go",
                 "internal/tools/tts_command_provider.go",
                 "internal/tools/tts_providers.go"
@@ -22763,28 +22765,38 @@
                 "Legacy JSON/hex MiniMax responses still decode through the fallback parser.",
                 "HTTP, malformed-body, and missing-audio failures are redacted and keep existing TTS evidence codes."
               ],
+              "note": "Complete 2026-05-06: RED tests failed on missing NewTTSMiniMaxProvider/defaults. GREEN added a Go-native MiniMax HTTP TTS provider registered through the existing TTS provider seam, source-backed defaults for `/v1/text_to_speech`, flat payload generation, raw audio writes, legacy JSON/hex fallback decoding, and redacted API-error/malformed/missing-audio failures. Tests use httptest and temp files only; no live MiniMax credentials, ffmpeg, gateway, or provider network calls are required.",
               "write_scope": [
                 "internal/tools/tts_tool.go",
                 "internal/tools/tts_command_provider.go",
                 "internal/tools/tts_providers.go",
                 "internal/tools/tts_minimax_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run 'TestMiniMaxTTS|TestTextToSpeech' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "evidence": [
+                "2026-05-06: go test ./internal/tools -run 'TestMiniMaxTTS|TestTextToSpeech' -count=1 -> pass",
+                "2026-05-06: go test ./internal/tools ./internal/config -count=1 -> pass"
+              ],
               "done_signal": [
                 "MiniMax TTS fixtures prove current endpoint/payload defaults, raw-audio handling, legacy JSON fallback, and redacted failure evidence without live provider calls."
               ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-06T00:00:00Z",
+                "last_success": "2026-05-06T00:00:00Z"
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
-                  "hermes:687547191 tools/tts_tool.py",
-                  "hermes:687547191 tests/tools/test_tts_speed.py"
+                  "hermes:b816fd4e2 tools/tts_tool.py",
+                  "hermes:b816fd4e2 tests/tools/test_tts_speed.py"
                 ],
-                "note": "Provider-specific drift discovered after the generic TTS tool/media row completed; this row reopens only MiniMax synthesis compatibility."
+                "note": "2026-05-06 all-topic weakness sweep raised this to P1 because the generic TTS provider matrix is complete, Hermes current upstream changed MiniMax to raw-audio /v1/text_to_speech behavior, and the row is a small validated tool-surface slice with hermetic httptest coverage. The sweep also checked CLI/TUI, provider/auth, gateway/channels, sessions/Goncho, install/runtime, browser, public docs, and release/operator rows; broader stale or umbrella rows remain planner-only."
               }
             },
             {
