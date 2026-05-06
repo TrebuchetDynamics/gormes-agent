@@ -35758,10 +35758,10 @@
             },
             {
               "name": "CLI setup/onboard/help text fidelity matrix",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Add a deterministic operator-visible text matrix for `gormes setup`, setup entry modes, setup sections, `gormes onboard`, provider/model setup guidance, root help, unknown-command suggestions, and non-TTY fallbacks. The matrix must keep Hermes-compatible setup behavior where upstream owns the flow, preserve Gormes-owned first-run onboarding wording where it intentionally differs, and prevent regressions such as parent setup arguments leaking into delegated model/provider commands, arrow-key escape bytes being treated as selections, Hermes paths appearing in Gormes summaries, or interactive-only navigation copy appearing in line-input fallback mode.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -35771,10 +35771,10 @@
               "degraded_mode": "When a setup/onboard action is not wired yet, output must include a row-backed command name and actionable next step instead of panic text, raw Cobra errors, or silent no-ops.",
               "fixture": "cmd/gormes/setup_text_fidelity_test.go::TestSetupTextFidelity_* + cmd/gormes/onboard_wizard_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/main.py:setup_parser",
-                "../hermes-agent/hermes_cli/setup.py:prompt_choice,run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
-                "../hermes-agent/agent/onboarding.py:busy_input_hint_cli,tool_progress_hint_cli,openclaw_residue_hint_cli",
-                "../hermes-agent/ui-tui/src/content/setup.ts",
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:setup_parser",
+                "./hermes-agent/hermes_cli/setup.py@b816fd4e2:prompt_choice,run_setup_wizard,_run_first_time_quick_setup,_run_quick_setup",
+                "./hermes-agent/agent/onboarding.py@b816fd4e2:busy_input_hint_cli,tool_progress_hint_cli,openclaw_residue_hint_cli",
+                "./hermes-agent/ui-tui/src/content/setup.ts@b816fd4e2",
                 "cmd/gormes/setup.go",
                 "cmd/gormes/onboard.go",
                 "cmd/gormes/main.go",
@@ -35801,7 +35801,7 @@
                 "TestSetupTextFidelity_OnboardPlanAndWizard proves `gormes onboard`/`--wizard` output keeps the seven-step first-run plan, skip warnings, configured-state details, and row-backed action evidence stable.",
                 "TestSetupTextFidelity_UnknownCommandGuidance proves typo suggestions and unsupported setup sections produce actionable stderr/stdout without raw Cobra-only `unknown command` text."
               ],
-              "note": "Added by the 2026-05-04 behavioral parity audit after setup/onboard were functionally fixed but spread across many tests. This row consolidates visible text expectations so first-run UX stays easy, branded, and deterministic while still acknowledging that `gormes onboard` is a Gormes-owned wrapper over Hermes setup/onboarding behavior.",
+              "note": "Added by the 2026-05-04 behavioral parity audit after setup/onboard were functionally fixed but spread across many tests. 2026-05-06 all-topic parity sweep promoted this to P0 after checking CLI/TUI, provider/auth, gateway/channel, tools, sessions/Goncho, install/runtime, browser, docs/public, and release/operator rows: no planned P0 remained, setup/onboard text is the first-run path that stitches those surfaces together, and all blockers are now complete. Complete: TDD added cmd/gormes/setup_text_fidelity_test.go and tightened unsupported setup-section output in cmd/gormes/setup.go so unknown setup sections emit deterministic row-backed guidance with recommended_command=\"gormes setup\" and no raw Cobra unknown-command text. The same fixture file locks first-run quick/full line-input fallback, escape-sequence stripping, root help setup/provider/gateway path copy, and stale Hermes setup/path absence. Evidence: go test ./cmd/gormes -run '^TestSetupTextFidelity' -count=1 PASS; go test ./cmd/gormes -run 'TestSetupTextFidelity|TestSetup|TestOnboardWizard|TestRootHelp|TestHermesCLIParityManifest' -count=1 PASS; go test ./cmd/gormes ./internal/cli -count=1 PASS; go run ./cmd/progress validate PASS.",
               "write_scope": [
                 "cmd/gormes/setup.go",
                 "cmd/gormes/onboard.go",
@@ -35821,8 +35821,8 @@
               ],
               "provenance": {
                 "origin_type": "upstream_reconciliation",
-                "upstream_ref": "hermes:hermes_cli/setup.py + agent/onboarding.py",
-                "note": "Hermes defines setup wizard/onboarding hint behavior; Gormes owns additional first-run text and must keep the divergence explicit."
+                "upstream_ref": "hermes:b816fd4e2 hermes_cli/setup.py + agent/onboarding.py + ui-tui/src/content/setup.ts",
+                "note": "Hermes defines setup wizard/onboarding hint behavior; Gormes owns additional first-run text and must keep the divergence explicit. 2026-05-06 sweep selected this as the next builder slice because it prevents stale setup/provider/gateway/docs/operator guidance across completed runtime rows."
               },
               "blocked_by": [
                 "Hermes setup entry-mode and reset semantics",

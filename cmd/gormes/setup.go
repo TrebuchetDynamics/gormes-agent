@@ -1547,6 +1547,7 @@ func firstNonEmptySetup(values ...string) string {
 func setupSectionUnsupported(cmd *cobra.Command, section string) error {
 	fmt.Fprintf(cmd.ErrOrStderr(), "setup_section_unsupported: section=%s available=%s\n", section, setupSectionList())
 	fmt.Fprintln(cmd.ErrOrStderr(), "Implemented sections: provider, model, agent, workspace, bindings, tts, terminal, gateway, and tools.")
+	fmt.Fprintln(cmd.ErrOrStderr(), "setup_section_row_backed: recommended_command=\"gormes setup\"")
 	return newExitCodeError(2, fmt.Errorf("setup_section_unsupported: %s", section))
 }
 

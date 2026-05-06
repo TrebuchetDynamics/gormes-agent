@@ -950,7 +950,7 @@ classification and row-backed implementation queue.
 - [x] Hermes config.yaml model/provider runtime bridge
 - [x] Interactive Onboarding
 - [x] Gormes onboard interactive action runner
-- [ ] CLI setup/onboard/help text fidelity matrix
+- [x] CLI setup/onboard/help text fidelity matrix
 - [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
 - [ ] Gateway planned stop marker + WSL systemd PATH parity
