@@ -649,6 +649,47 @@ first_run_discovery = true
 	}
 }
 
+func TestLoad_SlackMentionPolicyConfigFromFile(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	cfgDir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.toml"), []byte(`
+[slack]
+enabled = true
+bot_token = "xoxb-file"
+app_token = "xapp-file"
+allowed_channel_id = "C123"
+require_mention = false
+strict_mention = true
+reply_in_thread = false
+free_response_channels = ["C-free", "C-other"]
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := cfg.Slack.RequireMention.(bool); !ok || got {
+		t.Fatalf("Slack.RequireMention = %#v, want false bool", cfg.Slack.RequireMention)
+	}
+	if got, ok := cfg.Slack.StrictMention.(bool); !ok || !got {
+		t.Fatalf("Slack.StrictMention = %#v, want true bool", cfg.Slack.StrictMention)
+	}
+	if cfg.Slack.ReplyInThread {
+		t.Fatal("Slack.ReplyInThread = true, want false from config")
+	}
+	gotChannels, ok := cfg.Slack.FreeResponseChannels.([]any)
+	if !ok || len(gotChannels) != 2 || gotChannels[0] != "C-free" || gotChannels[1] != "C-other" {
+		t.Fatalf("Slack.FreeResponseChannels = %#v, want C-free/C-other", cfg.Slack.FreeResponseChannels)
+	}
+}
+
 func TestLoad_SlackEnvOverridesFile(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)
@@ -674,6 +715,9 @@ first_run_discovery = false
 	t.Setenv("GORMES_SLACK_CHANNEL_ID", "C-env")
 	t.Setenv("GORMES_SLACK_COALESCE_MS", "250")
 	t.Setenv("GORMES_SLACK_FIRST_RUN_DISCOVERY", "true")
+	t.Setenv("GORMES_SLACK_REQUIRE_MENTION", "false")
+	t.Setenv("GORMES_SLACK_STRICT_MENTION", "true")
+	t.Setenv("GORMES_SLACK_FREE_RESPONSE_CHANNELS", "C-env-free,C-env-other")
 
 	cfg, err := Load(nil)
 	if err != nil {
@@ -696,6 +740,15 @@ first_run_discovery = false
 	}
 	if !cfg.Slack.FirstRunDiscovery {
 		t.Error("Slack.FirstRunDiscovery = false, want true from env")
+	}
+	if cfg.Slack.RequireMention != "false" {
+		t.Fatalf("Slack.RequireMention = %#v, want env string false", cfg.Slack.RequireMention)
+	}
+	if cfg.Slack.StrictMention != "true" {
+		t.Fatalf("Slack.StrictMention = %#v, want env string true", cfg.Slack.StrictMention)
+	}
+	if cfg.Slack.FreeResponseChannels != "C-env-free,C-env-other" {
+		t.Fatalf("Slack.FreeResponseChannels = %#v, want env CSV", cfg.Slack.FreeResponseChannels)
 	}
 }
 

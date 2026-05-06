@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 57/92 subphases shipped · 30 in progress · 5 planned
+**Overall:** 57/92 subphases shipped · 31 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -236,7 +236,7 @@ classification and row-backed implementation queue.
 - [x] Cross-platform image/document MEDIA delivery routing
 - [x] Telegram inline approval buttons + callback auth
 - [x] Telegram polling conflict + webhook secret startup guard
-- [ ] Slack mention/free-response gating + strict thread-memory guard
+- [x] Slack mention/free-response gating + strict thread-memory guard
 - [ ] Discord interaction authorization + mention safety guards
 - [ ] Gateway processing lifecycle reactions for Telegram and Discord
 - [x] Telegram text batching + caption merge parity
@@ -1013,9 +1013,9 @@ classification and row-backed implementation queue.
 - [x] API server cron admin mutating endpoints
 - [ ] API server legacy jobs routes + default toolset
 
-### 5.R — Code Execution Mode Policy ⏳
+### 5.R — Code Execution Mode Policy 🔨
 
-- [ ] Execution-mode resolver + config precedence
+- [x] Execution-mode resolver + config precedence
 - [ ] Strict-mode CWD + interpreter parity
 - [ ] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over

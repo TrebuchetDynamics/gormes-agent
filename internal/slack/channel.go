@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 
@@ -14,12 +15,21 @@ import (
 type Channel struct {
 	client Client
 	log    *slog.Logger
+	cfg    ChannelConfig
 
 	selfUserID string
 
-	mu              sync.RWMutex
-	threadByChannel map[string]string
-	threadContext   *ThreadContextCache
+	mu               sync.RWMutex
+	threadByChannel  map[string]string
+	mentionedThreads map[string]struct{}
+	threadContext    *ThreadContextCache
+}
+
+type ChannelConfig struct {
+	RequireMention       any
+	StrictMention        any
+	FreeResponseChannels any
+	LookupEnv            func(string) string
 }
 
 var (
@@ -27,15 +37,24 @@ var (
 	_ gateway.MediaSender = (*Channel)(nil)
 )
 
-func NewChannel(client Client, log *slog.Logger) *Channel {
+func NewChannel(client Client, log *slog.Logger, cfgs ...ChannelConfig) *Channel {
 	if log == nil {
 		log = slog.Default()
 	}
+	cfg := ChannelConfig{RequireMention: false, LookupEnv: os.Getenv}
+	if len(cfgs) > 0 {
+		cfg = cfgs[0]
+		if cfg.LookupEnv == nil {
+			cfg.LookupEnv = os.Getenv
+		}
+	}
 	return &Channel{
-		client:          client,
-		log:             log,
-		threadByChannel: map[string]string{},
-		threadContext:   newThreadContextCache(""),
+		client:           client,
+		log:              log,
+		cfg:              cfg,
+		threadByChannel:  map[string]string{},
+		mentionedThreads: map[string]struct{}{},
+		threadContext:    newThreadContextCache(""),
 	}
 }
 
@@ -94,6 +113,34 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 
 	kind, body := gateway.ParseInboundText(strings.TrimSpace(e.Text))
 	if kind == gateway.EventSubmit {
+		policy := ResolveMentionPolicy(MentionPolicyConfig{
+			RequireMention:       c.cfg.RequireMention,
+			StrictMention:        c.cfg.StrictMention,
+			FreeResponseChannels: c.cfg.FreeResponseChannels,
+			LookupEnv:            c.cfg.LookupEnv,
+		})
+		decision := EvaluateMentionGate(policy, MentionGateInput{
+			ChannelID:       channelID,
+			UserID:          userID,
+			BotUserID:       c.selfUserID,
+			Text:            e.Text,
+			Timestamp:       ts,
+			ThreadTS:        threadTS,
+			ChatType:        e.ChatType,
+			ThreadMentioned: c.threadMentioned(threadTS),
+		})
+		for _, evidence := range decision.Evidence {
+			c.log.Warn(evidence.Code, "source", evidence.Source, "reason", evidence.Reason)
+		}
+		if !decision.Process {
+			return gateway.InboundEvent{}, false
+		}
+		kind, body = gateway.ParseInboundText(decision.Text)
+		if decision.RememberThread {
+			c.rememberMentionedThread(threadTS)
+		}
+	}
+	if kind == gateway.EventSubmit {
 		var evidence []SlackRichTextEvidence
 		body, evidence = augmentInboundText(body, e.Blocks, e.Attachments)
 		for _, ev := range evidence {
@@ -103,6 +150,7 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 	return gateway.InboundEvent{
 		Platform:    "slack",
 		ChatID:      channelID,
+		ChatType:    slackChatType(e.ChannelID, e.ChatType),
 		UserID:      userID,
 		ThreadID:    threadTS,
 		MsgID:       ts,
@@ -148,6 +196,34 @@ func (c *Channel) threadForChannel(channelID string) string {
 	return c.threadByChannel[channelID]
 }
 
+func (c *Channel) rememberMentionedThread(threadTS string) {
+	threadTS = strings.TrimSpace(threadTS)
+	if threadTS == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.mentionedThreads[threadTS] = struct{}{}
+}
+
+func (c *Channel) threadMentioned(threadTS string) bool {
+	threadTS = strings.TrimSpace(threadTS)
+	if threadTS == "" {
+		return false
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	_, ok := c.mentionedThreads[threadTS]
+	return ok
+}
+
 func isSlackThreadReply(threadTS, ts string) bool {
 	return strings.TrimSpace(threadTS) != "" && strings.TrimSpace(threadTS) != strings.TrimSpace(ts)
+}
+
+func slackChatType(channelID, chatType string) string {
+	if slackMentionGateIsDM(channelID, chatType) {
+		return "dm"
+	}
+	return strings.TrimSpace(chatType)
 }

@@ -15,11 +15,15 @@ import (
 )
 
 type Config struct {
-	AllowedChannelID string
-	ReplyInThread    bool
-	CoalesceMs       int
-	SessionMap       session.Map
-	ApprovalResolver gateway.ApprovalResolver
+	AllowedChannelID     string
+	ReplyInThread        bool
+	CoalesceMs           int
+	SessionMap           session.Map
+	ApprovalResolver     gateway.ApprovalResolver
+	RequireMention       any
+	StrictMention        any
+	FreeResponseChannels any
+	LookupEnv            func(string) string
 }
 
 type Bot struct {
@@ -37,6 +41,7 @@ type Bot struct {
 
 	approvalResolved map[string]bool
 	approvalBlocks   map[string][]SlackBlock
+	mentionedThreads map[string]struct{}
 }
 
 type reservedTurn struct {
@@ -60,6 +65,9 @@ func New(cfg Config, client Client, k *kernel.Kernel, log *slog.Logger) *Bot {
 	if cfg.CoalesceMs <= 0 {
 		cfg.CoalesceMs = 1000
 	}
+	if cfg.RequireMention == nil {
+		cfg.RequireMention = false
+	}
 	return &Bot{
 		cfg:              cfg,
 		client:           client,
@@ -67,6 +75,7 @@ func New(cfg Config, client Client, k *kernel.Kernel, log *slog.Logger) *Bot {
 		log:              log,
 		approvalResolved: map[string]bool{},
 		approvalBlocks:   map[string][]SlackBlock{},
+		mentionedThreads: map[string]struct{}{},
 	}
 }
 
@@ -129,6 +138,36 @@ func (b *Bot) handleEvent(ctx context.Context, e Event) {
 	threadTS := b.replyThreadTS(e)
 	text := strings.TrimSpace(e.Text)
 	kind, body := gateway.ParseInboundText(text)
+	if kind == gateway.EventSubmit {
+		policy := ResolveMentionPolicy(MentionPolicyConfig{
+			RequireMention:       b.cfg.RequireMention,
+			StrictMention:        b.cfg.StrictMention,
+			FreeResponseChannels: b.cfg.FreeResponseChannels,
+			LookupEnv:            b.cfg.LookupEnv,
+		})
+		decision := EvaluateMentionGate(policy, MentionGateInput{
+			ChannelID:       e.ChannelID,
+			UserID:          e.UserID,
+			BotUserID:       b.selfUserID,
+			Text:            text,
+			Timestamp:       e.Timestamp,
+			ThreadTS:        e.ThreadTS,
+			ChatType:        e.ChatType,
+			ActiveSession:   b.activeSessionForThread(ctx, e),
+			ThreadMentioned: b.mentionedThread(e.ThreadTS),
+		})
+		for _, evidence := range decision.Evidence {
+			b.log.Warn(evidence.Code, "source", evidence.Source, "reason", evidence.Reason)
+		}
+		if !decision.Process {
+			return
+		}
+		if decision.RememberThread {
+			b.rememberMentionedThread(e.ThreadTS)
+		}
+		text = decision.Text
+		kind, body = gateway.ParseInboundText(text)
+	}
 	switch kind {
 	case gateway.EventStart:
 		_, _ = b.client.PostMessage(ctx, e.ChannelID, threadTS, slackHelpText())
@@ -174,6 +213,35 @@ func (b *Bot) handleEvent(ctx context.Context, e Event) {
 	default:
 		return
 	}
+}
+
+func (b *Bot) activeSessionForThread(ctx context.Context, e Event) bool {
+	if b.cfg.SessionMap == nil || !isSlackThreadReply(e.ThreadTS, e.Timestamp) {
+		return false
+	}
+	sessionID, err := b.cfg.SessionMap.Get(ctx, SessionKey(e.ChannelID))
+	return err == nil && strings.TrimSpace(sessionID) != ""
+}
+
+func (b *Bot) rememberMentionedThread(threadTS string) {
+	threadTS = strings.TrimSpace(threadTS)
+	if threadTS == "" {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.mentionedThreads[threadTS] = struct{}{}
+}
+
+func (b *Bot) mentionedThread(threadTS string) bool {
+	threadTS = strings.TrimSpace(threadTS)
+	if threadTS == "" {
+		return false
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	_, ok := b.mentionedThreads[threadTS]
+	return ok
 }
 
 func slackHelpText() string {

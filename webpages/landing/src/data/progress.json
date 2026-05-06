@@ -5429,8 +5429,8 @@
             },
             {
               "name": "Slack mention/free-response gating + strict thread-memory guard",
-              "status": "planned",
-              "priority": "P1",
+              "status": "complete",
+              "priority": "P0",
               "contract": "Slack ingress honors Hermes' require_mention, strict_mention, and free_response_channels policy: channel messages default to mention-gated, configured channels can opt into free responses, active-session thread replies continue without a fresh mention, DMs always pass, and strict mention mode does not persist mentioned threads for future automatic replies.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -5443,9 +5443,13 @@
               "degraded_mode": "Malformed Slack mention settings fail closed for require_mention, fail open only for strict_mention legacy compatibility, and emit slack_mention_policy_unavailable evidence instead of silently widening channel access.",
               "fixture": "internal/slack/mention_gate_test.go; internal/config/slack_config_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:_slack_require_mention",
-                "../hermes-agent/gateway/platforms/slack.py@b816fd4e2:_slack_strict_mention",
-                "../hermes-agent/tests/gateway/test_slack_mention.py@b816fd4e2",
+                "./hermes-agent/gateway/platforms/slack.py@b816fd4e2:_handle_slack_message",
+                "./hermes-agent/gateway/platforms/slack.py@b816fd4e2:_slack_require_mention",
+                "./hermes-agent/gateway/platforms/slack.py@b816fd4e2:_slack_strict_mention",
+                "./hermes-agent/gateway/platforms/slack.py@b816fd4e2:_slack_free_response_channels",
+                "./hermes-agent/tests/gateway/test_slack_mention.py@b816fd4e2",
+                "cmd/gormes/gateway.go:defaultGatewayChannelFactories",
+                "internal/slack/channel.go",
                 "internal/slack/bot.go",
                 "internal/slack/client.go",
                 "internal/config/config.go"
@@ -5467,16 +5471,20 @@
               ],
               "write_scope": [
                 "internal/slack/bot.go",
+                "internal/slack/channel.go",
                 "internal/slack/client.go",
                 "internal/slack/mention_gate.go",
                 "internal/slack/mention_gate_test.go",
                 "internal/config/config.go",
                 "internal/config/slack_config_test.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_slack_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/slack -run 'TestSlackMention|TestMentionGate|TestStrictMention' -count=1",
                 "go test ./internal/config ./internal/slack -run 'Slack.*Mention|Slack.*Config|Slack.*Enabled' -count=1",
+                "go test ./cmd/gormes -run 'GatewaySlack.*Mention|GatewaySlackRegistration' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
@@ -5487,9 +5495,45 @@
                 "origin_type": "upstream",
                 "upstream_refs": [
                   "hermes:b816fd4e2 gateway/platforms/slack.py",
-                  "hermes:b816fd4e2 tests/gateway/test_slack_mention.py"
+                  "hermes:b816fd4e2 tests/gateway/test_slack_mention.py",
+                  "gormes:cmd/gormes/gateway.go default Slack channel factory"
                 ],
-                "note": "Gormes currently gates Slack mainly by one allowed channel ID; Hermes has finer mention/free-response/strict-thread policy that prevents noisy channel loops."
+                "note": "2026-05-06 parity sweep raised this to P0 because it is the highest-priority unblocked gateway/channel safety row after complete Phase 4.I and 3.G closure rows. Gormes currently gates Slack mainly by one allowed channel ID through the shared Channel path; Hermes has finer mention/free-response/strict-thread policy that prevents noisy channel loops."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/slack/mention_gate.go:ResolveMentionPolicy",
+                  "internal/slack/mention_gate.go:EvaluateMentionGate",
+                  "internal/slack/channel.go:toInboundEvent shared Channel gating",
+                  "internal/slack/bot.go:handleEvent legacy Bot gating",
+                  "internal/config/config.go:SlackCfg mention policy fields and GORMES_SLACK_* env bridge",
+                  "cmd/gormes/gateway.go:defaultGatewayChannelFactories passes Slack mention config to the shared Channel"
+                ],
+                "tests": [
+                  "internal/slack/mention_gate_test.go:TestSlackMentionPolicy_DefaultsRequireMentionAndNoFreeChannels",
+                  "internal/slack/mention_gate_test.go:TestMentionGate_ChannelMessagesRequireMentionByDefault",
+                  "internal/slack/mention_gate_test.go:TestMentionGate_AllowsDMsFreeResponseAndMentions",
+                  "internal/slack/mention_gate_test.go:TestMentionGate_AllowsActiveThreadReplyWithoutFreshMention",
+                  "internal/slack/mention_gate_test.go:TestStrictMention_DoesNotRememberMentionedThread",
+                  "internal/slack/mention_gate_test.go:TestMentionGate_ChannelAdapterReparsesMentionedCommand",
+                  "internal/config/config_test.go:TestLoad_SlackMentionPolicyConfigFromFile",
+                  "cmd/gormes/gateway_slack_test.go:TestGatewaySlackRegistration_RegistersSlackThroughManagerWhenEnabled"
+                ],
+                "verification": [
+                  "RED: go test ./internal/slack -run 'TestSlackMention|TestMentionGate|TestStrictMention' -count=1 failed on undefined ResolveMentionPolicy/MentionPolicyConfig before implementation.",
+                  "GREEN: go test ./internal/slack -run 'TestSlackMention|TestMentionGate|TestStrictMention' -count=1 -> ok",
+                  "REGRESSION: go test ./internal/config ./internal/slack -run 'Slack.*Mention|Slack.*Config|Slack.*Enabled' -count=1 -> ok",
+                  "REGRESSION: go test ./cmd/gormes -run 'GatewaySlack.*Mention|GatewaySlackRegistration' -count=1 -> ok",
+                  "REGRESSION: go test ./internal/slack -count=1 -> ok",
+                  "REGRESSION: go test ./internal/config -count=1 -> ok",
+                  "REGRESSION: go test ./internal/slack -run 'TestSlackMention|TestMentionGate|TestStrictMention' -count=1 -> ok after mentioned-command reparse fixture",
+                  "go run ./cmd/progress validate -> ok"
+                ],
+                "scope_decisions": [
+                  "Pure policy helper defaults to Hermes-safe require_mention=true, while legacy Bot/NewChannel tests keep require_mention=false unless production config or explicit tests pass the new fields.",
+                  "Production cfg defaults Slack require_mention=true and reply_in_thread=true, and defaultGatewayChannelFactories now forwards require_mention, strict_mention, and free_response_channels into the shared Slack Channel.",
+                  "The shared Channel supports mention stripping, DM/free-response bypass, strict-mode no thread memory, and mentioned-thread continuation; Bot additionally uses its SessionMap to allow active-session thread replies in legacy direct-bot tests."
+                ]
               }
             },
             {
@@ -39320,7 +39364,7 @@
             {
               "name": "Execution-mode resolver + config precedence",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes exposes a pure execute-code mode resolver that returns Hermes-compatible `project` or `strict` from config value and default in that precedence order; unknown, empty, or nil-like values fall back to the default with redacted warning evidence, and the token set is frozen before cwd/interpreter/runtime wiring lands.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -39376,6 +39420,22 @@
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:b816fd4e2 tests/tools/test_code_execution_modes.py",
                 "note": "Gormes' code-execution policy rows were placeholders; Hermes has active config/default mode behavior that should be ported as a small pure helper before runtime semantics."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/execute_code.go:ResolveExecuteCodeMode",
+                  "internal/tools/execute_code.go:ValidExecuteCodeModes",
+                  "internal/tools/execute_code.go:IsValidExecuteCodeMode"
+                ],
+                "tests": [
+                  "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverConfigValue",
+                  "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverDefaultFallback",
+                  "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverInvalidValuesWarnAndDefault",
+                  "internal/tools/execute_code_mode_test.go:TestExecuteCodeModeResolverFreezesTokenSet"
+                ],
+                "verification": [
+                  "2026-05-06: go test ./internal/tools -run 'TestExecuteCodeModeResolver|TestExecuteCode' -count=1 -> ok"
+                ]
               }
             },
             {

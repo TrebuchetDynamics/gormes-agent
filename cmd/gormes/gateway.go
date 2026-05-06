@@ -327,7 +327,11 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 			}, ds, log), nil
 		},
 		Slack: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
-			return slack.NewChannel(slack.NewRealClient(cfg.Slack.BotToken, cfg.Slack.AppToken), log), nil
+			return slack.NewChannel(slack.NewRealClient(cfg.Slack.BotToken, cfg.Slack.AppToken), log, slack.ChannelConfig{
+				RequireMention:       cfg.Slack.RequireMention,
+				StrictMention:        cfg.Slack.StrictMention,
+				FreeResponseChannels: cfg.Slack.FreeResponseChannels,
+			}), nil
 		},
 		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
 			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")

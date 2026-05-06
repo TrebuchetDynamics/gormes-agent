@@ -8,6 +8,7 @@ type Event struct {
 	TeamID         string
 	UserID         string
 	Text           string
+	ChatType       string
 	Timestamp      string
 	ThreadTS       string
 	SubType        string

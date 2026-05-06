@@ -90,12 +90,15 @@ func (s *recordingGatewayRuntimeStatus) platformError(platform string) string {
 func TestGatewaySlackRegistration_RegistersSlackThroughManagerWhenEnabled(t *testing.T) {
 	cfg := config.Config{
 		Slack: config.SlackCfg{
-			Enabled:           true,
-			BotToken:          "xoxb-test",
-			AppToken:          "xapp-test",
-			AllowedChannelID:  "C123",
-			CoalesceMs:        250,
-			FirstRunDiscovery: true,
+			Enabled:              true,
+			BotToken:             "xoxb-test",
+			AppToken:             "xapp-test",
+			AllowedChannelID:     "C123",
+			CoalesceMs:           250,
+			FirstRunDiscovery:    true,
+			RequireMention:       "false",
+			StrictMention:        "true",
+			FreeResponseChannels: "C-free",
 		},
 	}
 	allowedChats := map[string]string{}
@@ -113,6 +116,9 @@ func TestGatewaySlackRegistration_RegistersSlackThroughManagerWhenEnabled(t *tes
 		Slack: func(got config.Config, _ *slog.Logger) (gateway.Channel, error) {
 			if got.Slack.BotToken != "xoxb-test" || got.Slack.AppToken != "xapp-test" {
 				t.Fatalf("factory saw Slack tokens %#v", got.Slack)
+			}
+			if got.Slack.RequireMention != "false" || got.Slack.StrictMention != "true" || got.Slack.FreeResponseChannels != "C-free" {
+				t.Fatalf("factory saw Slack mention policy %#v", got.Slack)
 			}
 			return fakeSlack, nil
 		},
