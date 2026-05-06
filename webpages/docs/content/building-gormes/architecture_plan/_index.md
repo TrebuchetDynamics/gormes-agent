@@ -807,7 +807,7 @@ classification and row-backed implementation queue.
 - [x] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
 - [x] Terminal deleted-cwd recovery
-- [ ] search_files hidden-root and context-line parsing drift
+- [x] search_files hidden-root and context-line parsing drift
 
 ### 5.M — Mixture of Agents 🔨
 

@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-06T13:39:33Z",
+    "last_updated": "2026-05-06T13:57:33Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -26990,8 +26990,8 @@
             },
             {
               "name": "search_files hidden-root and context-line parsing drift",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Native search_files preserves Hermes search semantics for hidden roots and context output: when the requested root is hidden, content and file-name search include it; context lines parse the rightmost `-<line>-` delimiter so hyphenated numeric filenames are not truncated.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -27004,6 +27004,10 @@
               "degraded_mode": "Malformed context output returns search_context_parse_failed evidence and hidden-root traversal remains root-confined; outside-root hidden paths still fail closed without leaking content.",
               "fixture": "internal/tools/file_search_drift_test.go",
               "source_refs": [
+                "./hermes-agent/tools/file_operations.py@b816fd4e2:_parse_search_context_line",
+                "./hermes-agent/tools/file_operations.py@b816fd4e2:ShellFileOperations._search_files",
+                "./hermes-agent/tests/tools/test_file_operations.py@b816fd4e2:test_hidden_root_with_hidden_ancestor_includes_files",
+                "./hermes-agent/tests/tools/test_file_operations_edge_cases.py@b816fd4e2:TestSearchContextParsing",
                 "../hermes-agent/tools/file_operations.py@64ad7dec0",
                 "../hermes-agent/tests/tools/test_file_operations.py@64ad7dec0",
                 "../hermes-agent/tools/file_operations.py@c050ee657",
@@ -27033,7 +27037,7 @@
                 "internal/tools/file_task_tools.go",
                 "internal/tools/file_search_drift_test.go",
                 "internal/tools/file_read_tool_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run 'TestSearchFiles.*Hidden|TestSearchContextLineParser|TestSearchFilesTool' -count=1",
@@ -27044,20 +27048,42 @@
               "done_signal": [
                 "File-search fixtures prove hidden requested roots are included, outside-root hidden paths remain blocked, and hyphenated numeric filenames parse context lines correctly."
               ],
+              "note": "Complete 2026-05-06: TDD added hidden-root, outside-root/symlink denial, direct context-window, and rightmost context-line parser fixtures. SearchFilesTool now skips hidden descendants from normal roots, allows the explicit hidden root itself while still skipping hidden descendants beneath it, honors content context windows without duplicate lines, and exposes parseSearchContextLine for Hermes-style rightmost `-<line>-` parsing. Focused and full internal/tools package tests passed.",
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go adds search traversal hidden-dir filtering that preserves an explicit hidden search root while skipping hidden descendants and existing heavy directories.",
+                  "internal/tools/file_task_tools.go honors search_files context windows for content results, emitting bounded neighboring lines once per file/line.",
+                  "internal/tools/file_task_tools.go adds parseSearchContextLine with rightmost numeric dash-separator parsing for Hermes rg/grep context output compatibility."
+                ],
+                "tests": [
+                  "internal/tools/file_search_drift_test.go:TestSearchFilesHiddenRootIncludesFiles proves `.hidden` searches include visible files for content and file-name modes while excluding hidden descendants.",
+                  "internal/tools/file_search_drift_test.go:TestSearchFilesHiddenRootStillRootConfined proves absolute outside hidden roots and symlinked outside hidden roots are denied without content leakage.",
+                  "internal/tools/file_search_drift_test.go:TestSearchFilesContentContextIncludesNeighborLines proves context=1 returns before/match/after rows for hyphenated numeric filenames.",
+                  "internal/tools/file_search_drift_test.go:TestSearchContextLineParserHyphenNumericFilename proves rightmost `-<line>-` parsing."
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestSearchFiles.*Hidden|TestSearchContextLineParser|TestSearchFilesTool' -count=1 failed with undefined parseSearchContextLine.",
+                  "GREEN: go test ./internal/tools -run 'TestSearchFiles.*Hidden|TestSearchContextLineParser|TestSearchFilesTool' -count=1 -> ok.",
+                  "GREEN: go test ./internal/tools -count=1 -> ok."
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
+                  "hermes:b816fd4e2 tools/file_operations.py",
+                  "hermes:b816fd4e2 tests/tools/test_file_operations.py",
+                  "hermes:b816fd4e2 tests/tools/test_file_operations_edge_cases.py",
                   "hermes:64ad7dec0 tools/file_operations.py",
                   "hermes:c050ee657 tools/file_operations.py"
                 ],
-                "note": "Direct Hermes file-operation drift captured after the first native file task tool surface landed."
+                "note": "2026-05-06 all-topic parity weakness sweep promoted this builder-ready row to P1. CLI/TUI, provider/auth, gateway/channels, sessions/Goncho, install/runtime, browser, docs/public, and release/operator rows are already represented elsewhere; Hermes b816fd4e2 keeps the file-search hidden-root and rightmost context-line parser behavior active, and Gormes' native SearchFilesTool is the smallest ready runtime slice."
               }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-06T00:00:00Z",
-            "origin_decision": "Hermes b816fd4e2 plus recent terminal/file-operation fixes show the remaining File Ops + Patches weaknesses are stateful edit safety, terminal cwd recovery, and search_files drift. Gormes has native file task tools, read guards, and terminal.cwd validated; the 2026-05-06 all-topic sweep adds `Terminal deleted-cwd recovery` as the P0 foreground-terminal wedge fix while keeping file staleness and search drift as separate builder-ready slices."
+            "origin_decision": "Hermes b816fd4e2 plus recent terminal/file-operation fixes show the remaining File Ops + Patches weaknesses are stateful edit safety, terminal cwd recovery, and search_files drift. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, and terminal deleted-cwd recovery validated. The 2026-05-06 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; most high-risk surfaces are already row-backed, so the sweep promotes `search_files hidden-root and context-line parsing drift` to P1 as the highest-priority small builder-ready tools slice."
           }
         },
         "5.M": {

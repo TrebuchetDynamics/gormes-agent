@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -319,7 +320,7 @@ func (t *SearchFilesTool) searchFileNames(ctx context.Context, root, base, relBa
 			return ctx.Err()
 		}
 		if d.IsDir() {
-			if shouldSkipDir(d.Name()) && path != base {
+			if shouldSkipSearchDir(base, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -366,6 +367,11 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 	counts := map[string]int{}
 	filesSeen := map[string]bool{}
 	var results []map[string]any
+	emittedContext := map[string]bool{}
+	contextLines := in.Context
+	if contextLines < 0 {
+		contextLines = 0
+	}
 	err = filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -374,7 +380,7 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			return ctx.Err()
 		}
 		if d.IsDir() {
-			if shouldSkipDir(d.Name()) && path != base {
+			if shouldSkipSearchDir(base, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -395,11 +401,29 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			counts[rel]++
 			filesSeen[rel] = true
 			if outputMode == "content" {
-				results = append(results, map[string]any{
-					"path": rel,
-					"line": i + 1,
-					"text": line,
-				})
+				start, end := i, i
+				if contextLines > 0 {
+					start = i - contextLines
+					if start < 0 {
+						start = 0
+					}
+					end = i + contextLines
+					if end >= len(lines) {
+						end = len(lines) - 1
+					}
+				}
+				for lineIndex := start; lineIndex <= end; lineIndex++ {
+					key := rel + "\x00" + strconv.Itoa(lineIndex)
+					if emittedContext[key] {
+						continue
+					}
+					emittedContext[key] = true
+					results = append(results, map[string]any{
+						"path": rel,
+						"line": lineIndex + 1,
+						"text": lines[lineIndex],
+					})
+				}
 			}
 		}
 		return nil
@@ -841,6 +865,39 @@ func shouldSkipDir(name string) bool {
 	default:
 		return false
 	}
+}
+
+func shouldSkipSearchDir(base, path, name string) bool {
+	if filepath.Clean(path) == filepath.Clean(base) {
+		return false
+	}
+	return shouldSkipDir(name) || isHiddenPathPart(name)
+}
+
+func isHiddenPathPart(name string) bool {
+	return name != "." && name != ".." && strings.HasPrefix(name, ".")
+}
+
+var searchContextLinePattern = regexp.MustCompile(`-(\d+)-`)
+
+func parseSearchContextLine(line string) (string, int, string, bool) {
+	if line == "" || line == "--" {
+		return "", 0, "", false
+	}
+	matches := searchContextLinePattern.FindAllStringSubmatchIndex(line, -1)
+	if len(matches) == 0 {
+		return "", 0, "", false
+	}
+	match := matches[len(matches)-1]
+	path := line[:match[0]]
+	if path == "" {
+		return "", 0, "", false
+	}
+	lineNumber, err := strconv.Atoi(line[match[2]:match[3]])
+	if err != nil {
+		return "", 0, "", false
+	}
+	return path, lineNumber, line[match[1]:], true
 }
 
 func globMatches(pattern, value string) bool {
