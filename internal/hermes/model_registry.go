@@ -100,6 +100,58 @@ type ModelRegistryEntry struct {
 	Capabilities     ModelCapabilityFlags
 }
 
+const OllamaCloudProviderID = "ollama-cloud"
+
+func NormalizeProviderModelID(provider, model string) string {
+	model = strings.TrimSpace(model)
+	if normalizeModelContextProvider(provider) == OllamaCloudProviderID {
+		return NormalizeOllamaCloudModelID(model)
+	}
+	return model
+}
+
+func NormalizeOllamaCloudModelID(modelID string) string {
+	modelID = strings.TrimSpace(modelID)
+	lower := strings.ToLower(modelID)
+	for _, suffix := range []string{":cloud", "-cloud"} {
+		if strings.HasSuffix(lower, suffix) {
+			return strings.TrimSpace(modelID[:len(modelID)-len(suffix)])
+		}
+	}
+	return modelID
+}
+
+func MergeOllamaCloudModelEntries(live, modelsDev []ModelRegistryEntry) []ModelRegistryEntry {
+	seen := make(map[string]struct{}, len(live)+len(modelsDev))
+	merged := make([]ModelRegistryEntry, 0, len(live)+len(modelsDev))
+	appendEntry := func(entry ModelRegistryEntry) {
+		if strings.TrimSpace(entry.Provider) == "" {
+			entry.Provider = OllamaCloudProviderID
+		}
+		entry.Provider = normalizeModelContextProvider(entry.Provider)
+		if entry.Provider != OllamaCloudProviderID {
+			return
+		}
+		entry.Model = NormalizeOllamaCloudModelID(entry.Model)
+		entry = normalizeModelRegistryEntry(entry)
+		if entry.Model == "" {
+			return
+		}
+		if _, ok := seen[entry.Model]; ok {
+			return
+		}
+		seen[entry.Model] = struct{}{}
+		merged = append(merged, entry)
+	}
+	for _, entry := range live {
+		appendEntry(entry)
+	}
+	for _, entry := range modelsDev {
+		appendEntry(entry)
+	}
+	return merged
+}
+
 type ModelMetadataResult struct {
 	Found bool
 	ModelRegistryEntry

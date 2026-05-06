@@ -168,7 +168,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "footer", Description: "Toggle the gateway footer", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "gquota", Description: "Show Google Gemini Code Assist quota usage", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "indicator", Description: "Pick TUI busy-indicator style", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "curator", Description: "Background skill maintenance", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
+	{Name: "curator", Description: "Background skill maintenance", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"status", "run", "pause", "resume", "pin", "unpin", "backup", "rollback", "restore"}},
 	{Name: "redraw", Description: "Redraw the terminal screen", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 }
 

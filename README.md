@@ -17,7 +17,7 @@
 
 ---
 
-![Gormes install and first-run onboarding demo](docs/assets/gormes-tui-demo.gif)
+![Gormes install and first-run onboarding demo](webpages/docs/assets/gormes-tui-demo.gif)
 
 `gormes --offline` starts locally with no API key, no network calls, and no Python runtime.
 
@@ -184,7 +184,7 @@ In progress:
 - More channels and gateway hardening
 - Deeper learning-loop, MCP/plugin, voice/TTS, and release-distribution work
 
-Latest public release: [v0.1.02](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.02).
+Latest public release: [v0.1.04](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.04).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -195,15 +195,15 @@ Latest public release: [v0.1.02](https://github.com/TrebuchetDynamics/gormes-age
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 8/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 <!-- PROGRESS:END -->
 
 </details>
 
-Release v0.1.02 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. The current benchmark mirror reports a Linux build at ~38.6 MB (`benchmarks.json`, 2026-05-04). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
+Release v0.1.04 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. The current benchmark mirror reports a Linux build at ~39.1 MB (`benchmarks.json`, 2026-05-05). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
 
 ---
 

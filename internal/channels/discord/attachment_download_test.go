@@ -33,6 +33,8 @@ func TestDiscordAttachmentPrefersAuthenticatedBytesAndPreservesMetadata(t *testi
 
 	b := New(Config{
 		AllowedChannelID:   "parent-42",
+		RequireMentionSet:  true,
+		RequireMention:     false,
 		AttachmentCacheDir: cacheDir,
 		AttachmentHTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 			fallbackCalls.Add(1)
@@ -46,7 +48,7 @@ func TestDiscordAttachmentPrefersAuthenticatedBytesAndPreservesMetadata(t *testi
 		Name:     "incident",
 		GuildID:  "guild-7",
 	})
-	inbox, cancel, done := runDiscordBot(t, b)
+	inbox, cancel, done := runDiscordBot(t, b, ms)
 	defer stopDiscordBot(cancel, done)
 
 	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
@@ -100,7 +102,7 @@ func TestDiscordAttachmentSafeFallbackCachesDocument(t *testing.T) {
 			}, nil
 		})},
 	}, ms, nil)
-	inbox, cancel, done := runDiscordBot(t, b)
+	inbox, cancel, done := runDiscordBot(t, b, ms)
 	defer stopDiscordBot(cancel, done)
 
 	ms.deliver(discordMessageWithAttachment("fallback-doc", "summarize", discordAttachment("doc-safe", "report.pdf", "application/pdf", len(testDiscordPDF), "https://cdn.discordapp.com/attachments/x/report.pdf")))
@@ -127,7 +129,7 @@ func TestDiscordAttachmentUnsafeFallbackIsBlockedWithoutHTTP(t *testing.T) {
 			return nil, errUnexpectedDiscordFallback
 		})},
 	}, ms, nil)
-	inbox, cancel, done := runDiscordBot(t, b)
+	inbox, cancel, done := runDiscordBot(t, b, ms)
 	defer stopDiscordBot(cancel, done)
 
 	ms.deliver(discordMessageWithAttachment("unsafe-doc", "", discordAttachment("doc-unsafe", "report.pdf", "application/pdf", 100, "http://169.254.169.254/latest/meta-data")))
@@ -161,7 +163,7 @@ func TestDiscordAttachmentRejectsHTMLFallbackPayload(t *testing.T) {
 			}, nil
 		})},
 	}, ms, nil)
-	inbox, cancel, done := runDiscordBot(t, b)
+	inbox, cancel, done := runDiscordBot(t, b, ms)
 	defer stopDiscordBot(cancel, done)
 
 	ms.deliver(discordMessageWithAttachment("html-image", "", discordAttachment("img-html", "photo.png", "image/png", 64, "https://cdn.discordapp.com/attachments/x/photo.png")))
@@ -181,7 +183,7 @@ func TestDiscordAttachmentTextDocumentInjectionIsBounded(t *testing.T) {
 	ms.attachmentBytes["txt-small"] = []byte("alpha\nbeta\n")
 	ms.attachmentBytes["txt-large"] = bytes.Repeat([]byte("x"), 100*1024+1)
 	b := New(Config{AllowedChannelID: "42", AttachmentCacheDir: cacheDir}, ms, nil)
-	inbox, cancel, done := runDiscordBot(t, b)
+	inbox, cancel, done := runDiscordBot(t, b, ms)
 	defer stopDiscordBot(cancel, done)
 
 	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
@@ -211,7 +213,7 @@ func TestDiscordAttachmentTextDocumentInjectionIsBounded(t *testing.T) {
 func TestDiscordAttachmentOversizedSkipsDownloadWithEvidence(t *testing.T) {
 	ms := newMockSession()
 	b := New(Config{AllowedChannelID: "42", AttachmentCacheDir: t.TempDir()}, ms, nil)
-	inbox, cancel, done := runDiscordBot(t, b)
+	inbox, cancel, done := runDiscordBot(t, b, ms)
 	defer stopDiscordBot(cancel, done)
 
 	ms.deliver(discordMessageWithAttachment("huge-doc", "", discordAttachment("doc-huge", "huge.pdf", "application/pdf", 33*1024*1024, "https://cdn.discordapp.com/attachments/x/huge.pdf")))
@@ -228,7 +230,7 @@ func TestDiscordAttachmentOversizedSkipsDownloadWithEvidence(t *testing.T) {
 	}
 }
 
-func runDiscordBot(t *testing.T, b *Bot) (<-chan gateway.InboundEvent, context.CancelFunc, <-chan struct{}) {
+func runDiscordBot(t *testing.T, b *Bot, ms *mockSession) (<-chan gateway.InboundEvent, context.CancelFunc, <-chan struct{}) {
 	t.Helper()
 	inbox := make(chan gateway.InboundEvent, 8)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -237,7 +239,7 @@ func runDiscordBot(t *testing.T, b *Bot) (<-chan gateway.InboundEvent, context.C
 		_ = b.Run(ctx, inbox)
 		close(done)
 	}()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 	return inbox, cancel, done
 }
 

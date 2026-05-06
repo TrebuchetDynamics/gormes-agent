@@ -11,13 +11,16 @@ import (
 
 type fakeContextEngine struct {
 	boundaryCalls []hermes.CompressionBoundary
+	modelUpdates  []hermes.ContextModelContext
 	compressErr   error
 	compressCalls int
 }
 
-func (e *fakeContextEngine) Name() string                                  { return "fake" }
-func (e *fakeContextEngine) ToolDescriptors() []hermes.ToolDescriptor      { return nil }
-func (e *fakeContextEngine) UpdateModelContext(hermes.ContextModelContext) {}
+func (e *fakeContextEngine) Name() string                             { return "fake" }
+func (e *fakeContextEngine) ToolDescriptors() []hermes.ToolDescriptor { return nil }
+func (e *fakeContextEngine) UpdateModelContext(update hermes.ContextModelContext) {
+	e.modelUpdates = append(e.modelUpdates, update)
+}
 func (e *fakeContextEngine) OnSessionStart(_ context.Context, _ string, _ hermes.ContextSessionMeta) error {
 	return nil
 }

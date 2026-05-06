@@ -2,6 +2,7 @@ package skills
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,5 +39,45 @@ func TestUsageLoggerSkipsEmptySelection(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("usage file exists after empty record, stat err = %v", err)
+	}
+}
+
+func TestSkillUsageAgentCreatedPinnedPatchAndForget(t *testing.T) {
+	root := t.TempDir()
+
+	if err := MarkAgentCreated(root, "agent-skill"); err != nil {
+		t.Fatalf("MarkAgentCreated: %v", err)
+	}
+	if !IsAgentCreated(root, "agent-skill") {
+		t.Fatal("agent-skill not marked agent-created")
+	}
+
+	if err := SetPinned(root, "agent-skill", true); err != nil {
+		t.Fatalf("SetPinned(true): %v", err)
+	}
+	pinned, err := IsPinned(root, "agent-skill")
+	if err != nil {
+		t.Fatalf("IsPinned: %v", err)
+	}
+	if !pinned {
+		t.Fatal("agent-skill not pinned")
+	}
+
+	if err := BumpPatch(root, "agent-skill"); err != nil {
+		t.Fatalf("BumpPatch: %v", err)
+	}
+	record, err := GetUsageRecord(root, "agent-skill")
+	if err != nil {
+		t.Fatalf("GetUsageRecord: %v", err)
+	}
+	if record.CreatedBy != "agent" || !record.AgentCreated || record.PatchCount != 1 || !record.Pinned {
+		t.Fatalf("usage record = %+v, want agent-created pinned patch_count=1", record)
+	}
+
+	if err := ForgetUsageRecord(root, "agent-skill"); err != nil {
+		t.Fatalf("ForgetUsageRecord: %v", err)
+	}
+	if _, err := GetUsageRecord(root, "agent-skill"); !errors.Is(err, ErrUsageRecordNotFound) {
+		t.Fatalf("GetUsageRecord after forget err = %v, want ErrUsageRecordNotFound", err)
 	}
 }

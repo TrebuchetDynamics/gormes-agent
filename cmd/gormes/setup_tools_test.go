@@ -121,6 +121,44 @@ platform_toolsets = { cli = ["terminal", "custom-mcp-server", "no_mcp"] }
 	}
 }
 
+func TestSetupToolsConfigWritePreservesSymlink(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	dir := filepath.Dir(config.ConfigPath())
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	realPath := filepath.Join(dir, "real-config.toml")
+	if err := os.WriteFile(realPath, []byte("platform_toolsets = { cli = [\"terminal\"] }\n"), 0o644); err != nil {
+		t.Fatalf("write real config: %v", err)
+	}
+	if err := os.Symlink(realPath, config.ConfigPath()); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	err := writeSetupToolsConfig(config.ConfigPath(), map[string]any{
+		"platform_toolsets": map[string]any{"cli": []string{"web", "browser"}},
+	})
+	if err != nil {
+		t.Fatalf("writeSetupToolsConfig: %v", err)
+	}
+
+	info, err := os.Lstat(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("lstat config link: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config link was replaced with mode %v, want symlink preserved", info.Mode())
+	}
+	got, err := os.ReadFile(realPath)
+	if err != nil {
+		t.Fatalf("read real config: %v", err)
+	}
+	if !strings.Contains(string(got), "web") || !strings.Contains(string(got), "browser") {
+		t.Fatalf("real config was not updated through symlink:\n%s", got)
+	}
+}
+
 func TestSetupToolsProviderRowsAreRowBacked(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)

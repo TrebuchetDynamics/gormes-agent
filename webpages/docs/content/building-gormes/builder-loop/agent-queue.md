@@ -48,28 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 2. Hermes Kanban production worker process binding
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Gormes binds the fakeable Kanban dispatcher spawner to a production worker launcher that resolves Gormes profiles, builds the native gormes worker argv/env with Kanban context pins and the kanban-worker skill, redirects stdout/stderr to per-task logs with bounded rotation, records worker PID/run metadata, detects crashed worker PIDs, enforces per-task max-runtime caps through injected process controls, and reports worker_spawn_failed, worker_crashed, worker_timed_out, or task_circuit_open evidence without reading live Hermes config.
-- Trust class: operator, gateway, child-agent, system
-- Ready when: Hermes Kanban dispatcher and worker spawn loop is complete., The builder can inject fake process start, PID liveness, signal/kill, log filesystem, and clock seams; no unit test starts or kills a real worker process., Gormes profile name/root helpers are available for profile resolution without importing Hermes config.
-- Not ready when: The implementation shells out to `hermes`, reads HERMES_HOME or ~/.hermes as live config, or uses Hermes Python helpers., Unit tests depend on a real subprocess, real PID table, real signal delivery, or the operator's PATH., The slice changes Kanban worker tools, dashboard routes, board registry semantics, or slash-command parsing instead of only production worker process binding.
-- Degraded mode: Missing gormes binaries, invalid profile names, unwritable workspaces/log paths, stale PIDs, process-kill failures, and max-runtime expiry return typed evidence and release or block the task according to the dispatcher failure policy without spawning Hermes Python or killing unrelated processes.
-- Fixture: `internal/kanban/process_spawner_test.go; internal/kanban/worker_lifecycle_test.go; internal/gateway/kanban_dispatcher_test.go`
-- Write scope: `internal/kanban/`, `internal/gateway/`, `internal/cli/`, `cmd/gormes/kanban.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/kanban -run 'TestKanban(ProcessSpawner\|WorkerLifecycle)' -count=1`, `go test ./internal/gateway -run TestManagerKanbanDispatcher -count=1`, `go run ./cmd/progress validate`
-- Done signal: Kanban dispatcher production binding launches native Gormes workers through fakeable process seams, records PID/log/runtime evidence, reclaims crashed or timed-out workers, and never depends on Hermes Python or live subprocesses in tests.
-- Acceptance: Spawner fixtures prove the production launcher builds native `gormes -p <profile> --skills kanban-worker chat -q ...` argv, GORMES_KANBAN_* env, cwd, and redacted logs without any HERMES_* leak., Log fixtures prove per-task stdout/stderr paths are under the Gormes Kanban log root and rotate before spawn when over the configured limit., PID fixtures prove spawned PIDs are recorded on task and run rows, crashed workers are reclaimed with worker_crashed evidence, and stale or reused PID evidence does not kill unrelated processes., Runtime-cap fixtures prove expired tasks receive injected TERM/KILL-style process controls, record worker_timed_out evidence, and return to ready or blocked according to the failure policy., Gateway wiring fixtures prove production dispatcher config can use the process spawner while tests keep using the fake spawner seam.
-- Source refs: ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:_default_spawn, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:detect_crashed_workers, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:enforce_max_runtime, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:worker_logs_dir, ./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:heartbeat_worker, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatcher_spawn_injects_kanban_db_and_workspaces_root, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_promotes_ready_and_spawns, ./hermes-agent/tests/hermes_cli/test_kanban_db.py@b816fd4e2:test_dispatch_spawn_failure_releases_claim, internal/kanban/dispatcher.go, internal/kanban/store.go, internal/cli/profile_root.go, cmd/gormes/profile.go
-- Unblocks: Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces
-- Why now: Unblocks Hermes Kanban multi-board, workspace, and run-history parity, Hermes Kanban slash/gateway/dashboard surfaces.
-
-## 3. Channels Capabilities Introspection
+## 2. Channels Capabilities Introspection
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Channel configuration UX
 - Why now: Unblocks Channel configuration UX.
 
-## 4. Prompt Fragment Include System
+## 3. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -111,47 +90,27 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 5. ACP bridge client compatibility
-
-- Phase: 5 / 5.N
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Close the OpenClaw ACP bridge gap by adding Gormes client-side ACP connection/proxy behavior in addition to the existing server-facing package, with status/doctor evidence for connected, unavailable, and unsupported remote ACP endpoints.
-- Trust class: operator, gateway
-- Ready when: Current internal/acp server stubs are audited so the row can distinguish server support from outbound bridge/client support.
-- Not ready when: The slice claims ACP parity from package existence without a client/proxy fixture.
-- Degraded mode: Unavailable ACP endpoints report acp_bridge_unavailable with endpoint and auth source redacted; local Gormes operation continues without pretending ACP is connected.
-- Fixture: `internal/acp/bridge_test.go`
-- Write scope: `internal/acp/`, `cmd/gormes/acp.go`, `cmd/gormes/doctor.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/acp ./cmd/gormes -run 'ACP.*Bridge\|ACP.*Status' -count=1`, `go run ./cmd/progress validate`
-- Done signal: ACP bridge fixtures prove outbound client/proxy behavior or explicitly degraded status.
-- Acceptance: Gormes can configure an outbound ACP endpoint and report connection status., Bridge requests are covered by hermetic fake endpoint tests., Doctor/status distinguishes server-only support from client bridge support.
-- Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Gateway discover/probe command
+## 4. Gateway probe auth/capability HTTP closeout
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
 - Size: `small`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Add OpenClaw-style gateway discovery/probe commands for Gormes operators: discover local/remote gateway endpoints, probe auth/health/capabilities, and return redacted structured evidence for unavailable, unauthenticated, and mismatched gateways.
+- Priority: `P2`
+- Contract: Close the remaining OpenClaw-style gateway probe gap after the completed TCP discover/probe slice: probe authenticated HTTP health/capabilities endpoints with redacted evidence for unavailable, unauthenticated, unsupported, and mismatched gateways.
 - Trust class: operator, gateway
-- Ready when: Gateway status and doctor endpoints are stable enough to probe without live network dependencies in tests.
-- Not ready when: The slice requires a live Telegram or Discord gateway to pass tests.
-- Degraded mode: Probe failures show endpoint, status code, and auth source classification without leaking bearer tokens or gateway passwords.
-- Fixture: `cmd/gormes/gateway_discover_test.go`
-- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_discover.go`, `cmd/gormes/gateway_discover_test.go`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Discover\|Gateway.*Probe' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway discover/probe gives operators redacted connection evidence without reading source code.
-- Acceptance: gormes gateway discover reports candidate local endpoints and active PID/status evidence., gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, and malformed response., Output redacts tokens/passwords and includes exact probe counts.
-- Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, cmd/gormes/gateway.go, internal/apiserver/server.go
+- Ready when: The base Gateway Discover and Probe row is complete, so this closeout can build on the existing `gormes gateway probe` command without duplicating TCP reachability., Gateway status, health, and capabilities endpoints are stable enough to probe with hermetic httptest servers and fake auth sources.
+- Not ready when: The slice requires a live Telegram, Discord, Slack, or gateway process to pass tests., The slice reimplements Bonjour/TCP discovery instead of layering HTTP auth/capability probes over the completed gateway_discover contract.
+- Degraded mode: HTTP probe failures show endpoint, status code, and auth source classification without leaking bearer tokens, gateway passwords, or SecretRef values.
+- Fixture: `cmd/gormes/gateway_probe_http_test.go`
+- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_discover.go`, `cmd/gormes/gateway_probe_http_test.go`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP\|Gateway.*Capability' -count=1`, `go run ./cmd/progress validate`
+- Done signal: Gateway HTTP probe closeout gives operators redacted auth, health, and capability evidence without reading source code or contacting live channels.
+- Acceptance: gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, unsupported capability, and malformed response., Output redacts bearer tokens, gateway passwords, and SecretRef values while preserving auth-source classification., The completed TCP discover/probe behavior remains covered by the Gateway Discover and Probe row and is not duplicated here.
+- Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, ../openclaw/src/commands/gateway-status/probe-run.ts, internal/tools/gateway_discover.go, cmd/gormes/gateway.go, cmd/gormes/gateway_discover.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Transactional tool execution with snapshot/rollback
+## 5. Transactional tool execution with snapshot/rollback
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -171,7 +130,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Sandbox isolation depth selection
+## 6. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -191,44 +150,84 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Gateway channel adapters publish to event bus
+## 7. Behavioral pattern extraction from session logs
 
-- Phase: 5 / 5.V
-- Owner: `gateway`
+- Phase: 6 / 6.K
+- Owner: `orchestrator`
 - Size: `large`
 - Status: `planned`
-- Priority: `P1`
-- Contract: Each gateway channel adapter (Telegram, Discord, Slack, WhatsApp, WeChat) publishes incoming messages as standardized events on the bus, and subscribes to outgoing message events. Channel-specific translation lives in adapters; the bus carries channel-neutral events.
-- Trust class: system
-- Ready when: Event bus exists (5.V row 1), Channel adapters are refactorable to add bus hooks
-- Not ready when: Event bus not yet implemented, Channel adapters too tightly coupled to refactor
+- Priority: `P3`
+- Contract: Mine session logs and tool execution audits for behavioral patterns: which tool sequences succeed vs fail, which reasoning patterns precede good outcomes, which response styles correlate with user satisfaction. Patterns feed into the self-evolution loop as candidate mutations.
+- Trust class: operator
+- Ready when: Session logs are structured and queryable, Tool execution audit log exists (Phase 3.E.2)
+- Not ready when: No structured session data available, Tool audit log not yet implemented
 - Degraded mode: -
 - Fixture: `-`
-- Write scope: `internal/channels/telegram/bus_adapter.go`, `internal/channels/discord/bus_adapter.go`, `internal/channels/slack/bus_adapter.go`, `internal/gateway/event_dispatch.go`, `internal/gateway/event_dispatch_test.go`
-- Test commands: `go test ./internal/gateway -run TestEventDispatch -count=1`, `go test ./internal/channels/telegram -run TestBusAdapter -count=1`
-- Done signal: Integration tests prove messages flow from channel→bus→agent and back through all adapter types
-- Acceptance: Incoming Telegram message → MessageReceived event on bus, Incoming Discord message → MessageReceived event on bus, Incoming Slack message → MessageReceived event on bus, Outgoing reply event → channel-specific delivery by adapter subscriber, Channel adapter failures are isolated — one channel crash doesn't affect others, Message events carry channel provenance (source, channel_id, user_id)
-- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
+- Write scope: `internal/hermes/pattern_extractor.go`, `internal/hermes/pattern_extractor_test.go`
+- Test commands: `go test ./internal/hermes -run TestPatternExtractor -count=1`
+- Done signal: Pattern extractor tests prove successful and failed patterns are correctly identified from log data
+- Acceptance: Pattern extractor identifies tool sequences with >80% success rate, Identifies tool sequences with <30% success rate (anti-patterns), Extracts reasoning patterns preceding successful tool calls, Patterns stored in Goncho as structured behavioral knowledge, Pattern extraction is offline (does not run during agent turns)
+- Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Agent turn and tool execution events on bus
+## 8. Skill code execution runtime
 
-- Phase: 5 / 5.V
-- Owner: `orchestrator`
-- Size: `medium`
+- Phase: 6 / 6.L
+- Owner: `skills`
+- Size: `large`
 - Status: `planned`
 - Priority: `P2`
-- Contract: Agent turns (start, thought, action, observation, complete, error) and tool executions (start, progress, complete, error) are published as structured events on the bus. Enables TUI, web dashboard, and audit log to observe agent activity without polling.
-- Trust class: system
-- Ready when: Event bus exists (5.V row 1), Agent loop has hook points for event emission
-- Not ready when: Event bus not yet implemented, Agent loop cannot be refactored for hooks
+- Contract: Skills are not just markdown instructions — they contain executable code that can be run in a sandboxed environment. This mirrors Voyager's code-as-action pattern: skills are validated, sandboxed, and can be composed by the agent at runtime.
+- Trust class: operator, system
+- Ready when: Skill loader parses structured skill files, Sandbox execution exists for tool calls
+- Not ready when: Skill files are plain text only (no code blocks), No sandbox isolation available
 - Degraded mode: -
 - Fixture: `-`
-- Write scope: `internal/hermes/turn_events.go`, `internal/hermes/turn_events_test.go`, `internal/tools/tool_events.go`
-- Test commands: `go test ./internal/hermes -run TestTurnEvents -count=1`, `go test ./internal/tools -run TestToolEvents -count=1`
-- Done signal: Event tests prove turn lifecycle emits all expected events with correct trace_id linking
-- Acceptance: TurnStart event emitted when agent begins processing, Thought event emitted for each reasoning step, ToolCall event emitted when tool is invoked, ToolResult event emitted when tool completes, TurnComplete event emitted with summary, All events carry trace_id linking them to a session turn
-- Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/hermes/turn.go, internal/tools/executor.go
+- Write scope: `internal/skills/code_executor.go`, `internal/skills/code_executor_test.go`, `internal/skills/skill_runtime.go`
+- Test commands: `go test ./internal/skills -run TestCodeExecutor -count=1`, `go test ./internal/skills -run TestSkillRuntime -count=1`
+- Done signal: Code executor tests prove skills with code blocks execute in sandbox with input/output contract
+- Acceptance: Skill files with code blocks are executable in sandbox, Execution is sandboxed with the same isolation as tool calls, Skill code has access to skill-defined dependencies, Execution timeout prevents runaway skills, Execution output is captured and returned to agent, Skill can define input parameters accepted from agent
+- Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 9. Skill dependency resolution and composition
+
+- Phase: 6 / 6.L
+- Owner: `skills`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P3`
+- Contract: Skills can declare dependencies on other skills. The runtime resolves the dependency graph before execution. The agent can compose skills by chaining: output of Skill A feeds into input of Skill B. Dependencies are validated at load time.
+- Trust class: operator
+- Ready when: Skill code execution exists (6.L row 1), Skills have structured metadata with dependency declarations
+- Not ready when: Skills have no dependency model, Code execution runtime not available
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/skills/dependency_resolver.go`, `internal/skills/dependency_resolver_test.go`, `internal/skills/composer.go`
+- Test commands: `go test ./internal/skills -run TestDependencyResolver -count=1`, `go test ./internal/skills -run TestComposer -count=1`
+- Done signal: Dependency tests prove circular deps rejected and chained composition works with error attribution
+- Acceptance: Skill dependency graph resolved at load time, Circular dependencies detected and rejected with clear error, Missing dependencies reported with skill name and missing dep, Agent can chain Skill A output → Skill B input, Composition failures surface which step in the chain failed, Load-time validation catches 100% of dependency errors before execution
+- Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Skill validation on load with execution proof
+
+- Phase: 6 / 6.L
+- Owner: `skills`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: When a skill is loaded or created, run a lightweight validation: parse code blocks, execute in sandbox with a canary input, verify output contract. Skills that fail validation are marked as broken and not offered to the agent. Passing skills carry a 'validated' trust marker.
+- Trust class: system
+- Ready when: Skill code execution exists (6.L row 1)
+- Not ready when: No sandbox execution available for validation
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/skills/validator.go`, `internal/skills/validator_test.go`
+- Test commands: `go test ./internal/skills -run TestValidator -count=1`
+- Done signal: Validator tests prove broken skills are caught at load time with clear error messages
+- Acceptance: Skills validated on load before appearing in agent's tool list, Canary execution with minimal input verifies basic functionality, Broken skills marked with error details (not silently skipped), Validation is fast (<500ms per skill, runs in background goroutine), Operator can force-load a broken skill with explicit override flag, Validation results visible in skill registry status
+- Source refs: docs/content/papers/foundational-architectures.md, Voyager iterative prompting with execution feedback, internal/skills/loader.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

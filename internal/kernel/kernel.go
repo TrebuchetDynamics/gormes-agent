@@ -29,6 +29,9 @@ var ErrEventMailboxFull = errors.New("kernel: event mailbox full")
 
 // DefaultMaxToolIterations matches upstream Hermes' normal-turn default.
 const DefaultMaxToolIterations = 90
+const defaultMaxEmptyResponseRetries = 3
+
+type FallbackClientFactory func(context.Context, hermes.ModelRoute) (hermes.Client, error)
 
 type Config struct {
 	Model    string
@@ -74,6 +77,12 @@ type Config struct {
 	// per stream attempt (Route-B reconnect). Default 30s when zero.
 	// Exceeding this budget fails the turn with "reconnect time budget exhausted".
 	MaxReconnectDuration time.Duration
+	// Fallback activates a Hermes-compatible fallback model/provider after
+	// repeated empty provider responses. The factory is injected so tests and
+	// runtime wiring can create provider clients without importing config here.
+	Fallback                hermes.FallbackModelPolicy
+	FallbackClientFactory   FallbackClientFactory
+	MaxEmptyResponseRetries int
 }
 
 type SkillProvider interface {
@@ -259,7 +268,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 						k.cfg.ToolSafety = ComposeToolSafetyPolicies(e.ToolSafety, prevToolSafety)
 						defer func() { k.cfg.ToolSafety = prevToolSafety }()
 					}
-					k.runTurn(ctx, e.Text, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
+					k.runTurn(ctx, e.Text, e.ContentParts, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
 				}()
 			case PlatformEventCancel:
 				// No active turn; ignore (cancel during a turn is handled
@@ -298,7 +307,7 @@ func (k *Kernel) Run(ctx context.Context) error {
 // goroutine — this is part of the single-owner invariant.
 // cronJobID is non-empty for Phase 2.D cron-fired turns; it is passed through
 // to the store.Command payload and is otherwise opaque to the kernel.
-func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, model, reasoningOverride string) {
+func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes.MessageContentPart, sessionContext, cronJobID, model, reasoningOverride string) {
 	prov := newProvenance(k.cfg.Endpoint)
 	defer func() { k.pendingSteers = nil }()
 	turnKey := prov.LocalRunID
@@ -308,12 +317,13 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	k.soul = nil
 
 	// 1. Admission. Reject locally before any HTTP.
-	if err := k.cfg.Admission.Validate(text); err != nil {
+	if err := validateTurnAdmission(k.cfg.Admission, text, contentParts); err != nil {
 		k.lastError = err.Error()
 		k.emitFrame(err.Error())
 		return
 	}
 	prov.LogAdmitted(k.log)
+	userMsg := hermes.Message{Role: "user", Content: text, ContentParts: cloneMessageContentParts(contentParts)}
 
 	// 2. Persist user turn with hard 250ms ack deadline (spec §7.8 store row).
 	storeCtx, storeCancel := context.WithTimeout(ctx, StoreAckDeadline)
@@ -341,7 +351,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 
 	// 3. Update state for the new turn. These mutations are safe because we
 	// are on the Run goroutine.
-	k.history = append(k.history, hermes.Message{Role: "user", Content: text})
+	k.history = append(k.history, userMsg)
 	k.draft = ""
 	k.lastError = ""
 	k.retryStatus = NewRetryStatus()
@@ -355,7 +365,7 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	// we execute the tools in-process and issue a follow-up stream with the
 	// tool results appended to the message history. Capped at MaxToolIterations
 	// to prevent runaway agent loops.
-	msgs := []hermes.Message{{Role: "user", Content: text}}
+	msgs := []hermes.Message{userMsg}
 	systemMsgs := make([]hermes.Message, 0, 8)
 
 	if gonchoCtx := k.gonchoContext(ctx); gonchoCtx != "" {
@@ -424,6 +434,15 @@ func (k *Kernel) runTurn(ctx context.Context, text, sessionContext, cronJobID, m
 	if k.cfg.ContextEngine != nil {
 		request.Tools = append(request.Tools, k.cfg.ContextEngine.ToolDescriptors()...)
 	}
+	primaryClient := k.client
+	defer func() { k.client = primaryClient }()
+	fallbackRoutes := append([]hermes.ModelRoute(nil), k.cfg.Fallback.Routes...)
+	if !k.cfg.Fallback.Enabled {
+		fallbackRoutes = nil
+	}
+	fallbackIndex := 0
+	emptyResponses := 0
+	maxEmptyResponses := k.maxEmptyResponseRetries()
 	maxIter := k.cfg.MaxToolIterations
 	if maxIter <= 0 {
 		maxIter = DefaultMaxToolIterations
@@ -564,6 +583,22 @@ toolLoop:
 			break toolLoop
 		}
 		k.updateContextEngineUsage(finalDelta)
+		if len(fallbackRoutes) > 0 && emptyFinalResponse(k.draft, finalDelta) {
+			emptyResponses++
+			if emptyResponses <= maxEmptyResponses {
+				gotFinal = false
+				finalDelta = hermes.Event{}
+				k.phase = PhaseReconnecting
+				k.emitFrame("empty response retry")
+				continue toolLoop
+			}
+			if k.activateFallback(ctx, &request, fallbackRoutes, &fallbackIndex) {
+				emptyResponses = 0
+				gotFinal = false
+				finalDelta = hermes.Event{}
+				continue toolLoop
+			}
+		}
 
 		if finalDelta.FinishReason != "tool_calls" {
 			// Normal end of turn. Exit the tool loop to finalise.
@@ -696,11 +731,41 @@ toolLoop:
 	}
 
 	prov.LogDone(k.log)
+	k.client = primaryClient
 	k.phase = PhaseIdle
 	k.activeModel = k.cfg.Model
 	k.activeReasoning = hermes.ReasoningEffortEvidence{}
 	k.pendingSteers = nil
 	k.emitFrame("idle")
+}
+
+func validateTurnAdmission(admission Admission, text string, parts []hermes.MessageContentPart) error {
+	payload := text
+	for _, part := range parts {
+		switch strings.ToLower(strings.TrimSpace(part.Type)) {
+		case "text", "input_text", "output_text":
+			payload += "\n" + part.Text
+		case "image_url", "input_image", "image":
+			payload += "\n" + part.ImageURL
+		}
+	}
+	if strings.TrimSpace(payload) == "" {
+		return ErrEmptyInput
+	}
+	if admission.MaxBytes > 0 && len(payload) > admission.MaxBytes {
+		return ErrInputTooLarge
+	}
+	if admission.MaxLines > 0 && strings.Count(payload, "\n")+1 > admission.MaxLines {
+		return ErrTooManyLines
+	}
+	return nil
+}
+
+func cloneMessageContentParts(parts []hermes.MessageContentPart) []hermes.MessageContentPart {
+	if len(parts) == 0 {
+		return nil
+	}
+	return append([]hermes.MessageContentPart(nil), parts...)
 }
 
 const maxIterationSummaryRequest = "You've reached the maximum number of tool-calling iterations allowed. Please provide a final response summarizing what you've found and accomplished so far, without calling any more tools."

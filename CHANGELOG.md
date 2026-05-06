@@ -8,6 +8,31 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.1.04] - 2026-05-06
+
+### Added
+- Kanban worker process lifecycle binding so Gormes can spawn, track, and
+  cleanly supervise worker processes.
+- Telegram event-bus adapter and tool execution event publishing so channel
+  integrations can observe runtime activity through the shared bus.
+- Configurable `voice.record_key` handling plus voice-mode environment
+  detection for native and remote TUI sessions.
+- ACP bridge status reporting in `gormes doctor` and expanded curator, update,
+  and plugin runtime surfaces.
+
+### Changed
+- Kept the builder cron and release lane tied to green CI evidence before
+  publishing release work.
+- Refreshed release metadata for the README and landing site to point at
+  `v0.1.04`.
+
+### Fixed
+- Cron environment/state parity tracking and closed the related progress row
+  with validation evidence.
+- Doctor auth detection for GitHub CLI credentials.
+- Telegram mention boundaries, email sender allowlist enforcement, gateway
+  stale-code checks, and Discord forum test isolation.
+
 ## [0.1.03] - 2026-05-06
 
 ### Added
@@ -124,7 +149,8 @@ inside the 0.x compatibility window.
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.03...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.04...HEAD
+[0.1.04]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.03...v0.1.04
 [0.1.03]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.02...v0.1.03
 [0.1.02]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.01...v0.1.02
 [0.1.01]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.0...v0.1.01

@@ -507,6 +507,36 @@ func makeOpenAICompatibleMessages(messages []Message, provider, model, baseURL s
 }
 
 func openAICompatibleMessageContent(msg Message) any {
+	if len(msg.ContentParts) > 0 {
+		parts := make([]map[string]any, 0, len(msg.ContentParts))
+		for _, part := range msg.ContentParts {
+			switch strings.ToLower(strings.TrimSpace(part.Type)) {
+			case "text", "input_text", "output_text":
+				if part.Text == "" {
+					continue
+				}
+				parts = append(parts, map[string]any{
+					"type": "text",
+					"text": part.Text,
+				})
+			case "image_url", "input_image", "image":
+				if part.ImageURL == "" {
+					continue
+				}
+				image := map[string]any{"url": part.ImageURL}
+				if strings.TrimSpace(part.Detail) != "" {
+					image["detail"] = strings.TrimSpace(part.Detail)
+				}
+				parts = append(parts, map[string]any{
+					"type":      "image_url",
+					"image_url": image,
+				})
+			}
+		}
+		if len(parts) > 0 {
+			return parts
+		}
+	}
 	if msg.CacheControl == nil {
 		return msg.Content
 	}

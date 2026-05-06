@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"testing"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -12,23 +14,26 @@ import (
 var errMockDiscordAttachmentReadUnavailable = errors.New("mock discord attachment read unavailable")
 
 type mockSession struct {
-	mu              sync.Mutex
-	opened          bool
-	closed          bool
-	handlers        []interface{}
-	sent            []mockSent
-	complexSent     []mockComplexSent
-	edits           []mockEdit
-	reactionsAdded  []mockReaction
-	reactionsRemove []mockReaction
-	nextMsgID       int
-	openErr         error
-	sendErr         error
-	editErr         error
-	reactionErr     error
-	attachmentBytes map[string][]byte
-	attachmentErr   error
-	attachmentReads int
+	mu                   sync.Mutex
+	opened               bool
+	openOnce             sync.Once
+	openCh               chan struct{}
+	closed               bool
+	handlers             []interface{}
+	sent                 []mockSent
+	complexSent          []mockComplexSent
+	edits                []mockEdit
+	reactionsAdded       []mockReaction
+	reactionsRemove      []mockReaction
+	nextMsgID            int
+	openErr              error
+	sendErr              error
+	sendErrWhenReference error
+	editErr              error
+	reactionErr          error
+	attachmentBytes      map[string][]byte
+	attachmentErr        error
+	attachmentReads      int
 }
 
 type mockSent struct{ ChannelID, Content, MsgID string }
@@ -46,6 +51,7 @@ func newMockSession() *mockSession {
 	return &mockSession{
 		nextMsgID:       1000,
 		attachmentBytes: map[string][]byte{},
+		openCh:          make(chan struct{}),
 	}
 }
 
@@ -54,7 +60,20 @@ func (m *mockSession) Open() error {
 	m.opened = true
 	err := m.openErr
 	m.mu.Unlock()
+	m.openOnce.Do(func() { close(m.openCh) })
 	return err
+}
+
+// waitOpen blocks until Bot.Run reaches session.Open, after every AddHandler
+// call has returned. Use this in tests instead of time.Sleep to deterministically
+// synchronize handler registration with mock event delivery.
+func (m *mockSession) waitOpen(t *testing.T) {
+	t.Helper()
+	select {
+	case <-m.openCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("discord mock: timed out waiting for session.Open()")
+	}
 }
 
 func (m *mockSession) Close() error {
@@ -87,6 +106,9 @@ func (m *mockSession) ChannelMessageSendComplex(channelID string, data *discordg
 	defer m.mu.Unlock()
 	if m.sendErr != nil {
 		return nil, m.sendErr
+	}
+	if data != nil && data.Reference != nil && m.sendErrWhenReference != nil {
+		return nil, m.sendErrWhenReference
 	}
 	id := nextID(&m.nextMsgID)
 	sent := mockComplexSent{ChannelID: channelID, MsgID: id, Data: data}

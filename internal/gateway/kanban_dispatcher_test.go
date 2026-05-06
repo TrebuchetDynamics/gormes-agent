@@ -127,6 +127,102 @@ func TestManagerKanbanDispatcherLifecycleRunsTicksNudgesAndStops(t *testing.T) {
 	}
 }
 
+func TestManagerKanbanDispatcherUsesProductionProcessSpawnerRunner(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 6, 20, 0, 0, 0, time.UTC)
+	store, err := kanban.Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open kanban store: %v", err)
+	}
+	defer store.Close()
+	task, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "Spawn from gateway", Assignee: "coder"})
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	starter := &recordingGatewayProcessStarter{result: kanban.ProcessStartResult{PID: 5150, StartedAt: now}}
+	runner := kanban.Runner{
+		Dispatcher: kanban.Dispatcher{
+			Store: store,
+			Spawner: kanban.ProcessSpawner{
+				Binary:  "gormes",
+				LogRoot: filepath.Join(t.TempDir(), "logs"),
+				Starter: starter,
+			},
+		},
+		Options: kanban.DispatchOptions{MaxSpawn: 1},
+	}
+	var _ KanbanDispatcherRunner = runner
+
+	ticks := make(chan time.Time, 1)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	m := NewManagerWithSubmitter(ManagerConfig{
+		RuntimeStatus: statusStore,
+		KanbanDispatcher: KanbanDispatcherConfig{
+			Runner: runner,
+			Tick:   ticks,
+		},
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	runCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- m.Run(runCtx) }()
+	<-ch.started
+
+	ticks <- now
+	waitFor(t, 200*time.Millisecond, func() bool {
+		return starter.callCount() == 1
+	})
+	req := starter.requests[0]
+	if req.Env["GORMES_KANBAN_TASK"] != task.ID {
+		t.Fatalf("GORMES_KANBAN_TASK = %q, want %q", req.Env["GORMES_KANBAN_TASK"], task.ID)
+	}
+	if req.Binary != "gormes" {
+		t.Fatalf("Binary = %q, want gormes", req.Binary)
+	}
+	var status RuntimeStatus
+	waitFor(t, 200*time.Millisecond, func() bool {
+		status, err = statusStore.ReadRuntimeStatus(ctx)
+		return err == nil && status.KanbanDispatcher.Spawned == 1
+	})
+	if status.KanbanDispatcher.Spawned != 1 {
+		t.Fatalf("kanban spawned = %d, want 1", status.KanbanDispatcher.Spawned)
+	}
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned error: %v", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Manager.Run did not stop after context cancellation")
+	}
+}
+
+type recordingGatewayProcessStarter struct {
+	mu       sync.Mutex
+	requests []kanban.ProcessStartRequest
+	result   kanban.ProcessStartResult
+}
+
+func (s *recordingGatewayProcessStarter) StartKanbanProcess(_ context.Context, req kanban.ProcessStartRequest) (kanban.ProcessStartResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.requests = append(s.requests, req)
+	return s.result, nil
+}
+
+func (s *recordingGatewayProcessStarter) callCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.requests)
+}
+
 func TestManagerKanbanDispatcherRecordsTriggerTimestamp(t *testing.T) {
 	ctx := context.Background()
 	ticks := make(chan time.Time, 1)

@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/acp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -24,6 +25,8 @@ import (
 func init() {
 	doctorCmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
 }
+
+var doctorGitHubAuthRunner = doctor.DefaultGitHubAuthStatusRunner
 
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
@@ -86,6 +89,11 @@ var doctorCmd = &cobra.Command{
 		fmt.Print(result.Format())
 		fmt.Print(doctorWebToolsStatus(cfg).Format())
 		fmt.Print(doctorBrowserRuntimeStatus().Format())
+		fmt.Print(doctorACPBridgeStatus().Format())
+		fmt.Print(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
+			Env:             doctorGitHubAuthEnv(),
+			RunGHAuthStatus: doctorGitHubAuthRunner,
+		}).Format())
 		fmt.Print(doctorGonchoConfig(cfg).Format())
 
 		runtimeStatus := gateway.RuntimeStatus{}
@@ -124,6 +132,13 @@ var doctorCmd = &cobra.Command{
 		}
 		return nil
 	},
+}
+
+func doctorGitHubAuthEnv() map[string]string {
+	return map[string]string{
+		"GITHUB_TOKEN": os.Getenv("GITHUB_TOKEN"),
+		"GH_TOKEN":     os.Getenv("GH_TOKEN"),
+	}
 }
 
 func doctorWebToolsStatus(cfg config.Config) doctor.CheckResult {
@@ -166,6 +181,62 @@ func doctorProviderHealthTarget(cfg config.Config) string {
 
 func doctorProviderHealthUsesAuthReadiness(cfg config.Config) bool {
 	return strings.EqualFold(strings.TrimSpace(cfg.Hermes.Provider), config.CodexOAuthProvider)
+}
+
+func doctorACPBridgeStatus() doctor.CheckResult {
+	status := acp.DefaultBridgeStatus()
+	checkStatus := doctor.StatusPass
+	if !status.ServerReady || !status.ClientReady || status.RemoteStatus != acp.BridgeEndpointReady {
+		checkStatus = doctor.StatusWarn
+	}
+
+	serverStatus := doctor.StatusPass
+	if !status.ServerReady {
+		serverStatus = doctor.StatusWarn
+	}
+	clientStatus := doctor.StatusPass
+	if !status.ClientReady {
+		clientStatus = doctor.StatusWarn
+	}
+	remoteStatus := doctor.StatusPass
+	if status.RemoteStatus != acp.BridgeEndpointReady {
+		remoteStatus = doctor.StatusWarn
+	}
+
+	return doctor.CheckResult{
+		Name:   "ACP bridge",
+		Status: checkStatus,
+		Summary: fmt.Sprintf("server=%s client=%s remote=%s evidence=%s",
+			readyWord(status.ServerReady),
+			readyWord(status.ClientReady),
+			status.RemoteStatus,
+			status.RemoteEvidence,
+		),
+		Items: []doctor.ItemInfo{
+			{
+				Name:   "server",
+				Status: serverStatus,
+				Note:   fmt.Sprintf("evidence=%s surfaces=%d row_backed=%d", status.ServerEvidence, status.ServerSurfaces, status.ServerRowBacked),
+			},
+			{
+				Name:   "client",
+				Status: clientStatus,
+				Note:   "evidence=" + status.ClientEvidence,
+			},
+			{
+				Name:   "remote",
+				Status: remoteStatus,
+				Note:   fmt.Sprintf("evidence=%s reason=%s", status.RemoteEvidence, status.RemoteReason),
+			},
+		},
+	}
+}
+
+func readyWord(ok bool) string {
+	if ok {
+		return "ready"
+	}
+	return "unavailable"
 }
 
 func doctorSecretRuntimeStatus(snapshot gormesruntime.SecretRuntimeSnapshot, activationErr error) doctor.CheckResult {

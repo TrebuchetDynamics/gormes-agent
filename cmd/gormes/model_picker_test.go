@@ -88,6 +88,31 @@ func TestModelPickerPersistsModelAndProvider(t *testing.T) {
 	}
 }
 
+func TestModelPickerOllamaCloudNormalizesSuffixedSelection(t *testing.T) {
+	fake := &modelCommandFakeSeams{
+		isTTY:     true,
+		current:   cli.ProviderModel{Provider: "ollama-cloud", Model: "kimi-k2.6"},
+		providers: []cli.ProviderMenuEntry{{ID: "ollama-cloud", Label: "Ollama Cloud"}},
+		model:     "qwen3-coder:480b-cloud",
+	}
+	stdout, stderr, err := runModelTestCommand(t, fake.seams())
+	if err != nil {
+		t.Fatalf("Execute: %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if len(fake.persisted) != 1 {
+		t.Fatalf("persisted = %#v, want one selection", fake.persisted)
+	}
+	if got := fake.persisted[0].Model; got != "qwen3-coder:480b" {
+		t.Fatalf("persisted model = %q, want qwen3-coder:480b", got)
+	}
+	if strings.Contains(stdout, "qwen3-coder:480b-cloud") {
+		t.Fatalf("stdout shows suffixed Ollama Cloud model:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "model=qwen3-coder:480b") {
+		t.Fatalf("stdout missing normalized model evidence:\n%s", stdout)
+	}
+}
+
 func TestModelCommandDefaultPersistWritesConfig(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	selection := cli.Selection{Provider: "openai-codex", Model: "gpt-5.5"}

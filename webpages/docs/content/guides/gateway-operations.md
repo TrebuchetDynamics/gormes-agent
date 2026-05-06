@@ -12,7 +12,10 @@ The gateway command is the multi-channel operator surface.
 gormes gateway --help
 gormes gateway status
 gormes gateway reload
+gormes whatsapp
 ```
+
+Runtime-ready channels are Telegram, Discord, and Slack when configured. WhatsApp is row-backed/fixture-backed until the live bridge bundle and gateway registration are promoted by runtime evidence.
 
 Current available subcommands:
 

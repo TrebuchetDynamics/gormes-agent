@@ -267,7 +267,7 @@ func writeSecretsSnapshotFile(snapshot toolspkg.SecretsRuntimeSnapshot) error {
 		os.Remove(tmpName)
 		return fmt.Errorf("gormes secrets: close snapshot temp: %w", err)
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if _, err := toolspkg.AtomicReplace(tmpName, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600}); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("gormes secrets: replace snapshot: %w", err)
 	}

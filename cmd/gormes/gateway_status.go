@@ -68,6 +68,9 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 		Pairing:  pairingStatus,
 		Runtime:  runtimeStatus,
 	})
+	if staleCodeLine := renderGatewayStaleCodeLine(runtimeStatus.StaleCode); staleCodeLine != "" {
+		output += staleCodeLine + "\n"
+	}
 	output += renderGatewaySlackDiagnosticLine(cfg, runtimeStatus)
 	if validationLine := renderRuntimeValidationLine(runtimeSnapshot.Validation); validationLine != "" {
 		output += validationLine + "\n"
@@ -102,6 +105,37 @@ func renderGatewayStatusJSON(cmd *cobra.Command, cfg config.Config, pairing gate
 func renderGatewaySlackDiagnosticLine(cfg config.Config, runtime gateway.RuntimeStatus) string {
 	check := doctorSlackGatewayConfig(cfg, runtime)
 	return fmt.Sprintf("gateway/slack: %s\n", check.Summary)
+}
+
+func renderGatewayStaleCodeLine(evidence *gateway.RuntimeStaleCodeEvidence) string {
+	if evidence == nil || evidence.Status == "" {
+		return ""
+	}
+	parts := []string{fmt.Sprintf("stale_code: %s", evidence.Status)}
+	if evidence.BootGitSHA != "" {
+		parts = append(parts, "boot="+shortGatewayStatusSHA(evidence.BootGitSHA))
+	}
+	if evidence.CurrentGitSHA != "" {
+		parts = append(parts, "current="+shortGatewayStatusSHA(evidence.CurrentGitSHA))
+	}
+	if evidence.RestartSuggested {
+		parts = append(parts, "restart_suggested=true")
+	}
+	if len(evidence.Evidence) > 0 {
+		parts = append(parts, "evidence="+strings.Join(evidence.Evidence, ","))
+	}
+	if evidence.Message != "" {
+		parts = append(parts, "message="+strconv.Quote(evidence.Message))
+	}
+	return strings.Join(parts, " ")
+}
+
+func shortGatewayStatusSHA(sha string) string {
+	sha = strings.TrimSpace(sha)
+	if len(sha) <= 12 {
+		return sha
+	}
+	return sha[:12]
 }
 
 func renderRuntimeValidationLine(validation gateway.RuntimeProcessValidation) string {

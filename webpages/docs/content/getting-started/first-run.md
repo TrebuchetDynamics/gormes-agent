@@ -33,6 +33,8 @@ The easiest path — interactive wizard:
 
 ```bash
 gormes setup provider
+gormes setup model
+gormes model
 ```
 
 Select a provider: OpenAI, Anthropic, DeepSeek, Codex, OpenCode, Groq, Ollama, or custom. Enter your API key. Done.
@@ -90,13 +92,14 @@ Or specific platforms:
 gormes telegram
 ```
 
-Configure channel tokens in `config.toml`:
+Keep channel secrets in `.env` or set them through the config helpers. Keep non-secret allowlist and routing fields in `config.toml`:
 
-```toml
-[telegram]
-bot_token = "123:abc"
-allowed_chat_id = 42
+```dotenv
+GORMES_TELEGRAM_TOKEN=123:abc
+GORMES_TELEGRAM_CHAT_ID=42
 ```
+
+Use `gormes gateway status` to confirm what is connected before treating a channel as runtime-ready.
 
 ## What's Next
 

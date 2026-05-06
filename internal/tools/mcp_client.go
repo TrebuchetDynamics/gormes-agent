@@ -3,8 +3,270 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sync"
+	"time"
 )
+
+var ErrMCPBreakerOpen = errors.New("mcp circuit breaker: open")
+
+type MCPCircuitEvidence string
+
+const (
+	MCPCircuitEvidenceOK                MCPCircuitEvidence = "mcp_ok"
+	MCPCircuitEvidenceServerUnreachable MCPCircuitEvidence = "mcp_server_unreachable"
+	MCPCircuitEvidenceBreakerOpen       MCPCircuitEvidence = "mcp_breaker_open"
+	MCPCircuitEvidenceHalfOpenFailed    MCPCircuitEvidence = "mcp_half_open_failed"
+	MCPCircuitEvidenceReconnectRequired MCPCircuitEvidence = "mcp_reconnect_required"
+	MCPCircuitEvidenceReconnectReset    MCPCircuitEvidence = "mcp_reconnect_reset"
+)
+
+const (
+	defaultMCPCircuitBreakerThreshold = 3
+	defaultMCPCircuitBreakerCooldown  = 60 * time.Second
+	defaultMCPServerName              = "default"
+)
+
+type MCPCircuitBreakerOptions struct {
+	Threshold int
+	Cooldown  time.Duration
+	Now       func() time.Time
+}
+
+type MCPCircuitBreaker struct {
+	mu          sync.Mutex
+	threshold   int
+	cooldown    time.Duration
+	now         func() time.Time
+	errorCounts map[string]int
+	openedAt    map[string]time.Time
+	halfOpen    map[string]bool
+}
+
+func NewMCPCircuitBreaker(opts MCPCircuitBreakerOptions) *MCPCircuitBreaker {
+	threshold := opts.Threshold
+	if threshold <= 0 {
+		threshold = defaultMCPCircuitBreakerThreshold
+	}
+	cooldown := opts.Cooldown
+	if cooldown <= 0 {
+		cooldown = defaultMCPCircuitBreakerCooldown
+	}
+	now := opts.Now
+	if now == nil {
+		now = time.Now
+	}
+	return &MCPCircuitBreaker{
+		threshold:   threshold,
+		cooldown:    cooldown,
+		now:         now,
+		errorCounts: map[string]int{},
+		openedAt:    map[string]time.Time{},
+		halfOpen:    map[string]bool{},
+	}
+}
+
+func (b *MCPCircuitBreaker) ErrorCount(server string) int {
+	if b == nil {
+		return 0
+	}
+	server = normalizeMCPBreakerServer(server)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.errorCounts[server]
+}
+
+func (b *MCPCircuitBreaker) ResetAfterReconnect(server string) MCPCircuitEvidence {
+	if b == nil {
+		return MCPCircuitEvidenceReconnectReset
+	}
+	server = normalizeMCPBreakerServer(server)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.errorCounts, server)
+	delete(b.openedAt, server)
+	delete(b.halfOpen, server)
+	return MCPCircuitEvidenceReconnectReset
+}
+
+func (b *MCPCircuitBreaker) RecordSuccess(server string) MCPCircuitEvidence {
+	if b == nil {
+		return MCPCircuitEvidenceOK
+	}
+	server = normalizeMCPBreakerServer(server)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.errorCounts, server)
+	delete(b.openedAt, server)
+	delete(b.halfOpen, server)
+	return MCPCircuitEvidenceOK
+}
+
+func (b *MCPCircuitBreaker) RecordFailure(server string, _ error) MCPCircuitEvidence {
+	if b == nil {
+		return MCPCircuitEvidenceServerUnreachable
+	}
+	server = normalizeMCPBreakerServer(server)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	now := b.now()
+	if b.halfOpen[server] {
+		b.errorCounts[server] = b.threshold
+		b.openedAt[server] = now
+		delete(b.halfOpen, server)
+		return MCPCircuitEvidenceHalfOpenFailed
+	}
+	b.errorCounts[server]++
+	if b.errorCounts[server] >= b.threshold {
+		b.openedAt[server] = now
+	}
+	return MCPCircuitEvidenceServerUnreachable
+}
+
+func (b *MCPCircuitBreaker) beforeCall(server string) (bool, MCPCircuitEvidence) {
+	if b == nil {
+		return true, MCPCircuitEvidenceOK
+	}
+	server = normalizeMCPBreakerServer(server)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	count := b.errorCounts[server]
+	if count < b.threshold {
+		return true, MCPCircuitEvidenceOK
+	}
+	now := b.now()
+	opened := b.openedAt[server]
+	if opened.IsZero() {
+		b.openedAt[server] = now
+		return false, MCPCircuitEvidenceBreakerOpen
+	}
+	if now.Sub(opened) >= b.cooldown {
+		b.halfOpen[server] = true
+		return true, MCPCircuitEvidenceOK
+	}
+	return false, MCPCircuitEvidenceBreakerOpen
+}
+
+func normalizeMCPBreakerServer(server string) string {
+	if server == "" {
+		return defaultMCPServerName
+	}
+	return server
+}
+
+type MCPToolCallFunc func(context.Context) (MCPCallResult, error)
+
+func CallMCPWithCircuitBreaker(ctx context.Context, breaker *MCPCircuitBreaker, server string, call MCPToolCallFunc) (MCPCallResult, MCPCircuitEvidence, error) {
+	if call == nil {
+		err := errors.New("mcp call: nil tool call")
+		return MCPCallResult{}, MCPCircuitEvidenceServerUnreachable, err
+	}
+	if allow, evidence := breaker.beforeCall(server); !allow {
+		return MCPCallResult{}, evidence, ErrMCPBreakerOpen
+	}
+	result, err := call(ctx)
+	if err != nil {
+		return result, breaker.RecordFailure(server, err), err
+	}
+	if result.IsError {
+		return result, breaker.RecordFailure(server, errors.New("mcp tool reported isError")), nil
+	}
+	return result, breaker.RecordSuccess(server), nil
+}
+
+type MCPLifecycleEvent string
+
+const (
+	MCPLifecycleEventNone      MCPLifecycleEvent = ""
+	MCPLifecycleEventReconnect MCPLifecycleEvent = "reconnect"
+	MCPLifecycleEventShutdown  MCPLifecycleEvent = "shutdown"
+)
+
+type MCPServerLifecycle struct {
+	mu        sync.Mutex
+	reconnect bool
+	shutdown  bool
+}
+
+func NewMCPServerLifecycle() *MCPServerLifecycle {
+	return &MCPServerLifecycle{}
+}
+
+func (l *MCPServerLifecycle) SignalReconnect() {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.reconnect = true
+}
+
+func (l *MCPServerLifecycle) SignalShutdown() {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.shutdown = true
+}
+
+func (l *MCPServerLifecycle) ReconnectPending() bool {
+	if l == nil {
+		return false
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.reconnect
+}
+
+func (l *MCPServerLifecycle) NextEvent() MCPLifecycleEvent {
+	if l == nil {
+		return MCPLifecycleEventNone
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.shutdown {
+		l.reconnect = false
+		l.shutdown = false
+		return MCPLifecycleEventShutdown
+	}
+	if l.reconnect {
+		l.reconnect = false
+		return MCPLifecycleEventReconnect
+	}
+	return MCPLifecycleEventNone
+}
+
+type MCPProbeSession interface {
+	ListTools(context.Context) ([]MCPRawTool, error)
+	Close() error
+}
+
+type MCPProbeConnector func(context.Context, MCPServerDefinition) (MCPProbeSession, error)
+
+func ProbeMCPServerTools(ctx context.Context, servers []MCPServerDefinition, connect MCPProbeConnector) map[string][]MCPRawTool {
+	out := map[string][]MCPRawTool{}
+	if connect == nil {
+		return out
+	}
+	for _, server := range servers {
+		if !server.Enabled || server.Name == "" {
+			continue
+		}
+		session, err := connect(ctx, server)
+		if err != nil || session == nil {
+			continue
+		}
+		tools, listErr := session.ListTools(ctx)
+		_ = session.Close()
+		if listErr != nil {
+			continue
+		}
+		out[server.Name] = append([]MCPRawTool(nil), tools...)
+	}
+	return out
+}
 
 // MCPCallResult is the normalized envelope produced by an MCP `tools/call`
 // response. Content captures the structured body in the same StructuredContent

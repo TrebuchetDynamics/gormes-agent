@@ -91,9 +91,11 @@ type BlockTaskInput struct {
 type RunOutcome string
 
 const (
-	RunOutcomeSpawned     RunOutcome = "spawned"
-	RunOutcomeSpawnFailed RunOutcome = "spawn_failed"
-	RunOutcomeGaveUp      RunOutcome = "gave_up"
+	RunOutcomeSpawned        RunOutcome = "spawned"
+	RunOutcomeSpawnFailed    RunOutcome = "spawn_failed"
+	RunOutcomeGaveUp         RunOutcome = "gave_up"
+	RunOutcomeWorkerCrashed  RunOutcome = "worker_crashed"
+	RunOutcomeWorkerTimedOut RunOutcome = "worker_timed_out"
 )
 
 type TaskRun struct {

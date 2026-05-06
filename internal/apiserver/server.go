@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 )
 
@@ -109,11 +110,12 @@ type Server struct {
 
 // ChatMessage is the normalized text shape passed from HTTP into gateway turns.
 type ChatMessage struct {
-	Role       string     `json:"role"`
-	Content    string     `json:"content"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string     `json:"tool_call_id,omitempty"`
-	Name       string     `json:"name,omitempty"`
+	Role         string                      `json:"role"`
+	Content      string                      `json:"content"`
+	ContentParts []hermes.MessageContentPart `json:"content_parts,omitempty"`
+	ToolCalls    []ToolCall                  `json:"tool_calls,omitempty"`
+	ToolCallID   string                      `json:"tool_call_id,omitempty"`
+	Name         string                      `json:"name,omitempty"`
 }
 
 // ToolCall is the OpenAI function-call metadata preserved in response chains.
@@ -126,11 +128,12 @@ type ToolCall struct {
 // TurnRequest is the chat-completions request after OpenAI message/content
 // normalization and session-handle resolution.
 type TurnRequest struct {
-	Model        string
-	UserMessage  string
-	History      []ChatMessage
-	SystemPrompt string
-	SessionID    string
+	Model            string
+	UserMessage      string
+	UserContentParts []hermes.MessageContentPart
+	History          []ChatMessage
+	SystemPrompt     string
+	SessionID        string
 }
 
 // Usage is the OpenAI-compatible token accounting shape used by both normal
@@ -329,6 +332,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/dashboard/", s.handleWebDashboard)
 	s.mux.HandleFunc("/v1/admin/cron/jobs", s.handleCronAdminJobs)
 	s.mux.HandleFunc("/v1/admin/cron/jobs/", s.handleCronAdminJobByID)
+	s.mux.HandleFunc("/api/jobs", s.handleLegacyAPIJobs)
+	s.mux.HandleFunc("/api/jobs/", s.handleLegacyAPIJobByID)
 }
 
 func securityHeaders(next http.Handler) http.Handler {
@@ -581,7 +586,7 @@ func (s *Server) buildTurnRequest(r *http.Request, req chatCompletionRequest) (T
 	)
 	for idx, msg := range req.Messages {
 		role := strings.ToLower(strings.TrimSpace(msg.Role))
-		content, err := normalizeChatContent(msg.Content)
+		content, err := normalizeChatContentForTurn(msg.Content)
 		if err != nil {
 			return TurnRequest{}, &requestError{
 				status:  http.StatusBadRequest,
@@ -592,13 +597,13 @@ func (s *Server) buildTurnRequest(r *http.Request, req chatCompletionRequest) (T
 		}
 		switch role {
 		case "system", "developer":
-			if strings.TrimSpace(content) != "" {
-				systemParts = append(systemParts, content)
+			if strings.TrimSpace(content.Text) != "" {
+				systemParts = append(systemParts, content.Text)
 			}
 		case "user", "assistant":
-			conversation = append(conversation, ChatMessage{Role: role, Content: content})
+			conversation = append(conversation, ChatMessage{Role: role, Content: content.Text, ContentParts: content.Parts})
 			if role == "user" && firstUser == "" {
-				firstUser = content
+				firstUser = chatContentFingerprint(conversation[len(conversation)-1])
 			}
 		}
 	}
@@ -610,7 +615,7 @@ func (s *Server) buildTurnRequest(r *http.Request, req chatCompletionRequest) (T
 			break
 		}
 	}
-	if lastUser < 0 || !hasVisibleText(conversation[lastUser].Content) {
+	if lastUser < 0 || !hasVisibleChatMessage(conversation[lastUser]) {
 		return TurnRequest{}, &requestError{
 			status:  http.StatusBadRequest,
 			message: "No user message found in messages",
@@ -633,11 +638,17 @@ func (s *Server) buildTurnRequest(r *http.Request, req chatCompletionRequest) (T
 	}
 
 	return TurnRequest{
-		UserMessage:  conversation[lastUser].Content,
-		History:      append([]ChatMessage(nil), conversation[:lastUser]...),
-		SystemPrompt: systemPrompt,
-		SessionID:    sessionID,
+		UserMessage:      conversation[lastUser].Content,
+		UserContentParts: cloneContentParts(conversation[lastUser].ContentParts),
+		History:          append([]ChatMessage(nil), conversation[:lastUser]...),
+		SystemPrompt:     systemPrompt,
+		SessionID:        sessionID,
 	}, nil
+}
+
+type normalizedChatContent struct {
+	Text  string
+	Parts []hermes.MessageContentPart
 }
 
 type contentNormalizeError struct {
@@ -646,60 +657,74 @@ type contentNormalizeError struct {
 }
 
 func normalizeChatContent(content any) (string, *contentNormalizeError) {
+	normalized, err := normalizeChatContentForTurn(content)
+	return normalized.Text, err
+}
+
+func normalizeChatContentForTurn(content any) (normalizedChatContent, *contentNormalizeError) {
 	return normalizeChatContentDepth(content, 0)
 }
 
-func normalizeChatContentDepth(content any, depth int) (string, *contentNormalizeError) {
+func normalizeChatContentDepth(content any, depth int) (normalizedChatContent, *contentNormalizeError) {
 	if depth > 10 || content == nil {
-		return "", nil
+		return normalizedChatContent{}, nil
 	}
 	switch v := content.(type) {
 	case string:
-		return truncateText(v), nil
+		return normalizedChatContent{Text: truncateText(v)}, nil
 	case []any:
 		limit := len(v)
 		if limit > maxContentListSize {
 			limit = maxContentListSize
 		}
-		parts := make([]string, 0, limit)
+		textParts := make([]string, 0, limit)
+		contentParts := make([]hermes.MessageContentPart, 0, limit)
 		total := 0
 		for _, item := range v[:limit] {
-			var text string
+			var normalized normalizedChatContent
 			switch p := item.(type) {
 			case string:
-				text = p
+				normalized = normalizedChatContent{Text: p}
 			case []any:
 				nested, err := normalizeChatContentDepth(p, depth+1)
 				if err != nil {
-					return "", err
+					return normalizedChatContent{}, err
 				}
-				text = nested
+				normalized = nested
 			case map[string]any:
-				partText, err := normalizeContentPart(p)
+				partContent, err := normalizeContentPart(p)
 				if err != nil {
-					return "", err
+					return normalizedChatContent{}, err
 				}
-				text = partText
+				normalized = partContent
 			default:
 				continue
 			}
-			if text == "" {
-				continue
+			if len(normalized.Parts) > 0 {
+				contentParts = append(contentParts, normalized.Parts...)
+			} else if normalized.Text != "" {
+				contentParts = append(contentParts, hermes.MessageContentPart{Type: "text", Text: truncateText(normalized.Text)})
 			}
-			trimmed := truncateText(text)
-			parts = append(parts, trimmed)
-			total += len(trimmed)
-			if total >= maxNormalizedTextLength {
-				break
+			if normalized.Text != "" {
+				trimmed := truncateText(normalized.Text)
+				textParts = append(textParts, trimmed)
+				total += len(trimmed)
+				if total >= maxNormalizedTextLength {
+					break
+				}
 			}
 		}
-		return truncateText(strings.Join(parts, "\n")), nil
+		text := truncateText(strings.Join(textParts, "\n"))
+		if hasImageContentPart(contentParts) {
+			return normalizedChatContent{Text: text, Parts: normalizeTextParts(contentParts)}, nil
+		}
+		return normalizedChatContent{Text: text}, nil
 	default:
-		return truncateText(fmt.Sprint(v)), nil
+		return normalizedChatContent{Text: truncateText(fmt.Sprint(v))}, nil
 	}
 }
 
-func normalizeContentPart(part map[string]any) (string, *contentNormalizeError) {
+func normalizeContentPart(part map[string]any) (normalizedChatContent, *contentNormalizeError) {
 	rawType, ok := part["type"]
 	partType := ""
 	if ok && rawType != nil {
@@ -709,27 +734,104 @@ func normalizeContentPart(part map[string]any) (string, *contentNormalizeError) 
 	case "text", "input_text", "output_text":
 		text, ok := part["text"]
 		if !ok || text == nil {
-			return "", nil
+			return normalizedChatContent{}, nil
 		}
-		return fmt.Sprint(text), nil
+		return normalizedChatContent{Text: fmt.Sprint(text), Parts: []hermes.MessageContentPart{{Type: "text", Text: fmt.Sprint(text)}}}, nil
 	case "image_url", "input_image":
-		return "", nil
+		image, err := normalizeImageContentPart(partType, part)
+		if err != nil {
+			return normalizedChatContent{}, err
+		}
+		return normalizedChatContent{Parts: []hermes.MessageContentPart{image}}, nil
 	case "file", "input_file":
-		return "", &contentNormalizeError{
+		return normalizedChatContent{}, &contentNormalizeError{
 			code:    "unsupported_content_type",
 			message: "Uploaded files and document inputs are not supported on this endpoint.",
 		}
 	case "":
-		return "", &contentNormalizeError{
+		return normalizedChatContent{}, &contentNormalizeError{
 			code:    "invalid_content_part",
 			message: "Content parts must include a type.",
 		}
 	default:
-		return "", &contentNormalizeError{
+		return normalizedChatContent{}, &contentNormalizeError{
 			code:    "unsupported_content_type",
 			message: fmt.Sprintf("Unsupported content part type %q. Only text and image_url/input_image parts are supported.", part["type"]),
 		}
 	}
+}
+
+func normalizeImageContentPart(partType string, part map[string]any) (hermes.MessageContentPart, *contentNormalizeError) {
+	imageURL, detail := "", ""
+	switch raw := part["image_url"].(type) {
+	case string:
+		imageURL = strings.TrimSpace(raw)
+	case map[string]any:
+		imageURL = strings.TrimSpace(fmt.Sprint(raw["url"]))
+		if imageURL == "<nil>" {
+			imageURL = ""
+		}
+		detail = strings.TrimSpace(fmt.Sprint(raw["detail"]))
+		if detail == "<nil>" {
+			detail = ""
+		}
+	default:
+		if partType == "input_image" {
+			imageURL = strings.TrimSpace(fmt.Sprint(part["image_url"]))
+			if imageURL == "<nil>" {
+				imageURL = ""
+			}
+		}
+	}
+	if strings.TrimSpace(fmt.Sprint(part["detail"])) != "" && strings.TrimSpace(fmt.Sprint(part["detail"])) != "<nil>" {
+		detail = strings.TrimSpace(fmt.Sprint(part["detail"]))
+	}
+	if imageURL == "" {
+		return hermes.MessageContentPart{}, &contentNormalizeError{
+			code:    "invalid_image_url",
+			message: "Image content parts must include an image_url.url value.",
+		}
+	}
+	if strings.HasPrefix(imageURL, "data:") && !strings.HasPrefix(strings.ToLower(imageURL), "data:image/") {
+		return hermes.MessageContentPart{}, &contentNormalizeError{
+			code:    "unsupported_content_type",
+			message: "Only image data URLs are supported on this endpoint.",
+		}
+	}
+	if strings.Contains(imageURL, "://") && !(strings.HasPrefix(strings.ToLower(imageURL), "http://") || strings.HasPrefix(strings.ToLower(imageURL), "https://")) {
+		return hermes.MessageContentPart{}, &contentNormalizeError{
+			code:    "invalid_image_url",
+			message: "Image URLs must use http, https, or data:image schemes.",
+		}
+	}
+	return hermes.MessageContentPart{Type: "image_url", ImageURL: imageURL, Detail: detail}, nil
+}
+
+func normalizeTextParts(parts []hermes.MessageContentPart) []hermes.MessageContentPart {
+	out := make([]hermes.MessageContentPart, 0, len(parts))
+	for _, part := range parts {
+		switch strings.ToLower(strings.TrimSpace(part.Type)) {
+		case "text", "input_text", "output_text":
+			if part.Text != "" {
+				out = append(out, hermes.MessageContentPart{Type: "text", Text: truncateText(part.Text)})
+			}
+		case "image_url", "input_image":
+			if part.ImageURL != "" {
+				out = append(out, hermes.MessageContentPart{Type: "image_url", ImageURL: part.ImageURL, Detail: strings.TrimSpace(part.Detail)})
+			}
+		}
+	}
+	return out
+}
+
+func hasImageContentPart(parts []hermes.MessageContentPart) bool {
+	for _, part := range parts {
+		partType := strings.ToLower(strings.TrimSpace(part.Type))
+		if (partType == "image_url" || partType == "input_image") && strings.TrimSpace(part.ImageURL) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func truncateText(s string) string {
@@ -741,6 +843,40 @@ func truncateText(s string) string {
 
 func hasVisibleText(s string) bool {
 	return strings.TrimSpace(s) != ""
+}
+
+func hasVisibleChatMessage(msg ChatMessage) bool {
+	if hasVisibleText(msg.Content) {
+		return true
+	}
+	return hasImageContentPart(msg.ContentParts)
+}
+
+func chatContentFingerprint(msg ChatMessage) string {
+	if strings.TrimSpace(msg.Content) != "" {
+		return msg.Content
+	}
+	var parts []string
+	for _, part := range msg.ContentParts {
+		switch strings.ToLower(strings.TrimSpace(part.Type)) {
+		case "text", "input_text", "output_text":
+			if strings.TrimSpace(part.Text) != "" {
+				parts = append(parts, "text:"+part.Text)
+			}
+		case "image_url", "input_image":
+			if strings.TrimSpace(part.ImageURL) != "" {
+				parts = append(parts, "image:"+part.ImageURL)
+			}
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func cloneContentParts(parts []hermes.MessageContentPart) []hermes.MessageContentPart {
+	if len(parts) == 0 {
+		return nil
+	}
+	return append([]hermes.MessageContentPart(nil), parts...)
 }
 
 func deriveChatSessionID(systemPrompt, firstUserMessage string) string {

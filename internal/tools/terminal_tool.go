@@ -112,7 +112,7 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	defer cancel()
 	start := time.Now()
 	cmd := exec.CommandContext(runCtx, "bash", "-lc", in.Command)
-	cmd.Dir = workdir
+	cmd.Dir = workdir.Path
 	cmd.Env = os.Environ()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -123,11 +123,15 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	result := terminalResult{
 		Status:     "completed",
 		Command:    in.Command,
-		Workdir:    workdir,
+		Workdir:    workdir.Path,
 		ExitCode:   0,
 		Stdout:     stripANSI(stdout.String()),
 		Stderr:     stripANSI(stderr.String()),
 		DurationMs: duration.Milliseconds(),
+	}
+	if workdir.Recovered {
+		result.CWDRecovered = true
+		result.CWDRecovery = "terminal_cwd_recovered: working directory was missing; using nearest existing directory"
 	}
 	if in.PTY {
 		result.PTYNote = "pty=true was accepted for schema compatibility but executed without a PTY in this Go port"
@@ -149,21 +153,28 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 }
 
 type terminalResult struct {
-	Status      string `json:"status"`
-	Command     string `json:"command,omitempty"`
-	Workdir     string `json:"workdir,omitempty"`
-	Output      string `json:"output,omitempty"`
-	Stdout      string `json:"stdout,omitempty"`
-	Stderr      string `json:"stderr,omitempty"`
-	ExitCode    int    `json:"exit_code"`
-	Error       string `json:"error,omitempty"`
-	Description string `json:"description,omitempty"`
-	DurationMs  int64  `json:"duration_ms,omitempty"`
-	Truncated   bool   `json:"truncated,omitempty"`
-	PTYNote     string `json:"pty_note,omitempty"`
+	Status       string `json:"status"`
+	Command      string `json:"command,omitempty"`
+	Workdir      string `json:"workdir,omitempty"`
+	Output       string `json:"output,omitempty"`
+	Stdout       string `json:"stdout,omitempty"`
+	Stderr       string `json:"stderr,omitempty"`
+	ExitCode     int    `json:"exit_code"`
+	Error        string `json:"error,omitempty"`
+	Description  string `json:"description,omitempty"`
+	DurationMs   int64  `json:"duration_ms,omitempty"`
+	Truncated    bool   `json:"truncated,omitempty"`
+	PTYNote      string `json:"pty_note,omitempty"`
+	CWDRecovered bool   `json:"cwd_recovered,omitempty"`
+	CWDRecovery  string `json:"cwd_recovery,omitempty"`
 }
 
-func terminalWorkdir(defaultWorkdir, requested string) (string, error) {
+type terminalWorkdirResult struct {
+	Path      string
+	Recovered bool
+}
+
+func terminalWorkdir(defaultWorkdir, requested string) (terminalWorkdirResult, error) {
 	workdir := strings.TrimSpace(defaultWorkdir)
 	if workdir == "" || terminalCWDPlaceholder(workdir) {
 		if envWorkdir := strings.TrimSpace(os.Getenv("TERMINAL_CWD")); envWorkdir != "" && !terminalCWDPlaceholder(envWorkdir) {
@@ -173,31 +184,33 @@ func terminalWorkdir(defaultWorkdir, requested string) (string, error) {
 	if workdir == "" || terminalCWDPlaceholder(workdir) {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return "", fmt.Errorf("resolve working directory: %w", err)
+			return terminalWorkdirResult{Path: os.TempDir(), Recovered: true}, nil
 		}
 		workdir = cwd
 	}
 	if strings.HasPrefix(workdir, "~") {
 		expanded, err := expandUserPath(workdir)
 		if err != nil {
-			return "", err
+			return terminalWorkdirResult{}, err
 		}
 		workdir = expanded
 	} else if !filepath.IsAbs(workdir) {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return "", fmt.Errorf("resolve working directory: %w", err)
+			workdir = filepath.Join(os.TempDir(), workdir)
+		} else {
+			workdir = filepath.Join(cwd, workdir)
 		}
-		workdir = filepath.Join(cwd, workdir)
 	}
+	defaultMissingRecoveryAllowed := strings.TrimSpace(requested) == ""
 	if strings.TrimSpace(requested) != "" {
 		if filepathishDangerous(requested) {
-			return "", fmt.Errorf("workdir contains invalid control characters")
+			return terminalWorkdirResult{}, fmt.Errorf("workdir contains invalid control characters")
 		}
 		if strings.HasPrefix(requested, "~") {
 			expanded, err := expandUserPath(requested)
 			if err != nil {
-				return "", err
+				return terminalWorkdirResult{}, err
 			}
 			workdir = expanded
 		} else if filepath.IsAbs(requested) {
@@ -208,12 +221,29 @@ func terminalWorkdir(defaultWorkdir, requested string) (string, error) {
 	}
 	info, err := os.Stat(workdir)
 	if err != nil {
-		return "", fmt.Errorf("resolve working directory: %w", err)
+		if defaultMissingRecoveryAllowed {
+			return terminalWorkdirResult{Path: nearestExistingTerminalDir(workdir), Recovered: true}, nil
+		}
+		return terminalWorkdirResult{}, fmt.Errorf("resolve working directory: %w", err)
 	}
 	if !info.IsDir() {
-		return "", fmt.Errorf("workdir %q is not a directory", workdir)
+		return terminalWorkdirResult{}, fmt.Errorf("workdir %q is not a directory", workdir)
 	}
-	return workdir, nil
+	return terminalWorkdirResult{Path: workdir}, nil
+}
+
+func nearestExistingTerminalDir(path string) string {
+	path = filepath.Clean(path)
+	for candidate := path; candidate != "" && candidate != "."; candidate = filepath.Dir(candidate) {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+		parent := filepath.Dir(candidate)
+		if parent == candidate {
+			break
+		}
+	}
+	return os.TempDir()
 }
 
 func terminalCWDPlaceholder(value string) bool {

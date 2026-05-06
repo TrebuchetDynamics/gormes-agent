@@ -163,6 +163,8 @@ func normalizeModelContextProvider(provider string) string {
 		return "openai-codex"
 	case "copilot", "copilot-acp", "github", "github-copilot", "github-models":
 		return "copilot"
+	case "ollama_cloud", "ollama-cloud":
+		return OllamaCloudProviderID
 	default:
 		return normalizeModelContextText(provider)
 	}

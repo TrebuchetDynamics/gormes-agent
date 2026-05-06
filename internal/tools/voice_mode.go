@@ -17,9 +17,9 @@ import (
 type VoiceModeState int
 
 const (
-	VoiceModeOff        VoiceModeState = iota // Voice mode disabled
-	VoiceModeVoiceOnly                        // Push-to-talk; responses not spoken
-	VoiceModeAll                              // Full voice mode; responses spoken aloud
+	VoiceModeOff       VoiceModeState = iota // Voice mode disabled
+	VoiceModeVoiceOnly                       // Push-to-talk; responses not spoken
+	VoiceModeAll                             // Full voice mode; responses spoken aloud
 )
 
 func (s VoiceModeState) String() string {
@@ -53,17 +53,17 @@ func ParseVoiceModeState(v string) (VoiceModeState, error) {
 type VoiceModeEvidence string
 
 const (
-	VoiceModeEvidenceOK                   VoiceModeEvidence = "voice_mode_ok"
-	VoiceModeEvidenceDisabled             VoiceModeEvidence = "voice_mode_disabled"
-	VoiceModeEvidenceInvalidArguments     VoiceModeEvidence = "voice_mode_invalid_arguments"
-	VoiceModeEvidenceProviderUnavailable  VoiceModeEvidence = "voice_mode_provider_unavailable"
+	VoiceModeEvidenceOK                  VoiceModeEvidence = "voice_mode_ok"
+	VoiceModeEvidenceDisabled            VoiceModeEvidence = "voice_mode_disabled"
+	VoiceModeEvidenceInvalidArguments    VoiceModeEvidence = "voice_mode_invalid_arguments"
+	VoiceModeEvidenceProviderUnavailable VoiceModeEvidence = "voice_mode_provider_unavailable"
 	VoiceModeEvidenceAudioNotAvailable   VoiceModeEvidence = "voice_mode_audio_not_available"
-	VoiceModeEvidenceRecordingFailed      VoiceModeEvidence = "voice_mode_recording_failed"
-	VoiceModeEvidenceTranscriptionFailed  VoiceModeEvidence = "voice_mode_transcription_failed"
-	VoiceModeEvidenceSynthesizeFailed     VoiceModeEvidence = "voice_mode_synthesize_failed"
-	VoiceModeEvidencePlaybackFailed       VoiceModeEvidence = "voice_mode_playback_failed"
-	VoiceModeEvidenceChatNotFound         VoiceModeEvidence = "voice_mode_chat_not_found"
-	VoiceModeEvidenceStoreError           VoiceModeEvidence = "voice_mode_store_error"
+	VoiceModeEvidenceRecordingFailed     VoiceModeEvidence = "voice_mode_recording_failed"
+	VoiceModeEvidenceTranscriptionFailed VoiceModeEvidence = "voice_mode_transcription_failed"
+	VoiceModeEvidenceSynthesizeFailed    VoiceModeEvidence = "voice_mode_synthesize_failed"
+	VoiceModeEvidencePlaybackFailed      VoiceModeEvidence = "voice_mode_playback_failed"
+	VoiceModeEvidenceChatNotFound        VoiceModeEvidence = "voice_mode_chat_not_found"
+	VoiceModeEvidenceStoreError          VoiceModeEvidence = "voice_mode_store_error"
 )
 
 // VoiceModeConfig controls global voice mode defaults.
@@ -94,6 +94,15 @@ type VoiceModeResult struct {
 	MediaTag   string            `json:"media_tag,omitempty"`
 	Evidence   VoiceModeEvidence `json:"evidence"`
 	Error      string            `json:"error,omitempty"`
+}
+
+func FormatVoiceModeStatus(mode string, recordKey any) string {
+	binding := ResolveVoiceRecordKey(recordKey, VoiceRecordKeyOptions{})
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		mode = VoiceModeOff.String()
+	}
+	return fmt.Sprintf("voice: %s | record key: %s | evidence: %s", mode, binding.Display, binding.Evidence)
 }
 
 // VoiceModeChatState is the per-chat voice mode state.
@@ -426,11 +435,11 @@ func (r *VoiceModeRunner) PlayText(ctx context.Context, chatID string, text stri
 	// Play the audio
 	if err := r.audioProvider.PlayAudio(ctx, ttsResult.FilePath); err != nil {
 		return VoiceModeResult{
-			Success:   false,
-			FilePath:  ttsResult.FilePath,
-			MediaTag:  ttsResult.MediaTag,
-			Evidence:  VoiceModeEvidencePlaybackFailed,
-			Error:     err.Error(),
+			Success:  false,
+			FilePath: ttsResult.FilePath,
+			MediaTag: ttsResult.MediaTag,
+			Evidence: VoiceModeEvidencePlaybackFailed,
+			Error:    err.Error(),
 		}, nil
 	}
 	return VoiceModeResult{
@@ -494,10 +503,10 @@ func formatVoiceModeDetails(env VoiceModeEnvironment, sttAvailable, ttsAvailable
 
 func voiceModeFailure(mode string, evidence VoiceModeEvidence, message string) VoiceModeResult {
 	return VoiceModeResult{
-		Success: false,
-		Mode:    mode,
+		Success:  false,
+		Mode:     mode,
 		Evidence: evidence,
-		Error:   message,
+		Error:    message,
 	}
 }
 
@@ -577,10 +586,14 @@ func (*NoopVoiceModeProvider) Available(context.Context) bool { return false }
 func (*NoopVoiceModeProvider) StartRecording(context.Context, VoiceModeConfig, func()) (RecordingHandle, error) {
 	return nil, errors.New("audio not available")
 }
-func (*NoopVoiceModeProvider) StopRecording(context.Context, RecordingHandle) (string, error) { return "", nil }
+func (*NoopVoiceModeProvider) StopRecording(context.Context, RecordingHandle) (string, error) {
+	return "", nil
+}
 func (*NoopVoiceModeProvider) CancelRecording(context.Context, RecordingHandle) {}
-func (*NoopVoiceModeProvider) PlayAudio(context.Context, string) error { return errors.New("audio not available") }
-func (*NoopVoiceModeProvider) StopPlayback(context.Context)              {}
+func (*NoopVoiceModeProvider) PlayAudio(context.Context, string) error {
+	return errors.New("audio not available")
+}
+func (*NoopVoiceModeProvider) StopPlayback(context.Context) {}
 func (*NoopVoiceModeProvider) DetectEnvironment(context.Context) VoiceModeEnvironment {
 	return VoiceModeEnvironment{Available: false, Warnings: []string{"audio not available"}}
 }

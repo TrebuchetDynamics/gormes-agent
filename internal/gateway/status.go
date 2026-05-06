@@ -43,9 +43,11 @@ type RuntimeStatus struct {
 	PID                       int                                        `json:"pid"`
 	StartTime                 int64                                      `json:"start_time,omitempty"`
 	Generation                uint64                                     `json:"generation"`
+	BootGitSHA                string                                     `json:"boot_git_sha,omitempty"`
 	Command                   string                                     `json:"command,omitempty"`
 	Argv                      []string                                   `json:"argv,omitempty"`
 	ProcessValidation         RuntimeProcessValidation                   `json:"process_validation,omitempty"`
+	StaleCode                 *RuntimeStaleCodeEvidence                  `json:"stale_code,omitempty"`
 	GatewayState              GatewayState                               `json:"gateway_state"`
 	ExitReason                string                                     `json:"exit_reason"`
 	RestartRequested          bool                                       `json:"restart_requested"`
@@ -284,26 +286,30 @@ type RuntimeStatusWriter interface {
 
 // RuntimeStatusStore persists the gateway runtime status as atomic JSON.
 type RuntimeStatusStore struct {
-	path      string
-	pidPath   string
-	now       func() time.Time
-	pid       func() int
-	startTime func(int) (int64, bool)
-	argv      func() []string
-	processes runtimeProcessTable
-	mu        sync.Mutex
+	path             string
+	pidPath          string
+	now              func() time.Time
+	pid              func() int
+	startTime        func(int) (int64, bool)
+	argv             func() []string
+	bootGitSHA       string
+	staleCodeChecker *StaleCodeChecker
+	processes        runtimeProcessTable
+	mu               sync.Mutex
 }
 
 // NewRuntimeStatusStore returns a JSON-backed runtime status store.
 func NewRuntimeStatusStore(path string) *RuntimeStatusStore {
 	return &RuntimeStatusStore{
-		path:      path,
-		pidPath:   filepath.Join(filepath.Dir(path), "gateway.pid"),
-		now:       func() time.Time { return time.Now().UTC() },
-		pid:       os.Getpid,
-		startTime: procProcessStartTime,
-		argv:      func() []string { return append([]string(nil), os.Args...) },
-		processes: procRuntimeProcessTable{},
+		path:             path,
+		pidPath:          filepath.Join(filepath.Dir(path), "gateway.pid"),
+		now:              func() time.Time { return time.Now().UTC() },
+		pid:              os.Getpid,
+		startTime:        procProcessStartTime,
+		argv:             func() []string { return append([]string(nil), os.Args...) },
+		bootGitSHA:       RuntimeBootGitSHA(),
+		staleCodeChecker: NewStaleCodeChecker(DefaultStaleCodeSourceRoot()),
+		processes:        procRuntimeProcessTable{},
 	}
 }
 
@@ -392,7 +398,22 @@ func (s *RuntimeStatusStore) ReadValidatedRuntimeStatusSnapshot(ctx context.Cont
 	validation := s.validateRuntimeProcess(snapshot)
 	snapshot.Validation = validation
 	snapshot.Status = applyRuntimeProcessValidation(snapshot.Status, validation, snapshot.Missing)
+	snapshot.Status = s.applyStaleCodeEvidence(snapshot.Status, validation, snapshot.Missing)
 	return snapshot, nil
+}
+
+func (s *RuntimeStatusStore) applyStaleCodeEvidence(status RuntimeStatus, validation RuntimeProcessValidation, missing bool) RuntimeStatus {
+	status.StaleCode = nil
+	if missing || !validation.Live || status.BootGitSHA == "" {
+		return status
+	}
+	checker := s.staleCodeChecker
+	if checker == nil {
+		checker = NewStaleCodeChecker(DefaultStaleCodeSourceRoot())
+	}
+	evidence := checker.Check(status.BootGitSHA)
+	status.StaleCode = &evidence
+	return status
 }
 
 func (s *RuntimeStatusStore) validateRuntimeProcess(snapshot RuntimeStatusSnapshot) RuntimeProcessValidation {
@@ -527,6 +548,8 @@ func runtimePIDRecordMismatch(status RuntimeStatus, pidRecord RuntimeStatus) str
 func (s *RuntimeStatusStore) merge(status *RuntimeStatus, update RuntimeStatusUpdate) {
 	status.Kind = runtimeStatusKind
 	status.PID = s.pid()
+	status.BootGitSHA = s.bootGitSHA
+	status.StaleCode = nil
 	if startTime, ok := s.startTime(status.PID); ok {
 		status.StartTime = startTime
 	} else {
@@ -683,6 +706,7 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 			Kind:         runtimeStatusKind,
 			PID:          pid,
 			StartTime:    startTime,
+			BootGitSHA:   s.bootGitSHA,
 			Command:      strings.Join(argv, " "),
 			Argv:         argv,
 			GatewayState: GatewayStateStarting,
@@ -698,13 +722,14 @@ func (s *RuntimeStatusStore) readLocked() (RuntimeStatus, error) {
 		startTime, _ := s.startTime(pid)
 		argv := append([]string(nil), s.argv()...)
 		return RuntimeStatus{
-			Kind:      runtimeStatusKind,
-			PID:       pid,
-			StartTime: startTime,
-			Command:   strings.Join(argv, " "),
-			Argv:      argv,
-			Platforms: map[string]PlatformRuntimeStatus{},
-			UpdatedAt: s.now().Format(time.RFC3339Nano),
+			Kind:       runtimeStatusKind,
+			PID:        pid,
+			StartTime:  startTime,
+			BootGitSHA: s.bootGitSHA,
+			Command:    strings.Join(argv, " "),
+			Argv:       argv,
+			Platforms:  map[string]PlatformRuntimeStatus{},
+			UpdatedAt:  s.now().Format(time.RFC3339Nano),
 		}, nil
 	}
 
@@ -733,6 +758,7 @@ func (s *RuntimeStatusStore) writeLocked(ctx context.Context, status RuntimeStat
 		PID:        status.PID,
 		StartTime:  status.StartTime,
 		Generation: status.Generation,
+		BootGitSHA: status.BootGitSHA,
 		Command:    status.Command,
 		Argv:       append([]string(nil), status.Argv...),
 		UpdatedAt:  status.UpdatedAt,

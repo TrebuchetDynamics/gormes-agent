@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,6 +21,31 @@ const (
 // ErrUserBindingConflict reports an attempt to bind one canonical chat to
 // multiple distinct user IDs.
 var ErrUserBindingConflict = errors.New("session: chat already bound to different user_id")
+
+// ErrSessionNotFound reports a missing session lookup in the SQLite
+// transcript-backed session directory.
+var ErrSessionNotFound = errors.New("session: not found")
+
+// ErrSessionPrefixAmbiguous reports a prefix that matches multiple sessions.
+var ErrSessionPrefixAmbiguous = errors.New("session: prefix ambiguous")
+
+// DirectoryEntry is the read model used by CLI session ergonomics. It is
+// derived from the native turns table and optional session metadata.
+type DirectoryEntry struct {
+	ID           string
+	Title        string
+	Preview      string
+	Source       string
+	StartedAt    int64
+	LastActiveAt int64
+	MessageCount int
+}
+
+// DirectoryFilter narrows transcript-backed session directory queries.
+type DirectoryFilter struct {
+	Source string
+	Limit  int
+}
 
 // Metadata is the first durable identity layer above the raw session map.
 // SessionID remains the resume handle; Source+ChatID identify the transport
@@ -667,4 +693,190 @@ func (m *BoltMap) ListAllMetadata(ctx context.Context) ([]Metadata, error) {
 // ListAllMetadata returns all session metadata entries, sorted by most recent first.
 func (m *MemMap) ListAllMetadata(ctx context.Context) ([]Metadata, error) {
 	return m.listAllMetadata(ctx)
+}
+
+// ListDirectorySessions lists sessions from the native turns table in MRU
+// order. Last activity is MAX(ts_unix); legacy single-turn rows naturally fall
+// back to started_at because MIN and MAX are equal.
+func ListDirectorySessions(ctx context.Context, db *sql.DB, filter DirectoryFilter) ([]DirectoryEntry, error) {
+	if db == nil {
+		return nil, errors.New("session: directory db is nil")
+	}
+	rows, err := db.QueryContext(ctx, `SELECT session_id, role, content, ts_unix, COALESCE(chat_id, ''), COALESCE(meta_json, '') FROM turns ORDER BY session_id, ts_unix, id`)
+	if err != nil {
+		return nil, fmt.Errorf("session: list directory turns: %w", err)
+	}
+	defer rows.Close()
+
+	byID := make(map[string]*DirectoryEntry)
+	for rows.Next() {
+		var id, role, content, chatID, metaJSON string
+		var ts int64
+		if err := rows.Scan(&id, &role, &content, &ts, &chatID, &metaJSON); err != nil {
+			return nil, fmt.Errorf("session: scan directory turn: %w", err)
+		}
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		entry := byID[id]
+		if entry == nil {
+			entry = &DirectoryEntry{
+				ID:           id,
+				StartedAt:    ts,
+				LastActiveAt: ts,
+				Source:       sourceFromDirectoryChatID(chatID),
+			}
+			byID[id] = entry
+		}
+		if ts < entry.StartedAt {
+			entry.StartedAt = ts
+		}
+		if ts > entry.LastActiveAt {
+			entry.LastActiveAt = ts
+		}
+		if entry.Source == "" || entry.Source == "cli" {
+			entry.Source = sourceFromDirectoryChatID(chatID)
+		}
+		entry.MessageCount++
+		if entry.Preview == "" && strings.TrimSpace(role) == "user" {
+			entry.Preview = strings.TrimSpace(content)
+		}
+		if entry.Preview == "" {
+			entry.Preview = strings.TrimSpace(content)
+		}
+		if entry.Title == "" {
+			entry.Title = titleFromDirectoryMeta(metaJSON)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("session: iterate directory turns: %w", err)
+	}
+
+	source := strings.ToLower(strings.TrimSpace(filter.Source))
+	out := make([]DirectoryEntry, 0, len(byID))
+	for _, entry := range byID {
+		if source != "" && strings.ToLower(entry.Source) != source {
+			continue
+		}
+		out = append(out, *entry)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].LastActiveAt != out[j].LastActiveAt {
+			return out[i].LastActiveAt > out[j].LastActiveAt
+		}
+		if out[i].StartedAt != out[j].StartedAt {
+			return out[i].StartedAt > out[j].StartedAt
+		}
+		return out[i].ID < out[j].ID
+	})
+	if filter.Limit > 0 && len(out) > filter.Limit {
+		out = out[:filter.Limit]
+	}
+	return out, nil
+}
+
+// ResolveMostRecentSession returns the most recently active session for source.
+// Empty stores return an empty id and nil error to match Hermes continue logic.
+func ResolveMostRecentSession(ctx context.Context, db *sql.DB, source string) (string, error) {
+	sessions, err := ListDirectorySessions(ctx, db, DirectoryFilter{Source: source, Limit: 1})
+	if err != nil {
+		return "", err
+	}
+	if len(sessions) == 0 {
+		return "", nil
+	}
+	return sessions[0].ID, nil
+}
+
+// ResolveSessionIDPrefix resolves exact ids or unique prefixes.
+func ResolveSessionIDPrefix(ctx context.Context, db *sql.DB, prefix string) (string, error) {
+	prefix = strings.TrimSpace(prefix)
+	if prefix == "" {
+		return "", ErrSessionNotFound
+	}
+	sessions, err := ListDirectorySessions(ctx, db, DirectoryFilter{})
+	if err != nil {
+		return "", err
+	}
+	var matches []string
+	for _, session := range sessions {
+		if session.ID == prefix {
+			return session.ID, nil
+		}
+		if strings.HasPrefix(session.ID, prefix) {
+			matches = append(matches, session.ID)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return "", ErrSessionNotFound
+	case 1:
+		return matches[0], nil
+	default:
+		sort.Strings(matches)
+		return "", fmt.Errorf("%w: %s matches %s", ErrSessionPrefixAmbiguous, prefix, strings.Join(matches, ", "))
+	}
+}
+
+// DeleteDirectorySession deletes all turns for a resolved session id.
+func DeleteDirectorySession(ctx context.Context, db *sql.DB, sessionID string) (bool, error) {
+	if db == nil {
+		return false, errors.New("session: directory db is nil")
+	}
+	res, err := db.ExecContext(ctx, `DELETE FROM turns WHERE session_id = ?`, strings.TrimSpace(sessionID))
+	if err != nil {
+		return false, fmt.Errorf("session: delete %q: %w", sessionID, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("session: delete rows affected: %w", err)
+	}
+	return n > 0, nil
+}
+
+// PruneDirectorySessions deletes sessions whose last activity is older than
+// cutoffUnix. It returns the number of session ids removed, not turn rows.
+func PruneDirectorySessions(ctx context.Context, db *sql.DB, cutoffUnix int64, source string) (int, error) {
+	sessions, err := ListDirectorySessions(ctx, db, DirectoryFilter{Source: source})
+	if err != nil {
+		return 0, err
+	}
+	var ids []string
+	for _, session := range sessions {
+		if session.LastActiveAt < cutoffUnix {
+			ids = append(ids, session.ID)
+		}
+	}
+	for _, id := range ids {
+		if _, err := DeleteDirectorySession(ctx, db, id); err != nil {
+			return 0, err
+		}
+	}
+	return len(ids), nil
+}
+
+func sourceFromDirectoryChatID(chatID string) string {
+	chatID = strings.TrimSpace(chatID)
+	if chatID == "" {
+		return "cli"
+	}
+	if before, _, ok := strings.Cut(chatID, ":"); ok && strings.TrimSpace(before) != "" {
+		return strings.ToLower(strings.TrimSpace(before))
+	}
+	return "cli"
+}
+
+func titleFromDirectoryMeta(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	var meta struct {
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(meta.Title)
 }

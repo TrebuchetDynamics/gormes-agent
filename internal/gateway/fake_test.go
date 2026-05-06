@@ -21,6 +21,7 @@ type fakeChannel struct {
 	nextMsgID     int
 	sendErr       error
 	editErr       error
+	reactionErr   error
 	reactionUndos int
 	typingStops   int
 }
@@ -175,6 +176,18 @@ func (f *fakeChannel) ReactToMessage(_ context.Context, chatID, msgID string) (f
 		f.reactionUndos++
 		f.mu.Unlock()
 	}, nil
+}
+
+func (f *fakeChannel) OnProcessingStart(ctx context.Context, chatID, msgID string) error {
+	if f.reactionErr != nil {
+		return f.reactionErr
+	}
+	_, err := f.ReactToMessage(ctx, chatID, msgID)
+	return err
+}
+
+func (f *fakeChannel) OnProcessingComplete(_ context.Context, _, _ string, _ ProcessingOutcome) error {
+	return f.reactionErr
 }
 
 func (f *fakeChannel) pushInbound(e InboundEvent) {

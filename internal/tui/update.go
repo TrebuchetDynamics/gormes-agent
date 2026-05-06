@@ -9,6 +9,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 // HermesKeyKind is the closed set of physical key inputs the Hermes-parity
@@ -41,14 +42,32 @@ const (
 	// HermesKeyDown is the Down arrow. Browses draft history when the
 	// cursor is already on the last line; otherwise moves the cursor down.
 	HermesKeyDown
+	// HermesKeyRune is a printable rune plus modifier metadata. It is used
+	// for configurable shortcuts such as voice.record_key.
+	HermesKeyRune
+	// HermesKeySpace is the Space key with modifier metadata.
+	HermesKeySpace
+	// HermesKeyEscape is Escape with modifier metadata.
+	HermesKeyEscape
+	// HermesKeyTab is Tab with modifier metadata.
+	HermesKeyTab
+	// HermesKeyBackspace is Backspace with modifier metadata.
+	HermesKeyBackspace
+	// HermesKeyDelete is Delete with modifier metadata.
+	HermesKeyDelete
 )
 
 // HermesKeyEvent is the pure-data input to ResolveHermesKey. It carries no
 // terminal-mode metadata or Bubble Tea identity — Update is responsible for
 // adapting tea.KeyMsg into this shape before consulting the resolver.
 type HermesKeyEvent struct {
-	Kind HermesKeyKind
-	Alt  bool
+	Kind  HermesKeyKind
+	Ch    string
+	Ctrl  bool
+	Alt   bool
+	Meta  bool
+	Super bool
+	Shift bool
 }
 
 // HermesPhase mirrors the only kernel-phase distinction the keybinding
@@ -103,6 +122,10 @@ type HermesInputState struct {
 	// plain text fires while Phase==HermesPhaseRunning. Zero value is
 	// treated as HermesBusyInterrupt.
 	BusyInputMode HermesBusyInputMode
+	// VoiceRecordKey is the configured Hermes-compatible voice.record_key
+	// shortcut. Empty, malformed, reserved, or unsupported values fall
+	// back to Ctrl+B via the shared tools resolver.
+	VoiceRecordKey string
 	// ModalActive reports that an approval/clarify/sudo/secret panel is up
 	// and should claim Ctrl+C ahead of the active-turn interrupt branch.
 	ModalActive bool
@@ -172,6 +195,9 @@ const (
 	// command or submitting prompt text. Used for unported / unavailable
 	// slash commands so they never leak to the model as prompt content.
 	HermesActionConsumeWithEvidence
+	// HermesActionToggleVoiceRecording asks the voice layer to toggle local
+	// push-to-talk recording for the configured voice.record_key shortcut.
+	HermesActionToggleVoiceRecording
 )
 
 // HermesKeyDecision is the resolver's typed return value. Action is closed;
@@ -196,6 +222,10 @@ const hermesForceQuitWindow = 2 * time.Second
 // Update) is responsible for translating the decision into editor mutations
 // and tea.Cmds.
 func ResolveHermesKey(ev HermesKeyEvent, st HermesInputState) HermesKeyDecision {
+	if matchesHermesVoiceRecordKey(ev, st.VoiceRecordKey) {
+		return HermesKeyDecision{Action: HermesActionToggleVoiceRecording}
+	}
+
 	switch ev.Kind {
 	case HermesKeyEnter:
 		if ev.Alt {
@@ -225,6 +255,60 @@ func ResolveHermesKey(ev HermesKeyEvent, st HermesInputState) HermesKeyDecision 
 		return HermesKeyDecision{Action: HermesActionMoveCursorDown}
 	}
 	return HermesKeyDecision{Action: HermesActionNone}
+}
+
+func matchesHermesVoiceRecordKey(ev HermesKeyEvent, raw string) bool {
+	keyEvent, ok := voiceRecordKeyEventFromHermes(ev)
+	if !ok {
+		return false
+	}
+	return tools.MatchesVoiceRecordKey(raw, keyEvent, tools.VoiceRecordKeyOptions{})
+}
+
+func voiceRecordKeyEventFromHermes(ev HermesKeyEvent) (tools.VoiceRecordKeyEvent, bool) {
+	out := tools.VoiceRecordKeyEvent{
+		Ctrl:  ev.Ctrl,
+		Alt:   ev.Alt,
+		Meta:  ev.Meta,
+		Super: ev.Super,
+		Shift: ev.Shift,
+	}
+	switch ev.Kind {
+	case HermesKeyRune:
+		key := strings.ToLower(strings.TrimSpace(ev.Ch))
+		if key == "" {
+			return tools.VoiceRecordKeyEvent{}, false
+		}
+		out.Key = key
+	case HermesKeySpace:
+		out.Key = "space"
+	case HermesKeyEnter:
+		out.Key = "enter"
+	case HermesKeyEscape:
+		out.Key = "escape"
+		out.Escape = true
+	case HermesKeyTab:
+		out.Key = "tab"
+	case HermesKeyBackspace:
+		out.Key = "backspace"
+	case HermesKeyDelete:
+		out.Key = "delete"
+	case HermesKeyCtrlC:
+		out.Key = "c"
+		out.Ctrl = true
+	case HermesKeyCtrlD:
+		out.Key = "d"
+		out.Ctrl = true
+	case HermesKeyCtrlL:
+		out.Key = "l"
+		out.Ctrl = true
+	case HermesKeyCtrlJ:
+		out.Key = "j"
+		out.Ctrl = true
+	default:
+		return tools.VoiceRecordKeyEvent{}, false
+	}
+	return out, true
 }
 
 func resolveHermesEnter(st HermesInputState) HermesKeyDecision {
@@ -322,6 +406,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.editor.SetWidth(maxInt(msg.Width, 20))
 
 	case tea.KeyMsg:
+		if got, ok := resolveVoiceRecordTeaKey(msg, m.voiceRecordKey); ok && got.Action == HermesActionToggleVoiceRecording {
+			key := tools.ResolveVoiceRecordKey(m.voiceRecordKey, tools.VoiceRecordKeyOptions{})
+			m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
+			return m, tea.Batch(cmds...)
+		}
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			// In-flight: cancel the turn. Idle: quit.
@@ -411,6 +500,114 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.editor, cmd = m.editor.Update(msg)
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
+}
+
+func resolveVoiceRecordTeaKey(msg tea.KeyMsg, raw string) (HermesKeyDecision, bool) {
+	ev, ok := hermesKeyEventFromTea(msg)
+	if !ok {
+		return HermesKeyDecision{}, false
+	}
+	return ResolveHermesKey(ev, HermesInputState{VoiceRecordKey: raw}), true
+}
+
+func hermesKeyEventFromTea(msg tea.KeyMsg) (HermesKeyEvent, bool) {
+	ev := HermesKeyEvent{Alt: msg.Alt}
+	switch msg.Type {
+	case tea.KeyCtrlJ:
+		ev.Kind = HermesKeyCtrlJ
+	case tea.KeyCtrlC:
+		ev.Kind = HermesKeyCtrlC
+	case tea.KeyCtrlD:
+		ev.Kind = HermesKeyCtrlD
+	case tea.KeyCtrlL:
+		ev.Kind = HermesKeyCtrlL
+	case tea.KeySpace:
+		ev.Kind = HermesKeySpace
+	case tea.KeyEnter:
+		ev.Kind = HermesKeyEnter
+	case tea.KeyEscape:
+		ev.Kind = HermesKeyEscape
+	case tea.KeyTab:
+		ev.Kind = HermesKeyTab
+	case tea.KeyBackspace:
+		ev.Kind = HermesKeyBackspace
+	case tea.KeyDelete:
+		ev.Kind = HermesKeyDelete
+	case tea.KeyRunes:
+		if len(msg.Runes) != 1 {
+			return HermesKeyEvent{}, false
+		}
+		ev.Kind = HermesKeyRune
+		ev.Ch = string(msg.Runes[0])
+	default:
+		if ch, ok := teaCtrlRune(msg.Type); ok {
+			ev.Kind = HermesKeyRune
+			ev.Ch = ch
+			ev.Ctrl = true
+			return ev, true
+		}
+		return HermesKeyEvent{}, false
+	}
+	return ev, true
+}
+
+func teaCtrlRune(kind tea.KeyType) (string, bool) {
+	switch kind {
+	case tea.KeyCtrlA:
+		return "a", true
+	case tea.KeyCtrlB:
+		return "b", true
+	case tea.KeyCtrlC:
+		return "c", true
+	case tea.KeyCtrlD:
+		return "d", true
+	case tea.KeyCtrlE:
+		return "e", true
+	case tea.KeyCtrlF:
+		return "f", true
+	case tea.KeyCtrlG:
+		return "g", true
+	case tea.KeyCtrlH:
+		return "h", true
+	case tea.KeyCtrlI:
+		return "i", true
+	case tea.KeyCtrlJ:
+		return "j", true
+	case tea.KeyCtrlK:
+		return "k", true
+	case tea.KeyCtrlL:
+		return "l", true
+	case tea.KeyCtrlM:
+		return "m", true
+	case tea.KeyCtrlN:
+		return "n", true
+	case tea.KeyCtrlO:
+		return "o", true
+	case tea.KeyCtrlP:
+		return "p", true
+	case tea.KeyCtrlQ:
+		return "q", true
+	case tea.KeyCtrlR:
+		return "r", true
+	case tea.KeyCtrlS:
+		return "s", true
+	case tea.KeyCtrlT:
+		return "t", true
+	case tea.KeyCtrlU:
+		return "u", true
+	case tea.KeyCtrlV:
+		return "v", true
+	case tea.KeyCtrlW:
+		return "w", true
+	case tea.KeyCtrlX:
+		return "x", true
+	case tea.KeyCtrlY:
+		return "y", true
+	case tea.KeyCtrlZ:
+		return "z", true
+	default:
+		return "", false
+	}
 }
 
 // submitCmd wraps the submit callback as a tea.Cmd so it runs off the

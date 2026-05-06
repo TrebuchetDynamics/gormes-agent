@@ -24,6 +24,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
@@ -44,6 +45,7 @@ func main() {
 }
 
 func executeRootCommand(root *cobra.Command, args ...string) error {
+	args = coalesceSessionNameArgs(args)
 	if suggestion, ok := cli.TypoSuggestion(args); ok {
 		fmt.Fprintf(root.ErrOrStderr(), "unknown command %q for %q\n%s\n", args[0], root.CommandPath(), suggestion)
 		return newExitCodeError(1, fmt.Errorf("unknown command %q for %q; %s", args[0], root.CommandPath(), suggestion))
@@ -70,6 +72,10 @@ type rootRuntime struct {
 type tuiInvocation struct {
 	Inference config.TUIInferenceResolution
 	Config    config.Config
+	// ForcedSkills is a one-turn root CLI skill allowlist. The full TUI does
+	// not currently inject it, but carrying the value keeps invocation parsing
+	// symmetric with chat/oneshot startup.
+	ForcedSkills []string
 	// RemoteURL, when non-empty, switches startup to remote-TUI mode:
 	// gormes connects to the gateway's SSE event stream instead of
 	// instantiating a local kernel + provider client. Empty leaves local
@@ -78,9 +84,10 @@ type tuiInvocation struct {
 }
 
 type oneshotInvocation struct {
-	Prompt    string
-	Inference config.OneshotInferenceResolution
-	Config    config.Config
+	Prompt       string
+	Inference    config.OneshotInferenceResolution
+	Config       config.Config
+	ForcedSkills []string
 }
 
 func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
@@ -165,12 +172,15 @@ Memory and sessions:
 Tools and skills:
   gormes skills list                list installed skills
   gormes skills install <url>       install a direct SKILL.md URL
+  gormes curator status             inspect background skill maintenance
+  gormes plugins list               list installed plugins
   gormes mcp login <server>         refresh OAuth for one MCP server
 
 Maintenance:
   gormes status                     show runtime and progress blockers
   gormes usage                      show provider account usage
   gormes migrate hermes             import state from Hermes (dry-run)
+  gormes update                     update a managed source checkout
   gormes version                    print version
   gormes uninstall                  remove Gormes artifacts
 
@@ -182,10 +192,15 @@ Environment:
 
 Docs: https://docs.gormes.ai`,
 		SilenceUsage: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return applyProfileStartupFlag(cmd)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRootCommand(cmd, args, runtime)
 		},
 	}
+	root.PersistentFlags().StringP("profile", "p", "", "profile name for this invocation")
+	root.PersistentFlags().StringArray("skills", nil, "runtime skill allowlist for this invocation; repeat or comma-separate")
 	root.Flags().StringP("oneshot", "z", "", "one-shot mode: send a single prompt and resolve model/provider selection without starting the TUI")
 	root.Flags().StringP("model", "m", "", "model override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_MODEL")
 	root.Flags().String("provider", "", "provider override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_PROVIDER")
@@ -193,9 +208,60 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().String("api-key", "", "provider API key override for --oneshot or TUI startup; invocation-only and never persisted")
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
+	root.Flags().StringP("continue", "c", "", "resolve a session id or unique prefix and resume it")
+	if flag := root.Flags().Lookup("continue"); flag != nil {
+		flag.NoOptDefVal = "last"
+	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newMCPCommand(), newDashboardCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newUninstallCommand(), newLogsCommand())
 	return root
+}
+
+func applyProfileStartupFlag(cmd *cobra.Command) error {
+	name := strings.TrimSpace(commandStringFlag(cmd, "profile"))
+	if name == "" {
+		return nil
+	}
+	if err := cli.ValidateProfileName(name); err != nil {
+		return newExitCodeError(2, fmt.Errorf("profile_name_invalid: %w", err))
+	}
+	root, err := cli.ResolveProfileRoot(name, filepath.Dir(config.GormesHome()))
+	if err != nil {
+		return newExitCodeError(2, fmt.Errorf("profile_name_invalid: %w", err))
+	}
+	if err := os.Setenv("GORMES_HOME", root); err != nil {
+		return newExitCodeError(2, fmt.Errorf("profile: set GORMES_HOME: %w", err))
+	}
+	return nil
+}
+
+func newChatCommand(runtime rootRuntime) *cobra.Command {
+	var query string
+	cmd := &cobra.Command{
+		Use:   "chat [prompt...]",
+		Short: "Open chat or send a one-shot query",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			prompt := strings.TrimSpace(query)
+			if prompt == "" && len(args) > 0 {
+				prompt = strings.TrimSpace(strings.Join(args, " "))
+			}
+			if prompt == "" {
+				invocation, err := resolveTUIInvocation(cmd)
+				if err != nil {
+					return err
+				}
+				return runtime.runResolvedTUI(cmd, invocation)
+			}
+			invocation, err := resolveOneshotInvocationForPrompt(cmd, prompt)
+			if err != nil {
+				return err
+			}
+			return runtime.runOneshot(cmd, invocation)
+		},
+	}
+	cmd.Flags().StringVarP(&query, "query", "q", "", "send one one-shot chat query and exit")
+	return cmd
 }
 
 func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) error {
@@ -215,14 +281,22 @@ func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) erro
 
 func resolveOneshotInvocation(cmd *cobra.Command) (oneshotInvocation, error) {
 	prompt, _ := cmd.Flags().GetString("oneshot")
-	modelFlag, _ := cmd.Flags().GetString("model")
-	providerFlag, _ := cmd.Flags().GetString("provider")
-	endpointFlag, _ := cmd.Flags().GetString("endpoint")
-	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
+	return resolveOneshotInvocationForPrompt(cmd, prompt)
+}
+
+func resolveOneshotInvocationForPrompt(cmd *cobra.Command, prompt string) (oneshotInvocation, error) {
+	modelFlag := commandStringFlag(cmd, "model")
+	providerFlag := commandStringFlag(cmd, "provider")
+	endpointFlag := commandStringFlag(cmd, "endpoint")
+	apiKeyFlag := commandStringFlag(cmd, "api-key")
 
 	cfg, err := config.Load(nil)
 	if err != nil {
 		return oneshotInvocation{Prompt: prompt}, err
+	}
+	forcedSkills := forcedSkillNames(cmd)
+	if err := validateForcedSkills(cfg, forcedSkills); err != nil {
+		return oneshotInvocation{Prompt: prompt, Config: cfg, ForcedSkills: forcedSkills}, newExitCodeError(2, err)
 	}
 	applyProviderStartupFlags(&cfg, endpointFlag, apiKeyFlag)
 	resolution, err := config.ResolveOneshotInference(config.OneshotInferenceRequest{
@@ -232,9 +306,10 @@ func resolveOneshotInvocation(cmd *cobra.Command) (oneshotInvocation, error) {
 	})
 	resolution = resolveStaticStartupInference(resolution)
 	invocation := oneshotInvocation{
-		Prompt:    prompt,
-		Inference: resolution,
-		Config:    cfg,
+		Prompt:       prompt,
+		Inference:    resolution,
+		Config:       cfg,
+		ForcedSkills: forcedSkills,
 	}
 	if err != nil {
 		return invocation, newExitCodeError(2, err)
@@ -243,11 +318,11 @@ func resolveOneshotInvocation(cmd *cobra.Command) (oneshotInvocation, error) {
 }
 
 func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
-	modelFlag, _ := cmd.Flags().GetString("model")
-	providerFlag, _ := cmd.Flags().GetString("provider")
-	endpointFlag, _ := cmd.Flags().GetString("endpoint")
-	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
-	remoteFlag, _ := cmd.Flags().GetString("remote")
+	modelFlag := commandStringFlag(cmd, "model")
+	providerFlag := commandStringFlag(cmd, "provider")
+	endpointFlag := commandStringFlag(cmd, "endpoint")
+	apiKeyFlag := commandStringFlag(cmd, "api-key")
+	remoteFlag := commandStringFlag(cmd, "remote")
 
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -261,9 +336,10 @@ func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
 	})
 	resolution = resolveStaticStartupInference(resolution)
 	invocation := tuiInvocation{
-		Inference: resolution,
-		Config:    cfg,
-		RemoteURL: remoteFlag,
+		Inference:    resolution,
+		Config:       cfg,
+		ForcedSkills: forcedSkillNames(cmd),
+		RemoteURL:    remoteFlag,
 	}
 	if err != nil {
 		return invocation, newExitCodeError(2, err)
@@ -278,6 +354,110 @@ func applyProviderStartupFlags(cfg *config.Config, endpointFlag, apiKeyFlag stri
 	if apiKey := strings.TrimSpace(apiKeyFlag); apiKey != "" {
 		cfg.Hermes.APIKey = apiKey
 	}
+}
+
+func commandStringFlag(cmd *cobra.Command, name string) string {
+	if cmd == nil {
+		return ""
+	}
+	if flags := cmd.Flags(); flags != nil && flags.Lookup(name) != nil {
+		value, _ := flags.GetString(name)
+		return value
+	}
+	if root := cmd.Root(); root != nil && root != cmd {
+		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
+			value, _ := flags.GetString(name)
+			return value
+		}
+	}
+	return ""
+}
+
+func forcedSkillNames(cmd *cobra.Command) []string {
+	raw := commandStringArrayFlag(cmd, "skills")
+	if len(raw) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(raw))
+	for _, value := range raw {
+		for _, part := range strings.Split(value, ",") {
+			name := strings.TrimSpace(part)
+			if name == "" {
+				continue
+			}
+			key := strings.ToLower(name)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+func commandStringArrayFlag(cmd *cobra.Command, name string) []string {
+	if cmd == nil {
+		return nil
+	}
+	if flags := cmd.Flags(); flags != nil && flags.Lookup(name) != nil {
+		values, _ := flags.GetStringArray(name)
+		return values
+	}
+	if root := cmd.Root(); root != nil && root != cmd {
+		if flags := root.Flags(); flags != nil && flags.Lookup(name) != nil {
+			values, _ := flags.GetStringArray(name)
+			return values
+		}
+	}
+	return nil
+}
+
+func validateForcedSkills(cfg config.Config, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	snapshot, err := skills.NewStore(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes).SnapshotActive()
+	if err != nil {
+		return fmt.Errorf("skills_unavailable: %w", err)
+	}
+	available := map[string]struct{}{}
+	for _, skill := range snapshot.Skills {
+		for _, key := range forcedSkillPolicyKeys(skill) {
+			available[key] = struct{}{}
+		}
+	}
+	var missing []string
+	for _, name := range names {
+		key := strings.ToLower(strings.TrimSpace(name))
+		if key == "" {
+			continue
+		}
+		if _, ok := available[key]; !ok {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("skill_unavailable: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+func forcedSkillPolicyKeys(skill skills.Skill) []string {
+	var keys []string
+	add := func(value string) {
+		value = strings.ToLower(strings.TrimSpace(value))
+		if value != "" {
+			keys = append(keys, value)
+			keys = append(keys, strings.ReplaceAll(value, " ", "-"))
+		}
+	}
+	add(skill.Name)
+	if skill.Path != "" {
+		add(filepath.Base(filepath.Dir(skill.Path)))
+	}
+	return keys
 }
 
 func resolveStaticStartupInference(resolution config.InferenceResolution) config.InferenceResolution {
@@ -345,6 +525,10 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 		ToolAudit:         audit.NewJSONLWriter(config.ToolAuditLogPath()),
 		ToolSafety:        toolSafety,
 	}
+	if skillRuntime := newForcedSkillRuntime(cfg, invocation.ForcedSkills); skillRuntime != nil {
+		kernelCfg.Skills = skillRuntime
+		kernelCfg.SkillUsage = skillRuntime
+	}
 	if len(configureKernel) > 0 && configureKernel[0] != nil {
 		configureKernel[0](&kernelCfg)
 	}
@@ -384,6 +568,44 @@ func runResolvedOneshotWithClient(cmd *cobra.Command, invocation oneshotInvocati
 		return newExitCodeError(1, fmt.Errorf("gormes -z: write stdout: %w", err))
 	}
 	return nil
+}
+
+type forcedSkillRuntime struct {
+	runtime *skills.Runtime
+	names   []string
+}
+
+func newForcedSkillRuntime(cfg config.Config, names []string) *forcedSkillRuntime {
+	if len(names) == 0 {
+		return nil
+	}
+	return &forcedSkillRuntime{
+		runtime: skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath()),
+		names:   append([]string(nil), names...),
+	}
+}
+
+func (r *forcedSkillRuntime) BuildSkillBlock(ctx context.Context, userMessage string) (string, []string, error) {
+	if r == nil || r.runtime == nil || len(r.names) == 0 {
+		return "", nil, nil
+	}
+	allowed := make(map[string]bool, len(r.names))
+	for _, name := range r.names {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			allowed[strings.ToLower(name)] = true
+		}
+	}
+	query := strings.TrimSpace(strings.Join(append([]string{userMessage}, r.names...), " "))
+	block, names, _, err := r.runtime.BuildSkillBlockWithOptions(ctx, query, skills.RuntimeOptions{AllowedSkillNames: allowed})
+	return block, names, err
+}
+
+func (r *forcedSkillRuntime) RecordSkillUsage(ctx context.Context, skillNames []string) error {
+	if r == nil || r.runtime == nil {
+		return nil
+	}
+	return r.runtime.RecordSkillUsage(ctx, skillNames)
 }
 
 func readOneshotFrame(ctx context.Context, frames <-chan kernel.RenderFrame) (kernel.RenderFrame, error) {
@@ -487,6 +709,14 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	}
 
 	resumeFlag, _ := cmd.Flags().GetString("resume")
+	continueFlag, _ := cmd.Flags().GetString("continue")
+	if resumeFlag == "" && continueFlag != "" {
+		resolved, err := resolveContinueSessionFlag(continueFlag)
+		if err != nil {
+			return newExitCodeError(1, err)
+		}
+		resumeFlag = resolved
+	}
 	pctx := context.Background()
 	key := session.TUIKey()
 	if resumeFlag != "" {
@@ -556,9 +786,10 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	}
 
 	model := tui.NewModelWithOptions(hookedFrames, submit, cancelTurn, tui.Options{
-		MouseTracking: cfg.TUI.MouseTracking,
-		SessionExport: newTUISaveExportFunc(),
-		OfflineSmoke:  offline,
+		MouseTracking:  cfg.TUI.MouseTracking,
+		VoiceRecordKey: cfg.Voice.RecordKey,
+		SessionExport:  newTUISaveExportFunc(),
+		OfflineSmoke:   offline,
 	})
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated

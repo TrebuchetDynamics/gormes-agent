@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,9 +29,12 @@ const (
 
 // FileTaskToolConfig constrains local file tools to a workspace root.
 type FileTaskToolConfig struct {
-	Root         string
-	ReadGuard    *FileReadGuard
-	MaxReadChars int
+	Root          string
+	ReadGuard     *FileReadGuard
+	StateRegistry *FileStateRegistry
+	TaskID        string
+	CWDResolver   func() string
+	MaxReadChars  int
 }
 
 type ReadFileToolConfig = FileTaskToolConfig
@@ -73,7 +77,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(map[string]any{"error": "invalid read_file args: " + err.Error()})
 	}
-	resolved, rel, err := resolveWorkspaceFile(t.cfg.Root, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
 	}
@@ -131,6 +135,7 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 	if t.duplicateWindow(rel, offset, limit, info) {
+		state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
 		status := FileReadResult{
 			Path:        rel,
 			DedupStatus: FileReadDedupStatusUnchanged,
@@ -143,9 +148,10 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		if t.guard != nil {
 			status = t.guard.GuardRepeatedReadStatus(status)
 		}
-		return marshalReadFileStatus(rel, status)
+		return marshalReadFileStatus(rel, status, state)
 	}
 
+	state, _ := t.fileStateRegistry().record(root, t.cfg.TaskID, cwd, rel, resolved)
 	truncated := offset > 1 || endIdx < total
 	payload := map[string]any{
 		"path":             rel,
@@ -158,10 +164,20 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		"content_returned": true,
 		"truncated":        truncated,
 	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
+	}
 	if endIdx < total {
 		payload["hint"] = fmt.Sprintf("Continue with offset=%d to read the next window.", endIdx+1)
 	}
 	return marshalToolPayload(payload)
+}
+
+func (t *ReadFileTool) fileStateRegistry() *FileStateRegistry {
+	if t != nil && t.cfg.StateRegistry != nil {
+		return t.cfg.StateRegistry
+	}
+	return defaultFileStateRegistry
 }
 
 func (t *ReadFileTool) maxReadChars() int {
@@ -188,7 +204,7 @@ func (t *ReadFileTool) duplicateWindow(path string, offset, limit int, info os.F
 	return false
 }
 
-func marshalReadFileStatus(path string, read FileReadResult) (json.RawMessage, error) {
+func marshalReadFileStatus(path string, read FileReadResult, state FileStateSnapshot) (json.RawMessage, error) {
 	evidence := fileReadEvidenceWithPath(read.Evidence, path)
 	payload := map[string]any{
 		"path":             path,
@@ -207,6 +223,9 @@ func marshalReadFileStatus(path string, read FileReadResult) (json.RawMessage, e
 	}
 	if read.DedupStatus == FileReadStatusDedupStubBlocked {
 		payload["error"] = payload["message"]
+	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
 	}
 	return marshalToolPayload(payload)
 }
@@ -275,11 +294,7 @@ func (t *SearchFilesTool) Execute(ctx context.Context, args json.RawMessage) (js
 	if strings.TrimSpace(searchPath) == "" {
 		searchPath = "."
 	}
-	root, err := resolveWorkspaceRoot(t.cfg.Root)
-	if err != nil {
-		return marshalToolPayload(map[string]any{"error": err.Error()})
-	}
-	base, relBase, err := resolveWorkspacePath(root, searchPath)
+	base, relBase, root, _, err := resolveFileTaskPath(t.cfg, searchPath)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": searchPath, "error": err.Error()})
 	}
@@ -305,7 +320,7 @@ func (t *SearchFilesTool) searchFileNames(ctx context.Context, root, base, relBa
 			return ctx.Err()
 		}
 		if d.IsDir() {
-			if shouldSkipDir(d.Name()) && path != base {
+			if shouldSkipSearchDir(base, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -352,6 +367,11 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 	counts := map[string]int{}
 	filesSeen := map[string]bool{}
 	var results []map[string]any
+	emittedContext := map[string]bool{}
+	contextLines := in.Context
+	if contextLines < 0 {
+		contextLines = 0
+	}
 	err = filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -360,7 +380,7 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			return ctx.Err()
 		}
 		if d.IsDir() {
-			if shouldSkipDir(d.Name()) && path != base {
+			if shouldSkipSearchDir(base, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -381,11 +401,29 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			counts[rel]++
 			filesSeen[rel] = true
 			if outputMode == "content" {
-				results = append(results, map[string]any{
-					"path": rel,
-					"line": i + 1,
-					"text": line,
-				})
+				start, end := i, i
+				if contextLines > 0 {
+					start = i - contextLines
+					if start < 0 {
+						start = 0
+					}
+					end = i + contextLines
+					if end >= len(lines) {
+						end = len(lines) - 1
+					}
+				}
+				for lineIndex := start; lineIndex <= end; lineIndex++ {
+					key := rel + "\x00" + strconv.Itoa(lineIndex)
+					if emittedContext[key] {
+						continue
+					}
+					emittedContext[key] = true
+					results = append(results, map[string]any{
+						"path": rel,
+						"line": lineIndex + 1,
+						"text": lines[lineIndex],
+					})
+				}
 			}
 		}
 		return nil
@@ -466,9 +504,13 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(map[string]any{"error": "invalid write_file args: " + err.Error()})
 	}
-	resolved, rel, err := resolveWorkspaceFile(t.cfg.Root, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
+	}
+	registry := fileTaskStateRegistry(t.cfg)
+	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
 	if isFileReadGuardStatusText([]byte(in.Content)) {
 		return marshalToolPayload(map[string]any{"path": rel, "error": ErrFileReadGuardStatusContent.Error()})
@@ -479,11 +521,16 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := os.WriteFile(resolved, []byte(in.Content), defaultWriteFileFileMode); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write file: " + err.Error()})
 	}
-	return marshalToolPayload(map[string]any{
+	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	payload := map[string]any{
 		"path":          rel,
 		"bytes_written": len([]byte(in.Content)),
 		"status":        "ok",
-	})
+	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
+	}
+	return marshalToolPayload(payload)
 }
 
 // PatchTool implements targeted replace edits under the workspace root.
@@ -532,9 +579,13 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if isFileReadGuardStatusText([]byte(in.NewString)) {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": ErrFileReadGuardStatusContent.Error()})
 	}
-	resolved, rel, err := resolveWorkspaceFile(t.cfg.Root, in.Path)
+	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
+	}
+	registry := fileTaskStateRegistry(t.cfg)
+	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
 	raw, err := os.ReadFile(resolved)
 	if err != nil {
@@ -559,11 +610,16 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if err := os.WriteFile(resolved, []byte(updated), defaultWriteFileFileMode); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write patched file: " + err.Error()})
 	}
-	return marshalToolPayload(map[string]any{
+	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
+	payload := map[string]any{
 		"path":         rel,
 		"replacements": replacements,
 		"status":       "ok",
-	})
+	}
+	if statePayload := fileStatePayload(state); statePayload != nil {
+		payload["file_state"] = statePayload
+	}
+	return marshalToolPayload(payload)
 }
 
 func resolveWorkspaceFile(root, rawPath string) (string, string, error) {
@@ -572,6 +628,75 @@ func resolveWorkspaceFile(root, rawPath string) (string, string, error) {
 		return "", "", err
 	}
 	return resolveWorkspacePath(workspaceRoot, rawPath)
+}
+
+func resolveFileTaskPath(cfg FileTaskToolConfig, rawPath string) (string, string, string, string, error) {
+	workspaceRoot, err := resolveWorkspaceRoot(cfg.Root)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	cwd, cwdRel, err := resolveFileTaskCWD(cfg, workspaceRoot)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	resolved, rel, err := resolveWorkspacePathFromBase(workspaceRoot, cwd, rawPath)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return resolved, rel, workspaceRoot, cwdRel, nil
+}
+
+func resolveFileTaskCWD(cfg FileTaskToolConfig, root string) (string, string, error) {
+	raw := ""
+	if cfg.CWDResolver != nil {
+		raw = strings.TrimSpace(cfg.CWDResolver())
+	} else if strings.TrimSpace(cfg.Root) == "" {
+		raw = strings.TrimSpace(os.Getenv("TERMINAL_CWD"))
+	}
+	if raw == "" || terminalCWDPlaceholder(raw) {
+		return root, ".", nil
+	}
+	expanded, err := expandUserPath(raw)
+	if err != nil {
+		return "", "", err
+	}
+	if !filepath.IsAbs(expanded) {
+		expanded = filepath.Join(root, expanded)
+	}
+	abs, err := filepath.Abs(expanded)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve task cwd: %w", err)
+	}
+	abs = filepath.Clean(abs)
+	if !pathWithinRoot(root, abs) {
+		return "", "", fmt.Errorf("task cwd %q is outside workspace root %q", raw, root)
+	}
+	if err := validateWorkspaceRealPath(root, abs); err != nil {
+		return "", "", err
+	}
+	return abs, workspaceRel(root, abs), nil
+}
+
+func resolveWorkspacePathFromBase(root, base, rawPath string) (string, string, error) {
+	path := strings.TrimSpace(rawPath)
+	if path == "" {
+		return "", "", errors.New("path is required")
+	}
+	expanded, err := expandUserPath(path)
+	if err != nil {
+		return "", "", err
+	}
+	if !filepath.IsAbs(expanded) {
+		expanded = filepath.Join(base, expanded)
+	}
+	return resolveWorkspacePath(root, expanded)
+}
+
+func fileTaskStateRegistry(cfg FileTaskToolConfig) *FileStateRegistry {
+	if cfg.StateRegistry != nil {
+		return cfg.StateRegistry
+	}
+	return defaultFileStateRegistry
 }
 
 func resolveWorkspaceRoot(root string) (string, error) {
@@ -740,6 +865,39 @@ func shouldSkipDir(name string) bool {
 	default:
 		return false
 	}
+}
+
+func shouldSkipSearchDir(base, path, name string) bool {
+	if filepath.Clean(path) == filepath.Clean(base) {
+		return false
+	}
+	return shouldSkipDir(name) || isHiddenPathPart(name)
+}
+
+func isHiddenPathPart(name string) bool {
+	return name != "." && name != ".." && strings.HasPrefix(name, ".")
+}
+
+var searchContextLinePattern = regexp.MustCompile(`-(\d+)-`)
+
+func parseSearchContextLine(line string) (string, int, string, bool) {
+	if line == "" || line == "--" {
+		return "", 0, "", false
+	}
+	matches := searchContextLinePattern.FindAllStringSubmatchIndex(line, -1)
+	if len(matches) == 0 {
+		return "", 0, "", false
+	}
+	match := matches[len(matches)-1]
+	path := line[:match[0]]
+	if path == "" {
+		return "", 0, "", false
+	}
+	lineNumber, err := strconv.Atoi(line[match[2]:match[3]])
+	if err != nil {
+		return "", 0, "", false
+	}
+	return path, lineNumber, line[match[1]:], true
 }
 
 func globMatches(pattern, value string) bool {

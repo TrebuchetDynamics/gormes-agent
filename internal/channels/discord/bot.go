@@ -17,15 +17,34 @@ import (
 
 const (
 	ackEmoji        = "👀"
+	successEmoji    = "✅"
+	failureEmoji    = "❌"
 	placeholderText = "⏳"
 )
 
 type Config struct {
-	AllowedChannelID  string
-	FirstRunDiscovery bool
+	AllowedChannelID       string
+	AllowedChannelIDs      []string
+	IgnoredChannelIDs      []string
+	FreeResponseChannelIDs []string
+	NoThreadChannelIDs     []string
+	RequireMention         bool
+	RequireMentionSet      bool
+	AutoThread             bool
+	AutoThreadSet          bool
+	AllowBots              string
+	SelfUserID             string
+	ReplyToMode            string
+	FirstRunDiscovery      bool
 	// AttachmentCacheDir stores Discord attachment downloads before the gateway
 	// sees local attachment descriptors. Empty uses the user cache dir.
 	AttachmentCacheDir string
+	// ThreadStatePath stores the bounded set of participated Discord threads.
+	// Empty uses GormesHome()/discord_threads.json.
+	ThreadStatePath string
+	// ThreadParticipationLimit caps persisted participated threads. Empty uses
+	// Hermes' 500-thread default.
+	ThreadParticipationLimit int
 	// AttachmentHTTPClient fetches SSRF-gated URL fallbacks in tests and
 	// production. Empty uses a bounded default client.
 	AttachmentHTTPClient *http.Client
@@ -41,6 +60,11 @@ type Bot struct {
 
 	threadsMu sync.RWMutex
 	threads   map[string]discordThread
+
+	participatedThreads *ThreadParticipationTracker
+
+	replyMu        sync.Mutex
+	replyFirstSent map[string]bool
 }
 
 type discordThread struct {
@@ -63,13 +87,22 @@ func New(cfg Config, session discordSession, log *slog.Logger) *Bot {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Bot{
-		cfg:       cfg,
-		session:   session,
-		log:       log,
-		reactions: map[string]bool{},
-		threads:   map[string]discordThread{},
+	b := &Bot{
+		cfg:            cfg,
+		session:        session,
+		log:            log,
+		reactions:      map[string]bool{},
+		threads:        map[string]discordThread{},
+		replyFirstSent: map[string]bool{},
+		participatedThreads: NewThreadParticipationTracker(ThreadParticipationOptions{
+			Path:       cfg.ThreadStatePath,
+			MaxTracked: cfg.ThreadParticipationLimit,
+		}),
 	}
+	if ev := b.participatedThreads.LoadEvidence(); ev.Code != "" {
+		b.log.Warn("discord thread participation tracker reset", "evidence", ev.Code)
+	}
+	return b
 }
 
 func (b *Bot) Name() string { return "discord" }
@@ -119,11 +152,14 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 		case <-ctx.Done():
 		}
 	})
-	b.session.AddHandler(func(_ *discordgo.Session, m *discordgo.MessageCreate) {
+	b.session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m == nil || m.Message == nil {
 			return
 		}
-		if m.Author == nil || m.Author.Bot {
+		if m.Author == nil {
+			return
+		}
+		if !b.acceptMessage(s, m.Message) {
 			return
 		}
 		ev, ok := b.toInboundEventWithContext(ctx, m.Message)
@@ -176,6 +212,11 @@ func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Messag
 			guildID = thread.guildID
 		}
 	}
+	if threadID != "" {
+		if ev, err := b.participatedThreads.Mark(threadID); err != nil {
+			b.log.Warn("discord thread participation tracker write failed", "evidence", ev.Code)
+		}
+	}
 	messageID := strings.TrimSpace(m.ID)
 	return gateway.InboundEvent{
 		Platform:     "discord",
@@ -191,6 +232,80 @@ func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Messag
 		Text:         body,
 		Attachments:  attachments,
 	}, true
+}
+
+func (b *Bot) acceptMessage(s *discordgo.Session, m *discordgo.Message) bool {
+	ctx := b.admissionContext(s, m)
+	result := EvaluateAdmission(b.admissionPolicy(), ctx)
+	return result.Allowed
+}
+
+func (b *Bot) admissionPolicy() AdmissionPolicy {
+	requireMention := true
+	if b.cfg.RequireMentionSet {
+		requireMention = b.cfg.RequireMention
+	}
+	autoThread := true
+	if b.cfg.AutoThreadSet {
+		autoThread = b.cfg.AutoThread
+	}
+	allowed := append([]string{}, b.cfg.AllowedChannelIDs...)
+	if b.cfg.AllowedChannelID != "" {
+		allowed = append(allowed, b.cfg.AllowedChannelID)
+	}
+	return AdmissionPolicy{
+		AllowedChannelIDs:     allowed,
+		IgnoredChannelIDs:     b.cfg.IgnoredChannelIDs,
+		FreeResponseChannels:  b.cfg.FreeResponseChannelIDs,
+		NoThreadChannelIDs:    b.cfg.NoThreadChannelIDs,
+		RequireMention:        requireMention,
+		AutoThread:            autoThread,
+		AllowBots:             b.cfg.AllowBots,
+		KnownThreadBypass:     true,
+		ParticipatedThreadIDs: b.participatedThreads.Snapshot(),
+	}
+}
+
+func (b *Bot) admissionContext(s *discordgo.Session, m *discordgo.Message) AdmissionContext {
+	channelID := strings.TrimSpace(m.ChannelID)
+	parentID := ""
+	isThread := false
+	if thread, ok := b.threadForMessageChannel(channelID); ok {
+		parentID = thread.parentID
+		isThread = true
+	}
+	selfUserID := strings.TrimSpace(b.cfg.SelfUserID)
+	if selfUserID == "" && s != nil && s.State != nil && s.State.User != nil {
+		selfUserID = strings.TrimSpace(s.State.User.ID)
+	}
+	mentioned := false
+	if selfUserID != "" {
+		for _, user := range m.Mentions {
+			if user != nil && strings.TrimSpace(user.ID) == selfUserID {
+				mentioned = true
+				break
+			}
+		}
+	}
+	authorID := ""
+	authorBot := false
+	if m.Author != nil {
+		authorID = strings.TrimSpace(m.Author.ID)
+		authorBot = m.Author.Bot
+	}
+	return AdmissionContext{
+		ChannelID:          channelID,
+		ParentChannelID:    parentID,
+		GuildID:            strings.TrimSpace(m.GuildID),
+		AuthorID:           authorID,
+		AuthorBot:          authorBot,
+		SelfUserID:         selfUserID,
+		Mentioned:          mentioned,
+		ParticipatedThread: b.hasParticipatedThread(channelID),
+		IsDM:               strings.TrimSpace(m.GuildID) == "",
+		IsThread:           isThread,
+		IsReply:            m.Type == discordgo.MessageTypeReply,
+	}
 }
 
 func (b *Bot) rememberThread(ch *discordgo.Channel) {
@@ -216,6 +331,10 @@ func (b *Bot) threadForMessageChannel(channelID string) (discordThread, bool) {
 	defer b.threadsMu.RUnlock()
 	thread, ok := b.threads[strings.TrimSpace(channelID)]
 	return thread, ok
+}
+
+func (b *Bot) hasParticipatedThread(threadID string) bool {
+	return b.participatedThreads.Contains(threadID)
 }
 
 func (b *Bot) toThreadLifecycleEvent(ch *discordgo.Channel) (gateway.InboundEvent, bool) {
@@ -270,6 +389,58 @@ func (b *Bot) Send(_ context.Context, chatID, text string) (string, error) {
 		return "", fmt.Errorf("discord: send: %w", err)
 	}
 	return msg.ID, nil
+}
+
+func (b *Bot) SendReply(_ context.Context, chatID, replyToMsgID, text string) (string, error) {
+	replyToMsgID = strings.TrimSpace(replyToMsgID)
+	data := &discordgo.MessageSend{
+		Content:         text,
+		AllowedMentions: BuildAllowedMentionsFromEnv(),
+	}
+	mode := normalizeReplyToMode(b.cfg.ReplyToMode)
+	markFirst := false
+	if replyToMsgID != "" && mode != "off" && b.shouldAttachReplyReference(chatID, replyToMsgID, mode) {
+		failIfMissing := false
+		data.Reference = &discordgo.MessageReference{
+			MessageID:       replyToMsgID,
+			ChannelID:       strings.TrimSpace(chatID),
+			FailIfNotExists: &failIfMissing,
+		}
+		markFirst = mode == "first"
+	}
+	msg, err := b.session.ChannelMessageSendComplex(chatID, data)
+	if err != nil && data.Reference != nil && isMissingDiscordReplyReference(err) {
+		data.Reference = nil
+		msg, err = b.session.ChannelMessageSendComplex(chatID, data)
+	}
+	if err != nil {
+		return "", fmt.Errorf("discord: send reply: %w", err)
+	}
+	if markFirst {
+		b.markReplyReferenceSent(chatID, replyToMsgID)
+	}
+	return msg.ID, nil
+}
+
+func (b *Bot) shouldAttachReplyReference(chatID, replyToMsgID, mode string) bool {
+	if mode == "all" {
+		return true
+	}
+	key := replyReferenceKey(chatID, replyToMsgID)
+	b.replyMu.Lock()
+	defer b.replyMu.Unlock()
+	return !b.replyFirstSent[key]
+}
+
+func (b *Bot) markReplyReferenceSent(chatID, replyToMsgID string) {
+	key := replyReferenceKey(chatID, replyToMsgID)
+	b.replyMu.Lock()
+	b.replyFirstSent[key] = true
+	b.replyMu.Unlock()
+}
+
+func replyReferenceKey(chatID, replyToMsgID string) string {
+	return strings.TrimSpace(chatID) + ":" + strings.TrimSpace(replyToMsgID)
 }
 
 func (b *Bot) SendMedia(_ context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
@@ -336,4 +507,43 @@ func (b *Bot) ReactToMessage(_ context.Context, chatID, msgID string) (func(), e
 		b.reactionsMu.Unlock()
 		_ = b.session.MessageReactionRemoveMe(chatID, msgID, ackEmoji)
 	}, nil
+}
+
+func discordReactionsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("DISCORD_REACTIONS"))) {
+	case "false", "0", "no":
+		return false
+	default:
+		return true
+	}
+}
+
+func (b *Bot) OnProcessingStart(_ context.Context, chatID, msgID string) error {
+	if !discordReactionsEnabled() || strings.TrimSpace(chatID) == "" || strings.TrimSpace(msgID) == "" {
+		return nil
+	}
+	if err := b.session.MessageReactionAdd(chatID, msgID, ackEmoji); err != nil {
+		b.log.Debug("discord reaction add failed", "emoji", ackEmoji, "err", err)
+	}
+	return nil
+}
+
+func (b *Bot) OnProcessingComplete(_ context.Context, chatID, msgID string, outcome gateway.ProcessingOutcome) error {
+	if !discordReactionsEnabled() || strings.TrimSpace(chatID) == "" || strings.TrimSpace(msgID) == "" {
+		return nil
+	}
+	if err := b.session.MessageReactionRemoveMe(chatID, msgID, ackEmoji); err != nil {
+		b.log.Debug("discord reaction remove failed", "emoji", ackEmoji, "err", err)
+	}
+	switch outcome {
+	case gateway.ProcessingOutcomeSuccess:
+		if err := b.session.MessageReactionAdd(chatID, msgID, successEmoji); err != nil {
+			b.log.Debug("discord reaction add failed", "emoji", successEmoji, "err", err)
+		}
+	case gateway.ProcessingOutcomeFailure:
+		if err := b.session.MessageReactionAdd(chatID, msgID, failureEmoji); err != nil {
+			b.log.Debug("discord reaction add failed", "emoji", failureEmoji, "err", err)
+		}
+	}
+	return nil
 }

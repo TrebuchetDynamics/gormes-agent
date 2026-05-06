@@ -8,6 +8,8 @@ weight: 40
 
 Provider support is defined in the Go provider registry and related runtime code. Do not flatten all provider rows into "supported".
 
+Use upstream Hermes [provider docs](../../upstream-hermes/integrations/providers/) and the [model catalog](../../upstream-hermes/reference/model-catalog/) for parity context. Gormes marks runtime-implemented providers separately from row-backed parity entries.
+
 Status labels:
 
 | Label | Meaning |

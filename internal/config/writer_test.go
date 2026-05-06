@@ -93,6 +93,37 @@ func TestConfigWriter_WriteTOMLValueDottedSectionRoutesToTable(t *testing.T) {
 	}
 }
 
+func TestConfigWriter_WriteTOMLValuePreservesSymlink(t *testing.T) {
+	dir := t.TempDir()
+	realPath := filepath.Join(dir, "real-config.toml")
+	linkPath := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(realPath, []byte("[hermes]\nmodel = 'old'\n"), 0o644); err != nil {
+		t.Fatalf("write real config: %v", err)
+	}
+	if err := os.Symlink(realPath, linkPath); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	if err := WriteTOMLValue(linkPath, "model", "new-model"); err != nil {
+		t.Fatalf("WriteTOMLValue: %v", err)
+	}
+
+	info, err := os.Lstat(linkPath)
+	if err != nil {
+		t.Fatalf("lstat link: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config link was replaced with mode %v, want symlink preserved", info.Mode())
+	}
+	got, err := os.ReadFile(realPath)
+	if err != nil {
+		t.Fatalf("read real config: %v", err)
+	}
+	if !strings.Contains(string(got), "new-model") {
+		t.Fatalf("real config was not updated through symlink:\n%s", got)
+	}
+}
+
 func TestConfigWriter_WriteTOMLValueRejectsUnknownSection(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")

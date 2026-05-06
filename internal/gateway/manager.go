@@ -1312,6 +1312,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	replyToMsgID := m.replyTargetForTurn(msgID)
 	sessionID := m.turnSessionID
 	lastUserText := m.turnLastUserText
+	cancelled := m.turnCancelled
 	staleInitialIdle := platform != "" && chatID != "" && !m.turnFrameSeen && isStartupIdleFrame(f)
 	if !staleInitialIdle && platform != "" && chatID != "" {
 		m.turnFrameSeen = true
@@ -1334,6 +1335,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID, threadID) {
+			m.completeProcessingReaction(ctx, ch, processingOutcomeForFrame(f.Phase, cancelled))
 			if f.Phase == kernel.PhaseIdle {
 				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 				m.handleGoalPostTurnContinuation(ctx, ch, f)
@@ -1359,6 +1361,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 		m.maybeSendVerboseHint(ctx, ch, platform, chatID, f)
 		m.clearToolProgress()
+		m.completeProcessingReaction(ctx, ch, processingOutcomeForFrame(f.Phase, cancelled))
 		m.handleGoalPostTurnContinuation(ctx, ch, f)
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
@@ -1372,6 +1375,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			_, _ = m.sendWithHooks(ctx, ch, chatID, text)
 		}
 		m.clearToolProgress()
+		m.completeProcessingReaction(ctx, ch, processingOutcomeForFrame(f.Phase, cancelled))
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
 		text := m.formatStream(platform, f)
@@ -2464,6 +2468,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, "Busy — try again in a second.")
 		return false
 	}
+	m.startProcessingReaction(ctx, ch, ev)
 	if clearPendingSessionID != "" {
 		m.clearResumePending(ctx, clearPendingSessionID)
 	}

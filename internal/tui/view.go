@@ -266,6 +266,9 @@ func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
 }
 
 func conversationMessageBlock(msg hermes.Message, wrap lipgloss.Style, compact bool) string {
+	if msg.Role == "tool" {
+		return conversationToolResultBlock(msg, wrap, compact)
+	}
 	content := msg.Content
 	if compact {
 		content = compactViewportText(content)
@@ -273,6 +276,24 @@ func conversationMessageBlock(msg hermes.Message, wrap lipgloss.Style, compact b
 		content = wrap.Render(content)
 	}
 	return roleTag(msg.Role) + " " + content
+}
+
+func conversationToolResultBlock(msg hermes.Message, wrap lipgloss.Style, compact bool) string {
+	name := strings.TrimSpace(msg.Name)
+	label := "tool result"
+	if name != "" {
+		label += ": " + name
+	}
+	content := strings.TrimSpace(msg.Content)
+	if compact {
+		return muted.Render(label) + " " + compactViewportText(content)
+	}
+	content = wrap.Render(content)
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		lines[i] = "│ " + line
+	}
+	return muted.Render("╭─ " + label + "\n" + strings.Join(lines, "\n") + "\n╰─")
 }
 
 func conversationDraftBlock(draft string, wrap lipgloss.Style, compact bool) string {

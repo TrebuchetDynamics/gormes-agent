@@ -1,6 +1,6 @@
 {
-  "version": "0.1.03",
-  "tag": "v0.1.03",
-  "url": "https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.03",
+  "version": "0.1.04",
+  "tag": "v0.1.04",
+  "url": "https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.04",
   "source": "cmd/gormes/version.go"
 }

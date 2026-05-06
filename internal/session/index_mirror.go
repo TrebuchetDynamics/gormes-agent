@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -309,7 +310,7 @@ func writeAtomic(path string, data []byte) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("session: close temp mirror for %s: %w", path, err)
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	if _, err := toolspkg.AtomicReplace(tmpPath, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o644}); err != nil {
 		return fmt.Errorf("session: rename mirror into place for %s: %w", path, err)
 	}
 	return nil

@@ -27,13 +27,13 @@ func TestDiscordForumChannelDetection_Fixture(t *testing.T) {
 
 func TestBot_ForumPostMessageUsesParentChatAndCanonicalThreadID(t *testing.T) {
 	ms := newMockSession()
-	b := New(Config{AllowedChannelID: "forum-100"}, ms, nil)
+	b := New(Config{AllowedChannelID: "forum-100", RequireMentionSet: true, RequireMention: false}, ms, nil)
 	inbox := make(chan gateway.InboundEvent, 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = b.Run(ctx, inbox) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliverThreadCreate(&discordgo.ThreadCreate{Channel: loadDiscordChannelFixture(t, "forum_thread_create.json")})
 	drainOptionalEvent(inbox)
@@ -69,7 +69,7 @@ func TestBot_ThreadLifecycleEventsNormalizeOpenCloseArchive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = b.Run(ctx, inbox) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliverThreadCreate(&discordgo.ThreadCreate{Channel: loadDiscordChannelFixture(t, "forum_thread_create.json")})
 	assertThreadLifecycle(t, inbox, gateway.ThreadLifecycleOpen)
@@ -89,7 +89,7 @@ func TestBot_ThreadDeleteNormalizesClosedLifecycle(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = b.Run(ctx, inbox) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliverThreadDelete(&discordgo.ThreadDelete{Channel: loadDiscordChannelFixture(t, "forum_thread_delete.json")})
 	assertThreadLifecycle(t, inbox, gateway.ThreadLifecycleClosed)

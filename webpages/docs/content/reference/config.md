@@ -86,8 +86,30 @@ model = "gpt-4o"
 ```
 
 API key in `~/.gormes/.env`:
+
 ```
 GORMES_API_KEY=sk-...
+```
+
+## Gateway Channel Secrets
+
+Keep channel tokens in `.env` and use TOML for non-secret routing and allowlist values:
+
+```dotenv
+GORMES_TELEGRAM_TOKEN=123:abc
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_APP_TOKEN=xapp-...
+```
+
+```toml
+[telegram]
+allowed_chat_id = 42
+
+[discord]
+allowed_channel_id = "1234567890"
+
+[slack]
+default_channel_id = "C0123456789"
 ```
 
 ## Multi-Agent Configuration

@@ -13,6 +13,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
+	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -250,7 +251,7 @@ func resetSetupDefaultConfig() error {
 		os.Remove(tmpName)
 		return fmt.Errorf("setup reset: close temp: %w", err)
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if _, err := toolspkg.AtomicReplace(tmpName, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600}); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("setup reset: replace %s: %w", path, err)
 	}
@@ -1350,7 +1351,7 @@ func writeSetupToolsConfig(path string, doc map[string]any) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("setup tools: close temp: %w", err)
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if _, err := toolspkg.AtomicReplace(tmpName, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600}); err != nil {
 		return fmt.Errorf("setup tools: rename config: %w", err)
 	}
 	return nil
@@ -1547,6 +1548,7 @@ func firstNonEmptySetup(values ...string) string {
 func setupSectionUnsupported(cmd *cobra.Command, section string) error {
 	fmt.Fprintf(cmd.ErrOrStderr(), "setup_section_unsupported: section=%s available=%s\n", section, setupSectionList())
 	fmt.Fprintln(cmd.ErrOrStderr(), "Implemented sections: provider, model, agent, workspace, bindings, tts, terminal, gateway, and tools.")
+	fmt.Fprintln(cmd.ErrOrStderr(), "setup_section_row_backed: recommended_command=\"gormes setup\"")
 	return newExitCodeError(2, fmt.Errorf("setup_section_unsupported: %s", section))
 }
 

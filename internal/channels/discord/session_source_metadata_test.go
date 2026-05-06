@@ -15,7 +15,7 @@ import (
 
 func TestDiscordSessionSourceMetadata_ForumPostFlowsIntoSessionContext(t *testing.T) {
 	ms := newMockSession()
-	b := New(Config{AllowedChannelID: "forum-100"}, ms, nil)
+	b := New(Config{AllowedChannelID: "forum-100", RequireMentionSet: true, RequireMention: false}, ms, nil)
 	fk := newSessionSourceMetadataKernel()
 	m := gateway.NewManagerWithSubmitter(gateway.ManagerConfig{
 		AllowedChats: map[string]string{"discord": "forum-100"},
@@ -27,7 +27,7 @@ func TestDiscordSessionSourceMetadata_ForumPostFlowsIntoSessionContext(t *testin
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = m.Run(ctx) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliverThreadCreate(&discordgo.ThreadCreate{Channel: loadDiscordChannelFixture(t, "forum_thread_create.json")})
 	ms.deliver(loadDiscordMessageCreateFixture(t, "forum_thread_message.json"))
@@ -95,7 +95,7 @@ func TestDiscordSessionSourceMetadata_DMOmitsUnavailableScopeIDs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() { _ = m.Run(ctx) }()
-	time.Sleep(10 * time.Millisecond)
+	ms.waitOpen(t)
 
 	ms.deliver(&discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "dm-msg-1",

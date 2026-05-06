@@ -87,15 +87,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 59/92 subphases shipped · 30 in progress · 3 planned
+**Overall:** 65/92 subphases shipped · 26 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 8/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 3/22 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -181,7 +181,7 @@ classification and row-backed implementation queue.
 
 - [x] Gateway session store + SessionSource parity
 - [x] Gateway manual reset session-boundary hooks
-- [ ] Gateway session reset notification parity
+- [x] Gateway session reset notification parity
 - [x] SessionContext prompt injection
 - [x] Hermes live-turn prompt assembly parity (channel-neutral)
 - [x] Live-turn SOUL.md and project context wiring (channel-neutral)
@@ -232,22 +232,22 @@ classification and row-backed implementation queue.
 - [x] Telegram document/photo cache + batch attachment parity
 - [x] Discord authenticated attachment download safety
 - [x] Slack Block Kit approval buttons + action callback
-- [ ] Discord thread participation persistence
+- [x] Discord thread participation persistence
 - [x] Cross-platform image/document MEDIA delivery routing
 - [x] Telegram inline approval buttons + callback auth
 - [x] Telegram polling conflict + webhook secret startup guard
 - [x] Slack mention/free-response gating + strict thread-memory guard
 - [x] Discord interaction authorization + mention safety guards
-- [ ] Gateway processing lifecycle reactions for Telegram and Discord
+- [x] Gateway processing lifecycle reactions for Telegram and Discord
 - [x] Telegram text batching + caption merge parity
 - [ ] Cross-platform multi-image native batching
-- [ ] Discord message admission + reply-mode policy
+- [x] Discord message admission + reply-mode policy
 - [ ] Webhook dynamic route reload + signed rate-limit order
 - [ ] Slack/Discord channel-scoped skills, prompts, and reload resync
 - [ ] Telegram fallback transport + polling reconnect recovery
 - [ ] Telegram sticker vision adapter binding
 - [ ] Discord native slash/thread command registration parity
-- [ ] Telegram entity-only mention boundary closeout
+- [x] Telegram entity-only mention boundary closeout
 - [ ] Telegram forum thread fallback + send retry safety
 - [ ] Telegram semantic MarkdownV2 formatter + table rewrite
 - [ ] Gateway platform reconnect isolation + channel health limits
@@ -530,7 +530,7 @@ classification and row-backed implementation queue.
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
 
-### 4.B — Context Engine + Compression 🔨
+### 4.B — Context Engine + Compression ✅
 
 - [x] Long session management
 - [x] Context compression
@@ -544,15 +544,15 @@ classification and row-backed implementation queue.
 - [x] Context compressor image-token budget charge
 - [x] Context references stable-handle store
 - [x] Manual compression feedback + context references
-- [ ] Manual compression feedback renderer + focus parser
+- [x] Manual compression feedback renderer + focus parser
 - [x] ContextEngine compression-boundary callback vocabulary
 - [x] Kernel compression-boundary callback binding
 
-### 4.C — Native Prompt Builder 🔨
+### 4.C — Native Prompt Builder ✅
 
 - [x] Default agent identity / SOUL.md loader
 - [x] Context-file discovery + injection scan
-- [ ] Progressive subdirectory hint tracker
+- [x] Progressive subdirectory hint tracker
 - [x] Model-specific role and tool-use guidance
 - [x] Toolset-aware skills prompt snapshot
 - [x] Memory guidance constant + injection
@@ -567,7 +567,7 @@ classification and row-backed implementation queue.
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
 - [x] Model pricing/capability registry fixtures
-- [ ] Ollama Cloud models.dev suffix normalization
+- [x] Ollama Cloud models.dev suffix normalization
 - [ ] Model catalog cache + preferred-provider live merge
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
@@ -614,7 +614,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
 
-### 4.I — Native Agent Turn Closure 🔨
+### 4.I — Native Agent Turn Closure ✅
 
 - [x] Python-free normal agent turn e2e harness
 - [x] Provider-tool-memory golden transcript suite
@@ -624,7 +624,7 @@ classification and row-backed implementation queue.
 - [x] Hermes/Honcho Go runtime plan second-wave reconciliation
 - [x] Nested feature-level coverage test matrix for swarm gaps
 - [x] Hermes website docs mirror coverage gate
-- [ ] Gormes setup/channel/provider docs webpage parity gate
+- [x] Gormes setup/channel/provider docs webpage parity gate
 - [x] Native runtime provider gateway binding
 - [x] Hermes compatibility namespace retirement boundary
 
@@ -632,10 +632,10 @@ classification and row-backed implementation queue.
 
 - [x] Shell blocklist + filesystem scoping + permission approval
 
-### 4.K — Provider Fallback Chain 🔨
+### 4.K — Provider Fallback Chain ✅
 
 - [x] Resilient provider chain dispatch
-- [ ] Hermes fallback activation + classifier carve-outs
+- [x] Hermes fallback activation + classifier carve-outs
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 
@@ -712,14 +712,14 @@ classification and row-backed implementation queue.
 ### 5.E — TTS / Voice / Transcription 🔨
 
 - [ ] Voice mode port
-- [ ] Voice mode environment detector + audio provider seam
+- [x] Voice mode environment detector + audio provider seam
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
-- [ ] MiniMax TTS v1 text_to_speech raw-audio compatibility
+- [x] MiniMax TTS v1 text_to_speech raw-audio compatibility
 - [x] TTS provider matrix + dotenv/command-provider resolution
 - [ ] TTS synthesis + voice-mode state
-- [ ] Voice record-key config binding for native TUI
+- [x] Voice record-key config binding for native TUI
 
 ### 5.F — Skills System (Remaining) 🔨
 
@@ -735,7 +735,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration 🔨
+### 5.G — MCP Integration ✅
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -746,16 +746,16 @@ classification and row-backed implementation queue.
 - [x] MCP OAuth state store + noninteractive auth errors
 - [x] MCP OAuth refresh + 401 session-expired recovery
 - [x] Managed tool gateway bridge
-- [ ] MCP circuit breaker cooldown + reconnect reset
+- [x] MCP circuit breaker cooldown + reconnect reset
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
 
-### 5.H — ACP Integration 🔨
+### 5.H — ACP Integration ✅
 
 - [x] ACP server side
 - [x] ACP Client Bridge Mode
-- [ ] ACP JSON-RPC stdio session/prompt closeout
-- [ ] ACP stdio benign ping/probe suppression
+- [x] ACP JSON-RPC stdio session/prompt closeout
+- [x] ACP stdio benign ping/probe suppression
 
 ### 5.I — Plugins Architecture 🔨
 
@@ -763,8 +763,8 @@ classification and row-backed implementation queue.
 - [x] Dashboard theme/plugin extension status contract
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
-- [ ] Hermes plugin CLI lifecycle parity
-- [ ] Goncho Honcho plugin session config + async write compatibility
+- [x] Hermes plugin CLI lifecycle parity
+- [x] Goncho Honcho plugin session config + async write compatibility
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture
 - [x] Hindsight memory setup blank-input preservation
@@ -790,7 +790,7 @@ classification and row-backed implementation queue.
 - [x] Trust-class enforcement in shared tool executor
 - [x] Secrets Runtime Controls
 - [x] Security Audit Command
-- [ ] Email allowlist pre-dispatch loop guard
+- [x] Email allowlist pre-dispatch loop guard
 
 ### 5.K — Code Execution ✅
 
@@ -803,17 +803,18 @@ classification and row-backed implementation queue.
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
-- [ ] Symlink-preserving atomic writer helper
-- [ ] File write/patch staleness registry + cwd tracking
+- [x] Symlink-preserving atomic writer helper
+- [x] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
-- [ ] search_files hidden-root and context-line parsing drift
+- [x] Terminal deleted-cwd recovery
+- [x] search_files hidden-root and context-line parsing drift
 
 ### 5.M — Mixture of Agents 🔨
 
 - [x] Multi-model coordination
 - [x] Hermes Kanban durable board core
 - [x] Hermes Kanban dispatcher and worker spawn loop
-- [ ] Hermes Kanban production worker process binding
+- [x] Hermes Kanban production worker process binding
 - [ ] Hermes Kanban worker tools and prompt gating
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
@@ -827,7 +828,7 @@ classification and row-backed implementation queue.
 - [x] Session shutdown memory transcript handoff
 - [x] Debug helpers
 - [x] Debug share paste sweep scheduler contract
-- [ ] Doctor GitHub CLI auth fallback
+- [x] Doctor GitHub CLI auth fallback
 - [x] Planner audit blank-subphase control-plane bucket
 - [x] Autoloop recent-failure detail excerpts
 - [x] Backend usage-limit stdin health bypass
@@ -847,8 +848,8 @@ classification and row-backed implementation queue.
 - [x] Cross-agent config isolation
 - [x] SecretRef runtime snapshot activation
 - [x] OpenClaw security audit --deep --fix
-- [ ] ACP bridge client compatibility
-- [ ] Gateway discover/probe command
+- [x] ACP bridge doctor/status evidence
+- [ ] Gateway probe auth/capability HTTP closeout
 - [x] Safety-critical panic and swallowed-error closeout
 - [x] Session Health Monitoring
 - [x] Evidence-Before-Claims Quality Gate
@@ -861,8 +862,8 @@ classification and row-backed implementation queue.
 - [ ] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
-- [ ] Cron env-ref expansion + parallel run state serialization
-- [ ] Cron script/workdir/inactivity execution binding
+- [x] Cron env-ref expansion + parallel run state serialization
+- [x] Cron script/workdir/inactivity execution binding
 - [ ] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
 
@@ -883,8 +884,8 @@ classification and row-backed implementation queue.
 - [x] CLI contextual first-touch onboarding hint renderers
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
-- [ ] CLI terminal control-response sanitizer
-- [ ] CLI submitted user-message preview formatter
+- [x] CLI terminal control-response sanitizer
+- [x] CLI submitted user-message preview formatter
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
@@ -915,6 +916,7 @@ classification and row-backed implementation queue.
 - [x] Gormes mcp login browser callback flow
 - [x] Hermes fallback provider chain CLI commands
 - [x] Provider endpoint/API-key root flags + runtime resolution
+- [x] Gormes profile skills chat invocation shim
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface
 - [x] Gormes config edit/check/native schema-migrate closeout
@@ -939,9 +941,9 @@ classification and row-backed implementation queue.
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [ ] Diagnostics, backup, logs, and status CLI
-- [ ] Hermes sessions CLI MRU browse/delete ergonomics
+- [x] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
-- [ ] Self-update command lifecycle safety
+- [x] Self-update command lifecycle safety
 - [x] doctorCustomEndpointReadiness check function
 - [x] Custom provider model-switch credential preservation
 - [x] Custom provider model-switch key_env write guard
@@ -950,11 +952,11 @@ classification and row-backed implementation queue.
 - [x] Hermes config.yaml model/provider runtime bridge
 - [x] Interactive Onboarding
 - [x] Gormes onboard interactive action runner
-- [ ] CLI setup/onboard/help text fidelity matrix
+- [x] CLI setup/onboard/help text fidelity matrix
 - [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
 - [ ] Gateway planned stop marker + WSL systemd PATH parity
-- [ ] Gateway stale-code self-check uses git HEAD SHA
+- [x] Gateway stale-code self-check uses git HEAD SHA
 
 ### 5.P — Docker / Packaging 🔨
 
@@ -972,7 +974,7 @@ classification and row-backed implementation queue.
 - [x] TUI gateway completion path normalizer
 - [x] TUI gateway tool summary formatter
 - [x] TUI gateway image/personality/platform-event helpers
-- [ ] TUI gateway config health null-section probe
+- [x] TUI gateway config health null-section probe
 - [x] TUI mouse tracking config + slash toggle
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
@@ -992,16 +994,16 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
 - [ ] Native TUI clipboard, OSC52, and terminal setup parity
-- [ ] Native TUI image/file drop + paste collapse ingress
+- [x] Native TUI image/file drop + paste collapse ingress
 - [x] Native TUI Hermes slash completion helpers
-- [ ] Native TUI absolute path completion routing
+- [x] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
 - [x] Native TUI Hermes tool progress + modal panel renderers
-- [ ] Native TUI Ink behavioral transcript golden matrix
+- [x] Native TUI Ink behavioral transcript golden matrix
 - [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] OpenAI-compatible chat-completions API server
-- [ ] API server multimodal content preservation
+- [x] API server multimodal content preservation
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence
 - [x] Gateway proxy mode forwarding contract
@@ -1011,7 +1013,7 @@ classification and row-backed implementation queue.
 - [x] API server detailed health endpoint
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
-- [ ] API server legacy jobs routes + default toolset
+- [x] API server legacy jobs routes + default toolset
 
 ### 5.R — Code Execution Mode Policy 🔨
 
@@ -1038,16 +1040,17 @@ classification and row-backed implementation queue.
 
 - [x] Event bus core: pub/sub interface + in-process implementation
 - [ ] Gateway channel adapters publish to event bus
-- [ ] Agent turn and tool execution events on bus
+- [x] Telegram gateway event-bus adapter
+- [x] Agent turn and tool execution events on bus
 - [ ] Event bus integration test: full message flow
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
 *Hermes-compatible background review and skill curation, plus Gormes-native evidence gates for safe compounding intelligence.*
 
-### 6.A — Complexity Detector ⏳
+### 6.A — Complexity Detector 🔨
 
-- [ ] Hermes background review fork lifecycle
+- [x] Hermes background review fork lifecycle
 - [ ] Heuristic or LLM-scored signal
 
 ### 6.B — Skill Extractor ✅
@@ -1067,16 +1070,16 @@ classification and row-backed implementation queue.
 - [x] Delta-bounded skill and memory maintenance passes
 - [x] Code Cathedral II code-context retrieval fixtures
 
-### 6.E — Feedback Loop ⏳
+### 6.E — Feedback Loop 🔨
 
-- [ ] Hermes curator auxiliary model routing slot
-- [ ] Hermes curator state transitions and run reports
+- [x] Hermes curator auxiliary model routing slot
+- [x] Hermes curator state transitions and run reports
 - [ ] Skill effectiveness scoring
 
 ### 6.F — Skill Surface 🔨
 
-- [ ] Hermes skill_manage support-file and curator intent actions
-- [ ] Hermes curator command surface
+- [x] Hermes skill_manage support-file and curator intent actions
+- [x] Hermes curator command surface
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface
 

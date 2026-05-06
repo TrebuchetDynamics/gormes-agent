@@ -96,16 +96,13 @@ Without bindings, all channels route to the default agent (`main`).
 
 ```toml
 [telegram]
-bot_token = "123:abc"
 allowed_chat_id = 42
 
 [discord]
-token = "..."
 allowed_channel_id = "..."
 
 [slack]
-bot_token = "xoxb-..."
-app_token = "xapp-..."
+default_channel_id = "C0123456789"
 ```
 
-Use `gormes gateway status` to verify channel connections.
+Keep channel tokens in `.env` or the credential helpers; do not paste them into config examples. Use `gormes gateway status` to verify channel connections.

@@ -42,6 +42,12 @@ type HermesChromeInput struct {
 	// Panel is the optional modal panel (approval/clarify/secret) rendered
 	// above the status bar when active. Empty means no panel is active.
 	Panel string
+
+	// QueuedMessages and StickyPrompt are optional ComposerPane rows rendered
+	// above the status rule. They mirror Hermes Ink's queue and sticky prompt
+	// placement without coupling the pure chrome assembler to queue state.
+	QueuedMessages string
+	StickyPrompt   string
 }
 
 // RenderHermesChrome assembles the bottom-pinned chrome stack used by
@@ -50,6 +56,9 @@ type HermesChromeInput struct {
 //
 //	conversation
 //	(optional) spinner/hint
+//	(optional) modal panel
+//	(optional) queued messages
+//	(optional) sticky prompt
 //	status bar
 //	prompt + input area
 //	(optional) voice status
@@ -69,6 +78,12 @@ func RenderHermesChrome(in HermesChromeInput) string {
 	}
 	if in.Panel != "" {
 		parts = append(parts, in.Panel)
+	}
+	if in.QueuedMessages != "" {
+		parts = append(parts, in.QueuedMessages)
+	}
+	if in.StickyPrompt != "" {
+		parts = append(parts, in.StickyPrompt)
 	}
 	if in.StatusBar != "" {
 		parts = append(parts, in.StatusBar)

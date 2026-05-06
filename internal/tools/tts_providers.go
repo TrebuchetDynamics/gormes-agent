@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +29,9 @@ const (
 	DefaultEdgeTTSBaseURL     = "https://%s.tts.speech.microsoft.com/cognitiveservices/v1"
 	DefaultEdgeTTSContentType = "application/ssml+xml"
 	DefaultOpenAIContentType  = "application/json"
+	DefaultMiniMaxTTSModel    = "speech-01"
+	DefaultMiniMaxTTSVoiceID  = "female-shaonv"
+	DefaultMiniMaxTTSBaseURL  = "https://api.minimax.chat/v1/text_to_speech"
 
 	// Provider names (normalized)
 	ProviderNameEdge       = "edge"
@@ -491,6 +495,162 @@ func (p *TTSOpenAIProvider) Synthesize(ctx context.Context, req TTSProviderReque
 	}, nil
 }
 
+type miniMaxTTSSettings struct {
+	Model   string
+	VoiceID string
+	BaseURL string
+}
+
+func (c TTSProviderConfig) miniMaxTTSSettings() miniMaxTTSSettings {
+	section := mapFromAny(lookupCaseInsensitiveAny(c.ProviderConfig, ProviderNameMiniMax))
+	envBaseURL, _ := lookupTTSProviderEnv(c, "GORMES_TTS_MINIMAX_BASE_URL", "MINIMAX_TTS_BASE_URL")
+	return miniMaxTTSSettings{
+		Model: firstNonEmptyTTS(
+			stringFromAny(lookupCaseInsensitiveAny(section, "model")),
+			DefaultMiniMaxTTSModel,
+		),
+		VoiceID: firstNonEmptyTTS(
+			stringFromAny(lookupCaseInsensitiveAny(section, "voice_id")),
+			stringFromAny(lookupCaseInsensitiveAny(section, "voice")),
+			c.Voice,
+			DefaultMiniMaxTTSVoiceID,
+		),
+		BaseURL: firstNonEmptyTTS(
+			stringFromAny(lookupCaseInsensitiveAny(section, "base_url")),
+			envBaseURL,
+			DefaultMiniMaxTTSBaseURL,
+		),
+	}
+}
+
+// TTSMiniMaxProvider is an HTTP-based MiniMax TTS provider.
+type TTSMiniMaxProvider struct {
+	config TTSProviderConfig
+	client *http.Client
+}
+
+func NewTTSMiniMaxProvider(config TTSProviderConfig) *TTSMiniMaxProvider {
+	cfg := config
+	if cfg.Timeout == 0 {
+		cfg.Timeout = 60 * time.Second
+	}
+	if cfg.APIKey == "" {
+		cfg.APIKey = ResolveTTSProviderCredential(ProviderNameMiniMax, cfg).APIKey
+	}
+	return &TTSMiniMaxProvider{
+		config: cfg,
+		client: &http.Client{Timeout: cfg.Timeout},
+	}
+}
+
+func (p *TTSMiniMaxProvider) Available(ctx context.Context) bool {
+	return strings.TrimSpace(p.config.APIKey) != ""
+}
+
+func (*TTSMiniMaxProvider) PreferredOutputFormat() string { return "mp3" }
+
+func (p *TTSMiniMaxProvider) Synthesize(ctx context.Context, req TTSProviderRequest) (TTSProviderResult, error) {
+	apiKey := strings.TrimSpace(p.config.APIKey)
+	if apiKey == "" {
+		return TTSProviderResult{}, errors.New("MiniMax TTS API key not configured")
+	}
+
+	settings := p.config.miniMaxTTSSettings()
+	payload := map[string]any{
+		"model":    settings.Model,
+		"text":     req.Text,
+		"voice_id": settings.VoiceID,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return TTSProviderResult{}, fmt.Errorf("MiniMax TTS payload: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, settings.BaseURL, bytes.NewReader(body))
+	if err != nil {
+		return TTSProviderResult{}, fmt.Errorf("MiniMax TTS request: %w", err)
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(httpReq)
+	if err != nil {
+		return TTSProviderResult{}, fmt.Errorf("MiniMax TTS HTTP: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TTSProviderResult{}, fmt.Errorf("MiniMax TTS read body: %w", err)
+	}
+
+	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+	if strings.Contains(contentType, "audio/") {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return TTSProviderResult{}, fmt.Errorf("MiniMax TTS HTTP %d: %s", resp.StatusCode, string(data))
+		}
+		if err := os.WriteFile(req.OutputPath, data, 0o600); err != nil {
+			return TTSProviderResult{}, fmt.Errorf("MiniMax TTS write file: %w", err)
+		}
+		return TTSProviderResult{FilePath: req.OutputPath, Provider: ProviderNameMiniMax}, nil
+	}
+
+	audio, parsedLegacy, err := parseMiniMaxTTSLegacyAudio(data)
+	if parsedLegacy {
+		if err != nil {
+			return TTSProviderResult{}, err
+		}
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return TTSProviderResult{}, fmt.Errorf("MiniMax TTS HTTP %d", resp.StatusCode)
+		}
+		if err := os.WriteFile(req.OutputPath, audio, 0o600); err != nil {
+			return TTSProviderResult{}, fmt.Errorf("MiniMax TTS write file: %w", err)
+		}
+		return TTSProviderResult{FilePath: req.OutputPath, Provider: ProviderNameMiniMax}, nil
+	}
+	if err != nil {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return TTSProviderResult{}, fmt.Errorf("MiniMax TTS HTTP %d: %s", resp.StatusCode, string(data))
+		}
+		if strings.TrimSpace(contentType) == "" {
+			contentType = "unknown"
+		}
+		return TTSProviderResult{}, fmt.Errorf("MiniMax TTS returned unexpected Content-Type %q (%d bytes)", contentType, len(data))
+	}
+	return TTSProviderResult{}, fmt.Errorf("MiniMax TTS returned unexpected empty response")
+}
+
+func parseMiniMaxTTSLegacyAudio(data []byte) ([]byte, bool, error) {
+	var result struct {
+		BaseResp struct {
+			StatusCode int    `json:"status_code"`
+			StatusMsg  string `json:"status_msg"`
+		} `json:"base_resp"`
+		Data struct {
+			Audio string `json:"audio"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, false, err
+	}
+	if result.BaseResp.StatusCode != 0 {
+		statusMsg := strings.TrimSpace(result.BaseResp.StatusMsg)
+		if statusMsg == "" {
+			statusMsg = "unknown error"
+		}
+		return nil, true, fmt.Errorf("MiniMax TTS API error (code %d): %s", result.BaseResp.StatusCode, statusMsg)
+	}
+	hexAudio := strings.TrimSpace(result.Data.Audio)
+	if hexAudio == "" {
+		return nil, true, errors.New("MiniMax TTS returned empty audio data")
+	}
+	audio, err := hex.DecodeString(hexAudio)
+	if err != nil {
+		return nil, true, fmt.Errorf("MiniMax TTS decode audio: %w", err)
+	}
+	return audio, true, nil
+}
+
 // RegisterTTSProviders registers the built-in HTTP TTS providers into a provider
 // map. It skips nil providers (when API keys are absent).
 func RegisterTTSProviders(into map[string]TTSProvider, cfg TTSProviderConfig) {
@@ -502,6 +662,10 @@ func RegisterTTSProviders(into map[string]TTSProvider, cfg TTSProviderConfig) {
 	openai := NewTTSOpenAIProvider(cfg)
 	if openai.Available(context.Background()) {
 		into[ProviderNameOpenAI] = openai
+	}
+	minimax := NewTTSMiniMaxProvider(cfg)
+	if minimax.Available(context.Background()) {
+		into[ProviderNameMiniMax] = minimax
 	}
 }
 

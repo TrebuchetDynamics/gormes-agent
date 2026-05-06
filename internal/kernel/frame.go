@@ -100,6 +100,10 @@ const (
 type PlatformEvent struct {
 	Kind PlatformEventKind
 	Text string
+	// ContentParts carries multimodal user input alongside Text. When present,
+	// providers that support native image content receive these parts; Text
+	// remains the plain text projection for memory, recall, and legacy UI.
+	ContentParts []hermes.MessageContentPart
 	// Tools, when non-nil, overrides Config.Tools for this submit event only.
 	// Gateway multi-agent routing uses this to expose the routed agent's
 	// policy-filtered tool registry without mutating the resident kernel.

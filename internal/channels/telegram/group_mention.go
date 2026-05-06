@@ -19,12 +19,16 @@ func telegramIsGroupChat(chat *tgbotapi.Chat) bool {
 }
 
 func telegramGroupMentionGateAddressed(text string, entities []tgbotapi.MessageEntity, expectedBotUsername string, requireMention bool) bool {
+	return telegramGroupMentionGateAddressedForBot(text, entities, expectedBotUsername, 0, requireMention)
+}
+
+func telegramGroupMentionGateAddressedForBot(text string, entities []tgbotapi.MessageEntity, expectedBotUsername string, expectedBotUserID int64, requireMention bool) bool {
 	if !requireMention {
 		return true
 	}
 
 	expected := normalizeTelegramBotUsername(expectedBotUsername)
-	if expected == "" {
+	if expected == "" && expectedBotUserID == 0 {
 		return false
 	}
 
@@ -36,10 +40,13 @@ func telegramGroupMentionGateAddressed(text string, entities []tgbotapi.MessageE
 
 		switch entity.Type {
 		case "mention":
-			if strings.EqualFold(strings.TrimSpace(entityText), "@"+expected) {
+			if expected != "" && strings.EqualFold(strings.TrimSpace(entityText), "@"+expected) {
 				return true
 			}
 		case "bot_command":
+			if expected == "" {
+				continue
+			}
 			at := strings.LastIndex(entityText, "@")
 			if at < 0 {
 				continue
@@ -47,10 +54,27 @@ func telegramGroupMentionGateAddressed(text string, entities []tgbotapi.MessageE
 			if strings.EqualFold(strings.TrimSpace(entityText[at+1:]), expected) {
 				return true
 			}
+		case "text_mention":
+			if expectedBotUserID != 0 && entity.User != nil && entity.User.ID == expectedBotUserID {
+				return true
+			}
 		}
 	}
 
 	return false
+}
+
+func telegramGroupMentionGateMessageAddressed(message *tgbotapi.Message, expectedBotUsername string, expectedBotUserID int64, requireMention bool) bool {
+	if !requireMention {
+		return true
+	}
+	if message == nil {
+		return false
+	}
+	if telegramGroupMentionGateAddressedForBot(message.Text, message.Entities, expectedBotUsername, expectedBotUserID, true) {
+		return true
+	}
+	return telegramGroupMentionGateAddressedForBot(message.Caption, message.CaptionEntities, expectedBotUsername, expectedBotUserID, true)
 }
 
 func normalizeTelegramBotUsername(username string) string {

@@ -48,6 +48,88 @@ type FallbackModelPolicy struct {
 	Routes  []ModelRoute
 }
 
+func NormalizeFallbackModelConfig(value any) FallbackModelPolicy {
+	routes := normalizeFallbackRoutes(value)
+	return FallbackModelPolicy{
+		Enabled: len(routes) > 0,
+		Routes:  routes,
+	}
+}
+
+func normalizeFallbackRoutes(value any) []ModelRoute {
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case FallbackModelPolicy:
+		return normalizeFallbackRoutes(v.Routes)
+	case ModelRoute:
+		if route, ok := normalizeFallbackRoute(v.Provider, v.Model); ok {
+			return []ModelRoute{route}
+		}
+		return nil
+	case []ModelRoute:
+		routes := make([]ModelRoute, 0, len(v))
+		for _, route := range v {
+			if normalized, ok := normalizeFallbackRoute(route.Provider, route.Model); ok {
+				routes = append(routes, normalized)
+			}
+		}
+		return routes
+	case map[string]any:
+		if route, ok := normalizeFallbackRoute(stringFromAny(v["provider"]), stringFromAny(v["model"])); ok {
+			return []ModelRoute{route}
+		}
+		return nil
+	case map[string]string:
+		if route, ok := normalizeFallbackRoute(v["provider"], v["model"]); ok {
+			return []ModelRoute{route}
+		}
+		return nil
+	case []any:
+		routes := make([]ModelRoute, 0, len(v))
+		for _, entry := range v {
+			routes = append(routes, normalizeFallbackRoutes(entry)...)
+		}
+		return routes
+	case []map[string]any:
+		routes := make([]ModelRoute, 0, len(v))
+		for _, entry := range v {
+			routes = append(routes, normalizeFallbackRoutes(entry)...)
+		}
+		return routes
+	case []map[string]string:
+		routes := make([]ModelRoute, 0, len(v))
+		for _, entry := range v {
+			routes = append(routes, normalizeFallbackRoutes(entry)...)
+		}
+		return routes
+	default:
+		return nil
+	}
+}
+
+func normalizeFallbackRoute(provider, model string) (ModelRoute, bool) {
+	route := ModelRoute{
+		Provider: normalizeModelContextProvider(provider),
+		Model:    normalizeModelContextText(model),
+	}
+	if route.Provider == "" || route.Model == "" {
+		return ModelRoute{}, false
+	}
+	return route, true
+}
+
+func stringFromAny(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	default:
+		return ""
+	}
+}
+
 type ModelRoutingRequest struct {
 	UserMessage       string
 	Primary           ModelRoute

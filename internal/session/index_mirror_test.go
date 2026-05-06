@@ -129,6 +129,54 @@ func TestSessionIndexMirror_WriteReplacesFileWithoutLeavingTempFiles(t *testing.
 	}
 }
 
+func TestSessionIndexMirror_WritePreservesSymlink(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "sessions.db")
+	m, err := OpenBolt(dbPath)
+	if err != nil {
+		t.Fatalf("OpenBolt: %v", err)
+	}
+	defer m.Close()
+
+	ctx := context.Background()
+	if err := m.Put(ctx, "telegram:42", "sess-telegram"); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+
+	outDir := filepath.Join(t.TempDir(), "sessions")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	realPath := filepath.Join(outDir, "real-index.yaml")
+	outPath := filepath.Join(outDir, "index.yaml")
+	if err := os.WriteFile(realPath, []byte("stale: true\n"), 0o644); err != nil {
+		t.Fatalf("write real index: %v", err)
+	}
+	if err := os.Symlink(realPath, outPath); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	mirror := NewSessionIndexMirror(m, outPath)
+	mirror.now = func() time.Time { return time.Date(2026, 4, 22, 13, 0, 0, 0, time.UTC) }
+	if err := mirror.Write(); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	info, err := os.Lstat(outPath)
+	if err != nil {
+		t.Fatalf("lstat index link: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("index link was replaced with mode %v, want symlink preserved", info.Mode())
+	}
+	got, err := os.ReadFile(realPath)
+	if err != nil {
+		t.Fatalf("read real index: %v", err)
+	}
+	if !strings.Contains(string(got), "sess-telegram") {
+		t.Fatalf("real index was not updated through symlink:\n%s", got)
+	}
+}
+
 func TestSessionIndexMirror_StartRefreshSkipsRewriteWhenSnapshotUnchanged(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "sessions.db")
 	m, err := OpenBolt(dbPath)

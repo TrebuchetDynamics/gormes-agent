@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -43,8 +44,11 @@ version: 1.0.0
 
 // SkillManagerToolConfig configures the skill management tool surface.
 type SkillManagerToolConfig struct {
-	Root    string
-	Timeout time.Duration
+	Root              string
+	Timeout           time.Duration
+	WriteOrigin       string
+	GuardAgentCreated bool
+	GuardScanner      func(skillDir string) error
 }
 
 // NewSkillManagerTool returns a skill management tool.
@@ -57,31 +61,48 @@ type SkillManagerTool struct {
 }
 
 type skillManageArgs struct {
-	Action     string `json:"action"`
-	Name       string `json:"name"`
-	Content    string `json:"content"`
-	Category   string `json:"category"`
-	OldString  string `json:"old_string"`
-	NewString  string `json:"new_string"`
-	ReplaceAll bool   `json:"replace_all"`
+	Action       string `json:"action"`
+	Name         string `json:"name"`
+	Content      string `json:"content"`
+	Category     string `json:"category"`
+	FilePath     string `json:"file_path"`
+	FileContent  string `json:"file_content"`
+	OldString    string `json:"old_string"`
+	NewString    string `json:"new_string"`
+	ReplaceAll   bool   `json:"replace_all"`
+	AbsorbedInto string `json:"absorbed_into"`
 }
 
 type skillManageResult struct {
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-	Path    string `json:"path,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Hint    string `json:"hint,omitempty"`
+	Success        bool     `json:"success"`
+	Message        string   `json:"message,omitempty"`
+	Path           string   `json:"path,omitempty"`
+	Error          string   `json:"error,omitempty"`
+	Hint           string   `json:"hint,omitempty"`
+	AvailableFiles []string `json:"available_files,omitempty"`
 }
 
 const (
 	maxSkillNameLength   = 64
 	maxDescriptionLength = 1024
 	maxContentChars      = 100_000
+	maxSkillFileBytes    = 1_048_576
 	validNameRE          = `^[a-z0-9][a-z0-9._-]*$`
 )
 
 var nameRegex = regexp.MustCompile(validNameRE)
+
+const (
+	SkillWriteOriginForeground       = "foreground"
+	SkillWriteOriginBackgroundReview = "background_review"
+)
+
+var allowedSkillSupportDirs = map[string]bool{
+	"assets":     true,
+	"references": true,
+	"scripts":    true,
+	"templates":  true,
+}
 
 // =============================================================================
 // Tool interface
@@ -90,7 +111,7 @@ var nameRegex = regexp.MustCompile(validNameRE)
 func (*SkillManagerTool) Name() string { return SkillManagerToolName }
 
 func (*SkillManagerTool) Description() string {
-	return "Manage skills (create, update, delete). Skills are your procedural memory — reusable approaches for recurring task types. New skills go to the skills root; existing skills can be modified or deleted. Actions: create (new skill with full SKILL.md), edit (replace SKILL.md content), patch (find-and-replace within SKILL.md), delete (remove skill)."
+	return "Manage skills (create, update, delete). Skills are your procedural memory — reusable approaches for recurring task types. Actions: create, edit, patch, delete, write_file, remove_file."
 }
 
 func (*SkillManagerTool) Schema() json.RawMessage {
@@ -99,8 +120,8 @@ func (*SkillManagerTool) Schema() json.RawMessage {
 		"properties": {
 			"action": {
 				"type": "string",
-				"enum": ["create", "edit", "patch", "delete"],
-				"description": "The action to perform: create, edit, patch, or delete."
+				"enum": ["create", "patch", "edit", "delete", "write_file", "remove_file"],
+				"description": "The action to perform: create, patch, edit, delete, write_file, or remove_file."
 			},
 			"name": {
 				"type": "string",
@@ -114,6 +135,14 @@ func (*SkillManagerTool) Schema() json.RawMessage {
 				"type": "string",
 				"description": "Optional category for organizing the skill (e.g., 'devops', 'data-science'). Only used with create."
 			},
+			"file_path": {
+				"type": "string",
+				"description": "Supporting file path under references/, templates/, scripts/, or assets/. Used by write_file, remove_file, and support-file patch."
+			},
+			"file_content": {
+				"type": "string",
+				"description": "Content for write_file. Empty content is allowed."
+			},
 			"old_string": {
 				"type": "string",
 				"description": "Text to find in the file (required for patch). Must be unique unless replace_all=true."
@@ -125,6 +154,10 @@ func (*SkillManagerTool) Schema() json.RawMessage {
 			"replace_all": {
 				"type": "boolean",
 				"description": "For patch: replace all occurrences instead of requiring unique match (default: false)."
+			},
+			"absorbed_into": {
+				"type": "string",
+				"description": "For delete: target skill name when content was consolidated into another skill, or an empty string when intentionally pruned."
 			}
 		},
 		"required": ["action", "name"]
@@ -157,10 +190,14 @@ func (t *SkillManagerTool) Execute(ctx context.Context, args json.RawMessage) (j
 		return json.Marshal(t.handlePatch(in))
 	case "delete":
 		return json.Marshal(t.handleDelete(in))
+	case "write_file":
+		return json.Marshal(t.handleWriteFile(in))
+	case "remove_file":
+		return json.Marshal(t.handleRemoveFile(in))
 	default:
 		return json.Marshal(skillManageResult{
 			Success: false,
-			Error:   fmt.Sprintf("Unknown action %q. Use: create, edit, patch, delete", in.Action),
+			Error:   fmt.Sprintf("Unknown action %q. Use: create, edit, patch, delete, write_file, remove_file", in.Action),
 		})
 	}
 }
@@ -177,6 +214,9 @@ func normalizeSkillManagerConfig(cfg SkillManagerToolConfig) SkillManagerToolCon
 		// Ensure active dir exists
 		activeDir := filepath.Join(cfg.Root, "active")
 		_ = os.MkdirAll(activeDir, 0o755)
+	}
+	if cfg.WriteOrigin == "" {
+		cfg.WriteOrigin = SkillWriteOriginForeground
 	}
 	return cfg
 }
@@ -266,6 +306,158 @@ func validateSkillContent(content string) string {
 	return ""
 }
 
+func validateSupportFilePath(filePath string) string {
+	filePath = strings.TrimSpace(filePath)
+	if filePath == "" {
+		return "file_path is required."
+	}
+	if filepath.IsAbs(filePath) {
+		return "absolute support-file paths are not allowed."
+	}
+	cleaned := filepath.Clean(filePath)
+	if cleaned == "." || cleaned == string(filepath.Separator) {
+		return "file_path must include a file name under references/, templates/, scripts/, or assets/."
+	}
+	parts := strings.FieldsFunc(cleaned, func(r rune) bool {
+		return r == '/' || r == '\\'
+	})
+	if len(parts) == 0 {
+		return `file_path must include a file name under references/, templates/, scripts/, or assets/. Example: "references/example.md".`
+	}
+	if len(parts) < 2 {
+		return fmt.Sprintf("Provide a file path, not just a directory. Example: %q.", filepath.Join(parts[0], "example.md"))
+	}
+	for _, part := range parts {
+		if part == ".." {
+			return "path traversal is not allowed in support-file paths."
+		}
+	}
+	if !allowedSkillSupportDirs[parts[0]] {
+		return "support files must be under references/, templates/, scripts/, or assets/."
+	}
+	return ""
+}
+
+func supportFileTarget(skillDir, filePath string) (string, string) {
+	if err := validateSupportFilePath(filePath); err != "" {
+		return "", err
+	}
+	target := filepath.Join(skillDir, filepath.Clean(filePath))
+	if err := validatePathWithinSkillDir(skillDir, target); err != "" {
+		return "", err
+	}
+	return target, ""
+}
+
+func validatePathWithinSkillDir(skillDir, target string) string {
+	rootAbs, err := filepath.Abs(skillDir)
+	if err != nil {
+		return err.Error()
+	}
+	targetAbs, err := filepath.Abs(target)
+	if err != nil {
+		return err.Error()
+	}
+	if !pathWithin(rootAbs, targetAbs) {
+		return "support file path escapes skill directory."
+	}
+	rootReal, err := filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		rootReal = rootAbs
+	}
+	ancestor := deepestExistingAncestor(targetAbs)
+	if ancestor != "" {
+		ancestorReal, err := filepath.EvalSymlinks(ancestor)
+		if err == nil && !pathWithin(rootReal, ancestorReal) {
+			return "support file path escapes skill directory through a symlink."
+		}
+	}
+	return ""
+}
+
+func deepestExistingAncestor(path string) string {
+	for current := path; current != "" && current != "."; current = filepath.Dir(current) {
+		if _, err := os.Lstat(current); err == nil {
+			return current
+		}
+		next := filepath.Dir(current)
+		if next == current {
+			return ""
+		}
+	}
+	return ""
+}
+
+func pathWithin(root, target string) bool {
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+}
+
+func supportFileList(skillDir string) []string {
+	var out []string
+	for dir := range allowedSkillSupportDirs {
+		root := filepath.Join(skillDir, dir)
+		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			rel, relErr := filepath.Rel(skillDir, path)
+			if relErr == nil {
+				out = append(out, filepath.ToSlash(rel))
+			}
+			return nil
+		})
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (t *SkillManagerTool) pinnedRefusal(name string) *skillManageResult {
+	pinned, err := skills.IsPinned(t.cfg.Root, name)
+	if err != nil || !pinned {
+		return nil
+	}
+	return &skillManageResult{
+		Success: false,
+		Error:   fmt.Sprintf("Skill %q is pinned and cannot be modified by skill_manage.", name),
+		Hint:    fmt.Sprintf("Ask the user to run `gormes curator unpin %s` if they want this skill changed.", name),
+	}
+}
+
+func (t *SkillManagerTool) scanSkill(skillDir string) string {
+	if !t.cfg.GuardAgentCreated || t.cfg.GuardScanner == nil {
+		return ""
+	}
+	if err := t.cfg.GuardScanner(skillDir); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+func restoreSkillFile(path string, original []byte, existed bool) {
+	if existed {
+		_ = atomicWriteText(path, string(original))
+		return
+	}
+	_ = os.Remove(path)
+}
+
+func (t *SkillManagerTool) recordSuccessfulMutation(action, name string) {
+	switch action {
+	case "create":
+		if t.cfg.WriteOrigin == SkillWriteOriginBackgroundReview {
+			_ = skills.MarkAgentCreated(t.cfg.Root, name)
+		}
+	case "edit", "patch", "write_file", "remove_file":
+		_ = skills.BumpPatch(t.cfg.Root, name)
+	case "delete":
+		_ = skills.ForgetUsageRecord(t.cfg.Root, name)
+	}
+}
+
 // =============================================================================
 // Action handlers
 // =============================================================================
@@ -310,8 +502,13 @@ func (t *SkillManagerTool) handleCreate(in skillManageArgs) skillManageResult {
 		os.RemoveAll(skillDir)
 		return skillManageResult{Success: false, Error: "failed to write SKILL.md: " + err.Error()}
 	}
+	if scanErr := t.scanSkill(skillDir); scanErr != "" {
+		os.RemoveAll(skillDir)
+		return skillManageResult{Success: false, Error: "skill guard blocked create: " + scanErr}
+	}
 
 	relPath, _ := filepath.Rel(t.cfg.Root, skillDir)
+	t.recordSuccessfulMutation("create", name)
 	result := skillManageResult{
 		Success: true,
 		Message: fmt.Sprintf("Skill %q created.", name),
@@ -342,13 +539,23 @@ func (t *SkillManagerTool) handleEdit(in skillManageArgs) skillManageResult {
 			Error:   fmt.Sprintf("Skill %q not found. Use skills_list() to see available skills.", name),
 		}
 	}
+	if refusal := t.pinnedRefusal(name); refusal != nil {
+		return *refusal
+	}
 
 	skillMD := filepath.Join(skillPath, "SKILL.md")
+	original, readErr := os.ReadFile(skillMD)
+	existed := readErr == nil
 
 	// Write new content
 	if err := atomicWriteText(skillMD, content); err != nil {
 		return skillManageResult{Success: false, Error: "failed to write SKILL.md: " + err.Error()}
 	}
+	if scanErr := t.scanSkill(skillPath); scanErr != "" {
+		restoreSkillFile(skillMD, original, existed)
+		return skillManageResult{Success: false, Error: "skill guard blocked edit: " + scanErr}
+	}
+	t.recordSuccessfulMutation("edit", name)
 
 	return skillManageResult{
 		Success: true,
@@ -378,13 +585,25 @@ func (t *SkillManagerTool) handlePatch(in skillManageArgs) skillManageResult {
 			Error:   fmt.Sprintf("Skill %q not found.", name),
 		}
 	}
+	if refusal := t.pinnedRefusal(name); refusal != nil {
+		return *refusal
+	}
 
-	skillMD := filepath.Join(skillPath, "SKILL.md")
+	targetLabel := "SKILL.md"
+	targetPath := filepath.Join(skillPath, "SKILL.md")
+	if strings.TrimSpace(in.FilePath) != "" {
+		var errText string
+		targetPath, errText = supportFileTarget(skillPath, in.FilePath)
+		if errText != "" {
+			return skillManageResult{Success: false, Error: errText}
+		}
+		targetLabel = filepath.ToSlash(filepath.Clean(in.FilePath))
+	}
 
 	// Read content
-	content, err := os.ReadFile(skillMD)
+	content, err := os.ReadFile(targetPath)
 	if err != nil {
-		return skillManageResult{Success: false, Error: "failed to read SKILL.md: " + err.Error()}
+		return skillManageResult{Success: false, Error: "failed to read " + targetLabel + ": " + err.Error()}
 	}
 	contentStr := string(content)
 
@@ -393,7 +612,7 @@ func (t *SkillManagerTool) handlePatch(in skillManageArgs) skillManageResult {
 	if idx < 0 {
 		return skillManageResult{
 			Success: false,
-			Error:   fmt.Sprintf("old_string not found in SKILL.md. Include enough context to ensure uniqueness."),
+			Error:   fmt.Sprintf("old_string not found in %s. Include enough context to ensure uniqueness.", targetLabel),
 		}
 	}
 
@@ -420,18 +639,28 @@ func (t *SkillManagerTool) handlePatch(in skillManageArgs) skillManageResult {
 	}
 
 	// Validate resulting content
-	if err := validateSkillContent(newContent); err != "" {
-		return skillManageResult{Success: false, Error: fmt.Sprintf("Patch would break SKILL.md structure: %s", err)}
+	if targetLabel == "SKILL.md" {
+		if err := validateSkillContent(newContent); err != "" {
+			return skillManageResult{Success: false, Error: fmt.Sprintf("Patch would break SKILL.md structure: %s", err)}
+		}
+	}
+	if len([]byte(newContent)) > maxSkillFileBytes {
+		return skillManageResult{Success: false, Error: fmt.Sprintf("%s content exceeds %d bytes.", targetLabel, maxSkillFileBytes)}
 	}
 
 	// Write patched content
-	if err := atomicWriteText(skillMD, newContent); err != nil {
-		return skillManageResult{Success: false, Error: "failed to write patched SKILL.md: " + err.Error()}
+	if err := atomicWriteText(targetPath, newContent); err != nil {
+		return skillManageResult{Success: false, Error: "failed to write patched " + targetLabel + ": " + err.Error()}
 	}
+	if scanErr := t.scanSkill(skillPath); scanErr != "" {
+		restoreSkillFile(targetPath, content, true)
+		return skillManageResult{Success: false, Error: "skill guard blocked patch: " + scanErr}
+	}
+	t.recordSuccessfulMutation("patch", name)
 
 	return skillManageResult{
 		Success: true,
-		Message: fmt.Sprintf("Patched SKILL.md in skill %q (%d replacement%s).", name, matchCount, plural(matchCount)),
+		Message: fmt.Sprintf("Patched %s in skill %q (%d replacement%s).", targetLabel, name, matchCount, plural(matchCount)),
 	}
 }
 
@@ -447,6 +676,19 @@ func (t *SkillManagerTool) handleDelete(in skillManageArgs) skillManageResult {
 		return skillManageResult{
 			Success: false,
 			Error:   fmt.Sprintf("Skill %q not found.", name),
+		}
+	}
+	if refusal := t.pinnedRefusal(name); refusal != nil {
+		return *refusal
+	}
+
+	absorbedInto := strings.TrimSpace(in.AbsorbedInto)
+	if absorbedInto != "" {
+		if absorbedInto == name {
+			return skillManageResult{Success: false, Error: fmt.Sprintf("absorbed_into=%q cannot equal the skill being deleted.", absorbedInto)}
+		}
+		if findSkill(t.cfg.Root, absorbedInto) == "" {
+			return skillManageResult{Success: false, Error: fmt.Sprintf("absorbed_into=%q does not exist. Create or patch the umbrella skill first, then retry the delete.", absorbedInto)}
 		}
 	}
 
@@ -467,9 +709,96 @@ func (t *SkillManagerTool) handleDelete(in skillManageArgs) skillManageResult {
 		parent = filepath.Dir(parent)
 	}
 
+	t.recordSuccessfulMutation("delete", name)
+	message := fmt.Sprintf("Skill %q deleted.", name)
+	if absorbedInto != "" {
+		message += fmt.Sprintf(" Content absorbed into %q.", absorbedInto)
+	}
 	return skillManageResult{
 		Success: true,
-		Message: fmt.Sprintf("Skill %q deleted.", name),
+		Message: message,
+	}
+}
+
+func (t *SkillManagerTool) handleWriteFile(in skillManageArgs) skillManageResult {
+	name := strings.TrimSpace(in.Name)
+	if err := validateSkillName(name); err != "" {
+		return skillManageResult{Success: false, Error: err}
+	}
+
+	skillPath := findSkill(t.cfg.Root, name)
+	if skillPath == "" {
+		return skillManageResult{Success: false, Error: fmt.Sprintf("Skill %q not found. Create it first with action='create'.", name)}
+	}
+	if refusal := t.pinnedRefusal(name); refusal != nil {
+		return *refusal
+	}
+	if len([]byte(in.FileContent)) > maxSkillFileBytes {
+		return skillManageResult{Success: false, Error: fmt.Sprintf("file_content exceeds %d bytes.", maxSkillFileBytes)}
+	}
+	targetPath, errText := supportFileTarget(skillPath, in.FilePath)
+	if errText != "" {
+		return skillManageResult{Success: false, Error: errText}
+	}
+	original, readErr := os.ReadFile(targetPath)
+	existed := readErr == nil
+	if err := atomicWriteText(targetPath, in.FileContent); err != nil {
+		return skillManageResult{Success: false, Error: "failed to write support file: " + err.Error()}
+	}
+	if scanErr := t.scanSkill(skillPath); scanErr != "" {
+		restoreSkillFile(targetPath, original, existed)
+		return skillManageResult{Success: false, Error: "skill guard blocked write_file: " + scanErr}
+	}
+	t.recordSuccessfulMutation("write_file", name)
+	rel, _ := filepath.Rel(skillPath, targetPath)
+	return skillManageResult{
+		Success: true,
+		Message: fmt.Sprintf("File %q written to skill %q.", filepath.ToSlash(rel), name),
+		Path:    targetPath,
+	}
+}
+
+func (t *SkillManagerTool) handleRemoveFile(in skillManageArgs) skillManageResult {
+	name := strings.TrimSpace(in.Name)
+	if err := validateSkillName(name); err != "" {
+		return skillManageResult{Success: false, Error: err}
+	}
+	skillPath := findSkill(t.cfg.Root, name)
+	if skillPath == "" {
+		return skillManageResult{Success: false, Error: fmt.Sprintf("Skill %q not found.", name)}
+	}
+	if refusal := t.pinnedRefusal(name); refusal != nil {
+		return *refusal
+	}
+	targetPath, errText := supportFileTarget(skillPath, in.FilePath)
+	if errText != "" {
+		return skillManageResult{Success: false, Error: errText}
+	}
+	if _, err := os.Stat(targetPath); err != nil {
+		return skillManageResult{
+			Success:        false,
+			Error:          fmt.Sprintf("File %q not found in skill %q.", filepath.ToSlash(filepath.Clean(in.FilePath)), name),
+			AvailableFiles: supportFileList(skillPath),
+		}
+	}
+	original, _ := os.ReadFile(targetPath)
+	if err := os.Remove(targetPath); err != nil {
+		return skillManageResult{Success: false, Error: "failed to remove support file: " + err.Error()}
+	}
+	if scanErr := t.scanSkill(skillPath); scanErr != "" {
+		restoreSkillFile(targetPath, original, true)
+		return skillManageResult{Success: false, Error: "skill guard blocked remove_file: " + scanErr}
+	}
+	parent := filepath.Dir(targetPath)
+	if parent != skillPath {
+		if entries, err := os.ReadDir(parent); err == nil && len(entries) == 0 {
+			_ = os.Remove(parent)
+		}
+	}
+	t.recordSuccessfulMutation("remove_file", name)
+	return skillManageResult{
+		Success: true,
+		Message: fmt.Sprintf("File %q removed from skill %q.", filepath.ToSlash(filepath.Clean(in.FilePath)), name),
 	}
 }
 
