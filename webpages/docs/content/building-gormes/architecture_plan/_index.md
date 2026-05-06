@@ -803,7 +803,7 @@ classification and row-backed implementation queue.
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
-- [ ] Symlink-preserving atomic writer helper
+- [x] Symlink-preserving atomic writer helper
 - [ ] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
 - [x] Terminal deleted-cwd recovery

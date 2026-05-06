@@ -26636,8 +26636,8 @@
             },
             {
               "name": "Symlink-preserving atomic writer helper",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes adds a shared atomic replace helper that matches Hermes' symlink-safe config/state writes: regular files are atomically replaced, existing symlinks remain symlinks while their real targets receive the new bytes, broken symlinks create the target without replacing the link, and existing target permissions are preserved unless the caller explicitly supplies first-write permissions.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -26683,6 +26683,7 @@
                 "Config/secrets/session fixtures prove writeTOMLAtomic, writeSetupToolsConfig, writeSecretsSnapshotFile, and session index mirror writes use the shared helper and retain their current redaction/permission guarantees.",
                 "Existing file-task and config writer tests remain green."
               ],
+              "note": "2026-05-06 all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. No planned P0 row remained; this unblocked Hermes-source-backed state-write safety row was promoted to P0 because config, setup, secrets, session mirrors, migration writers, and future write-capable tools can detach symlinked managed deployments unless the shared atomic helper lands first. The same sweep corrected the row write_scope from the stale webpages/docs mirror path to the canonical docs/content progress.json path. Complete: TDD added internal/tools/atomic_replace.go with symlink-preserving AtomicReplace plus fixtures for live symlinks, broken symlinks, and existing permission preservation; migrated writeTOMLAtomic, resetSetupDefaultConfig, writeSetupToolsConfig, writeSecretsSnapshotFile, and session writeAtomic to the shared helper. Evidence: go test ./internal/tools -run TestAtomicReplace -count=1 PASS; go test ./internal/config ./cmd/gormes ./internal/session -run 'Test.*(Atomic|Symlink|Secrets|SetupTools|IndexMirror)' -count=1 PASS; go test ./internal/tools ./internal/config ./cmd/gormes ./internal/session -count=1 PASS.",
               "write_scope": [
                 "internal/tools/atomic_replace.go",
                 "internal/tools/atomic_replace_test.go",
@@ -26694,7 +26695,7 @@
                 "cmd/gormes/secrets_command_test.go",
                 "internal/session/index_mirror.go",
                 "internal/session/index_mirror_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run TestAtomicReplace -count=1",

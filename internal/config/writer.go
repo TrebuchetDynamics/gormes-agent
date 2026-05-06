@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -265,7 +266,7 @@ func writeTOMLAtomic(path string, doc map[string]any) error {
 		os.Remove(tmpName)
 		return fmt.Errorf("config: close temp: %w", err)
 	}
-	if err := os.Rename(tmpName, path); err != nil {
+	if _, err := toolspkg.AtomicReplace(tmpName, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600}); err != nil {
 		os.Remove(tmpName)
 		return fmt.Errorf("config: rename temp -> %s: %w", path, err)
 	}
