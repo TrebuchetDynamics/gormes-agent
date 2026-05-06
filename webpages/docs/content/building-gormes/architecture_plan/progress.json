@@ -16602,6 +16602,78 @@
               }
             },
             {
+              "name": "Credential non-ASCII sanitizer + one-shot warning",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' credential copy-paste sanitizer before provider headers, dotenv imports, and auth status read models use credential bytes: credential-looking keys such as API_KEY, TOKEN, AUTH_TOKEN, BOT_TOKEN, and credential-pool access/refresh tokens strip non-ASCII runes, report the stripped code points once per key with re-copy guidance, preserve non-credential Unicode values, preserve ASCII control bytes, and never log raw credential material.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Non-ASCII credential values produce credential_non_ascii_stripped evidence with key name, code points, warning-once status, and redacted preview only; malformed dotenv lines, unset env refs, and non-credential Unicode text keep existing degraded behavior without secret leaks.",
+              "fixture": "internal/config/credential_sanitizer_test.go; internal/config/dotenv_test.go; internal/config/credential_pool_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/config.py@b816fd4e2:_check_non_ascii_credential",
+                "./hermes-agent/hermes_cli/env_loader.py@b816fd4e2:_sanitize_loaded_credentials",
+                "./hermes-agent/tests/hermes_cli/test_non_ascii_credential.py@b816fd4e2",
+                "internal/config/dotenv.go:applyDotenvFile",
+                "internal/config/credential_pool.go:PooledCredential",
+                "internal/config/credential_pool.go:CredentialPoolStatus"
+              ],
+              "ready_when": [
+                "Token vault, multi-account auth, and Gormes dotenv loading are complete enough to provide a single credential-sanitizer helper and call sites.",
+                "Tests can use temp dotenv files, synthetic env maps, and fake credential-pool entries only; no live provider, keychain, auth.json, ~/.gormes, ~/.hermes, or network access is required.",
+                "The sanitizer can be introduced as an internal/config helper with injected warning recorder so provider packages do not print directly."
+              ],
+              "not_ready_when": [
+                "The slice calls live providers to validate credentials, changes provider retry/rate-limit policy, or rewrites auth command UX.",
+                "The sanitizer strips Unicode from non-credential variables such as user display names, prompts, tool arguments, channel messages, or config text.",
+                "Warnings, errors, status output, or test logs include access tokens, refresh tokens, API keys, bot tokens, or raw dotenv lines."
+              ],
+              "blocked_by": [
+                "Token vault",
+                "Multi-account auth"
+              ],
+              "unblocks": [
+                "Provider auth selection for native gateway turns",
+                "Provider-tool-memory golden transcript suite"
+              ],
+              "acceptance": [
+                "TestCredentialSanitizerStripsUnicodeLookalikes proves OPENROUTER_API_KEY value `sk-proj-abcʋdef` becomes `sk-proj-abcdef` and records U+028B redacted evidence.",
+                "TestCredentialSanitizerWarnsOncePerKey proves repeated loads of GEMINI_API_KEY with non-ASCII bytes emit one warning record for that key and sanitize both values.",
+                "TestCredentialSanitizerLeavesNonCredentialUnicode proves MY_UNICODE_VAR=`hello café` remains unchanged and emits no warning.",
+                "TestCredentialSanitizerPreservesASCIIControlBytes proves ASCII ESC/control characters stay in credential values, matching Hermes' sanitizer scope.",
+                "TestLoadDotenvFilesSanitizesCredentialValues proves Gormes .env loading sanitizes API_KEY/TOKEN-looking keys before os.Setenv while preserving shell-env precedence and redacting warnings.",
+                "TestCredentialPoolStatusSanitizesTokenFields proves credential-pool token fields are sanitized before status/selection evidence and raw non-ASCII token bytes never appear in rendered JSON."
+              ],
+              "write_scope": [
+                "internal/config/credential_sanitizer.go",
+                "internal/config/credential_sanitizer_test.go",
+                "internal/config/dotenv.go",
+                "internal/config/dotenv_test.go",
+                "internal/config/credential_pool.go",
+                "internal/config/credential_pool_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run 'TestCredentialSanitizer|TestLoadDotenvFilesSanitizesCredentialValues|TestCredentialPoolStatusSanitizesTokenFields' -count=1",
+                "go test ./internal/config -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Credential sanitizer fixtures prove non-ASCII stripping for credential-looking values, once-per-key warnings, non-credential Unicode preservation, ASCII-control preservation, dotenv integration, credential-pool integration, and redacted evidence only."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tests/hermes_cli/test_non_ascii_credential.py",
+                "note": "Hermes fixed provider header failures caused by Unicode lookalike copy-paste artifacts. Gormes has dotenv and credential-pool plumbing but no source-backed row for this credential-byte hygiene boundary."
+              }
+            },
+            {
               "name": "Google OAuth flow + refresh seam",
               "status": "complete",
               "contract": "Google Workspace OAuth setup stores pending PKCE state, accepts either a raw code or localhost redirect URL, preserves only actually granted scopes, and reports partial-scope tokens without forcing refresh invalid_scope failures",
@@ -30846,6 +30918,76 @@
               }
             },
             {
+              "name": "CLI terminal control-response sanitizer",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' defensive CLI input sanitizer for leaked terminal responses: pure internal/cli helpers strip cursor-position DSR/CPR responses and SGR mouse reports in ESC-prefixed, visible caret-escape, and narrowly bounded bare forms before command/path parsing, while preserving ordinary text, ANSI color SGR sequences, and literal angle-bracket content.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "When resize storms, multiplexers, or mouse tracking leak terminal reports into the input buffer, Gormes returns terminal_response_stripped evidence without logging input text, command arguments, file paths, or terminal coordinates.",
+              "fixture": "internal/cli/terminal_response_sanitizer_test.go",
+              "source_refs": [
+                "./hermes-agent/cli.py@b816fd4e2:_strip_leaked_terminal_responses_with_meta",
+                "./hermes-agent/cli.py@b816fd4e2:_strip_leaked_terminal_responses",
+                "./hermes-agent/tests/cli/test_cli_terminal_response_sanitizer.py@b816fd4e2",
+                "internal/cli/paste_sanitizer.go",
+                "internal/cli/command_registry.go",
+                "internal/tui/mouse_tracking_test.go"
+              ],
+              "ready_when": [
+                "CLI bracketed-paste wrapper sanitizer and slow-paste diagnostic threshold rows are complete, so internal/cli already has pure input-normalization seams.",
+                "The worker can use string literals for ESC, caret-escape, bare mouse, ANSI color, and normal text cases; no TTY, prompt_toolkit, mouse device, terminal emulator, or clipboard is required.",
+                "This slice is helper-only and does not bind the sanitizer into Bubble Tea input loops or Cobra command dispatch."
+              ],
+              "not_ready_when": [
+                "The slice changes TUI mouse tracking, command registry behavior, file-drop parsing, clipboard/image handling, gateway parsing, or terminal modes.",
+                "The sanitizer strips normal bracketed text such as [53;1R without an ESC/caret prefix or ordinary HTML-like text such as <div>.",
+                "Diagnostics log raw user input, terminal coordinates, file paths, or pasted content."
+              ],
+              "blocked_by": [
+                "CLI bracketed-paste wrapper sanitizer",
+                "CLI slow bracketed-paste diagnostic threshold"
+              ],
+              "unblocks": [
+                "CLI input-loop sanitizer binding",
+                "Native TUI mouse tracking input hygiene"
+              ],
+              "acceptance": [
+                "TestStripLeakedTerminalResponses_DSRCanonicalAndVisible proves ESC [53;1R and ^[[53;1R disappear both standalone and embedded in text.",
+                "TestStripLeakedTerminalResponses_MultipleDSRResponses proves concatenated DSR responses collapse without corrupting surrounding user text.",
+                "TestStripLeakedTerminalResponses_SGRMouseReports proves ESC, visible, and bounded bare <65;1;49M mouse reports are stripped, including large coordinates and concatenated reports.",
+                "TestStripLeakedTerminalResponses_PreservesSGRColorAndBareDSRText proves ANSI color SGR sequences and ordinary [53;1R text remain unchanged.",
+                "TestStripLeakedTerminalResponses_PreservesAngleBracketContent proves regular text such as render <div class='hero'> literal is not stripped.",
+                "TestStripLeakedTerminalResponsesWithMetaEvidence proves the helper can report whether mouse reports were stripped without logging the raw input."
+              ],
+              "write_scope": [
+                "internal/cli/terminal_response_sanitizer.go",
+                "internal/cli/terminal_response_sanitizer_test.go",
+                "internal/cli/paste_sanitizer.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run '^TestStripLeakedTerminalResponses' -count=1",
+                "go test ./internal/cli -run '^TestStripLeakedBracketedPasteWrappers_|^TestSlowBracketedPasteDiagnostic_' -count=1",
+                "go test ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "CLI input sanitizer fixtures prove DSR/CPR and SGR mouse-report stripping, normal-text preservation, meta evidence, and no TTY/terminal dependencies."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 cli.py",
+                "note": "Hermes fixed leaked terminal control responses after resize, multiplexer, and mouse-tracking events; Gormes has paste sanitizers but not this terminal-response boundary."
+              }
+            },
+            {
               "name": "CLI webhook URL normalizer",
               "status": "complete",
               "contract": "internal/cli adds a pure function `NormalizeWebhookURL(raw string) (string, error)` that trims whitespace, requires scheme http or https, strips trailing slashes from the path, lowercases the host, rejects userinfo (raw URLs containing '@' before the host) with a sentinel error, and returns the canonicalized URL string; no network call is made",
@@ -36035,6 +36177,75 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 tui_gateway/server.py",
                 "note": "Hermes defines remote TUI helper schemas; Gormes ports them as inert Go helper contracts before transport."
+              }
+            },
+            {
+              "name": "TUI gateway config health null-section probe",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes ports Hermes' TUI gateway config-health probe as a pure Go helper over decoded config maps: bare YAML/null top-level sections are reported with actionable empty-section guidance, display.personality with null or empty agent.personalities reports that the personality overlay will be skipped, and agent/session construction paths tolerate nil agent/display/personality maps without panics or unintended overlay activation.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Null config sections, null personality maps, invalid personality choices, and unavailable config-health probes return tui_config_health_warning or tui_personality_skipped evidence; the helper must not mutate config, clear history, read live config files, or print raw system prompts.",
+              "fixture": "internal/tuigateway/config_health_test.go",
+              "source_refs": [
+                "./hermes-agent/tui_gateway/server.py@b816fd4e2:_probe_config_health",
+                "./hermes-agent/tui_gateway/server.py@b816fd4e2:_make_agent",
+                "./hermes-agent/tests/tui_gateway/test_make_agent_provider.py@b816fd4e2",
+                "internal/tuigateway/personality.go:ValidatePersonality",
+                "internal/tuigateway/media_personality_event_test.go"
+              ],
+              "ready_when": [
+                "TUI gateway image/personality/platform-event helpers are complete, so personality validation/rendering already exists as pure internal/tuigateway helpers.",
+                "The worker can test decoded map[string]any fixtures directly; no config file read, TUI server, provider, SQLite session, SSE, Bubble Tea program, or HTTP transport is required.",
+                "This row adds config-health and nil-tolerant session-option helpers only; runtime startup binding remains separate."
+              ],
+              "not_ready_when": [
+                "The slice starts the TUI gateway, rewrites remote TUI SSE transport, mutates persisted config, clears session history, or changes provider/model resolution.",
+                "The helper activates a display.personality overlay before it has been resolved into a concrete system prompt.",
+                "Warnings include raw system prompt text, provider API keys, local absolute home paths, or full config bodies."
+              ],
+              "blocked_by": [
+                "TUI gateway image/personality/platform-event helpers"
+              ],
+              "unblocks": [
+                "SSE streaming to Bubble Tea TUI",
+                "Remote TUI startup health surface"
+              ],
+              "acceptance": [
+                "TestTUIConfigHealthFlagsNullSections proves agent: null and display: null produce empty-section warnings while populated sections such as model: {} do not.",
+                "TestTUIConfigHealthFlagsNullPersonalitiesWithActivePersonality proves display.personality=kawaii plus agent.personalities=null returns a warning naming both paths and skipped overlay behavior.",
+                "TestTUIConfigHealthIgnoresDefaultPersonalityAliases proves blank/default/none/neutral personality values do not warn when personalities are absent.",
+                "TestTUISessionOptionsTolerateNullSections proves nil agent/display maps produce safe default session options without panic.",
+                "TestTUISessionOptionsDoNotActivateDisplayPersonalityWithoutPrompt proves configured display personality is ignored until a concrete system prompt is supplied, matching Hermes' TUI/classic CLI boundary."
+              ],
+              "write_scope": [
+                "internal/tuigateway/config_health.go",
+                "internal/tuigateway/config_health_test.go",
+                "internal/tuigateway/personality.go",
+                "internal/tuigateway/media_personality_event_test.go",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tuigateway -run 'TestTUIConfigHealth|TestTUISessionOptions' -count=1",
+                "go test ./internal/tuigateway -run 'TestValidatePersonality|TestRenderPersonalityPrompt' -count=1",
+                "go test ./internal/tuigateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "TUI config-health fixtures prove null-section warnings, null-personality skipped-overlay evidence, nil-tolerant session options, and no config/provider/TUI transport side effects."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b816fd4e2 tui_gateway/server.py",
+                "note": "Hermes protects TUI startup from bare YAML sections and null personality maps; Gormes has personality helpers but not the config-health probe or nil-tolerant session-option contract."
               }
             },
             {

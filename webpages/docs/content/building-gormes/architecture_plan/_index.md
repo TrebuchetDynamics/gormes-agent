@@ -586,6 +586,7 @@ classification and row-backed implementation queue.
 - [x] Token vault
 - [x] Anthropic OAuth/keychain credential discovery
 - [x] Multi-account auth
+- [ ] Credential non-ASCII sanitizer + one-shot warning
 - [x] Google OAuth flow + refresh seam
 - [ ] GitHub Copilot token exchange + Responses mode selector
 
@@ -877,6 +878,7 @@ classification and row-backed implementation queue.
 - [x] CLI contextual first-touch onboarding hint renderers
 - [x] CLI bracketed-paste wrapper sanitizer
 - [x] CLI slow bracketed-paste diagnostic threshold
+- [ ] CLI terminal control-response sanitizer
 - [x] CLI webhook URL normalizer
 - [x] CLI dump support-summary helper
 - [x] PTY bridge protocol adapter
@@ -964,6 +966,7 @@ classification and row-backed implementation queue.
 - [x] TUI gateway completion path normalizer
 - [x] TUI gateway tool summary formatter
 - [x] TUI gateway image/personality/platform-event helpers
+- [ ] TUI gateway config health null-section probe
 - [x] TUI mouse tracking config + slash toggle
 - [x] Native TUI bundle independence check
 - [x] TUI launch model override + static alias resolver
