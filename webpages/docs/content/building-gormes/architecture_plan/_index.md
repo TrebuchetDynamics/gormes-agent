@@ -848,7 +848,7 @@ classification and row-backed implementation queue.
 - [x] Cross-agent config isolation
 - [x] SecretRef runtime snapshot activation
 - [x] OpenClaw security audit --deep --fix
-- [ ] ACP bridge client compatibility
+- [x] ACP bridge doctor/status evidence
 - [ ] Gateway probe auth/capability HTTP closeout
 - [x] Safety-critical panic and swallowed-error closeout
 - [x] Session Health Monitoring

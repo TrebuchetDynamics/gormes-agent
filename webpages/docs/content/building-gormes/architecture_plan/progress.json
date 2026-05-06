@@ -29524,48 +29524,56 @@
               "note": "Validated 2026-05-04: `gormes security audit --deep --fix` is registered and fixture-backed. The audit returns exact pass/warn/fail/fixed counts, checks gateway auth/probe status, state-file integrity, channel credentials/scopes, shell blocklist coverage, filesystem read/write scoping, credential redaction, and configured SecretRef availability. Safe fixes are limited to deterministic local remediations such as file permission tightening and generated gateway auth tokens; unsafe/manual actions remain findings. SecretRef env/file checks redact resolved values, missing refs degrade with explicit evidence, and exec refs report unsupported without executing helpers."
             },
             {
-              "name": "ACP bridge client compatibility",
-              "status": "planned",
+              "name": "ACP bridge doctor/status evidence",
+              "status": "complete",
               "priority": "P1",
-              "contract": "Close the OpenClaw ACP bridge gap by adding Gormes client-side ACP connection/proxy behavior in addition to the existing server-facing package, with status/doctor evidence for connected, unavailable, and unsupported remote ACP endpoints.",
-              "contract_status": "draft",
-              "slice_size": "medium",
+              "contract": "Close the remaining operator-visible ACP bridge evidence gap after the completed 5.H ACP client/server rows: `gormes doctor --offline` must report local ACP stdio server readiness, local client bridge readiness, and explicit remote-endpoint unsupported/unavailable evidence without claiming a live remote bridge exists.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
                 "operator",
                 "gateway"
               ],
-              "degraded_mode": "Unavailable ACP endpoints report acp_bridge_unavailable with endpoint and auth source redacted; local Gormes operation continues without pretending ACP is connected.",
-              "fixture": "internal/acp/bridge_test.go",
+              "degraded_mode": "Remote ACP endpoints report acp_bridge_unavailable / unsupported_remote_acp_endpoint with endpoint and auth source absent or redacted; local Gormes operation continues and the local ACP client/server surfaces remain visible.",
+              "fixture": "internal/acp/bridge_status_test.go; cmd/gormes/doctor_acp_test.go",
               "source_refs": [
-                "../openclaw/src/acp/",
-                "internal/acp/",
-                "cmd/gormes/"
+                "../openclaw/src/acp/client.ts:createAcpClient",
+                "../openclaw/src/acp/runtime/availability.ts:isAcpRuntimeSpawnAvailable",
+                "../openclaw/src/acp/runtime/errors.ts:ACP_ERROR_CODES",
+                "internal/acp/client.go:ClientBridge",
+                "internal/acp/jsonrpc_server.go:NewJSONRPCServer",
+                "cmd/gormes/acp.go:newACPClientCommand",
+                "cmd/gormes/doctor.go:doctorCmd"
               ],
               "ready_when": [
-                "Current internal/acp server stubs are audited so the row can distinguish server support from outbound bridge/client support."
+                "5.H `ACP Client Bridge Mode` and `ACP JSON-RPC stdio session/prompt closeout` are complete.",
+                "Current internal/acp server/client surfaces can be summarized without opening a live ACP subprocess or remote endpoint."
               ],
               "not_ready_when": [
-                "The slice claims ACP parity from package existence without a client/proxy fixture."
+                "The slice claims remote ACP endpoint connectivity without a fake endpoint/status fixture.",
+                "The slice reimplements the completed ACP client/server bridge instead of adding doctor/status evidence."
               ],
               "acceptance": [
-                "Gormes can configure an outbound ACP endpoint and report connection status.",
-                "Bridge requests are covered by hermetic fake endpoint tests.",
-                "Doctor/status distinguishes server-only support from client bridge support."
+                "`internal/acp` exposes a hermetic bridge status summary that distinguishes local stdio server readiness, local client bridge readiness, and remote endpoint unsupported/unavailable evidence.",
+                "`gormes doctor --offline` renders an ACP bridge check with local server/client PASS items and a remote WARN item carrying `acp_bridge_unavailable` evidence.",
+                "The check never reads live editor config, starts an ACP subprocess, contacts a remote endpoint, or exposes credentials."
               ],
               "write_scope": [
-                "internal/acp/",
-                "cmd/gormes/acp.go",
+                "internal/acp/bridge_status.go",
+                "internal/acp/bridge_status_test.go",
                 "cmd/gormes/doctor.go",
+                "cmd/gormes/doctor_acp_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/acp ./cmd/gormes -run 'ACP.*Bridge|ACP.*Status' -count=1",
+                "go test ./internal/acp ./cmd/gormes -run 'ACP.*Bridge|ACP.*Status|DoctorACP' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "ACP bridge fixtures prove outbound client/proxy behavior or explicitly degraded status."
-              ]
+                "Doctor/status fixtures prove ACP local client/server readiness and remote endpoint degraded evidence without live ACP side effects."
+              ],
+              "note": "Complete 2026-05-06: the all-topic weakness sweep found this P1 row overlapped with completed 5.H ACP client/server rows, then narrowed the remaining work to the operator-facing doctor/status gap. TDD added `internal/acp/bridge_status.go` and `bridge_status_test.go` so Gormes reports local ACP stdio JSON-RPC server readiness (`acp_stdio_jsonrpc_ready`), local client bridge readiness (`acp_client_connected`), row-backed server surface counts, and explicit remote endpoint evidence (`acp_bridge_unavailable`, reason `unsupported_remote_acp_endpoint`) without live ACP side effects. `cmd/gormes/doctor.go` now renders an ACP bridge check in `gormes doctor --offline`, with `cmd/gormes/doctor_acp_test.go` proving local server/client PASS items and remote WARN evidence."
             },
             {
               "name": "Gateway probe auth/capability HTTP closeout",

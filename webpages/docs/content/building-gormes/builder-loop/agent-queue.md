@@ -111,27 +111,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 5. ACP bridge client compatibility
-
-- Phase: 5 / 5.N
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Close the OpenClaw ACP bridge gap by adding Gormes client-side ACP connection/proxy behavior in addition to the existing server-facing package, with status/doctor evidence for connected, unavailable, and unsupported remote ACP endpoints.
-- Trust class: operator, gateway
-- Ready when: Current internal/acp server stubs are audited so the row can distinguish server support from outbound bridge/client support.
-- Not ready when: The slice claims ACP parity from package existence without a client/proxy fixture.
-- Degraded mode: Unavailable ACP endpoints report acp_bridge_unavailable with endpoint and auth source redacted; local Gormes operation continues without pretending ACP is connected.
-- Fixture: `internal/acp/bridge_test.go`
-- Write scope: `internal/acp/`, `cmd/gormes/acp.go`, `cmd/gormes/doctor.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/acp ./cmd/gormes -run 'ACP.*Bridge\|ACP.*Status' -count=1`, `go run ./cmd/progress validate`
-- Done signal: ACP bridge fixtures prove outbound client/proxy behavior or explicitly degraded status.
-- Acceptance: Gormes can configure an outbound ACP endpoint and report connection status., Bridge requests are covered by hermetic fake endpoint tests., Doctor/status distinguishes server-only support from client bridge support.
-- Source refs: ../openclaw/src/acp/, internal/acp/, cmd/gormes/
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Gateway probe auth/capability HTTP closeout
+## 5. Gateway probe auth/capability HTTP closeout
 
 - Phase: 5 / 5.N
 - Owner: `gateway`
@@ -151,7 +131,7 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, ../openclaw/src/commands/gateway-status/probe-run.ts, internal/tools/gateway_discover.go, cmd/gormes/gateway.go, cmd/gormes/gateway_discover.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Transactional tool execution with snapshot/rollback
+## 6. Transactional tool execution with snapshot/rollback
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -171,7 +151,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Sandbox isolation depth selection
+## 7. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -191,7 +171,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Gateway channel adapters publish to event bus
+## 8. Gateway channel adapters publish to event bus
 
 - Phase: 5 / 5.V
 - Owner: `gateway`
@@ -211,7 +191,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/channels/telegram/adapter.go, internal/channels/discord/adapter.go, internal/channels/slack/adapter.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Agent turn and tool execution events on bus
+## 9. Agent turn and tool execution events on bus
 
 - Phase: 5 / 5.V
 - Owner: `orchestrator`
@@ -229,6 +209,26 @@ selection.
 - Done signal: Event tests prove turn lifecycle emits all expected events with correct trace_id linking
 - Acceptance: TurnStart event emitted when agent begins processing, Thought event emitted for each reasoning step, ToolCall event emitted when tool is invoked, ToolResult event emitted when tool completes, TurnComplete event emitted with summary, All events carry trace_id linking them to a session turn
 - Source refs: docs/content/papers/agentic-os-design.md, internal/events/bus.go, internal/hermes/turn.go, internal/tools/executor.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Behavioral pattern extraction from session logs
+
+- Phase: 6 / 6.K
+- Owner: `orchestrator`
+- Size: `large`
+- Status: `planned`
+- Priority: `P3`
+- Contract: Mine session logs and tool execution audits for behavioral patterns: which tool sequences succeed vs fail, which reasoning patterns precede good outcomes, which response styles correlate with user satisfaction. Patterns feed into the self-evolution loop as candidate mutations.
+- Trust class: operator
+- Ready when: Session logs are structured and queryable, Tool execution audit log exists (Phase 3.E.2)
+- Not ready when: No structured session data available, Tool audit log not yet implemented
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/hermes/pattern_extractor.go`, `internal/hermes/pattern_extractor_test.go`
+- Test commands: `go test ./internal/hermes -run TestPatternExtractor -count=1`
+- Done signal: Pattern extractor tests prove successful and failed patterns are correctly identified from log data
+- Acceptance: Pattern extractor identifies tool sequences with >80% success rate, Identifies tool sequences with <30% success rate (anti-patterns), Extracts reasoning patterns preceding successful tool calls, Patterns stored in Goncho as structured behavioral knowledge, Pattern extraction is offline (does not run during agent turns)
+- Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->
