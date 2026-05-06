@@ -1,12 +1,15 @@
 package docs_test
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 var staleGormesIORefPattern = regexp.MustCompile(`(?i)(?:https?://)?(?:www\.)?gormes\.io`)
@@ -136,6 +139,113 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 	for _, reject := range rejects {
 		if strings.Contains(raw, reject) {
 			t.Fatalf("docs home should not contain stale copy %q", reject)
+		}
+	}
+}
+
+func TestGormesOperatorSetupChannelProviderDocs(t *testing.T) {
+	rootHelp := runGormesHelp(t, "--help")
+	setupHelp := runGormesHelp(t, "setup", "--help")
+	modelHelp := runGormesHelp(t, "model", "--help")
+	gatewayHelp := runGormesHelp(t, "gateway", "--help")
+
+	assertContainsAll(t, "gormes --help", rootHelp, []string{
+		"gormes setup provider",
+		"gormes setup model",
+		"gormes --oneshot \"hello\"",
+		"gormes gateway",
+		"gormes gateway status",
+		"gormes telegram",
+		"gormes whatsapp",
+		"Interactively select the active model/provider",
+	})
+	assertContainsAll(t, "gormes setup --help", setupHelp, []string{
+		"gormes setup [section]",
+		"--non-interactive",
+		"--quick",
+		"--reconfigure",
+		"--reset",
+	})
+	assertContainsAll(t, "gormes model --help", modelHelp, []string{
+		"Interactively select the active model/provider",
+		"gormes model [flags]",
+	})
+	assertContainsAll(t, "gormes gateway --help", gatewayHelp, []string{
+		"gormes gateway [command]",
+		"Inspect configured gateway channels",
+		"Stop the live Gormes gateway",
+	})
+
+	home := readDoc(t, "content/_index.md")
+	gettingStarted := readDoc(t, "content/getting-started/_index.md")
+	for label, raw := range map[string]string{
+		"content/_index.md":                 home,
+		"content/getting-started/_index.md": gettingStarted,
+	} {
+		assertContainsAll(t, label, raw, []string{
+			"First Run",
+			"Configuration",
+			"Provider Setup",
+			"Gateway Operations",
+			"Telegram Bot",
+			"CLI",
+			"Config",
+			"Environment",
+			"Providers",
+		})
+	}
+
+	firstRun := readDoc(t, "content/getting-started/first-run.md")
+	providerSetup := readDoc(t, "content/guides/provider-setup.md")
+	for label, raw := range map[string]string{
+		"content/getting-started/first-run.md": firstRun,
+		"content/guides/provider-setup.md":     providerSetup,
+	} {
+		assertContainsAll(t, label, raw, []string{
+			"gormes setup provider",
+			"gormes setup model",
+			"gormes model",
+			"gormes config set",
+			"gormes auth",
+			".env",
+			"gormes --oneshot",
+			"gormes doctor",
+		})
+	}
+
+	gatewayOps := readDoc(t, "content/guides/gateway-operations.md")
+	telegram := readDoc(t, "content/guides/telegram-bot.md")
+	cli := readDoc(t, "content/reference/cli.md")
+	for label, raw := range map[string]string{
+		"content/guides/gateway-operations.md": gatewayOps,
+		"content/guides/telegram-bot.md":       telegram,
+		"content/reference/cli.md":             cli,
+	} {
+		assertContainsAll(t, label, raw, []string{
+			"Runtime-ready",
+			"row-backed",
+			"gormes gateway status",
+			"gormes whatsapp",
+		})
+	}
+
+	providers := readDoc(t, "content/reference/providers.md")
+	assertContainsAll(t, "content/reference/providers.md", providers, []string{
+		"upstream-hermes/integrations/providers",
+		"upstream-hermes/reference/model-catalog",
+		"runtime-implemented providers",
+		"row-backed parity entries",
+	})
+
+	for _, rel := range []string{
+		"content/getting-started/first-run.md",
+		"content/getting-started/configuration.md",
+		"content/guides/telegram-bot.md",
+		"content/reference/config.md",
+	} {
+		raw := readDoc(t, rel)
+		if strings.Contains(raw, `bot_token = "`) || strings.Contains(raw, `app_token = "`) {
+			t.Fatalf("%s should not document channel secrets inside config.toml examples", rel)
 		}
 	}
 }
@@ -545,6 +655,36 @@ func readDoc(t *testing.T, rel string) string {
 		t.Fatalf("read %s: %v", rel, err)
 	}
 	return string(raw)
+}
+
+func runGormesHelp(t *testing.T, args ...string) string {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", append([]string{"run", "./cmd/gormes"}, args...)...)
+	cmd.Dir = filepath.Join("..", "..")
+	cmd.Env = append(os.Environ(), "GORMES_HOME="+t.TempDir())
+
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatalf("go run ./cmd/gormes %s timed out", strings.Join(args, " "))
+	}
+	if err != nil {
+		t.Fatalf("go run ./cmd/gormes %s failed: %v\n%s", strings.Join(args, " "), err, out)
+	}
+	return string(out)
+}
+
+func assertContainsAll(t *testing.T, label, raw string, wants []string) {
+	t.Helper()
+
+	for _, want := range wants {
+		if !strings.Contains(raw, want) {
+			t.Fatalf("%s is missing %q", label, want)
+		}
+	}
 }
 
 func readPlaywrightE2EScript(t *testing.T, rel string) string {

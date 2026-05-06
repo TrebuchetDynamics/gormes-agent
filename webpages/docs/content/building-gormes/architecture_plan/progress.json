@@ -18735,8 +18735,8 @@
             },
             {
               "name": "Gormes setup/channel/provider docs webpage parity gate",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "The public Gormes docs site gives operators one coherent setup path from webpage entrypoint to first successful model turn and optional messaging gateway: the docs home, Getting Started, First Run, Provider Setup, Gateway Operations, Telegram Bot, CLI reference, config reference, environment reference, and provider reference pages must agree with the live `gormes --help`, `gormes setup --help`, `gormes model --help`, and `gormes gateway --help` command surface; they must link to active upstream Hermes provider/messaging docs under `upstream-hermes/` for parity context while clearly separating Gormes-ready commands from row-backed or fixture-only channels/providers.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -18800,7 +18800,7 @@
                 "Provider docs link to the active upstream Hermes providers/model-catalog docs under `upstream-hermes/` for parity context and keep Gormes-native provider status taxonomy separate from upstream provider availability.",
                 "The test fails with page name and missing token/link when setup, channel, or provider webpage copy drifts from the local CLI help or active upstream context."
               ],
-              "note": "2026-05-05 topic-driven docs parity sweep (`documentation docs webpage setup channels providers`) found that Gormes has native operator docs for first run, provider setup, gateway operations, Telegram, CLI, config, environment, and provider status, but no dedicated webpage test ties those pages to the current Go CLI help and active Hermes setup/provider/messaging docs. This row keeps the docs site from becoming a stale marketing layer while the upstream-Hermes mirror row catches missing source pages.",
+              "note": "Completed 2026-05-06: 2026-05-05 topic-driven docs parity sweep (`documentation docs webpage setup channels providers`) found that Gormes had native operator docs for first run, provider setup, gateway operations, Telegram, CLI, config, environment, and provider status, but no dedicated webpage test tied those pages to the current Go CLI help and active Hermes setup/provider/messaging docs. 2026-05-06 all-topic parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; it raised this row to P0 because the public setup/channel/provider docs are the shared operator entrypoint that prevents stale claims across those surfaces while the runtime-specific P1 rows remain scoped. TestGormesOperatorSetupChannelProviderDocs now shells out to live Go CLI help, ties docs pages to active upstream Hermes provider/model/messaging context, and rejects channel secrets in config.toml examples.",
               "write_scope": [
                 "webpages/docs/landing_page_docs_test.go",
                 "webpages/docs/content/_index.md",
@@ -18827,6 +18827,24 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b816fd4e2 website/docs getting-started + providers + messaging",
                 "note": "Hermes supplies the setup/provider/messaging documentation contract; Gormes owns the translated Go-native operator docs and readiness boundaries."
+              },
+              "completed_at": "2026-05-06T09:56:04Z",
+              "evidence": {
+                "implementation": [
+                  "webpages/docs/landing_page_docs_test.go:TestGormesOperatorSetupChannelProviderDocs shells out to `go run ./cmd/gormes --help`, `setup --help`, `model --help`, and `gateway --help` with an isolated GORMES_HOME.",
+                  "webpages/docs/content/_index.md and getting-started/_index.md now expose First Run, Configuration, Provider Setup, Gateway Operations, Telegram Bot, CLI, Config, Environment, and Providers links.",
+                  "First Run, Provider Setup, Gateway Operations, Telegram Bot, CLI, Config, and Providers docs now separate runtime-ready channels/providers from row-backed/fixture-backed claims and link upstream Hermes provider/model context.",
+                  "Channel secret examples were moved to dotenv-style examples so docs no longer place Telegram/Slack tokens in config.toml snippets."
+                ],
+                "tests": [
+                  "go test ./webpages/docs -run TestGormesOperatorSetupChannelProviderDocs -count=1",
+                  "go test ./webpages/docs -run 'TestGormesOperatorSetupChannelProviderDocs|TestDocsHomePageIsGormesBranded|TestDocsInternalLinksResolve' -count=1"
+                ],
+                "verification": [
+                  "go test ./webpages/docs -run TestGormesOperatorSetupChannelProviderDocs -count=1 -> failed before docs updates: content/_index.md missing First Run.",
+                  "go test ./webpages/docs -run TestGormesOperatorSetupChannelProviderDocs -count=1 -> pass.",
+                  "go test ./webpages/docs -run 'TestGormesOperatorSetupChannelProviderDocs|TestDocsHomePageIsGormesBranded|TestDocsInternalLinksResolve' -count=1 -> pass."
+                ]
               }
             },
             {

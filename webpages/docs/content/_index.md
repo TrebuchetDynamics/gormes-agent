@@ -112,9 +112,15 @@ This docs surface is the operator and developer manual for Gormes. It starts wit
 | | |
 |---|---|
 | **[Getting Started](getting-started/)** | Build or install Gormes, run doctor, and complete a local smoke test |
+| **[First Run](getting-started/first-run/)** | Run offline diagnostics, configure a provider, and complete the first model turn |
 | **[Configuration](getting-started/configuration/)** | Native `GORMES_HOME`, `config.toml`, `.env`, and runtime paths |
+| **[Provider Setup](guides/provider-setup/)** | Configure provider/model credentials and understand readiness labels |
 | **[Gateway Operations](guides/gateway-operations/)** | Run and inspect persistent messaging channels |
+| **[Telegram Bot](guides/telegram-bot/)** | Configure and debug the runtime-ready Telegram channel |
 | **[CLI Reference](reference/cli/)** | Current top-level commands and operator subcommands |
+| **[Config Reference](reference/config/)** | Native config sections, setup commands, and credential storage |
+| **[Environment](reference/environment/)** | Environment variables for config, providers, gateway, and install |
+| **[Providers](reference/providers/)** | Provider support taxonomy and upstream Hermes parity context |
 | **[Architecture](architecture/)** | Runtime model, gateway pipeline, tool execution, and memory boundaries |
 | **[Roadmap & Parity](parity/)** | Current status, known gaps, and Hermes/Honcho compatibility tracking |
 

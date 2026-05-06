@@ -9,9 +9,12 @@ weight: 10
 Start here when you want Gormes running, not explained from first principles.
 
 1. [Install](installation/) from source or an inspectable installer.
-2. [First run](first-run/) with offline diagnostics and a local TUI smoke test.
-3. [Configure](configuration/) provider, gateway, and state paths.
-4. [Troubleshoot](troubleshooting/) common setup and runtime failures.
+2. [First Run](first-run/) with offline diagnostics and a first provider-backed turn.
+3. [Configuration](configuration/) for `GORMES_HOME`, `config.toml`, `.env`, providers, gateway, and state paths.
+4. [Provider Setup](../guides/provider-setup/) for credential and model selection.
+5. [Gateway Operations](../guides/gateway-operations/) and [Telegram Bot](../guides/telegram-bot/) for messaging channels.
+6. [CLI Commands](../reference/cli/), [Config](../reference/config/), [Environment](../reference/environment/), and [Providers](../reference/providers/) for exact operator surfaces.
+7. [Troubleshoot](troubleshooting/) common setup and runtime failures.
 
 The conservative path is to verify the local runtime before adding model or channel credentials:
 

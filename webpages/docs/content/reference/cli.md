@@ -71,6 +71,7 @@ OpenCode Zen (`opencode`) and OpenCode Go (`opencode-go`) are registered as Open
 | `gormes gateway reload` | Reload swappable config in the live gateway without restarting; invalid config keeps the last-good runtime config. |
 | `gormes gateway stop` | Stop a running gateway. |
 | `gormes telegram` | Start Telegram-only mode. |
+| `gormes whatsapp` | Set up WhatsApp pairing through the row-backed/fixture-backed Baileys bridge. |
 | `gormes logs` | View recent gateway logs. |
 
 ### Assigning Channels to Specific Agents
