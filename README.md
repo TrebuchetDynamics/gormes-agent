@@ -17,7 +17,7 @@
 
 ---
 
-![Gormes install and first-run onboarding demo](docs/assets/gormes-tui-demo.gif)
+![Gormes install and first-run onboarding demo](webpages/docs/assets/gormes-tui-demo.gif)
 
 `gormes --offline` starts locally with no API key, no network calls, and no Python runtime.
 
@@ -184,7 +184,7 @@ In progress:
 - More channels and gateway hardening
 - Deeper learning-loop, MCP/plugin, voice/TTS, and release-distribution work
 
-Latest public release: [v0.1.02](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.02).
+Latest public release: [v0.1.03](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.03).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -203,7 +203,7 @@ Latest public release: [v0.1.02](https://github.com/TrebuchetDynamics/gormes-age
 
 </details>
 
-Release v0.1.02 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. The current benchmark mirror reports a Linux build at ~38.6 MB (`benchmarks.json`, 2026-05-04). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
+Release v0.1.03 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. The current benchmark mirror reports a Linux build at ~39.1 MB (`benchmarks.json`, 2026-05-05). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
 
 ---
 
