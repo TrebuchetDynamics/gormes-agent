@@ -186,6 +186,37 @@ func TestLoadDotenvFiles_DefaultHomeDotGormes(t *testing.T) {
 	_ = os.Unsetenv("GORMES_DOTENV_HOME_TEST")
 }
 
+func TestLoadDotenvFilesSanitizesCredentialValues(t *testing.T) {
+	resetCredentialSanitizerWarningsForTest()
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	t.Setenv("HERMES_HOME", "")
+	clearTestEnvVars(t, "OPENROUTER_API_KEY", "MY_UNICODE_VAR")
+
+	cfgDir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q): %v", cfgDir, err)
+	}
+	body := strings.Join([]string{
+		"OPENROUTER_API_KEY=sk-proj-abc\u028bdef",
+		"MY_UNICODE_VAR=hello caf\u00e9",
+		"",
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(cfgDir, ".env"), []byte(body), 0o600); err != nil {
+		t.Fatalf("WriteFile(.env): %v", err)
+	}
+
+	loadDotenvFiles()
+
+	if got := os.Getenv("OPENROUTER_API_KEY"); got != "sk-proj-abcdef" {
+		t.Fatalf("OPENROUTER_API_KEY = %q, want sanitized value", got)
+	}
+	if got := os.Getenv("MY_UNICODE_VAR"); got != "hello caf\u00e9" {
+		t.Fatalf("MY_UNICODE_VAR = %q, want non-credential Unicode preserved", got)
+	}
+}
+
 func TestLoadDotenvFiles_MissingFilesAreSilentNoop(t *testing.T) {
 	cfgHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfgHome)

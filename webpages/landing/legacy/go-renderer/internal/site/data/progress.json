@@ -16891,8 +16891,8 @@
             },
             {
               "name": "Credential non-ASCII sanitizer + one-shot warning",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes ports Hermes' credential copy-paste sanitizer before provider headers, dotenv imports, and auth status read models use credential bytes: credential-looking keys such as API_KEY, TOKEN, AUTH_TOKEN, BOT_TOKEN, and credential-pool access/refresh tokens strip non-ASCII runes, report the stripped code points once per key with re-copy guidance, preserve non-credential Unicode values, preserve ASCII control bytes, and never log raw credential material.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -16937,6 +16937,7 @@
                 "TestLoadDotenvFilesSanitizesCredentialValues proves Gormes .env loading sanitizes API_KEY/TOKEN-looking keys before os.Setenv while preserving shell-env precedence and redacting warnings.",
                 "TestCredentialPoolStatusSanitizesTokenFields proves credential-pool token fields are sanitized before status/selection evidence and raw non-ASCII token bytes never appear in rendered JSON."
               ],
+              "note": "2026-05-06 all-topic Hermes parity sweep promoted this row to P0: CLI/TUI, gateway/channel, tools, Goncho, install/runtime, browser, docs, and release surfaces all have planned rows, but upstream Hermes b816fd4e2 has an active provider-header sanitizer regression test and Gormes already loads dotenv and credential-pool bytes without this hygiene boundary. Complete: TDD added internal/config/credential_sanitizer.go and focused fixtures for Unicode-lookalike stripping, once-per-key warning records, non-credential Unicode preservation, ASCII-control preservation, dotenv import sanitization, and credential-pool access/refresh token sanitization. Sanitizer evidence records key names, U+ code points, warning-once status, and redacted previews without logging credential material.",
               "write_scope": [
                 "internal/config/credential_sanitizer.go",
                 "internal/config/credential_sanitizer_test.go",

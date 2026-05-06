@@ -590,7 +590,7 @@ classification and row-backed implementation queue.
 - [x] Token vault
 - [x] Anthropic OAuth/keychain credential discovery
 - [x] Multi-account auth
-- [ ] Credential non-ASCII sanitizer + one-shot warning
+- [x] Credential non-ASCII sanitizer + one-shot warning
 - [x] Google OAuth flow + refresh seam
 - [ ] GitHub Copilot token exchange + Responses mode selector
 

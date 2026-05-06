@@ -234,6 +234,6 @@ func applyDotenvFile(path string, shellHasKey map[string]struct{}) {
 		if _, fromShell := shellHasKey[k]; fromShell {
 			continue // shell env wins
 		}
-		_ = os.Setenv(k, v)
+		_ = os.Setenv(k, sanitizeCredentialValue(k, v))
 	}
 }

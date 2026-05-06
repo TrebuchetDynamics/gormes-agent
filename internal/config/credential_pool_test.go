@@ -44,6 +44,38 @@ func TestCredentialPoolLoadRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCredentialPoolStatusSanitizesTokenFields(t *testing.T) {
+	resetCredentialSanitizerWarningsForTest()
+	hermesHome := t.TempDir()
+	entries := []PooledCredential{
+		{ID: "alpha", Label: "Alpha", AuthType: CredentialAuthOAuth, Source: "fixture", AccessToken: "tok\u028ben", RefreshToken: "ref\u00e9resh"},
+	}
+	if err := SaveCredentialPoolEntries(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"}, entries); err != nil {
+		t.Fatal(err)
+	}
+
+	pool, _, err := LoadCredentialPool(CredentialPoolOptions{HermesHome: hermesHome, Provider: "fixture-provider"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded := pool.Entries()
+	if len(loaded) != 1 {
+		t.Fatalf("entries len = %d, want 1", len(loaded))
+	}
+	if loaded[0].AccessToken != "token" || loaded[0].RefreshToken != "refresh" {
+		t.Fatalf("loaded tokens = access %q refresh %q, want sanitized", loaded[0].AccessToken, loaded[0].RefreshToken)
+	}
+
+	status := pool.RedactedStatus()
+	blob, err := json.Marshal(status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(blob), "tok\u028ben") || strings.Contains(string(blob), "ref\u00e9resh") {
+		t.Fatalf("redacted status leaked raw non-ASCII token bytes: %s", blob)
+	}
+}
+
 func TestCredentialPoolSelectStrategies(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0).UTC()
 	base := []PooledCredential{
