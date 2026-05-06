@@ -662,7 +662,7 @@ classification and row-backed implementation queue.
 - [x] Discord tool split + platform-scoped toolsets
 - [x] Discord tool limit coercion helper
 - [x] Home Assistant HASS_TOKEN platform-toolset carveout
-- [ ] Home Assistant tool handlers + service safety validation
+- [x] Home Assistant tool handlers + service safety validation
 - [x] Pure core tools first
 - [x] Stateful tool migration queue
 - [x] Terminal process watch notification throttle contract

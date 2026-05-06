@@ -19900,8 +19900,8 @@
             },
             {
               "name": "Home Assistant tool handlers + service safety validation",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes ports the Hermes Home Assistant control tool handlers behind a Go-native injectable HTTP client: ha_list_entities, ha_get_state, ha_list_services, and ha_call_service validate entity/domain/service inputs, preserve the upstream summary/result envelopes, require HASS_TOKEN availability, and fail closed on path traversal, SSRF-style names, blocked service domains, and malformed JSON payloads.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -19920,7 +19920,9 @@
                 "webpages/docs/content/upstream-hermes/reference/toolsets-reference.md",
                 "internal/tools/testdata/upstream_tool_parity_manifest.json:homeassistant",
                 "internal/channels/homeassistant/bot.go",
-                "internal/channels/homeassistant/bot_test.go"
+                "internal/channels/homeassistant/bot_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go"
               ],
               "ready_when": [
                 "Home Assistant HASS_TOKEN platform-toolset carveout is complete, so toolset availability can already expose homeassistant when the token exists.",
@@ -19932,32 +19934,51 @@
                 "The slice only toggles toolset registration without implementing the four ha_* handlers.",
                 "The slice permits shell_command, python_script, hassio, addon, or traversal-shaped entity/domain/service names because the upstream handler rejects them."
               ],
-              "blocked_by": [
-                "Home Assistant HASS_TOKEN platform-toolset carveout"
-              ],
               "acceptance": [
                 "TestHomeAssistantListEntitiesFiltersAndSummarizes proves domain, area, search, friendly_name fallback, and compact summary output match Hermes fixture behavior.",
                 "TestHomeAssistantGetStateAndListServices proves state/service responses are parsed through the fake client without live network calls.",
                 "TestHomeAssistantCallServiceBuildsPayload proves entity_id precedence, JSON string data parsing, service response parsing, and validation errors.",
                 "TestHomeAssistantSafetyRejectsTraversalAndBlockedDomains proves invalid entity_id, domain/service traversal, SSRF-shaped names, and blocked domains fail closed.",
-                "TestHomeAssistantToolRegistrationRequiresToken proves all four ha_* descriptors register only when HASS_TOKEN is present and status output redacts credentials."
+                "TestHomeAssistantToolRegistrationRequiresToken proves all four ha_* descriptors register only when HASS_TOKEN is present and status output redacts credentials.",
+                "TestBuildDefaultRegistryHomeAssistantRequiresToken proves the default Gormes registry exposes the four ha_* tools only when HASS_TOKEN is present, without requiring a live Home Assistant server."
               ],
               "write_scope": [
                 "internal/tools/homeassistant_tool.go",
                 "internal/tools/homeassistant_tool_test.go",
                 "internal/tools/registry.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
                 "internal/tools/testdata/upstream_tool_parity_manifest.json",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run '^TestHomeAssistant' -count=1",
+                "go test ./cmd/gormes -run '^TestBuildDefaultRegistryHomeAssistant' -count=1",
                 "go test ./internal/tools -count=1",
+                "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
+              ],
+              "outputs": [
+                "internal/tools/homeassistant_tool.go",
+                "internal/tools/homeassistant_tool_test.go",
+                "internal/tools/registry.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go"
+              ],
+              "evidence": [
+                "RED: go test ./internal/tools -run '^TestHomeAssistantListEntitiesFiltersAndSummarizes$' -count=1 failed because HomeAssistantState, HomeAssistantConfig, and NewHomeAssistantTools did not exist.",
+                "GREEN: internal/tools/homeassistant_tool.go adds fakeable HomeAssistantClient-backed handlers for ha_list_entities, ha_get_state, ha_list_services, and ha_call_service, with Hermes-style result envelopes and validation/degraded evidence.",
+                "TestHomeAssistantListEntitiesFiltersAndSummarizes, TestHomeAssistantGetStateAndListServices, TestHomeAssistantCallServiceBuildsPayload, TestHomeAssistantSafetyRejectsTraversalAndBlockedDomains, and TestHomeAssistantToolRegistrationRequiresToken pass without a live Home Assistant server.",
+                "RED: go test ./cmd/gormes -run '^TestBuildDefaultRegistryHomeAssistant' -count=1 failed because the default registry did not expose ha_* tools when HASS_TOKEN was set.",
+                "GREEN: cmd/gormes/registry.go now registers Home Assistant tools through internal/tools only when HASS_TOKEN is present; schemas and errors do not contain token values.",
+                "VALIDATION: go test ./internal/tools -run '^TestHomeAssistant' -count=1 PASS; go test ./cmd/gormes -run '^TestBuildDefaultRegistryHomeAssistant' -count=1 PASS; go test ./internal/tools -count=1 PASS; go test ./cmd/gormes -count=1 PASS."
               ],
               "done_signal": [
                 "Home Assistant fixtures prove the four ha_* handlers, fake-client envelopes, token gating, and safety validation without changing the gateway channel or reaching a live HA server."
               ],
+              "completed_at": "2026-05-06T09:07:40Z",
+              "note": "2026-05-06 all-topic Hermes parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing rows already cover setup text, provider fallback, API jobs/default toolset, Goncho plugin sessions, self-update, browser harness, public docs, and release gates. This row was promoted to P0 because Hermes b816fd4e2 exposes four active Home Assistant ha_* control handlers with validation tests, while Gormes only had the completed HASS_TOKEN platform-toolset carveout and a separate Home Assistant channel adapter. Complete: TDD shipped the fakeable Go-native Home Assistant tool handlers plus default-registry HASS_TOKEN binding, preserving no-live-server tests and without changing the Home Assistant gateway channel adapter.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tools/homeassistant_tool.py + tests/tools/test_homeassistant_tool.py",
