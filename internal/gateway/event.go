@@ -58,6 +58,8 @@ const (
 	EventRetry
 	// EventUndo handles /undo (remove the last user/assistant exchange).
 	EventUndo
+	// EventGoal handles /goal state and continuation loop controls.
+	EventGoal
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -107,6 +109,8 @@ func (k EventKind) String() string {
 		return "retry"
 	case EventUndo:
 		return "undo"
+	case EventGoal:
+		return "goal"
 	default:
 		return "unknown"
 	}

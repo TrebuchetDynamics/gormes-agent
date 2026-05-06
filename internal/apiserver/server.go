@@ -221,6 +221,40 @@ func NewServer(cfg Config) *Server {
 	return s
 }
 
+// NewServerChecked validates startup security before constructing the route set.
+// Use this on real listeners so network-exposed deployments cannot boot with
+// known placeholder keys.
+func NewServerChecked(cfg Config) (*Server, error) {
+	if err := ValidateStartupSecurity(cfg); err != nil {
+		return nil, err
+	}
+	return NewServer(cfg), nil
+}
+
+// ValidateStartupSecurity rejects placeholder API keys on wildcard or
+// network-accessible dashboard hosts. Loopback-only development remains
+// allowed so local dashboards can use deterministic fixture keys.
+func ValidateStartupSecurity(cfg Config) error {
+	key := strings.TrimSpace(cfg.APIKey)
+	if key == "" || !weakAPIKeyPlaceholder(key) {
+		return nil
+	}
+	host := strings.TrimSpace(cfg.DashboardBoundHost)
+	if host == "" || isLoopbackHost(hostNameOnly(host)) {
+		return nil
+	}
+	return errors.New("api_server_weak_key: refusing network-exposed API server with weak development key")
+}
+
+func weakAPIKeyPlaceholder(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "***", "changeme", "your_api_key", "placeholder":
+		return true
+	default:
+		return false
+	}
+}
+
 // Handler returns an http.Handler suitable for httptest or http.Server.
 func (s *Server) Handler() http.Handler {
 	return securityHeaders(s.hostGuard(s.mux))

@@ -167,6 +167,11 @@ type ManagerConfig struct {
 	// ReloadConfig returns a freshly loaded manager config for reloadable
 	// runtime fields. Errors keep the last-good manager config active.
 	ReloadConfig func(context.Context) (ManagerConfig, error)
+	// GoalJudge is the optional auxiliary completion judge for the persistent
+	// /goal loop. Nil deliberately fails open to continuation; GoalMaxTurns is
+	// the hard backstop.
+	GoalJudge    GoalJudge
+	GoalMaxTurns int
 }
 
 type KernelSubmitter interface {
@@ -855,6 +860,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
 		return nil
+	case EventGoal:
+		m.handleGoalCommand(ctx, ch, ev)
+		return nil
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
 		return nil
@@ -918,7 +926,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -1000,6 +1008,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventTTS:
 		m.handleTTSCommand(ctx, ch, ev)
+		return true
+	case EventGoal:
+		m.handleGoalCommand(ctx, ch, ev)
 		return true
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
@@ -1307,6 +1318,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID) {
 			if f.Phase == kernel.PhaseIdle {
 				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
+				m.handleGoalPostTurnContinuation(ctx, ch, f)
 			}
 			m.drainNextFollowUp(ctx)
 		}
@@ -1329,6 +1341,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 		m.maybeSendVerboseHint(ctx, ch, platform, chatID, f)
 		m.clearToolProgress()
+		m.handleGoalPostTurnContinuation(ctx, ch, f)
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
 		text := m.formatError(platform, f)

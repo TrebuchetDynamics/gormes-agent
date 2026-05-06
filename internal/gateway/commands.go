@@ -86,7 +86,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "debug", Description: "Upload debug report and get shareable links", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "details", Description: "Toggle detailed activity sections", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "fast", Description: "Toggle fast mode", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
-	{Name: "goal", Description: "Set a standing goal Gormes works on across turns until achieved", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
+	{Name: "goal", Description: "Set a standing goal Gormes works on across turns until achieved", Kind: EventGoal, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "history", Description: "Show conversation history", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "image", Description: "Attach a local image file for your next prompt", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "insights", Description: "Show usage insights and analytics", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -227,7 +227,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry || cmd.Kind == EventGoal {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

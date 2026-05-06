@@ -23,13 +23,17 @@ func newDashboardCommand() *cobra.Command {
 		Long:  "Starts an HTTP server with an htmx-based web dashboard for managing sessions, config, skills, and logs.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg := apiserver.Config{
-				APIKey: os.Getenv("GORMES_DASHBOARD_API_KEY"),
+				APIKey:             os.Getenv("GORMES_DASHBOARD_API_KEY"),
+				DashboardBoundHost: "127.0.0.1",
 			}
 			if cfg.APIKey == "" {
 				cfg.APIKey = "gormes-dashboard-dev"
 			}
 
-			srv := apiserver.NewServer(cfg)
+			srv, err := apiserver.NewServerChecked(cfg)
+			if err != nil {
+				return err
+			}
 			addr := fmt.Sprintf("127.0.0.1:%d", port)
 			url := fmt.Sprintf("http://%s/dashboard", addr)
 			fmt.Fprintf(os.Stderr, "Gormes dashboard starting at %s\n", url)

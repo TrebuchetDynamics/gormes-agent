@@ -29,6 +29,8 @@ type Config struct {
 
 	Hermes     HermesCfg         `toml:"hermes" yaml:"hermes"`
 	Runtime    RuntimeCfg        `toml:"runtime" yaml:"runtime"`
+	TTS        map[string]any    `toml:"tts" yaml:"tts"`
+	ImageGen   map[string]any    `toml:"image_gen" yaml:"image_gen"`
 	Gateway    GatewayCfg        `toml:"gateway" yaml:"gateway"`
 	Terminal   TerminalCfg       `toml:"terminal" yaml:"terminal"`
 	Display    DisplayCfg        `toml:"display" yaml:"display"`
@@ -453,6 +455,7 @@ func defaults() Config {
 			SessionResetAfterMinutes:  1440,
 			SessionResetMemorySummary: true,
 		},
+		TTS: map[string]any{},
 		Terminal: TerminalCfg{
 			CWD: ".",
 		},

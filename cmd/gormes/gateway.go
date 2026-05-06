@@ -101,6 +101,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	}
 	cfg = secretActivation.Config
 	secretSnapshot := secretActivation.Snapshot
+	securityReport := evaluateGatewayStartupSecurity(cfg, os.Getenv)
+	cfg = securityReport.Config
+	logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
 	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Yuanbao.Enabled {
 		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 	}
@@ -199,6 +202,9 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 			return gateway.ManagerConfig{}, fmt.Errorf("secret runtime activation: %w", err)
 		}
 		next = activation.Config
+		securityReport := evaluateGatewayStartupSecurity(next, os.Getenv)
+		next = securityReport.Config
+		logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
 		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Yuanbao.Enabled {
 			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
 		}
@@ -614,6 +620,119 @@ func missingSlackCredentials(cfg config.SlackCfg) []string {
 		missing = append(missing, "app_token")
 	}
 	return missing
+}
+
+type gatewayStartupSecurityReport struct {
+	Config   config.Config
+	Evidence []gateway.AdmissionEvidence
+}
+
+func evaluateGatewayStartupSecurity(cfg config.Config, lookupEnv func(string) string) gatewayStartupSecurityReport {
+	if lookupEnv == nil {
+		lookupEnv = os.Getenv
+	}
+	report := gatewayStartupSecurityReport{Config: cfg}
+	report.Evidence = append(report.Evidence, gateway.CheckStartupAllowlist(gateway.StartupAdmissionInput{
+		AllowlistConfigured: gatewayStartupAllowlistConfigured(cfg, lookupEnv),
+		AllowAll:            gatewayStartupAllowAllConfigured(lookupEnv),
+	})...)
+	credentialReport := gateway.CheckWeakCredentialPlatforms([]gateway.CredentialGuardPlatform{
+		{
+			Name:    "telegram",
+			Enabled: strings.TrimSpace(cfg.Telegram.BotToken) != "",
+			Credentials: []gateway.CredentialGuardValue{{
+				Field: "bot_token",
+				Value: cfg.Telegram.BotToken,
+			}},
+		},
+		{
+			Name:    "discord",
+			Enabled: cfg.Discord.Enabled(),
+			Credentials: []gateway.CredentialGuardValue{{
+				Field: "token",
+				Value: cfg.Discord.Token,
+			}},
+		},
+		{
+			Name:    "slack",
+			Enabled: cfg.Slack.Enabled,
+			Credentials: []gateway.CredentialGuardValue{
+				{Field: "bot_token", Value: cfg.Slack.BotToken},
+				{Field: "app_token", Value: cfg.Slack.AppToken},
+			},
+		},
+	})
+	report.Evidence = append(report.Evidence, credentialReport.Evidence...)
+	for _, platform := range credentialReport.DisabledPlatforms {
+		switch platform {
+		case "telegram":
+			report.Config.Telegram.BotToken = ""
+		case "discord":
+			report.Config.Discord.Token = ""
+		case "slack":
+			report.Config.Slack.Enabled = false
+			report.Config.Slack.BotToken = ""
+			report.Config.Slack.AppToken = ""
+		}
+	}
+	return report
+}
+
+func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string) string) bool {
+	if cfg.Telegram.AllowedChatID != 0 || len(cfg.Telegram.AllowedUserIDs) > 0 {
+		return true
+	}
+	if strings.TrimSpace(cfg.Discord.AllowedChannelID) != "" {
+		return true
+	}
+	if strings.TrimSpace(cfg.Slack.AllowedChannelID) != "" {
+		return true
+	}
+	if strings.TrimSpace(cfg.Yuanbao.AllowedConversationID) != "" {
+		return true
+	}
+	for _, key := range []string{
+		"SIGNAL_GROUP_ALLOWED_USERS",
+		"GORMES_TELEGRAM_ALLOWED_USERS",
+		"TELEGRAM_ALLOWED_USERS",
+		"GORMES_DISCORD_CHANNEL_ID",
+		"GORMES_SLACK_CHANNEL_ID",
+	} {
+		if strings.TrimSpace(lookupEnv(key)) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func gatewayStartupAllowAllConfigured(lookupEnv func(string) string) bool {
+	for _, key := range []string{"GATEWAY_ALLOW_ALL_USERS", "TELEGRAM_ALLOW_ALL_USERS"} {
+		if parseGatewayStartupBool(lookupEnv(key)) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseGatewayStartupBool(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "t", "true", "y", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func logGatewayStartupSecurityEvidence(evidence []gateway.AdmissionEvidence, log *slog.Logger) {
+	if log == nil {
+		log = slog.Default()
+	}
+	for _, item := range evidence {
+		if item.Code == "" {
+			continue
+		}
+		log.Warn("gateway startup admission", "code", item.Code, "platform", item.Platform, "field", item.Field, "message", item.Message)
+	}
 }
 
 func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gracefulShutdownManager, cancel context.CancelFunc, log *slog.Logger, forceExit func(int)) {
