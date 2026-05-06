@@ -955,7 +955,7 @@ classification and row-backed implementation queue.
 - [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
 - [ ] Gateway planned stop marker + WSL systemd PATH parity
-- [ ] Gateway stale-code self-check uses git HEAD SHA
+- [x] Gateway stale-code self-check uses git HEAD SHA
 
 ### 5.P — Docker / Packaging 🔨
 

@@ -36404,8 +36404,8 @@
             },
             {
               "name": "Gateway stale-code self-check uses git HEAD SHA",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Gormes gateway stale-code detection compares the gateway boot commit against the current git HEAD SHA instead of source-file mtimes, so agent edits to tracked files do not trigger stale-code restart guidance while a real git pull/checkout that advances HEAD still does.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -36462,7 +36462,7 @@
                   "hermes:d90f73bce gateway/run.py",
                   "hermes:d90f73bce tests/gateway/test_stale_code_self_check.py"
                 ],
-                "note": "2026-05-06 all-topic parity sweep kept this install/runtime row source-backed and corrected the canonical progress write_scope path, but left priority below the CLI preview formatter because it is not the narrowest ready slice for this pass. Current Hermes replaced mtime-based stale-code detection after Gormes gateway lifecycle rows were split; this row revisits only stale-code self-check semantics."
+                "note": "2026-05-06 all-topic parity sweep raised this install/runtime row to P1 because the existing P1 planned rows were blocked, broad, or not actually builder-ready, while Hermes' active gateway self-check now keys stale-code advice to git HEAD SHA instead of source mtimes. Implemented with a pure git metadata resolver and runtime status evidence in internal/gateway/stale_code.go, dynamic stale_code JSON/text status, and tests covering source edits, real HEAD changes, worktrees with commondir, packed refs, detached HEAD, non-git unavailable mode, and bounded cache refresh."
               }
             }
           ],
