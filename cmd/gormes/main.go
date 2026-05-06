@@ -44,6 +44,7 @@ func main() {
 }
 
 func executeRootCommand(root *cobra.Command, args ...string) error {
+	args = coalesceSessionNameArgs(args)
 	if suggestion, ok := cli.TypoSuggestion(args); ok {
 		fmt.Fprintf(root.ErrOrStderr(), "unknown command %q for %q\n%s\n", args[0], root.CommandPath(), suggestion)
 		return newExitCodeError(1, fmt.Errorf("unknown command %q for %q; %s", args[0], root.CommandPath(), suggestion))
@@ -195,6 +196,10 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().String("api-key", "", "provider API key override for --oneshot or TUI startup; invocation-only and never persisted")
 	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
+	root.Flags().StringP("continue", "c", "", "resolve a session id or unique prefix and resume it")
+	if flag := root.Flags().Lookup("continue"); flag != nil {
+		flag.NoOptDefVal = "last"
+	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
 	root.AddCommand(doctorCmd, versionCmd, telegramCmd, gatewayCmd, newWhatsAppCommand(), sessionCmd, memoryCmd, gonchoCmd, newKanbanCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newUninstallCommand(), newLogsCommand())
 	return root
@@ -489,6 +494,14 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 	}
 
 	resumeFlag, _ := cmd.Flags().GetString("resume")
+	continueFlag, _ := cmd.Flags().GetString("continue")
+	if resumeFlag == "" && continueFlag != "" {
+		resolved, err := resolveContinueSessionFlag(continueFlag)
+		if err != nil {
+			return newExitCodeError(1, err)
+		}
+		resumeFlag = resolved
+	}
 	pctx := context.Background()
 	key := session.TUIKey()
 	if resumeFlag != "" {

@@ -35274,8 +35274,8 @@
             },
             {
               "name": "Hermes sessions CLI MRU browse/delete ergonomics",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "`gormes sessions` matches Hermes operator ergonomics over the native session store: `-c`/continue resolves the most recently active session by last_active before started_at and is not limited to the newest started 20 rows; delete accepts unique ID prefixes and reports not found without mutating; delete/prune confirmation handles EOF/non-TTY as cancelled; browse offers an interactive picker with title-over-preview display and a numbered fallback when curses/TUI selection is unavailable; and unquoted multi-word session names are coalesced before subcommands.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -35287,12 +35287,12 @@
               "degraded_mode": "Empty stores, ambiguous/missing prefixes, DB search errors, non-TTY confirmation EOF, curses/browser unavailable, invalid fallback selections, and keyboard interrupts return sessions_cli_* evidence without deleting sessions or leaving DB handles open.",
               "fixture": "cmd/gormes/sessions_command_test.go; internal/session/mru_test.go",
               "source_refs": [
-                "../hermes-agent/tests/hermes_cli/test_sessions_delete.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_resolve_last_session.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_session_browse.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_coalesce_session_args.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/main.py@b816fd4e2:sessions",
-                "../hermes-agent/hermes_state.py@b816fd4e2:SessionDB.search_sessions",
+                "./hermes-agent/tests/hermes_cli/test_sessions_delete.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_resolve_last_session.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_session_browse.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_coalesce_session_args.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/main.py@b816fd4e2:sessions",
+                "./hermes-agent/hermes_state.py@b816fd4e2:SessionDB.search_sessions",
                 "internal/session/directory.go",
                 "internal/transcript/markdown.go",
                 "cmd/gormes/session.go",
@@ -35333,10 +35333,29 @@
               "done_signal": [
                 "Sessions CLI fixtures prove MRU continue, prefix delete safety, EOF cancellation, browse fallback, and multi-word session argument coalescing over temp stores only."
               ],
+              "completed_at": "2026-05-06T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/session/directory.go now exposes a transcript-backed session directory over the native SQLite turns table, ordered by last activity with started_at fallback, source filtering, unique prefix resolution, delete, and prune helpers.",
+                  "cmd/gormes/session.go now exposes the Hermes-compatible plural alias `gormes sessions` with list, delete, prune, and browse subcommands while preserving existing `session export` behavior.",
+                  "Root startup now coalesces unquoted multi-word session names for -c/--continue and -r/--resume and resolves --continue/-c through the native session directory before applying the TUI resume override."
+                ],
+                "tests": [
+                  "internal/session/mru_test.go proves MRU ordering can select a recently active older-started session beyond the newest-started rows, falls back for legacy rows, and resolves exact/unique/missing/ambiguous prefixes.",
+                  "cmd/gormes/sessions_command_test.go proves unique-prefix delete, EOF/non-TTY cancellation for delete and prune, numbered browse fallback with invalid retry and title/preview display, --continue MRU resolution, and session-name argument coalescing."
+                ],
+                "verification": [
+                  "go test ./internal/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1 -> failed before implementation: ResolveMostRecentSession, ResolveSessionIDPrefix, ErrSessionNotFound, and ErrSessionPrefixAmbiguous were undefined.",
+                  "go test ./cmd/gormes -run 'TestSessions|TestCoalesceSessionArgs' -count=1 -> failed before implementation: coalesceSessionNameArgs was undefined and the plural sessions command behavior was absent.",
+                  "go test ./internal/session -run 'TestSession.*MRU|TestSession.*Resolve' -count=1 -> pass",
+                  "go test ./cmd/gormes -run 'TestSessions|TestCoalesceSessionArgs' -count=1 -> pass",
+                  "go test ./cmd/gormes ./internal/session -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tests/hermes_cli/test_resolve_last_session.py + test_sessions_delete.py",
-                "note": "Gormes has native session storage and export APIs, but the Hermes CLI session ergonomics remain untracked outside broad command-tree inventory."
+                "note": "Gormes has native session storage and export APIs, but the Hermes CLI session ergonomics remained untracked outside broad command-tree inventory. The 2026-05-06 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; no new row was added because planned rows remain high and this existing validated row was the most completion-biased Hermes source-backed slice after the P1 Kanban process row was left non-ready by its root -p/--skills invocation blocker."
               }
             },
             {
