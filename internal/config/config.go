@@ -36,6 +36,8 @@ type Config struct {
 	Display    DisplayCfg        `toml:"display" yaml:"display"`
 	TUI        TUICfg            `toml:"tui" yaml:"tui"`
 	Input      InputCfg          `toml:"input" yaml:"input"`
+	Auxiliary  AuxiliaryCfg      `toml:"auxiliary" yaml:"auxiliary"`
+	Curator    CuratorCfg        `toml:"curator" yaml:"curator"`
 	Telegram   TelegramCfg       `toml:"telegram" yaml:"telegram"`
 	Discord    DiscordCfg        `toml:"discord" yaml:"discord"`
 	Slack      SlackCfg          `toml:"slack" yaml:"slack"`
@@ -267,6 +269,23 @@ type HermesCfg struct {
 	Provider  string     `toml:"provider" yaml:"provider"`
 }
 
+type AuxiliaryCfg struct {
+	Curator AuxiliaryTaskCfg `toml:"curator" yaml:"curator"`
+}
+
+type CuratorCfg struct {
+	Auxiliary AuxiliaryTaskCfg `toml:"auxiliary" yaml:"auxiliary"`
+}
+
+type AuxiliaryTaskCfg struct {
+	Provider  string         `toml:"provider" yaml:"provider"`
+	Model     string         `toml:"model" yaml:"model"`
+	BaseURL   string         `toml:"base_url" yaml:"base_url"`
+	APIKey    string         `toml:"api_key" yaml:"api_key"`
+	Timeout   int            `toml:"timeout" yaml:"timeout"`
+	ExtraBody map[string]any `toml:"extra_body" yaml:"extra_body"`
+}
+
 type RuntimeCfg struct {
 	MaxToolIterations         int     `toml:"max_tool_iterations" yaml:"max_tool_iterations"`
 	TerminalBackend           string  `toml:"terminal_backend" yaml:"terminal_backend"`
@@ -465,6 +484,13 @@ func defaults() Config {
 		},
 		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
+		Auxiliary: AuxiliaryCfg{
+			Curator: AuxiliaryTaskCfg{
+				Provider:  "auto",
+				Timeout:   600,
+				ExtraBody: map[string]any{},
+			},
+		},
 		Telegram: TelegramCfg{
 			CoalesceMs:             1000,
 			FreshFinalAfterSeconds: 60.0,
@@ -979,6 +1005,8 @@ func loadFlags(cfg *Config, args []string) error {
 func validateConfig(cfg *Config) error {
 	cfg.Gateway.ProxyURL = normalizeGatewayProxyURL(cfg.Gateway.ProxyURL)
 	cfg.Gateway.ProxyKey = strings.TrimSpace(cfg.Gateway.ProxyKey)
+	normalizeAuxiliaryTask(&cfg.Auxiliary.Curator, true)
+	normalizeAuxiliaryTask(&cfg.Curator.Auxiliary, false)
 	cfg.Terminal.Backend = strings.ToLower(strings.TrimSpace(firstNonEmpty(cfg.Terminal.Backend, cfg.Runtime.TerminalBackend, "local")))
 	cfg.Terminal.CWD = strings.TrimSpace(cfg.Terminal.CWD)
 	if cfg.Terminal.CWD == "" {
@@ -1030,6 +1058,24 @@ func validateConfig(cfg *Config) error {
 		return fmt.Errorf("config: delegation.max_waiting must be non-negative, got %d", cfg.Delegation.MaxWaiting)
 	}
 	return nil
+}
+
+func normalizeAuxiliaryTask(task *AuxiliaryTaskCfg, defaultCurator bool) {
+	task.Provider = strings.TrimSpace(task.Provider)
+	task.Model = strings.TrimSpace(task.Model)
+	task.BaseURL = strings.TrimSpace(task.BaseURL)
+	task.APIKey = strings.TrimSpace(task.APIKey)
+	if defaultCurator {
+		if task.Provider == "" {
+			task.Provider = "auto"
+		}
+		if task.Timeout == 0 {
+			task.Timeout = 600
+		}
+		if task.ExtraBody == nil {
+			task.ExtraBody = map[string]any{}
+		}
+	}
 }
 
 func normalizeGatewayProxyURL(raw string) string {

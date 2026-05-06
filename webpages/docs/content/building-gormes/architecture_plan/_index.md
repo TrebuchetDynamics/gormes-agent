@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 60/92 subphases shipped · 29 in progress · 3 planned
+**Overall:** 60/92 subphases shipped · 30 in progress · 2 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1068,9 +1068,9 @@ classification and row-backed implementation queue.
 - [x] Delta-bounded skill and memory maintenance passes
 - [x] Code Cathedral II code-context retrieval fixtures
 
-### 6.E — Feedback Loop ⏳
+### 6.E — Feedback Loop 🔨
 
-- [ ] Hermes curator auxiliary model routing slot
+- [x] Hermes curator auxiliary model routing slot
 - [ ] Hermes curator state transitions and run reports
 - [ ] Skill effectiveness scoring
 

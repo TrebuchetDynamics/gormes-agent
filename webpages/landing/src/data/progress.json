@@ -40700,10 +40700,10 @@
           "items": [
             {
               "name": "Hermes curator auxiliary model routing slot",
-              "priority": "P1",
-              "status": "planned",
+              "priority": "P0",
+              "status": "complete",
               "contract": "Gormes treats curator review as a first-class auxiliary model task: `auxiliary.curator.{provider,model,base_url,api_key,timeout,extra_body}` is readable/writable through native config/model surfaces, fully set provider+model overrides win over the main model, `auto` or partial overrides fall back to the main provider/model without leaking stray auxiliary credentials, and legacy `curator.auxiliary.{provider,model,base_url,api_key}` remains readable with deprecation evidence",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -40735,7 +40735,7 @@
                 "The slice exposes raw api_key values in config show/status, test logs, model-picker output, or progress evidence."
               ],
               "blocked_by": [
-                "Hermes provider registry manifest",
+                "Hermes provider registry and alias manifest",
                 "Gormes model interactive provider/model picker"
               ],
               "unblocks": [
@@ -40750,7 +40750,7 @@
                 "TestCuratorAuxiliarySlot_NewSlotWins proves canonical auxiliary.curator beats legacy curator.auxiliary when both are present.",
                 "Model/config surface fixtures include curator in the auxiliary task registry or explicitly report curator_auxiliary_slot_missing until the UI/API surface exists."
               ],
-              "note": "Hermes v0.12.0 made curator a regular auxiliary task. Tests pin DEFAULT_CONFIG['auxiliary']['curator'], CLI auxiliary picker registration, dashboard REST allowlist, canonical-slot precedence, legacy curator.auxiliary fallback, blank credential stripping, partial override fallback, and no stray secret reuse. The current Gormes curator rows track state and CLI but did not yet isolate this model-routing contract.",
+              "note": "Hermes v0.12.0 made curator a regular auxiliary task. Tests pin DEFAULT_CONFIG['auxiliary']['curator'], CLI auxiliary picker registration, dashboard REST allowlist, canonical-slot precedence, legacy curator.auxiliary fallback, blank credential stripping, partial override fallback, and no stray secret reuse. The 2026-05-06 all-topic parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; existing rows already cover those surfaces, so this small unblocked provider row was promoted to P0 as the next builder-ready Hermes source-backed gap before curator state/CLI runtime work. Complete: TDD added canonical and legacy curator auxiliary config loading, a pure Hermes resolver for main fallback, complete-slot override, legacy fallback, canonical-wins precedence, credential stripping evidence, and a native auxiliary-task registry that includes curator. The slice does not run curator, call providers, start dashboard/gateway surfaces, or change foreground model selection.",
               "write_scope": [
                 "internal/config/config.go",
                 "internal/config/curator_auxiliary_test.go",
