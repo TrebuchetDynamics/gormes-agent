@@ -243,7 +243,7 @@ classification and row-backed implementation queue.
 - [x] Cross-platform multi-image native batching
 - [x] Discord message admission + reply-mode policy
 - [ ] Webhook dynamic route reload + signed rate-limit order
-- [ ] Slack/Discord channel-scoped skills, prompts, and reload resync
+- [x] Slack/Discord channel-scoped skills, prompts, and reload resync
 - [ ] Telegram fallback transport + polling reconnect recovery
 - [ ] Telegram sticker vision adapter binding
 - [ ] Discord native slash/thread command registration parity

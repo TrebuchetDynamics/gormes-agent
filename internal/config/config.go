@@ -112,6 +112,8 @@ type DiscordCfg struct {
 	IgnoredChannels      any        `toml:"ignored_channels" yaml:"ignored_channels"`
 	FreeResponseChannels any        `toml:"free_response_channels" yaml:"free_response_channels"`
 	NoThreadChannels     any        `toml:"no_thread_channels" yaml:"no_thread_channels"`
+	ChannelSkillBindings any        `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
+	ChannelPrompts       any        `toml:"channel_prompts" yaml:"channel_prompts"`
 	RequireMention       any        `toml:"require_mention" yaml:"require_mention"`
 	AutoThread           any        `toml:"auto_thread" yaml:"auto_thread"`
 	ReplyToMode          string     `toml:"reply_to_mode" yaml:"reply_to_mode"`
@@ -192,6 +194,8 @@ type SlackCfg struct {
 	StrictMention        any        `toml:"strict_mention" yaml:"strict_mention"`
 	ReplyInThread        bool       `toml:"reply_in_thread" yaml:"reply_in_thread"`
 	FreeResponseChannels any        `toml:"free_response_channels" yaml:"free_response_channels"`
+	ChannelSkillBindings any        `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
+	ChannelPrompts       any        `toml:"channel_prompts" yaml:"channel_prompts"`
 }
 
 type CronCfg struct {

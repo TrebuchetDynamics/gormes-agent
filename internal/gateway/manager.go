@@ -2415,9 +2415,11 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		NonResumableReason:    resolved.NonResumableReason,
 		ConnectedPlatforms:    m.connectedPlatforms(),
 	})
+	sessionBlock = prependChannelPromptBlock(sessionBlock, ev.ChannelPrompt)
 	seams := m.liveTurnPromptSeamsForAgent(route)
 	sessionContext, _, _ := assembleLiveTurnPrompt(seams, submitText, resolved.SessionID, sessionBlock)
 	snapshot := m.agentRuntimeSnapshot(route)
+	snapshot = m.applyChannelAutoSkills(route, snapshot, ev.AutoSkills)
 	submitter := KernelSubmitter(m.kernel)
 	if m.cfg.AgentRuntimeFactory != nil && route.Enabled {
 		runtime, err := m.agentRuntimeForRoute(ctx, route, snapshot)

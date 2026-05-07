@@ -589,7 +589,7 @@
             },
             {
               "name": "Builder-loop self-improvement vs user-feature ratio metric",
-              "priority": "P2",
+              "priority": "P1",
               "status": "complete",
               "contract": "TDD packet for a missing pure helper; create exactly two files and do not parse the live ledger. STEP 1: cd into the repo root and run `ls internal/builderloop/ship_ratio*.go` — both files must be absent before the worker writes them. STEP 2: write internal/builderloop/ship_ratio_test.go in package builderloop with two top-level test functions. TestClassifySubphase uses a t.Run-driven table with named subtests bare_1c, path_1c, bare_5o, path_5o, control_plane_prefix, user_feature_4a, user_feature_4h, user_feature_6a, user_feature_7b, blank_input, whitespace_only, and unknown_99x; each asserts ClassifySubphase returns the expected RowKind. TestComputeShipRatio uses a fixed time anchor `now := time.Date(2026,4,26,18,0,0,0,time.UTC)` and a 24h window; subtests inclusive_window_start, future_event_excluded, per_kind_counts, and zero_events_returns_zero_total. STEP 3: write internal/builderloop/ship_ratio.go exposing type RowKind string with constants RowKindSelfImprovement=\"self_improvement\", RowKindUserFeature=\"user_feature\", RowKindUnclassified=\"unclassified\"; type ShippedRowEvent struct{SubphaseID string; ShippedAt time.Time}; type ShipRatio struct{SelfImprovement int; UserFeature int; Unclassified int; Total int}; func ClassifySubphase(subphaseID string) RowKind; and func ComputeShipRatio(events []ShippedRowEvent, window time.Duration, now time.Time) ShipRatio. ClassifySubphase trims spaces, splits on \"/\" and inspects the second segment if the first is a phase number (\"1\",\"4\",\"5\",\"6\",\"7\"), and treats bare \"1.C\", \"5.O\", and any string with prefix \"control-plane/\" as RowKindSelfImprovement. \"4.A\", \"4.H\", \"6.*\", \"7.*\" map to RowKindUserFeature; everything else (including blank input) returns RowKindUnclassified. ComputeShipRatio is a pure aggregator over the provided slice. STEP 4: no file I/O, no ledger parsing, no record_run_health emission, no goroutines, no live clock; imports only `strings` and `time` plus `testing` in the test file.",
               "contract_status": "validated",
@@ -6037,8 +6037,8 @@
             },
             {
               "name": "Slack/Discord channel-scoped skills, prompts, and reload resync",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Slack and Discord gateway ingress honor Hermes channel-scoped routing metadata: channel_skill_bindings resolve by exact channel or parent thread/forum channel, accept a single skill string or ordered list, deduplicate while preserving order, skip malformed or empty bindings, and attach the resolved auto-skill set to gateway events without mutating the global skill catalog. Discord channel_prompts resolve by exact channel or parent, exact matches override parent prompts, blank prompts are ignored, slash events, thread sessions, and retry flows preserve the prompt, and run-agent prompt assembly places context prompt, channel prompt, then global prompt. Discord /reload-skills calls adapter refresh_skill_group when present so autocomplete entries resync from the current collector state, sort alphabetically, and preserve previous entries on collector errors.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -6102,6 +6102,12 @@
               "done_signal": [
                 "Gateway and adapter fixtures prove channel skill binding resolution, Slack/Discord auto-skill propagation, Discord channel prompt preservation, and reload autocomplete resync/failure preservation without live channel APIs."
               ],
+              "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No new row was added because the queue already has 63 planned rows plus 32 porting rows. The only open P1 row is an umbrella event-bus parent that explicitly blocks direct assignment; this source-backed Slack/Discord channel-scope row was raised to P1 and implemented. Complete: TDD added shared gateway channel-scope resolvers, per-event AutoSkills and ChannelPrompt metadata, one-turn channel prompt injection, a channel-scoped skill provider that does not mutate the global skill catalog, adapter skill-group refresh evidence, Discord exact/parent channel-skill and channel-prompt binding, Discord skill autocomplete cache refresh with previous entries preserved on collector errors, Slack channel-skill/channel-prompt ingress metadata, and config/factory wiring for Discord and Slack channel_skill_bindings/channel_prompts.",
+              "evidence": {
+                "implementation": "internal/gateway/channel_scope.go, internal/gateway/event.go, internal/gateway/manager.go, internal/channels/discord/bot.go, internal/slack/channel.go, internal/config/config.go, cmd/gormes/gateway.go",
+                "tests": "go test ./internal/gateway -run 'TestChannelScope|TestManager.*ChannelScope|TestReloadSkills' -count=1; go test ./internal/channels/discord ./internal/slack -run 'Test.*Channel(Skill|Prompt|Scope)|TestReloadSkills' -count=1; go test ./internal/gateway ./internal/channels/discord ./internal/slack ./internal/config -count=1",
+                "note": "Fixtures prove resolver exact/parent precedence, ordered skill dedupe, Slack/Discord ingress metadata, gateway one-turn prompt and skill-provider binding, and Discord skill autocomplete resync/failure preservation without live channel APIs."
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [

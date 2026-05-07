@@ -332,6 +332,8 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				IgnoredChannelIDs:      cfg.Discord.IgnoredChannelIDs(),
 				FreeResponseChannelIDs: cfg.Discord.FreeResponseChannelIDs(),
 				NoThreadChannelIDs:     cfg.Discord.NoThreadChannelIDs(),
+				ChannelSkillBindings:   cfg.Discord.ChannelSkillBindings,
+				ChannelPrompts:         cfg.Discord.ChannelPrompts,
 				RequireMention:         cfg.Discord.RequireMentionValue(true),
 				RequireMentionSet:      true,
 				AutoThread:             cfg.Discord.AutoThreadValue(true),
@@ -346,6 +348,8 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				RequireMention:       cfg.Slack.RequireMention,
 				StrictMention:        cfg.Slack.StrictMention,
 				FreeResponseChannels: cfg.Slack.FreeResponseChannels,
+				ChannelSkillBindings: cfg.Slack.ChannelSkillBindings,
+				ChannelPrompts:       cfg.Slack.ChannelPrompts,
 			}), nil
 		},
 		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
