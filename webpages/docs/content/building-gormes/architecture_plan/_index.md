@@ -1042,7 +1042,7 @@ classification and row-backed implementation queue.
 - [ ] Gateway channel adapters publish to event bus
 - [x] Telegram gateway event-bus adapter
 - [x] Agent turn and tool execution events on bus
-- [ ] Event bus integration test: full message flow
+- [x] Event bus integration test: full message flow
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 

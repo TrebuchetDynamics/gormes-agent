@@ -40557,10 +40557,10 @@
             },
             {
               "name": "Event bus integration test: full message flow",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "End-to-end test proving a Telegram message flows through: channel adapter → event bus → agent turn processing → tool execution → reply event → channel adapter → delivery. Validates decoupling: TUI subscriber also receives all events without modifying agent or gateway code.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -40572,16 +40572,24 @@
                 "internal/events/bus.go",
                 "internal/hermes/turn_events.go",
                 "internal/tools/tool_events.go",
-                "internal/gateway/event_dispatch.go"
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/channels/telegram/bus_adapter.go"
               ],
               "ready_when": [
-                "Event bus and turn/tool event producers are complete; gateway channel adapters publish to event bus is complete."
+                "Event bus core: pub/sub interface + in-process implementation is complete.",
+                "Agent turn and tool execution events on bus is complete.",
+                "Telegram gateway event-bus adapter is complete; this row intentionally proves the first full Telegram flow before additional channel-adapter child rows land."
               ],
               "not_ready_when": [
-                "Gateway channel adapters publish to event bus is still planned or only partially implemented."
+                "The test tries to wait for every channel adapter instead of proving the completed Telegram child slice.",
+                "The test reaches real Telegram credentials, live gateway processes, or a live agent provider.",
+                "The test bypasses the public event dispatcher, Telegram bus adapter, turn emitter, or tool event wrapper and only publishes synthetic lifecycle topics by hand."
               ],
               "blocked_by": [
-                "Gateway channel adapters publish to event bus"
+                "Event bus core: pub/sub interface + in-process implementation",
+                "Agent turn and tool execution events on bus",
+                "Telegram gateway event-bus adapter"
               ],
               "acceptance": [
                 "Telegram message → MessageReceived event → agent turn → tool execution → reply → delivery",
@@ -40591,15 +40599,23 @@
                 "Test runs without real Telegram/Discord credentials"
               ],
               "write_scope": [
-                "internal/gateway/event_bus_integration_test.go"
+                "internal/gateway/event_bus_integration_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/gateway -run TestEventBusIntegration -count=1"
+                "go test ./internal/gateway -run TestEventBusIntegration -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
               ],
               "done_signal": [
                 "Integration test proves full message lifecycle through event bus with multiple subscribers"
               ],
-              "note": "2026-05-06 all-topic parity sweep marked this gateway/channels row blocked instead of builder-ready: the core bus and turn/tool event producer rows are now complete, but the channel-adapter event producer row remains planned, so the integration test cannot honestly prove the full lifecycle yet. Research-driven. This test is the proof that event-driven architecture works end-to-end. After this, adding a new subscriber (e.g., webhook, analytics) requires zero changes to agent or gateway."
+              "note": "Complete 2026-05-07: the all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator surfaces with 72 planned rows. No new row was added. The source-backed planner change was this stale dependency: Telegram gateway event-bus adapter, event bus core, and turn/tool producers were already complete, so this P1 integration row was made builder-ready for the completed Telegram slice while the umbrella parent remains non-selectable for future channel children. TDD then added internal/gateway/event_bus_integration_test.go, proving Telegram inbound publication, agent turn events, wrapped tool execution events, Telegram reply publication, a second TUI-style subscriber receiving the same lifecycle, and timestamp-ordered session flow without live Telegram, providers, or gateway processes.",
+              "evidence": {
+                "implementation": "internal/gateway/event_bus_integration_test.go",
+                "tests": "go test ./internal/gateway -run TestEventBusIntegration -count=1",
+                "note": "The row selector was empty before this slice; the new fixture exercises the public Telegram BusAdapter, gateway EventDispatcher, hermes TurnEventEmitter, tools EventingToolExecutor, and a second subscriber over the shared in-process event bus."
+              }
             }
           ]
         }
