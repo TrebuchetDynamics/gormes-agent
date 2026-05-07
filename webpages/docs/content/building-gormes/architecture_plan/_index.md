@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 70/92 subphases shipped · 22 in progress · 0 planned
+**Overall:** 69/92 subphases shipped · 23 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -704,13 +704,14 @@ classification and row-backed implementation queue.
 - [x] Go browser harness binary repo + integration lane (placeholder)
 - [x] Browser session inactivity cleanup thread
 
-### 5.D — Vision + Image Generation ✅
+### 5.D — Vision + Image Generation 🔨
 
 - [x] Multimodal in/out
 - [x] Image input mode router + native content parts
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch
+- [ ] Native video_analyze tool contract
 
 ### 5.E — TTS / Voice / Transcription 🔨
 
@@ -774,6 +775,7 @@ classification and row-backed implementation queue.
 - [x] Agent Hooks Registry
 - [x] Plugin Marketplace + Doctor
 - [x] Extension Lifecycle Hook System
+- [ ] Plugin lifecycle hook: transform_llm_output
 
 ### 5.J — Approval / Security Guards 🔨
 
@@ -794,6 +796,7 @@ classification and row-backed implementation queue.
 - [x] Secrets Runtime Controls
 - [x] Security Audit Command
 - [x] Email allowlist pre-dispatch loop guard
+- [ ] Auth state TOCTOU close + redaction default-on parity
 
 ### 5.K — Code Execution ✅
 
@@ -822,6 +825,7 @@ classification and row-backed implementation queue.
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [ ] Kanban worker heartbeat, reclaim, and zombie detection
 
 ### 5.N — Misc Operator Tools ✅
 
@@ -1018,6 +1022,7 @@ classification and row-backed implementation queue.
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
+- [ ] Provider client lazy-init for TUI cold-start budget
 
 ### 5.R — Code Execution Mode Policy 🔨
 
@@ -1174,6 +1179,7 @@ classification and row-backed implementation queue.
 - [x] Yuanbao gateway runtime + toolset registration
 - [x] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
+- [ ] Google Chat shared-chassis platform adapter seam
 
 <!-- PROGRESS:END -->
 
