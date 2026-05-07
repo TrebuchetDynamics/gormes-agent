@@ -16,6 +16,7 @@ dependencies:
   uuid: ^4.5.2
   intl: ^0.20.2
   path: ^1.9.1
+  dartssh2: ^2.13.0
 
 dev_dependencies:
   flutter_test:
