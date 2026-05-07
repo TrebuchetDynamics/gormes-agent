@@ -27,7 +27,72 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Sandbox isolation depth selection
+## 1. Sharp v1.0 differentiator decision
+
+- Phase: 8 / 8.D
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P0`
+- Contract: A short decision document records the sharp v1.0 differentiator: a single paragraph stating what Gormes 1.0 will be (recommended: "runs the 30 most-used Hermes skills unchanged, in a single 30 MB Go binary, on Termux + Windows-without-Python + locked-down corp Linux"), the curated 30-skill list, the explicit exclusion list of what 1.0 will NOT do, and the date the decision was ratified. The decision unblocks every downstream messaging row.
+- Trust class: operator
+- Ready when: Operator has read success-plan.md and considered alternative differentiators., An evidence-backed shortlist of the 30 most-used Hermes skills exists (telemetry, repo signal, or operator judgement — but recorded).
+- Not ready when: The doc is empty placeholder text., The differentiator is still phrased as "Hermes in Go" or "feature parity"., The exclusion list is missing — readers cannot self-select.
+- Degraded mode: Without a written, dated differentiator, the README and landing page cannot be rewritten coherently and the parity backlog has no Pareto filter.
+- Fixture: `docs/content/building-gormes/strategy/v1-differentiator.md`
+- Write scope: `docs/content/building-gormes/strategy/v1-differentiator.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Strategic decision row; the artifact is a written-down decision. Validation is the existence of the doc with the required sections.
+- Done signal: v1-differentiator.md exists, fits the schema above, and is referenced from README.md and landing-page hero.
+- Acceptance: docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date., The differentiator paragraph fits in <50 words., The exclusion list explicitly mentions areas Gormes 1.0 will not chase (TUI parity beyond core, dashboard, web app, full i18n, etc.).
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, hermes-agent/skills/, internal/skills/
+- Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. TD engineering blog scaffolded and live
+
+- Phase: 8 / 8.A
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: TrebuchetDynamics has a publicly reachable engineering blog with a working Atom/RSS feed, an /about page that names the org and the methodology, and a deploy pipeline so a markdown commit becomes a published post without manual intervention. Hosting choice is owner's call (Astro/Hugo/Eleventy + Cloudflare/Vercel/GitHub Pages); the row is done when a stranger can subscribe to a feed and read one published post.
+- Trust class: operator
+- Ready when: Hosting choice and blog framework are decided (operator decision; not loop-driven)., A subdomain or path on an existing TD-controlled domain is available.
+- Not ready when: The blog is private, password-protected, or behind authentication., There is no Atom/RSS feed at a stable URL., The first post is empty or placeholder text rather than the writeup #1 draft or a real introduction.
+- Degraded mode: Without a publication outlet, every loop commit is invisible in the reputation market; the strategy described in success-plan.md cannot start.
+- Fixture: `webpages/blog/ (or chosen blog repo path)`
+- Write scope: `webpages/blog/ (or external blog repo path)`, `DNS / Cloudflare / hosting config (operator-only)`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Documentation/infrastructure row; success is the URL being live and the feed being reachable, validated by the acceptance checklist.
+- Done signal: Public blog URL + feed URL recorded in success-plan.md and README.md.
+- Acceptance: Blog is reachable at a public URL with at least one real (non-placeholder) post., An Atom or RSS feed exists at a stable, discoverable URL., Publishing a new post is a markdown-commit-and-merge operation; no console click-through required., An /about page exists that names TrebuchetDynamics and points at gormes-agent + agentic-porting-kit.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
+- Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
+- Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
+
+## 3. Loop $/iteration cost metric in status file
+
+- Phase: 8 / 8.F
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: The autonomous builder loop records a cost-per-iteration estimate in its status file (loop-health.env or a sibling file), broken down by backend (codexu vs opencode/<model>), accumulated daily and monthly. For opencode, use the JSONL event stream's `cost` and `tokens` fields per run; for codexu, use a documented fallback estimate. A `--cost-report` subcommand on the loop wrapper prints the rolling 7-day and 30-day spend.
+- Trust class: operator, system
+- Ready when: The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl)., Per-run cost is extractable from the JSONL via a simple jq aggregation.
+- Not ready when: Cost is reported as a fake or placeholder number when JSONL data is unavailable; degraded mode must surface unknown_cost evidence instead., The metric is a wallclock proxy ("runtime seconds") rather than a real spend estimate.
+- Degraded mode: Without cost telemetry, the operating principle "$/feature shipped" cannot be enforced; the loop runs at indefinite cost.
+- Fixture: `internal/loopcost/cost_test.go`
+- Write scope: `internal/loopcost/cost.go`, `internal/loopcost/cost_test.go`, `scripts/codexu-gormes-builder-loop.sh`, `scripts/codexu-gormes-builder-cron.sh`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/loopcost -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Cost rollups appear in loop-health.env; --cost-report subcommand prints rollups; fixture-tested aggregation handles missing data without lying.
+- Acceptance: TestLoopCost_AggregatesOpencodeJSONL parses a captured opencode JSONL fixture and produces a per-run cost summary., TestLoopCost_DailyRollup combines per-run summaries into a 24-hour rolling spend., TestLoopCost_MissingDataIsUnknown returns unknown_cost evidence rather than zero when JSONL is absent., The loop wrapper's `--cost-report` (or equivalent) subcommand prints the 7-day and 30-day rollups in <100 ms.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, scripts/codexu-gormes-builder-loop.sh, scripts/codexu-gormes-builder-cron.sh
+- Unblocks: Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop
+- Why now: Unblocks Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop.
+
+## 4. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -47,7 +112,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 2. Behavioral pattern extraction from session logs
+## 5. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -65,6 +130,47 @@ selection.
 - Done signal: Pattern extractor tests prove successful and failed patterns are correctly identified from log data
 - Acceptance: Pattern extractor identifies tool sequences with >80% success rate, Identifies tool sequences with <30% success rate (anti-patterns), Extracts reasoning patterns preceding successful tool calls, Patterns stored in Goncho as structured behavioral knowledge, Pattern extraction is offline (does not run during agent turns)
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 6. Agentic-porting-kit repo scaffold
+
+- Phase: 8 / 8.E
+- Owner: `skills`
+- Size: `large`
+- Status: `planned`
+- Priority: `P2`
+- Contract: The gormes-* skill set (gormes-planner, gormes-builder, gormes-tdd-slice, gormes-parity-auditor, gormes-references, gormes-skill-manager) is extracted into a separate public TrebuchetDynamics repo (`agentic-porting-kit` or equivalent), with a README that frames the kit as a generic Python→Go porting toolkit, a worked example using a small non-Hermes target, and a clear license. The kit must work standalone — its rows must be loadable by Codex or Claude Code in any repo, not just Gormes.
+- Trust class: operator
+- Ready when: All listed skills have a README of their own that does not assume the Gormes repo layout., Skills' references that hard-code Gormes paths have been parameterized or generalized.
+- Not ready when: Skills still hard-code paths under docs/content/building-gormes/., The extracted kit cannot be tested without cloning Gormes.
+- Degraded mode: Without extraction, the methodology is invisible to other teams; "the loop is the product" cannot be substantiated externally.
+- Fixture: `(separate repo: TrebuchetDynamics/agentic-porting-kit)`
+- Write scope: `(separate repo)`, `webpages/docs/development-skills/ (de-Gormes-fy paths)`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Cross-repo extraction; success is measured by the kit working standalone in a fresh checkout, not unit tests inside Gormes.
+- Done signal: Repo URL recorded in success-plan.md and README.md; star count tracked monthly.
+- Acceptance: Public repo TrebuchetDynamics/agentic-porting-kit exists with the listed skills., Repo README explains the kit independent of Gormes/Hermes., A worked example demonstrates the kit on a non-Hermes target (any small Python project being ported to Go)., Skills can be loaded into a fresh Codex or Claude Code session and successfully plan-and-execute one row in the example target.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 7. Built-with-Gormes page scaffold
+
+- Phase: 8 / 8.G
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P3`
+- Contract: A page at gormes.ai/built-with (or equivalent path on the docs site) lists real production deployments of Gormes, even if there is initially only one entry (the operator's own). The page has a documented submission process (PR-based) and a template entry shape. The point is to make the slot exist so it can be filled, not to fake usage.
+- Trust class: operator
+- Ready when: Landing page exists., An entry template (yaml or md) is decided.
+- Not ready when: Entries are fabricated., The submission process is unwritten.
+- Degraded mode: Without the page, even genuine outside users have no place to land their name; reputation compounds through visibility.
+- Fixture: `webpages/landing/src/pages/built-with.astro (or equivalent)`
+- Write scope: `webpages/landing/src/`, `CONTRIBUTING.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `(cd webpages/landing && npm run test:e2e)`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Public page live with at least one truthful entry; submission process documented.
+- Acceptance: /built-with (or chosen path) is reachable on the public landing site., The page renders at least one real entry (operator's own deployment, with truthful description)., A submission template + PR-based process is documented either inline on the page or in CONTRIBUTING.md.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

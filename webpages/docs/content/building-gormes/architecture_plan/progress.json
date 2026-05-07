@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T16:49:44Z",
+    "last_updated": "2026-05-07T17:04:10Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -45017,6 +45017,585 @@
             "last_upstream_check": "2026-05-05T00:00:00Z",
             "origin_decision": "Hermes ab687963 adds a full Yuanbao platform and Hermes b816fd4e2 also exposes Microsoft Teams as a plugin platform. Gormes has completed Yuanbao fixture/runtime seams, while Teams has no Go channel package yet; the gap is now tracked as `Microsoft Teams adapter plugin seam` before any live Bot Framework transport binding. Keep regional/device adapters thin, disabled by default, and fixture-first; Goncho/Honcho memory naming is unaffected."
           }
+        }
+      }
+    },
+    "8": {
+      "name": "Phase 8 — Reputation & Publication",
+      "deliverable": "TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.",
+      "subphases": {
+        "8.A": {
+          "name": "Publication Infrastructure",
+          "items": [
+            {
+              "name": "TD engineering blog scaffolded and live",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "TrebuchetDynamics has a publicly reachable engineering blog with a working Atom/RSS feed, an /about page that names the org and the methodology, and a deploy pipeline so a markdown commit becomes a published post without manual intervention. Hosting choice is owner's call (Astro/Hugo/Eleventy + Cloudflare/Vercel/GitHub Pages); the row is done when a stranger can subscribe to a feed and read one published post.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without a publication outlet, every loop commit is invisible in the reputation market; the strategy described in success-plan.md cannot start.",
+              "fixture": "webpages/blog/ (or chosen blog repo path)",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "webpages/landing/"
+              ],
+              "ready_when": [
+                "Hosting choice and blog framework are decided (operator decision; not loop-driven).",
+                "A subdomain or path on an existing TD-controlled domain is available."
+              ],
+              "not_ready_when": [
+                "The blog is private, password-protected, or behind authentication.",
+                "There is no Atom/RSS feed at a stable URL.",
+                "The first post is empty or placeholder text rather than the writeup #1 draft or a real introduction."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Engineering writeup #1: autonomous Hermes-porting loop",
+                "Monthly digest pipeline"
+              ],
+              "acceptance": [
+                "Blog is reachable at a public URL with at least one real (non-placeholder) post.",
+                "An Atom or RSS feed exists at a stable, discoverable URL.",
+                "Publishing a new post is a markdown-commit-and-merge operation; no console click-through required.",
+                "An /about page exists that names TrebuchetDynamics and points at gormes-agent + agentic-porting-kit."
+              ],
+              "write_scope": [
+                "webpages/blog/ (or external blog repo path)",
+                "DNS / Cloudflare / hosting config (operator-only)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [],
+              "no_test_required": "Documentation/infrastructure row; success is the URL being live and the feed being reachable, validated by the acceptance checklist.",
+              "done_signal": [
+                "Public blog URL + feed URL recorded in success-plan.md and README.md."
+              ],
+              "note": "Source: success-plan.md 30-day action sprint item #1. Operator-driven; the loop can scaffold a static-site generator and commit a starter post, but hosting/DNS choices are taste decisions."
+            },
+            {
+              "name": "TD social presence connected to blog feed",
+              "priority": "P3",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "A TrebuchetDynamics-named account on at least one public social platform (Twitter/X or Bluesky) exists, follows the engineering blog feed, and has an automation that announces new posts within 1 hour of publication. The platform choice is owner's call; the row is done when a new blog post produces a public social post automatically.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without distribution, even good writeups die without an audience; this row creates the minimum viable distribution channel.",
+              "fixture": "scripts/feed-to-social.sh (or chosen automation)",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md"
+              ],
+              "ready_when": [
+                "TD blog (8.A row 1) is live and emitting a feed.",
+                "Operator has chosen a social platform and created the account."
+              ],
+              "not_ready_when": [
+                "Posts are announced manually each time.",
+                "Automation depends on a paid-per-post service when free options exist."
+              ],
+              "blocked_by": [
+                "TD engineering blog scaffolded and live"
+              ],
+              "acceptance": [
+                "A test post on the blog produces a corresponding public social post within 1 hour.",
+                "The automation is reproducible (scripted, not click-configured)."
+              ],
+              "write_scope": [
+                "scripts/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [],
+              "no_test_required": "Integration row; success is measured by an end-to-end test post propagating, not unit tests.",
+              "done_signal": [
+                "Social account URL + automation method recorded in success-plan.md."
+              ],
+              "note": "Source: success-plan.md Q1 publication-stack milestone."
+            }
+          ]
+        },
+        "8.B": {
+          "name": "Repository Messaging",
+          "items": [
+            {
+              "name": "README rewrite to methodology-first positioning",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "README.md leads with the autonomous-porting methodology and the sharp v1.0 differentiator (in <50 words), with Hermes appearing as the parity oracle in paragraph 2 — not as the lede. Existing operator-facing sections (install, quick start, status) are preserved; only the framing changes. The README explicitly links to success-plan.md and the agentic-porting-kit repo (or a placeholder section if that kit has not yet been extracted).",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without the rewrite, the public face of the repo positions Gormes as \"Hermes in Go\" — a clone framing that gives reputation credit to Hermes, not TrebuchetDynamics.",
+              "fixture": "README.md",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "README.md",
+                "webpages/landing/"
+              ],
+              "ready_when": [
+                "Sharp v1.0 differentiator is decided (8.D row 'Sharp v1.0 differentiator decision').",
+                "Operator has reviewed success-plan.md and confirmed the North Star wording."
+              ],
+              "not_ready_when": [
+                "The differentiator is still 'TBD' or undecided.",
+                "Install/quick-start sections are deleted or broken in the rewrite.",
+                "The new README still calls Gormes 'a Go port of Hermes' as the lede."
+              ],
+              "blocked_by": [
+                "Sharp v1.0 differentiator decision"
+              ],
+              "unblocks": [
+                "Engineering writeup #1: autonomous Hermes-porting loop",
+                "Landing page (gormes.ai) positioning audit"
+              ],
+              "acceptance": [
+                "TestREADMEStartsWithMethodology asserts the first paragraph mentions the autonomous-porting methodology and does not contain the phrase \"Go port\".",
+                "TestREADMEMentionsDifferentiator asserts the differentiator string from success-plan.md appears within the first 50 words.",
+                "TestREADMEPreservesOperatorSections asserts install, quick-start, and status sections still exist with their current commands intact.",
+                "TestREADMELinksStrategyDoc asserts a link to success-plan.md is present in the body."
+              ],
+              "write_scope": [
+                "README.md",
+                "webpages/docs/content/building-gormes/strategy/success-plan.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/repodocs -run README -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "README.md leads with methodology, differentiator stated in <50 words, install/quick-start preserved; assertion tests pass."
+              ],
+              "note": "Source: success-plan.md 30-day action sprint item #2. Loop-tractable: the methodology language and structure are well-specified; the operator only needs to ratify the differentiator (8.D)."
+            },
+            {
+              "name": "gormes.ai landing page positioning audit",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The gormes.ai landing page hero matches the success-plan.md North Star: methodology + sharp differentiator first; Hermes-parity is supporting evidence, not the headline. The page links to the engineering blog and the agentic-porting-kit repo (or a placeholder).",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "A landing page misaligned with the README erodes the methodology framing every time a reader bounces between the two.",
+              "fixture": "webpages/landing/src/",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "webpages/landing/",
+                "README.md"
+              ],
+              "ready_when": [
+                "README rewrite (8.B row 1) has landed on `development`.",
+                "Sharp v1.0 differentiator (8.D) is decided."
+              ],
+              "not_ready_when": [
+                "The hero copy contradicts the README hero copy.",
+                "The page removes existing operator-facing CTAs (install, docs, github) without replacement."
+              ],
+              "blocked_by": [
+                "README rewrite to methodology-first positioning",
+                "Sharp v1.0 differentiator decision"
+              ],
+              "acceptance": [
+                "Landing page hero text references the methodology and differentiator before mentioning Hermes parity.",
+                "A link to the TD engineering blog is present in the page footer or nav.",
+                "Existing landing-page tests continue to pass after the copy changes."
+              ],
+              "write_scope": [
+                "webpages/landing/src/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "(cd webpages/landing && npm run test:e2e)",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Hero copy matches the North Star; landing-page e2e tests green."
+              ],
+              "note": "Source: success-plan.md Q1 — repository messaging alignment."
+            }
+          ]
+        },
+        "8.C": {
+          "name": "Engineering Writeups",
+          "items": [
+            {
+              "name": "Engineering writeup #1: autonomous Hermes-porting loop",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "A 1500–2500 word engineering writeup published on the TD blog explaining how the autonomous loop ships 1–2 Hermes-parity features per hour with TDD discipline. Includes: an architecture diagram of the loop, a real diff walkthrough of 3+ recent loop-shipped commits (e.g., Telegram thread fallback, browser cleanup, skill validator), the cost-per-feature numbers, and the validation-gate flow. Writes for a reader who has not seen Gormes before.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without writeup #1, the methodology is invisible to anyone outside the repo; the autonomous loop is a curiosity, not a credential.",
+              "fixture": "webpages/blog/posts/autonomous-hermes-porting-loop.md",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "scripts/codexu-gormes-builder-cron.sh",
+                "scripts/codexu-gormes-builder-loop.sh",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "webpages/docs/development-skills/gormes-builder/SKILL.md"
+              ],
+              "ready_when": [
+                "TD blog (8.A row 1) is live.",
+                "Loop $/iteration cost telemetry (8.F) has at least one week of data.",
+                "Operator has decided the publication date and platform (HN/Lobsters/Reddit)."
+              ],
+              "not_ready_when": [
+                "Cost numbers are estimated rather than measured.",
+                "The diff walkthrough cherry-picks a single perfect commit; readers see only good outcomes and not honest tradeoffs.",
+                "The post is published without operator review of voice and tone."
+              ],
+              "blocked_by": [
+                "TD engineering blog scaffolded and live",
+                "Loop $/iteration cost metric in status file"
+              ],
+              "unblocks": [
+                "Engineering writeup #2: validation-gated agentic engineering",
+                "Engineering writeup #3: Gormes vs Hermes-Python benchmarks",
+                "HN launch post for Gormes 1.0"
+              ],
+              "acceptance": [
+                "Post is published at a public URL with the TD blog feed; a stranger can read it without auth.",
+                "Post contains a loop architecture diagram (image or ASCII).",
+                "Post walks through 3+ real diff examples with PR/commit links.",
+                "Post includes real cost-per-feature numbers from 8.F telemetry.",
+                "Post has been submitted to HN/Lobsters at least once (success metric is the submission, not front-page placement)."
+              ],
+              "write_scope": [
+                "webpages/blog/ (or external blog repo path)",
+                "docs/content/building-gormes/strategy/writeups/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [],
+              "no_test_required": "Content row; the loop can produce structural drafts and example diff walkthroughs but final voice is operator-only. Acceptance is human-checked publication.",
+              "done_signal": [
+                "Public URL recorded in success-plan.md and README.md; submission record archived under docs/content/building-gormes/strategy/writeups/."
+              ],
+              "note": "Source: success-plan.md 30-day action sprint item #3. Loop can draft structural sections and assemble diff walkthroughs from git log + commit ranges; final voice and editorial choices are operator-only."
+            }
+          ]
+        },
+        "8.D": {
+          "name": "Sharp v1.0",
+          "items": [
+            {
+              "name": "Sharp v1.0 differentiator decision",
+              "priority": "P0",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "A short decision document records the sharp v1.0 differentiator: a single paragraph stating what Gormes 1.0 will be (recommended: \"runs the 30 most-used Hermes skills unchanged, in a single 30 MB Go binary, on Termux + Windows-without-Python + locked-down corp Linux\"), the curated 30-skill list, the explicit exclusion list of what 1.0 will NOT do, and the date the decision was ratified. The decision unblocks every downstream messaging row.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without a written, dated differentiator, the README and landing page cannot be rewritten coherently and the parity backlog has no Pareto filter.",
+              "fixture": "docs/content/building-gormes/strategy/v1-differentiator.md",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "hermes-agent/skills/",
+                "internal/skills/"
+              ],
+              "ready_when": [
+                "Operator has read success-plan.md and considered alternative differentiators.",
+                "An evidence-backed shortlist of the 30 most-used Hermes skills exists (telemetry, repo signal, or operator judgement — but recorded)."
+              ],
+              "not_ready_when": [
+                "The doc is empty placeholder text.",
+                "The differentiator is still phrased as \"Hermes in Go\" or \"feature parity\".",
+                "The exclusion list is missing — readers cannot self-select."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "README rewrite to methodology-first positioning",
+                "gormes.ai landing page positioning audit",
+                "Single-binary cross-platform release pipeline",
+                "Benchmarks page at gormes.ai/benchmarks"
+              ],
+              "acceptance": [
+                "docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date.",
+                "The differentiator paragraph fits in <50 words.",
+                "The exclusion list explicitly mentions areas Gormes 1.0 will not chase (TUI parity beyond core, dashboard, web app, full i18n, etc.)."
+              ],
+              "write_scope": [
+                "docs/content/building-gormes/strategy/v1-differentiator.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [],
+              "no_test_required": "Strategic decision row; the artifact is a written-down decision. Validation is the existence of the doc with the required sections.",
+              "done_signal": [
+                "v1-differentiator.md exists, fits the schema above, and is referenced from README.md and landing-page hero."
+              ],
+              "note": "Source: success-plan.md 30-day action sprint item #4. NOT loop-driven — operator decision. The loop can scaffold the doc with placeholders and a shortlist proposal, but ratification is human-only."
+            },
+            {
+              "name": "Single-binary cross-platform release pipeline",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "A reproducible CI pipeline produces signed single-binary releases for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, and android/arm64 (Termux) on every git tag. Each binary is ≤30 MB, includes version + build metadata, and has its install size and SHA recorded in the release notes. Mirrors install.sh / install.ps1 to fetch the right asset.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without a release pipeline, the v1.0 differentiator (\"single binary on X platforms\") cannot be substantiated; users still build from source.",
+              "fixture": ".github/workflows/release.yml",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "scripts/install.sh",
+                "cmd/gormes/"
+              ],
+              "ready_when": [
+                "Sharp v1.0 differentiator (8.D row 1) is decided.",
+                "go build ./cmd/gormes succeeds on all six target GOOS/GOARCH combinations from a Linux runner."
+              ],
+              "not_ready_when": [
+                "Binary size exceeds 30 MB for any target without an explicit operator-approved exception.",
+                "Termux build is missing or fails CGO-equivalent restrictions.",
+                "Release artifacts are unsigned."
+              ],
+              "blocked_by": [
+                "Sharp v1.0 differentiator decision"
+              ],
+              "acceptance": [
+                "TestReleasePipelineMatrix confirms a build for each target produces a single binary ≤30 MB.",
+                "TestReleaseBinaryHasVersionMetadata confirms `gormes version` reports the tag, commit, and build date for each platform.",
+                "On a tag push, GitHub Actions produces six release artifacts attached to the release.",
+                "install.sh selects the correct binary for the platform and verifies its SHA before exec."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "scripts/install.sh",
+                "scripts/install.ps1",
+                "cmd/gormes/version.go",
+                "internal/runtime/version_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/runtime -run Version -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "A test tag push produces all six release artifacts; install.sh fetches and verifies each on a matching host."
+              ],
+              "note": "Source: success-plan.md Q3 v1.0 milestone."
+            }
+          ]
+        },
+        "8.E": {
+          "name": "Toolkit Extraction",
+          "items": [
+            {
+              "name": "Agentic-porting-kit repo scaffold",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The gormes-* skill set (gormes-planner, gormes-builder, gormes-tdd-slice, gormes-parity-auditor, gormes-references, gormes-skill-manager) is extracted into a separate public TrebuchetDynamics repo (`agentic-porting-kit` or equivalent), with a README that frames the kit as a generic Python→Go porting toolkit, a worked example using a small non-Hermes target, and a clear license. The kit must work standalone — its rows must be loadable by Codex or Claude Code in any repo, not just Gormes.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without extraction, the methodology is invisible to other teams; \"the loop is the product\" cannot be substantiated externally.",
+              "fixture": "(separate repo: TrebuchetDynamics/agentic-porting-kit)",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "webpages/docs/development-skills/gormes-planner/SKILL.md",
+                "webpages/docs/development-skills/gormes-builder/SKILL.md",
+                "webpages/docs/development-skills/gormes-tdd-slice/SKILL.md",
+                "webpages/docs/development-skills/gormes-parity-auditor/SKILL.md",
+                "webpages/docs/development-skills/gormes-references/SKILL.md",
+                "webpages/docs/development-skills/gormes-skill-manager/SKILL.md"
+              ],
+              "ready_when": [
+                "All listed skills have a README of their own that does not assume the Gormes repo layout.",
+                "Skills' references that hard-code Gormes paths have been parameterized or generalized."
+              ],
+              "not_ready_when": [
+                "Skills still hard-code paths under docs/content/building-gormes/.",
+                "The extracted kit cannot be tested without cloning Gormes."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "Public repo TrebuchetDynamics/agentic-porting-kit exists with the listed skills.",
+                "Repo README explains the kit independent of Gormes/Hermes.",
+                "A worked example demonstrates the kit on a non-Hermes target (any small Python project being ported to Go).",
+                "Skills can be loaded into a fresh Codex or Claude Code session and successfully plan-and-execute one row in the example target."
+              ],
+              "write_scope": [
+                "(separate repo)",
+                "webpages/docs/development-skills/ (de-Gormes-fy paths)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [],
+              "no_test_required": "Cross-repo extraction; success is measured by the kit working standalone in a fresh checkout, not unit tests inside Gormes.",
+              "done_signal": [
+                "Repo URL recorded in success-plan.md and README.md; star count tracked monthly."
+              ],
+              "note": "Source: success-plan.md Q2 milestone."
+            }
+          ]
+        },
+        "8.F": {
+          "name": "Cost Discipline & Loop Economics",
+          "items": [
+            {
+              "name": "Loop $/iteration cost metric in status file",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The autonomous builder loop records a cost-per-iteration estimate in its status file (loop-health.env or a sibling file), broken down by backend (codexu vs opencode/<model>), accumulated daily and monthly. For opencode, use the JSONL event stream's `cost` and `tokens` fields per run; for codexu, use a documented fallback estimate. A `--cost-report` subcommand on the loop wrapper prints the rolling 7-day and 30-day spend.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without cost telemetry, the operating principle \"$/feature shipped\" cannot be enforced; the loop runs at indefinite cost.",
+              "fixture": "internal/loopcost/cost_test.go",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "scripts/codexu-gormes-builder-loop.sh",
+                "scripts/codexu-gormes-builder-cron.sh"
+              ],
+              "ready_when": [
+                "The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl).",
+                "Per-run cost is extractable from the JSONL via a simple jq aggregation."
+              ],
+              "not_ready_when": [
+                "Cost is reported as a fake or placeholder number when JSONL data is unavailable; degraded mode must surface unknown_cost evidence instead.",
+                "The metric is a wallclock proxy (\"runtime seconds\") rather than a real spend estimate."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Monthly cost review checklist",
+                "Engineering writeup #1: autonomous Hermes-porting loop"
+              ],
+              "acceptance": [
+                "TestLoopCost_AggregatesOpencodeJSONL parses a captured opencode JSONL fixture and produces a per-run cost summary.",
+                "TestLoopCost_DailyRollup combines per-run summaries into a 24-hour rolling spend.",
+                "TestLoopCost_MissingDataIsUnknown returns unknown_cost evidence rather than zero when JSONL is absent.",
+                "The loop wrapper's `--cost-report` (or equivalent) subcommand prints the 7-day and 30-day rollups in <100 ms."
+              ],
+              "write_scope": [
+                "internal/loopcost/cost.go",
+                "internal/loopcost/cost_test.go",
+                "scripts/codexu-gormes-builder-loop.sh",
+                "scripts/codexu-gormes-builder-cron.sh",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/loopcost -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Cost rollups appear in loop-health.env; --cost-report subcommand prints rollups; fixture-tested aggregation handles missing data without lying."
+              ],
+              "note": "Source: success-plan.md 30-day action sprint item #5."
+            }
+          ]
+        },
+        "8.G": {
+          "name": "Community & External Contributions",
+          "items": [
+            {
+              "name": "Built-with-Gormes page scaffold",
+              "priority": "P3",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "A page at gormes.ai/built-with (or equivalent path on the docs site) lists real production deployments of Gormes, even if there is initially only one entry (the operator's own). The page has a documented submission process (PR-based) and a template entry shape. The point is to make the slot exist so it can be filled, not to fake usage.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without the page, even genuine outside users have no place to land their name; reputation compounds through visibility.",
+              "fixture": "webpages/landing/src/pages/built-with.astro (or equivalent)",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "webpages/landing/"
+              ],
+              "ready_when": [
+                "Landing page exists.",
+                "An entry template (yaml or md) is decided."
+              ],
+              "not_ready_when": [
+                "Entries are fabricated.",
+                "The submission process is unwritten."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "/built-with (or chosen path) is reachable on the public landing site.",
+                "The page renders at least one real entry (operator's own deployment, with truthful description).",
+                "A submission template + PR-based process is documented either inline on the page or in CONTRIBUTING.md."
+              ],
+              "write_scope": [
+                "webpages/landing/src/",
+                "CONTRIBUTING.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "(cd webpages/landing && npm run test:e2e)",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Public page live with at least one truthful entry; submission process documented."
+              ],
+              "note": "Source: success-plan.md Q3 community surface."
+            }
+          ]
         }
       }
     }

@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 69/92 subphases shipped · 23 in progress · 0 planned
+**Overall:** 69/99 subphases shipped · 23 in progress · 7 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -98,6 +98,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
+| Phase 8 — Reputation & Publication | ⏳ | 0/7 subphases |
 
 ---
 
@@ -1180,6 +1181,41 @@ classification and row-backed implementation queue.
 - [x] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
 - [ ] Google Chat shared-chassis platform adapter seam
+
+## Phase 8 — Reputation & Publication ⏳
+
+*TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.*
+
+### 8.A — Publication Infrastructure ⏳
+
+- [ ] TD engineering blog scaffolded and live
+- [ ] TD social presence connected to blog feed
+
+### 8.B — Repository Messaging ⏳
+
+- [ ] README rewrite to methodology-first positioning
+- [ ] gormes.ai landing page positioning audit
+
+### 8.C — Engineering Writeups ⏳
+
+- [ ] Engineering writeup #1: autonomous Hermes-porting loop
+
+### 8.D — Sharp v1.0 ⏳
+
+- [ ] Sharp v1.0 differentiator decision
+- [ ] Single-binary cross-platform release pipeline
+
+### 8.E — Toolkit Extraction ⏳
+
+- [ ] Agentic-porting-kit repo scaffold
+
+### 8.F — Cost Discipline & Loop Economics ⏳
+
+- [ ] Loop $/iteration cost metric in status file
+
+### 8.G — Community & External Contributions ⏳
+
+- [ ] Built-with-Gormes page scaffold
 
 <!-- PROGRESS:END -->
 
