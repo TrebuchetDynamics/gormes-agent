@@ -192,13 +192,33 @@ class _ToolCallBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.build_circle),
-      title: const Text('Tool call'),
-      subtitle: Text(
-        '${toolCall.name} • ${toolCall.status}\n${toolCall.summary}',
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.build_circle),
+          title: const Text('Tool call'),
+          subtitle: Text(
+            '${toolCall.name} • ${toolCall.status}\n${toolCall.summary}',
+          ),
+        ),
+        for (final artifact in toolCall.artifacts)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.attachment),
+            title: Text(artifact.title),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(artifact.kind,
+                    style: Theme.of(context).textTheme.labelSmall),
+                if (artifact.summary != null) Text(artifact.summary!),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }
