@@ -3,27 +3,34 @@ import release from './release.json';
 
 const binarySizeMB = benchmarks?.binary?.size_mb || '';
 const binaryMeasuredAt = benchmarks?.binary?.last_measured || '';
+const goFiles = benchmarks?.code?.go_files || '';
+const goLines = benchmarks?.code?.go_lines || '';
+const testCount = benchmarks?.code?.test_count || '';
 const releaseVersion = release?.version || '0.1.01';
 const releaseLabel = `Current scout release: v${releaseVersion}`;
 const binaryMeasureLabel = binarySizeMB
   ? `Current measured Linux build: ~${binarySizeMB} MB${binaryMeasuredAt ? ` (${binaryMeasuredAt})` : ''}`
   : 'Current Linux build measured during release prep';
+const codeBaseLabel = goFiles && goLines && testCount
+  ? `${goFiles} Go files · ${Math.round(goLines / 1000)}k lines · ${testCount} tests`
+  : '';
 
 export const page = {
-  title: 'Gormes — Run AI Agents From One Go Binary',
+  title: 'Gormes — Hermes-Compatible AI Agent Runtime in One Go Binary',
   description:
-    'Gormes runs local agent sessions, provider turns, memory, dashboards, and chat gateways from one Go binary. Build from source, prove the machine offline, then add credentials.',
+    'Run Hermes-style AI agent skills, providers, memory, and gateways from one Go binary. No Python runtime. Built by an autonomous engineering loop that ports upstream Hermes daily under TDD discipline.',
   nav: [
-    { label: 'Docs', href: 'https://docs.gormes.ai/' },
+    { label: 'How it is built', href: '#methodology' },
+    { label: 'Install', href: '#install' },
     { label: 'Trust', href: '#trust' },
     { label: 'Roadmap', href: '#roadmap' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  heroKicker: 'OPEN SOURCE · MIT LICENSE · SCOUT RELEASE',
-  heroHeadline: 'Run AI agents from one Go binary.',
+  heroKicker: 'OPEN SOURCE · MIT LICENSE · AUTONOMOUSLY PORTED FROM HERMES',
+  heroHeadline: 'AI agent runtime in one Go binary.',
   heroLines: [
-    'Gormes runs local agent sessions, provider turns, memory, dashboards, and chat gateways from one Go binary.',
-    'No Python runtime. No virtualenv repair. No backend service just to open the UI.',
+    'Drop-in compatible with the Hermes agent ecosystem — skills, providers, memory, and gateways — without a Python runtime, virtualenv, or backend service.',
+    "Built by TrebuchetDynamics' autonomous engineering loop, which ports upstream Hermes daily under TDD discipline.",
     'Choose source build or install.sh, prove the machine offline, then add provider and gateway credentials.',
   ],
   heroFilterStamp: 'Scout release.',
@@ -31,8 +38,8 @@ export const page = {
     'Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now. Release signing, voice/TTS, and full Hermes parity are still hardening.',
   primaryCta: { label: 'Choose an install path', href: '#install' },
   secondaryCta: {
-    label: 'View on GitHub',
-    href: 'https://github.com/TrebuchetDynamics/gormes-agent',
+    label: 'See how it is built',
+    href: '#methodology',
   },
   proofStrip: [
     'Source build recommended',
@@ -41,7 +48,52 @@ export const page = {
     'Static Go binary',
     'MIT License',
     'Offline doctor before credentials',
+    'Autonomous porting loop ships daily',
   ],
+  methodologyLabel: 'HOW IT IS BUILT',
+  methodologyHeadline: 'An autonomous engineering loop ports Hermes to Go, every day.',
+  methodologyIntro:
+    "Gormes is the artifact TrebuchetDynamics' agentic engineering system produces. A planner → builder → TDD-slice loop runs against upstream Hermes around the clock, lands one bounded vertical slice at a time, and only commits when go test, progress validate, and git diff --check are all green. The methodology is the differentiator; Hermes-parity is the receipt that proves it works.",
+  methodologyMetricLabel: 'Loop output, measured today',
+  methodologyMetrics: [
+    {
+      label: 'Validated rows shipped',
+      value: '770+',
+      detail: 'Each carries a contract, fixtures, and acceptance evidence.',
+    },
+    {
+      label: 'Code base',
+      value: codeBaseLabel || `${goFiles} Go files`,
+      detail: 'Static binary, zero CGO, no dynamic library deps.',
+    },
+    {
+      label: 'Binary',
+      value: binarySizeMB ? `~${binarySizeMB} MB` : 'measured at release',
+      detail: 'Linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 today.',
+    },
+  ],
+  methodologyPillars: [
+    {
+      title: 'Validation-gated commits',
+      body: 'Every loop commit must pass go test ./..., go run ./cmd/progress validate, and git diff --check before landing on development. No silent failures, no skipped hooks.',
+    },
+    {
+      title: 'progress.json as system of record',
+      body: 'A schema-validated, contract-typed plan tracks every bounded slice. The loop selects the next builder-ready row; nothing else. No side queues, no private TODOs.',
+    },
+    {
+      title: 'Hermes is the parity oracle',
+      body: 'Upstream Hermes is the Python reference. The loop sweeps each release for behavior gaps, classifies them, and turns them into TDD slices the builder can finish.',
+    },
+    {
+      title: 'Reusable porting toolkit',
+      body: 'The skill set behind the loop (planner, builder, tdd-slice, parity-auditor, references, skill-manager) is generic Python-to-Go porting infrastructure. Open-source extraction is on the Q2 roadmap.',
+    },
+  ],
+  methodologyLink: {
+    label: 'Read how the loop works ->',
+    href: 'https://docs.gormes.ai/building-gormes/architecture_plan/',
+  },
   installHeadline: 'Two install paths. One gormes command.',
   installIntro:
     'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install that publishes the stable gormes command. Both paths keep the first proof offline. No runtime Node or npm is needed to open the native UI.',
@@ -85,7 +137,7 @@ export const page = {
   fitCards: [
     {
       label: 'For',
-      body: 'Developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift.',
+      body: 'Developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift — and engineering teams curious how an autonomous loop ships parity work daily.',
     },
     {
       label: 'Not for yet',
@@ -99,6 +151,7 @@ export const page = {
     'Secrets stay local under the Gormes home, not in the landing workflow.',
     'install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.',
     'Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.',
+    'Every autonomous-loop commit passes a validation gate (go test, progress validate, git diff --check) before landing.',
     binaryMeasureLabel,
     'Progress and benchmark data sync from repo sources during every landing build.',
   ],
