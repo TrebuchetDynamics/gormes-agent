@@ -25,6 +25,23 @@ Gormes is a Go-native runtime for AI agents, packaged as a single Go binary. It 
 
 Gormes is a Go-native rewrite of Hermes-Agent, with upstream Git history preserved for attribution and Hermes-compatible agent behavior carried forward in Go.
 
+## Capability Map
+
+Status labels are intentional: `runtime-ready` means verified in the current
+Gormes runtime; `fixture-backed` means covered by local tests or fake clients;
+`row-backed` means tracked in the roadmap without a live support promise yet.
+
+| Surface | Public status | Current path |
+|---|---|---|
+| Install and offline smoke | `runtime-ready` | Source build or inspectable `install.sh`, then `gormes doctor --offline` and `gormes --offline`. |
+| TUI and one-shot turns | `runtime-ready` | `gormes` opens the native TUI; `gormes --oneshot "hello"` sends a provider-backed turn. |
+| Provider setup | `runtime-ready` | OpenAI-compatible endpoints plus OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, and custom endpoints. |
+| Memory and sessions | `runtime-ready` | Local SQLite memory ("Goncho") and session state live under `~/.gormes`. |
+| Gateway channels | `runtime-ready` for Telegram, Discord, and Slack | One gateway process with channel bindings; WhatsApp and long-tail adapters stay explicitly tracked until live runtime validation is complete. |
+| Dashboard and operations | `runtime-ready` | `dashboard`, `doctor`, `config show`, `gateway status`, `gateway reload`, `logs`, `security audit`, and `secrets audit`. |
+| Hermes/OpenClaw migration | `runtime-ready` with explicit source paths | Dry-run first, then apply with `--yes`; OpenClaw secret import requires explicit `--secrets`. |
+| Learning loop, MCP/plugin parity, voice/TTS | `row-backed` / in progress | Implemented slice-by-slice through the public roadmap and progress gates. |
+
 ## Install
 
 Two promoted install paths are supported. Both end with the `gormes` command and start with offline verification before provider credentials are needed.
@@ -89,6 +106,17 @@ gormes gateway reload      # reload swappable gateway config without restart
 gormes logs                # read recent gateway logs
 ```
 
+## CLI vs Gateway Quick Reference
+
+| Action | Local CLI | Messaging gateway |
+|---|---|---|
+| Start chatting | `gormes` | Run `gormes gateway`, then message the configured channel bot. |
+| Prove local readiness | `gormes doctor --offline` and `gormes --offline` | `gormes gateway status` shows configured channels and runtime state. |
+| Send one provider-backed turn | `gormes --oneshot "hello"` | Send a normal message after provider setup. |
+| Configure provider/model | `gormes setup provider` or `gormes setup model` | Run setup locally, then `gormes gateway reload`. |
+| Route channels to agents | `gormes setup bindings` and `gormes onboard` | `gormes gateway status` confirms active bindings and missing channel state. |
+| Diagnose runtime issues | `gormes doctor --offline`, `gormes logs` | `gormes gateway status`, `gormes logs`, then fix config or credentials locally. |
+
 ## Multi-Agent Routing
 
 ```bash
@@ -100,16 +128,27 @@ gormes onboard             # review the active routes
 
 The default agent is ready after install. Add more when you need separate workspaces, models, or channel ownership.
 
-## What You Get
+## Migrating From Hermes Or OpenClaw
 
-| Surface | Current path |
-|---|---|
-| Install | Source build or inspectable `install.sh`, with one Go command and no Python runtime. |
-| Setup | `gormes onboard` for state, `gormes onboard --wizard` for guided readiness, and `gormes setup provider` for model/API-key setup. |
-| Providers | OpenAI-compatible endpoints and major providers: OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, and custom endpoints. |
-| Memory | Local SQLite memory ("Goncho") and sessions inside `~/.gormes`. |
-| Gateway | One gateway process with runtime-ready Telegram, Discord, and Slack setup paths; additional adapters are tracked in the roadmap. |
-| Operations | `doctor`, `config show`, `gateway status`, `gateway reload`, `logs`, `dashboard`, `security audit`, and `secrets audit` commands. |
+Gormes can import upstream state without invoking Python at runtime. Always run
+a dry-run first and review the redacted manifest before applying changes.
+
+```bash
+gormes migrate hermes --dry-run --source ~/.hermes
+gormes migrate hermes --yes --source ~/.hermes
+
+gormes migrate openclaw --dry-run --source ~/.openclaw
+gormes migrate openclaw --yes --source ~/.openclaw
+gormes migrate openclaw --yes --secrets --source ~/.openclaw
+```
+
+OpenClaw cleanup is separate from migration and archives old directories rather
+than deleting them:
+
+```bash
+gormes migrate openclaw cleanup --dry-run
+gormes migrate openclaw cleanup --yes
+```
 
 ## Why People Switch
 
@@ -150,14 +189,16 @@ go run ./cmd/progress validate
 
 ## Docs
 
-[Installation](https://docs.gormes.ai/getting-started/installation/) ·
-[First run](https://docs.gormes.ai/getting-started/first-run/) ·
-[CLI reference](https://docs.gormes.ai/reference/cli/) ·
-[Providers](https://docs.gormes.ai/reference/providers/) ·
-[Configuration](https://docs.gormes.ai/reference/config/) ·
-[Gateway](https://docs.gormes.ai/building-gormes/core-systems/gateway/) ·
-[Troubleshooting](https://docs.gormes.ai/getting-started/troubleshooting/) ·
-[Roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/)
+| Section | What it covers |
+|---|---|
+| [Installation](https://docs.gormes.ai/getting-started/installation/) | Source build, installer path, PATH, and offline verification. |
+| [First run](https://docs.gormes.ai/getting-started/first-run/) | `doctor`, `onboard`, provider setup, and first provider-backed turn. |
+| [CLI reference](https://docs.gormes.ai/reference/cli/) | Commands, flags, and operator workflows. |
+| [Providers](https://docs.gormes.ai/reference/providers/) | Supported provider config and credential paths. |
+| [Configuration](https://docs.gormes.ai/reference/config/) | `~/.gormes/config.toml`, `.env`, agents, workspaces, and bindings. |
+| [Gateway](https://docs.gormes.ai/building-gormes/core-systems/gateway/) | Channel runtime, status checks, reloads, and troubleshooting evidence. |
+| [Troubleshooting](https://docs.gormes.ai/getting-started/troubleshooting/) | Common install, provider, gateway, and browser-tool failures. |
+| [Roadmap](https://docs.gormes.ai/building-gormes/architecture_plan/) | Hermes parity phases, status labels, and progress evidence. |
 
 ## Security & Trust
 
