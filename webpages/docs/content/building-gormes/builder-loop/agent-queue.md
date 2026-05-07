@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Prompt Fragment Include System
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time.
-- Trust class: operator, system
-- Ready when: Extension lifecycle hooks (5.I) provide prompt_before/after hook points., Skill system supports profile-level prompt overrides.
-- Not ready when: The row hardcodes prompt content in Go strings., The row bypasses existing prompt builder contract.
-- Degraded mode: Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.
-- Fixture: `internal/hermes/prompt_fragments_test.go`
-- Write scope: `internal/hermes/prompt_fragments.go`, `internal/hermes/prompt_fragments_test.go`, `prompts/*.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run TestPromptFragments -count=1`, `go run ./cmd/progress validate`
-- Done signal: Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution.
-- Acceptance: {{include agent.system.main.role.md}} resolves through priority search., {{include original}} chains through profile > user > default hierarchy., Circular includes detected and reported., Fragment cache invalidates on file change.
-- Source refs: agent-zero prompts/ (72 fragment files), agent-zero agent.py:prepare_prompt, docs/content/building-gormes/agent-zero-feature-analysis.md
-- Unblocks: Agent profile customization, Plugin prompt injection
-- Why now: Unblocks Agent profile customization, Plugin prompt injection.
-
-## 2. Telegram forum thread fallback + send retry safety
+## 1. Telegram forum thread fallback + send retry safety
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -68,7 +47,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send, ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_typing, ../hermes-agent/tests/gateway/test_telegram_thread_fallback.py@b816fd4e2, ../hermes-agent/tests/gateway/test_telegram_reply_mode.py@b816fd4e2, internal/channels/telegram/bot.go, internal/channels/telegram/client.go, internal/gateway/delivery.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Sandbox isolation depth selection
+## 2. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -88,7 +67,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Behavioral pattern extraction from session logs
+## 3. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -108,7 +87,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Skill code execution runtime
+## 4. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -128,7 +107,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Skill dependency resolution and composition
+## 5. Skill dependency resolution and composition
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -148,7 +127,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Skill validation on load with execution proof
+## 6. Skill validation on load with execution proof
 
 - Phase: 6 / 6.L
 - Owner: `skills`

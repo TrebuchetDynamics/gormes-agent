@@ -30370,10 +30370,10 @@
             },
             {
               "name": "Prompt Fragment Include System",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
-              "contract": "Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time.",
-              "contract_status": "draft",
+              "contract": "Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} / {{include \"filename.md\"}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time, and render-time cache invalidation keyed by fragment file mtime.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -30383,9 +30383,13 @@
               "degraded_mode": "Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.",
               "fixture": "internal/hermes/prompt_fragments_test.go",
               "source_refs": [
-                "agent-zero prompts/ (72 fragment files)",
-                "agent-zero agent.py:prepare_prompt",
-                "docs/content/building-gormes/agent-zero-feature-analysis.md"
+                "../agent-zero@7c71185f/prompts/ (72 fragment files)",
+                "../agent-zero@7c71185f/agent.py:prepare_prompt,read_prompt,parse_prompt",
+                "../agent-zero@7c71185f/helpers/files.py:read_prompt_file,process_includes,_get_dirs_after",
+                "../agent-zero@7c71185f/skills/a0-development/SKILL.md:Prompt System",
+                "docs/content/building-gormes/agent-zero-feature-analysis.md",
+                "internal/kernel/extensions.go",
+                "internal/skills/profile_sync.go"
               ],
               "ready_when": [
                 "Extension lifecycle hooks (5.I) provide prompt_before/after hook points.",
@@ -30416,8 +30420,17 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution."
-              ]
+                "Prompt fragment system ships with {{include}}, {{include original}}, variable substitution, circular-include evidence, and mtime-aware cache invalidation."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "agent-zero:7c71185f agent.py",
+                  "agent-zero:7c71185f helpers/files.py",
+                  "agent-zero:7c71185f prompts/"
+                ],
+                "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 84, below the 90-row ceiling, but no new row was needed: P1 gateway event-bus remained an umbrella parent, Telegram thread fallback remained blocked by thread-aware Go SDK/gateway seams, and this P2 tools row was the highest generated builder-ready slice with prerequisites satisfied by the validated extension hook row and profile skill/profile invocation rows. Source refs were tightened to exact agent-zero prompt include and read paths before implementation. TDD landed internal/hermes/prompt_fragments.go and prompt_fragments_test.go; tests prove priority source lookup, quoted and unquoted include directives, include-original fallback chaining, variable substitution, prompt_fragment_error circular-chain evidence, and mtime/size cache invalidation."
+              }
             },
             {
               "name": "Multi-agent gateway runtime activation",

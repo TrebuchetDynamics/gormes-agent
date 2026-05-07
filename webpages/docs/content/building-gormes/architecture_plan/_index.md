@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 66/92 subphases shipped · 25 in progress · 1 planned
+**Overall:** 67/92 subphases shipped · 24 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -820,7 +820,7 @@ classification and row-backed implementation queue.
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 
-### 5.N — Misc Operator Tools 🔨
+### 5.N — Misc Operator Tools ✅
 
 - [x] Todo
 - [x] Clarify
@@ -860,7 +860,7 @@ classification and row-backed implementation queue.
 - [x] System Events, Heartbeat, and Presence
 - [x] Gateway Discover and Probe
 - [x] Channels Capabilities Introspection
-- [ ] Prompt Fragment Include System
+- [x] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
 - [x] Cron env-ref expansion + parallel run state serialization
