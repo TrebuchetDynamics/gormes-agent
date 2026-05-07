@@ -41656,10 +41656,10 @@
             },
             {
               "name": "Sandbox isolation depth selection",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "Operator can select sandbox isolation depth: process-level (fast, weaker isolation), container-level (Docker/gVisor, balanced), or VM-level (Firecracker, strongest isolation). Default is process-level with transactional rollback.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -41693,7 +41693,12 @@
               "done_signal": [
                 "Isolation depth tests prove all three levels selectable and process-level works without Docker"
               ],
-              "note": "Research-driven (OpenSandbox, Alibaba). Three-tier isolation matching threat model. Gormes' zero-dependency ethos means process-level must work standalone."
+              "note": "Complete 2026-05-07: TDD landed NewIsolationConfigFromMode() config loader plus 10 TestIsolationDepth* fixtures proving process-level default/zero-setup, container/VM selectable via config, container/VM unavailable without backend, invalid-mode fallback, per-session configurability, string representation, and parse round-trip. Config wiring into terminal tool and runtime session selection remain separate downstream rows.",
+              "evidence": {
+                "implementation": "internal/tools/isolation_depth.go:NewIsolationConfigFromMode, IsolationModeError",
+                "tests": "internal/tools/isolation_depth_test.go:10 TestIsolationDepth* fixtures",
+                "verification": "go test ./internal/tools -run TestIsolationDepth -count=1 -> ok (10 pass); go test ./... -count=1 -> ok; go run ./cmd/progress validate -> ok; git diff --check -> clean"
+              }
             }
           ]
         },

@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 70/99 subphases shipped · 23 in progress · 6 planned
+**Overall:** 71/99 subphases shipped · 22 in progress · 6 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -1047,11 +1047,11 @@ classification and row-backed implementation queue.
 
 - [x] go-browser-harness doctor subcommand
 
-### 5.U — Fault-Tolerant Sandbox Execution 🔨
+### 5.U — Fault-Tolerant Sandbox Execution ✅
 
 - [x] Pre-execution command classification
 - [x] Transactional tool execution with snapshot/rollback
-- [ ] Sandbox isolation depth selection
+- [x] Sandbox isolation depth selection
 
 ### 5.V — Unified Event Bus 🔨
 

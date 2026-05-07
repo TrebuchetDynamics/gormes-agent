@@ -71,27 +71,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Sandbox isolation depth selection
-
-- Phase: 5 / 5.U
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Operator can select sandbox isolation depth: process-level (fast, weaker isolation), container-level (Docker/gVisor, balanced), or VM-level (Firecracker, strongest isolation). Default is process-level with transactional rollback.
-- Trust class: operator
-- Ready when: Transactional executor exists (5.U row 2)
-- Not ready when: No sandbox backend available
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/tools/isolation_depth.go`, `internal/tools/isolation_depth_test.go`
-- Test commands: `go test ./internal/tools -run TestIsolationDepth -count=1`
-- Done signal: Isolation depth tests prove all three levels selectable and process-level works without Docker
-- Acceptance: Process-level isolation is the default and requires zero setup, Docker/gVisor isolation selectable via config, Firecracker VM isolation selectable via config, Isolation depth is per-session configurable, Deeper isolation correctly fails if backend not available
-- Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Behavioral pattern extraction from session logs
+## 3. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -111,7 +91,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Agentic-porting-kit repo scaffold
+## 4. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -132,7 +112,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Built-with-Gormes page scaffold
+## 5. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
