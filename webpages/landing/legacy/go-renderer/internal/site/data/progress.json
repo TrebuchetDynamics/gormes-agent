@@ -40605,7 +40605,8 @@
                 "internal/channels/telegram/bot.go",
                 "internal/channels/discord/bot.go",
                 "internal/slack/bot.go",
-                "internal/channels/whatsapp/inbound.go"
+                "internal/channels/whatsapp/inbound.go",
+                "internal/channels/wecom/bot.go"
               ],
               "ready_when": [
                 "Event bus exists (5.V row 1).",
@@ -40620,7 +40621,8 @@
                 "Telegram gateway event-bus adapter",
                 "Discord gateway event-bus adapter",
                 "Slack gateway event-bus adapter",
-                "WhatsApp gateway event-bus adapter"
+                "WhatsApp gateway event-bus adapter",
+                "WeCom gateway event-bus adapter"
               ],
               "acceptance": [
                 "Child rows prove incoming channel messages publish MessageReceived events with source, channel_id/chat_id, user_id, message_id, command kind, text/body, and trace_id.",
@@ -40634,7 +40636,73 @@
               "done_signal": [
                 "The parent remains non-selectable while channel-specific child rows provide runnable implementation and tests."
               ],
-              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 56 and planned plus porting rows were 88, so the completion-biased planner pass added one P1 child instead of any P3/P4 backlog. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, WhatsApp, and the full-flow integration proof are complete, leaving future child slices for WeChat or outbound subscriber paths."
+              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 54, so adding one source-backed P1 child was allowed and preferred over any P3/P4 expansion. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, WhatsApp, WeCom, and the full-flow integration proof are complete, leaving future Weixin or outbound subscriber paths."
+            },
+            {
+              "name": "WeCom gateway event-bus adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "WeCom inbound events can be mirrored onto the shared event bus through a Go-native adapter that publishes the channel-neutral gateway.message.received topic with WeCom provenance, parsed command kind/body, chat type, chat/user/message identifiers, and trace_id without changing WeCom websocket/callback bootstrap, reply-vs-push routing, or normal inbox submit delivery.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system",
+                "gateway"
+              ],
+              "degraded_mode": "If the dispatcher or event bus is unavailable, the adapter returns wecom_event_bus_unavailable evidence to the caller and does not block the existing WeCom inbox submit path.",
+              "fixture": "internal/channels/wecom/bus_adapter_test.go",
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "hermes-agent/gateway/platforms/wecom.py@b816fd4e2:_on_message",
+                "hermes-agent/tests/gateway/test_wecom.py@b816fd4e2:TestInboundMessages.test_on_message_builds_event",
+                "hermes-agent/tests/gateway/test_wecom.py@b816fd4e2:TestInboundMessages.test_on_message_respects_group_policy",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/channels/wecom/bot.go"
+              ],
+              "ready_when": [
+                "Event bus core, Telegram, Discord, Slack, WhatsApp, and full message-flow event-bus rows are complete and validated.",
+                "WeCom shared-chassis bot seam and transport/bootstrap layer are complete, so the slice can mirror the existing gateway.InboundEvent normalization without touching live WeCom websocket, callback crypto, or network code."
+              ],
+              "not_ready_when": [
+                "The slice rewrites WeCom websocket startup, callback AES verification, text batching, media upload/download, reply-vs-active-push routing, or gateway turn execution.",
+                "The slice starts a second event bus or drops existing channel inbox delivery when event publication fails.",
+                "Tests require live WeCom credentials, network calls, callback endpoints, real GORMES_HOME state, or Hermes runtime imports."
+              ],
+              "acceptance": [
+                "TestBusAdapter_PublishInboundMessageReceived proves a WeCom gateway.InboundEvent publishes exactly one gateway.message.received event with source=wecom, stable trace_id, event kind, body/text, chat_id, chat_type, user_id, user_name, message_id, and msg_id fields.",
+                "TestBusAdapter_PublishInboundFallbackTraceID proves missing trace IDs derive from WeCom chat, user, and message provenance produced by the existing Bot.toInboundEvent path.",
+                "TestBusAdapter_PublishInboundRejectsNilDispatcher proves missing dispatcher returns typed wecom_event_bus_unavailable evidence instead of panicking.",
+                "Existing WeCom bot fixtures continue to prove policy guards and reply-vs-active-push routing are unchanged."
+              ],
+              "write_scope": [
+                "internal/channels/wecom/bot.go",
+                "internal/channels/wecom/bus_adapter.go",
+                "internal/channels/wecom/bus_adapter_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/wecom -run 'TestBusAdapter|TestBot' -count=1",
+                "go test ./internal/gateway -run TestEventDispatch -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "WeCom bus-adapter fixtures prove channel-neutral gateway.message.received publication with WeCom provenance and a non-panicking unavailable path, without live WeCom or changing existing inbox delivery."
+              ],
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 54, so this cycle added one source-backed P1 row instead of expanding lower-priority backlog. TDD added `internal/channels/wecom/bus_adapter.go` and `bus_adapter_test.go`, mirroring normalized WeCom inbound events onto `gateway.message.received` with source=wecom, stable trace IDs, chat type, chat/user/message IDs, user name, command kind, text, and body provenance. `internal/channels/wecom/bot.go` now preserves ChatType and MessageID alongside MsgID so event-bus subscribers can route and deduplicate from the existing WeCom normalization path. Missing dispatchers return typed `wecom_event_bus_unavailable` evidence without touching websocket/callback bootstrap, callback AES verification, text batching, media handling, reply-vs-active-push routing, inbox delivery, or gateway turn execution.",
+              "evidence": {
+                "implementation": "internal/channels/wecom/bus_adapter.go, internal/channels/wecom/bot.go",
+                "tests": "go test ./internal/channels/wecom -run 'TestBusAdapter|TestBot' -count=1; go test ./internal/gateway -run TestEventDispatch -count=1",
+                "note": "RED failed on missing NewBusAdapter and ErrEventBusUnavailable; GREEN proves WeCom event-bus publication, fallback trace IDs, nil-dispatcher degraded evidence, and bot-derived chat type/message ID provenance without live WeCom."
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible WeCom inbound normalization",
+                "note": "The shared event bus is a Gormes-owned architecture row; WeCom inbound fields follow active Hermes WeCom callback/websocket normalization while Gormes mirrors the existing gateway.InboundEvent path."
+              }
             },
             {
               "name": "Telegram gateway event-bus adapter",
