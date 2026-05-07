@@ -7,7 +7,13 @@ import (
 )
 
 // Version marks the current operator-facing release line.
-var Version = "0.1.05"
+//
+// Gormes adopts the Hermes-style dual taxonomy: the canonical semver tag (the
+// value below) is paired with a date alias of the form vYYYY.M.D in release
+// notes, release.json, and the GitHub release title. The git tag remains
+// v<Version> until the release workflow learns to extract version from this
+// file independently of the tag string.
+var Version = "0.1.06"
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
