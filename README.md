@@ -239,7 +239,7 @@ after the normal release lane.
 | Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
-| Phase 8 — Reputation & Publication | ⏳ | 0/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
 <!-- PROGRESS:END -->
 
 </details>

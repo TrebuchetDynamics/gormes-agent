@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Sharp v1.0 differentiator decision
+## 1. Auth state TOCTOU close + redaction default-on parity
+
+- Phase: 5 / 5.J
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Gormes auth.json read-modify-write paths use atomic file replacement (open, write to sibling tempfile, fsync, rename) with no observable TOCTOU window between read and write. MCP OAuth credential persistence follows the same atomic-replace contract. The redaction default is restored to ON; opt-out is via explicit `redaction.enabled: false` in config. Mirrors Hermes v0.13.0 PRs #21193 (redaction default-on flip), #21194 (auth.json TOCTOU), #21241 (MCP OAuth TOCTOU). Reverts the v0.12.0 default-off flip (#16794).
+- Trust class: operator, system
+- Ready when: 4.G `Token vault` is complete and exposes the auth.json read/write seam., 4.E `Trajectory writer + redaction gates` is complete and exposes the redaction-enabled config flag., A fake clock + fake filesystem exist in tests so concurrent read/write timing can be exercised deterministically.
+- Not ready when: Atomic replace is implemented only on Linux without portable handling for darwin/windows tempfile rename semantics., Redaction default-on is enforced silently without surfacing the operator-visible config knob `redaction.enabled: false`., Tests use sleeps to trigger the TOCTOU window instead of a fake-fs/fake-clock., MCP OAuth persistence still uses non-atomic write while auth.json is fixed in the same slice (split if needed).
+- Degraded mode: Without atomic replace, a concurrent read can observe a partially-written auth.json and crash the session; with the atomic-replace contract the read either sees the prior valid state or the new valid state, never a partial merge. Without redaction default-on, log capture, debug bundles, and trajectory writes leak credentials by default.
+- Fixture: `internal/auth/atomic_write_test.go`
+- Write scope: `internal/auth/atomic_write.go`, `internal/auth/atomic_write_test.go`, `internal/mcp/oauth_persistence.go`, `internal/redaction/defaults.go`, `internal/redaction/defaults_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/auth -run AtomicWrite -count=1`, `go test ./internal/mcp -run AtomicWrite -count=1`, `go test ./internal/redaction -run DefaultOn -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Atomic-write fixtures prove the auth.json and MCP OAuth read/write paths are torn-write free; redaction default-on fixtures prove fresh configs enable redaction and explicit opt-out is logged.
+- Acceptance: TestAuthAtomicWrite_ConcurrentReadObservesValidStateOnly proves a fake-fs concurrent reader sees either the prior valid file or the new valid file, never a torn write., TestAuthAtomicWrite_TempfileCleanedOnError proves a write failure leaves no orphan tempfile sibling., TestMCPOAuthAtomicWrite_FollowsSameContract proves MCP OAuth credential persistence uses the same atomic-replace path with the same fixture., TestRedactionDefaultOn_NewConfigEnablesRedaction proves a fresh Gormes config has redaction enabled by default., TestRedactionDefaultOn_ExplicitOptOutHonored proves `redaction.enabled: false` in config disables redaction and is logged as an explicit operator choice.
+- Source refs: hermes-agent/RELEASE_v0.13.0.md, hermes-agent/hermes_cli/auth.py, hermes-agent/agent/mcp/oauth.py, hermes-agent/utils.py, internal/auth/, internal/redaction/
+- Unblocks: Atomic credential rotation across providers, Hermes debug share redact-at-upload parity
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Sharp v1.0 differentiator decision
 
 - Phase: 8 / 8.D
 - Owner: `docs`
@@ -49,7 +70,7 @@ selection.
 - Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. TD engineering blog scaffolded and live
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -70,27 +91,6 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
-
-## 3. Loop $/iteration cost metric in status file
-
-- Phase: 8 / 8.F
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: The autonomous builder loop records a cost-per-iteration estimate in its status file (loop-health.env or a sibling file), broken down by backend (codexu vs opencode/<model>), accumulated daily and monthly. For opencode, use the JSONL event stream's `cost` and `tokens` fields per run; for codexu, use a documented fallback estimate. A `--cost-report` subcommand on the loop wrapper prints the rolling 7-day and 30-day spend.
-- Trust class: operator, system
-- Ready when: The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl)., Per-run cost is extractable from the JSONL via a simple jq aggregation.
-- Not ready when: Cost is reported as a fake or placeholder number when JSONL data is unavailable; degraded mode must surface unknown_cost evidence instead., The metric is a wallclock proxy ("runtime seconds") rather than a real spend estimate.
-- Degraded mode: Without cost telemetry, the operating principle "$/feature shipped" cannot be enforced; the loop runs at indefinite cost.
-- Fixture: `internal/loopcost/cost_test.go`
-- Write scope: `internal/loopcost/cost.go`, `internal/loopcost/cost_test.go`, `scripts/codexu-gormes-builder-loop.sh`, `scripts/codexu-gormes-builder-cron.sh`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/loopcost -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Cost rollups appear in loop-health.env; --cost-report subcommand prints rollups; fixture-tested aggregation handles missing data without lying.
-- Acceptance: TestLoopCost_AggregatesOpencodeJSONL parses a captured opencode JSONL fixture and produces a per-run cost summary., TestLoopCost_DailyRollup combines per-run summaries into a 24-hour rolling spend., TestLoopCost_MissingDataIsUnknown returns unknown_cost evidence rather than zero when JSONL is absent., The loop wrapper's `--cost-report` (or equivalent) subcommand prints the 7-day and 30-day rollups in <100 ms.
-- Source refs: docs/content/building-gormes/strategy/success-plan.md, scripts/codexu-gormes-builder-loop.sh, scripts/codexu-gormes-builder-cron.sh
-- Unblocks: Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop
-- Why now: Unblocks Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop.
 
 ## 4. Sandbox isolation depth selection
 

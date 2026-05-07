@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 69/99 subphases shipped · 23 in progress · 7 planned
+**Overall:** 70/99 subphases shipped · 23 in progress · 6 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -98,7 +98,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
-| Phase 8 — Reputation & Publication | ⏳ | 0/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
 
 ---
 
@@ -975,6 +975,9 @@ classification and row-backed implementation queue.
 - [x] Unix installer root/FHS layout policy
 - [ ] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
+- [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
+- [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
+- [x] Install isolation: skip system service install when sandbox bin dir is set
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
@@ -1182,7 +1185,7 @@ classification and row-backed implementation queue.
 - [ ] QQ Bot transport/bootstrap layer
 - [ ] Google Chat shared-chassis platform adapter seam
 
-## Phase 8 — Reputation & Publication ⏳
+## Phase 8 — Reputation & Publication 🔨
 
 *TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.*
 
@@ -1209,9 +1212,9 @@ classification and row-backed implementation queue.
 
 - [ ] Agentic-porting-kit repo scaffold
 
-### 8.F — Cost Discipline & Loop Economics ⏳
+### 8.F — Cost Discipline & Loop Economics ✅
 
-- [ ] Loop $/iteration cost metric in status file
+- [x] Loop $/iteration cost metric in status file
 
 ### 8.G — Community & External Contributions ⏳
 
