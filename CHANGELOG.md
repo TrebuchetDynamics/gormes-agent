@@ -8,6 +8,29 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.1.05] - 2026-05-06
+
+### Added
+- Navivox framed transport, OpenSSH and Termius key import parsing, and tool
+  lifecycle frames for SSH-backed mobile sessions.
+- Bundled-skill profile sync support plus `gormes skills sync` command seams
+  for active and named profiles.
+- Model catalog cache helpers, Kanban worker tools, and the codexu builder loop
+  wrapper for recurring progress delivery.
+
+### Changed
+- Streamlined README install guidance and refreshed public release metadata for
+  `v0.1.05`.
+- Moved the public site source under `webpages/landing` only; the root
+  `www.gormes.ai` path is no longer part of the repo surface.
+
+### Fixed
+- Hardened installer prompts, download-plan output, and PATH setup behavior.
+- Prevented codexu builder loop lock file-descriptor leaks, including dirty
+  worktree runs and CI stress coverage.
+- Made the codexu loop test runner work in environments without a configured
+  `codexu` binary.
+
 ## [0.1.04] - 2026-05-06
 
 ### Added
@@ -149,7 +172,8 @@ inside the 0.x compatibility window.
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.04...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.05...HEAD
+[0.1.05]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.04...v0.1.05
 [0.1.04]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.03...v0.1.04
 [0.1.03]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.02...v0.1.03
 [0.1.02]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.01...v0.1.02
