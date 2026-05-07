@@ -343,9 +343,21 @@ runner_ready() {
     log "runner syntax check failed: $RUNNER"
     return 1
   fi
-  if [[ "$RUNNER" == "$DEFAULT_RUNNER" ]] && ! command -v codexu >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/codexu" ]]; then
-    log "codexu is not available on PATH or at $HOME/.local/bin/codexu"
-    return 1
+  if [[ "$RUNNER" == "$DEFAULT_RUNNER" ]]; then
+    case "${GORMES_BUILDER_BACKEND:-codexu}" in
+      opencode)
+        if ! command -v opencode >/dev/null 2>&1 && [[ ! -x "$HOME/.opencode/bin/opencode" ]]; then
+          log "opencode is not available on PATH or at $HOME/.opencode/bin/opencode"
+          return 1
+        fi
+        ;;
+      codexu|*)
+        if ! command -v codexu >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/codexu" ]]; then
+          log "codexu is not available on PATH or at $HOME/.local/bin/codexu"
+          return 1
+        fi
+        ;;
+    esac
   fi
   return 0
 }
