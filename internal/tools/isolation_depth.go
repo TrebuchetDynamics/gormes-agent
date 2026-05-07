@@ -60,3 +60,23 @@ func ParseIsolationLevel(s string) (IsolationLevel, bool) {
 		return IsolationProcess, false
 	}
 }
+
+func NewIsolationConfigFromMode(mode string, containerImage string, vmSocket string) (IsolationConfig, error) {
+	level, ok := ParseIsolationLevel(mode)
+	if !ok {
+		return IsolationConfig{Level: IsolationProcess}, &IsolationModeError{Mode: mode}
+	}
+	return IsolationConfig{
+		Level:          level,
+		ContainerImage: containerImage,
+		VMSocket:       vmSocket,
+	}, nil
+}
+
+type IsolationModeError struct {
+	Mode string
+}
+
+func (e *IsolationModeError) Error() string {
+	return "unknown isolation mode: " + e.Mode
+}
