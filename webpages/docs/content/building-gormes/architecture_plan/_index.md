@@ -818,6 +818,7 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban production worker process binding
 - [x] Hermes Kanban worker tools and prompt gating
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
+- [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 
 ### 5.N — Misc Operator Tools ✅

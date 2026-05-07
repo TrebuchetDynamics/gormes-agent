@@ -27887,6 +27887,89 @@
               }
             },
             {
+              "name": "Kanban dispatcher status in gateway /status",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes exposes the gateway-owned Kanban dispatcher state in the operator-facing /status reply. The status command reads the existing runtime status store and renders dispatcher state, last tick, spawned count, failed spawn count, auto-block count, and degraded last_error evidence without reading Hermes config or touching Kanban databases.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the runtime status store is unavailable or unreadable, /status omits the Kanban section rather than failing the whole status command; dispatcher loop errors already surface as degraded KanbanDispatcherStatus.LastError.",
+              "fixture": "internal/gateway/status_command_test.go:TestStatusCommandIncludesKanbanDispatcherStatus; internal/gateway/status_command_test.go:TestStatusCommandOmitsKanbanDispatcherWhenRuntimeStatusUnreadable",
+              "source_refs": [
+                "./hermes-agent/gateway/run.py@b816fd4e2:_kanban_dispatcher_watcher",
+                "./hermes-agent/gateway/run.py@b816fd4e2:_handle_kanban_command",
+                "./hermes-agent/hermes_cli/kanban.py@b816fd4e2:run_slash",
+                "internal/gateway/kanban_dispatcher.go",
+                "internal/gateway/status.go:KanbanDispatcherStatus",
+                "internal/gateway/status_command.go"
+              ],
+              "ready_when": [
+                "Hermes Kanban dispatcher and worker spawn loop is complete.",
+                "Hermes Kanban production worker process binding is complete.",
+                "RuntimeStatusStore already records KanbanDispatcherStatus from the gateway dispatcher loop.",
+                "The slice can use a temp runtime status store and a fake status command channel; no live gateway, Hermes config, or Kanban database is required."
+              ],
+              "not_ready_when": [
+                "The implementation starts a dispatcher loop, reads live Hermes/HERMES_HOME config, opens a Kanban database, or changes /kanban slash routing.",
+                "The status command fails entirely when runtime status cannot be read.",
+                "The output exposes unredacted worker command lines, profile paths, or process environment."
+              ],
+              "blocked_by": [
+                "Hermes Kanban dispatcher and worker spawn loop",
+                "Hermes Kanban production worker process binding"
+              ],
+              "acceptance": [
+                "Status fixtures prove /status includes Kanban dispatcher state, last tick, spawned, spawn_failed, auto_blocked, and last_error when runtime status has dispatcher evidence.",
+                "Unreadable or missing runtime status fixtures prove /status still renders session/platform fields and does not invent Kanban state.",
+                "The existing broad Kanban slash/gateway/dashboard parent remains planned for slash handlers and authenticated dashboard lanes."
+              ],
+              "note": "Complete 2026-05-07: the all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 50, below the no-new-P3/P4 threshold. The highest P1 candidate was a non-selectable event-bus umbrella and the broad Kanban operator row was too large for one builder pass, so this source-backed P2 child isolated the already-implemented dispatcher runtime status into the operator-visible /status surface. TDD added runtime-status reading to /status plus evidence-present and unreadable-store fixtures; slash handlers and authenticated dashboard lanes remain planned in the parent row.",
+              "write_scope": [
+                "internal/gateway/status_command.go",
+                "internal/gateway/status_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestStatusCommandIncludesKanbanDispatcherStatus -count=1",
+                "go test ./internal/gateway -run 'TestStatusCommand|TestManagerKanbanDispatcher' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "/status renders Kanban dispatcher status from runtime status evidence and remains usable when that evidence is unavailable."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/status_command.go:formatGatewayStatus appends Kanban dispatcher lines only when RuntimeStatus has dispatcher evidence.",
+                  "internal/gateway/status_command.go:kanbanDispatcherStatus reads the existing runtime status store and degrades by omitting the section when status cannot be read."
+                ],
+                "tests": [
+                  "internal/gateway/status_command_test.go:TestStatusCommandIncludesKanbanDispatcherStatus",
+                  "internal/gateway/status_command_test.go:TestStatusCommandOmitsKanbanDispatcherWhenRuntimeStatusUnreadable"
+                ],
+                "verification": [
+                  "RED: go test ./internal/gateway -run TestStatusCommandIncludesKanbanDispatcherStatus -count=1 failed because /status did not render a Kanban section.",
+                  "GREEN: go test ./internal/gateway -run TestStatusCommandIncludesKanbanDispatcherStatus -count=1 passed after adding runtime status rendering.",
+                  "GREEN: go test ./internal/gateway -run 'TestStatusCommand(IncludesKanbanDispatcherStatus|OmitsKanbanDispatcherWhenRuntimeStatusUnreadable)|TestManagerKanbanDispatcher' -count=1 passed.",
+                  "GREEN: go test ./internal/gateway -run 'TestStatusCommand|TestManagerKanbanDispatcher' -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/run.py:_kanban_dispatcher_watcher",
+                  "hermes:b816fd4e2 hermes_cli/kanban.py:run_slash"
+                ],
+                "note": "Hermes exposes Kanban dispatcher/operator state through gateway Kanban surfaces; Gormes preserves the operator-visible status portion through native runtime status."
+              }
+            },
+            {
               "name": "Hermes Kanban multi-board, workspace, and run-history parity",
               "priority": "P2",
               "status": "planned",

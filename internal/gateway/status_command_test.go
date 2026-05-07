@@ -2,7 +2,9 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -270,6 +272,98 @@ func TestStatusCommand_RendersAllRequiredFields(t *testing.T) {
 			t.Fatalf("status field %q out of order in:\n%s", label, got)
 		}
 		prev = idx
+	}
+}
+
+func TestStatusCommandIncludesKanbanDispatcherStatus(t *testing.T) {
+	ctx := context.Background()
+	smap := session.NewMemMap()
+	now := time.Date(2026, 5, 7, 13, 14, 15, 0, time.UTC)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "runtime-status.json"))
+	if err := statusStore.UpdateRuntimeStatus(ctx, RuntimeStatusUpdate{
+		KanbanDispatcher: &KanbanDispatcherStatus{
+			State:       KanbanDispatcherStateDegraded,
+			LastTickAt:  now.Format(time.RFC3339Nano),
+			LastError:   "worker_spawn_failed: missing profile",
+			Spawned:     2,
+			SpawnFailed: 1,
+			AutoBlocked: 3,
+		},
+	}); err != nil {
+		t.Fatalf("seed runtime status: %v", err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		SessionMap:    smap,
+		RuntimeStatus: statusStore,
+		Now:           func() time.Time { return now },
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	got := sent[0].Text
+	for _, want := range []string{
+		"**Kanban Dispatcher:** `degraded`",
+		"**Kanban Last Tick:** `" + now.Format(time.RFC3339Nano) + "`",
+		"**Kanban Spawned:** 2",
+		"**Kanban Spawn Failed:** 1",
+		"**Kanban Auto Blocked:** 3",
+		"**Kanban Last Error:** " + tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, "worker_spawn_failed: missing profile"),
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("status response missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+type unreadableRuntimeStatus struct{}
+
+func (unreadableRuntimeStatus) UpdateRuntimeStatus(context.Context, RuntimeStatusUpdate) error {
+	return nil
+}
+
+func (unreadableRuntimeStatus) ReadRuntimeStatus(context.Context) (RuntimeStatus, error) {
+	return RuntimeStatus{}, errors.New("decode runtime status: invalid character")
+}
+
+func TestStatusCommandOmitsKanbanDispatcherWhenRuntimeStatusUnreadable(t *testing.T) {
+	ctx := context.Background()
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		SessionMap:    session.NewMemMap(),
+		RuntimeStatus: unreadableRuntimeStatus{},
+		Now:           func() time.Time { return time.Date(2026, 5, 7, 13, 20, 0, 0, time.UTC) },
+	}, &fakeKernel{}, slog.Default())
+	ch := newFakeChannel("telegram")
+	if err := m.Register(ch); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.handleInbound(ctx, InboundEvent{Platform: "telegram", ChatID: "42", Kind: EventStatus}); err != nil {
+		t.Fatal(err)
+	}
+
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1: %#v", len(sent), sent)
+	}
+	got := sent[0].Text
+	if !strings.Contains(got, "📊 **Gormes Gateway Status**") {
+		t.Fatalf("status did not render base response:\n%s", got)
+	}
+	if strings.Contains(got, "**Kanban Dispatcher:**") {
+		t.Fatalf("status invented Kanban dispatcher section for unreadable runtime status:\n%s", got)
 	}
 }
 

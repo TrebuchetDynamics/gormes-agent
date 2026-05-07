@@ -85,11 +85,60 @@ func (m *Manager) formatGatewayStatus(ctx context.Context, ev InboundEvent) stri
 			"**Agent Binding:** `"+string(route.Decision.BindingTier)+"`",
 		)
 	}
+	if kanbanStatus, ok := m.kanbanDispatcherStatus(ctx); ok {
+		lines = append(lines, formatKanbanDispatcherStatusLines(kanbanStatus, esc)...)
+	}
 	lines = append(lines,
 		"",
 		"**Connected Platforms:** "+esc(connected),
 	)
 	return strings.Join(lines, "\n")
+}
+
+func (m *Manager) kanbanDispatcherStatus(ctx context.Context) (KanbanDispatcherStatus, bool) {
+	reader, ok := m.cfg.RuntimeStatus.(interface {
+		ReadRuntimeStatus(context.Context) (RuntimeStatus, error)
+	})
+	if !ok {
+		return KanbanDispatcherStatus{}, false
+	}
+	status, err := reader.ReadRuntimeStatus(ctx)
+	if err != nil {
+		m.log.Debug("read kanban dispatcher status", "err", err)
+		return KanbanDispatcherStatus{}, false
+	}
+	kanbanStatus := status.KanbanDispatcher
+	if kanbanStatus.State == "" &&
+		kanbanStatus.LastTickAt == "" &&
+		kanbanStatus.LastError == "" &&
+		kanbanStatus.Spawned == 0 &&
+		kanbanStatus.SpawnFailed == 0 &&
+		kanbanStatus.AutoBlocked == 0 {
+		return KanbanDispatcherStatus{}, false
+	}
+	return kanbanStatus, true
+}
+
+func formatKanbanDispatcherStatusLines(status KanbanDispatcherStatus, esc func(string) string) []string {
+	state := strings.TrimSpace(string(status.State))
+	if state == "" {
+		state = "unknown"
+	}
+	lines := []string{
+		"**Kanban Dispatcher:** `" + state + "`",
+	}
+	if strings.TrimSpace(status.LastTickAt) != "" {
+		lines = append(lines, "**Kanban Last Tick:** `"+strings.TrimSpace(status.LastTickAt)+"`")
+	}
+	lines = append(lines,
+		fmt.Sprintf("**Kanban Spawned:** %d", status.Spawned),
+		fmt.Sprintf("**Kanban Spawn Failed:** %d", status.SpawnFailed),
+		fmt.Sprintf("**Kanban Auto Blocked:** %d", status.AutoBlocked),
+	)
+	if strings.TrimSpace(status.LastError) != "" {
+		lines = append(lines, "**Kanban Last Error:** "+esc(status.LastError))
+	}
+	return lines
 }
 
 func (m *Manager) resolveStatusSession(ctx context.Context, ev InboundEvent, frame kernel.RenderFrame) string {
