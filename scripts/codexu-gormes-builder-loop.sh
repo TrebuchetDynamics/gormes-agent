@@ -509,6 +509,45 @@ pause_loop() {
   fi
 }
 
+cost_report() {
+  local now_epoch
+  now_epoch="$(date +%s)"
+
+  local total_7d=0 total_30d=0 run_count_7d=0 run_count_30d=0
+  local cutoff_7d=$((now_epoch - 7*86400))
+  local cutoff_30d=$((now_epoch - 30*86400))
+
+  if [[ ! -d "$LOG_DIR" ]]; then
+    printf '7-day spend: $0.00 | 30-day spend: $0.00 | runs: 0 (no log directory)\n'
+    return 0
+  fi
+
+  for logfile in "$LOG_DIR"/*.opencode.jsonl; do
+    [[ -f "$logfile" ]] || continue
+    local file_ts
+    file_ts="$(stat -c %Y "$logfile" 2>/dev/null || echo 0)"
+
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      local cost
+      cost="$(printf '%s' "$line" | jq -r '.usage.cost // empty' 2>/dev/null)"
+      [[ -n "$cost" && "$cost" != "null" ]] || continue
+
+      if [[ "$file_ts" -ge "$cutoff_30d" ]]; then
+        total_30d="$(awk "BEGIN { printf \"%.4f\", $total_30d + $cost }")"
+        run_count_30d=$((run_count_30d + 1))
+      fi
+      if [[ "$file_ts" -ge "$cutoff_7d" ]]; then
+        total_7d="$(awk "BEGIN { printf \"%.4f\", $total_7d + $cost }")"
+        run_count_7d=$((run_count_7d + 1))
+      fi
+    done < "$logfile"
+  done
+
+  printf '7-day spend: $%.2f | 30-day spend: $%.2f | runs: %d (7d) / %d (30d)\n' \
+    "$total_7d" "$total_30d" "$run_count_7d" "$run_count_30d"
+}
+
 case "${1:-run}" in
   status)
     print_status
@@ -534,10 +573,14 @@ case "${1:-run}" in
     printf 'stop requested: active run, if any, will finish before loop exits\n'
     exit 0
     ;;
+  cost-report)
+    cost_report
+    exit 0
+    ;;
   run)
     ;;
   *)
-    printf 'usage: %s [run|status|doctor|pause [--ttl DURATION|--forever] [reason]|resume|stop-after-current [reason]]\n' "$0" >&2
+    printf 'usage: %s [run|status|doctor|cost-report|pause [--ttl DURATION|--forever] [reason]|resume|stop-after-current [reason]]\n' "$0" >&2
     exit 2
     ;;
 esac
