@@ -24,7 +24,7 @@ var _ telegramClient = (*realClient)(nil)
 //
 // Exported so cmd/gormes (telegram subcommand) can construct one outside this package.
 func NewRealClient(token string) (telegramClient, error) {
-	api, err := tgbotapi.NewBotAPI(token)
+	api, err := tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, telegramHTTPClientFromEnv())
 	if err != nil {
 		return nil, fmt.Errorf("telegram: invalid token: %w", err)
 	}
@@ -104,4 +104,13 @@ func (r *realClient) DownloadFile(ctx context.Context, filePath string) ([]byte,
 
 func (r *realClient) StopReceivingUpdates() {
 	r.api.StopReceivingUpdates()
+}
+
+func (r *realClient) DrainPollingConnections(context.Context) error {
+	return nil
+}
+
+func (r *realClient) ProbeTelegramHeartbeat(context.Context) error {
+	_, err := r.api.GetMe()
+	return err
 }

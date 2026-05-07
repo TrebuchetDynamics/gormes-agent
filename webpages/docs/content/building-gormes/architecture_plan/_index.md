@@ -244,7 +244,7 @@ classification and row-backed implementation queue.
 - [x] Discord message admission + reply-mode policy
 - [x] Webhook dynamic route reload + signed rate-limit order
 - [x] Slack/Discord channel-scoped skills, prompts, and reload resync
-- [ ] Telegram fallback transport + polling reconnect recovery
+- [x] Telegram fallback transport + polling reconnect recovery
 - [x] Telegram sticker vision adapter binding
 - [ ] Discord native slash/thread command registration parity
 - [x] Telegram entity-only mention boundary closeout

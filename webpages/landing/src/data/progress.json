@@ -6133,8 +6133,8 @@
             },
             {
               "name": "Telegram fallback transport + polling reconnect recovery",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Telegram runtime matches Hermes' network resilience behavior for blocked or unstable Telegram API access: fallback IP config parsing rejects invalid, IPv6, whitespace-only, and leading-zero addresses; requests to api.telegram.org try the primary host first, preserve Host header and SNI, fall back only on connect timeout/connect errors, try fallback IPs in order, stick to the last working fallback, bypass fallback for non-Telegram hosts and read-timeout/non-connect errors, and raise the last connect error if all endpoints fail. Polling reconnect recovery self-schedules after retryable network startup/polling failures unless fatal state is already set, drains only the polling request pool before reconnect or conflict retry, continues if drain fails, resets retry counts on success, marks fatal after max retries, and emits a heartbeat probe after a successful reconnect.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -6147,11 +6147,11 @@
               "degraded_mode": "If fallback parsing or reconnect orchestration is unavailable, Gormes keeps primary Telegram requests, reports telegram_network_fallback_unavailable or telegram_polling_reconnect_unavailable evidence, and never drains general-purpose request pools or rewrites non-Telegram hosts.",
               "fixture": "internal/channels/telegram/network_test.go; internal/channels/telegram/startup_lifecycle_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/telegram_network.py@b816fd4e2",
-                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_handle_polling_network_error",
-                "../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_drain_polling_connections",
-                "../hermes-agent/tests/gateway/test_telegram_network.py@b816fd4e2",
-                "../hermes-agent/tests/gateway/test_telegram_network_reconnect.py@b816fd4e2",
+                "hermes-agent/gateway/platforms/telegram_network.py@b816fd4e2",
+                "hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_handle_polling_network_error",
+                "hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_drain_polling_connections",
+                "hermes-agent/tests/gateway/test_telegram_network.py@b816fd4e2",
+                "hermes-agent/tests/gateway/test_telegram_network_reconnect.py@b816fd4e2",
                 "internal/channels/telegram/real_client.go",
                 "internal/channels/telegram/bot.go",
                 "cmd/gormes/gateway.go"
@@ -6199,7 +6199,7 @@
                   "hermes:b816fd4e2 tests/gateway/test_telegram_network.py",
                   "hermes:b816fd4e2 tests/gateway/test_telegram_network_reconnect.py"
                 ],
-                "note": "Gormes has Telegram client and startup seams but no row for Hermes' fallback-IP transport, polling-request-pool drain boundary, self-scheduled reconnect recovery, or heartbeat probe."
+                "note": "Complete 2026-05-07: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 57, so one new source-backed row would have been allowed, but no new backlog entry was needed: the only open P1 row was a non-selectable event-bus umbrella, while this existing Hermes-sourced Telegram network resilience row was validated, unblocked by the completed startup guard, and directly protected operator-visible gateway availability. RED failed on missing ParseTelegramFallbackIPEnv, newTelegramFallbackTransportWithFactory, telegramAPIHost, and telegramPollingNetworkMaxRetries. GREEN added a Go fallback transport that validates TELEGRAM_FALLBACK_IPS, keeps api.telegram.org as the logical Host/SNI target while dialing configured fallback IPv4 endpoints, retries only connect-class errors, sticks to a working fallback, falls through stale sticky IPs, and returns the last connection error. Polling recovery now drains only clients that expose a polling-drain seam, continues after drain failure, retries retryable network errors before fatal retryable evidence, and probes heartbeat through a fakeable client seam. Evidence: go test ./internal/channels/telegram -run 'TestTelegram(Network|Fallback|Reconnect|Polling)' -count=1; go test ./internal/channels/telegram ./cmd/gormes -run 'Telegram|Gateway' -count=1; go test ./internal/channels/telegram -count=1."
               }
             },
             {

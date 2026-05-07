@@ -184,7 +184,7 @@ func TestTelegramStartupNetworkFailureIsRetryableAndRedacted(t *testing.T) {
 			IsTemporary: true,
 		}
 	}
-	bot := New(Config{}, client, nil)
+	bot := New(Config{PollingConflictRetryDelay: time.Millisecond}, client, nil)
 
 	err := bot.Run(context.Background(), make(chan<- gateway.InboundEvent))
 	startup := assertTelegramStartupError(t, err, telegramStartupCodeConnectError)
@@ -193,6 +193,117 @@ func TestTelegramStartupNetworkFailureIsRetryableAndRedacted(t *testing.T) {
 	}
 	if strings.Contains(startup.Error(), client.token) {
 		t.Fatalf("startup error leaked token: %q", startup.Error())
+	}
+}
+
+func TestTelegramPollingReconnectDrainsPollingOnlyAndHeartbeats(t *testing.T) {
+	client := &reconnectMockClient{mockClient: newMockClient()}
+	var calls int
+	client.GetUpdatesFn = func(context.Context, tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+		calls++
+		if calls == 1 {
+			return nil, &net.OpError{Op: "dial", Err: errors.New("telegram connect timeout")}
+		}
+		return []tgbotapi.Update{{
+			UpdateID: 5,
+			Message: &tgbotapi.Message{
+				MessageID: 77,
+				Text:      "after reconnect",
+				Chat:      &tgbotapi.Chat{ID: 42, Type: "private"},
+				From:      &tgbotapi.User{ID: 7, FirstName: "tester"},
+			},
+		}}, nil
+	}
+	bot := New(Config{PollingConflictRetryDelay: time.Millisecond}, client, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	inbox := make(chan gateway.InboundEvent, 1)
+	done := make(chan error, 1)
+	go func() { done <- bot.Run(ctx, inbox) }()
+
+	select {
+	case ev := <-inbox:
+		if ev.Text != "after reconnect" {
+			t.Fatalf("event text = %q, want after reconnect", ev.Text)
+		}
+	case err := <-done:
+		t.Fatalf("Run() returned before reconnect success: %v", err)
+	case <-time.After(300 * time.Millisecond):
+		t.Fatal("polling reconnect did not recover")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("Run() error after cancel = %v", err)
+	}
+	if client.pollingDrains != 1 {
+		t.Fatalf("pollingDrains = %d, want 1", client.pollingDrains)
+	}
+	if client.generalDrains != 0 {
+		t.Fatalf("generalDrains = %d, want 0", client.generalDrains)
+	}
+	if client.heartbeats != 1 {
+		t.Fatalf("heartbeats = %d, want post-reconnect probe", client.heartbeats)
+	}
+}
+
+func TestTelegramPollingReconnectContinuesAfterDrainFailure(t *testing.T) {
+	client := &reconnectMockClient{mockClient: newMockClient(), drainErr: errors.New("drain boom")}
+	var calls int
+	client.GetUpdatesFn = func(context.Context, tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+		calls++
+		if calls == 1 {
+			return nil, &net.OpError{Op: "dial", Err: errors.New("telegram connect timeout")}
+		}
+		return []tgbotapi.Update{{
+			UpdateID: 6,
+			Message: &tgbotapi.Message{
+				MessageID: 78,
+				Text:      "after drain failure",
+				Chat:      &tgbotapi.Chat{ID: 42, Type: "private"},
+				From:      &tgbotapi.User{ID: 7, FirstName: "tester"},
+			},
+		}}, nil
+	}
+	bot := New(Config{PollingConflictRetryDelay: time.Millisecond}, client, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	inbox := make(chan gateway.InboundEvent, 1)
+	done := make(chan error, 1)
+	go func() { done <- bot.Run(ctx, inbox) }()
+
+	select {
+	case ev := <-inbox:
+		if ev.Text != "after drain failure" {
+			t.Fatalf("event text = %q, want after drain failure", ev.Text)
+		}
+	case err := <-done:
+		t.Fatalf("Run() returned before reconnect success: %v", err)
+	case <-time.After(300 * time.Millisecond):
+		t.Fatal("polling reconnect did not recover after drain failure")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("Run() error after cancel = %v", err)
+	}
+	if client.pollingDrains != 1 {
+		t.Fatalf("pollingDrains = %d, want 1", client.pollingDrains)
+	}
+}
+
+func TestTelegramPollingReconnectFatalAfterMaxRetries(t *testing.T) {
+	client := &reconnectMockClient{mockClient: newMockClient()}
+	client.GetUpdatesFn = func(context.Context, tgbotapi.UpdateConfig) ([]tgbotapi.Update, error) {
+		return nil, &net.OpError{Op: "dial", Err: errors.New("telegram connect timeout")}
+	}
+	bot := New(Config{PollingConflictRetryDelay: time.Millisecond}, client, nil)
+
+	err := bot.Run(context.Background(), make(chan<- gateway.InboundEvent))
+	startup := assertTelegramStartupError(t, err, telegramStartupCodeConnectError)
+	if !startup.Retryable {
+		t.Fatalf("Retryable = false, want true")
+	}
+	if client.pollingDrains != telegramPollingNetworkMaxRetries {
+		t.Fatalf("pollingDrains = %d, want %d", client.pollingDrains, telegramPollingNetworkMaxRetries)
 	}
 }
 
@@ -283,6 +394,24 @@ type fakeTelegramTokenLock struct {
 func (f *fakeTelegramTokenLock) Release(context.Context) (gateway.TokenLockEvidence, error) {
 	f.released = true
 	return gateway.TokenLockEvidence{Status: gateway.TokenLockStatusReleased}, nil
+}
+
+type reconnectMockClient struct {
+	*mockClient
+	drainErr      error
+	pollingDrains int
+	generalDrains int
+	heartbeats    int
+}
+
+func (m *reconnectMockClient) DrainPollingConnections(context.Context) error {
+	m.pollingDrains++
+	return m.drainErr
+}
+
+func (m *reconnectMockClient) ProbeTelegramHeartbeat(context.Context) error {
+	m.heartbeats++
+	return nil
 }
 
 var closeOnceMu sync.Mutex
