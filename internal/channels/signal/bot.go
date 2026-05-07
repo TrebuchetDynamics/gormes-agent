@@ -12,6 +12,7 @@ import (
 // SendOptions captures Signal reply metadata for outbound sends.
 type SendOptions struct {
 	ReplyToMessageID string
+	BodyRanges       []SignalBodyRange
 }
 
 // Client is the transport-neutral Signal surface used by the shared channel.
@@ -86,12 +87,15 @@ func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("signal: no reply target for chat %q", chatID)
 	}
+	plainText, bodyRanges := MarkdownToSignal(text)
+	opts := target.options
+	opts.BodyRanges = bodyRanges
 
 	switch target.chatType {
 	case ChatTypeDirect:
-		return b.client.SendDirect(ctx, target.recipientID, text, target.options)
+		return b.client.SendDirect(ctx, target.recipientID, plainText, opts)
 	case ChatTypeGroup:
-		return b.client.SendGroup(ctx, target.recipientID, text, target.options)
+		return b.client.SendGroup(ctx, target.recipientID, plainText, opts)
 	default:
 		return "", fmt.Errorf("signal: unsupported chat type %q", target.chatType)
 	}
