@@ -40303,7 +40303,8 @@
             },
             {
               "name": "Transactional tool execution with snapshot/rollback",
-              "status": "planned",
+              "status": "complete",
+              "completed_at": "2026-05-07T00:00:00Z",
               "priority": "P1",
               "contract": "Wrap uncertain in-process tool calls with a bounded workspace filesystem snapshot before execution; successful calls commit by discarding the snapshot, while failed calls restore modified, deleted, and newly-created files before the executor returns.",
               "contract_status": "validated",
@@ -40356,7 +40357,7 @@
               "evidence": {
                 "implementation": "internal/tools/snapshot.go, internal/tools/transactional_executor.go",
                 "tests": "go test ./internal/tools -run TestTransactionalExecutor -count=1; go test ./internal/tools -run TestSnapshot -count=1; go test ./internal/tools -count=1",
-                "note": "Workspace snapshot and transactional executor fixtures prove rollback of modified, deleted, and newly-created files; commit preservation on success; snapshot-required metadata handling; and symlink restoration without following the target outside the workspace."
+                "note": "Workspace snapshot and transactional executor fixtures prove rollback of modified, deleted, and newly-created files; commit preservation on success; snapshot-required metadata handling; and symlink restoration without following the target outside the workspace. Verified during the 2026-05-07 cron pass before closing the stale planned status."
               }
             },
             {

@@ -1033,7 +1033,7 @@ classification and row-backed implementation queue.
 ### 5.U — Fault-Tolerant Sandbox Execution 🔨
 
 - [x] Pre-execution command classification
-- [ ] Transactional tool execution with snapshot/rollback
+- [x] Transactional tool execution with snapshot/rollback
 - [ ] Sandbox isolation depth selection
 
 ### 5.V — Unified Event Bus 🔨
