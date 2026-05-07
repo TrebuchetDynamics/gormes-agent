@@ -6273,7 +6273,7 @@
             },
             {
               "name": "Discord native slash/thread command registration parity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Discord native command registration matches Hermes' channel-visible slash surface: hardcoded commands such as /thread and /restart delegate auth and defer behavior to their handlers; COMMAND_REGISTRY commands and plugin slash commands auto-register without overriding built-ins; argument-bearing commands proxy optional args into _run_simple_slash; /skill registers as one flat autocomplete-backed command whose payload stays under Discord's command-size limit, dispatches selected skill names to their real slash command, and returns ephemeral guidance for unknown skills. /thread creates a Discord thread with sanitized/truncated names, falls back through a seed message when direct thread creation lacks permission, reports ephemeral success/failure, optionally dispatches the seed message into the new thread session, and native slash events preserve thread or group source context.",
               "contract_status": "validated",
@@ -6287,13 +6287,13 @@
               "degraded_mode": "If Discord command registration or thread creation helpers are unavailable, Gormes keeps message-command parsing and reports discord_slash_registration_unavailable or discord_thread_create_unavailable evidence; plugin conflicts never override built-ins and failed thread creation sends only ephemeral failure text.",
               "fixture": "internal/channels/discord/slash_commands_test.go; internal/channels/discord/thread_command_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_register_slash_commands",
-                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_handle_thread_create_slash",
-                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_dispatch_thread_session",
-                "../hermes-agent/gateway/platforms/discord.py@b816fd4e2:_auto_create_thread",
-                "../hermes-agent/tests/gateway/test_discord_slash_commands.py@b816fd4e2",
-                "../hermes-agent/tests/gateway/test_discord_system_messages.py@b816fd4e2",
-                "../hermes-agent/tests/gateway/test_discord_model_picker.py@b816fd4e2",
+                "./hermes-agent/gateway/platforms/discord.py@b816fd4e2:_register_slash_commands",
+                "./hermes-agent/gateway/platforms/discord.py@b816fd4e2:_handle_thread_create_slash",
+                "./hermes-agent/gateway/platforms/discord.py@b816fd4e2:_dispatch_thread_session",
+                "./hermes-agent/gateway/platforms/discord.py@b816fd4e2:_auto_create_thread",
+                "./hermes-agent/tests/gateway/test_discord_slash_commands.py@b816fd4e2",
+                "./hermes-agent/tests/gateway/test_discord_system_messages.py@b816fd4e2",
+                "./hermes-agent/tests/gateway/test_discord_model_picker.py@b816fd4e2",
                 "internal/channels/discord/bot.go",
                 "internal/gateway/commands.go",
                 "internal/skills/runtime.go"
@@ -6342,8 +6342,9 @@
                   "hermes:b816fd4e2 tests/gateway/test_discord_system_messages.py",
                   "hermes:b816fd4e2 tests/gateway/test_discord_model_picker.py"
                 ],
-                "note": "Gormes has shared gateway slash parsing and a Discord message adapter, but no source-backed row for Hermes' native Discord app-command registration, flat /skill payload design, /thread session creation, or system-message filtering."
-              }
+                "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 55, so adding one P1/P2 row would have been allowed, but no new backlog entry was needed: the open P1 event-bus row remains a non-selectable umbrella parent, the Telegram forum thread/retry row remains draft-blocked by SDK/thread delivery seams, and this validated P2 Discord row is the highest-priority builder-ready runtime slice. Gormes has shared gateway slash parsing and a Discord message adapter, but no source-backed row completion evidence yet for Hermes' native Discord app-command registration, flat /skill payload design, /thread session creation, or system-message filtering."
+              },
+              "note": "Complete 2026-05-07: TDD added native Discord slash-command registration and interaction fixtures without live Discord. `internal/channels/discord` now bulk-registers Hermes/Gormes gateway commands plus conflict-safe plugin commands, exposes a flat autocomplete-backed `/skill` command, routes selected skills/plugins as slash text, handles `/thread` authorization before defer, creates public threads directly or through a seed-message fallback, dispatches starter text into the created thread session with parent/thread source metadata, preserves native slash events from existing Discord threads, and drops Discord system messages such as thread renames, pins, joins, boosts, and recipient-add events. Row evidence: `go test ./internal/channels/discord -run 'TestDiscord(Slash|Thread|Skill|System|ModelPicker)' -count=1`; `go test ./internal/channels/discord ./internal/gateway ./internal/config -run 'Discord|CommandRegistry' -count=1`; `go test ./internal/channels/discord -count=1`."
             },
             {
               "name": "Telegram entity-only mention boundary closeout",

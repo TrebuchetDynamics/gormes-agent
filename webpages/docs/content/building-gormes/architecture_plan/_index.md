@@ -246,7 +246,7 @@ classification and row-backed implementation queue.
 - [x] Slack/Discord channel-scoped skills, prompts, and reload resync
 - [x] Telegram fallback transport + polling reconnect recovery
 - [x] Telegram sticker vision adapter binding
-- [ ] Discord native slash/thread command registration parity
+- [x] Discord native slash/thread command registration parity
 - [x] Telegram entity-only mention boundary closeout
 - [ ] Telegram forum thread fallback + send retry safety
 - [x] Telegram semantic MarkdownV2 formatter + table rewrite
