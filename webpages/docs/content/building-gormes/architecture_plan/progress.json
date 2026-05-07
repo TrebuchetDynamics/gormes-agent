@@ -28557,12 +28557,12 @@
             {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream"
               },
               "contract": "Kanban workers emit a heartbeat at a configurable interval; the dispatcher reclaims tasks whose worker heartbeat is stale beyond the threshold, marks the worker as zombie, and re-enqueues the task with retry budget honored. Auto-block on incomplete worker exit, darwin zombie detection, and a unified failure counter across spawn/timeout/crash outcomes are part of the same contract. Mirrors Hermes v0.13.0 PRs #21183, #21214, #20188, #20410.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -28621,7 +28621,7 @@
               "done_signal": [
                 "Heartbeat reclaim, zombie marking, unified failure counter, and darwin-specific detection are fixture-proven with a fake clock; no test launches a real worker subprocess."
               ],
-              "note": "Source: Hermes v0.13.0 (v2026.5.7) Kanban worker-reliability PRs — #21183 (heartbeat/reclaim/zombie/retry-cap), #21214 (auto-block on incomplete exit), #20188 (darwin zombie detection), #20410 (unified failure counter)."
+              "note": "Complete 2026-05-07: TDD landed heartbeat extension (HeartbeatTask now extends claim_expires by heartbeatTTL), zombie detection and reclaim (ReclaimStaleHeartbeats based on heartbeat_at staleness), unified failure counter (IncrementFailureCounter with FailureKind{spawn,timeout,crash}), auto-block on incomplete exit (AutoBlockIncompleteExit), darwin PID-state zombie detection (zombie_darwin.go via syscall.Kill), and cross-platform stub (zombie_other.go). All 8 acceptance tests pass over an in-memory SQLite store with fake clock injection. Source: Hermes v0.13.0 (v2026.5.7) Kanban worker-reliability PRs — #21183 (heartbeat/reclaim/zombie/retry-cap), #21214 (auto-block on incomplete exit), #20188 (darwin zombie detection), #20410 (unified failure counter)."
             }
           ]
         },

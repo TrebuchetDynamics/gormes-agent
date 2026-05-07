@@ -827,7 +827,7 @@ classification and row-backed implementation queue.
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
-- [ ] Kanban worker heartbeat, reclaim, and zombie detection
+- [x] Kanban worker heartbeat, reclaim, and zombie detection
 
 ### 5.N — Misc Operator Tools ✅
 
