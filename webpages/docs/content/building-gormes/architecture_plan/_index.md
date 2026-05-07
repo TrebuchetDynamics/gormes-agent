@@ -976,7 +976,8 @@ classification and row-backed implementation queue.
 - [ ] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
-- [ ] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
+- [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
+- [x] Install isolation: skip system service install when sandbox bin dir is set
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 

@@ -73,11 +73,74 @@ witness.
   After the sandbox dir is cleaned, every new login shell has a dangling
   PATH entry. There is no installer-emitted cleanup path — the operator
   has to `sed` it out by hand.
-- **Status**: `open`.
-- **Routing**: file under Phase 5.P — installer should not write to shell
-  rc files when the resolved bin dir is under `/tmp/`, or when an explicit
-  `--no-shell-init` flag is present, or when the sandbox prefix env vars
-  are set.
+- **Status**: `fixed-in-2026-05-07`.
+- **Fix**: `install.sh`'s `ensure_path_in_shell_config()` now early-returns
+  with `PATH_CONFIG_RESULT=sandbox_skipped` when `sandbox_bin_dir_set`
+  is true, after exporting the bin dir into the current install run's
+  `PATH` (so downstream verification still works). It logs
+  `skipping shell rc PATH edits (sandbox bin dir set via
+  GORMES_BIN_DIR; respecting boundary — ~/.bashrc, ~/.profile,
+  ~/.zshrc, fish config left untouched)`. `print_install_plan_body` and
+  `print_verbose_plan` both surface the decision as
+  `edit_shell_rc_files: skipped|yes`.
+- **Regression fence**: `internal/installtest/iso_shellrc_test.go` covers
+  the skipped path for `GORMES_BIN_DIR`, the skipped path for
+  `GORMES_PREFIX`, and the default-yes regression fence — all via fast
+  `--dry-run` plan inspection. End-to-end manual verification on
+  2026-05-07 confirmed a real sandbox install with `GORMES_BIN_DIR` set
+  left the production `~/.bashrc` and `~/.profile` `gormes`-line counts
+  byte-identical.
+- **Note on the original heuristic**: the planner row originally proposed
+  a "bin dir under `/tmp/`" detection heuristic and a separate
+  `--no-shell-init` flag. The shipped fix uses the operator-explicit
+  `sandbox_bin_dir_set` boundary instead because that is the actual
+  user-intent signal and is consistent with the iso-bin-hijack and
+  iso-systemd-hijack fixes (one boundary, three protected surfaces).
+
+### [iso-systemd-hijack] Sandbox install rewrites production user systemd unit to point at sandbox binary
+
+- **First seen**: 2026-05-07T18:35Z during the SECOND sandbox pass (the
+  one that verified iso-bin-hijack stays fixed).
+- **Surface touched**:
+  `/home/<user>/.config/systemd/user/gormes-gateway.service`.
+- **Sandbox env vars set**: `GORMES_INSTALL_HOME=$SANDBOX/home`,
+  `GORMES_BIN_DIR=$SANDBOX/bin`, `GORMES_SKIP_SETUP=1`,
+  `GORMES_RESTART_GATEWAY=never`.
+- **Trigger**: `sh ./install.sh --skip-setup --restart-gateway never` on
+  a Linux host with systemd-user available
+  (`systemctl --user >/dev/null 2>&1` succeeds) and an existing
+  production `gormes-gateway.service` already enabled.
+- **Symptom**: install log prints
+  `systemd user service installed:` and the production unit file's
+  `ExecStart`, `ExecReload`, and `Environment=GORMES_HOME=…` are all
+  rewritten to point at the sandbox path:
+  ```ini
+  ExecStart=/tmp/gormes-install-test/<ts>/home/bin/gormes gateway
+  Environment=GORMES_HOME=/tmp/gormes-install-test/<ts>/home
+  ```
+  After the next `/tmp` reap or reboot, the gateway service fails to
+  start because its binary path no longer exists. Worse than
+  iso-bin-hijack: the failure is invisible until the operator tries to
+  use the gateway. The unit file mtime jumps and `systemctl --user
+  daemon-reload` is also issued during the install, so the broken state
+  is loaded into the manager immediately.
+- **Status**: `fixed-in-2026-05-07`.
+- **Fix**: `install.sh`'s `print_service_instructions()` dispatcher now
+  early-returns when `sandbox_bin_dir_set` is true, with the log line
+  `skipping system service install (sandbox bin dir set via
+  GORMES_BIN_DIR; respecting boundary — ~/.config/systemd/user/ and
+  ~/Library/LaunchAgents/ left untouched)`. `print_install_plan_body`
+  and `print_verbose_plan` both surface the decision as
+  `install_system_service: skipped|yes`. The same fix protects the
+  macOS launchd plist path because both run through the same
+  dispatcher.
+- **Regression fence**: `internal/installtest/iso_systemd_dir_test.go`
+  covers the skipped path for `GORMES_BIN_DIR`, the skipped path for
+  `GORMES_PREFIX`, and the default-yes regression fence — all via fast
+  `--dry-run` plan inspection. End-to-end manual verification on
+  2026-05-07 confirmed a real sandbox install with `GORMES_BIN_DIR` set
+  left the production `~/.config/systemd/user/gormes-gateway.service`
+  sha256 byte-identical.
 
 ---
 

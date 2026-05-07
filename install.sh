@@ -1081,6 +1081,20 @@ ensure_path_in_shell_config() {
     return 0
   fi
 
+  # iso-shellrc-leak: when the operator declared a sandbox bin dir
+  # (GORMES_BIN_DIR / GORMES_PREFIX), do NOT mutate ~/.bashrc, ~/.profile,
+  # ~/.zshrc, or fish config. The sandbox path will be reaped on the next
+  # /tmp cleanup; persistent rc lines pointing at it become dangling cruft
+  # the operator has to sed out by hand. Make the sandbox bin dir visible
+  # to downstream steps in this same install run only.
+  if sandbox_bin_dir_set; then
+    PATH_CONFIG_RESULT="sandbox_skipped"
+    PATH="${epsc_bin_dir}:${PATH}"
+    export PATH
+    log "skipping shell rc PATH edits (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary — ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
+    return 0
+  fi
+
   PATH_CONFIG_RESULT="written"
 
   epsc_login_shell="${SHELL:-/bin/sh}"
@@ -1554,6 +1568,10 @@ print_summary() {
 }
 
 print_service_instructions() {
+  if sandbox_bin_dir_set; then
+    log "skipping system service install (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary — ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
+    return 0
+  fi
   if has systemctl && systemctl --user >/dev/null 2>&1; then
     install_systemd_user_service
   elif [ "$(platform_name)" = "Darwin" ] && has launchctl; then
@@ -1662,8 +1680,12 @@ print_install_plan_body() {
   log "  published_binary: $(pick_bin_dir)/gormes"
   if sandbox_bin_dir_set; then
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
+    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
@@ -1711,8 +1733,12 @@ print_verbose_plan() {
   log "  active_command: ${active_bin}"
   if sandbox_bin_dir_set; then
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
+    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
