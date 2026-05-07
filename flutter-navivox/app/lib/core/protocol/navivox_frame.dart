@@ -32,6 +32,40 @@ class NavivoxFrame {
 class NavivoxFrameCodec {
   const NavivoxFrameCodec._();
 
+  static Uint8List encode(NavivoxFrame frame) {
+    final header = <String, Object?>{
+      'type': frame.type,
+      'message_id': frame.messageId,
+      'timestamp': frame.timestamp.toUtc().toIso8601String(),
+      'payload_length': frame.payload.length,
+    };
+    if (frame.correlationId != null)
+      header['correlation_id'] = frame.correlationId;
+    if (frame.turnId != null) header['turn_id'] = frame.turnId;
+    if (frame.agentId != null) header['agent_id'] = frame.agentId;
+    if (frame.contentType != null) header['content_type'] = frame.contentType;
+    if (frame.metadata.isNotEmpty) header['metadata'] = frame.metadata;
+
+    final headerBytes = utf8.encode(jsonEncode(header));
+    final totalLength = 12 + headerBytes.length + frame.payload.length;
+    if (totalLength > maxNavivoxFrameBytes) {
+      throw const FrameSizeExceededException();
+    }
+
+    final out = BytesBuilder(copy: false)
+      ..add(ascii.encode(navivoxMagic))
+      ..add(_uint32(navivoxProtocolVersion))
+      ..add(_uint32(headerBytes.length))
+      ..add(headerBytes)
+      ..add(frame.payload);
+    return out.toBytes();
+  }
+
+  static Uint8List _uint32(int value) {
+    final data = ByteData(4)..setUint32(0, value, Endian.big);
+    return data.buffer.asUint8List();
+  }
+
   static NavivoxFrame decode(Uint8List bytes) {
     if (bytes.length < 12) {
       throw const InvalidFrameException('frame prelude is incomplete');

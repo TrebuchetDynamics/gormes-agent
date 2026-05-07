@@ -16087,8 +16087,8 @@
             },
             {
               "name": "Model catalog cache + preferred-provider live merge",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes model-catalog freshness behavior behind injectable fetch/cache seams: manifest validation rejects malformed or future-version catalogs, fetch writes an XDG-scoped cache and uses in-process reuse, network failures fall back to disk or stale cache, disabled config short-circuits fetches, override URLs win, Vercel AI Gateway pricing is translated into prompt/completion/cache fields, free Moonshot/Kimi AI Gateway models can be promoted into recommended lists, and preferred providers such as opencode-go/opencode-zen merge fresh models.dev IDs before curated extras without changing OpenRouter/Nous fallback behavior.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -16100,13 +16100,13 @@
               "degraded_mode": "Fetch failures, disabled catalog config, malformed manifests, stale cache, invalid override URL, and missing credentials return model_catalog_* evidence while preserving the embedded provider registry and never requiring live models.dev or provider credentials in unit tests.",
               "fixture": "internal/hermes/model_catalog_test.go; cmd/gormes/model_catalog_test.go",
               "source_refs": [
-                "../hermes-agent/tests/hermes_cli/test_model_catalog.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_ai_gateway_models.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_models_dev_preferred_merge.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_opencode_go_in_model_list.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/model_catalog.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/models.py@b816fd4e2",
-                "../hermes-agent/agent/models_dev.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_model_catalog.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_ai_gateway_models.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_models_dev_preferred_merge.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_opencode_go_in_model_list.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/model_catalog.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/models.py@b816fd4e2",
+                "./hermes-agent/agent/models_dev.py@b816fd4e2",
                 "internal/hermes/model_registry.go",
                 "cmd/gormes/model.go"
               ],
@@ -16149,6 +16149,14 @@
               ],
               "done_signal": [
                 "Model catalog fixtures prove cache/fallback/override behavior, AI Gateway pricing/free promotion, preferred-provider live merge, and unchanged OpenRouter/Nous fallback paths without live catalog/provider calls."
+              ],
+              "note": "Complete 2026-05-06: the cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned count was 70, so no new row was added. The P1 transactional-tools row remained draft/large, the P1 gateway event-bus row remained an umbrella parent, and this validated provider/model row was the highest-priority builder-ready Hermes-source-backed slice with all prerequisites complete. TDD added Go-native model catalog validation, XDG-scoped disk and in-process cache behavior, stale-cache fallback, disabled-config evidence, provider override fetches, AI Gateway pricing/free-model promotion helpers, preferred-provider models.dev merge helpers, and bounded `gormes model` suggestions for opencode-go without live provider/catalog calls.",
+              "evidence": [
+                "RED: go test ./internal/hermes -run 'TestModelCatalog|TestAIGateway|TestPreferredProviderModelMerge|TestOpenRouterNousCatalog' -count=1 failed on undefined model catalog/cache APIs.",
+                "RED: go test ./cmd/gormes -run 'TestModel.*Catalog|TestModel.*OpenCode' -count=1 failed on missing defaultModelCatalogSuggestions and promptModelChoice suggestion seam.",
+                "GREEN: go test ./internal/hermes -run 'TestModelCatalog|TestAIGateway|TestPreferredProviderModelMerge|TestOpenRouterNousCatalog' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes -run 'TestModel.*Catalog|TestModel.*OpenCode' -count=1 passed.",
+                "GREEN: go test ./internal/hermes ./cmd/gormes -count=1 passed."
               ],
               "provenance": {
                 "origin_type": "upstream",
@@ -20551,7 +20559,7 @@
               "priority": "P3",
               "status": "planned",
               "contract": "Residual terminal/local environment deleted-cwd parity after the completed foreground terminal recovery row: future background process spawn must reject deleted cwd before subprocess creation, and future persistent-shell state must reset with explicit evidence instead of panicking.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -23518,8 +23526,8 @@
             },
             {
               "name": "Update bundled skills across active and named profiles",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes skill update/sync paths seed reviewed bundled skills into the active profile and every named profile, target explicit profile roots, preserve user-modified skills, and return a deterministic per-profile summary without writing to unrelated homes.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -23572,10 +23580,11 @@
               "done_signal": [
                 "Profile-sync fixtures prove bundled skills are updated across active and named profiles, user edits are preserved, summaries are deterministic, and tests never touch live homes or registries."
               ],
+              "note": "Complete 2026-05-06: added internal/skills profile sync over injected profile roots plus gormes skills sync command seams. Focused tests prove active/default/work profile writes, user-modified conflict preservation, deterministic redacted summaries, and command binding through fake roots with no network or live-home mutation.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:20edca75e hermes_cli/main.py update skill sync",
-                "note": "Hermes fixed update to sync bundled skills to every profile including the active profile; Gormes tracks the same invariant in its native skills/update paths."
+                "note": "Hermes fixed update to sync bundled skills to every profile including the active profile; Gormes tracks the same invariant in its native skills/update paths. Parity sweep 2026-05-06 raised this to P1 because it is source-backed, small, builder-ready, and unblocks operator-visible skills/profile parity while planned-row count is 70."
               }
             },
             {
@@ -27609,9 +27618,9 @@
             {
               "name": "Hermes Kanban worker tools and prompt gating",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes exposes Hermes-compatible worker tools for Kanban tasks: kanban_show, kanban_complete, kanban_block, kanban_heartbeat, kanban_comment, kanban_create, and kanban_link are only visible inside a Kanban worker task or explicit profile toolset, enforce task ownership for destructive operations, and carry structured parent summaries/metadata to children.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -27620,17 +27629,23 @@
                 "system"
               ],
               "degraded_mode": "Outside a Kanban worker context the tools are hidden or return kanban_context_missing; attempts to complete/block/comment a foreign task return kanban_task_ownership_denied without mutating the board.",
-              "fixture": "internal/kanbantools/kanban_tools_test.go; cmd/gormes/registry_test.go",
+              "fixture": "internal/kanbantools/kanban_tools_test.go; cmd/gormes/registry_kanban_test.go",
               "source_refs": [
-                "../hermes-agent/tools/kanban_tools.py@54e78cadb",
-                "../hermes-agent/tests/tools/test_kanban_tools.py@54e78cadb",
+                "./hermes-agent/tools/kanban_tools.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:add_comment,complete_task,heartbeat_worker,build_worker_context",
                 "internal/tools/tool.go",
-                "cmd/gormes/registry.go"
+                "cmd/gormes/registry.go",
+                "internal/kanban/store.go",
+                "internal/kanban/dispatcher.go",
+                "internal/kanban/process_spawner.go",
+                "cmd/gormes/chat_command_test.go:TestChatCommandSkillsFlagBuildsForcedSkillProvider"
               ],
               "ready_when": [
                 "Hermes Kanban durable board core is complete.",
-                "Dispatcher row defines worker context env/state names or a fake worker context can be injected.",
-                "Native tool registry supports contextual visibility and ownership-denied evidence."
+                "Hermes Kanban dispatcher and worker spawn loop is complete.",
+                "Hermes Kanban production worker process binding is complete and injects GORMES_KANBAN_DB, GORMES_KANBAN_TASK, GORMES_KANBAN_WORKSPACE, and GORMES_PROFILE.",
+                "Gormes profile skills chat invocation shim is complete, so explicit --skills kanban-worker can force worker context."
               ],
               "not_ready_when": [
                 "Tools are globally visible by default in normal chats.",
@@ -27651,7 +27666,7 @@
                 "Complete/block fixtures prove summaries, metadata, comments, and child handoff context are stored and visible through kanban context.",
                 "Registry fixtures prove Kanban tools are not enabled in the default non-worker runtime."
               ],
-              "note": "Planned worker-tool parity. Keep external names kanban_* to match Hermes; this is separate from Goncho/Honcho memory tooling.",
+              "note": "2026-05-07 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No new row was added because the highest-priority actionable gap was this existing P1 Kanban worker-tool slice. The earlier blockers are complete: durable Kanban storage, dispatcher/gateway loop, production process binding, and root -p/--skills chat invocation. Implemented the native kanban_* tools, gated registry wiring, ownership denial, heartbeat/comment events, and structured completion handoff storage/context flow. Keep external names kanban_* to match Hermes; this is separate from Goncho/Honcho memory tooling.",
               "write_scope": [
                 "internal/kanbantools/",
                 "internal/kanban/",
@@ -27667,10 +27682,32 @@
               "done_signal": [
                 "Kanban worker tools are context-gated, ownership-safe, heartbeat-capable, and able to pass structured handoff summaries to children."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/kanbantools/kanban_tools.go:NewTools and ConfigFromEnv gate kanban_show, kanban_complete, kanban_block, kanban_heartbeat, kanban_comment, kanban_create, and kanban_link on worker task context or explicit kanban toolset env.",
+                  "internal/kanbantools/kanban_tools.go:complete/block/heartbeat/comment enforce current worker task ownership and return kanban_task_ownership_denied without mutating foreign tasks.",
+                  "internal/kanban/store.go:CompleteTask, AddComment, HeartbeatTask, ListComments, ListEvents, ListRuns, and BuildWorkerContext persist summaries, metadata, comments, events, and downstream context.",
+                  "internal/kanban/dispatcher.go:insertRunWithDetails stores summary and metadata columns for completed handoffs while preserving existing run callers.",
+                  "cmd/gormes/registry.go:buildDefaultRegistry registers Kanban tools only when ConfigFromEnv exposes a worker/profile Kanban context."
+                ],
+                "tests": [
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsHiddenWithoutContextAndVisibleWithWorkerContext",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsWorkerLifecycleStoresStructuredHandoff",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsDenyForeignTaskMutationForWorkers",
+                  "cmd/gormes/registry_kanban_test.go:TestBuildDefaultRegistryKanbanHiddenByDefault",
+                  "cmd/gormes/registry_kanban_test.go:TestBuildDefaultRegistryKanbanVisibleWithWorkerEnv"
+                ],
+                "verification": [
+                  "go test ./internal/kanbantools -run TestKanbanTools -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestBuildDefaultRegistryKanban -count=1 -> ok",
+                  "go test ./internal/kanban ./internal/kanbantools ./cmd/gormes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:54e78cadb tools/kanban_tools.py",
-                "note": "Hermes defines tool names, visibility, and ownership rules."
+                "upstream_ref": "hermes:b816fd4e2 tools/kanban_tools.py + tests/tools/test_kanban_tools.py",
+                "note": "Hermes defines tool names, visibility, ownership rules, and structured handoff context. The 2026-05-07 planner sweep verified the Gormes prerequisites are complete and selected this as the next builder-ready P1 slice."
               }
             },
             {
@@ -40557,10 +40594,10 @@
             },
             {
               "name": "Event bus integration test: full message flow",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "End-to-end test proving a Telegram message flows through: channel adapter → event bus → agent turn processing → tool execution → reply event → channel adapter → delivery. Validates decoupling: TUI subscriber also receives all events without modifying agent or gateway code.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -40572,16 +40609,24 @@
                 "internal/events/bus.go",
                 "internal/hermes/turn_events.go",
                 "internal/tools/tool_events.go",
-                "internal/gateway/event_dispatch.go"
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/channels/telegram/bus_adapter.go"
               ],
               "ready_when": [
-                "Event bus and turn/tool event producers are complete; gateway channel adapters publish to event bus is complete."
+                "Event bus core: pub/sub interface + in-process implementation is complete.",
+                "Agent turn and tool execution events on bus is complete.",
+                "Telegram gateway event-bus adapter is complete; this row intentionally proves the first full Telegram flow before additional channel-adapter child rows land."
               ],
               "not_ready_when": [
-                "Gateway channel adapters publish to event bus is still planned or only partially implemented."
+                "The test tries to wait for every channel adapter instead of proving the completed Telegram child slice.",
+                "The test reaches real Telegram credentials, live gateway processes, or a live agent provider.",
+                "The test bypasses the public event dispatcher, Telegram bus adapter, turn emitter, or tool event wrapper and only publishes synthetic lifecycle topics by hand."
               ],
               "blocked_by": [
-                "Gateway channel adapters publish to event bus"
+                "Event bus core: pub/sub interface + in-process implementation",
+                "Agent turn and tool execution events on bus",
+                "Telegram gateway event-bus adapter"
               ],
               "acceptance": [
                 "Telegram message → MessageReceived event → agent turn → tool execution → reply → delivery",
@@ -40591,15 +40636,23 @@
                 "Test runs without real Telegram/Discord credentials"
               ],
               "write_scope": [
-                "internal/gateway/event_bus_integration_test.go"
+                "internal/gateway/event_bus_integration_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/gateway -run TestEventBusIntegration -count=1"
+                "go test ./internal/gateway -run TestEventBusIntegration -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
               ],
               "done_signal": [
                 "Integration test proves full message lifecycle through event bus with multiple subscribers"
               ],
-              "note": "2026-05-06 all-topic parity sweep marked this gateway/channels row blocked instead of builder-ready: the core bus and turn/tool event producer rows are now complete, but the channel-adapter event producer row remains planned, so the integration test cannot honestly prove the full lifecycle yet. Research-driven. This test is the proof that event-driven architecture works end-to-end. After this, adding a new subscriber (e.g., webhook, analytics) requires zero changes to agent or gateway."
+              "note": "Complete 2026-05-07: the all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator surfaces with 72 planned rows. No new row was added. The source-backed planner change was this stale dependency: Telegram gateway event-bus adapter, event bus core, and turn/tool producers were already complete, so this P1 integration row was made builder-ready for the completed Telegram slice while the umbrella parent remains non-selectable for future channel children. TDD then added internal/gateway/event_bus_integration_test.go, proving Telegram inbound publication, agent turn events, wrapped tool execution events, Telegram reply publication, a second TUI-style subscriber receiving the same lifecycle, and timestamp-ordered session flow without live Telegram, providers, or gateway processes.",
+              "evidence": {
+                "implementation": "internal/gateway/event_bus_integration_test.go",
+                "tests": "go test ./internal/gateway -run TestEventBusIntegration -count=1",
+                "note": "The row selector was empty before this slice; the new fixture exercises the public Telegram BusAdapter, gateway EventDispatcher, hermes TurnEventEmitter, tools EventingToolExecutor, and a second subscriber over the shared in-process event bus."
+              }
             }
           ]
         }

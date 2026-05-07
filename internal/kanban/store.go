@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -76,7 +77,9 @@ type ListFilter struct {
 }
 
 type CompleteTaskInput struct {
-	Result string
+	Result   string
+	Summary  string
+	Metadata map[string]any
 }
 
 type ClaimTaskInput struct {
@@ -96,15 +99,34 @@ const (
 	RunOutcomeGaveUp         RunOutcome = "gave_up"
 	RunOutcomeWorkerCrashed  RunOutcome = "worker_crashed"
 	RunOutcomeWorkerTimedOut RunOutcome = "worker_timed_out"
+	RunOutcomeCompleted      RunOutcome = "completed"
 )
 
 type TaskRun struct {
-	ID        int64      `json:"id"`
-	TaskID    string     `json:"task_id"`
-	Outcome   RunOutcome `json:"outcome"`
-	Error     string     `json:"error,omitempty"`
-	StartedAt time.Time  `json:"started_at"`
-	EndedAt   time.Time  `json:"ended_at"`
+	ID        int64           `json:"id"`
+	TaskID    string          `json:"task_id"`
+	Outcome   RunOutcome      `json:"outcome"`
+	Error     string          `json:"error,omitempty"`
+	Summary   string          `json:"summary,omitempty"`
+	Metadata  json.RawMessage `json:"metadata,omitempty"`
+	StartedAt time.Time       `json:"started_at"`
+	EndedAt   time.Time       `json:"ended_at"`
+}
+
+type Comment struct {
+	ID        int64     `json:"id"`
+	TaskID    string    `json:"task_id"`
+	Author    string    `json:"author"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type Event struct {
+	ID        int64     `json:"id"`
+	TaskID    string    `json:"task_id"`
+	Kind      string    `json:"kind"`
+	Payload   string    `json:"payload,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Store struct {
@@ -137,6 +159,13 @@ func (s *Store) Close() error {
 		return nil
 	}
 	return s.db.Close()
+}
+
+func (s *Store) DBPath() string {
+	if s == nil {
+		return ""
+	}
+	return s.dbPath
 }
 
 func (s *Store) Init(ctx context.Context) error {
@@ -273,7 +302,7 @@ FROM tasks`
 
 func (s *Store) ListRuns(ctx context.Context, taskID string) ([]TaskRun, error) {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, task_id, outcome, error, started_at, ended_at
+SELECT id, task_id, outcome, error, summary, metadata, started_at, ended_at
 FROM task_runs
 WHERE task_id = ?
 ORDER BY id ASC`, taskID)
@@ -285,11 +314,15 @@ ORDER BY id ASC`, taskID)
 	for rows.Next() {
 		var run TaskRun
 		var outcome string
+		var metadata string
 		var startedAt, endedAt int64
-		if err := rows.Scan(&run.ID, &run.TaskID, &outcome, &run.Error, &startedAt, &endedAt); err != nil {
+		if err := rows.Scan(&run.ID, &run.TaskID, &outcome, &run.Error, &run.Summary, &metadata, &startedAt, &endedAt); err != nil {
 			return nil, fmt.Errorf("scan kanban task run: %w", err)
 		}
 		run.Outcome = RunOutcome(outcome)
+		if strings.TrimSpace(metadata) != "" {
+			run.Metadata = json.RawMessage(metadata)
+		}
 		run.StartedAt = millisToTime(startedAt)
 		run.EndedAt = millisToTime(endedAt)
 		runs = append(runs, run)
@@ -326,7 +359,18 @@ WHERE id = ? AND status != ? AND status != ?`,
 			return err
 		}
 	}
-	if err := insertEvent(ctx, tx, id, "completed", input.Result); err != nil {
+	summary := strings.TrimSpace(input.Summary)
+	if summary == "" {
+		summary = strings.TrimSpace(input.Result)
+	}
+	metadata, err := marshalTaskRunMetadata(input.Metadata)
+	if err != nil {
+		return err
+	}
+	if err := insertRunWithDetails(ctx, tx, id, RunOutcomeCompleted, "", summary, metadata, now); err != nil {
+		return err
+	}
+	if err := insertEvent(ctx, tx, id, "completed", summary); err != nil {
 		return err
 	}
 	if err := promoteReadyChildren(ctx, tx, id); err != nil {
@@ -431,7 +475,183 @@ WHERE id = ? AND status != ? AND status != ?`,
 			return err
 		}
 	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin kanban block event: %w", err)
+	}
+	defer tx.Rollback()
+	if err := insertEvent(ctx, tx, id, "blocked", input.Reason); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit kanban block event: %w", err)
+	}
 	return nil
+}
+
+func (s *Store) HeartbeatTask(ctx context.Context, id, note string) (bool, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin kanban heartbeat: %w", err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE tasks SET claim_expires = claim_expires WHERE id = ? AND status = ?`, id, string(StatusRunning))
+	if err != nil {
+		return false, fmt.Errorf("heartbeat kanban task %q: %w", id, err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("heartbeat kanban task rows: %w", err)
+	}
+	if changed == 0 {
+		if _, err := getTask(ctx, tx, id); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if err := insertEvent(ctx, tx, id, "heartbeat", strings.TrimSpace(note)); err != nil {
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit kanban heartbeat: %w", err)
+	}
+	return true, nil
+}
+
+func (s *Store) AddComment(ctx context.Context, taskID, author, body string) (int64, error) {
+	author = strings.TrimSpace(author)
+	body = strings.TrimSpace(body)
+	if author == "" {
+		return 0, errors.New("comment author is required")
+	}
+	if body == "" {
+		return 0, errors.New("comment body is required")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin kanban comment: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := getTask(ctx, tx, taskID); err != nil {
+		return 0, err
+	}
+	now := s.now().UTC()
+	result, err := tx.ExecContext(ctx, `INSERT INTO task_comments(task_id, author, body, created_at) VALUES (?, ?, ?, ?)`, taskID, author, body, now.UnixMilli())
+	if err != nil {
+		return 0, fmt.Errorf("insert kanban comment: %w", err)
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("read kanban comment id: %w", err)
+	}
+	if err := insertEvent(ctx, tx, taskID, "commented", author); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit kanban comment: %w", err)
+	}
+	return id, nil
+}
+
+func (s *Store) ListComments(ctx context.Context, taskID string) ([]Comment, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, task_id, author, body, created_at FROM task_comments WHERE task_id = ? ORDER BY created_at ASC, id ASC`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list kanban comments: %w", err)
+	}
+	defer rows.Close()
+	var comments []Comment
+	for rows.Next() {
+		var comment Comment
+		var createdAt int64
+		if err := rows.Scan(&comment.ID, &comment.TaskID, &comment.Author, &comment.Body, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan kanban comment: %w", err)
+		}
+		comment.CreatedAt = millisToTime(createdAt)
+		comments = append(comments, comment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan kanban comments: %w", err)
+	}
+	return comments, nil
+}
+
+func (s *Store) ListEvents(ctx context.Context, taskID string) ([]Event, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, task_id, kind, payload, created_at FROM task_events WHERE task_id = ? ORDER BY created_at ASC, id ASC`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list kanban events: %w", err)
+	}
+	defer rows.Close()
+	var events []Event
+	for rows.Next() {
+		var event Event
+		var createdAt int64
+		if err := rows.Scan(&event.ID, &event.TaskID, &event.Kind, &event.Payload, &createdAt); err != nil {
+			return nil, fmt.Errorf("scan kanban event: %w", err)
+		}
+		event.CreatedAt = millisToTime(createdAt)
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan kanban events: %w", err)
+	}
+	return events, nil
+}
+
+func (s *Store) BuildWorkerContext(ctx context.Context, taskID string) (string, error) {
+	task, err := s.GetTask(ctx, taskID)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Kanban task %s: %s\n\n", task.ID, task.Title)
+	fmt.Fprintf(&b, "Assignee: %s\nStatus: %s\nWorkspace: %s @ %s\n\n", emptyAs(task.Assignee, "(unassigned)"), task.Status, task.WorkspaceKind, emptyAs(task.WorkspacePath, "(unresolved)"))
+	if strings.TrimSpace(task.Body) != "" {
+		fmt.Fprintf(&b, "## Body\n%s\n\n", strings.TrimSpace(task.Body))
+	}
+	if len(task.ParentIDs) > 0 {
+		b.WriteString("## Parent handoffs\n")
+		for _, parentID := range task.ParentIDs {
+			parent, err := s.GetTask(ctx, parentID)
+			if err != nil {
+				return "", err
+			}
+			fmt.Fprintf(&b, "- %s: %s (%s)\n", parent.ID, parent.Title, parent.Status)
+			runs, err := s.ListRuns(ctx, parent.ID)
+			if err != nil {
+				return "", err
+			}
+			if run, ok := latestCompletedRun(runs); ok {
+				if strings.TrimSpace(run.Summary) != "" {
+					fmt.Fprintf(&b, "  Summary: %s\n", strings.TrimSpace(run.Summary))
+				}
+				if len(run.Metadata) > 0 {
+					fmt.Fprintf(&b, "  Metadata: %s\n", strings.TrimSpace(string(run.Metadata)))
+				}
+			} else if strings.TrimSpace(parent.Result) != "" {
+				fmt.Fprintf(&b, "  Result: %s\n", strings.TrimSpace(parent.Result))
+			}
+			comments, err := s.ListComments(ctx, parent.ID)
+			if err != nil {
+				return "", err
+			}
+			for _, comment := range comments {
+				fmt.Fprintf(&b, "  Comment from %s: %s\n", comment.Author, comment.Body)
+			}
+		}
+		b.WriteString("\n")
+	}
+	comments, err := s.ListComments(ctx, task.ID)
+	if err != nil {
+		return "", err
+	}
+	if len(comments) > 0 {
+		b.WriteString("## Comment thread\n")
+		for _, comment := range comments {
+			fmt.Fprintf(&b, "**%s**: %s\n", comment.Author, comment.Body)
+		}
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n", nil
 }
 
 func (s *Store) UnblockTask(ctx context.Context, id string) error {
@@ -679,13 +899,27 @@ func (s *Store) migrateSchema(ctx context.Context) error {
 	if err := s.ensureTaskColumn(ctx, "last_spawn_error", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		return err
 	}
+	if err := s.ensureTaskRunColumn(ctx, "summary", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := s.ensureTaskRunColumn(ctx, "metadata", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (s *Store) ensureTaskColumn(ctx context.Context, name, definition string) error {
-	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(tasks)`)
+	return s.ensureColumn(ctx, "tasks", name, definition)
+}
+
+func (s *Store) ensureTaskRunColumn(ctx context.Context, name, definition string) error {
+	return s.ensureColumn(ctx, "task_runs", name, definition)
+}
+
+func (s *Store) ensureColumn(ctx context.Context, table, name, definition string) error {
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
 	if err != nil {
-		return fmt.Errorf("inspect kanban tasks schema: %w", err)
+		return fmt.Errorf("inspect kanban %s schema: %w", table, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -695,17 +929,17 @@ func (s *Store) ensureTaskColumn(ctx context.Context, name, definition string) e
 		var defaultValue any
 		var pk int
 		if err := rows.Scan(&cid, &columnName, &columnType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("scan kanban tasks schema: %w", err)
+			return fmt.Errorf("scan kanban %s schema: %w", table, err)
 		}
 		if columnName == name {
 			return nil
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("scan kanban tasks schema: %w", err)
+		return fmt.Errorf("scan kanban %s schema: %w", table, err)
 	}
-	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE tasks ADD COLUMN %s %s", name, definition)); err != nil {
-		return fmt.Errorf("migrate kanban tasks.%s: %w", name, err)
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, definition)); err != nil {
+		return fmt.Errorf("migrate kanban %s.%s: %w", table, name, err)
 	}
 	return nil
 }
@@ -791,7 +1025,36 @@ CREATE TABLE IF NOT EXISTS task_runs (
 	task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
 	outcome TEXT NOT NULL,
 	error TEXT NOT NULL DEFAULT '',
+	summary TEXT NOT NULL DEFAULT '',
+	metadata TEXT NOT NULL DEFAULT '',
 	started_at INTEGER NOT NULL,
 	ended_at INTEGER NOT NULL
 );
 `
+
+func marshalTaskRunMetadata(metadata map[string]any) (json.RawMessage, error) {
+	if len(metadata) == 0 {
+		return nil, nil
+	}
+	raw, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, fmt.Errorf("encode kanban run metadata: %w", err)
+	}
+	return raw, nil
+}
+
+func latestCompletedRun(runs []TaskRun) (TaskRun, bool) {
+	for i := len(runs) - 1; i >= 0; i-- {
+		if runs[i].Outcome == RunOutcomeCompleted {
+			return runs[i], true
+		}
+	}
+	return TaskRun{}, false
+}
+
+func emptyAs(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return strings.TrimSpace(value)
+}

@@ -344,9 +344,17 @@ func (s *Store) recordSpawned(ctx context.Context, taskID string, spawned Proces
 }
 
 func insertRun(ctx context.Context, tx *sql.Tx, taskID string, outcome RunOutcome, message string, at time.Time) error {
+	return insertRunWithDetails(ctx, tx, taskID, outcome, message, "", nil, at)
+}
+
+func insertRunWithDetails(ctx context.Context, tx *sql.Tx, taskID string, outcome RunOutcome, message, summary string, metadata json.RawMessage, at time.Time) error {
+	metadataJSON := ""
+	if len(metadata) > 0 {
+		metadataJSON = string(metadata)
+	}
 	if _, err := tx.ExecContext(ctx, `
-INSERT INTO task_runs(task_id, outcome, error, started_at, ended_at)
-VALUES (?, ?, ?, ?, ?)`, taskID, string(outcome), message, at.UnixMilli(), at.UnixMilli()); err != nil {
+INSERT INTO task_runs(task_id, outcome, error, summary, metadata, started_at, ended_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)`, taskID, string(outcome), message, summary, metadataJSON, at.UnixMilli(), at.UnixMilli()); err != nil {
 		return fmt.Errorf("insert kanban run %q: %w", outcome, err)
 	}
 	return nil
