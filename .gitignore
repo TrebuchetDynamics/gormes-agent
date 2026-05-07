@@ -33,7 +33,7 @@ crash-*.log
 .worktrees/
 
 # ── Local upstream reference checkouts ───────────────
-hermes-agent/
+# hermes-agent is now tracked as a git submodule (see .gitmodules)
 openclaw/
 
 # ── Agent/orchestrator scratch ───────────────────────
