@@ -800,6 +800,7 @@ classification and row-backed implementation queue.
 - [x] Security Audit Command
 - [x] Email allowlist pre-dispatch loop guard
 - [x] Auth state TOCTOU close + redaction default-on parity
+- [ ] Gateway allowed_chats/channels/rooms whitelist parity
 
 ### 5.K — Code Execution ✅
 

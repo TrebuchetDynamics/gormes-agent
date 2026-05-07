@@ -49,7 +49,28 @@ selection.
 - Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. TD engineering blog scaffolded and live
+## 2. Gateway allowed_chats/channels/rooms whitelist parity
+
+- Phase: 5 / 5.J
+- Owner: `gateway`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes ports Hermes' allowed_chats/allowed_channels/allowed_rooms whitelist config for gateway platforms: Telegram, Slack, Discord, Mattermost, Matrix, and DingTalk. Config is loaded from config.toml per-platform (e.g., telegram.allowed_chats, slack.allowed_channels) with env-var fallback as escape hatch. Inbound messages from non-whitelisted chat/channel/room IDs are silently dropped before reaching the kernel, with status/doctor reporting whitelist active count and skipped-message evidence. Mirrors Hermes 69d025e4a (Telegram/Mattermost/Matrix/DingTalk) and cd3ef685c (Slack), extending to Discord which already has the feature in both repos.
+- Trust class: gateway, operator, system
+- Ready when: Gateway config loading and shared Manager lifecycle are complete (Phase 2 shipped)., Tests use fake channels, fake config, and t.TempDir config homes; no live Telegram, Slack, Discord, or other platform credentials required., A shared whitelist type (WhitelistConfig with IDs + Enabled bool) and filter function (IsAllowed) can live in internal/gateway/ and be consumed by each channel adapter.
+- Not ready when: The slice rewrites existing channel adapter ingress, message parsing, or send behavior beyond adding a pre-kernel whitelist filter check., The slice changes the default open-whitelist behavior (empty = all allowed)., Tests depend on real platform credentials, live gateway processes, or network calls., The implementation tries to port all six platforms in one pass instead of landing the shared config type + filter first, then adding per-platform wiring in follow-up child rows.
+- Degraded mode: Empty or unconfigured whitelist means all chats/channels/rooms are allowed (preserving existing behavior). A misconfigured whitelist (regex parse failure, empty string after trim) is reported via gateway status/doctor as whitelist_parse_error without dropping all messages.
+- Fixture: `internal/gateway/whitelist_test.go`
+- Write scope: `internal/gateway/whitelist.go`, `internal/gateway/whitelist_test.go`, `internal/config/config.go`, `internal/gateway/manager.go`, `internal/channels/telegram/bot.go`, `internal/channels/discord/bot.go`, `internal/slack/bot.go`, `internal/doctor/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway -run '^TestWhitelist' -count=1`, `go test ./internal/gateway ./internal/config ./internal/doctor -count=1`, `go test ./internal/channels/telegram ./internal/channels/discord ./internal/slack -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Gateway whitelist fixtures prove config loading (TOML + env fallback), IsAllowed filtering, empty-whitelist default-open behavior, parse-error degradation, and status/doctor evidence without requiring live platform credentials.
+- Acceptance: TestWhitelistConfig_LoadsFromConfigTOML: fake config with telegram.allowed_chats=['-1001','-1002'] loads WhitelistConfig{Enabled:true, IDs:['-1001','-1002']}., TestWhitelistConfig_EmptyMeansAllAllowed: empty or absent whitelist config returns Enabled=false, and IsAllowed returns true for any chat ID., TestWhitelistConfig_EnvVarFallback: TELEGRAM_ALLOWED_CHATS env var populates IDs when config key is absent, matching Hermes' env-var escape hatch pattern., TestWhitelistConfig_ParseErrorDegrades: malformed regex or empty-string entries produce whitelist_parse_error in status evidence without dropping all messages., TestWhitelistFilter_DropsNonWhitelistedChat: IsAllowed returns false for a chat ID not in the configured whitelist when Enabled=true., TestWhitelistFilter_PassesWhitelistedChat: IsAllowed returns true for a chat ID in the configured whitelist., TestWhitelistFilter_DoctorStatusReportsCount: gateway status/doctor output includes whitelist_active_count, whitelist_skipped_count, and whitelist_parse_error when applicable., Existing Discord interaction authorization tests remain green, proving whitelist filtering does not change the existing Discord auth/mention safety contract.
+- Source refs: hermes-agent:69d025e4a gateway/config.py (allowed_chats/channels/rooms for Telegram, Mattermost, Matrix, DingTalk), hermes-agent:cd3ef685c gateway/platforms/slack.py (allowed_channels for Slack), hermes-agent:PR #7044 gateway/platforms/discord.py (allowed_channels for Discord), hermes-agent:tests/gateway/test_slack_mention.py (allowed_channels test fixture pattern), internal/config/config.go, internal/gateway/manager.go, internal/channels/telegram/bot.go, internal/channels/discord/bot.go, internal/slack/bot.go, internal/doctor/
+- Unblocks: Telegram allowed_chats whitelist adapter, Slack allowed_channels whitelist adapter, Discord allowed_channels whitelist adapter, Mattermost allowed_channels whitelist adapter, Matrix allowed_rooms whitelist adapter, DingTalk allowed_chats whitelist adapter
+- Why now: Unblocks Telegram allowed_chats whitelist adapter, Slack allowed_channels whitelist adapter, Discord allowed_channels whitelist adapter, Mattermost allowed_channels whitelist adapter, Matrix allowed_rooms whitelist adapter, DingTalk allowed_chats whitelist adapter.
+
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -71,7 +92,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Behavioral pattern extraction from session logs
+## 4. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -91,7 +112,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Agentic-porting-kit repo scaffold
+## 5. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -112,7 +133,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Built-with-Gormes page scaffold
+## 6. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
