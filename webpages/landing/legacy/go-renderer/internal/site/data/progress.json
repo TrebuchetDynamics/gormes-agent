@@ -34465,12 +34465,16 @@
                 "Fixtures cover default model, custom providers, provider keys, channel tokens/allowlists, MCP servers, TTS settings, approvals, exec timeout, session reset, memory files, skills, and archive-only surfaces.",
                 "SecretRef env templates are resolved only from OpenClaw .env for manifest evidence; file/exec SecretRefs are reported as manual.",
                 "The dry-run report includes migrated/skipped/conflict/archived/error counts and redacts all secret values.",
+                "`gormes claw migrate --dry-run --source <dir>` preserves the upstream Hermes command spelling and delegates to the same Gormes-native OpenClaw manifest path as `gormes migrate openclaw --dry-run`.",
                 "`gormes migrate ooenclaw --dry-run` exits through the unknown-command path with a deterministic `gormes migrate openclaw` suggestion and no source/config probing.",
                 "No Gormes XDG path changes during dry-run tests."
               ],
-              "note": "Added by planner pass 2026-04-28. Hermes hides a large OpenClaw migration contract under hermes_cli/claw.py plus optional-skills/migration/openclaw-migration; this row makes that hidden broad-glob surface explicit for Gormes.",
+              "note": "Added by planner pass 2026-04-28. Hermes hides a large OpenClaw migration contract under hermes_cli/claw.py plus optional-skills/migration/openclaw-migration; this row makes that hidden broad-glob surface explicit for Gormes. 2026-05-07 parity follow-up: a source-backed Reddit drift report highlighted `hermes claw migrate --dry-run`; TDD added the exact `gormes claw migrate --dry-run` compatibility spelling as a shim over the existing Gormes-native `migrate openclaw` manifest while leaving preview-then-prompt UX and exact cleanup spelling as documented residuals.",
               "write_scope": [
+                "cmd/gormes/main.go",
                 "cmd/gormes/migrate.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/command_alias_fidelity_test.go",
                 "cmd/gormes/migrate_openclaw_test.go",
                 "internal/migrate/openclaw/manifest.go",
                 "internal/migrate/openclaw/manifest_test.go",
@@ -34478,6 +34482,7 @@
               ],
               "test_commands": [
                 "go test ./internal/migrate/openclaw ./cmd/gormes -run 'TestOpenClawMigrationManifest|TestMigrateOpenClawDryRun' -count=1",
+                "go test ./cmd/gormes -run 'TestHermesCommandAliasFidelity|TestHermesCLIParityManifest' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
@@ -34485,9 +34490,9 @@
                 "OpenClaw dry-run fixtures prove source discovery, field-level mapping coverage, redacted report output, explicit archive/manual reasons, and zero writes."
               ],
               "evidence": {
-                "implementation": "cmd/gormes/migrate.go, cmd/gormes/migrate_openclaw_test.go, internal/migrate/openclaw/manifest.go, internal/migrate/openclaw/manifest_test.go",
-                "tests": "go test ./internal/migrate/hermes ./internal/migrate/openclaw ./cmd/gormes -run 'Migrate|OpenClaw' -count=1; go run ./cmd/progress validate; git diff --check",
-                "note": "Gormes-native OpenClaw dry-run manifest now covers source discovery, config/env/file classification, manual SecretRef evidence, redacted counts, dry-run-only CLI behavior, and ooenclaw typo rejection without invoking Hermes/OpenClaw Python runtime."
+                "implementation": "cmd/gormes/main.go, cmd/gormes/migrate.go, cmd/gormes/hermes_cli_parity.go, cmd/gormes/command_alias_fidelity_test.go, cmd/gormes/migrate_openclaw_test.go, internal/migrate/openclaw/manifest.go, internal/migrate/openclaw/manifest_test.go",
+                "tests": "go test ./internal/migrate/hermes ./internal/migrate/openclaw ./cmd/gormes -run 'Migrate|OpenClaw' -count=1; go test ./cmd/gormes -run 'TestHermesCommandAliasFidelity|TestHermesCLIParityManifest' -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "Gormes-native OpenClaw dry-run manifest now covers source discovery, config/env/file classification, manual SecretRef evidence, redacted counts, dry-run-only CLI behavior, exact `gormes claw migrate --dry-run` compatibility spelling, and ooenclaw typo rejection without invoking Hermes/OpenClaw Python runtime."
               }
             },
             {
