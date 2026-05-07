@@ -5964,8 +5964,8 @@
             },
             {
               "name": "Webhook dynamic route reload + signed rate-limit order",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Generic webhook ingress matches Hermes runtime safety around dynamic subscriptions and request admission: static routes and agent-created webhook_subscriptions.json routes are merged with static precedence and mtime-gated reloads, file removal clears dynamic routes, corrupt dynamic JSON degrades without deleting static routes, HMAC signature validation happens before rate limiting, invalid signatures never consume quota, and valid signed requests still enforce per-route rate limits.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -5982,6 +5982,10 @@
                 "../hermes-agent/gateway/platforms/webhook.py@b816fd4e2:_handle_webhook",
                 "../hermes-agent/tests/gateway/test_webhook_dynamic_routes.py@b816fd4e2",
                 "../hermes-agent/tests/gateway/test_webhook_signature_rate_limit.py@b816fd4e2",
+                "internal/channels/webhook/dynamic_routes.go",
+                "internal/channels/webhook/dynamic_routes_test.go",
+                "internal/channels/webhook/runtime.go",
+                "internal/channels/webhook/runtime_test.go",
                 "internal/channels/webhook/inbound.go",
                 "internal/channels/webhook/bridge.go",
                 "internal/channels/webhook/inbound_test.go",
@@ -6025,6 +6029,7 @@
               "done_signal": [
                 "Webhook runtime fixtures prove static/dynamic route merge and reload behavior, signature-before-rate-limit ordering, quota semantics, event filtering, idempotency envelope, and static-route safety under corrupt dynamic files."
               ],
+              "note": "Complete 2026-05-07: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned row count was 61, so adding one source-backed row was allowed, but no new backlog entry was needed: this existing row was already validated, dependencies were complete, and it was the highest-priority selectable runtime/operator safety gap after non-selectable P1 event-bus umbrella work. Promoted to P1 because Hermes b816fd4e2 proves dynamic webhook subscription reload and signature-before-rate-limit admission in gateway/platforms/webhook.py plus focused gateway tests, while Gormes had only pure signed parsing and prompt-delivery helpers. TDD landed a transport-neutral webhook runtime plus dynamic route set: static and webhook_subscriptions.json routes merge with static precedence, dynamic reload is mtime-gated, removal clears dynamic routes, corrupt files preserve static routes with typed degraded evidence, runtime admission rejects unknown/oversized/bad-signature/bad-body requests with bounded envelopes, invalid signatures do not consume route quota, valid signed requests still rate-limit, filtered events return ignored evidence, duplicate delivery IDs dedupe, and accepted events build the existing prompt-delivery bridge without live network calls.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
@@ -6033,6 +6038,11 @@
                   "hermes:b816fd4e2 tests/gateway/test_webhook_signature_rate_limit.py"
                 ],
                 "note": "Gormes already has pure signed parsing and prompt-delivery helpers, but no row for Hermes' runtime dynamic subscription reload or auth-before-rate-limit admission ordering; the row lives in this open drift lane to keep Phase 7.D complete."
+              },
+              "evidence": {
+                "implementation": "internal/channels/webhook/dynamic_routes.go, internal/channels/webhook/runtime.go, internal/channels/webhook/bridge.go",
+                "tests": "go test ./internal/channels/webhook -run 'TestWebhookDynamicRoutes|TestWebhookSignatureBeforeRateLimit|TestWebhookRuntime' -count=1; go test ./internal/channels/webhook ./cmd/gormes -run 'Webhook|Gateway' -count=1",
+                "note": "Webhook fixtures prove dynamic subscription loading/reload/removal/corrupt-file safety, signature-before-rate-limit ordering, valid quota enforcement, admission error envelopes, event filtering, idempotency, and accepted prompt-delivery envelopes with no live webhook server."
               }
             },
             {
