@@ -64,6 +64,7 @@ type TelegramCfg struct {
 	BotToken               string     `toml:"bot_token" yaml:"bot_token"`
 	BotTokenRef            *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
 	AllowedChatID          int64      `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	AllowedChats           any        `toml:"allowed_chats" yaml:"allowed_chats"`
 	AllowedUserIDs         []int64    `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 	RequireMention         bool       `toml:"require_mention" yaml:"require_mention"`
 	BotUsername            string     `toml:"bot_username" yaml:"bot_username"`
@@ -102,6 +103,10 @@ type TelegramCfg struct {
 	EmbedderBatchSize     int           `toml:"embedder_batch_size" yaml:"embedder_batch_size"`
 	EmbedderCallTimeout   time.Duration `toml:"embedder_call_timeout" yaml:"embedder_call_timeout"`
 	QueryEmbedTimeout     time.Duration `toml:"query_embed_timeout" yaml:"query_embed_timeout"`
+}
+
+func (c TelegramCfg) AllowedChatIDs() []string {
+	return flexibleStringList(c.AllowedChats)
 }
 
 // DiscordCfg drives the Discord channel adapter.
@@ -189,6 +194,7 @@ type SlackCfg struct {
 	AppToken             string     `toml:"app_token" yaml:"app_token"`
 	AppTokenRef          *SecretRef `toml:"app_token_ref" yaml:"app_token_ref" json:"app_token_ref,omitempty"`
 	AllowedChannelID     string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	AllowedChannels      any        `toml:"allowed_channels" yaml:"allowed_channels"`
 	CoalesceMs           int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
 	FirstRunDiscovery    bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
 	RequireMention       any        `toml:"require_mention" yaml:"require_mention"`
@@ -197,6 +203,10 @@ type SlackCfg struct {
 	FreeResponseChannels any        `toml:"free_response_channels" yaml:"free_response_channels"`
 	ChannelSkillBindings any        `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
 	ChannelPrompts       any        `toml:"channel_prompts" yaml:"channel_prompts"`
+}
+
+func (c SlackCfg) AllowedChannelIDs() []string {
+	return flexibleStringList(c.AllowedChannels)
 }
 
 type CronCfg struct {
@@ -859,6 +869,9 @@ func loadEnv(cfg *Config) error {
 	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_USERS"), os.Getenv("TELEGRAM_ALLOWED_USERS")); v != "" {
 		cfg.Telegram.AllowedUserIDs = parseEnvInt64CSV(v)
 	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("TELEGRAM_ALLOWED_CHATS")); v != "" {
+		cfg.Telegram.AllowedChats = parseEnvCSV(v)
+	}
 	if v := os.Getenv("GORMES_DISCORD_TOKEN"); v != "" {
 		cfg.Discord.Token = v
 	}
@@ -915,6 +928,9 @@ func loadEnv(cfg *Config) error {
 	}
 	if v := os.Getenv("GORMES_SLACK_CHANNEL_ID"); v != "" {
 		cfg.Slack.AllowedChannelID = v
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_SLACK_ALLOWED_CHANNELS"), os.Getenv("SLACK_ALLOWED_CHANNELS")); v != "" {
+		cfg.Slack.AllowedChannels = parseEnvCSV(v)
 	}
 	if v := os.Getenv("GORMES_SLACK_COALESCE_MS"); v != "" {
 		parsed, err := parseEnvInt("GORMES_SLACK_COALESCE_MS", v)

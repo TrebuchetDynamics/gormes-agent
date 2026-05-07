@@ -179,7 +179,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Goncho:            gonchoStore,
 	}, hc, mstore, telemetry.New(), slog.Default())
 
-	allowedChats, allowDiscovery := gatewayPolicyMaps(cfg)
+	allowedChats, allowDiscovery, allowedWhitelists := gatewayPolicyMaps(cfg)
 	runtimeStatusPath := config.GatewayRuntimeStatusPath()
 	runtimeStatus := gateway.NewRuntimeStatusStore(runtimeStatusPath)
 	restartMarkerStore := gateway.NewRestartTakeoverStore(gateway.DefaultRestartTakeoverMarkerPath(runtimeStatusPath))
@@ -221,8 +221,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			return gateway.ManagerConfig{}, fmt.Errorf("provider setup: %w", err)
 		}
-		nextAllowedChats, nextAllowDiscovery := gatewayPolicyMaps(next)
-		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg)
+		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
+		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
 		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model)
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
 		if nextCfg.AgentRouting.Enabled {
@@ -232,7 +232,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		hc.Set(nextBaseHC)
 		return nextCfg, nil
 	}
-	mgrCfg := gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, hc, hooks, runtimeStatus, restartCfg)
+	mgrCfg := gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
 	mgrCfg.ToolRegistry = reg
 	mgrCfg.SkillRuntime = skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
 	if mgrCfg.AgentRouting.Enabled {
@@ -399,11 +399,12 @@ func gatewayFreshFinalAfter(cfg config.Config) time.Duration {
 	return time.Duration(cfg.Telegram.FreshFinalAfterSeconds * float64(time.Second))
 }
 
-func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, smap session.Map, hc hermes.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
+func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, allowDiscovery map[string]bool, allowedWhitelists map[string]gateway.WhitelistConfig, smap session.Map, hc hermes.Client, hooks *gateway.Hooks, runtimeStatus gateway.RuntimeStatusWriter, restart gateway.RestartConfig) gateway.ManagerConfig {
 	titleStore, titleModel := buildGatewayTitleSeam(context.Background(), smap, hc, cfg.Hermes.Model)
 	return gateway.ManagerConfig{
 		AllowedChats:               allowedChats,
 		AllowedUsers:               gatewayAllowedUsers(cfg),
+		AllowedChatWhitelists:      allowedWhitelists,
 		AllowDiscovery:             allowDiscovery,
 		CoalesceMs:                 gatewayCoalesceMs(cfg),
 		FreshFinalAfter:            gatewayFreshFinalAfter(cfg),
@@ -470,12 +471,16 @@ func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
 	return out
 }
 
-func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool) {
+func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool, map[string]gateway.WhitelistConfig) {
 	allowedChats := map[string]string{}
 	allowDiscovery := map[string]bool{}
+	whitelists := map[string]gateway.WhitelistConfig{}
 	if cfg.Telegram.BotToken != "" {
 		if cfg.Telegram.AllowedChatID != 0 {
 			allowedChats["telegram"] = strconv.FormatInt(cfg.Telegram.AllowedChatID, 10)
+		}
+		if wl := gateway.ParseWhitelistConfig(cfg.Telegram.AllowedChatIDs()); wl.Enabled {
+			whitelists["telegram"] = wl
 		}
 		allowDiscovery["telegram"] = cfg.Telegram.FirstRunDiscovery
 	}
@@ -483,11 +488,17 @@ func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool) {
 		if cfg.Discord.AllowedChannelID != "" {
 			allowedChats["discord"] = cfg.Discord.AllowedChannelID
 		}
+		if wl := gateway.ParseWhitelistConfig(cfg.Discord.AllowedChannelIDs()); wl.Enabled {
+			whitelists["discord"] = wl
+		}
 		allowDiscovery["discord"] = cfg.Discord.FirstRunDiscovery
 	}
 	if cfg.Slack.Enabled {
 		if cfg.Slack.AllowedChannelID != "" {
 			allowedChats["slack"] = cfg.Slack.AllowedChannelID
+		}
+		if wl := gateway.ParseWhitelistConfig(cfg.Slack.AllowedChannelIDs()); wl.Enabled {
+			whitelists["slack"] = wl
 		}
 		allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
 	}
@@ -500,7 +511,7 @@ func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool) {
 		}
 		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
 	}
-	return allowedChats, allowDiscovery
+	return allowedChats, allowDiscovery, whitelists
 }
 
 func gatewayAgentRoutingConfig(cfg config.Config) gateway.AgentRoutingConfig {

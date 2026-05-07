@@ -59,6 +59,7 @@ type activeTurnSnapshot struct {
 type ManagerConfig struct {
 	AllowedChats    map[string]string
 	AllowedUsers    map[string]map[string]bool
+	AllowedChatWhitelists map[string]WhitelistConfig
 	AllowDiscovery  map[string]bool
 	CoalesceMs      int
 	FreshFinalAfter time.Duration
@@ -1888,6 +1889,9 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 func (m *Manager) allowed(ev InboundEvent) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if wl, ok := m.cfg.AllowedChatWhitelists[ev.Platform]; ok && !wl.IsAllowed(ev.ChatID) {
+		return false
+	}
 	want, ok := m.cfg.AllowedChats[ev.Platform]
 	if ok && want != "" && ev.ChatID == want {
 		return true

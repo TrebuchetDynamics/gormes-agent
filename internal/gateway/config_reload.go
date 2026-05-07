@@ -34,6 +34,7 @@ func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig)
 	m.mu.Lock()
 	m.cfg.AllowedChats = cloneStringMap(next.AllowedChats)
 	m.cfg.AllowedUsers = cloneNestedBoolMap(next.AllowedUsers)
+	m.cfg.AllowedChatWhitelists = next.AllowedChatWhitelists
 	m.cfg.AllowDiscovery = cloneBoolMap(next.AllowDiscovery)
 	m.cfg.CoalesceMs = next.CoalesceMs
 	if m.cfg.CoalesceMs <= 0 {
