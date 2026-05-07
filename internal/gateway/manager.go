@@ -96,10 +96,13 @@ type ManagerConfig struct {
 	// singleton kernel with per-turn policy overrides.
 	AgentRuntimeFactory AgentRuntimeFactory
 	Hooks               *Hooks
-	RuntimeStatus       RuntimeStatusWriter
-	Restart             RestartConfig
-	SessionExpiry       SessionExpiryConfig
-	Now                 func() time.Time
+	// EventDispatcher mirrors successful outbound sends onto the shared event
+	// bus after channel delivery succeeds. Nil keeps legacy send behavior.
+	EventDispatcher *EventDispatcher
+	RuntimeStatus   RuntimeStatusWriter
+	Restart         RestartConfig
+	SessionExpiry   SessionExpiryConfig
+	Now             func() time.Time
 	// PersistReasoningGlobal is invoked by /reasoning ... --global to persist
 	// the requested effort beyond the calling session. A nil callback or one
 	// that returns an error causes the command to fall back to a session-only
@@ -287,10 +290,11 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 	const placeholderText = "⏳"
 
 	h.manager.fireHook(ctx, HookEvent{
-		Point:    HookBeforeSend,
-		Platform: h.platform,
-		ChatID:   chatID,
-		Text:     placeholderText,
+		Point:            HookBeforeSend,
+		Platform:         h.platform,
+		ChatID:           chatID,
+		ReplyToMessageID: h.replyToMsgID,
+		Text:             placeholderText,
 	})
 
 	var (
@@ -313,11 +317,12 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 			ErrorMessage:  err.Error(),
 		})
 		h.manager.fireHook(ctx, HookEvent{
-			Point:    HookOnError,
-			Platform: h.platform,
-			ChatID:   chatID,
-			Text:     placeholderText,
-			Err:      err,
+			Point:            HookOnError,
+			Platform:         h.platform,
+			ChatID:           chatID,
+			ReplyToMessageID: h.replyToMsgID,
+			Text:             placeholderText,
+			Err:              err,
 		})
 		return "", err
 	}
@@ -327,11 +332,12 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 		PlatformState: PlatformStateRunning,
 	})
 	h.manager.fireHook(ctx, HookEvent{
-		Point:    HookAfterSend,
-		Platform: h.platform,
-		ChatID:   chatID,
-		MsgID:    msgID,
-		Text:     placeholderText,
+		Point:            HookAfterSend,
+		Platform:         h.platform,
+		ChatID:           chatID,
+		MsgID:            msgID,
+		ReplyToMessageID: h.replyToMsgID,
+		Text:             placeholderText,
 	})
 	return msgID, nil
 }
@@ -343,10 +349,11 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 	}
 
 	h.manager.fireHook(ctx, HookEvent{
-		Point:    HookBeforeSend,
-		Platform: h.platform,
-		ChatID:   chatID,
-		Text:     text,
+		Point:            HookBeforeSend,
+		Platform:         h.platform,
+		ChatID:           chatID,
+		ReplyToMessageID: h.replyToMsgID,
+		Text:             text,
 	})
 
 	var (
@@ -369,11 +376,12 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 			ErrorMessage:  err.Error(),
 		})
 		h.manager.fireHook(ctx, HookEvent{
-			Point:    HookOnError,
-			Platform: h.platform,
-			ChatID:   chatID,
-			Text:     text,
-			Err:      err,
+			Point:            HookOnError,
+			Platform:         h.platform,
+			ChatID:           chatID,
+			ReplyToMessageID: h.replyToMsgID,
+			Text:             text,
+			Err:              err,
 		})
 		return "", err
 	}
@@ -383,11 +391,12 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 		PlatformState: PlatformStateRunning,
 	})
 	h.manager.fireHook(ctx, HookEvent{
-		Point:    HookAfterSend,
-		Platform: h.platform,
-		ChatID:   chatID,
-		MsgID:    msgID,
-		Text:     text,
+		Point:            HookAfterSend,
+		Platform:         h.platform,
+		ChatID:           chatID,
+		MsgID:            msgID,
+		ReplyToMessageID: h.replyToMsgID,
+		Text:             text,
 	})
 	return msgID, nil
 }
@@ -1487,10 +1496,11 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 		return "", nil
 	}
 	ev := HookEvent{
-		Point:    HookBeforeSend,
-		Platform: ch.Name(),
-		ChatID:   chatID,
-		Text:     text,
+		Point:            HookBeforeSend,
+		Platform:         ch.Name(),
+		ChatID:           chatID,
+		ReplyToMessageID: replyToMsgID,
+		Text:             text,
 	}
 	m.fireHook(ctx, ev)
 
@@ -1514,11 +1524,12 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 			ErrorMessage:  err.Error(),
 		})
 		m.fireHook(ctx, HookEvent{
-			Point:    HookOnError,
-			Platform: ch.Name(),
-			ChatID:   chatID,
-			Text:     text,
-			Err:      err,
+			Point:            HookOnError,
+			Platform:         ch.Name(),
+			ChatID:           chatID,
+			ReplyToMessageID: replyToMsgID,
+			Text:             text,
+			Err:              err,
 		})
 		return "", err
 	}
@@ -1528,20 +1539,45 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 		PlatformState: PlatformStateRunning,
 	})
 	m.fireHook(ctx, HookEvent{
-		Point:    HookAfterSend,
-		Platform: ch.Name(),
-		ChatID:   chatID,
-		MsgID:    msgID,
-		Text:     text,
+		Point:            HookAfterSend,
+		Platform:         ch.Name(),
+		ChatID:           chatID,
+		MsgID:            msgID,
+		ReplyToMessageID: replyToMsgID,
+		Text:             text,
 	})
 	return msgID, nil
 }
 
 func (m *Manager) fireHook(ctx context.Context, ev HookEvent) {
-	if m.cfg.Hooks == nil {
+	if m.cfg.Hooks != nil {
+		m.cfg.Hooks.Fire(ctx, ev)
+	}
+	m.publishMessageSentEvent(ev)
+}
+
+func (m *Manager) publishMessageSentEvent(ev HookEvent) {
+	if ev.Point != HookAfterSend || m.cfg.EventDispatcher == nil || !m.cfg.EventDispatcher.Available() {
 		return
 	}
-	m.cfg.Hooks.Fire(ctx, ev)
+	kind := "message"
+	if ev.ReplyToMessageID != "" {
+		kind = "reply"
+	}
+	payload := MessageEventPayload{
+		Platform:         ev.Platform,
+		ChatID:           ev.ChatID,
+		MessageID:        ev.MsgID,
+		MsgID:            ev.MsgID,
+		ReplyToMessageID: ev.ReplyToMessageID,
+		Kind:             kind,
+		Text:             ev.Text,
+		Body:             ev.Text,
+	}
+	traceID := strings.Join([]string{"gateway", ev.Platform, ev.ChatID, ev.MsgID}, ":")
+	if err := m.cfg.EventDispatcher.PublishMessageSent(ev.Platform, traceID, payload); err != nil {
+		m.log.Debug("publish gateway message-sent event", "platform", ev.Platform, "chat_id", ev.ChatID, "msg_id", ev.MsgID, "err", err)
+	}
 }
 
 func (m *Manager) writeRuntimeStatus(ctx context.Context, update RuntimeStatusUpdate) {

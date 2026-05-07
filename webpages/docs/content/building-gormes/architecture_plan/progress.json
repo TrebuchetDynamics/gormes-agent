@@ -40726,7 +40726,8 @@
                 "Slack gateway event-bus adapter",
                 "WhatsApp gateway event-bus adapter",
                 "WeCom gateway event-bus adapter",
-                "Weixin gateway event-bus adapter"
+                "Weixin gateway event-bus adapter",
+                "Gateway outbound sends publish message-sent events"
               ],
               "acceptance": [
                 "Child rows prove incoming channel messages publish MessageReceived events with source, channel_id/chat_id, user_id, message_id, command kind, text/body, and trace_id.",
@@ -40740,7 +40741,73 @@
               "done_signal": [
                 "The parent remains non-selectable while channel-specific child rows provide runnable implementation and tests."
               ],
-              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 54, so adding one source-backed P1 child was allowed and preferred over any P3/P4 expansion. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, WhatsApp, WeCom, Weixin, and the full-flow integration proof are complete, leaving future outbound subscriber paths."
+              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. The planned/porting queue was 83, below the 90-row cap, so adding one source-backed P1 child was allowed and preferred over any P3/P4 expansion. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, WhatsApp, WeCom, Weixin, and the full synthetic flow proof are complete, leaving the manager-side outbound delivery producer as the next completion-biased child."
+            },
+            {
+              "name": "Gateway outbound sends publish message-sent events",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gateway manager successful outbound sends publish channel-neutral gateway.message.sent events through an injected EventDispatcher. Existing channel Send/SendReply delivery remains the source of truth; the bus event is post-delivery provenance for TUI, dashboard, audit, and future outbound subscribers, and event publication must not block user-visible sends.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system",
+                "gateway"
+              ],
+              "degraded_mode": "If the EventDispatcher is nil, unavailable, or fails to publish, the channel send remains successful and the manager records only local debug evidence; no second event bus is started.",
+              "fixture": "internal/gateway/event_dispatch_manager_test.go",
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "hermes-agent/gateway/run.py@b816fd4e2:2595",
+                "hermes-agent/gateway/run.py@b816fd4e2:4859",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/hooks.go",
+                "internal/gateway/manager.go:sendWithHooksReply",
+                "internal/gateway/event_bus_integration_test.go"
+              ],
+              "ready_when": [
+                "Event bus core and EventDispatcher PublishMessageSent are complete and validated.",
+                "Manager send hooks already wrap successful Send and SendReply delivery through HookAfterSend, so the slice can add a post-delivery event producer without changing channel SDK adapters."
+              ],
+              "not_ready_when": [
+                "The slice rewrites channel delivery, coalescer editing, Telegram thread fallback, or the kernel turn loop.",
+                "Event publication happens before a channel send succeeds, blocks a successful user-visible send, or reclassifies send failures as successful message-sent events.",
+                "Tests require live Telegram, Discord, Slack, WhatsApp, WeCom, Weixin, provider credentials, or a running gateway process."
+              ],
+              "acceptance": [
+                "Manager fixtures prove a successful outbound send publishes exactly one gateway.message.sent event with source/platform, chat_id, message_id/msg_id, kind, text/body, and a non-empty trace_id.",
+                "Reply fixtures prove ReplyToMessageID is preserved when SendReply is used.",
+                "Failure fixtures prove channel send errors do not publish message-sent events and nil or failing dispatchers do not block successful sends.",
+                "Existing hook lifecycle and event dispatcher fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event_dispatch_manager_test.go",
+                "internal/gateway/hooks.go",
+                "internal/gateway/manager.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestGatewayMessageSentEvent|TestManagerHooks|TestEventDispatcher' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway manager send fixtures prove post-delivery gateway.message.sent events are emitted with provenance, reply context, and degraded no-block behavior."
+              ],
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. The event-bus parent had complete inbound channel adapters and a synthetic full-flow proof but no manager-side outbound delivery producer. TDD added an optional ManagerConfig.EventDispatcher and post-success HookAfterSend publisher so successful Send/SendReply delivery emits exactly one gateway.message.sent event with platform/source, chat_id, sent message_id/msg_id, kind, text/body, reply_to_message_id when applicable, and a stable trace_id. Send failures do not publish message-sent events, and nil or failing dispatchers do not block successful visible sends.",
+              "evidence": {
+                "implementation": "internal/gateway/manager.go, internal/gateway/hooks.go, internal/gateway/event_dispatch_manager_test.go",
+                "tests": "go test ./internal/gateway -run 'TestGatewayMessageSentEvent|TestManagerHooks|TestEventDispatcher' -count=1",
+                "note": "RED failed first on missing ManagerConfig.EventDispatcher, then on missing reply_to_message_id/kind=reply metadata. GREEN proves successful send publication, reply context preservation, no publish on channel send error, and no-block behavior when event publication fails."
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible gateway outbound send sequencing",
+                "note": "The shared event bus is a Gormes-owned architecture row; Hermes gateway/run.py remains the active source for channel-send sequencing and reply metadata boundaries."
+              }
             },
             {
               "name": "Weixin gateway event-bus adapter",
