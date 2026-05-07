@@ -42492,7 +42492,7 @@
             },
             {
               "name": "Signal markdown bodyRanges + attachment rate scheduler",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Signal outbound delivery preserves Hermes formatting and rate-limit behavior before live signal-cli transport: Markdown text is converted to plain text plus Signal bodyRanges for bold, italic, strikethrough, monospace, code blocks, and headings; snake_case, paths, bullet markers, and cross-line false positives are left untouched; offsets and lengths are computed in UTF-16 code units. Attachment sends pass through a token-bucket scheduler with capacity 50, default retry_after 4s feedback, FIFO acquire ordering under concurrency, estimate_wait reporting, retry-after calibration of refill rate per token, token reset on throttling feedback, and resettable singleton access for tests/runtime reuse.",
               "contract_status": "validated",
@@ -42550,6 +42550,12 @@
               "done_signal": [
                 "Signal fixtures prove Markdown-to-bodyRange conversion, UTF-16 offsets, false-positive guards, token-bucket attachment scheduling, retry-after feedback, FIFO concurrency, and resettable singleton behavior without live signal-cli."
               ],
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows. Planned row count was 66, so adding a row was allowed, but no new backlog entry was needed: the highest P1 candidates were non-selectable/draft (`Gateway channel adapters publish to event bus`, `Transactional tool execution with snapshot/rollback`) while this source-backed P2 Signal row was validated, unblocked by the completed shared reply/send chassis, and preserved active Hermes channel-visible formatting/rate-limit behavior before Signal bootstrap advances. TDD landed: `internal/channels/signal` now converts Hermes Markdown to Signal plain text plus UTF-16 bodyRanges, guards snake_case/path/bullet/cross-line false positives, passes bodyRanges through SendOptions, and exposes a fake-clockable attachment token scheduler with retry-after feedback and singleton reset.",
+              "evidence": {
+                "implementation": "internal/channels/signal/format.go, internal/channels/signal/rate_limit.go, internal/channels/signal/bot.go",
+                "tests": "go test ./internal/channels/signal -run 'TestSignal(Markdown|Format|AttachmentRate|RateLimit)' -count=1; go test ./internal/channels/signal -count=1",
+                "note": "Signal fixtures prove Markdown bodyRanges with UTF-16 offsets, false-positive guards, SendOptions propagation, attachment capacity/estimate/acquire/report/feedback behavior, FIFO serialized acquires, and resettable scheduler singleton without live signal-cli."
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
