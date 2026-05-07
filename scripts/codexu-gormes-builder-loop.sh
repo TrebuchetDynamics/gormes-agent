@@ -441,10 +441,10 @@ while true; do
   write_current_run "starting" "$(timestamp)"
   set +e
   if command -v setsid >/dev/null 2>&1; then
-    setsid "$RUNNER" &
+    (exec 8>&-; exec setsid "$RUNNER") &
     CURRENT_CHILD_OWN_SESSION=1
   else
-    "$RUNNER" &
+    (exec 8>&-; exec "$RUNNER") &
     CURRENT_CHILD_OWN_SESSION=0
   fi
   CURRENT_CHILD=$!

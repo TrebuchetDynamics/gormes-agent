@@ -93,3 +93,69 @@ printf 'timestamp=%q\nreason=%q\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "test reques
 		t.Fatalf("runner log = %q, want runner to execute once", got)
 	}
 }
+
+func TestCodexuBuilderLoopDoesNotLeakLoopLockToRunner(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	stateDir := t.TempDir()
+	runner := filepath.Join(stateDir, "runner.sh")
+	writeFile(t, runner, []byte(`#!/usr/bin/env bash
+set -Eeuo pipefail
+printf '%s\n' "$$" > "$GORMES_CODEXU_STATE_DIR/runner.pid"
+while [ ! -f "$GORMES_CODEXU_STATE_DIR/release-runner" ]; do
+  sleep 0.1
+done
+`), 0o755)
+
+	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	cmd := exec.Command("bash", script, "run")
+	cmd.Dir = repoRoot
+	cmd.Env = overlayEnv(os.Environ(),
+		"GORMES_CODEXU_REPO="+repoRoot,
+		"GORMES_CODEXU_RUNNER="+runner,
+		"GORMES_CODEXU_STATE_DIR="+stateDir,
+		"GORMES_CODEXU_LOOP_INTERVAL=60",
+		"GORMES_CODEXU_FAIL_BACKOFF=1",
+	)
+	outFile := filepath.Join(stateDir, "loop.out")
+	out, err := os.Create(outFile)
+	if err != nil {
+		t.Fatalf("create loop output: %v", err)
+	}
+	defer out.Close()
+	cmd.Stdout = out
+	cmd.Stderr = out
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start loop: %v", err)
+	}
+	defer func() {
+		_ = os.WriteFile(filepath.Join(stateDir, "release-runner"), []byte("1\n"), 0o644)
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}()
+
+	waitForFile(t, filepath.Join(stateDir, "runner.pid"), 5*time.Second)
+	if err := cmd.Process.Kill(); err != nil {
+		t.Fatalf("kill loop process: %v", err)
+	}
+	_ = cmd.Wait()
+
+	lockPath := filepath.Join(stateDir, "loop.lock")
+	lockCmd := exec.Command("flock", "-n", lockPath, "true")
+	if out, err := lockCmd.CombinedOutput(); err != nil {
+		t.Fatalf("loop lock remained held after loop parent died; runner inherited it: %v\noutput:\n%s", err, string(out))
+	}
+}
+
+func waitForFile(t *testing.T, path string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(path); err == nil {
+			return
+		} else if !os.IsNotExist(err) {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", path)
+}
