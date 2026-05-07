@@ -22437,7 +22437,7 @@
           "items": [
             {
               "name": "Multimodal in/out",
-              "status": "planned",
+              "status": "complete",
               "slice_size": "umbrella",
               "execution_owner": "provider",
               "not_ready_when": [
@@ -22448,7 +22448,7 @@
                 "Image-too-large shrink retry helper",
                 "Image generation result contract"
               ],
-              "note": "Umbrella only: upstream Hermes ec671c41 made multimodal routing concrete. Execute the smaller rows below instead of trying to port image input, provider routing, shrink retry, generation, and storage in one change."
+              "note": "All children complete (2026-05-07 parity sweep): Image input mode router, shrink retry helper, generation result contract, and provider registry all validated. Umbrella closed."
             },
             {
               "name": "Image input mode router + native content parts",
@@ -35179,7 +35179,7 @@
             },
             {
               "name": "CLI profile path and active-profile store (deprecated umbrella)",
-              "status": "planned",
+              "status": "complete",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -43190,10 +43190,10 @@
             },
             {
               "name": "Skill validation on load with execution proof",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "When a skill is loaded or created, run a lightweight validation: parse code blocks, execute in sandbox with a canary input, verify output contract. Skills that fail validation are marked as broken and not offered to the agent. Passing skills carry a 'validated' trust marker.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
               "trust_class": [
@@ -43228,7 +43228,7 @@
               "done_signal": [
                 "Validator tests prove broken skills are caught at load time with clear error messages"
               ],
-              "note": "Research-driven (Voyager 2023). Voyager validates skills through execution feedback. Gormes should catch broken skills before the agent tries to use them \u2014 fail at load time, not at run time."
+              "note": "Implemented 2026-05-07. SkillValidator supports sandbox-backed validation with canary execution (language-specific minimal inputs), async background goroutine validation (<500ms guarantee), operator ForceLoad override for broken skills, and batch validation. Tests prove: valid skills pass, execution errors are caught, force-load preserves error details while allowing load, canary catches import/syntax errors early, async channels deliver results within timeout, and ForceLoadMsg formats human-readable override explanations. Research-driven (Voyager 2023)."
             }
           ]
         }

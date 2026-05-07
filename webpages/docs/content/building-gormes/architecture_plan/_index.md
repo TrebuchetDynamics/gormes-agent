@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 68/92 subphases shipped · 23 in progress · 1 planned
+**Overall:** 69/92 subphases shipped · 23 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
@@ -704,9 +704,9 @@ classification and row-backed implementation queue.
 - [x] Go browser harness binary repo + integration lane (placeholder)
 - [x] Browser session inactivity cleanup thread
 
-### 5.D — Vision + Image Generation 🔨
+### 5.D — Vision + Image Generation ✅
 
-- [ ] Multimodal in/out
+- [x] Multimodal in/out
 - [x] Image input mode router + native content parts
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
@@ -931,7 +931,7 @@ classification and row-backed implementation queue.
 - [x] CLI profile name validator
 - [x] CLI profile root resolver
 - [x] CLI active-profile store
-- [ ] CLI profile path and active-profile store (deprecated umbrella)
+- [x] CLI profile path and active-profile store (deprecated umbrella)
 - [x] Top-level oneshot flag and model/provider resolver
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
@@ -1117,11 +1117,11 @@ classification and row-backed implementation queue.
 - [x] Iterative prompt mutation and scoring loop
 - [ ] Behavioral pattern extraction from session logs
 
-### 6.L — Composable Skill Execution (Voyager) ⏳
+### 6.L — Composable Skill Execution (Voyager) 🔨
 
 - [ ] Skill code execution runtime
 - [ ] Skill dependency resolution and composition
-- [ ] Skill validation on load with execution proof
+- [x] Skill validation on load with execution proof
 
 ## Phase 7 — Paused Channel Backlog 🔨
 

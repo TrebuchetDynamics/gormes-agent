@@ -107,24 +107,4 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Skill validation on load with execution proof
-
-- Phase: 6 / 6.L
-- Owner: `skills`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: When a skill is loaded or created, run a lightweight validation: parse code blocks, execute in sandbox with a canary input, verify output contract. Skills that fail validation are marked as broken and not offered to the agent. Passing skills carry a 'validated' trust marker.
-- Trust class: system
-- Ready when: Skill code execution exists (6.L row 1)
-- Not ready when: No sandbox execution available for validation
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/skills/validator.go`, `internal/skills/validator_test.go`
-- Test commands: `go test ./internal/skills -run TestValidator -count=1`
-- Done signal: Validator tests prove broken skills are caught at load time with clear error messages
-- Acceptance: Skills validated on load before appearing in agent's tool list, Canary execution with minimal input verifies basic functionality, Broken skills marked with error details (not silently skipped), Validation is fast (<500ms per skill, runs in background goroutine), Operator can force-load a broken skill with explicit override flag, Validation results visible in skill registry status
-- Source refs: docs/content/papers/foundational-architectures.md, Voyager iterative prompting with execution feedback, internal/skills/loader.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
 <!-- PROGRESS:END -->
