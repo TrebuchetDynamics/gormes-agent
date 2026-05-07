@@ -698,7 +698,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web extract safety policy and summarizer
 - [x] Go-native Hermes web_crawl tool adapter
 - [x] Go-native Hermes web managed gateway status and live smoke closure
-- [ ] Brave Search + DDGS web search provider parity
+- [x] Brave Search + DDGS web search provider parity
 - [x] Browser artifact and console render contract
 - [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
