@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Telegram forum thread fallback + send retry safety
-
-- Phase: 2 / 2.B.5
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Telegram outbound send/typing behavior preserves Hermes forum and retry safety: forum General-topic inbound messages without message_thread_id retain synthetic thread context `1`; outbound sends to General omit message_thread_id=1; send and typing retry without message_thread_id when Telegram returns BadRequest 'message thread not found'; non-thread BadRequest errors fail immediately; transient NetworkError sends retry with bounded attempts; TimedOut sends do not retry to avoid duplicate visible messages; RetryAfter sleeps/backoffs then retries; and once a chunk clears an invalid thread ID, later chunks in the same long response use no thread ID directly.
-- Trust class: operator, gateway, system
-- Ready when: Telegram reply_to_mode and reply-context parity plus channel directory thread target fixtures are complete, so the row can focus on Telegram message_thread_id send semantics., Tests can use fake Telegram clients that return typed errors and capture Chattable fields; no live Telegram Bot API call is required.
-- Not ready when: The slice changes generic gateway delivery routing, reconnect polling lifecycle, or media-group batching., TimedOut errors are retried, non-thread BadRequest is retried, General-topic sends include message_thread_id=1, or invalid thread fallback only fixes final text while dropping typing/tool-progress messages., The active Go Telegram SDK and gateway manager seams cannot expose inbound message_thread_id/is_forum or pass thread metadata through final send/typing paths without first adding a thread-aware channel delivery seam.
-- Degraded mode: If thread fallback or retry classification is unavailable, Gormes reports telegram_thread_fallback_unavailable or telegram_send_retry_unavailable evidence and avoids duplicate retries for timeouts rather than silently dropping all streaming/tool-progress messages.
-- Fixture: `internal/channels/telegram/thread_fallback_test.go; internal/channels/telegram/send_retry_test.go`
-- Write scope: `internal/channels/telegram/bot.go`, `internal/channels/telegram/client.go`, `internal/channels/telegram/thread_fallback_test.go`, `internal/channels/telegram/send_retry_test.go`, `internal/gateway/delivery.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels/telegram -run 'TestTelegram(ThreadFallback\|SendRetry\|TypingRetry)' -count=1`, `go test ./internal/channels/telegram ./internal/gateway -run 'Telegram\|Delivery' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Telegram fake-client fixtures prove General-topic thread preservation/omission, thread-not-found fallback for send and typing, duplicate-safe timeout handling, retry-after behavior, and chunk-level invalid-thread clearing.
-- Acceptance: Thread fallback fixtures prove General-topic inbound keeps thread context `1`, General-topic outbound omits thread ID, thread-not-found send/typing calls retry once without thread ID, and non-thread BadRequest fails immediately., Retry fixtures prove transient NetworkError retries are bounded, TimedOut does not retry, RetryAfter retry succeeds, and long chunked messages clear invalid thread metadata after the first failed chunk., Existing Telegram parse-mode, reply-mode, and media-send fixtures remain green.
-- Source refs: ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send, ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_typing, ../hermes-agent/tests/gateway/test_telegram_thread_fallback.py@b816fd4e2, ../hermes-agent/tests/gateway/test_telegram_reply_mode.py@b816fd4e2, internal/channels/telegram/bot.go, internal/channels/telegram/client.go, internal/gateway/delivery.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 2. Sandbox isolation depth selection
+## 1. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -67,7 +47,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Behavioral pattern extraction from session logs
+## 2. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -87,7 +67,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Skill code execution runtime
+## 3. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -107,7 +87,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Skill dependency resolution and composition
+## 4. Skill dependency resolution and composition
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -127,7 +107,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Skill validation on load with execution proof
+## 5. Skill validation on load with execution proof
 
 - Phase: 6 / 6.L
 - Owner: `skills`

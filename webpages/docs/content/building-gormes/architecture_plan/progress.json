@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-06T15:41:21Z",
+    "last_updated": "2026-05-07T18:00:00Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -6518,10 +6518,10 @@
             },
             {
               "name": "Telegram forum thread fallback + send retry safety",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Telegram outbound send/typing behavior preserves Hermes forum and retry safety: forum General-topic inbound messages without message_thread_id retain synthetic thread context `1`; outbound sends to General omit message_thread_id=1; send and typing retry without message_thread_id when Telegram returns BadRequest 'message thread not found'; non-thread BadRequest errors fail immediately; transient NetworkError sends retry with bounded attempts; TimedOut sends do not retry to avoid duplicate visible messages; RetryAfter sleeps/backoffs then retries; and once a chunk clears an invalid thread ID, later chunks in the same long response use no thread ID directly.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -6538,16 +6538,21 @@
                 "../hermes-agent/tests/gateway/test_telegram_reply_mode.py@b816fd4e2",
                 "internal/channels/telegram/bot.go",
                 "internal/channels/telegram/client.go",
-                "internal/gateway/delivery.go"
+                "internal/gateway/delivery.go",
+                "internal/gateway/thread_delivery.go",
+                "internal/gateway/thread_delivery_test.go"
               ],
               "ready_when": [
-                "Telegram reply_to_mode and reply-context parity plus channel directory thread target fixtures are complete, so the row can focus on Telegram message_thread_id send semantics.",
+                "Telegram reply_to_mode and reply-context parity plus channel directory thread target fixtures are complete (they are), so the row can focus on Telegram message_thread_id send semantics.",
+                "Telegram thread-aware outbound text + typing seam is complete (verified — internal/gateway/thread_delivery.go ships ThreadSend/ThreadReply/ThreadChatAction optional interfaces), so final pages and typing actions already carry thread metadata through gateway delivery.",
+                "Inbound General-topic detection can use a raw-API json-extraction or struct-tag workaround for the pinned Go Telegram SDK v5.5.1 types that lack message_thread_id/is_forum fields — no SDK fork or upgrade is required.",
                 "Tests can use fake Telegram clients that return typed errors and capture Chattable fields; no live Telegram Bot API call is required."
               ],
               "not_ready_when": [
                 "The slice changes generic gateway delivery routing, reconnect polling lifecycle, or media-group batching.",
                 "TimedOut errors are retried, non-thread BadRequest is retried, General-topic sends include message_thread_id=1, or invalid thread fallback only fixes final text while dropping typing/tool-progress messages.",
-                "The active Go Telegram SDK and gateway manager seams cannot expose inbound message_thread_id/is_forum or pass thread metadata through final send/typing paths without first adding a thread-aware channel delivery seam."
+                "The inbound General-topic detection requires an SDK fork or replaces the pinned go-telegram-bot-api/v5 dependency.",
+                "The slice modifies internal/gateway/thread_delivery.go, internal/channels/telegram/thread_send_test.go, or the existing reply-mode/parse-mode/approval-button fixtures."
               ],
               "acceptance": [
                 "Thread fallback fixtures prove General-topic inbound keeps thread context `1`, General-topic outbound omits thread ID, thread-not-found send/typing calls retry once without thread ID, and non-thread BadRequest fails immediately.",
@@ -6577,7 +6582,7 @@
                   "hermes:b816fd4e2 gateway/platforms/telegram.py",
                   "hermes:b816fd4e2 tests/gateway/test_telegram_thread_fallback.py"
                 ],
-                "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. The row remains source-backed against Hermes b816fd4e2, but the builder read found it is not ready in the current Go tree: github.com/go-telegram-bot-api/telegram-bot-api/v5@v5.5.1 does not expose message_thread_id/is_forum on inbound Message/Chat types, and the gateway manager does not yet have a thread-aware send/typing seam for final pages and typing actions. Existing Gormes evidence sets MarkdownV2 parse mode and has reply-mode rows, but this row must be revalidated or split before implementation."
+                "note": "2026-05-07 TDD implementation: added thread-not-found retry and send retry safety to SendThread/SendThreadReply/SendThreadChatAction. New helpers: isThreadNotFoundError, isTimedOutError, isTransientNetworkError, maxSendRetries=3. New tests: thread_fallback_test.go (8 subtests) and send_retry_test.go (7 subtests). Row validation: 13 focused tests pass, full telegram package tests pass, progress validates 7 phases, git diff --check clean. Thread-not-found errors retry once without message_thread_id; non-thread BadRequest fails immediately; TimedOut never retries; transient NetworkErrors bounded to 3 attempts; thread-not-found takes precedence over network retry. Matches Hermes b816fd4e2 gateway/platforms/telegram.py _is_thread_not_found_error and retry loop semantics."
               }
             },
             {
