@@ -70,28 +70,7 @@ selection.
 - Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
-
-- Phase: 5 / 5.P
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: When `GORMES_BIN_DIR` (or `--bin-dir`) is set to a directory the operator intends as a sandbox, install.sh must publish the gormes command only into that directory and must NOT also rewrite an existing `gormes` binary discovered elsewhere on PATH (typically `~/.local/bin/gormes`). The current behavior emits `updating active PATH command /home/<user>/.local/bin/gormes` and replaces a production symlink with one pointing at the sandbox, which dangles when the sandbox dir is reaped. Sandbox passes must be observably side-effect-free outside the sandbox prefix.
-- Trust class: operator, system
-- Ready when: An installtest harness exists that can exec `sh install.sh` in a temp HOME with isolated PATH and assert on post-state., install.sh exposes the active-PATH-command-update logic in a function reachable from a shell-level test.
-- Not ready when: The fix removes the convenient default behavior of updating an existing PATH-discovered gormes binary on a normal upgrade install (default invocation, no sandbox env vars)., The slice changes the public default install path or the operator-facing flags in a backwards-incompatible way without a migration note., Tests rely on touching the real `~/.local/bin/gormes` symlink instead of a temp HOME with isolated PATH.
-- Degraded mode: Without this fix, any operator running install.sh with a sandbox bin dir (e.g., for testing, in a container, in CI) silently mutates the host's production gormes symlink. The gormes-install skill flags this as iso-bin-hijack on every sandbox pass.
-- Fixture: `internal/installtest/iso_bin_dir_test.go`
-- Write scope: `install.sh`, `internal/installtest/iso_bin_dir_test.go`, `internal/installtest/harness.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/installtest -run IsoBinDir -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Sandbox install with `GORMES_BIN_DIR` set to a temp path leaves any pre-existing `~/.local/bin/gormes` symlink untouched; default install retains upgrade-in-place behavior; both are fixture-proven.
-- Acceptance: TestInstall_SandboxBinDir_DoesNotTouchExistingPathBinary execs install.sh in a temp HOME with `GORMES_BIN_DIR=$TMP/sb-bin` and a fake `~/.local/bin/gormes` symlink already present; the fake symlink target is unchanged after install., TestInstall_DefaultBinDir_StillUpdatesPathBinary preserves the convenient default behavior: with no sandbox env vars, install.sh DOES update an existing PATH-discovered gormes symlink so upgrade-in-place still works., TestInstall_VerboseLogReportsSandboxBoundary asserts the install transcript logs the sandbox boundary decision (e.g., "sandbox bin dir set; skipping active PATH command update") so the behavior is auditable.
-- Source refs: webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack, webpages/docs/development-skills/gormes-install/SKILL.md, install.sh, cmd/gormes/uninstall_dryrun_test.go
-- Unblocks: Install isolation: skip shell-rc PATH write when bin dir is under /tmp, Install transcript: only print systemd block when unit file actually written
-- Why now: Unblocks Install isolation: skip shell-rc PATH write when bin dir is under /tmp, Install transcript: only print systemd block when unit file actually written.
-
-## 4. TD engineering blog scaffolded and live
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -113,7 +92,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 5. Loop $/iteration cost metric in status file
+## 4. Loop $/iteration cost metric in status file
 
 - Phase: 8 / 8.F
 - Owner: `tools`
@@ -134,7 +113,7 @@ selection.
 - Unblocks: Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop
 - Why now: Unblocks Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop.
 
-## 6. Sandbox isolation depth selection
+## 5. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -154,7 +133,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Behavioral pattern extraction from session logs
+## 6. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -174,7 +153,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Agentic-porting-kit repo scaffold
+## 7. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -195,7 +174,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Built-with-Gormes page scaffold
+## 8. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

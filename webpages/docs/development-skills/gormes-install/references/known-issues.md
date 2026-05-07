@@ -40,10 +40,21 @@ witness.
   build (`/tmp/gormes-install-test/<ts>/home/bin/gormes`). After the
   sandbox dir is cleaned (e.g., `/tmp` reaped on reboot), the production
   symlink dangles.
-- **Status**: `open`.
-- **Routing**: file under Phase 5.P — installer should treat
-  `GORMES_BIN_DIR` as an authoritative isolation boundary and skip the
-  active-PATH-command update when it points outside the sandbox prefix.
+- **Status**: `fixed-in-2026-05-07`.
+- **Fix**: `install.sh` now defines `sandbox_bin_dir_set()`
+  (`[ -n "$GORMES_BIN_DIR" ] || [ -n "$GORMES_PREFIX" ]`).
+  `update_active_command()` early-returns when true with the log line
+  `skipping active PATH command update (sandbox bin dir set via
+  GORMES_BIN_DIR; respecting boundary)`. `print_install_plan_body` and
+  `print_verbose_plan` both surface the decision as
+  `update_active_path_command: skipped|yes`.
+- **Regression fence**: `internal/installtest/iso_bin_dir_test.go` covers
+  the skipped path for `GORMES_BIN_DIR`, the skipped path for
+  `GORMES_PREFIX`, the default-yes path, and the verbose-includes-reason
+  path — all via fast `--dry-run` plan inspection (no git clone, no
+  `go build`). End-to-end manual verification on 2026-05-07 confirmed a
+  real sandbox install with `GORMES_BIN_DIR` set leaves the production
+  `~/.local/bin/gormes` symlink target unchanged.
 
 ### [iso-shellrc-leak] Sandbox install permanently edits `~/.bashrc` and `~/.profile`
 

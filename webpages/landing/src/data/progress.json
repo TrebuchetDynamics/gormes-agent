@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T18:18:58Z",
+    "last_updated": "2026-05-07T18:25:15Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -37640,12 +37640,12 @@
             {
               "name": "Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "When `GORMES_BIN_DIR` (or `--bin-dir`) is set to a directory the operator intends as a sandbox, install.sh must publish the gormes command only into that directory and must NOT also rewrite an existing `gormes` binary discovered elsewhere on PATH (typically `~/.local/bin/gormes`). The current behavior emits `updating active PATH command /home/<user>/.local/bin/gormes` and replaces a production symlink with one pointing at the sandbox, which dangles when the sandbox dir is reaped. Sandbox passes must be observably side-effect-free outside the sandbox prefix.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -37693,7 +37693,8 @@
               "done_signal": [
                 "Sandbox install with `GORMES_BIN_DIR` set to a temp path leaves any pre-existing `~/.local/bin/gormes` symlink untouched; default install retains upgrade-in-place behavior; both are fixture-proven."
               ],
-              "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack. P1 because every sandbox pass mutates a production binary path without operator consent. Recommended approach: track a `sandbox_isolated` flag in install.sh derived from `[ -n \"$GORMES_BIN_DIR\" ] && [ -n \"$GORMES_INSTALL_HOME\" ]` (or an explicit `--no-rewrite-active-path` flag) and gate the active-PATH rewrite on its absence."
+              "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack. P1 because every sandbox pass mutates a production binary path without operator consent. Recommended approach: track a `sandbox_isolated` flag in install.sh derived from `[ -n \"$GORMES_BIN_DIR\" ] && [ -n \"$GORMES_INSTALL_HOME\" ]` (or an explicit `--no-rewrite-active-path` flag) and gate the active-PATH rewrite on its absence. COMPLETE 2026-05-07: install.sh now defines sandbox_bin_dir_set() ([ -n GORMES_BIN_DIR ] || [ -n GORMES_PREFIX ]); update_active_command() early-returns when true with a clear log line; print_install_plan_body and print_verbose_plan both surface the decision as update_active_path_command: skipped|yes. Verified by 4 dry-run plan tests in internal/installtest/iso_bin_dir_test.go (skipped path for GORMES_BIN_DIR, skipped path for GORMES_PREFIX, default-yes path, verbose-includes-reason) plus an end-to-end real install pass that left the production ~/.local/bin/gormes -> ~/.gormes/bin/gormes symlink intact while publishing a sandbox binary.",
+              "completed_at": "2026-05-07T18:25:15Z"
             },
             {
               "name": "Install isolation: skip shell-rc PATH write when bin dir is under /tmp",
