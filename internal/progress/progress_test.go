@@ -72,9 +72,10 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 3 = %q, want complete", got)
 	}
-	// Phase 4 still has umbrella rows that need smaller builder-ready splits.
-	if got := p.Phases["4"].DerivedStatus(); got != StatusInProgress {
-		t.Errorf("Phase 4 = %q, want in_progress", got)
+	// Phase 4 is complete once the model catalog cache/live-merge closeout
+	// joins the existing provider, prompt, context, routing, and resilience rows.
+	if got := p.Phases["4"].DerivedStatus(); got != StatusComplete {
+		t.Errorf("Phase 4 = %q, want complete", got)
 	}
 	// Floor counts — catches mass-deletion regressions without pinning exact values.
 	if n := len(p.Phases); n < 6 {

@@ -16087,8 +16087,8 @@
             },
             {
               "name": "Model catalog cache + preferred-provider live merge",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes ports Hermes model-catalog freshness behavior behind injectable fetch/cache seams: manifest validation rejects malformed or future-version catalogs, fetch writes an XDG-scoped cache and uses in-process reuse, network failures fall back to disk or stale cache, disabled config short-circuits fetches, override URLs win, Vercel AI Gateway pricing is translated into prompt/completion/cache fields, free Moonshot/Kimi AI Gateway models can be promoted into recommended lists, and preferred providers such as opencode-go/opencode-zen merge fresh models.dev IDs before curated extras without changing OpenRouter/Nous fallback behavior.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -16100,13 +16100,13 @@
               "degraded_mode": "Fetch failures, disabled catalog config, malformed manifests, stale cache, invalid override URL, and missing credentials return model_catalog_* evidence while preserving the embedded provider registry and never requiring live models.dev or provider credentials in unit tests.",
               "fixture": "internal/hermes/model_catalog_test.go; cmd/gormes/model_catalog_test.go",
               "source_refs": [
-                "../hermes-agent/tests/hermes_cli/test_model_catalog.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_ai_gateway_models.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_models_dev_preferred_merge.py@b816fd4e2",
-                "../hermes-agent/tests/hermes_cli/test_opencode_go_in_model_list.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/model_catalog.py@b816fd4e2",
-                "../hermes-agent/hermes_cli/models.py@b816fd4e2",
-                "../hermes-agent/agent/models_dev.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_model_catalog.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_ai_gateway_models.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_models_dev_preferred_merge.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_opencode_go_in_model_list.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/model_catalog.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/models.py@b816fd4e2",
+                "./hermes-agent/agent/models_dev.py@b816fd4e2",
                 "internal/hermes/model_registry.go",
                 "cmd/gormes/model.go"
               ],
@@ -16149,6 +16149,14 @@
               ],
               "done_signal": [
                 "Model catalog fixtures prove cache/fallback/override behavior, AI Gateway pricing/free promotion, preferred-provider live merge, and unchanged OpenRouter/Nous fallback paths without live catalog/provider calls."
+              ],
+              "note": "Complete 2026-05-06: the cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned count was 70, so no new row was added. The P1 transactional-tools row remained draft/large, the P1 gateway event-bus row remained an umbrella parent, and this validated provider/model row was the highest-priority builder-ready Hermes-source-backed slice with all prerequisites complete. TDD added Go-native model catalog validation, XDG-scoped disk and in-process cache behavior, stale-cache fallback, disabled-config evidence, provider override fetches, AI Gateway pricing/free-model promotion helpers, preferred-provider models.dev merge helpers, and bounded `gormes model` suggestions for opencode-go without live provider/catalog calls.",
+              "evidence": [
+                "RED: go test ./internal/hermes -run 'TestModelCatalog|TestAIGateway|TestPreferredProviderModelMerge|TestOpenRouterNousCatalog' -count=1 failed on undefined model catalog/cache APIs.",
+                "RED: go test ./cmd/gormes -run 'TestModel.*Catalog|TestModel.*OpenCode' -count=1 failed on missing defaultModelCatalogSuggestions and promptModelChoice suggestion seam.",
+                "GREEN: go test ./internal/hermes -run 'TestModelCatalog|TestAIGateway|TestPreferredProviderModelMerge|TestOpenRouterNousCatalog' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes -run 'TestModel.*Catalog|TestModel.*OpenCode' -count=1 passed.",
+                "GREEN: go test ./internal/hermes ./cmd/gormes -count=1 passed."
               ],
               "provenance": {
                 "origin_type": "upstream",
