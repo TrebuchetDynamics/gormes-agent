@@ -44,7 +44,6 @@ scripts/.swarm/
 docs/www-tests/node_modules/
 docs/www-tests/test-results/
 webpages/docs/www-tests/test-results/
-www.gormes.ai/data/
 
 # claude-flow swarm coordination state (created by `npx claude-flow swarm init`)
 .claude-flow/
