@@ -87,8 +87,7 @@ func TestBot_EditMessage_SetsMarkdownV2ParseMode(t *testing.T) {
 // TestBot_Send_FallsBackToPlainOnMarkdownV2ParseError mirrors the Hermes
 // fallback at gateway/platforms/telegram.py:1117-1129. When Telegram rejects
 // MarkdownV2 with a parse-entity error, the bot must retry once with
-// ParseMode unset and the original body (byte-identical text per the row
-// acceptance contract).
+// ParseMode unset and a clean plaintext body, mirroring Hermes _strip_mdv2.
 func TestBot_Send_FallsBackToPlainOnMarkdownV2ParseError(t *testing.T) {
 	mc := newMockClient()
 	calls := 0
@@ -102,6 +101,7 @@ func TestBot_Send_FallsBackToPlainOnMarkdownV2ParseError(t *testing.T) {
 	b := New(Config{AllowedChatID: 42}, mc, nil)
 
 	body := "literal *star* and \\(parens\\) — escaped by render.go"
+	wantFallback := "literal star and (parens) — escaped by render.go"
 	id, err := b.Send(context.Background(), "42", body)
 	if err != nil {
 		t.Fatalf("Send returned error after fallback: %v", err)
@@ -131,8 +131,8 @@ func TestBot_Send_FallsBackToPlainOnMarkdownV2ParseError(t *testing.T) {
 	if second.ParseMode != "" {
 		t.Fatalf("fallback ParseMode = %q, want empty", second.ParseMode)
 	}
-	if second.Text != body {
-		t.Fatalf("fallback body = %q, want byte-identical %q", second.Text, body)
+	if second.Text != wantFallback {
+		t.Fatalf("fallback body = %q, want stripped plaintext %q", second.Text, wantFallback)
 	}
 }
 

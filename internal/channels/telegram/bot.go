@@ -623,6 +623,7 @@ func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error
 		if isMarkdownParseError(err) {
 			b.log.Warn("telegram MarkdownV2 parse failed on edit, falling back to plain text", "err", err)
 			editCfg.ParseMode = ""
+			editCfg.Text = stripTelegramMarkdownV2(editCfg.Text)
 			if _, retryErr := b.client.Send(editCfg); retryErr != nil {
 				return retryErr
 			}
@@ -674,6 +675,7 @@ func (b *Bot) sendWithParseFallback(msgCfg tgbotapi.MessageConfig) (tgbotapi.Mes
 	}
 	b.log.Warn("telegram MarkdownV2 parse failed, falling back to plain text", "err", err)
 	msgCfg.ParseMode = ""
+	msgCfg.Text = stripTelegramMarkdownV2(msgCfg.Text)
 	return b.client.Send(msgCfg)
 }
 
