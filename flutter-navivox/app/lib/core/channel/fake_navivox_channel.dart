@@ -55,6 +55,18 @@ class FakeNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     _approvals.add(request);
   }
 
+  /// Test-side hook: pretend the server returned the config schema.
+  void emitConfigSchema(Map<String, Object?> schema) {
+    _state = _state.copyWith(configSchema: schema);
+    notifyListeners();
+  }
+
+  /// Test-side hook: pretend the server returned the current config values.
+  void emitConfigValues(Map<String, Object?> values) {
+    _state = _state.copyWith(configValues: values);
+    notifyListeners();
+  }
+
   @override
   void respondToApproval({required String approvalId, required bool approved}) {
     _approvalResponses.add((approvalId: approvalId, approved: approved));
