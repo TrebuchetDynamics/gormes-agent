@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 70/99 subphases shipped · 23 in progress · 6 planned
+**Overall:** 69/99 subphases shipped · 24 in progress · 6 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -678,7 +678,7 @@ classification and row-backed implementation queue.
 - [x] Terminal snapshot source stdout suppression guard
 - [ ] Terminal deleted-cwd recovery guard
 - [x] Raw tool-call parser fixture matrix
-- [ ] Docker execution backend (container lifecycle + mount policy)
+- [x] Docker execution backend (container lifecycle + mount policy)
 - [x] Docker backend top-level container reuse semantics
 - [ ] Modal
 - [ ] Daytona
@@ -741,7 +741,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration ✅
+### 5.G — MCP Integration 🔨
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -755,6 +755,7 @@ classification and row-backed implementation queue.
 - [x] MCP circuit breaker cooldown + reconnect reset
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
+- [ ] MCP channels_list tool
 
 ### 5.H — ACP Integration ✅
 

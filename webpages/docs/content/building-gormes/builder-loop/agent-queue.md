@@ -49,28 +49,7 @@ selection.
 - Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. Docker execution backend (container lifecycle + mount policy)
-
-- Phase: 5 / 5.B
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Gormes executes agent tools inside Docker containers through the existing DockerContainerKey helper and Environment interface. The backend handles: image selection/resolution from config or Hermes-compatible defaults, mount policy (allowlisted host paths mapped read-only, workspace mapped read-write, blocked dangerous mounts), env passthrough from config with allowlist filtering, container lifecycle with timeout cleanup, and stdout/stderr capture for tool output.
-- Trust class: operator, system
-- Ready when: Docker backend top-level container reuse semantics (DockerContainerKey) is complete., Environment interface + file sync contract is complete., Tests use fake Docker client or Docker socket stub; no live Docker daemon required in CI.
-- Not ready when: The slice implements Modal, Daytona, or Singularity backends — those remain separate rows., The slice changes the DockerContainerKey helper or Environment interface shape., Tests require a running Docker daemon on the CI agent.
-- Degraded mode: Missing Docker socket, image pull failure, or container timeout produce structured errors with mount_policy_blocked, image_pull_failed, or container_timeout reasons. Gateway status reports Docker backend availability without exposing raw Docker socket paths.
-- Fixture: `internal/tools/docker_exec_test.go`
-- Write scope: `internal/tools/docker_exec.go`, `internal/tools/docker_exec_test.go`, `internal/tools/docker_mount_policy.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run TestDockerExec -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`
-- Done signal: Docker execution fixtures prove image resolution, mount allowlist/blocking, env passthrough, timeout cleanup, and stdout/stderr capture without a live Docker daemon.
-- Acceptance: TestDockerExec_ImageResolution uses config- or default-specified image and verifies container start with correct image tag., TestDockerExec_MountPolicyAllowlist allows configured host paths (read-only) and workspace path (read-write) while blocking /etc, /proc, /sys, and Docker socket mounts., TestDockerExec_EnvPassthrough passes only allowlisted env vars from config to the container., TestDockerExec_TimeoutCleanup verifies container is stopped and removed after timeout or tool completion., TestDockerExec_StdoutStderrCapture captures container stdout/stderr as tool output and returns structured errors on non-zero exit.
-- Source refs: ../hermes-agent/tools/docker.py, ../hermes-agent/tools/sandboxing.py, internal/tools/docker_container_key.go (DockerContainerKey helper), internal/tools/env_interface.go (Environment interface), internal/tools/file_sync.go (file sync contract), internal/tools/timeout.go (timeout cleanup)
-- Unblocks: Modal, Daytona, Singularity
-- Why now: Unblocks Modal, Daytona, Singularity.
-
-## 3. TD engineering blog scaffolded and live
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -92,7 +71,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 4. Sandbox isolation depth selection
+## 3. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -112,7 +91,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Behavioral pattern extraction from session logs
+## 4. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -132,7 +111,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Agentic-porting-kit repo scaffold
+## 5. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -153,7 +132,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Built-with-Gormes page scaffold
+## 6. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
