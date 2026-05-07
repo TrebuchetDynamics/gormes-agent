@@ -6427,7 +6427,7 @@
               "status": "planned",
               "priority": "P2",
               "contract": "Telegram outbound send/typing behavior preserves Hermes forum and retry safety: forum General-topic inbound messages without message_thread_id retain synthetic thread context `1`; outbound sends to General omit message_thread_id=1; send and typing retry without message_thread_id when Telegram returns BadRequest 'message thread not found'; non-thread BadRequest errors fail immediately; transient NetworkError sends retry with bounded attempts; TimedOut sends do not retry to avoid duplicate visible messages; RetryAfter sleeps/backoffs then retries; and once a chunk clears an invalid thread ID, later chunks in the same long response use no thread ID directly.",
-              "contract_status": "validated",
+              "contract_status": "draft",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -6452,7 +6452,8 @@
               ],
               "not_ready_when": [
                 "The slice changes generic gateway delivery routing, reconnect polling lifecycle, or media-group batching.",
-                "TimedOut errors are retried, non-thread BadRequest is retried, General-topic sends include message_thread_id=1, or invalid thread fallback only fixes final text while dropping typing/tool-progress messages."
+                "TimedOut errors are retried, non-thread BadRequest is retried, General-topic sends include message_thread_id=1, or invalid thread fallback only fixes final text while dropping typing/tool-progress messages.",
+                "The active Go Telegram SDK and gateway manager seams cannot expose inbound message_thread_id/is_forum or pass thread metadata through final send/typing paths without first adding a thread-aware channel delivery seam."
               ],
               "acceptance": [
                 "Thread fallback fixtures prove General-topic inbound keeps thread context `1`, General-topic outbound omits thread ID, thread-not-found send/typing calls retry once without thread ID, and non-thread BadRequest fails immediately.",
@@ -6482,7 +6483,7 @@
                   "hermes:b816fd4e2 gateway/platforms/telegram.py",
                   "hermes:b816fd4e2 tests/gateway/test_telegram_thread_fallback.py"
                 ],
-                "note": "Gormes sets MarkdownV2 parse mode and has reply-mode rows, but its current Telegram send seam has no message_thread_id fallback or duplicate-safe retry classification."
+                "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. The row remains source-backed against Hermes b816fd4e2, but the builder read found it is not ready in the current Go tree: github.com/go-telegram-bot-api/telegram-bot-api/v5@v5.5.1 does not expose message_thread_id/is_forum on inbound Message/Chat types, and the gateway manager does not yet have a thread-aware send/typing seam for final pages and typing actions. Existing Gormes evidence sets MarkdownV2 parse mode and has reply-mode rows, but this row must be revalidated or split before implementation."
               }
             },
             {
@@ -6555,8 +6556,8 @@
             },
             {
               "name": "Gateway platform reconnect isolation + channel health limits",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Gateway platform lifecycle matches Hermes' multi-channel resilience: each enabled platform connect is bounded by HERMES/GORMES gateway platform connect timeout and one timed-out platform is queued for retry without blocking later platforms; retryable startup/connect failures enter a reconnect watcher with attempts/next_retry state, successful retry installs the adapter and clears failure state, non-retryable fatal errors leave the queue, and retryable failures stay queued with incremented attempts. Connected-platform readouts cover every built-in platform via generic token/api-key checks or bespoke checkers that return bool without panics. Long-lived HTTP platform clients share tuned keepalive limits with env overrides and malformed override fallbacks, and WhatsApp typing releases HTTP responses structurally instead of leaking sockets.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -6617,6 +6618,23 @@
               "done_signal": [
                 "Gateway lifecycle fixtures prove connect-timeout isolation, retry watcher behavior, connected-platform checker coverage, tuned HTTP keepalive helper behavior, WhatsApp typing response cleanup, and redacted channel status evidence with fake channels only."
               ],
+              "outputs": [
+                "internal/gateway/platform_reconnect.go",
+                "internal/gateway/platform_reconnect_test.go",
+                "internal/gateway/platform_connected_checkers.go",
+                "internal/gateway/platform_connected_checkers_test.go",
+                "internal/gateway/platform_http_client_limits.go",
+                "internal/gateway/platform_http_client_limits_test.go",
+                "internal/channels/whatsapp/runtime.go",
+                "internal/channels/whatsapp/runtime_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "evidence": [
+                "RED: go test ./internal/gateway -run 'TestPlatform(Reconnect|Connected|HTTPClient|Lifecycle)' -count=1 failed on missing PlatformLifecycleOptions, StartPlatformLifecycle, ReconnectFailedPlatforms, connected checker, and HTTP limit APIs.",
+                "GREEN: go test ./internal/gateway -run 'TestPlatform(Reconnect|Connected|HTTPClient|Lifecycle)' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes ./internal/gateway ./internal/channels/whatsapp -run 'Gateway|Platform|WhatsApp' -count=1 passed.",
+                "GREEN: go test ./internal/channels/whatsapp -run 'TestDecideRuntime' -count=1 passed."
+              ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
@@ -6627,8 +6645,9 @@
                   "hermes:b816fd4e2 tests/gateway/test_platform_connected_checkers.py",
                   "hermes:b816fd4e2 tests/gateway/test_platform_http_client_limits.py"
                 ],
-                "note": "Gormes records channel lifecycle status and has defensive startup cleanup, but Hermes carries broader multi-platform startup isolation, reconnect watcher, connected-platform checker, and long-lived HTTP client limit contracts."
-              }
+                "note": "2026-05-07 bounded all-topic weakness sweep selected this as the highest-priority builder-ready runtime row after the Telegram forum thread/retry row was downgraded to draft for missing SDK/thread delivery seams and the remaining open P1 event-bus row stayed a non-selectable umbrella parent. Complete: TDD added fakeable platform lifecycle helpers for HERMES_GATEWAY_PLATFORM_CONNECT_TIMEOUT parsing, timeout-bounded startup, retry queue evidence, reconnect success clearing, nonretryable removal, retryable attempt increments, status updates, manifest-backed connected-platform checkers, tuned HTTP keepalive env parsing, and a WhatsApp bridge typing response cleanup policy fixture without live SDKs or network clients."
+              },
+              "note": "Complete 2026-05-07: gateway lifecycle fixtures now prove Hermes-style platform startup isolation and retry state over fake connectors. The completed slice is a Go lifecycle/read-model seam; production channel startup can consume the helper in a later wiring row if broader manager integration is required."
             }
           ],
           "drift_state": {

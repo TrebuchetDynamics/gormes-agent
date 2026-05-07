@@ -11,6 +11,9 @@ const (
 	DefaultBridgeScript = "scripts/whatsapp-bridge/bridge.js"
 	DefaultBridgePort   = 3000
 	sessionLockName     = "whatsapp-session"
+	// TypingResponseCleanupClose records the Hermes socket-leak fix: bridge
+	// typing calls must close/release HTTP responses structurally.
+	TypingResponseCleanupClose = "close_response_body"
 )
 
 // RuntimeKind identifies which WhatsApp transport owns startup.
@@ -66,11 +69,11 @@ type NativeRuntimeConfig struct {
 
 // RuntimePlan is the transport-neutral WhatsApp startup contract.
 type RuntimePlan struct {
-	Startup StartupPlan
-	Session SessionPlan
-	Bridge  BridgePlan
-	Native  NativePlan
-	Account AccountPlan
+	Startup  StartupPlan
+	Session  SessionPlan
+	Bridge   BridgePlan
+	Native   NativePlan
+	Account  AccountPlan
 	Identity IdentityPlan
 }
 
@@ -92,13 +95,14 @@ type SessionPlan struct {
 
 // BridgePlan describes the Node/Baileys bridge process contract.
 type BridgePlan struct {
-	ScriptPath     string
-	Port           int
-	SessionPath    string
-	LogPath        string
-	Command        []string
-	RequiresNode   bool
-	ManagedProcess bool
+	ScriptPath            string
+	Port                  int
+	SessionPath           string
+	LogPath               string
+	Command               []string
+	RequiresNode          bool
+	ManagedProcess        bool
+	TypingResponseCleanup string
 }
 
 // NativePlan reserves the native device-store contract for a future concrete
@@ -275,12 +279,13 @@ func decideBridge(cfg BridgeRuntimeConfig, sessionPath string, mode AccountMode)
 	}
 	portArg := strconv.Itoa(port)
 	return BridgePlan{
-		ScriptPath:     scriptPath,
-		Port:           port,
-		SessionPath:    sessionPath,
-		LogPath:        filepath.Join(filepath.Dir(sessionPath), "bridge.log"),
-		RequiresNode:   true,
-		ManagedProcess: true,
+		ScriptPath:            scriptPath,
+		Port:                  port,
+		SessionPath:           sessionPath,
+		LogPath:               filepath.Join(filepath.Dir(sessionPath), "bridge.log"),
+		RequiresNode:          true,
+		ManagedProcess:        true,
+		TypingResponseCleanup: TypingResponseCleanupClose,
 		Command: []string{
 			"node",
 			scriptPath,
