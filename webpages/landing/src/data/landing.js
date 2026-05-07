@@ -1,10 +1,5 @@
 import benchmarks from './benchmarks.json';
-import progress from './progress.json';
 import release from './release.json';
-
-const STATUS_COMPLETE = 'complete';
-const STATUS_IN_PROGRESS = 'in_progress';
-const STATUS_PLANNED = 'planned';
 
 const binarySizeMB = benchmarks?.binary?.size_mb || '';
 const binaryMeasuredAt = benchmarks?.binary?.last_measured || '';
@@ -13,36 +8,6 @@ const releaseLabel = `Current scout release: v${releaseVersion}`;
 const binaryMeasureLabel = binarySizeMB
   ? `Current measured Linux build: ~${binarySizeMB} MB${binaryMeasuredAt ? ` (${binaryMeasuredAt})` : ''}`
   : 'Current Linux build measured during release prep';
-
-function derivedSubphaseStatus(subphase) {
-  const items = Array.isArray(subphase.items) ? subphase.items : [];
-  if (items.length === 0) {
-    return subphase.status || STATUS_PLANNED;
-  }
-
-  const allComplete = items.every((item) => item.status === STATUS_COMPLETE);
-  const anyStarted = items.some(
-    (item) => item.status === STATUS_COMPLETE || item.status === STATUS_IN_PROGRESS,
-  );
-
-  if (allComplete) {
-    return STATUS_COMPLETE;
-  }
-  if (anyStarted) {
-    return STATUS_IN_PROGRESS;
-  }
-  return STATUS_PLANNED;
-}
-
-export function progressTrackerLabel(source = progress) {
-  const subphases = Object.values(source.phases || {}).flatMap((phase) =>
-    Object.values(phase.subphases || {}),
-  );
-  const complete = subphases.filter(
-    (subphase) => derivedSubphaseStatus(subphase) === STATUS_COMPLETE,
-  ).length;
-  return `${complete}/${subphases.length} shipped`;
-}
 
 export const page = {
   title: 'Gormes — Run AI Agents From One Go Binary',
@@ -61,9 +26,9 @@ export const page = {
     'No Python runtime. No virtualenv repair. No backend service just to open the UI.',
     'Choose source build or install.sh, prove the machine offline, then add provider and gateway credentials.',
   ],
-  heroFilterStamp: 'Scout release: useful now, still hardening.',
+  heroFilterStamp: 'Scout release.',
   heroFilterLine:
-    'Offline TUI, doctor/onboard/setup, provider one-shots, local SQLite memory, dashboard, logs, security audits, source-backed install.sh, and runtime-ready Telegram/Discord/Slack paths are available. Hermes parity, broad channel parity, voice/TTS, plugin/MCP support, and release signing are still hardening.',
+    'Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now. Release signing, voice/TTS, and full Hermes parity are still hardening.',
   primaryCta: { label: 'Choose an install path', href: '#install' },
   secondaryCta: {
     label: 'View on GitHub',
@@ -151,11 +116,11 @@ export const page = {
   supportRows: [
     {
       status: 'Runtime-ready',
-      body: 'Telegram, Discord, and Slack paths are promoted for configured scout-release use.',
+      body: 'Telegram, Discord, and Slack.',
     },
     {
-      status: 'Tracked, not promoted here',
-      body: 'WhatsApp, WeChat, Signal, Matrix, Mattermost, and regional channels stay in docs/roadmap status until live validation is complete.',
+      status: 'In roadmap validation',
+      body: 'WhatsApp, WeChat, Signal, Matrix, and Mattermost.',
     },
   ],
   whyLabel: 'WHY GORMES',
@@ -170,8 +135,8 @@ export const page = {
   whyFixSubhead: 'Gormes cuts out that failure class',
   featureCards: [
     {
-      title: 'Single Static Binary',
-      body: 'CGO_ENABLED=0 release builds keep the runtime surface in one static Go binary with no Python runtime dependency.',
+      title: 'Single Binary Runtime',
+      body: 'Static Go builds keep the runtime surface in one binary with no Python runtime dependency.',
     },
     {
       title: 'Offline Proof',
@@ -194,8 +159,8 @@ export const page = {
       body: 'Full Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening remain in progress.',
     },
   ],
-  roadmapLabel: 'BUILD STATE',
-  roadmapHeadline: 'Core runtime shipped. Parity is hardening.',
+  roadmapLabel: 'CURRENT STATE',
+  roadmapHeadline: 'Core runtime shipped. Production hardening and broader parity are in progress.',
   roadmapBuckets: [
     {
       title: 'Shipped in scout',
@@ -232,6 +197,7 @@ export const page = {
   ],
   roadmapNextMilestone:
     'Production-stable Go-native runtime with signed releases and broader Hermes parity',
+  roadmapLinkLabel: 'View full roadmap ->',
   progressTrackerUrl: 'https://docs.gormes.ai/building-gormes/architecture_plan/',
   exploreHeadline: 'Explore',
   exploreLinks: [
@@ -241,9 +207,9 @@ export const page = {
     { label: 'Architecture', href: 'https://docs.gormes.ai/building-gormes/architecture_plan/' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  finalCtaHeadline: 'Build or install.sh. Then run gormes.',
+  finalCtaHeadline: 'Prove the runtime locally before you ever spend a token.',
   finalCtaBody:
-    'Both install paths prove the runtime before provider calls, gateway traffic, or token spend.',
+    'Build from source or inspect install.sh, run the offline doctor, then add credentials only after the machine has proven itself.',
   finalPrimaryCta: { label: 'Pick an install path', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',
@@ -255,5 +221,3 @@ export const page = {
   ],
   footerRelease: releaseLabel,
 };
-
-export const trackerLabel = progressTrackerLabel(progress);

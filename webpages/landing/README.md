@@ -2,8 +2,8 @@
 
 Astro + Tailwind landing page for current Gormes trunk.
 
-The site should reflect the shipped moat layers truthfully: the zero-CGO Go
-shell, the Go-native tool registry, Telegram/Discord on the shared gateway,
+The site should reflect the shipped moat layers truthfully: the single-binary Go
+runtime, the Go-native tool registry, Telegram/Discord on the shared gateway,
 Route-B resilience, and the progress-driven Phase-2 shipping boundary. It
 should not regress into a Phase-1-only story or hardcode stale proof claims.
 
