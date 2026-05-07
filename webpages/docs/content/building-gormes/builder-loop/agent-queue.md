@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Extension Lifecycle Hook System
-
-- Phase: 5 / 5.I
-- Owner: `tools`
-- Size: `large`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Port agent-zero extension lifecycle hook system: register extensions at 8+ lifecycle points (agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, stream_chunk, tool_before/after, context_deleted). Extension chain executes in registration order with per-extension timeout and panic isolation.
-- Trust class: operator, system
-- Ready when: Kernel state machine transitions are well-defined., Plugin registry supports lifecycle callback registration.
-- Not ready when: The row introduces Python dependency., The row adds hooks without timeout/panic recovery per extension.
-- Degraded mode: Extension load failure, timeout, or panic reports per-extension status with degraded extension skipped. No single extension failure blocks the agent turn.
-- Fixture: `internal/kernel/extensions_test.go`
-- Write scope: `internal/kernel/extensions.go`, `internal/kernel/extensions_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/kernel -run TestExtensions -count=1`, `go run ./cmd/progress validate`
-- Done signal: Extension lifecycle hook system ships with 8+ hook points and per-extension error isolation.
-- Acceptance: Extensions register for monologue_start, message_loop_start, prompt_before, prompt_after, stream_chunk, tool_before, tool_after hooks., Extension chain executes in registration order., Extension timeout or panic does not crash agent turn., gormes extensions list shows registered extensions with hook points.
-- Source refs: agent-zero helpers/extension.py (@extensible decorator), agent-zero agent.py (hook points), docs/content/building-gormes/agent-zero-feature-analysis.md, internal/kernel/kernel.go
-- Unblocks: Plugin ecosystem, Skill injection pipeline
-- Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
-
-## 2. Prompt Fragment Include System
+## 1. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -69,7 +48,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 3. Telegram forum thread fallback + send retry safety
+## 2. Telegram forum thread fallback + send retry safety
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -89,7 +68,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send, ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_typing, ../hermes-agent/tests/gateway/test_telegram_thread_fallback.py@b816fd4e2, ../hermes-agent/tests/gateway/test_telegram_reply_mode.py@b816fd4e2, internal/channels/telegram/bot.go, internal/channels/telegram/client.go, internal/gateway/delivery.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Sandbox isolation depth selection
+## 3. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -109,7 +88,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Behavioral pattern extraction from session logs
+## 4. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -129,7 +108,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Skill code execution runtime
+## 5. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -149,7 +128,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Skill dependency resolution and composition
+## 6. Skill dependency resolution and composition
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -169,7 +148,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Skill validation on load with execution proof
+## 7. Skill validation on load with execution proof
 
 - Phase: 6 / 6.L
 - Owner: `skills`

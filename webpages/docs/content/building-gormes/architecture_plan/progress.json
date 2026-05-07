@@ -25553,11 +25553,11 @@
             },
             {
               "name": "Extension Lifecycle Hook System",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
-              "contract": "Port agent-zero extension lifecycle hook system: register extensions at 8+ lifecycle points (agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, stream_chunk, tool_before/after, context_deleted). Extension chain executes in registration order with per-extension timeout and panic isolation.",
+              "contract": "Port the first Go-native kernel extension chain from agent-zero's lifecycle hook model: register extensions for 8+ kernel lifecycle points (agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, response/reasoning stream chunks, tool_before/after, context_deleted) and execute each hook in registration order with per-extension timeout and panic isolation. This slice provides the kernel API and test fixture only; command/UI listing stays a later plugin CLI binding.",
               "contract_status": "validated",
-              "slice_size": "large",
+              "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
                 "operator",
@@ -25566,28 +25566,33 @@
               "degraded_mode": "Extension load failure, timeout, or panic reports per-extension status with degraded extension skipped. No single extension failure blocks the agent turn.",
               "fixture": "internal/kernel/extensions_test.go",
               "source_refs": [
-                "agent-zero helpers/extension.py (@extensible decorator)",
-                "agent-zero agent.py (hook points)",
+                "../agent-zero/helpers/extension.py@7c71185f:extensible,call_extensions_async,call_extensions_sync",
+                "../agent-zero/agent.py@7c71185f:agent_init,monologue_start,message_loop_start,before_main_llm_call,response_stream_chunk,reasoning_stream_chunk,message_loop_end,monologue_end",
                 "docs/content/building-gormes/agent-zero-feature-analysis.md",
-                "internal/kernel/kernel.go"
+                "internal/plugins/types.go:HookKind",
+                "internal/plugins/loader.go:CapabilityHook",
+                "internal/kernel/kernel.go",
+                "internal/kernel/extensions.go",
+                "internal/kernel/extensions_test.go"
               ],
               "ready_when": [
                 "Kernel state machine transitions are well-defined.",
-                "Plugin registry supports lifecycle callback registration."
+                "Plugin registry already records hook capabilities in manifests; this row only adds the kernel callback chain, not plugin CLI binding."
               ],
               "not_ready_when": [
                 "The row introduces Python dependency.",
-                "The row adds hooks without timeout/panic recovery per extension."
+                "The row adds hooks without timeout/panic recovery per extension.",
+                "The slice implements `gormes extensions list` or other operator commands instead of staying inside the kernel API write scope."
               ],
               "unblocks": [
                 "Plugin ecosystem",
                 "Skill injection pipeline"
               ],
               "acceptance": [
-                "Extensions register for monologue_start, message_loop_start, prompt_before, prompt_after, stream_chunk, tool_before, tool_after hooks.",
-                "Extension chain executes in registration order.",
-                "Extension timeout or panic does not crash agent turn.",
-                "gormes extensions list shows registered extensions with hook points."
+                "Extensions register for agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, response_stream_chunk, reasoning_stream_chunk, tool_before/after, and context_deleted hooks.",
+                "Extension chain executes in registration order for each hook point.",
+                "Extension timeout or panic does not crash the caller and returns degraded per-extension evidence.",
+                "Hook run reports expose registered extension names, hook points, elapsed time, timeout/panic/error status, and skipped-hook behavior for disabled extensions."
               ],
               "write_scope": [
                 "internal/kernel/extensions.go",
@@ -25599,8 +25604,9 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Extension lifecycle hook system ships with 8+ hook points and per-extension error isolation."
-              ]
+                "Extension lifecycle hook system ships with 8+ hook points and per-extension error isolation, proven by focused kernel fixtures."
+              ],
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 54, below the 90-row ceiling. No new P3/P4 row was added. Existing P1 rows were complete/non-selectable umbrellas, and this P2 validated row was the highest-priority builder-ready active slice after tightening the acceptance to the kernel API write scope. TDD added internal/kernel/extensions.go and internal/kernel/extensions_test.go: the RED build failed on the missing API; GREEN proves 13 agent-zero-derived hook points, registration-order execution, mutable hook data, timeout/panic/error isolation, disabled-extension skip evidence, invalid-registration rejection, and focused internal/kernel package stability."
             }
           ],
           "drift_state": {

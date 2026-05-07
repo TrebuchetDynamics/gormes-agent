@@ -771,7 +771,7 @@ classification and row-backed implementation queue.
 - [x] Hindsight memory setup blank-input preservation
 - [x] Agent Hooks Registry
 - [x] Plugin Marketplace + Doctor
-- [ ] Extension Lifecycle Hook System
+- [x] Extension Lifecycle Hook System
 
 ### 5.J — Approval / Security Guards 🔨
 
