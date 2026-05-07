@@ -127,13 +127,26 @@ done
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start loop: %v", err)
 	}
+	runnerPID := 0
 	defer func() {
 		_ = os.WriteFile(filepath.Join(stateDir, "release-runner"), []byte("1\n"), 0o644)
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
+		if runnerPID != 0 {
+			waitForPIDExit(t, runnerPID, 2*time.Second)
+		}
 	}()
 
-	waitForFile(t, filepath.Join(stateDir, "runner.pid"), 5*time.Second)
+	runnerPIDPath := filepath.Join(stateDir, "runner.pid")
+	waitForFile(t, runnerPIDPath, 5*time.Second)
+	pidBytes, err := os.ReadFile(runnerPIDPath)
+	if err != nil {
+		t.Fatalf("read runner pid: %v", err)
+	}
+	runnerPID, err = strconv.Atoi(strings.TrimSpace(string(pidBytes)))
+	if err != nil {
+		t.Fatalf("parse runner pid: %v", err)
+	}
 	if err := cmd.Process.Kill(); err != nil {
 		t.Fatalf("kill loop process: %v", err)
 	}
@@ -144,6 +157,21 @@ done
 	if out, err := lockCmd.CombinedOutput(); err != nil {
 		t.Fatalf("loop lock remained held after loop parent died; runner inherited it: %v\noutput:\n%s", err, string(out))
 	}
+}
+
+func waitForPIDExit(t *testing.T, pid int, timeout time.Duration) {
+	t.Helper()
+	procPath := filepath.Join("/proc", strconv.Itoa(pid))
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(procPath); os.IsNotExist(err) {
+			return
+		} else if err != nil {
+			t.Fatalf("stat %s: %v", procPath, err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for pid %d to exit", pid)
 }
 
 func waitForFile(t *testing.T, path string, timeout time.Duration) {

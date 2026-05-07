@@ -201,6 +201,18 @@ write_last_failure() {
     head "$(repo_head)"
 }
 
+without_loop_lock_fd() {
+  (exec 8>&-; "$@")
+}
+
+write_current_run_starting() {
+  write_current_run "starting" "$(timestamp)"
+}
+
+write_current_run_running() {
+  write_current_run "running" "$(date -u -d "@$started_at" +%Y-%m-%dT%H:%M:%SZ)"
+}
+
 activate_node() {
   local nvm_sh="${NVM_DIR:-$HOME/.nvm}/nvm.sh"
   if [[ -s "$nvm_sh" ]]; then
@@ -253,7 +265,7 @@ runner_ready() {
 shutdown() {
   local reason="${1:-signal}"
   log "codexu builder loop stopping: $reason"
-  write_health "stopping" "$reason"
+  without_loop_lock_fd write_health "stopping" "$reason"
   if [[ -n "$CURRENT_CHILD" ]] && kill -0 "$CURRENT_CHILD" 2>/dev/null; then
     log "forwarding stop to active runner pid $CURRENT_CHILD"
     if [[ "$CURRENT_CHILD_OWN_SESSION" == "1" ]]; then
@@ -263,8 +275,8 @@ shutdown() {
     fi
     wait "$CURRENT_CHILD" 2>/dev/null || true
   fi
-  rm -f "$PID_FILE" "$CURRENT_RUN_FILE"
-  write_health "stopped" "$reason"
+  without_loop_lock_fd rm -f "$PID_FILE" "$CURRENT_RUN_FILE"
+  without_loop_lock_fd write_health "stopped" "$reason"
   exit 0
 }
 
@@ -400,45 +412,46 @@ esac
 
 trap 'shutdown signal' INT TERM
 
+cd "$REPO_ROOT"
+activate_node
+
 exec 8>"$LOOP_LOCK"
 if ! flock -n 8; then
   log "codexu builder loop already running; exiting"
   exit 0
 fi
 
-cd "$REPO_ROOT"
-activate_node
-log "codexu builder loop started for $REPO_ROOT"
+without_loop_lock_fd log "codexu builder loop started for $REPO_ROOT"
 printf '%s\n' "$$" >"$PID_FILE"
-write_health "started"
+without_loop_lock_fd write_health "started"
 
 while true; do
   if [[ -f "$STOP_FILE" ]]; then
-    log "stop-after-current file present before next run; exiting"
+    without_loop_lock_fd log "stop-after-current file present before next run; exiting"
     shutdown "stop-after-current"
   fi
   while [[ -f "$PAUSE_FILE" ]]; do
-    if clear_expired_pause; then
+    if without_loop_lock_fd clear_expired_pause; then
       break
     fi
-    log "pause file present; waiting ${PAUSE_POLL_SECONDS}s"
-    write_health "paused"
-    sleep "$PAUSE_POLL_SECONDS"
+    without_loop_lock_fd log "pause file present; waiting ${PAUSE_POLL_SECONDS}s"
+    without_loop_lock_fd write_health "paused"
+    without_loop_lock_fd sleep "$PAUSE_POLL_SECONDS"
     if [[ -f "$STOP_FILE" ]]; then
-      log "stop-after-current requested while paused; exiting"
+      without_loop_lock_fd log "stop-after-current requested while paused; exiting"
       shutdown "stop-after-current"
     fi
   done
 
-  cleanup_old_logs
-  if ! runner_ready; then
-    write_health "runner_not_ready"
-    sleep "$FAIL_BACKOFF_SECONDS"
+  without_loop_lock_fd cleanup_old_logs
+  if ! without_loop_lock_fd runner_ready; then
+    without_loop_lock_fd write_health "runner_not_ready"
+    without_loop_lock_fd sleep "$FAIL_BACKOFF_SECONDS"
     continue
   fi
 
-  started_at="$(date +%s)"
-  write_current_run "starting" "$(timestamp)"
+  started_at="$(without_loop_lock_fd date +%s)"
+  without_loop_lock_fd write_current_run_starting
   set +e
   if command -v setsid >/dev/null 2>&1; then
     (exec 8>&-; exec setsid "$RUNNER") &
@@ -448,27 +461,28 @@ while true; do
     CURRENT_CHILD_OWN_SESSION=0
   fi
   CURRENT_CHILD=$!
-  write_current_run "running" "$(date -u -d "@$started_at" +%Y-%m-%dT%H:%M:%SZ)"
-  write_health "running_runner"
+  without_loop_lock_fd write_current_run_running
+  without_loop_lock_fd write_health "running_runner"
   wait "$CURRENT_CHILD"
   status=$?
   set -e
-  elapsed=$(( $(date +%s) - started_at ))
+  finished_at="$(without_loop_lock_fd date +%s)"
+  elapsed=$((finished_at - started_at))
   CURRENT_CHILD=""
   CURRENT_CHILD_OWN_SESSION=0
-  rm -f "$CURRENT_RUN_FILE"
+  without_loop_lock_fd rm -f "$CURRENT_RUN_FILE"
 
   if [[ "$status" -eq 0 ]]; then
     CONSECUTIVE_FAILURES=0
-    log "runner completed in ${elapsed}s; sleeping ${INTERVAL_SECONDS}s"
-    write_last_success "$elapsed"
-    write_health "sleeping"
-    sleep "$INTERVAL_SECONDS"
+    without_loop_lock_fd log "runner completed in ${elapsed}s; sleeping ${INTERVAL_SECONDS}s"
+    without_loop_lock_fd write_last_success "$elapsed"
+    without_loop_lock_fd write_health "sleeping"
+    without_loop_lock_fd sleep "$INTERVAL_SECONDS"
   else
     CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
-    log "runner exited with status $status after ${elapsed}s; backing off ${FAIL_BACKOFF_SECONDS}s"
-    write_last_failure "$elapsed" "$status"
-    write_health "runner_failed"
-    sleep "$FAIL_BACKOFF_SECONDS"
+    without_loop_lock_fd log "runner exited with status $status after ${elapsed}s; backing off ${FAIL_BACKOFF_SECONDS}s"
+    without_loop_lock_fd write_last_failure "$elapsed" "$status"
+    without_loop_lock_fd write_health "runner_failed"
+    without_loop_lock_fd sleep "$FAIL_BACKOFF_SECONDS"
   fi
 done
