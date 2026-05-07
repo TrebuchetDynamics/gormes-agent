@@ -142,6 +142,7 @@ func TestManager_ResumePendingNextSubmitPrependsOneReasonNoteAndClearsAfterAccep
 		CoalesceMs:   10,
 		SessionMap:   smap,
 		Now:          func() time.Time { return now },
+		SkipAutoResume: true,
 	}, fk, slog.Default())
 	m.setRenderChan(frames)
 	_ = m.Register(tg)
@@ -236,10 +237,11 @@ func TestManager_ResumePendingLosesToHardNonResumableEvidence(t *testing.T) {
 			}
 
 			m := NewManagerWithSubmitter(ManagerConfig{
-				AllowedChats:  map[string]string{"telegram": "42"},
-				SessionMap:    smap,
-				RuntimeStatus: store,
-				Now:           func() time.Time { return now },
+				AllowedChats:   map[string]string{"telegram": "42"},
+				SessionMap:     smap,
+				RuntimeStatus:  store,
+				Now:            func() time.Time { return now },
+				SkipAutoResume: true,
 			}, fk, slog.Default())
 			_ = m.Register(tg)
 

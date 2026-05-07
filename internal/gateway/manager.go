@@ -103,6 +103,10 @@ type ManagerConfig struct {
 	Restart         RestartConfig
 	SessionExpiry   SessionExpiryConfig
 	Now             func() time.Time
+	// SkipAutoResume disables gateway startup auto-resume of sessions
+	// marked ResumePending. Tests use this flag to isolate ResumePending
+	// flag handling from auto-resume scheduling.
+	SkipAutoResume bool
 	// PersistReasoningGlobal is invoked by /reasoning ... --global to persist
 	// the requested effort beyond the calling session. A nil callback or one
 	// that returns an error causes the command to fall back to a session-only
@@ -715,6 +719,9 @@ func (m *Manager) Run(ctx context.Context) error {
 	})
 	if err := m.ConsumeRestartTakeoverMarker(runCtx); err != nil {
 		m.log.Debug("consume restart takeover marker", "err", err)
+	}
+	if !m.cfg.SkipAutoResume {
+		go m.autoResumePendingSessions(runCtx, inbox)
 	}
 
 	activeChannels := len(channels)

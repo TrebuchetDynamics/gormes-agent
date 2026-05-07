@@ -35,9 +35,10 @@ const (
 	ResumeReasonRestartTimeout  = "restart_timeout"
 	ResumeReasonShutdownTimeout = "shutdown_timeout"
 
-	NonResumableSuspended = "suspended"
-	NonResumableCancelled = "cancelled"
-	NonResumableStuckLoop = "stuck_loop"
+	NonResumableSuspended       = "suspended"
+	NonResumableCancelled       = "cancelled"
+	NonResumableStuckLoop       = "stuck_loop"
+	NonResumableAdapterNotReady = "adapter_not_ready"
 )
 
 // LineageResolver is implemented by session maps that can resolve a stored
