@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -82,7 +83,7 @@ func defaultModelCommandSeams() modelCommandSeams {
 			return promptProviderChoice(os.Stdin, os.Stdout, entries, defaultIndex)
 		},
 		ChooseModel: func(provider string, current string) (string, error) {
-			return promptModelChoice(os.Stdin, os.Stdout, provider, current)
+			return promptModelChoice(os.Stdin, os.Stdout, provider, current, defaultModelCatalogSuggestions(provider))
 		},
 		PersistSelection: persistModelSelectionToConfig,
 	}
@@ -142,7 +143,14 @@ func promptProviderChoice(in *os.File, out *os.File, entries []cli.ProviderMenuE
 	return idx - 1, nil
 }
 
-func promptModelChoice(in *os.File, out *os.File, provider string, current string) (string, error) {
+func defaultModelCatalogSuggestions(provider string) []string {
+	return hermes.ProviderModelCatalogSuggestions(provider, nil)
+}
+
+func promptModelChoice(in io.Reader, out io.Writer, provider string, current string, suggestions []string) (string, error) {
+	if bounded := boundedModelCatalogSuggestions(suggestions, 5); len(bounded) > 0 {
+		fmt.Fprintf(out, "Suggested models for %s: %s\n", provider, strings.Join(bounded, ", "))
+	}
 	if strings.TrimSpace(current) != "" {
 		fmt.Fprintf(out, "Model for %s [%s] (or q to cancel): ", provider, current)
 	} else {
@@ -164,6 +172,30 @@ func promptModelChoice(in *os.File, out *os.File, provider string, current strin
 		return "", cli.ErrSelectorNoMatch
 	}
 	return answer, nil
+}
+
+func boundedModelCatalogSuggestions(suggestions []string, max int) []string {
+	if max <= 0 {
+		return nil
+	}
+	out := make([]string, 0, min(len(suggestions), max))
+	seen := map[string]struct{}{}
+	for _, suggestion := range suggestions {
+		suggestion = strings.TrimSpace(suggestion)
+		key := strings.ToLower(suggestion)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, suggestion)
+		if len(out) == max {
+			return out
+		}
+	}
+	return out
 }
 
 func persistModelSelectionToConfig(selection cli.Selection) error {
