@@ -1122,7 +1122,7 @@ classification and row-backed implementation queue.
 - [x] Inbound event normalization + session identity
 - [x] Reply/send contract on shared chassis
 - [ ] Signal transport/bootstrap layer
-- [ ] Signal markdown bodyRanges + attachment rate scheduler
+- [x] Signal markdown bodyRanges + attachment rate scheduler
 
 ### 7.B — Email + SMS Adapters ✅
 
