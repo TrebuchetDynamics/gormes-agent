@@ -168,6 +168,71 @@ func TestUpdateCommand_NoColorStripsAnsi(t *testing.T) {
 	}
 }
 
+// TestUpdateCommand_BackupFlagFlowsToLifecycle proves the cobra-side
+// `--backup` and `--no-backup` flags reach the UpdateLifecycleOptions
+// passed to RunLifecycle, so the policy resolution in update_lifecycle.go
+// receives the operator's choice.
+func TestUpdateCommand_BackupFlagFlowsToLifecycle(t *testing.T) {
+	var got cli.UpdateLifecycleOptions
+	cmd := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(_ context.Context, opts cli.UpdateLifecycleOptions) cli.UpdateReport {
+			got = opts
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+	var outBuf, errBuf bytes.Buffer
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&errBuf)
+	cmd.SetArgs([]string{"--backup"})
+	_ = cmd.Execute()
+	if !got.Backup || got.NoBackup {
+		t.Fatalf("--backup should set Backup=true NoBackup=false; got Backup=%v NoBackup=%v", got.Backup, got.NoBackup)
+	}
+
+	got = cli.UpdateLifecycleOptions{}
+	cmd2 := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(_ context.Context, opts cli.UpdateLifecycleOptions) cli.UpdateReport {
+			got = opts
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+	cmd2.SetOut(&outBuf)
+	cmd2.SetErr(&errBuf)
+	cmd2.SetArgs([]string{"--no-backup"})
+	_ = cmd2.Execute()
+	if got.Backup || !got.NoBackup {
+		t.Fatalf("--no-backup should set Backup=false NoBackup=true; got Backup=%v NoBackup=%v", got.Backup, got.NoBackup)
+	}
+}
+
+// TestUpdateCommand_PreBackupGlyphs proves the structured progress UX maps
+// the new pre-backup evidence kinds to clear glyphs: skipped → ℹ (dim),
+// requested → ◆ (bright cyan, matching Hermes' "◆ Creating pre-update
+// backup..." marker).
+func TestUpdateCommand_PreBackupGlyphs(t *testing.T) {
+	cases := []struct {
+		kind      cli.UpdateEvidenceKind
+		wantGlyph string
+	}{
+		{cli.UpdateEvidencePreBackupSkipped, "ℹ"},
+		{cli.UpdateEvidencePreBackupRequested, "◆"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.kind), func(t *testing.T) {
+			stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+				Branch:   "main",
+				Evidence: []cli.UpdateEvidence{{Kind: tc.kind, Detail: "fixture"}},
+			})
+			needle := tc.wantGlyph + " " + string(tc.kind)
+			if !strings.Contains(stdout, needle) {
+				t.Fatalf("expected %q in stdout; got:\n%s", needle, stdout)
+			}
+		})
+	}
+}
+
 // silence the "imported and not used" warning if cobra is later removed
 // from this test's symbol references; keep an explicit reference.
 var _ = (*cobra.Command)(nil)

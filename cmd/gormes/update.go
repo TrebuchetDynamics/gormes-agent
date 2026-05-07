@@ -27,6 +27,8 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	var yes bool
 	var restartGateway string
 	var killStaleDashboard bool
+	var backup bool
+	var noBackup bool
 
 	if seams.CheckoutDir == nil {
 		seams.CheckoutDir = os.Getwd
@@ -50,6 +52,8 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 				Yes:                yes,
 				RestartGateway:     restartGateway,
 				KillStaleDashboard: killStaleDashboard,
+				Backup:             backup,
+				NoBackup:           noBackup,
 				Git:                cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
@@ -74,6 +78,8 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "assume yes for non-destructive recovery prompts")
 	cmd.Flags().StringVar(&restartGateway, "restart-gateway", "auto", "restart policy for a live gateway: auto, always, or never")
 	cmd.Flags().BoolVar(&killStaleDashboard, "kill-stale-dashboard", false, "stop stale dashboard processes after a successful update")
+	cmd.Flags().BoolVar(&backup, "backup", false, "create a single-run pre-update backup of ~/.gormes (writer is a follow-up slice; this surface emits the policy decision)")
+	cmd.Flags().BoolVar(&noBackup, "no-backup", false, "force-skip the pre-update backup; beats --backup and config opt-in")
 	return cmd
 }
 
@@ -136,8 +142,10 @@ func updateGlyphAndColor(w io.Writer, kind cli.UpdateEvidenceKind) (string, func
 		return cli.Bold(w, "✗"), cli.Bold
 	case strings.HasSuffix(s, "_unavailable"), strings.HasSuffix(s, "_timeout"):
 		return cli.Yellow(w, "⚠"), cli.Yellow
-	case s == "update_check", strings.HasSuffix(s, "_log_mirrored"), s == "update_not_managed_checkout":
+	case strings.HasSuffix(s, "_skipped"), s == "update_check", strings.HasSuffix(s, "_log_mirrored"), s == "update_not_managed_checkout":
 		return cli.Dim(w, "ℹ"), cli.Dim
+	case strings.HasSuffix(s, "_requested"):
+		return cli.BrightCyan(w, "◆"), cli.BrightCyan
 	default:
 		return cli.Green(w, "✓"), cli.Green
 	}

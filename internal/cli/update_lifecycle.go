@@ -34,6 +34,8 @@ const (
 	UpdateEvidenceStaleDashboardDetected    UpdateEvidenceKind = "update_stale_dashboard_detected"
 	UpdateEvidenceStaleDashboardKilled      UpdateEvidenceKind = "update_stale_dashboard_killed"
 	UpdateEvidenceStaleDashboardKillFailed  UpdateEvidenceKind = "update_stale_dashboard_kill_failed"
+	UpdateEvidencePreBackupSkipped          UpdateEvidenceKind = "update_pre_backup_skipped"
+	UpdateEvidencePreBackupRequested        UpdateEvidenceKind = "update_pre_backup_requested"
 )
 
 type UpdateEvidence struct {
@@ -76,6 +78,16 @@ type UpdateLifecycleOptions struct {
 	GatewayRestartPoll     *ServiceRestartPollReport
 	StaleDashboardPIDs     []int
 	KillStaleDashboardFunc func(int) error
+	// Backup mirrors the --backup CLI flag: opt-in to a single-run
+	// pre-update backup. Resolved through ResolveBackupPolicy along with
+	// NoBackup; --no-backup wins when both are set.
+	Backup bool
+	// NoBackup mirrors the --no-backup CLI flag and beats Backup.
+	NoBackup bool
+	// BackupConfigEnabled mirrors updates.pre_update_backup from config
+	// (default false). Wiring this from real config is a follow-up slice;
+	// for now the flag-driven path is the only enabled surface.
+	BackupConfigEnabled bool
 }
 
 type UpdateGitRunner interface {
@@ -110,6 +122,38 @@ func (r RealUpdateGitRunner) RunGit(ctx context.Context, cwd string, args ...str
 	return result
 }
 
+// emitPreUpdateBackupPolicy resolves the operator-visible pre-update backup
+// policy and appends a typed evidence record to report when the operator
+// explicitly opted in or out (or when config has it enabled). The default
+// path — neither --backup nor --no-backup nor BackupConfigEnabled — emits
+// NO evidence so the structured progress UX stays quiet on the common case.
+//
+// The actual backup writer (zip creation, size/duration reporting, retention)
+// is a follow-up slice. This row only surfaces the decision via a typed
+// evidence record so downstream slices can wire the writer behind the same
+// requested-evidence trigger.
+func emitPreUpdateBackupPolicy(report *UpdateReport, options UpdateLifecycleOptions) {
+	if !options.Backup && !options.NoBackup && !options.BackupConfigEnabled {
+		return
+	}
+	decision := ResolveBackupPolicy(BackupPolicyFlags{
+		Backup:        options.Backup,
+		NoBackup:      options.NoBackup,
+		ConfigEnabled: options.BackupConfigEnabled,
+	})
+	if decision.Requested {
+		report.add(
+			UpdateEvidencePreBackupRequested,
+			fmt.Sprintf("%s; backup writer not yet implemented (planned next slice)", decision.Reason),
+		)
+		return
+	}
+	report.add(
+		UpdateEvidencePreBackupSkipped,
+		fmt.Sprintf("%s; ~/.gormes left untouched before update", decision.Reason),
+	)
+}
+
 func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) UpdateReport {
 	branch := strings.TrimSpace(options.Branch)
 	if branch == "" {
@@ -125,6 +169,12 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 		report.add(UpdateEvidenceCheck, fmt.Sprintf("checked update readiness for %s", branch))
 		return report
 	}
+	// Resolve pre-update backup policy BEFORE any git mutation. A backup
+	// taken after the pull is useless for rollback. Silent default: when
+	// neither --backup nor --no-backup is set and config has not opted in,
+	// no evidence is emitted (matches Hermes' silent default — operators
+	// don't need to hear about the skipped backup on every update run).
+	emitPreUpdateBackupPolicy(&report, options)
 	if options.Git == nil {
 		report.Failed = true
 		report.add(UpdateEvidenceNotManagedCheckout, "no git runner available")
