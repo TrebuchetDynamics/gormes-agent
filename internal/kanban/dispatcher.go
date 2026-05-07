@@ -215,7 +215,8 @@ WHERE id = ? AND status = ?`, string(StatusReady), id, string(StatusRunning)); e
 func (s *Store) readyTasks(ctx context.Context) ([]Task, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT id, title, body, assignee, status, priority, workspace_kind, workspace_path,
-	created_by, created_at, started_at, completed_at, result, claim_lock, claim_expires
+	created_by, created_at, started_at, completed_at, result, claim_lock, claim_expires,
+	heartbeat_at, failure_count
 FROM tasks
 WHERE status = ?
 ORDER BY priority DESC, created_at ASC, id ASC`, string(StatusReady))
