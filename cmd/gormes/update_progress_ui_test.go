@@ -262,6 +262,86 @@ func TestUpdateCommand_SkillSyncGlyphs(t *testing.T) {
 	}
 }
 
+// TestUpdateCommand_WebBuildFactoryNilWhenNoPackageJson proves the
+// silent-default contract: when the checkout has no web/package.json,
+// the factory returns nil and the lifecycle emits no web_build_*
+// evidence at all.
+func TestUpdateCommand_WebBuildFactoryNilWhenNoPackageJson(t *testing.T) {
+	tmp := t.TempDir()
+	if got := defaultWebBuildFor(tmp, false); got != nil {
+		t.Fatalf("defaultWebBuildFor must return nil when web/package.json is absent; got non-nil")
+	}
+}
+
+// TestUpdateCommand_WebBuildFactoryWiredWhenPackageJsonPresent proves the
+// factory returns a non-nil runner when web/package.json exists.
+func TestUpdateCommand_WebBuildFactoryWiredWhenPackageJsonPresent(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, "web"), 0o755); err != nil {
+		t.Fatalf("mkdir web: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "web", "package.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	if got := defaultWebBuildFor(tmp, false); got == nil {
+		t.Fatalf("defaultWebBuildFor must return non-nil when web/package.json exists")
+	}
+}
+
+// TestUpdateCommand_WebBuildSkipFlagShortCircuitsRunner proves --skip-web
+// flows through the factory closure: even when web/package.json exists,
+// the runner returns Skipped without running npm.
+func TestUpdateCommand_WebBuildSkipFlagShortCircuitsRunner(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, "web"), 0o755); err != nil {
+		t.Fatalf("mkdir web: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "web", "package.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	runner := defaultWebBuildFor(tmp, true)
+	if runner == nil {
+		t.Fatalf("defaultWebBuildFor must return non-nil even with skipWeb=true; the runner reports Skipped")
+	}
+	res, err := runner(context.Background())
+	if err != nil {
+		t.Fatalf("--skip-web runner must not return an error; got %v", err)
+	}
+	if !res.Skipped {
+		t.Fatalf("--skip-web runner must return Skipped=true; got %+v", res)
+	}
+	if !strings.Contains(res.Reason, "--skip-web") {
+		t.Fatalf("--skip-web Reason must name the flag; got %q", res.Reason)
+	}
+}
+
+// TestUpdateCommand_WebBuildGlyphs proves the structured UX maps each
+// web_build_* evidence kind to the right glyph: completed → ✓,
+// skipped → ℹ, unavailable → ⚠, failed → ✗.
+func TestUpdateCommand_WebBuildGlyphs(t *testing.T) {
+	cases := []struct {
+		kind      cli.UpdateEvidenceKind
+		wantGlyph string
+	}{
+		{cli.UpdateEvidenceWebBuildCompleted, "✓"},
+		{cli.UpdateEvidenceWebBuildSkipped, "ℹ"},
+		{cli.UpdateEvidenceWebBuildUnavailable, "⚠"},
+		{cli.UpdateEvidenceWebBuildFailed, "✗"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.kind), func(t *testing.T) {
+			stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+				Branch:   "main",
+				Evidence: []cli.UpdateEvidence{{Kind: tc.kind, Detail: "fixture"}},
+			})
+			needle := tc.wantGlyph + " " + string(tc.kind)
+			if !strings.Contains(stdout, needle) {
+				t.Fatalf("expected %q in stdout; got:\n%s", needle, stdout)
+			}
+		})
+	}
+}
+
 // TestUpdateCommand_PreBackupGlyphs proves the structured progress UX maps
 // the new pre-backup evidence kinds to clear glyphs: skipped → ℹ (dim),
 // requested → ◆ (bright cyan, matching Hermes' "◆ Creating pre-update

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -23,6 +24,10 @@ type updateCommandSeams struct {
 	// the real adapter that calls internal/skills.SyncBundledSkillsToProfiles
 	// against `<checkoutDir>/skills` and the active profile root.
 	SkillSyncFor func(checkoutDir string) cli.SkillSyncRunner
+	// WebBuildFor builds a WebBuildRunner closure for the given checkout
+	// directory and skip flag. Override in tests; default builds the real
+	// adapter that runs npm install + npm run build in `<checkoutDir>/web`.
+	WebBuildFor func(checkoutDir string, skipWeb bool) cli.WebBuildRunner
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -37,6 +42,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	var killStaleDashboard bool
 	var backup bool
 	var noBackup bool
+	var skipWeb bool
 
 	if seams.CheckoutDir == nil {
 		seams.CheckoutDir = os.Getwd
@@ -46,6 +52,9 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	}
 	if seams.SkillSyncFor == nil {
 		seams.SkillSyncFor = defaultSkillSyncFor
+	}
+	if seams.WebBuildFor == nil {
+		seams.WebBuildFor = defaultWebBuildFor
 	}
 
 	cmd := &cobra.Command{
@@ -66,6 +75,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 				Backup:             backup,
 				NoBackup:           noBackup,
 				SkillSync:          seams.SkillSyncFor(checkoutDir),
+				WebBuild:           seams.WebBuildFor(checkoutDir, skipWeb),
 				Git:                cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
@@ -92,6 +102,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&killStaleDashboard, "kill-stale-dashboard", false, "stop stale dashboard processes after a successful update")
 	cmd.Flags().BoolVar(&backup, "backup", false, "create a single-run pre-update backup of ~/.gormes (writer is a follow-up slice; this surface emits the policy decision)")
 	cmd.Flags().BoolVar(&noBackup, "no-backup", false, "force-skip the pre-update backup; beats --backup and config opt-in")
+	cmd.Flags().BoolVar(&skipWeb, "skip-web", false, "skip the web UI rebuild step after pulling source")
 	return cmd
 }
 
@@ -176,6 +187,42 @@ func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
 			})
 		}
 		return out, nil
+	}
+}
+
+// defaultWebBuildFor builds the production WebBuildRunner. Behavior:
+//
+//	skipWeb=true                            → runner returns Skipped
+//	`<checkoutDir>/web/package.json` absent → factory returns nil (silent default)
+//	npm not on PATH                         → runner returns Unavailable
+//	otherwise                               → runner runs `npm install --silent`
+//	                                          then `npm run build` in the web/
+//	                                          dir; non-zero exit returns error
+func defaultWebBuildFor(checkoutDir string, skipWeb bool) cli.WebBuildRunner {
+	webDir := filepath.Join(checkoutDir, "web")
+	pkgJSON := filepath.Join(webDir, "package.json")
+	if _, err := os.Stat(pkgJSON); err != nil {
+		// No web/ tree means there's nothing to rebuild — silent default.
+		return nil
+	}
+	return func(ctx context.Context) (cli.WebBuildResult, error) {
+		if skipWeb {
+			return cli.WebBuildResult{Skipped: true, Reason: "--skip-web flag"}, nil
+		}
+		if _, err := exec.LookPath("npm"); err != nil {
+			return cli.WebBuildResult{Unavailable: true, Reason: "npm not on PATH; install Node.js to enable web UI rebuild"}, nil
+		}
+		install := exec.CommandContext(ctx, "npm", "install", "--silent")
+		install.Dir = webDir
+		if out, err := install.CombinedOutput(); err != nil {
+			return cli.WebBuildResult{}, fmt.Errorf("npm install failed: %v: %s", err, strings.TrimSpace(string(out)))
+		}
+		build := exec.CommandContext(ctx, "npm", "run", "build")
+		build.Dir = webDir
+		if out, err := build.CombinedOutput(); err != nil {
+			return cli.WebBuildResult{}, fmt.Errorf("npm run build failed: %v: %s", err, strings.TrimSpace(string(out)))
+		}
+		return cli.WebBuildResult{Detail: "web UI built in " + webDir}, nil
 	}
 }
 

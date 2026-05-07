@@ -38,7 +38,33 @@ const (
 	UpdateEvidencePreBackupRequested        UpdateEvidenceKind = "update_pre_backup_requested"
 	UpdateEvidenceSkillSyncCompleted        UpdateEvidenceKind = "update_skill_sync_completed"
 	UpdateEvidenceSkillSyncFailed           UpdateEvidenceKind = "update_skill_sync_failed"
+	UpdateEvidenceWebBuildCompleted         UpdateEvidenceKind = "update_web_build_completed"
+	UpdateEvidenceWebBuildSkipped           UpdateEvidenceKind = "update_web_build_skipped"
+	UpdateEvidenceWebBuildUnavailable       UpdateEvidenceKind = "update_web_build_unavailable"
+	UpdateEvidenceWebBuildFailed            UpdateEvidenceKind = "update_web_build_failed"
 )
+
+// WebBuildResult classifies the outcome of an optional web UI build step.
+// Exactly one of Skipped, Unavailable, or "completed" (neither flag set,
+// no error from the runner) describes the run.
+//
+// Use Skipped for policy choices (--skip-web, no package.json).
+// Use Unavailable for environment limitations (npm not on PATH).
+// Use Detail for the success line ("web UI built in 1.2s").
+// Use the error return for non-zero exit from npm install / npm run build.
+type WebBuildResult struct {
+	Skipped     bool
+	Unavailable bool
+	Reason      string
+	Detail      string
+}
+
+// WebBuildRunner is the seam invoked by RunUpdateLifecycle after skill
+// sync. Returning a non-nil error marks the build as failed but never
+// fails the overall update (Hermes' soft-failure contract — only `hermes
+// web` treats a build failure as fatal). A nil seam in
+// UpdateLifecycleOptions disables the build entirely (silent default).
+type WebBuildRunner func(ctx context.Context) (WebBuildResult, error)
 
 // SkillSyncResult is the abstract per-update report returned by a
 // SkillSyncRunner. It is decoupled from internal/skills so the lifecycle
@@ -126,6 +152,12 @@ type UpdateLifecycleOptions struct {
 	// or update_skill_sync_failed evidence. A nil seam disables sync
 	// entirely (silent default — emits no skill_sync_* evidence).
 	SkillSync SkillSyncRunner
+	// WebBuild is the optional web UI rebuild seam. When set, it runs
+	// after skill sync and emits update_web_build_{completed,skipped,
+	// unavailable,failed} evidence. Best-effort: errors are reported but
+	// do not fail the update. A nil seam disables the step entirely
+	// (silent default — emits no web_build_* evidence).
+	WebBuild WebBuildRunner
 }
 
 type UpdateGitRunner interface {
@@ -202,6 +234,36 @@ func formatSkillSyncSummary(p SkillSyncProfileResult) string {
 		parts = append(parts, fmt.Sprintf("%d failed", p.Failed))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// emitWebBuild invokes the optional web UI rebuild seam after skill sync
+// and maps the result to one of four typed evidence kinds:
+//
+//	completed   — successful rebuild (Detail used as evidence detail)
+//	skipped     — operator policy or no package.json (Reason used)
+//	unavailable — required toolchain missing (Reason used)
+//	failed      — non-zero exit from the build (error message used)
+//
+// Best-effort contract: a non-nil error never fails the overall update.
+// A nil seam disables the step and emits no evidence (silent default for
+// non-managed checkouts and runtimes without a web/ tree).
+func emitWebBuild(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions) {
+	if options.WebBuild == nil {
+		return
+	}
+	res, err := options.WebBuild(ctx)
+	if err != nil {
+		report.add(UpdateEvidenceWebBuildFailed, err.Error())
+		return
+	}
+	switch {
+	case res.Unavailable:
+		report.add(UpdateEvidenceWebBuildUnavailable, res.Reason)
+	case res.Skipped:
+		report.add(UpdateEvidenceWebBuildSkipped, res.Reason)
+	default:
+		report.add(UpdateEvidenceWebBuildCompleted, res.Detail)
+	}
 }
 
 // emitPreUpdateBackupPolicy resolves the operator-visible pre-update backup
@@ -357,6 +419,12 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 	// errors emit update_skill_sync_failed but never set report.Failed
 	// (matches Hermes' `try/except: pass` for skill sync).
 	emitSkillSync(ctx, &report, options)
+
+	// Web UI rebuild runs after skill sync. Best-effort: build failures
+	// emit update_web_build_failed but never set report.Failed
+	// (matches Hermes' soft-failure contract — only `hermes web` treats
+	// a build failure as fatal). Silent default when seam is nil.
+	emitWebBuild(ctx, &report, options)
 
 	if options.GatewayRestartPoll != nil && strings.TrimSpace(options.RestartGateway) != "never" {
 		report.append(EvaluateUpdateGatewayRestart(*options.GatewayRestartPoll))
