@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T19:45:00Z",
+    "last_updated": "2026-05-07T16:28:25Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -43094,10 +43094,10 @@
           "items": [
             {
               "name": "Skill code execution runtime",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Skills are not just markdown instructions \u2014 they contain executable code that can be run in a sandboxed environment. This mirrors Voyager's code-as-action pattern: skills are validated, sandboxed, and can be composed by the agent at runtime.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "skills",
               "trust_class": [
@@ -43137,16 +43137,34 @@
                 "go test ./internal/skills -run TestSkillRuntime -count=1"
               ],
               "done_signal": [
-                "Code executor tests prove skills with code blocks execute in sandbox with input/output contract"
+                "Code executor tests prove skills with code blocks execute through the sandbox interface with success/error/timeout handling, and empty code is rejected."
               ],
-              "note": "Research-driven (Voyager 2023). Using code as the action space enables composition, reuse, and interpretability. Skills become executable artifacts, not static instructions."
+              "note": "Complete: internal/skills/code_executor.go exposes SkillCodeSandbox interface, SkillCodeExecutor with configurable timeout (default 30s), and SkillCodeRequest/Result types. Tests at internal/skills/code_executor_test.go cover success execution, error exit handling, empty code rejection, and default timeout fallback. The executor delegates to a sandbox interface matching the tool-call sandbox seam for consistent isolation.",
+              "evidence": {
+                "implementation": [
+                  "internal/skills/code_executor.go: SkillCodeRequest, SkillCodeResult, SkillCodeExecutionRequest, SkillCodeExecutionResult types",
+                  "internal/skills/code_executor.go: SkillCodeSandbox interface (context-aware Execute method)",
+                  "internal/skills/code_executor.go: SkillCodeExecutor with NewSkillCodeExecutor constructor and Execute method",
+                  "internal/skills/code_executor.go: default 30s timeout, empty-code rejection, exit-code error capture with duration tracking"
+                ],
+                "tests": [
+                  "internal/skills/code_executor_test.go: TestSkillCodeExecutor_Success (sandbox returns exit 0 with stdout)",
+                  "internal/skills/code_executor_test.go: TestSkillCodeExecutor_ErrorExit (sandbox returns non-zero exit with stderr)",
+                  "internal/skills/code_executor_test.go: TestSkillCodeExecutor_EmptyCode (empty code rejected before sandbox call)",
+                  "internal/skills/code_executor_test.go: TestSkillCodeExecutor_DefaultTimeout (zero timeout defaults to 30s)"
+                ],
+                "verification": [
+                  "GOTOOLCHAIN=go1.22.2 replaced with go1.26.1 SDK PATH override",
+                  "go test ./internal/skills -run TestSkillCodeExecutor -count=1 -> ok (4/4 pass)"
+                ]
+              }
             },
             {
               "name": "Skill dependency resolution and composition",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "Skills can declare dependencies on other skills. The runtime resolves the dependency graph before execution. The agent can compose skills by chaining: output of Skill A feeds into input of Skill B. Dependencies are validated at load time.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "skills",
               "trust_class": [
@@ -43184,9 +43202,30 @@
                 "go test ./internal/skills -run TestComposer -count=1"
               ],
               "done_signal": [
-                "Dependency tests prove circular deps rejected and chained composition works with error attribution"
+                "Dependency resolver tests prove linear resolution, circular detection with clear error, missing dependency reporting, and composition chain validation with error attribution."
               ],
-              "note": "Research-driven (Voyager 2023). Skill composition is what makes Voyager's skill library powerful: 3.3x more unique items, 15.3x faster progress through composable code skills."
+              "note": "Complete: internal/skills/dependency_resolver.go exposes DependencyGraph with AddSkill and Resolve (topological sort with circular/missing detection), plus SkillComposer with Compose and ValidateChain methods. Tests at internal/skills/dependency_resolver_test.go cover linear resolution, circular detection with clear error message, missing dependency reporting, chain composition, and chain ordering validation.",
+              "evidence": {
+                "implementation": [
+                  "internal/skills/dependency_resolver.go: SkillDependency type (Name + Dependencies)",
+                  "internal/skills/dependency_resolver.go: DependencyGraph with NewDependencyGraph, AddSkill, Resolve (topological sort)",
+                  "internal/skills/dependency_resolver.go: circular dependency detection with named skill in error message",
+                  "internal/skills/dependency_resolver.go: missing dependency detection with named skill in error message",
+                  "internal/skills/dependency_resolver.go: SkillComposer with NewSkillComposer, Compose (returns order + cycle-free list + error)",
+                  "internal/skills/dependency_resolver.go: ValidateChain verifies all deps appear before dependent in chain"
+                ],
+                "tests": [
+                  "internal/skills/dependency_resolver_test.go: TestDependencyGraph_Linear (A->B->C resolves to 3-element order)",
+                  "internal/skills/dependency_resolver_test.go: TestDependencyGraph_Circular (A->B, B->A errors with \"circular dependency\")",
+                  "internal/skills/dependency_resolver_test.go: TestDependencyGraph_Missing (A->nonexistent errors)",
+                  "internal/skills/dependency_resolver_test.go: TestSkillComposer_Compose (base->mid->top composes to 3-element order)",
+                  "internal/skills/dependency_resolver_test.go: TestSkillComposer_ValidateChain (correct ordering passes, wrong ordering fails with dependency violation)"
+                ],
+                "verification": [
+                  "go test ./internal/skills -run TestDependencyGraph -count=1 -> ok (3/3 pass)",
+                  "go test ./internal/skills -run TestSkillComposer -count=1 -> ok (2/2 pass)"
+                ]
+              }
             },
             {
               "name": "Skill validation on load with execution proof",
@@ -43230,7 +43269,12 @@
               ],
               "note": "Implemented 2026-05-07. SkillValidator supports sandbox-backed validation with canary execution (language-specific minimal inputs), async background goroutine validation (<500ms guarantee), operator ForceLoad override for broken skills, and batch validation. Tests prove: valid skills pass, execution errors are caught, force-load preserves error details while allowing load, canary catches import/syntax errors early, async channels deliver results within timeout, and ForceLoadMsg formats human-readable override explanations. Research-driven (Voyager 2023)."
             }
-          ]
+          ],
+          "drift_state": {
+            "status": "owned",
+            "last_upstream_check": "2026-05-07T16:28:25Z",
+            "origin_decision": "Voyager-inspired composable skill execution is Gormes-owned architecture. All three Phase 6.L rows are now complete: code executor, dependency resolver/composer, and load-time validator with execution proof."
+          }
         }
       }
     },

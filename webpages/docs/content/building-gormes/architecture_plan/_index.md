@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 69/92 subphases shipped · 23 in progress · 0 planned
+**Overall:** 70/92 subphases shipped · 22 in progress · 0 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -96,7 +96,7 @@ classification and row-backed implementation queue.
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 
 ---
@@ -1117,10 +1117,10 @@ classification and row-backed implementation queue.
 - [x] Iterative prompt mutation and scoring loop
 - [ ] Behavioral pattern extraction from session logs
 
-### 6.L — Composable Skill Execution (Voyager) 🔨
+### 6.L — Composable Skill Execution (Voyager) ✅
 
-- [ ] Skill code execution runtime
-- [ ] Skill dependency resolution and composition
+- [x] Skill code execution runtime
+- [x] Skill dependency resolution and composition
 - [x] Skill validation on load with execution proof
 
 ## Phase 7 — Paused Channel Backlog 🔨
