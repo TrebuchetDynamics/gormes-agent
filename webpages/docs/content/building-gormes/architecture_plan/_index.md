@@ -993,7 +993,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes status bar renderer
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
-- [ ] Native TUI clipboard, OSC52, and terminal setup parity
+- [x] Native TUI clipboard, OSC52, and terminal setup parity
 - [x] Native TUI image/file drop + paste collapse ingress
 - [x] Native TUI Hermes slash completion helpers
 - [x] Native TUI absolute path completion routing

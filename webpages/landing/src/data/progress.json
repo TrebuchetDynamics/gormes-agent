@@ -38570,7 +38570,7 @@
             {
               "name": "Native TUI clipboard, OSC52, and terminal setup parity",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports the active Hermes Ink terminal integration helpers as pure Go-native services behind injectable process/env/filesystem seams: clipboard read fallbacks, macOS clipboard write, OSC52 query/decode with tmux passthrough, VS Code-family keybinding setup with conflict detection/backups, truecolor environment resolution, and terminal parity hints. It preserves the current terminal-native selection help until real copy support is explicitly wired.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -38629,7 +38629,7 @@
               "done_signal": [
                 "TUI terminal helper fixtures prove clipboard, OSC52, keybinding setup, truecolor, and terminal parity decisions through injected seams without touching the live terminal."
               ],
-              "note": "2026-05-07 bounded all-topic Hermes parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Phase 3/4 closure rows, provider/auth/account usage, and browser automation were already complete; planned-row count was 64, below the 90-row cap, but no new row was needed. This unblocked active Hermes Ink TUI terminal-helper row is promoted to P1 because the remaining P1 event-bus parent is inventory-only and this slice has exact upstream fixtures plus completed selection-help/keybinding blockers.",
+              "note": "Complete 2026-05-07: bounded all-topic Hermes parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Phase 3/4 closure rows, provider/auth/account usage, and browser automation were already complete; planned-row count was 64, below the 90-row cap, but no new row was needed. This unblocked active Hermes Ink TUI terminal-helper row was promoted to P1 and implemented with Go-native helper seams: ReadClipboardText preserves pbpaste, PowerShell, WSL, wl-paste, and xclip fallback order with unusable-payload evidence; WriteClipboardText gates pbcopy to macOS; OSC52 helpers build raw/tmux queries and decode terminal responses; terminal setup helpers detect VS Code/Cursor/Windsurf, parse JSONC keybindings, refuse SSH mutation, detect conflicts/backups, resolve truecolor settings, and emit terminal parity hints without wiring copy hotkeys into the Bubble Tea update loop or touching host clipboard/config in tests.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 ui-tui/src/__tests__/clipboard.test.ts + osc52.test.ts + terminalSetup.test.ts",
