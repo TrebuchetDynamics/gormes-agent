@@ -214,6 +214,15 @@ func TestProgressJsonHasSingleCanonicalDocsCopy(t *testing.T) {
 	}
 }
 
+func TestRootWWWGormesAIPathDoesNotExist(t *testing.T) {
+	legacyRoot := filepath.Join("..", "www.gormes.ai")
+	if _, err := os.Lstat(legacyRoot); err == nil {
+		t.Fatalf("root www.gormes.ai path must not exist; active landing site lives under webpages/landing")
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat root www.gormes.ai path: %v", err)
+	}
+}
+
 func TestDocsContentRendersViaGoldmark(t *testing.T) {
 	md := goldmark.New(goldmark.WithExtensions(extension.GFM, extension.Table, extension.Strikethrough))
 
