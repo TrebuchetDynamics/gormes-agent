@@ -7,16 +7,17 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kanbantools"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 // buildDefaultRegistry returns a Registry populated with Gormes's built-in
-// Go-native tools (echo, now, rand_int). Consumer forks that want to add
-// domain-specific tools (scientific simulators, business wrappers, etc.)
-// call reg.Register on the returned *Registry before passing it into the
-// kernel Config. Gormes itself ships no domain-specific tools.
+// Go-native tools. Context-specific toolsets such as Kanban stay hidden unless
+// their runtime gate is active. Consumer forks that want to add domain-specific
+// tools call reg.Register on the returned *Registry before passing it into the
+// kernel Config.
 func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childClient hermes.Client, childModel string) *tools.Registry {
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.EchoTool{})
@@ -73,6 +74,9 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewSkillManagerTool(tools.SkillManagerToolConfig{
 		Root: cfg.SkillsRoot(),
 	}))
+	for _, tool := range kanbantools.NewTools(kanbantools.ConfigFromEnv()) {
+		reg.MustRegister(tool)
+	}
 	for _, tool := range tools.NewBrowserHarnessTools(tools.BrowserHarnessToolsConfig{
 		Env: browserCDPEnv(cfg),
 		Budget: tools.ToolResultBudgetConfig{

@@ -20551,7 +20551,7 @@
               "priority": "P3",
               "status": "planned",
               "contract": "Residual terminal/local environment deleted-cwd parity after the completed foreground terminal recovery row: future background process spawn must reject deleted cwd before subprocess creation, and future persistent-shell state must reset with explicit evidence instead of panicking.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -27609,9 +27609,9 @@
             {
               "name": "Hermes Kanban worker tools and prompt gating",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes exposes Hermes-compatible worker tools for Kanban tasks: kanban_show, kanban_complete, kanban_block, kanban_heartbeat, kanban_comment, kanban_create, and kanban_link are only visible inside a Kanban worker task or explicit profile toolset, enforce task ownership for destructive operations, and carry structured parent summaries/metadata to children.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -27620,17 +27620,23 @@
                 "system"
               ],
               "degraded_mode": "Outside a Kanban worker context the tools are hidden or return kanban_context_missing; attempts to complete/block/comment a foreign task return kanban_task_ownership_denied without mutating the board.",
-              "fixture": "internal/kanbantools/kanban_tools_test.go; cmd/gormes/registry_test.go",
+              "fixture": "internal/kanbantools/kanban_tools_test.go; cmd/gormes/registry_kanban_test.go",
               "source_refs": [
-                "../hermes-agent/tools/kanban_tools.py@54e78cadb",
-                "../hermes-agent/tests/tools/test_kanban_tools.py@54e78cadb",
+                "./hermes-agent/tools/kanban_tools.py@b816fd4e2",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/kanban_db.py@b816fd4e2:add_comment,complete_task,heartbeat_worker,build_worker_context",
                 "internal/tools/tool.go",
-                "cmd/gormes/registry.go"
+                "cmd/gormes/registry.go",
+                "internal/kanban/store.go",
+                "internal/kanban/dispatcher.go",
+                "internal/kanban/process_spawner.go",
+                "cmd/gormes/chat_command_test.go:TestChatCommandSkillsFlagBuildsForcedSkillProvider"
               ],
               "ready_when": [
                 "Hermes Kanban durable board core is complete.",
-                "Dispatcher row defines worker context env/state names or a fake worker context can be injected.",
-                "Native tool registry supports contextual visibility and ownership-denied evidence."
+                "Hermes Kanban dispatcher and worker spawn loop is complete.",
+                "Hermes Kanban production worker process binding is complete and injects GORMES_KANBAN_DB, GORMES_KANBAN_TASK, GORMES_KANBAN_WORKSPACE, and GORMES_PROFILE.",
+                "Gormes profile skills chat invocation shim is complete, so explicit --skills kanban-worker can force worker context."
               ],
               "not_ready_when": [
                 "Tools are globally visible by default in normal chats.",
@@ -27651,7 +27657,7 @@
                 "Complete/block fixtures prove summaries, metadata, comments, and child handoff context are stored and visible through kanban context.",
                 "Registry fixtures prove Kanban tools are not enabled in the default non-worker runtime."
               ],
-              "note": "Planned worker-tool parity. Keep external names kanban_* to match Hermes; this is separate from Goncho/Honcho memory tooling.",
+              "note": "2026-05-07 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No new row was added because the highest-priority actionable gap was this existing P1 Kanban worker-tool slice. The earlier blockers are complete: durable Kanban storage, dispatcher/gateway loop, production process binding, and root -p/--skills chat invocation. Implemented the native kanban_* tools, gated registry wiring, ownership denial, heartbeat/comment events, and structured completion handoff storage/context flow. Keep external names kanban_* to match Hermes; this is separate from Goncho/Honcho memory tooling.",
               "write_scope": [
                 "internal/kanbantools/",
                 "internal/kanban/",
@@ -27667,10 +27673,32 @@
               "done_signal": [
                 "Kanban worker tools are context-gated, ownership-safe, heartbeat-capable, and able to pass structured handoff summaries to children."
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/kanbantools/kanban_tools.go:NewTools and ConfigFromEnv gate kanban_show, kanban_complete, kanban_block, kanban_heartbeat, kanban_comment, kanban_create, and kanban_link on worker task context or explicit kanban toolset env.",
+                  "internal/kanbantools/kanban_tools.go:complete/block/heartbeat/comment enforce current worker task ownership and return kanban_task_ownership_denied without mutating foreign tasks.",
+                  "internal/kanban/store.go:CompleteTask, AddComment, HeartbeatTask, ListComments, ListEvents, ListRuns, and BuildWorkerContext persist summaries, metadata, comments, events, and downstream context.",
+                  "internal/kanban/dispatcher.go:insertRunWithDetails stores summary and metadata columns for completed handoffs while preserving existing run callers.",
+                  "cmd/gormes/registry.go:buildDefaultRegistry registers Kanban tools only when ConfigFromEnv exposes a worker/profile Kanban context."
+                ],
+                "tests": [
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsHiddenWithoutContextAndVisibleWithWorkerContext",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsWorkerLifecycleStoresStructuredHandoff",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsDenyForeignTaskMutationForWorkers",
+                  "cmd/gormes/registry_kanban_test.go:TestBuildDefaultRegistryKanbanHiddenByDefault",
+                  "cmd/gormes/registry_kanban_test.go:TestBuildDefaultRegistryKanbanVisibleWithWorkerEnv"
+                ],
+                "verification": [
+                  "go test ./internal/kanbantools -run TestKanbanTools -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestBuildDefaultRegistryKanban -count=1 -> ok",
+                  "go test ./internal/kanban ./internal/kanbantools ./cmd/gormes -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:54e78cadb tools/kanban_tools.py",
-                "note": "Hermes defines tool names, visibility, and ownership rules."
+                "upstream_ref": "hermes:b816fd4e2 tools/kanban_tools.py + tests/tools/test_kanban_tools.py",
+                "note": "Hermes defines tool names, visibility, ownership rules, and structured handoff context. The 2026-05-07 planner sweep verified the Gormes prerequisites are complete and selected this as the next builder-ready P1 slice."
               }
             },
             {
