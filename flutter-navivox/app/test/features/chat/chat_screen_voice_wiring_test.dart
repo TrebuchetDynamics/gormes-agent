@@ -33,7 +33,12 @@ void main() {
 
     expect(find.byIcon(Icons.mic), findsOneWidget);
     await tester.tap(find.byIcon(Icons.mic));
-    await tester.pumpAndSettle();
+    // VoiceMorphSurface uses an infinite Ticker so pumpAndSettle never
+    // settles. Pump explicitly to let the FakeVoiceCaptureService Timer fire,
+    // microtasks drain, and the state rebuilds run.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 50));
 
     final newMessages =
         channel.state.messages.skip(beforeCount).toList(growable: false);
@@ -66,13 +71,17 @@ void main() {
       prompt: 'Run shell.run with elevated privileges?',
       risk: 'high',
     ));
-    await tester.pumpAndSettle();
+    // Broadcast-stream listener fires on the microtask queue, then the banner
+    // setState schedules a frame. pumpAndSettle hangs because the seeded voice
+    // message renders VoiceMorphSurface (infinite Ticker) — pump explicitly.
+    await tester.pump();
+    await tester.pump();
 
     expect(find.text('Approval requested'), findsOneWidget);
     expect(find.textContaining('shell.run'), findsOneWidget);
 
     await tester.tap(find.text('Allow'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(channel.approvalResponses.single.approvalId, 'ap-9');
     expect(channel.approvalResponses.single.approved, isTrue);
