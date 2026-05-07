@@ -68,35 +68,44 @@ witness.
   `--no-shell-init` flag is present, or when the sandbox prefix env vars
   are set.
 
-### [msg-systemd-fiction] Install reports systemd user service installed even when no service was created
-
-- **First seen**: 2026-05-07T17:27Z (same pass).
-- **Surface touched**: install transcript only (no actual systemd state
-  modified — verified via `systemctl --user list-unit-files 'gormes*'`
-  returning `0 unit files listed`).
-- **Trigger**: any successful `install.sh` run.
-- **Symptom**: install transcript ends with the block:
-  ```
-  systemd user service installed:
-    systemctl --user start gormes-gateway    # start now
-    systemctl --user status gormes-gateway   # check status
-    journalctl --user -u gormes-gateway -f   # follow logs
-    (auto-starts on login; survives reboots)
-  ```
-  but `systemctl --user list-unit-files 'gormes*'` reports zero files.
-  The message is unconditional and misleads operators into believing a
-  service exists; running the suggested `systemctl --user start` fails.
-- **Status**: `open`.
-- **Routing**: file under Phase 5.P — wrap the systemd block in a
-  `command -v systemctl >/dev/null && [ "$XDG_RUNTIME_DIR" ]` (or the
-  installer's existing systemd-detection check) before printing, and
-  ensure the unit file is actually written when the block prints.
-
 ---
 
 ## Mitigated Issues
 
 (none yet)
+
+---
+
+## Withdrawn (False Positives)
+
+### [msg-systemd-fiction] Install reports systemd user service installed even when no service was created — RETRACTED 2026-05-07
+
+- **Originally filed**: 2026-05-07T17:27Z under "Open Issues".
+- **Withdrawn**: 2026-05-07T17:38Z after re-verification.
+- **Why retracted**: the original verification command
+  `systemctl --user list-unit-files 'gormes*'` returned `0 unit files listed`
+  at the moment the original sandbox pass checked, which was misread as
+  "no unit was written." Re-checking shortly after the same install pass
+  with the same command (and with `systemctl --user is-enabled gormes-gateway`,
+  and with `ls ~/.config/systemd/user/gormes-gateway.service`) all
+  confirm the unit file IS present and IS enabled. The install transcript
+  was truthful.
+- **Root cause of the misdiagnosis**: `systemctl --user list-unit-files`
+  may transiently miss a just-`daemon-reload`'d unit until systemd
+  re-scans its manager state. A single negative result is not authoritative.
+- **Verification lesson** (added to the workflow): when checking whether
+  a systemd user unit was actually written, ALWAYS verify with at least
+  two independent signals before concluding "no unit":
+  1. `ls -la ~/.config/systemd/user/gormes-gateway.service` (file existence
+     is the ground truth).
+  2. `systemctl --user is-enabled gormes-gateway` (manager-loaded state).
+  3. Optionally `systemctl --user list-unit-files` without a glob pattern
+     (the pattern flag occasionally misses recently-loaded units).
+- **Filing note**: the corresponding `progress.json` row "Install transcript:
+  only print systemd block when unit file actually written" was withdrawn
+  in the same retraction. install.sh's existing gating
+  (`if has systemctl && systemctl --user >/dev/null 2>&1; then
+  install_systemd_user_service; fi`) was already correct; no fix needed.
 
 ---
 

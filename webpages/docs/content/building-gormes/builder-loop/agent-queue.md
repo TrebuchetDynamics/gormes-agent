@@ -134,27 +134,7 @@ selection.
 - Unblocks: Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop
 - Why now: Unblocks Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop.
 
-## 6. Install transcript: only print systemd block when unit file actually written
-
-- Phase: 5 / 5.P
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: The install transcript's `systemd user service installed:` block must only print when install.sh actually writes a systemd user unit file AND `systemctl --user` is reachable. Today the block prints unconditionally on every successful install, telling operators to run `systemctl --user start gormes-gateway` even when no unit file exists. The command then fails. Either install the unit and print the block, or print nothing — the in-between state of "announce a service we did not install" is the regression.
-- Trust class: operator
-- Ready when: An installtest harness exists that can exec install.sh in a temp HOME and assert on transcript content + on-disk systemd unit files.
-- Not ready when: The slice removes the systemd block in the case where install.sh DID write a real unit file (regressing the helpful happy path)., The slice prints a confusing replacement message when systemd is unavailable; either print the real block or print nothing., Tests rely on the host having or lacking systemd; harness must shim `systemctl` so the test outcome is deterministic.
-- Degraded mode: Without this fix, every install pass tells the operator a service was installed when none was. Operators who follow the suggested commands hit `Failed to start gormes-gateway.service: Unit not found` and reasonably conclude the install is broken. The gormes-install skill flags this as msg-systemd-fiction on every install.
-- Fixture: `internal/installtest/systemd_block_test.go`
-- Write scope: `install.sh`, `internal/installtest/systemd_block_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/installtest -run SystemdBlock -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Install transcript prints the systemd block only when a unit file was actually written and `systemctl --user` is reachable; transcript-content tests prove all three states (no systemd, systemd but no unit, unit written).
-- Acceptance: TestInstall_NoSystemdAvailable_OmitsSystemdBlock runs install.sh in a temp HOME with `PATH` shadowing `systemctl` to a stub that exits non-zero; the install transcript does NOT contain the `systemd user service installed:` block., TestInstall_SystemdAvailableButUnitNotWritten_OmitsBlock proves that even with a working `systemctl`, if the install code path skips the unit-file write, the transcript also skips the block (no fiction)., TestInstall_SystemdUnitActuallyWritten_PrintsBlock proves the helpful happy path still prints the block when a unit file is actually created in the temp HOME's user-units directory.
-- Source refs: webpages/docs/development-skills/gormes-install/references/known-issues.md#msg-systemd-fiction, webpages/docs/development-skills/gormes-install/SKILL.md, install.sh
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Sandbox isolation depth selection
+## 6. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -174,7 +154,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Behavioral pattern extraction from session logs
+## 7. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -194,7 +174,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Agentic-porting-kit repo scaffold
+## 8. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -215,7 +195,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Built-with-Gormes page scaffold
+## 9. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

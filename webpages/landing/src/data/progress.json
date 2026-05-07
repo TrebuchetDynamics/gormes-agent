@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T17:57:27Z",
+    "last_updated": "2026-05-07T18:18:58Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -37750,57 +37750,6 @@
                 "Sandbox install with bin dir under `/tmp/` leaves shell rc files unchanged; default install still wires PATH; explicit `--no-shell-init` opt-out works for any bin dir; all three are fixture-proven."
               ],
               "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-shellrc-leak. Detection heuristic: the resolved bin dir starts with `/tmp/` or matches `${TMPDIR:-/tmp}/`. Future extension (separate row) could mark an install \"ephemeral\" via an explicit `GORMES_INSTALL_EPHEMERAL=1` env var so containers and CI can opt in regardless of bin-dir path."
-            },
-            {
-              "name": "Install transcript: only print systemd block when unit file actually written",
-              "priority": "P2",
-              "status": "planned",
-              "provenance": {
-                "origin_type": "gormes"
-              },
-              "contract": "The install transcript's `systemd user service installed:` block must only print when install.sh actually writes a systemd user unit file AND `systemctl --user` is reachable. Today the block prints unconditionally on every successful install, telling operators to run `systemctl --user start gormes-gateway` even when no unit file exists. The command then fails. Either install the unit and print the block, or print nothing — the in-between state of \"announce a service we did not install\" is the regression.",
-              "contract_status": "draft",
-              "slice_size": "small",
-              "execution_owner": "tools",
-              "trust_class": [
-                "operator"
-              ],
-              "degraded_mode": "Without this fix, every install pass tells the operator a service was installed when none was. Operators who follow the suggested commands hit `Failed to start gormes-gateway.service: Unit not found` and reasonably conclude the install is broken. The gormes-install skill flags this as msg-systemd-fiction on every install.",
-              "fixture": "internal/installtest/systemd_block_test.go",
-              "source_refs": [
-                "webpages/docs/development-skills/gormes-install/references/known-issues.md#msg-systemd-fiction",
-                "webpages/docs/development-skills/gormes-install/SKILL.md",
-                "install.sh"
-              ],
-              "ready_when": [
-                "An installtest harness exists that can exec install.sh in a temp HOME and assert on transcript content + on-disk systemd unit files."
-              ],
-              "not_ready_when": [
-                "The slice removes the systemd block in the case where install.sh DID write a real unit file (regressing the helpful happy path).",
-                "The slice prints a confusing replacement message when systemd is unavailable; either print the real block or print nothing.",
-                "Tests rely on the host having or lacking systemd; harness must shim `systemctl` so the test outcome is deterministic."
-              ],
-              "blocked_by": [],
-              "unblocks": [],
-              "acceptance": [
-                "TestInstall_NoSystemdAvailable_OmitsSystemdBlock runs install.sh in a temp HOME with `PATH` shadowing `systemctl` to a stub that exits non-zero; the install transcript does NOT contain the `systemd user service installed:` block.",
-                "TestInstall_SystemdAvailableButUnitNotWritten_OmitsBlock proves that even with a working `systemctl`, if the install code path skips the unit-file write, the transcript also skips the block (no fiction).",
-                "TestInstall_SystemdUnitActuallyWritten_PrintsBlock proves the helpful happy path still prints the block when a unit file is actually created in the temp HOME's user-units directory."
-              ],
-              "write_scope": [
-                "install.sh",
-                "internal/installtest/systemd_block_test.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/installtest -run SystemdBlock -count=1",
-                "go run ./cmd/progress validate",
-                "git diff --check"
-              ],
-              "done_signal": [
-                "Install transcript prints the systemd block only when a unit file was actually written and `systemctl --user` is reachable; transcript-content tests prove all three states (no systemd, systemd but no unit, unit written)."
-              ],
-              "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#msg-systemd-fiction. Concrete check: gate the block on `command -v systemctl >/dev/null && [ -n \"$XDG_RUNTIME_DIR\" ] && [ -f \"$systemd_unit_path\" ]` after the unit-write step. Independent of the iso-bin-hijack and iso-shellrc-leak rows; can be picked up first if the operator wants the smallest fix to land."
             }
           ]
         },

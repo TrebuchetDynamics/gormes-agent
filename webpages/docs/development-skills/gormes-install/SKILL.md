@@ -41,7 +41,14 @@ These are non-negotiable because the test machine is usually the operator's real
 2. **Capture pre-state before every test pass** so post-state diffs prove what install actually changed. Pre-state must include:
    - `~/.local/bin/gormes` symlink target (or absence) and inode.
    - `~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.zprofile`, `~/.config/fish/config.fish` last modified time + grep for `GORMES`/`gormes` lines.
-   - `systemctl --user list-unit-files gormes*` output.
+   - **systemd unit ground truth via THREE independent signals** (filing
+     a "no service installed" issue from a single negative `systemctl`
+     query has produced a false positive in the past — see
+     `references/known-issues.md` Withdrawn section):
+     - `ls -la ~/.config/systemd/user/gormes-gateway.service` (file
+       existence is ground truth);
+     - `systemctl --user is-enabled gormes-gateway` (manager-loaded state);
+     - `systemctl --user list-unit-files` without a glob pattern.
    - `~/.gormes/config.toml`, `~/.gormes/auth.json` mtimes (must NOT change in a sandbox pass).
    - `crontab -l` lines containing `gormes-codexu-builder-loop` or similar.
 3. **Restore production state after every sandbox pass** if the install touched any of the above. Restoration recipes live in `references/test-recipes.md`.

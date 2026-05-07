@@ -27,8 +27,13 @@ or stray credential file will not leak into a backed-up directory.
     [ -f "$rc" ] && grep -nE "GORMES|gormes" "$rc" 2>/dev/null && echo "($rc end)"
   done
   echo
-  echo "## systemd user units (gormes*)"
-  systemctl --user list-unit-files 'gormes*' 2>&1 || true
+  echo "## systemd unit ground truth (three signals — single negative is not authoritative)"
+  echo "### file existence"
+  ls -la ~/.config/systemd/user/gormes-gateway.service 2>&1 || true
+  echo "### is-enabled"
+  systemctl --user is-enabled gormes-gateway 2>&1 || true
+  echo "### list-unit-files (no pattern; pattern flag occasionally misses recently-loaded units)"
+  systemctl --user list-unit-files 2>&1 | grep -i gormes || true
   echo
   echo "## ~/.gormes config + auth mtimes"
   stat -c '%y %n' ~/.gormes/config.toml ~/.gormes/auth.json 2>&1 || true
@@ -100,8 +105,13 @@ The real install prints `updating active PATH command …` and
     [ -f "$rc" ] && grep -nE "GORMES|gormes" "$rc" 2>/dev/null && echo "($rc end)"
   done
   echo
-  echo "## systemd user units (gormes*)"
-  systemctl --user list-unit-files 'gormes*' 2>&1 || true
+  echo "## systemd unit ground truth (three signals)"
+  echo "### file existence"
+  ls -la ~/.config/systemd/user/gormes-gateway.service 2>&1 || true
+  echo "### is-enabled"
+  systemctl --user is-enabled gormes-gateway 2>&1 || true
+  echo "### list-unit-files (no pattern)"
+  systemctl --user list-unit-files 2>&1 | grep -i gormes || true
   echo
   echo "## ~/.gormes config + auth mtimes"
   stat -c '%y %n' ~/.gormes/config.toml ~/.gormes/auth.json 2>&1 || true
