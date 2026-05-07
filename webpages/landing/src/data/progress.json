@@ -6204,8 +6204,8 @@
             },
             {
               "name": "Telegram sticker vision adapter binding",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Telegram sticker updates bind the completed gateway sticker cache to live adapter handling: animated/video stickers inject a deterministic placeholder from emoji/set name without vision download, static stickers look up cached descriptions by file_unique_id, download sticker bytes through a fakeable Telegram file client on cache miss, persist .webp bytes and description metadata, call an injected vision analyzer with Hermes' sticker prompt, cache the analyzed description, and fall back to emoji/set_name description on download or vision failures without dropping the inbound submit.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -6268,7 +6268,8 @@
                   "hermes:b816fd4e2 tests/gateway/test_sticker_cache.py"
                 ],
                 "note": "Gormes has completed generic sticker cache helpers, but no Telegram adapter row binds live sticker updates to file download, vision analysis, cache reuse, and placeholder fallback behavior."
-              }
+              },
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 58, so adding one row would have been allowed, but no new backlog entry was needed: the existing P1 event-bus row is a non-selectable umbrella, while this source-backed Telegram row was validated and unblocked by the completed `Mirror + sticker cache surfaces` helper row. TDD added `internal/channels/telegram/sticker.go` and `sticker_test.go`: cached static stickers inject Hermes-compatible cached descriptions without download or vision; cache misses download bytes through the fake Telegram file client, persist `.webp` files under the adapter cache, call an injected analyzer with `StickerVisionPrompt`, and cache descriptions by `file_unique_id`; animated stickers inject deterministic placeholders without download; download and vision failures fall back to redacted placeholder text without attachments or cache writes. Row evidence: `go test ./internal/channels/telegram -run 'TestTelegramSticker' -count=1`; `go test ./internal/channels/telegram ./internal/gateway -run 'Sticker|Telegram' -count=1`."
             },
             {
               "name": "Discord native slash/thread command registration parity",

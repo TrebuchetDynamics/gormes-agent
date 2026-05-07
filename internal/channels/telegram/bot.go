@@ -36,6 +36,13 @@ type Config struct {
 	// text before they reach the gateway. When nil or degraded, the adapter
 	// still emits deterministic attachment markers instead of blank turns.
 	AudioTranscriber AudioTranscriber
+	// StickerCachePath stores Hermes-compatible Telegram sticker descriptions.
+	// Empty uses the user cache dir.
+	StickerCachePath string
+	// StickerVisionAnalyzer optionally describes static stickers on cache miss.
+	// Tests inject a fake analyzer; production may leave it nil for degraded
+	// placeholder behavior until a live vision provider is wired.
+	StickerVisionAnalyzer StickerVisionAnalyzer
 	// RequireMention gates group inbound messages so only those addressed to
 	// BotUsername (mention or bot_command @suffix) reach the gateway.
 	RequireMention bool
@@ -379,6 +386,12 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 		}
 		if attachment != nil {
 			attachments = append(attachments, *attachment)
+		}
+	}
+	if msg.Sticker != nil {
+		marker := b.telegramStickerMarker(ctx, msg.Sticker)
+		if marker != "" {
+			markers = append(markers, marker)
 		}
 	}
 
