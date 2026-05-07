@@ -48,28 +48,7 @@ selection.
 - Unblocks: Plugin ecosystem, Skill injection pipeline
 - Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
 
-## 2. Channels Capabilities Introspection
-
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Port OpenClaw's channels capabilities: gormes channels capabilities shows provider capabilities (intents/scopes + supported features) for each configured channel. Enables operators to understand what each channel adapter supports before configuring it.
-- Trust class: operator
-- Ready when: Channel adapters expose capability metadata., CLI channel command routing is defined.
-- Not ready when: The row hardcodes per-channel capabilities., The row requires live channel connections for capability discovery.
-- Degraded mode: Unconfigured channel, missing adapter, or capability query failure reports per-channel status with 'unknown' capability rather than crashing.
-- Fixture: `internal/channels/capabilities_test.go`
-- Write scope: `internal/channels/capabilities.go`, `internal/channels/capabilities_test.go`, `cmd/gormes/channels_capabilities.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels -run TestCapabilities -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes channels capabilities ships for all configured channel adapters.
-- Acceptance: gormes channels capabilities --channel telegram shows intents, scopes, and supported features., Output includes media support, command support, and format limitations per channel., Unconfigured channels show 'not configured' status.
-- Source refs: openclaw channels capabilities CLI surface, internal/channels/* (adapter implementations), docs/content/building-gormes/openclaw-platform-parity-audit.md
-- Unblocks: Channel configuration UX
-- Why now: Unblocks Channel configuration UX.
-
-## 3. Prompt Fragment Include System
+## 2. Prompt Fragment Include System
 
 - Phase: 5 / 5.N
 - Owner: `tools`
@@ -90,7 +69,7 @@ selection.
 - Unblocks: Agent profile customization, Plugin prompt injection
 - Why now: Unblocks Agent profile customization, Plugin prompt injection.
 
-## 4. Telegram forum thread fallback + send retry safety
+## 3. Telegram forum thread fallback + send retry safety
 
 - Phase: 2 / 2.B.5
 - Owner: `gateway`
@@ -110,7 +89,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send, ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_typing, ../hermes-agent/tests/gateway/test_telegram_thread_fallback.py@b816fd4e2, ../hermes-agent/tests/gateway/test_telegram_reply_mode.py@b816fd4e2, internal/channels/telegram/bot.go, internal/channels/telegram/client.go, internal/gateway/delivery.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Sandbox isolation depth selection
+## 4. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -130,7 +109,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Behavioral pattern extraction from session logs
+## 5. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -150,7 +129,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Skill code execution runtime
+## 6. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -170,7 +149,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Skill dependency resolution and composition
+## 7. Skill dependency resolution and composition
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -190,7 +169,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Skill validation on load with execution proof
+## 8. Skill validation on load with execution proof
 
 - Phase: 6 / 6.L
 - Owner: `skills`

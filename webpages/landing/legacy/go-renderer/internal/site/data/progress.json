@@ -30306,51 +30306,60 @@
             },
             {
               "name": "Channels Capabilities Introspection",
-              "status": "planned",
-              "priority": "P2",
-              "contract": "Port OpenClaw's channels capabilities: gormes channels capabilities shows provider capabilities (intents/scopes + supported features) for each configured channel. Enables operators to understand what each channel adapter supports before configuring it.",
-              "contract_status": "draft",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Port OpenClaw's channels capabilities as a Go-native, read-only operator command: `gormes channels capabilities` and `gormes channels capabilities --channel <name>` render channel capability metadata from Gormes' source-backed platform manifest plus configured-channel state. The command must show support features, intents, scopes, format limitations, and configured/not-configured status without opening live channel clients or requiring credentials.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Unconfigured channel, missing adapter, or capability query failure reports per-channel status with 'unknown' capability rather than crashing.",
+              "degraded_mode": "Unconfigured channel, missing adapter, unknown channel, or capability query failure reports visible per-channel degraded evidence rather than crashing or probing live SDKs.",
               "fixture": "internal/channels/capabilities_test.go",
               "source_refs": [
-                "openclaw channels capabilities CLI surface",
-                "internal/channels/* (adapter implementations)",
+                "../openclaw/src/cli/channels-cli.ts@42d73fd955:channels capabilities command",
+                "../openclaw/src/commands/channels/capabilities.ts@42d73fd955:channelsCapabilitiesCommand",
+                "../openclaw/src/commands/channels/capabilities.test.ts@42d73fd955",
+                "internal/gateway/platform_manifest.go:HermesGatewayPlatformManifest",
+                "cmd/gormes/gateway_status.go:configuredGatewayStatusChannels",
                 "docs/content/building-gormes/openclaw-platform-parity-audit.md"
               ],
               "ready_when": [
-                "Channel adapters expose capability metadata.",
-                "CLI channel command routing is defined."
+                "Gormes' gateway platform manifest is available as a source-backed adapter inventory.",
+                "Configured-channel state can be read from config without opening runtime stores or live channel clients."
               ],
               "not_ready_when": [
-                "The row hardcodes per-channel capabilities.",
-                "The row requires live channel connections for capability discovery."
+                "The slice ports OpenClaw's installable plugin mutation path, live probe path, or account install flow instead of read-only capability display.",
+                "The row requires live channel connections for capability discovery.",
+                "The implementation hardcodes a separate per-channel capability table instead of deriving support from the manifest."
               ],
               "unblocks": [
                 "Channel configuration UX"
               ],
               "acceptance": [
-                "gormes channels capabilities --channel telegram shows intents, scopes, and supported features.",
-                "Output includes media support, command support, and format limitations per channel.",
-                "Unconfigured channels show 'not configured' status."
+                "`gormes channels capabilities --channel telegram` shows Telegram support, intents, scopes, supported features, format limitations, and configured status from a fixture config.",
+                "`gormes channels capabilities` renders every manifest channel in stable order and marks unconfigured channels as not configured without opening runtime stores.",
+                "`gormes channels capabilities --channel missing` fails with unknown-channel degraded evidence and non-zero exit status.",
+                "JSON output includes the same status/support data without secrets."
               ],
               "write_scope": [
                 "internal/channels/capabilities.go",
                 "internal/channels/capabilities_test.go",
                 "cmd/gormes/channels_capabilities.go",
+                "cmd/gormes/channels_capabilities_test.go",
+                "cmd/gormes/main.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/channels -run TestCapabilities -count=1",
+                "go test ./cmd/gormes -run TestChannelsCapabilities -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "gormes channels capabilities ships for all configured channel adapters."
-              ]
+                "Fake config and manifest fixtures prove `gormes channels capabilities` renders source-backed support metadata, configured/not-configured status, unknown-channel errors, and JSON without live channel SDKs."
+              ],
+              "note": "Complete: 2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 55, below the 90-row cap, so this pass added no new backlog and sharpened the existing small OpenClaw-owned channel introspection row. Hermes b816fd4e2 and Honcho e659b6b remain covered by existing row-backed channel/gateway and Goncho rows; OpenClaw 42d73fd955 supplies the operator CLI source for this Gormes-owned enhancement. TDD landed internal/channels/capabilities.go plus `gormes channels capabilities`; tests prove manifest-derived support, intents, scopes, format limitations, configured/not-configured status, JSON output without secrets, and unknown-channel evidence without opening live channel SDKs or runtime stores."
             },
             {
               "name": "Prompt Fragment Include System",

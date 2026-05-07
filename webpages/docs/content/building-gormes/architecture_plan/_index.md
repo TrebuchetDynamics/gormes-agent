@@ -859,7 +859,7 @@ classification and row-backed implementation queue.
 - [x] Session Rollover Automation
 - [x] System Events, Heartbeat, and Presence
 - [x] Gateway Discover and Probe
-- [ ] Channels Capabilities Introspection
+- [x] Channels Capabilities Introspection
 - [ ] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
