@@ -36,7 +36,40 @@ const (
 	UpdateEvidenceStaleDashboardKillFailed  UpdateEvidenceKind = "update_stale_dashboard_kill_failed"
 	UpdateEvidencePreBackupSkipped          UpdateEvidenceKind = "update_pre_backup_skipped"
 	UpdateEvidencePreBackupRequested        UpdateEvidenceKind = "update_pre_backup_requested"
+	UpdateEvidenceSkillSyncCompleted        UpdateEvidenceKind = "update_skill_sync_completed"
+	UpdateEvidenceSkillSyncFailed           UpdateEvidenceKind = "update_skill_sync_failed"
 )
+
+// SkillSyncResult is the abstract per-update report returned by a
+// SkillSyncRunner. It is decoupled from internal/skills so the lifecycle
+// package stays import-free; callers in cmd/gormes/update.go adapt the
+// internal/skills.BundledSkillProfileSyncReport into this shape.
+type SkillSyncResult struct {
+	Profiles []SkillSyncProfileResult
+}
+
+// SkillSyncProfileResult mirrors internal/skills.SkillProfileSyncSummary
+// without importing it. Counts:
+//
+//	Added     — number of bundled skills newly written into this profile
+//	Unchanged — bundled skills already present and identical
+//	Conflicts — local skill differs from bundled (kept; never overwritten)
+//	Failed    — write or read failures encountered for this profile
+type SkillSyncProfileResult struct {
+	Profile         string
+	Added           int
+	Unchanged       int
+	Conflicts       int
+	Failed          int
+	AddedSkillNames []string
+}
+
+// SkillSyncRunner is the seam invoked by RunUpdateLifecycle after a
+// successful pull. Returning a non-nil error marks the sync as failed but
+// never fails the overall update (Hermes' best-effort `try/except: pass`
+// contract). A nil seam in UpdateLifecycleOptions disables sync entirely
+// and emits no evidence (silent default).
+type SkillSyncRunner func(ctx context.Context) (SkillSyncResult, error)
 
 type UpdateEvidence struct {
 	Kind   UpdateEvidenceKind
@@ -88,6 +121,11 @@ type UpdateLifecycleOptions struct {
 	// (default false). Wiring this from real config is a follow-up slice;
 	// for now the flag-driven path is the only enabled surface.
 	BackupConfigEnabled bool
+	// SkillSync is the optional bundled-skill profile-sync seam. When set,
+	// it runs after a successful pull and emits update_skill_sync_completed
+	// or update_skill_sync_failed evidence. A nil seam disables sync
+	// entirely (silent default — emits no skill_sync_* evidence).
+	SkillSync SkillSyncRunner
 }
 
 type UpdateGitRunner interface {
@@ -120,6 +158,50 @@ func (r RealUpdateGitRunner) RunGit(ctx context.Context, cwd string, args ...str
 		}
 	}
 	return result
+}
+
+// emitSkillSync invokes the optional bundled-skill profile-sync seam after
+// a successful pull and emits one evidence record per profile (success
+// path) or one failure record (error path). A nil seam emits no evidence
+// at all (silent default — most operators don't have a multi-profile
+// setup and don't need to hear about a no-op on every update).
+//
+// Best-effort contract: a non-nil error from the seam never fails the
+// overall update — it only logs `update_skill_sync_failed` evidence so
+// operators can see what went wrong. This matches Hermes' upstream
+// `try/except: pass` pattern for skill sync.
+func emitSkillSync(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions) {
+	if options.SkillSync == nil {
+		return
+	}
+	result, err := options.SkillSync(ctx)
+	if err != nil {
+		report.add(UpdateEvidenceSkillSyncFailed, err.Error())
+		return
+	}
+	for _, p := range result.Profiles {
+		report.add(UpdateEvidenceSkillSyncCompleted, formatSkillSyncSummary(p))
+	}
+}
+
+// formatSkillSyncSummary renders the count line in Hermes-parity shape:
+//
+//	`<profile>: +N new, K unchanged[, M user-modified][, F failed]`
+//
+// Zero-count buckets except `Added`+`Unchanged` are omitted to keep the
+// transcript short on the common case (most updates touch nothing).
+func formatSkillSyncSummary(p SkillSyncProfileResult) string {
+	parts := []string{
+		fmt.Sprintf("%s: +%d new", p.Profile, p.Added),
+		fmt.Sprintf("%d unchanged", p.Unchanged),
+	}
+	if p.Conflicts > 0 {
+		parts = append(parts, fmt.Sprintf("%d user-modified (kept)", p.Conflicts))
+	}
+	if p.Failed > 0 {
+		parts = append(parts, fmt.Sprintf("%d failed", p.Failed))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // emitPreUpdateBackupPolicy resolves the operator-visible pre-update backup
@@ -269,6 +351,12 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 		}
 		report.add(UpdateEvidenceAutostashRestored, stashRef)
 	}
+
+	// Skill sync runs AFTER pull but BEFORE gateway restart so the gateway
+	// can pick up newly-bundled skills on its restart cycle. Best-effort:
+	// errors emit update_skill_sync_failed but never set report.Failed
+	// (matches Hermes' `try/except: pass` for skill sync).
+	emitSkillSync(ctx, &report, options)
 
 	if options.GatewayRestartPoll != nil && strings.TrimSpace(options.RestartGateway) != "never" {
 		report.append(EvaluateUpdateGatewayRestart(*options.GatewayRestartPoll))

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -204,6 +206,59 @@ func TestUpdateCommand_BackupFlagFlowsToLifecycle(t *testing.T) {
 	_ = cmd2.Execute()
 	if got.Backup || !got.NoBackup {
 		t.Fatalf("--no-backup should set Backup=false NoBackup=true; got Backup=%v NoBackup=%v", got.Backup, got.NoBackup)
+	}
+}
+
+// TestUpdateCommand_SkillSyncSeamWiredByDefault proves the default
+// updateCommandSeams resolution wires SkillSyncFor so the lifecycle
+// receives a non-nil runner when the checkout has a skills/ directory and
+// a profile root is configured.
+func TestUpdateCommand_SkillSyncSeamWiredByDefault(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, "skills"), 0o755); err != nil {
+		t.Fatalf("mkdir skills: %v", err)
+	}
+	t.Setenv("GORMES_HOME", tmp)
+	got := defaultSkillSyncFor(tmp)
+	if got == nil {
+		t.Fatalf("defaultSkillSyncFor must return a non-nil runner when checkout/skills exists and GORMES_HOME is set")
+	}
+}
+
+// TestUpdateCommand_SkillSyncSeamNilWhenSkillsAbsent proves the default
+// adapter returns nil (silent default) when the checkout has no skills/
+// directory — most non-managed checkouts. The lifecycle then emits no
+// skill_sync_* evidence, matching the silent-default contract.
+func TestUpdateCommand_SkillSyncSeamNilWhenSkillsAbsent(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("GORMES_HOME", t.TempDir())
+	got := defaultSkillSyncFor(tmp)
+	if got != nil {
+		t.Fatalf("defaultSkillSyncFor must return nil when checkout/skills does not exist; got %T", got)
+	}
+}
+
+// TestUpdateCommand_SkillSyncCompletedGlyph proves the structured UX maps
+// `update_skill_sync_completed` to ✓ (success) and the failed kind to ✗.
+func TestUpdateCommand_SkillSyncGlyphs(t *testing.T) {
+	cases := []struct {
+		kind      cli.UpdateEvidenceKind
+		wantGlyph string
+	}{
+		{cli.UpdateEvidenceSkillSyncCompleted, "✓"},
+		{cli.UpdateEvidenceSkillSyncFailed, "✗"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.kind), func(t *testing.T) {
+			stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+				Branch:   "main",
+				Evidence: []cli.UpdateEvidence{{Kind: tc.kind, Detail: "default: +5 new, 12 unchanged"}},
+			})
+			needle := tc.wantGlyph + " " + string(tc.kind)
+			if !strings.Contains(stdout, needle) {
+				t.Fatalf("expected %q in stdout; got:\n%s", needle, stdout)
+			}
+		})
 	}
 }
 

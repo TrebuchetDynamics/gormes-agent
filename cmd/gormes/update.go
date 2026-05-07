@@ -5,16 +5,24 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
 type updateCommandSeams struct {
 	CheckoutDir  func() (string, error)
 	RunLifecycle func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport
+	// SkillSyncFor builds a SkillSyncRunner closure for a given checkout
+	// directory. Override in tests to inject a fake; the default builds
+	// the real adapter that calls internal/skills.SyncBundledSkillsToProfiles
+	// against `<checkoutDir>/skills` and the active profile root.
+	SkillSyncFor func(checkoutDir string) cli.SkillSyncRunner
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -36,6 +44,9 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	if seams.RunLifecycle == nil {
 		seams.RunLifecycle = cli.RunUpdateLifecycle
 	}
+	if seams.SkillSyncFor == nil {
+		seams.SkillSyncFor = defaultSkillSyncFor
+	}
 
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -54,6 +65,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 				KillStaleDashboard: killStaleDashboard,
 				Backup:             backup,
 				NoBackup:           noBackup,
+				SkillSync:          seams.SkillSyncFor(checkoutDir),
 				Git:                cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
@@ -122,6 +134,48 @@ func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport) {
 	}
 	if report.OperatorRecovery != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), report.OperatorRecovery)
+	}
+}
+
+// defaultSkillSyncFor builds the production SkillSyncRunner: scan
+// `<checkoutDir>/skills` for bundled SKILL.md files and sync them into the
+// active profile root (config.GormesHome). Returns nil when the bundled
+// root or profile root is missing — callers treat nil as "no sync to do"
+// and emit no evidence (silent default).
+//
+// Adapter responsibility: convert internal/skills.BundledSkillProfileSyncReport
+// counts to the import-free cli.SkillSyncResult shape so internal/cli has
+// no skills-package dependency.
+func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
+	bundledRoot := filepath.Join(checkoutDir, "skills")
+	if info, err := os.Stat(bundledRoot); err != nil || !info.IsDir() {
+		return nil
+	}
+	profileRoot := config.GormesHome()
+	if profileRoot == "" {
+		return nil
+	}
+	return func(ctx context.Context) (cli.SkillSyncResult, error) {
+		report, err := skills.SyncBundledSkillsToProfiles(ctx, skills.BundledSkillProfileSyncRequest{
+			BundledRoot: bundledRoot,
+			Profiles: []skills.SkillProfileRoot{
+				{Name: "default", Root: profileRoot},
+			},
+		})
+		if err != nil {
+			return cli.SkillSyncResult{}, err
+		}
+		out := cli.SkillSyncResult{Profiles: make([]cli.SkillSyncProfileResult, 0, len(report.Summaries))}
+		for _, s := range report.Summaries {
+			out.Profiles = append(out.Profiles, cli.SkillSyncProfileResult{
+				Profile:   s.Profile,
+				Added:     s.Added,
+				Unchanged: s.Unchanged,
+				Conflicts: s.Conflicts,
+				Failed:    s.Failed,
+			})
+		}
+		return out, nil
 	}
 }
 
