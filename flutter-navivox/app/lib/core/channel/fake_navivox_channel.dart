@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../protocol/navivox_event.dart';
+import '../protocol/navivox_frame.dart';
 import 'navivox_channel.dart';
 
 final fakeNavivoxChannelProvider = Provider<FakeNavivoxChannel>((ref) {
@@ -12,13 +15,28 @@ final fakeNavivoxChannelProvider = Provider<FakeNavivoxChannel>((ref) {
 });
 
 class FakeNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
-  FakeNavivoxChannel({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  FakeNavivoxChannel({Uuid? uuid, DateTime Function()? clock})
+    : _uuid = uuid ?? const Uuid(),
+      _clock = clock ?? DateTime.now;
 
   final Uuid _uuid;
+  final DateTime Function() _clock;
   NavivoxChannelState _state = const NavivoxChannelState();
+  NavivoxFrame? _lastSentFrame;
+  Uint8List? _lastSentFrameBytes;
+  final List<NavivoxFrame> _lastReceivedFrames = [];
 
   @override
   NavivoxChannelState get state => _state;
+
+  /// Last frame produced by [sendText], encoded once and decoded again so tests
+  /// can inspect the wire-level shape.
+  NavivoxFrame? get lastSentFrame => _lastSentFrame;
+  Uint8List? get lastSentFrameBytes => _lastSentFrameBytes;
+
+  /// Frames synthesised as a mock server response to the last [sendText].
+  List<NavivoxFrame> get lastReceivedFrames =>
+      List.unmodifiable(_lastReceivedFrames);
 
   @override
   void enterFakeServerMode() {
@@ -80,23 +98,157 @@ class FakeNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     if (trimmed.isEmpty) {
       return;
     }
-    final now = DateTime.now();
+    final now = _clock();
+    final submitId = _uuid.v4();
+
+    final submit = NavivoxFrame(
+      type: 'chat.submit',
+      messageId: submitId,
+      timestamp: now,
+      contentType: 'application/json',
+      payload: Uint8List.fromList(utf8.encode(jsonEncode({'text': trimmed}))),
+    );
+    final wire = NavivoxFrameCodec.encode(submit);
+    _lastSentFrame = NavivoxFrameCodec.decode(wire);
+    _lastSentFrameBytes = wire;
+
+    final assistantText = 'Mock response to: $trimmed';
+    final messageFrame = NavivoxFrame(
+      type: 'chat.message',
+      messageId: _uuid.v4(),
+      timestamp: now.add(const Duration(milliseconds: 150)),
+      correlationId: submitId,
+      contentType: 'application/json',
+      payload: Uint8List.fromList(
+        utf8.encode(jsonEncode({'text': assistantText})),
+      ),
+    );
+    final finalFrame = NavivoxFrame(
+      type: 'chat.final',
+      messageId: _uuid.v4(),
+      timestamp: now.add(const Duration(milliseconds: 200)),
+      correlationId: submitId,
+      contentType: 'application/json',
+      payload: Uint8List.fromList(
+        utf8.encode(jsonEncode({'turn_complete': true})),
+      ),
+    );
+
+    _lastReceivedFrames
+      ..clear()
+      ..add(NavivoxFrameCodec.decode(NavivoxFrameCodec.encode(messageFrame)))
+      ..add(NavivoxFrameCodec.decode(NavivoxFrameCodec.encode(finalFrame)));
+
     _state = _state.copyWith(
       messages: [
         ..._state.messages,
         NavivoxChatMessage(
-          id: _uuid.v4(),
+          id: submitId,
           author: NavivoxMessageAuthor.user,
           kind: NavivoxMessageKind.text,
           createdAt: now,
           text: trimmed,
         ),
         NavivoxChatMessage(
-          id: _uuid.v4(),
+          id: messageFrame.messageId,
           author: NavivoxMessageAuthor.assistant,
           kind: NavivoxMessageKind.text,
-          createdAt: now.add(const Duration(milliseconds: 200)),
-          text: 'Fake echo: $trimmed',
+          createdAt: messageFrame.timestamp,
+          text: assistantText,
+        ),
+      ],
+    );
+    notifyListeners();
+  }
+
+  @override
+  void sendVoice({
+    required Uint8List audio,
+    required String transcript,
+    required Duration duration,
+    required double confidence,
+  }) {
+    if (audio.isEmpty) {
+      return;
+    }
+    final now = _clock();
+    final submitId = _uuid.v4();
+
+    final submit = NavivoxFrame(
+      type: 'voice.submit',
+      messageId: submitId,
+      timestamp: now,
+      contentType: 'audio/pcm',
+      payload: audio,
+      metadata: {
+        'transcript': transcript,
+        'duration_ms': duration.inMilliseconds,
+        'confidence': confidence,
+        'codec': 'pcm_s16le',
+      },
+    );
+    final wire = NavivoxFrameCodec.encode(submit);
+    _lastSentFrame = NavivoxFrameCodec.decode(wire);
+    _lastSentFrameBytes = wire;
+
+    final mockTranscript = transcript;
+    final mockTtsBytes = Uint8List.fromList(
+      List<int>.generate(audio.length.clamp(16, 256), (i) => (i * 7) % 256),
+    );
+
+    final transcriptFrame = NavivoxFrame(
+      type: 'voice.transcript',
+      messageId: _uuid.v4(),
+      timestamp: now.add(const Duration(milliseconds: 100)),
+      correlationId: submitId,
+      contentType: 'application/json',
+      payload: Uint8List.fromList(
+        utf8.encode(jsonEncode({'transcript': mockTranscript, 'final': true})),
+      ),
+    );
+    final audioFrame = NavivoxFrame(
+      type: 'voice.audio',
+      messageId: _uuid.v4(),
+      timestamp: now.add(const Duration(milliseconds: 220)),
+      correlationId: submitId,
+      contentType: 'audio/pcm',
+      payload: mockTtsBytes,
+      metadata: {
+        'codec': 'pcm_s16le',
+        'duration_ms': duration.inMilliseconds + 200,
+        'transcript': 'Acknowledged: $mockTranscript',
+      },
+    );
+
+    _lastReceivedFrames
+      ..clear()
+      ..add(NavivoxFrameCodec.decode(NavivoxFrameCodec.encode(transcriptFrame)))
+      ..add(NavivoxFrameCodec.decode(NavivoxFrameCodec.encode(audioFrame)));
+
+    _state = _state.copyWith(
+      messages: [
+        ..._state.messages,
+        NavivoxChatMessage(
+          id: submitId,
+          author: NavivoxMessageAuthor.user,
+          kind: NavivoxMessageKind.voice,
+          createdAt: now,
+          voice: NavivoxVoiceMessage(
+            duration: duration,
+            transcript: transcript,
+            confidence: confidence,
+          ),
+        ),
+        NavivoxChatMessage(
+          id: audioFrame.messageId,
+          author: NavivoxMessageAuthor.assistant,
+          kind: NavivoxMessageKind.voice,
+          createdAt: audioFrame.timestamp,
+          voice: NavivoxVoiceMessage(
+            duration: duration + const Duration(milliseconds: 200),
+            transcript: 'Acknowledged: $mockTranscript',
+            confidence: 0.99,
+          ),
         ),
       ],
     );

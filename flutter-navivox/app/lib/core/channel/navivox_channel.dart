@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../protocol/navivox_event.dart';
 
 class NavivoxServer {
@@ -44,4 +46,10 @@ abstract interface class NavivoxChannel {
   NavivoxChannelState get state;
   void enterFakeServerMode();
   void sendText(String text);
+  void sendVoice({
+    required Uint8List audio,
+    required String transcript,
+    required Duration duration,
+    required double confidence,
+  });
 }
