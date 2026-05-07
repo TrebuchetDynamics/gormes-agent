@@ -245,11 +245,11 @@ func TestMCPServer_RegisterDefaultTools(t *testing.T) {
 	s := &MCPServer{}
 	s.RegisterDefaultTools()
 
-	if len(s.tools) != 5 {
-		t.Errorf("expected 5 default tools, got %d", len(s.tools))
+	if len(s.tools) != 6 {
+		t.Errorf("expected 6 default tools, got %d", len(s.tools))
 	}
 
-	expectedTools := []string{"conversations_list", "messages_list", "messages_get", "tools_list", "sessions_list"}
+	expectedTools := []string{"conversations_list", "messages_list", "messages_get", "tools_list", "sessions_list", "channels_list"}
 	for _, name := range expectedTools {
 		if _, ok := s.tools[name]; !ok {
 			t.Errorf("expected tool %q to be registered", name)
