@@ -42,32 +42,24 @@ Gormes runtime; `fixture-backed` means covered by local tests or fake clients;
 | Hermes/OpenClaw migration | `runtime-ready` with explicit source paths | Dry-run first, then apply with `--yes`; OpenClaw secret import requires explicit `--secrets`. |
 | Learning loop, MCP/plugin parity, voice/TTS | `row-backed` / in progress | Implemented slice-by-slice through the public roadmap and progress gates. |
 
-## Install
-
-Two promoted install paths are supported. Both end with the `gormes` command and start with offline verification before provider credentials are needed.
-
-Build from source:
+## Quick Install
 
 ```bash
-git clone https://github.com/TrebuchetDynamics/gormes-agent.git
-cd gormes-agent
-make build
-export PATH="$PWD/bin:$PATH"
+curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
+```
+
+Works on Linux, macOS, and WSL2. The installer clones a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Pass `GORMES_SKIP_SETUP=1` to defer that wizard.
+
+> **Windows:** Native Windows is not supported. Please install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) and run the command above.
+
+After installation:
+
+```bash
 gormes doctor --offline
 gormes --offline
 ```
 
-Or use the source-backed installer:
-
-```bash
-curl -fsSLO https://gormes.ai/install.sh
-less install.sh
-sh install.sh
-gormes doctor --offline
-gormes --offline
-```
-
-The installer clones or updates a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Use `--skip-setup` to defer that wizard.
+Prefer to inspect first? Download `install.sh` from the URL above, read it, then run `sh install.sh`. To build entirely from source instead, see [Build From Source](#build-from-source).
 
 ## First Run
 
@@ -236,7 +228,7 @@ Latest public release: [v0.1.04](https://github.com/TrebuchetDynamics/gormes-age
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
