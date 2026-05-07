@@ -7224,6 +7224,71 @@
               "name": "Architecture planner tasks manager script",
               "status": "complete",
               "note": "TDD landed for the main tracked entrypoint: scripts/gormes-architecture-planner-tasks-manager.sh writes .codex/planner/architecture-planner-tasks.md plus report/state artifacts, logs verbose repo/upstream/progress/validation/schedule context, and installs a periodic systemd/cron run. Phase 1.C later restored the compatibility wrappers at scripts/gormes-architecture-task-manager.sh and scripts/architectureplanneragent.sh."
+            },
+            {
+              "name": "Cron no-agent script-only short-circuit",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Cron jobs with no_agent=true execute only their configured script, never construct a kernel/agent turn, deliver trimmed successful stdout verbatim, suppress empty stdout or wakeAgent=false output, and deliver script failure/timeout alerts with run-store evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "A no_agent job without a script fails closed with cron_no_agent_script_required evidence and does not create an agent turn.",
+              "fixture": "internal/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
+              "source_refs": [
+                "./hermes-agent/cron/scheduler.py@b816fd4e2:run_job no_agent short-circuit",
+                "./hermes-agent/tools/cronjob_tools.py@b816fd4e2:cronjob no_agent create/update validation",
+                "internal/cron/executor.go:runNoAgentJob",
+                "internal/cron/no_agent_test.go",
+                "internal/tools/cronjob_tool.go",
+                "internal/tools/cronjob_tool_no_agent_test.go"
+              ],
+              "ready_when": [
+                "Cron scheduler, job store, run store, delivery sink, and script runner seams exist.",
+                "Tests can inject fake script runners, fake kernels, and in-memory delivery sinks; no live provider, gateway process, or real cron daemon is required."
+              ],
+              "not_ready_when": [
+                "The slice constructs a kernel.PlatformEvent, imports provider clients, or opens a session store for no_agent script-only jobs.",
+                "Empty stdout or wakeAgent=false output is delivered to the operator instead of being recorded as a suppressed/silent run.",
+                "Script failure or timeout is silently suppressed instead of producing a watchdog alert and error/timeout run evidence."
+              ],
+              "acceptance": [
+                "No-agent executor fixtures prove successful script stdout is delivered verbatim and the fake kernel receives zero submit events.",
+                "Silent-output fixtures prove empty stdout and wakeAgent=false output record suppressed runs without delivery or kernel submit.",
+                "Failure fixtures prove non-zero script and timeout results deliver watchdog alerts, record error/timeout status, and still never submit to the kernel.",
+                "Cronjob tool fixtures prove create/update require a script when no_agent=true, allow script-only jobs without prompts, list no_agent state, and allow toggling back to agent mode."
+              ],
+              "write_scope": [
+                "internal/cron/executor.go",
+                "internal/cron/no_agent_test.go",
+                "internal/tools/cronjob_tool.go",
+                "internal/tools/cronjob_tool_no_agent_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run TestCronNoAgent -count=1",
+                "go test ./internal/tools -run TestCronjobToolNoAgent -count=1",
+                "go test ./internal/cron ./internal/tools -run 'TestCronNoAgent|TestCronjobToolNoAgent' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Cron no-agent tests prove Hermes script-only watchdog behavior without a kernel submit, and progress evidence records the closure under the cron automation phase."
+              ],
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep found Hermes' cron no_agent=True script-only contract was implemented but not recorded under the canonical cron progress surface. Builder verification used existing TDD fixtures: internal/cron/no_agent_test.go proves script stdout delivery, empty/wakeAgent=false suppression, failure/timeout watchdog alerts, run-store evidence, and zero kernel submit events; internal/tools/cronjob_tool_no_agent_test.go proves create/update script guards, script-only jobs without prompts, list output, and toggling back to agent mode.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 cron/scheduler.py",
+                  "hermes:b816fd4e2 tools/cronjob_tools.py"
+                ],
+                "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned row count was 59, so adding one P1 source-backed row was allowed. This row records an untracked but already code-backed Hermes cron parity contract instead of expanding lower-priority backlog."
+              }
             }
           ]
         },

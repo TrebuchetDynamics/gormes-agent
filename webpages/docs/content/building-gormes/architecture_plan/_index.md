@@ -282,6 +282,7 @@ classification and row-backed implementation queue.
 - [x] SQLite cron_runs audit + CRON.md mirror
 - [x] Heartbeat [SYSTEM:] + [SILENT] delivery contract
 - [x] Architecture planner tasks manager script
+- [x] Cron no-agent script-only short-circuit
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 
