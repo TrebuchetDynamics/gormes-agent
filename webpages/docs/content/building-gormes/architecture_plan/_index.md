@@ -240,7 +240,7 @@ classification and row-backed implementation queue.
 - [x] Discord interaction authorization + mention safety guards
 - [x] Gateway processing lifecycle reactions for Telegram and Discord
 - [x] Telegram text batching + caption merge parity
-- [ ] Cross-platform multi-image native batching
+- [x] Cross-platform multi-image native batching
 - [x] Discord message admission + reply-mode policy
 - [ ] Webhook dynamic route reload + signed rate-limit order
 - [ ] Slack/Discord channel-scoped skills, prompts, and reload resync

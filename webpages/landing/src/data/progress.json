@@ -5781,7 +5781,7 @@
             },
             {
               "name": "Cross-platform multi-image native batching",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Gateway media delivery exposes Hermes-compatible multi-image batching for platforms with native batch APIs: Telegram sends media groups in chunks of ten with animation fallback, Discord sends up to ten files per message, Slack uses files_upload_v2 file_uploads chunks of ten, email can build one multipart reply with all local images, and unsupported channels retain per-image fallback delivery.",
               "contract_status": "validated",
@@ -40305,38 +40305,45 @@
               "name": "Transactional tool execution with snapshot/rollback",
               "status": "planned",
               "priority": "P1",
-              "contract": "Wrap each uncertain tool call as an atomic transaction with ACID properties. Filesystem snapshot before execution; rollback on failure, error, or policy violation. Guarantees system consistency regardless of agent behavior.",
-              "contract_status": "draft",
-              "slice_size": "large",
+              "contract": "Wrap uncertain in-process tool calls with a bounded workspace filesystem snapshot before execution; successful calls commit by discarding the snapshot, while failed calls restore modified, deleted, and newly-created files before the executor returns.",
+              "contract_status": "validated",
+              "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
                 "system"
               ],
               "source_refs": [
-                "docs/content/papers/safety-and-deployment.md",
-                "arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025)",
+                "./hermes-agent/tools/checkpoint_manager.py@b816fd4e2:CheckpointManager.ensure_checkpoint",
+                "./hermes-agent/tools/checkpoint_manager.py@b816fd4e2:CheckpointManager.restore",
+                "./hermes-agent/tools/checkpoint_manager.py@b816fd4e2:CheckpointManager._take",
+                "./hermes-agent/tools/file_operations.py@b816fd4e2:ShellFileOperations.write_file",
+                "./hermes-agent/tools/file_operations.py@b816fd4e2:ShellFileOperations.patch",
+                "internal/tools/command_classifier.go",
                 "internal/tools/executor.go",
-                "internal/tools/sandbox.go"
+                "internal/tools/checkpoint_manager.go",
+                "internal/tools/transactional_executor.go",
+                "internal/tools/snapshot.go"
               ],
               "ready_when": [
-                "Command classifier exists (5.U row 1)",
-                "Sandbox filesystem supports snapshot/rollback"
+                "Pre-execution command classification is complete and marks uncertain tool requests as RequiresSnapshot.",
+                "The slice can use temp workspace fixtures and in-process fake tools; no live sandbox backend, shadow git repo, or provider credentials are required."
               ],
               "not_ready_when": [
-                "No snapshot mechanism available on target OS"
+                "The implementation tries to replace Hermes' full shadow-git checkpoint history, CLI /rollback UX, or sandbox isolation-depth policy in the same pass.",
+                "Rollback follows symlinks outside the workspace root, preserves new files created by failed tools, or deletes pre-existing files that should be restored."
               ],
               "acceptance": [
-                "Uncertain tool calls create filesystem snapshot before execution",
-                "Failed tool calls roll back to pre-execution state",
-                "Successful tool calls commit snapshot changes",
-                "Rollback is atomic — no partial state after failure",
-                "Snapshot overhead <2s per transaction on typical project",
-                "Audit log records snapshot/rollback/commit events"
+                "Uncertain tool calls create a workspace snapshot before invoking the inner executor.",
+                "Failed uncertain tool calls restore modified file content, restore files deleted during the call, and remove files created during the call.",
+                "Successful uncertain tool calls commit by preserving filesystem changes and reporting no rollback.",
+                "Safe tool calls do not pay snapshot cost, and unsafe tool calls remain blocked without touching the inner executor.",
+                "Rollback failures are returned as degraded executor errors instead of being hidden behind the tool failure."
               ],
               "write_scope": [
                 "internal/tools/transactional_executor.go",
                 "internal/tools/transactional_executor_test.go",
-                "internal/tools/snapshot.go"
+                "internal/tools/snapshot.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/tools -run TestTransactionalExecutor -count=1",
@@ -40345,7 +40352,12 @@
               "done_signal": [
                 "Transactional executor tests prove rollback on failure and commit on success with filesystem integrity"
               ],
-              "note": "Research-driven (Fault-Tolerant Sandboxing, 2025). Transactional approach: 100% rollback success rate in research. The missing middle between unsafe local exec and Docker isolation."
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows. Planned row count was 66, so a new row was allowed, but this existing P1 row was the better completion-biased target: it already had local classifier/executor scaffolding, but its old contract was overbroad, cited speculative/nonlocal sandbox evidence, and was not actually builder-ready. TDD landed `internal/tools/snapshot.go` plus transactional executor wiring: uncertain tool requests with workspace_root metadata now snapshot regular files/directories/symlinks before execution, roll back modified/deleted/created files on failure, preserve successful changes on commit, keep safe/unsafe classifier behavior unchanged, and avoid following symlinks outside the workspace. Full shadow-git history, CLI rollback UX, and sandbox depth selection remain separate rows.",
+              "evidence": {
+                "implementation": "internal/tools/snapshot.go, internal/tools/transactional_executor.go",
+                "tests": "go test ./internal/tools -run TestTransactionalExecutor -count=1; go test ./internal/tools -run TestSnapshot -count=1; go test ./internal/tools -count=1",
+                "note": "Workspace snapshot and transactional executor fixtures prove rollback of modified, deleted, and newly-created files; commit preservation on success; snapshot-required metadata handling; and symlink restoration without following the target outside the workspace."
+              }
             },
             {
               "name": "Sandbox isolation depth selection",

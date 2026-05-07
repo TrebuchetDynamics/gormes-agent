@@ -110,27 +110,7 @@ selection.
 - Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, ../openclaw/src/commands/gateway-status/probe-run.ts, internal/tools/gateway_discover.go, cmd/gormes/gateway.go, cmd/gormes/gateway_discover.go, internal/apiserver/server.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Transactional tool execution with snapshot/rollback
-
-- Phase: 5 / 5.U
-- Owner: `tools`
-- Size: `large`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Wrap each uncertain tool call as an atomic transaction with ACID properties. Filesystem snapshot before execution; rollback on failure, error, or policy violation. Guarantees system consistency regardless of agent behavior.
-- Trust class: system
-- Ready when: Command classifier exists (5.U row 1), Sandbox filesystem supports snapshot/rollback
-- Not ready when: No snapshot mechanism available on target OS
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/tools/transactional_executor.go`, `internal/tools/transactional_executor_test.go`, `internal/tools/snapshot.go`
-- Test commands: `go test ./internal/tools -run TestTransactionalExecutor -count=1`, `go test ./internal/tools -run TestSnapshot -count=1`
-- Done signal: Transactional executor tests prove rollback on failure and commit on success with filesystem integrity
-- Acceptance: Uncertain tool calls create filesystem snapshot before execution, Failed tool calls roll back to pre-execution state, Successful tool calls commit snapshot changes, Rollback is atomic — no partial state after failure, Snapshot overhead <2s per transaction on typical project, Audit log records snapshot/rollback/commit events
-- Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Sandbox isolation depth selection
+## 5. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -150,7 +130,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Behavioral pattern extraction from session logs
+## 6. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -170,7 +150,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Skill code execution runtime
+## 7. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -190,7 +170,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Skill dependency resolution and composition
+## 8. Skill dependency resolution and composition
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -210,7 +190,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Skill validation on load with execution proof
+## 9. Skill validation on load with execution proof
 
 - Phase: 6 / 6.L
 - Owner: `skills`
