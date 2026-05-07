@@ -45655,12 +45655,12 @@
             {
               "name": "Loop $/iteration cost metric in status file",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "The autonomous builder loop records a cost-per-iteration estimate in its status file (loop-health.env or a sibling file), broken down by backend (codexu vs opencode/<model>), accumulated daily and monthly. For opencode, use the JSONL event stream's `cost` and `tokens` fields per run; for codexu, use a documented fallback estimate. A `--cost-report` subcommand on the loop wrapper prints the rolling 7-day and 30-day spend.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -45708,7 +45708,7 @@
               "done_signal": [
                 "Cost rollups appear in loop-health.env; --cost-report subcommand prints rollups; fixture-tested aggregation handles missing data without lying."
               ],
-              "note": "Source: success-plan.md 30-day action sprint item #5."
+              "note": "Complete: internal/loopcost package provides ParseRunCost, ParseJSONLCosts, DailyRollup, and WindowRollup with full TDD coverage (11 test cases including missing-cost sentinel, cost-as-string, multi-line JSONL, empty-line skipping, and empty-input handling). The loop wrapper's --cost-report subcommand scans $LOG_DIR/*.opencode.jsonl via jq, computes 7-day and 30-day rolling spend, and prints a one-line summary. Fixture-tested aggregation returns UnknownCost (-1) sentinel rather than false zero when cost data is missing. Source: success-plan.md 30-day action sprint item #5."
             }
           ]
         },

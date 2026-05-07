@@ -92,28 +92,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 4. Loop $/iteration cost metric in status file
-
-- Phase: 8 / 8.F
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: The autonomous builder loop records a cost-per-iteration estimate in its status file (loop-health.env or a sibling file), broken down by backend (codexu vs opencode/<model>), accumulated daily and monthly. For opencode, use the JSONL event stream's `cost` and `tokens` fields per run; for codexu, use a documented fallback estimate. A `--cost-report` subcommand on the loop wrapper prints the rolling 7-day and 30-day spend.
-- Trust class: operator, system
-- Ready when: The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl)., Per-run cost is extractable from the JSONL via a simple jq aggregation.
-- Not ready when: Cost is reported as a fake or placeholder number when JSONL data is unavailable; degraded mode must surface unknown_cost evidence instead., The metric is a wallclock proxy ("runtime seconds") rather than a real spend estimate.
-- Degraded mode: Without cost telemetry, the operating principle "$/feature shipped" cannot be enforced; the loop runs at indefinite cost.
-- Fixture: `internal/loopcost/cost_test.go`
-- Write scope: `internal/loopcost/cost.go`, `internal/loopcost/cost_test.go`, `scripts/codexu-gormes-builder-loop.sh`, `scripts/codexu-gormes-builder-cron.sh`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/loopcost -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Cost rollups appear in loop-health.env; --cost-report subcommand prints rollups; fixture-tested aggregation handles missing data without lying.
-- Acceptance: TestLoopCost_AggregatesOpencodeJSONL parses a captured opencode JSONL fixture and produces a per-run cost summary., TestLoopCost_DailyRollup combines per-run summaries into a 24-hour rolling spend., TestLoopCost_MissingDataIsUnknown returns unknown_cost evidence rather than zero when JSONL is absent., The loop wrapper's `--cost-report` (or equivalent) subcommand prints the 7-day and 30-day rollups in <100 ms.
-- Source refs: docs/content/building-gormes/strategy/success-plan.md, scripts/codexu-gormes-builder-loop.sh, scripts/codexu-gormes-builder-cron.sh
-- Unblocks: Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop
-- Why now: Unblocks Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop.
-
-## 5. Sandbox isolation depth selection
+## 4. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -133,7 +112,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Behavioral pattern extraction from session logs
+## 5. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -153,7 +132,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Agentic-porting-kit repo scaffold
+## 6. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -174,7 +153,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Built-with-Gormes page scaffold
+## 7. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
