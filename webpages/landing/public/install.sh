@@ -807,12 +807,18 @@ download_file() {
   url="$1"
   out="$2"
 
+  # Enforce HTTPS-only with TLS 1.2+, retry transient failures, and bound
+  # connection waits — the Go tarball download is the riskiest network step.
   if has curl; then
-    curl -fsSL "$url" -o "$out"
+    curl -fsSL --proto '=https' --tlsv1.2 \
+      --retry 3 --retry-delay 1 --retry-connrefused \
+      -o "$out" "$url"
     return
   fi
 
-  wget -q "$url" -O "$out"
+  wget -q --https-only --secure-protocol=TLSv1_2 \
+    --tries=3 --timeout=20 \
+    -O "$out" "$url"
 }
 
 install_managed_go() {
@@ -1630,8 +1636,7 @@ PLISTUNIT
   log "  (auto-starts on login; survives reboots)"
 }
 
-print_dry_run() {
-  log "dry run"
+print_install_plan_body() {
   log "  branch: ${BRANCH}"
   if [ -n "$LOCAL_SOURCE_DIR" ]; then
     log "  source: ${LOCAL_SOURCE_DIR}"
@@ -1644,6 +1649,17 @@ print_dry_run() {
   log "  published_binary: $(pick_bin_dir)/gormes"
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
+}
+
+print_dry_run() {
+  log "dry run"
+  print_install_plan_body
+}
+
+print_install_plan() {
+  log "install plan"
+  print_install_plan_body
+  log ""
 }
 
 yes_no() {
@@ -1736,6 +1752,9 @@ main() {
   fi
   print_banner
   detect_os
+  if [ "$VERBOSE" -ne 1 ]; then
+    print_install_plan
+  fi
   acquire_install_lock
   PREVIOUS_GATEWAY_PID=$(running_gateway_pid 2>/dev/null || true)
   ensure_base_prerequisites
