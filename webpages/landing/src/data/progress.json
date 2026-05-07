@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T20:56:18Z",
+    "last_updated": "2026-05-07T22:00:00Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -19877,6 +19877,7 @@
             {
               "name": "61-tool registry port",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -25002,8 +25003,8 @@
             },
             {
               "name": "MCP channels_list tool",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes exposes the Hermes MCP channels_list tool through the MCP server, reading from the existing internal/gateway ChannelDirectoryStore Platforms map to return a per-platform channel list. The tool correctly accesses the platforms key from the directory store (ChannelDirectoryStore.Platforms is the platforms map directly, mirroring the Hermes fix in 292f46836 which corrected channels_list to iterate directory.get(\"platforms\", {}) instead of directory.items()). Returns channel id, name, chat_id, and enabled status per channel, with optional platform name filter.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -25056,6 +25057,26 @@
                 "origin_type": "porting",
                 "upstream_ref": "hermes:292f46836 mcp_serve.py:769-819 + test_mcp_serve.py:830-854",
                 "note": "Hermes fix (issue #21474) corrected channels_list to use directory.get(\"platforms\", {}).items() instead of directory.items(). Gormes ChannelDirectoryStore.Platforms map already mirrors this structure. Added 2026-05-07 parity sweep — MCP infrastructure (config/transport/OAuth/cleanup) is complete in 5.G; this row adds the missing channels_list tool to the MCP server."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/mcp_channels_list.go: ChannelEntry type, ChannelDirectoryProvider interface, channelOutput struct, MCPServer.channelsListHandler",
+                  "internal/tools/mcp_serve.go: channelDir field on MCPServer, channels_list registered in RegisterDefaultTools"
+                ],
+                "tests": [
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_ReturnsPerPlatformChannels",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_PlatformFilter",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_EmptyDirectory",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_DirectoryUnavailable",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_ChannelFields",
+                  "internal/tools/mcp_serve_test.go: TestMCPServer_RegisterDefaultTools updated to expect 6 tools including channels_list"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run ^TestMCPChannelsList_ -count=1 -> ok (5/5)",
+                  "go test ./internal/tools -count=1 -> ok",
+                  "go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok"
+                ]
               }
             }
           ],
@@ -27216,6 +27237,7 @@
             {
               "name": "Atomic checkpoints",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -31736,6 +31758,7 @@
             {
               "name": "49-file CLI tree port",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -33349,6 +33372,7 @@
             {
               "name": "Config, profile, auth, and setup command surfaces",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
