@@ -2,17 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/protocol/navivox_event.dart';
+import '../../voice/services/voice_capture_service.dart';
 import '../../voice/widgets/voice_morph_surface.dart';
 
 class SimpleChatAdapter extends StatefulWidget {
   const SimpleChatAdapter({
     required this.messages,
     required this.onSend,
+    this.voiceCaptureService,
+    this.onVoice,
+    this.voiceCaptureTimeout = const Duration(seconds: 30),
     super.key,
   });
 
   final List<NavivoxChatMessage> messages;
   final ValueChanged<String> onSend;
+
+  /// When provided, a microphone button is rendered next to the send button.
+  /// Tapping it starts a [VoiceCaptureService.capture] and the result is
+  /// delivered via [onVoice].
+  final VoiceCaptureService? voiceCaptureService;
+  final ValueChanged<VoiceCapture>? onVoice;
+  final Duration voiceCaptureTimeout;
 
   @override
   State<SimpleChatAdapter> createState() => _SimpleChatAdapterState();
@@ -20,6 +31,8 @@ class SimpleChatAdapter extends StatefulWidget {
 
 class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
   final _controller = TextEditingController();
+  bool _capturing = false;
+  String? _captureError;
 
   @override
   void dispose() {
@@ -40,6 +53,12 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
             },
           ),
         ),
+        if (_captureError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(_captureError!,
+                style: const TextStyle(color: Colors.red)),
+          ),
         SafeArea(
           top: false,
           child: Padding(
@@ -62,6 +81,14 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
                   onPressed: () => _send(_controller.text),
                   icon: const Icon(Icons.send),
                 ),
+                if (widget.voiceCaptureService != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: _capturing ? 'Stop voice capture' : 'Record voice',
+                    onPressed: _toggleVoiceCapture,
+                    icon: Icon(_capturing ? Icons.stop : Icons.mic),
+                  ),
+                ],
               ],
             ),
           ),
@@ -73,6 +100,35 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
   void _send(String text) {
     widget.onSend(text);
     _controller.clear();
+  }
+
+  Future<void> _toggleVoiceCapture() async {
+    final service = widget.voiceCaptureService;
+    if (service == null) return;
+
+    if (_capturing) {
+      // Tapping while recording cancels — the timeout-based capture has no
+      // public stop hook in v1, so we just visually de-activate. The capture
+      // future still completes on its own and onVoice fires when it does.
+      setState(() => _capturing = false);
+      return;
+    }
+
+    setState(() {
+      _capturing = true;
+      _captureError = null;
+    });
+    try {
+      final capture = await service.capture(timeout: widget.voiceCaptureTimeout);
+      if (!mounted) return;
+      widget.onVoice?.call(capture);
+    } on VoiceCaptureTimeout {
+      if (mounted) setState(() => _captureError = 'Voice capture timed out.');
+    } catch (e) {
+      if (mounted) setState(() => _captureError = 'Voice capture failed: $e');
+    } finally {
+      if (mounted) setState(() => _capturing = false);
+    }
   }
 }
 
