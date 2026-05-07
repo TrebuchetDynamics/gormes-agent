@@ -34,6 +34,7 @@ type Job struct {
 	EnabledToolsets []string        `json:"enabled_toolsets,omitempty"` // optional toolset restriction
 	Workdir         string          `json:"workdir,omitempty"`          // optional job working directory
 	Script          string          `json:"script,omitempty"`           // optional pre-run script path
+	NoAgent         bool            `json:"no_agent,omitempty"`         // true when script output is the job and no agent turn is constructed
 	ContextFrom     []string        `json:"context_from,omitempty"`     // upstream cron job IDs for future context chaining
 }
 

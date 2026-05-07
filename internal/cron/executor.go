@@ -163,12 +163,15 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 		e.log.Warn("cron: unresolved env refs", "job_id", job.ID, "evidence", envEvidence)
 	}
 	startedAt := time.Now().Unix()
-	sessionID := fmt.Sprintf("cron:%s:%d", job.ID, startedAt)
 	promptHash := shortHash(job.Prompt)
-	const durableWorker = "cron-executor"
-	durableActive := e.startDurableCronRun(ctx, sessionID, job, promptHash, durableWorker)
 	restoreCWD := e.applyWorkdir(runtimeJob)
 	defer restoreCWD()
+	if runtimeJob.NoAgent {
+		return e.runNoAgentJob(ctx, runtimeJob, startedAt, promptHash)
+	}
+	sessionID := fmt.Sprintf("cron:%s:%d", job.ID, startedAt)
+	const durableWorker = "cron-executor"
+	durableActive := e.startDurableCronRun(ctx, sessionID, job, promptHash, durableWorker)
 
 	// Subscribe BEFORE Submit so we don't miss the final frame.
 	frames := e.cfg.Kernel.Render()
@@ -348,6 +351,119 @@ completed:
 	e.completeDurableCronRun(sessionID, durableWorker, durableActive, run)
 	e.recordAndUpdateJob(ctx, job, run)
 	return nil
+}
+
+func (e *Executor) runNoAgentJob(ctx context.Context, job Job, startedAt int64, promptHash string) error {
+	finished := func() int64 { return time.Now().Unix() }
+	if strings.TrimSpace(job.Script) == "" {
+		err := errors.New("cron_no_agent_script_required")
+		notice := fmt.Sprintf("Cron watchdog %q cannot run: no_agent=True requires a script.", job.Name)
+		_ = e.cfg.Sink.Deliver(context.Background(), notice)
+		e.recordAndUpdateJob(ctx, job, Run{
+			JobID:         job.ID,
+			StartedAt:     startedAt,
+			FinishedAt:    finished(),
+			PromptHash:    promptHash,
+			Status:        "error",
+			Delivered:     true,
+			OutputPreview: truncate(notice, 200),
+			ErrorMsg:      err.Error(),
+		})
+		return err
+	}
+	runner := e.cfg.ScriptRunner
+	if runner == nil {
+		runner = ShellCronScriptRunner{}
+	}
+	result := runner.RunCronScript(ctx, CronScriptRequest{
+		Path:        job.Script,
+		ScriptsRoot: e.cfg.ScriptsRoot,
+		Workdir:     job.Workdir,
+		Timeout:     e.cfg.ScriptTimeout,
+	})
+	output := strings.TrimSpace(result.Output)
+	if result.Success {
+		switch {
+		case output == "":
+			e.recordAndUpdateJob(ctx, job, Run{
+				JobID:             job.ID,
+				StartedAt:         startedAt,
+				FinishedAt:        finished(),
+				PromptHash:        promptHash,
+				Status:            "suppressed",
+				Delivered:         false,
+				SuppressionReason: "empty",
+			})
+			return nil
+		case cronNoAgentWakeAgentFalse(output):
+			e.recordAndUpdateJob(ctx, job, Run{
+				JobID:             job.ID,
+				StartedAt:         startedAt,
+				FinishedAt:        finished(),
+				PromptHash:        promptHash,
+				Status:            "suppressed",
+				Delivered:         false,
+				SuppressionReason: "silent",
+				OutputPreview:     truncate(output, 200),
+			})
+			return nil
+		default:
+			content := PrepareCronDeliveryContent(output)
+			outcome := DeliverCronDeliveryPlan(
+				context.Background(),
+				PlanCronDeliveryForJob(job, e.cfg.Directory),
+				content,
+				e.cfg.LiveDelivery,
+				e.cfg.Sink,
+			)
+			run := Run{
+				JobID:         job.ID,
+				StartedAt:     startedAt,
+				FinishedAt:    finished(),
+				PromptHash:    promptHash,
+				Status:        "success",
+				OutputPreview: truncate(content.Text, 200),
+			}
+			run = applyDeliveryOutcome(run, outcome)
+			e.recordAndUpdateJob(ctx, job, run)
+			return nil
+		}
+	}
+	if output == "" {
+		output = "script failed without output"
+	}
+	status := "error"
+	if strings.Contains(strings.ToLower(output), "timed out") {
+		status = "timeout"
+	}
+	notice := fmt.Sprintf("Cron watchdog %q script failed\n\n%s", job.Name, output)
+	if status == "timeout" {
+		notice = fmt.Sprintf("Cron watchdog %q script timed out\n\n%s", job.Name, output)
+	}
+	_ = e.cfg.Sink.Deliver(context.Background(), notice)
+	e.recordAndUpdateJob(ctx, job, Run{
+		JobID:         job.ID,
+		StartedAt:     startedAt,
+		FinishedAt:    finished(),
+		PromptHash:    promptHash,
+		Status:        status,
+		Delivered:     true,
+		OutputPreview: truncate(notice, 200),
+		ErrorMsg:      output,
+	})
+	if status == "timeout" {
+		return context.DeadlineExceeded
+	}
+	return errors.New(output)
+}
+
+func cronNoAgentWakeAgentFalse(output string) bool {
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &doc); err != nil {
+		return false
+	}
+	value, ok := doc["wakeAgent"]
+	return ok && value == false
 }
 
 const CronEnvRefUnresolved = "cron_env_ref_unresolved"

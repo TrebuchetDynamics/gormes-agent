@@ -30587,8 +30587,8 @@
             },
             {
               "name": "Cron no-agent script-only watchdog mode",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P0",
               "contract": "Gormes ports Hermes cron `no_agent` jobs as script-only scheduled automations: creation/update/list surfaces persist the mode, script is required, prompt is optional and ignored, successful script stdout can be delivered verbatim, empty stdout and wakeAgent=false stay silent, and failures/timeouts emit alert evidence without constructing an agent turn.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -30601,11 +30601,12 @@
               "degraded_mode": "Invalid no-agent jobs return cron_no_agent_script_required or cron_no_agent_invalid_mode evidence; script failures return redacted cron_no_agent_script_failed/timeout evidence without leaking secrets or falling back to an agent prompt.",
               "fixture": "internal/cron/no_agent_test.go; internal/tools/cronjob_tool_no_agent_test.go",
               "source_refs": [
-                "../hermes-agent/cron/jobs.py@3db6b9cc8",
-                "../hermes-agent/cron/scheduler.py@3db6b9cc8",
-                "../hermes-agent/tools/cronjob_tools.py@3db6b9cc8",
-                "../hermes-agent/hermes_cli/cron.py@3db6b9cc8",
-                "../hermes-agent/tests/cron/test_cron_no_agent.py@3db6b9cc8",
+                "../hermes-agent/cron/jobs.py@b816fd4e2:create_job",
+                "../hermes-agent/cron/scheduler.py@b816fd4e2:run_job,_run_job_script",
+                "../hermes-agent/tools/cronjob_tools.py@b816fd4e2:cronjob",
+                "../hermes-agent/hermes_cli/main.py@b816fd4e2:cron no-agent parser flags",
+                "../hermes-agent/hermes_cli/cron.py@b816fd4e2:_add_job,_edit_job",
+                "../hermes-agent/tests/cron/test_cron_no_agent.py@b816fd4e2",
                 "internal/cron/job.go",
                 "internal/cron/executor.go",
                 "internal/tools/cronjob_tool.go"
@@ -30631,7 +30632,6 @@
                 "internal/cron/no_agent_test.go",
                 "internal/tools/cronjob_tool.go",
                 "internal/tools/cronjob_tool_no_agent_test.go",
-                "cmd/gormes/cron.go",
                 "webpages/docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -30641,18 +30641,35 @@
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
+              "evidence": {
+                "implementation": [
+                  "internal/cron/job.go",
+                  "internal/cron/executor.go",
+                  "internal/cron/no_agent_test.go",
+                  "internal/tools/cronjob_tool.go",
+                  "internal/tools/cronjob_tool_no_agent_test.go"
+                ],
+                "tests": [
+                  "go test ./internal/cron -run 'TestCronNoAgent' -count=1",
+                  "go test ./internal/tools -run 'TestCronjobTool.*NoAgent' -count=1",
+                  "go test ./internal/cron ./internal/tools -count=1",
+                  "go run ./cmd/progress validate",
+                  "git diff --check"
+                ],
+                "note": "Complete 2026-05-07: Job.NoAgent now round-trips through the native cron store and cronjob tool; create/update enforce script-required semantics while prompt remains optional for no-agent jobs; summaries expose no_agent. Executor no-agent runs short-circuit before kernel submission, executes the configured script through the injected runner, delivers non-empty stdout verbatim through the normal delivery plan, suppresses empty stdout and wakeAgent=false JSON with run evidence, and delivers redacted failure/timeout alerts without constructing an agent/provider turn."
+              },
               "done_signal": [
                 "Cron no-agent fixtures prove script-only mode persists, executes, delivers/suppresses output correctly, alerts on failure, and never constructs an agent turn."
               ],
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_refs": [
-                  "hermes:3db6b9cc8 cron/jobs.py",
-                  "hermes:3db6b9cc8 cron/scheduler.py",
-                  "hermes:3db6b9cc8 tools/cronjob_tools.py",
-                  "hermes:3db6b9cc8 tests/cron/test_cron_no_agent.py"
+                  "hermes:b816fd4e2 cron/jobs.py",
+                  "hermes:b816fd4e2 cron/scheduler.py",
+                  "hermes:b816fd4e2 tools/cronjob_tools.py",
+                  "hermes:b816fd4e2 tests/cron/test_cron_no_agent.py"
                 ],
-                "note": "Current Hermes added script-only cron behavior after Gormes' generic cron script/action rows were completed; this row revisits only no-agent semantics."
+                "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows. Planned/fixture-ready row count is 101, so no new P3/P4 row was added. The existing P1 rows were non-builder-ready (draft transactional filesystem snapshots) or umbrella-only (gateway event bus adapter parent). This row is the highest unblocked active-Hermes runtime/operator weakness: Gormes already has cron script pre-run plumbing, script workdir, prompt/action safety, delivery, and cronjob tool envelopes, but lacks Hermes' `no_agent=True` script-only short-circuit that never constructs an agent turn."
               }
             },
             {

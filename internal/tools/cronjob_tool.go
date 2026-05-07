@@ -60,7 +60,7 @@ func (*CronjobTool) Description() string {
 }
 
 func (*CronjobTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","description":"One of: create, list, update, pause, resume, remove, run"},"job_id":{"type":"string","description":"Required for update/pause/resume/remove/run"},"prompt":{"type":"string"},"schedule":{"type":"string","description":"For create/update: '30m', 'every 2h', '0 9 * * *', or ISO timestamp"},"name":{"type":"string"},"deliver":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}],"description":"Delivery target: origin, local, platform, platform:chat_id, or comma/list form for multiple targets"},"repeat":{"type":"integer"},"skills":{"type":"array","items":{"type":"string"}},"model":{"type":"object","properties":{"provider":{"type":"string"},"model":{"type":"string"}}},"script":{"type":"string"},"context_from":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}]},"enabled_toolsets":{"type":"array","items":{"type":"string"}},"workdir":{"type":"string"}},"required":["action"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","description":"One of: create, list, update, pause, resume, remove, run"},"job_id":{"type":"string","description":"Required for update/pause/resume/remove/run"},"prompt":{"type":"string"},"schedule":{"type":"string","description":"For create/update: '30m', 'every 2h', '0 9 * * *', or ISO timestamp"},"name":{"type":"string"},"deliver":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}],"description":"Delivery target: origin, local, platform, platform:chat_id, or comma/list form for multiple targets"},"repeat":{"type":"integer"},"skills":{"type":"array","items":{"type":"string"}},"model":{"type":"object","properties":{"provider":{"type":"string"},"model":{"type":"string"}}},"script":{"type":"string"},"no_agent":{"type":"boolean","description":"When true, the script is the job and no agent turn is constructed; script is required and prompt is optional"},"context_from":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}]},"enabled_toolsets":{"type":"array","items":{"type":"string"}},"workdir":{"type":"string"}},"required":["action"]}`)
 }
 
 func (*CronjobTool) Timeout() time.Duration { return 0 }
@@ -124,6 +124,7 @@ type cronjobArgs struct {
 	EnabledToolsets *[]string             `json:"enabled_toolsets"`
 	Workdir         *string               `json:"workdir"`
 	Script          *string               `json:"script"`
+	NoAgent         *bool                 `json:"no_agent"`
 	ContextFrom     *cronjobStringListArg `json:"context_from"`
 }
 
@@ -172,6 +173,7 @@ type cronjobRecord struct {
 	EnabledToolsets []string
 	Workdir         string
 	Script          string
+	NoAgent         bool
 	ContextFrom     []string
 }
 
@@ -188,17 +190,26 @@ func (t *CronjobTool) create(store *reflectedCronStore, in cronjobArgs) json.Raw
 	if err != nil {
 		return cronjobError(err.Error())
 	}
+	noAgent := boolValue(in.NoAgent)
 	prompt := stringValue(in.Prompt)
-	if strings.TrimSpace(prompt) == "" {
+	if strings.TrimSpace(prompt) == "" && !noAgent {
 		return cronjobError("prompt is required for create")
 	}
-	if finding, blocked := scanCronjobPrompt(prompt); blocked {
-		return cronjobError(finding)
+	if strings.TrimSpace(prompt) != "" && !noAgent {
+		if finding, blocked := scanCronjobPrompt(prompt); blocked {
+			return cronjobError(finding)
+		}
+	}
+	if noAgent {
+		prompt = ""
 	}
 
 	script, errRaw := t.validateScriptValue(in.Script)
 	if errRaw != nil {
 		return errRaw
+	}
+	if noAgent && script == "" {
+		return cronjobError("no_agent=True requires a script")
 	}
 	workdir, errRaw := validateCronjobWorkdir(in.Workdir)
 	if errRaw != nil {
@@ -233,6 +244,7 @@ func (t *CronjobTool) create(store *reflectedCronStore, in cronjobArgs) json.Raw
 		EnabledToolsets: stringSliceValue(in.EnabledToolsets),
 		Workdir:         workdir,
 		Script:          script,
+		NoAgent:         noAgent,
 		ContextFrom:     contextFrom,
 	}
 	if err := store.Create(rec); err != nil {
@@ -367,6 +379,15 @@ func (t *CronjobTool) update(store *reflectedCronStore, in cronjobArgs) json.Raw
 		entry.record.Script = script
 		changed = true
 	}
+	if in.NoAgent != nil {
+		noAgent := boolValue(in.NoAgent)
+		if noAgent && strings.TrimSpace(entry.record.Script) == "" {
+			return cronjobError("Cannot set no_agent=True on a job without a script")
+		}
+		setBoolField(entry.value, "NoAgent", noAgent)
+		entry.record.NoAgent = noAgent
+		changed = true
+	}
 	if in.ContextFrom != nil {
 		contextFrom, errRaw := validateCronjobContextFrom(store, in.ContextFrom)
 		if errRaw != nil {
@@ -375,6 +396,9 @@ func (t *CronjobTool) update(store *reflectedCronStore, in cronjobArgs) json.Raw
 		setStringSliceField(entry.value, "ContextFrom", contextFrom)
 		entry.record.ContextFrom = contextFrom
 		changed = true
+	}
+	if entry.record.NoAgent && strings.TrimSpace(entry.record.Script) == "" {
+		return cronjobError("no_agent=True requires a script")
 	}
 	if !changed {
 		return cronjobError("no updates provided")
@@ -552,6 +576,9 @@ func summarizeCronjob(rec cronjobRecord) map[string]any {
 	if rec.Script != "" {
 		out["script"] = rec.Script
 	}
+	if rec.NoAgent {
+		out["no_agent"] = true
+	}
 	if len(rec.ContextFrom) > 0 {
 		out["context_from"] = append([]string(nil), rec.ContextFrom...)
 	}
@@ -616,6 +643,10 @@ func stringValue(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func boolValue(value *bool) bool {
+	return value != nil && *value
 }
 
 func stringSliceValue(value *[]string) []string {
@@ -868,6 +899,7 @@ func applyCronjobRecord(value reflect.Value, rec cronjobRecord) {
 	setStringSliceField(value, "EnabledToolsets", rec.EnabledToolsets)
 	setStringField(value, "Workdir", rec.Workdir)
 	setStringField(value, "Script", rec.Script)
+	setBoolField(value, "NoAgent", rec.NoAgent)
 	setStringSliceField(value, "ContextFrom", rec.ContextFrom)
 }
 
@@ -890,6 +922,7 @@ func cronjobRecordFromValue(value reflect.Value) cronjobRecord {
 		EnabledToolsets: stringSliceField(value, "EnabledToolsets"),
 		Workdir:         stringField(value, "Workdir"),
 		Script:          stringField(value, "Script"),
+		NoAgent:         boolField(value, "NoAgent"),
 		ContextFrom:     stringSliceField(value, "ContextFrom"),
 	}
 }
