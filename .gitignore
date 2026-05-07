@@ -39,6 +39,7 @@ openclaw/
 # ── Agent/orchestrator scratch ───────────────────────
 scripts/.swarm/
 .claude/worktrees/
+.claude/scheduled_tasks.lock
 
 # ── Docs/site generated artifacts ────────────────────
 docs/www-tests/node_modules/
