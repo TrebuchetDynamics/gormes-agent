@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Auth state TOCTOU close + redaction default-on parity
-
-- Phase: 5 / 5.J
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Gormes auth.json read-modify-write paths use atomic file replacement (open, write to sibling tempfile, fsync, rename) with no observable TOCTOU window between read and write. MCP OAuth credential persistence follows the same atomic-replace contract. The redaction default is restored to ON; opt-out is via explicit `redaction.enabled: false` in config. Mirrors Hermes v0.13.0 PRs #21193 (redaction default-on flip), #21194 (auth.json TOCTOU), #21241 (MCP OAuth TOCTOU). Reverts the v0.12.0 default-off flip (#16794).
-- Trust class: operator, system
-- Ready when: 4.G `Token vault` is complete and exposes the auth.json read/write seam., 4.E `Trajectory writer + redaction gates` is complete and exposes the redaction-enabled config flag., A fake clock + fake filesystem exist in tests so concurrent read/write timing can be exercised deterministically.
-- Not ready when: Atomic replace is implemented only on Linux without portable handling for darwin/windows tempfile rename semantics., Redaction default-on is enforced silently without surfacing the operator-visible config knob `redaction.enabled: false`., Tests use sleeps to trigger the TOCTOU window instead of a fake-fs/fake-clock., MCP OAuth persistence still uses non-atomic write while auth.json is fixed in the same slice (split if needed).
-- Degraded mode: Without atomic replace, a concurrent read can observe a partially-written auth.json and crash the session; with the atomic-replace contract the read either sees the prior valid state or the new valid state, never a partial merge. Without redaction default-on, log capture, debug bundles, and trajectory writes leak credentials by default.
-- Fixture: `internal/auth/atomic_write_test.go`
-- Write scope: `internal/auth/atomic_write.go`, `internal/auth/atomic_write_test.go`, `internal/mcp/oauth_persistence.go`, `internal/redaction/defaults.go`, `internal/redaction/defaults_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/auth -run AtomicWrite -count=1`, `go test ./internal/mcp -run AtomicWrite -count=1`, `go test ./internal/redaction -run DefaultOn -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Atomic-write fixtures prove the auth.json and MCP OAuth read/write paths are torn-write free; redaction default-on fixtures prove fresh configs enable redaction and explicit opt-out is logged.
-- Acceptance: TestAuthAtomicWrite_ConcurrentReadObservesValidStateOnly proves a fake-fs concurrent reader sees either the prior valid file or the new valid file, never a torn write., TestAuthAtomicWrite_TempfileCleanedOnError proves a write failure leaves no orphan tempfile sibling., TestMCPOAuthAtomicWrite_FollowsSameContract proves MCP OAuth credential persistence uses the same atomic-replace path with the same fixture., TestRedactionDefaultOn_NewConfigEnablesRedaction proves a fresh Gormes config has redaction enabled by default., TestRedactionDefaultOn_ExplicitOptOutHonored proves `redaction.enabled: false` in config disables redaction and is logged as an explicit operator choice.
-- Source refs: hermes-agent/RELEASE_v0.13.0.md, hermes-agent/hermes_cli/auth.py, hermes-agent/agent/mcp/oauth.py, hermes-agent/utils.py, internal/auth/, internal/redaction/
-- Unblocks: Atomic credential rotation across providers, Hermes debug share redact-at-upload parity
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Sharp v1.0 differentiator decision
+## 1. Sharp v1.0 differentiator decision
 
 - Phase: 8 / 8.D
 - Owner: `docs`
@@ -70,7 +49,49 @@ selection.
 - Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. TD engineering blog scaffolded and live
+## 2. Docker execution backend (container lifecycle + mount policy)
+
+- Phase: 5 / 5.B
+- Owner: `tools`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes executes agent tools inside Docker containers through the existing DockerContainerKey helper and Environment interface. The backend handles: image selection/resolution from config or Hermes-compatible defaults, mount policy (allowlisted host paths mapped read-only, workspace mapped read-write, blocked dangerous mounts), env passthrough from config with allowlist filtering, container lifecycle with timeout cleanup, and stdout/stderr capture for tool output.
+- Trust class: operator, system
+- Ready when: Docker backend top-level container reuse semantics (DockerContainerKey) is complete., Environment interface + file sync contract is complete., Tests use fake Docker client or Docker socket stub; no live Docker daemon required in CI.
+- Not ready when: The slice implements Modal, Daytona, or Singularity backends — those remain separate rows., The slice changes the DockerContainerKey helper or Environment interface shape., Tests require a running Docker daemon on the CI agent.
+- Degraded mode: Missing Docker socket, image pull failure, or container timeout produce structured errors with mount_policy_blocked, image_pull_failed, or container_timeout reasons. Gateway status reports Docker backend availability without exposing raw Docker socket paths.
+- Fixture: `internal/tools/docker_exec_test.go`
+- Write scope: `internal/tools/docker_exec.go`, `internal/tools/docker_exec_test.go`, `internal/tools/docker_mount_policy.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/tools -run TestDockerExec -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`
+- Done signal: Docker execution fixtures prove image resolution, mount allowlist/blocking, env passthrough, timeout cleanup, and stdout/stderr capture without a live Docker daemon.
+- Acceptance: TestDockerExec_ImageResolution uses config- or default-specified image and verifies container start with correct image tag., TestDockerExec_MountPolicyAllowlist allows configured host paths (read-only) and workspace path (read-write) while blocking /etc, /proc, /sys, and Docker socket mounts., TestDockerExec_EnvPassthrough passes only allowlisted env vars from config to the container., TestDockerExec_TimeoutCleanup verifies container is stopped and removed after timeout or tool completion., TestDockerExec_StdoutStderrCapture captures container stdout/stderr as tool output and returns structured errors on non-zero exit.
+- Source refs: ../hermes-agent/tools/docker.py, ../hermes-agent/tools/sandboxing.py, internal/tools/docker_container_key.go (DockerContainerKey helper), internal/tools/env_interface.go (Environment interface), internal/tools/file_sync.go (file sync contract), internal/tools/timeout.go (timeout cleanup)
+- Unblocks: Modal, Daytona, Singularity
+- Why now: Unblocks Modal, Daytona, Singularity.
+
+## 3. Gateway auto-resume on restart
+
+- Phase: 5 / 5.N
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Gormes gateway auto-recovers interrupted sessions on restart: when the gateway process restarts, any in-progress sessions that were interrupted by the shutdown are detected and resumed (not orphaned), with the existing session context, conversation history, and tool state preserved. Auto-resume respects channel-specific reply semantics and fires the same session-boundary hooks as a normal continuation.
+- Trust class: gateway, operator
+- Ready when: Gateway session reset notification parity (2.B.5) is complete., Gateway session store + SessionSource parity is complete., Tests use fake kernel, fake channels, and fake session metadata; no live Telegram, Slack, Discord, or provider required.
+- Not ready when: The slice changes manual /new reset semantics or fires auto-reset hooks for interrupted sessions., The slice introduces per-provider session state preservation — only gateway-level session metadata and channel state are in scope., Tests require live channel connections or real provider API calls.
+- Degraded mode: Interrupted sessions that cannot be auto-resumed (missing kernel state, expired, or manually reset) are marked as terminated with auto_resume_failed evidence and do not block gateway startup. Gateway status reports orphaned session count and auto-resume outcome per channel.
+- Fixture: `internal/gateway/auto_resume_test.go`
+- Write scope: `internal/gateway/auto_resume.go`, `internal/gateway/auto_resume_test.go`, `internal/gateway/manager.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway -run '^TestGatewayAutoResume' -count=1`, `go test ./internal/gateway ./internal/session -count=1`, `go run ./cmd/progress validate`
+- Done signal: Gateway auto-resume fixtures prove interrupted session recovery, orphan termination, startup resilience, channel neutrality, and session-boundary hook preservation without live channel connections.
+- Acceptance: TestGatewayAutoResume_RecoversInterruptedSession proves a session interrupted by gateway shutdown resumes with preserved session ID, channel context, and recent conversation metadata., TestGatewayAutoResume_OrphanedSessionMarkedTerminated proves a session that cannot be recovered (e.g., kernel state missing) is marked terminated with auto_resume_failed evidence., TestGatewayAutoResume_DoesNotBlockStartup proves gateway startup completes even when all interrupted sessions fail auto-resume., TestGatewayAutoResume_ChannelNeutral proves Telegram, Slack, Discord, and WhatsApp sessions each auto-resume through the same gateway-level path., TestGatewayAutoResume_PreservesSessionBoundaryHooks proves auto-resumed sessions fire on_session_resume hooks with the same evidence as a normal continuation.
+- Source refs: ./hermes-agent/gateway/run.py (auto-resume on GatewayManager startup), ./hermes-agent/tests/gateway/test_session_reset_notify.py, ./hermes-agent/RELEASE_v0.13.0.md, internal/gateway/manager.go (gateway startup lifecycle), internal/gateway/session_auto_reset_notify.go (existing auto-reset infrastructure), internal/session/directory.go (session metadata)
+- Unblocks: Gateway crash recovery operator surface
+- Why now: Unblocks Gateway crash recovery operator surface.
+
+## 4. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -92,7 +113,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 4. Sandbox isolation depth selection
+## 5. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -112,7 +133,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Behavioral pattern extraction from session logs
+## 6. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -132,7 +153,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Agentic-porting-kit repo scaffold
+## 7. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -153,7 +174,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Built-with-Gormes page scaffold
+## 8. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
