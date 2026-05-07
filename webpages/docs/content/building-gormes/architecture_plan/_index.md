@@ -955,7 +955,7 @@ classification and row-backed implementation queue.
 - [x] CLI setup/onboard/help text fidelity matrix
 - [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
-- [ ] Gateway planned stop marker + WSL systemd PATH parity
+- [x] Gateway planned stop marker + WSL systemd PATH parity
 - [x] Gateway stale-code self-check uses git HEAD SHA
 
 ### 5.P — Docker / Packaging 🔨

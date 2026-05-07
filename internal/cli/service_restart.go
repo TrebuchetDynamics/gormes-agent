@@ -27,6 +27,52 @@ const (
 	ServiceManagerUnsupported ServiceManagerKind = "unsupported"
 )
 
+type SystemdPATHOptions struct {
+	BasePath    string
+	HostPath    string
+	WSLDetected bool
+}
+
+func SystemdPATHEnvironment(options SystemdPATHOptions) string {
+	base := strings.TrimSpace(options.BasePath)
+	if base == "" {
+		base = "%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+	}
+
+	parts := splitPathList(base)
+	seen := make(map[string]bool, len(parts))
+	for _, part := range parts {
+		seen[part] = true
+	}
+	if options.WSLDetected {
+		for _, part := range splitPathList(options.HostPath) {
+			if !isWSLInteropPath(part) || seen[part] {
+				continue
+			}
+			parts = append(parts, part)
+			seen[part] = true
+		}
+	}
+	return "Environment=PATH=" + strings.Join(parts, ":")
+}
+
+func splitPathList(path string) []string {
+	fields := strings.Split(path, ":")
+	out := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field != "" {
+			out = append(out, field)
+		}
+	}
+	return out
+}
+
+func isWSLInteropPath(path string) bool {
+	lower := strings.ToLower(strings.TrimSpace(path))
+	return strings.HasPrefix(lower, "/mnt/")
+}
+
 type ServiceRestartDelayEvidenceKind string
 
 const (

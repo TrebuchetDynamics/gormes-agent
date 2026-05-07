@@ -36541,8 +36541,8 @@
             },
             {
               "name": "Gateway planned stop marker + WSL systemd PATH parity",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gateway stop/service control distinguishes intentional operator stops from unexpected service deaths with a planned-stop marker, and generated systemd units preserve WSL interop PATH entries for Windows command bridges only when running under WSL.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -36553,15 +36553,12 @@
                 "system"
               ],
               "degraded_mode": "Gateway status reports planned_stop_marker_unavailable, planned_stop_marker_stale, or wsl_interop_path_unavailable instead of treating every SIGTERM as a crash-loop trigger or stripping Windows interop commands from WSL service units.",
-              "fixture": "cmd/gormes/gateway_stop_test.go; internal/gateway/planned_stop_test.go; internal/cli/service_restart_test.go",
+              "fixture": "cmd/gormes/gateway_mutating_unavailable_test.go; internal/gateway/planned_stop_test.go; internal/cli/service_restart_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/run.py@b63229016",
-                "../hermes-agent/gateway/status.py@b63229016",
-                "../hermes-agent/hermes_cli/gateway.py@b63229016",
-                "../hermes-agent/tests/gateway/test_status.py@b63229016",
-                "../hermes-agent/tests/hermes_cli/test_gateway_service.py@b63229016",
-                "../hermes-agent/hermes_cli/gateway.py@8ab9f61dc",
-                "../hermes-agent/tests/hermes_cli/test_gateway_service.py@8ab9f61dc",
+                "./hermes-agent/gateway/run.py@b816fd4e2",
+                "./hermes-agent/gateway/status.py@b816fd4e2",
+                "./hermes-agent/hermes_cli/gateway.py@b816fd4e2",
+                "./hermes-agent/tests/hermes_cli/test_gateway_service.py@b816fd4e2",
                 "cmd/gormes/gateway_stop.go",
                 "cmd/gormes/gateway.go",
                 "internal/gateway/status.go",
@@ -36588,13 +36585,13 @@
               ],
               "write_scope": [
                 "cmd/gormes/gateway_stop.go",
-                "cmd/gormes/gateway_stop_test.go",
+                "cmd/gormes/gateway_mutating_unavailable_test.go",
                 "cmd/gormes/gateway.go",
                 "internal/gateway/status.go",
                 "internal/gateway/planned_stop_test.go",
                 "internal/cli/service_restart.go",
                 "internal/cli/service_restart_test.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./cmd/gormes -run 'TestGatewayStop.*Planned|TestGatewayStop' -count=1",
@@ -36613,7 +36610,7 @@
                   "hermes:b63229016 gateway planned stop handling",
                   "hermes:8ab9f61dc WSL interop PATH in generated systemd units"
                 ],
-                "note": "Direct Hermes gateway lifecycle drift; Gormes adapts the marker and service-unit invariants to its Go runtime/status stores."
+                "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned row count was 68. The only open P1 rows were a draft/large transactional snapshot research row and the non-selectable event-bus umbrella parent, so this active Hermes gateway/runtime row was the highest unblocked builder-ready slice. TDD added a Go planned-stop marker store matching PID/start_time with stale/mismatch cleanup, `gormes gateway stop` writes planned_stop_marker_written evidence before signalling, the SIGTERM shutdown path consumes planned markers while keeping unexpected SIGTERM visibly classified as restartable, and the systemd PATH helper preserves WSL `/mnt/...` interop paths only when WSL is detected."
               }
             },
             {

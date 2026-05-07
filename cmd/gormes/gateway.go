@@ -80,6 +80,11 @@ type gatewayReloadManager interface {
 	Reload(context.Context) error
 }
 
+var consumeGatewayPlannedStopMarkerForSelf = func(ctx context.Context) (gateway.PlannedStopConsumeResult, error) {
+	store := gateway.NewPlannedStopStore(gateway.DefaultPlannedStopMarkerPath(config.GatewayRuntimeStatusPath()))
+	return store.ConsumeForSelf(ctx)
+}
+
 type gatewayChannelFactory func(config.Config, *slog.Logger) (gateway.Channel, error)
 
 type gatewayChannelFactories struct {
@@ -777,7 +782,12 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 			}
 			continue
 		}
-		log.Info("gateway shutdown requested", "signal", sig.String())
+		plannedStop, plannedStopStatus := classifyGatewayShutdownSignal(sig)
+		if plannedStop {
+			log.Info("gateway shutdown requested", "signal", sig.String(), "planned_stop", true, "planned_stop_status", plannedStopStatus)
+		} else {
+			log.Warn("gateway shutdown requested", "signal", sig.String(), "planned_stop", false, "exit_class", "unexpected_signal_restartable", "planned_stop_status", plannedStopStatus)
+		}
 
 		timer := time.AfterFunc(budget, func() {
 			log.Error("shutdown budget exceeded; forcing exit")
@@ -797,6 +807,20 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 		cancel()
 		return
 	}
+}
+
+func classifyGatewayShutdownSignal(sig os.Signal) (bool, gateway.PlannedStopConsumeStatus) {
+	if sig == os.Interrupt {
+		return true, gateway.PlannedStopConsumeMatched
+	}
+	if sig != syscall.SIGTERM {
+		return false, ""
+	}
+	result, err := consumeGatewayPlannedStopMarkerForSelf(context.Background())
+	if err != nil {
+		return false, gateway.PlannedStopConsumeInvalid
+	}
+	return result.Matched, result.Status
 }
 
 func sqlOpenGoncho(path string) (*sql.DB, error) {
