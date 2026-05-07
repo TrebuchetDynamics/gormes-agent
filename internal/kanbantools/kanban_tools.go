@@ -236,7 +236,7 @@ func (t *kanbanTool) heartbeat(ctx context.Context, in map[string]any) json.RawM
 		return kanbanError(EvidenceStoreUnavailable, err.Error())
 	}
 	defer done()
-	ok, err := store.HeartbeatTask(ctx, taskID, stringValue(in["note"]))
+	ok, err := store.HeartbeatTask(ctx, taskID, 60*time.Second, stringValue(in["note"]))
 	if err != nil {
 		return kanbanError(EvidenceStoreUnavailable, err.Error())
 	}

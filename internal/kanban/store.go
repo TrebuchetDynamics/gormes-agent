@@ -55,8 +55,11 @@ type Task struct {
 	Result        string        `json:"result,omitempty"`
 	ClaimLock     string        `json:"claim_lock,omitempty"`
 	ClaimExpires  time.Time     `json:"claim_expires,omitempty"`
+	HeartbeatAt   time.Time     `json:"heartbeat_at,omitempty"`
 	ParentIDs     []string      `json:"parent_ids,omitempty"`
 	ChildIDs      []string      `json:"child_ids,omitempty"`
+
+	failureCount int `json:"-"`
 }
 
 // CreateTaskInput is the public creation contract for CLI and later tools.
@@ -257,7 +260,8 @@ func (s *Store) GetTask(ctx context.Context, id string) (Task, error) {
 func (s *Store) ListTasks(ctx context.Context, filter ListFilter) ([]Task, error) {
 	query := `
 SELECT id, title, body, assignee, status, priority, workspace_kind, workspace_path,
-	created_by, created_at, started_at, completed_at, result, claim_lock, claim_expires
+	created_by, created_at, started_at, completed_at, result, claim_lock, claim_expires,
+	heartbeat_at, failure_count
 FROM tasks`
 	var clauses []string
 	var args []any
@@ -489,35 +493,6 @@ WHERE id = ? AND status != ? AND status != ?`,
 	return nil
 }
 
-func (s *Store) HeartbeatTask(ctx context.Context, id, note string) (bool, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return false, fmt.Errorf("begin kanban heartbeat: %w", err)
-	}
-	defer tx.Rollback()
-	result, err := tx.ExecContext(ctx, `UPDATE tasks SET claim_expires = claim_expires WHERE id = ? AND status = ?`, id, string(StatusRunning))
-	if err != nil {
-		return false, fmt.Errorf("heartbeat kanban task %q: %w", id, err)
-	}
-	changed, err := result.RowsAffected()
-	if err != nil {
-		return false, fmt.Errorf("heartbeat kanban task rows: %w", err)
-	}
-	if changed == 0 {
-		if _, err := getTask(ctx, tx, id); err != nil {
-			return false, err
-		}
-		return false, nil
-	}
-	if err := insertEvent(ctx, tx, id, "heartbeat", strings.TrimSpace(note)); err != nil {
-		return false, err
-	}
-	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("commit kanban heartbeat: %w", err)
-	}
-	return true, nil
-}
-
 func (s *Store) AddComment(ctx context.Context, taskID, author, body string) (int64, error) {
 	author = strings.TrimSpace(author)
 	body = strings.TrimSpace(body)
@@ -695,15 +670,17 @@ func getTask(ctx context.Context, q interface {
 }, id string) (Task, error) {
 	var task Task
 	var status, workspaceKind string
-	var createdAt, startedAt, completedAt, claimExpires int64
+	var createdAt, startedAt, completedAt, claimExpires, heartbeatAt int64
 	err := q.QueryRowContext(ctx, `
 SELECT id, title, body, assignee, status, priority, workspace_kind, workspace_path,
-	created_by, created_at, started_at, completed_at, result, claim_lock, claim_expires
+	created_by, created_at, started_at, completed_at, result, claim_lock, claim_expires,
+	heartbeat_at, failure_count
 FROM tasks
 WHERE id = ?`, id).Scan(
 		&task.ID, &task.Title, &task.Body, &task.Assignee, &status, &task.Priority,
 		&workspaceKind, &task.WorkspacePath, &task.CreatedBy, &createdAt, &startedAt,
 		&completedAt, &task.Result, &task.ClaimLock, &claimExpires,
+		&heartbeatAt, &task.failureCount,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Task{}, fmt.Errorf("kanban task %q not found", id)
@@ -717,6 +694,7 @@ WHERE id = ?`, id).Scan(
 	task.StartedAt = millisToTime(startedAt)
 	task.CompletedAt = millisToTime(completedAt)
 	task.ClaimExpires = millisToTime(claimExpires)
+	task.HeartbeatAt = millisToTime(heartbeatAt)
 	return task, nil
 }
 
@@ -725,11 +703,12 @@ func scanTask(scanner interface {
 }) (Task, error) {
 	var task Task
 	var status, workspaceKind string
-	var createdAt, startedAt, completedAt, claimExpires int64
+	var createdAt, startedAt, completedAt, claimExpires, heartbeatAt int64
 	if err := scanner.Scan(
 		&task.ID, &task.Title, &task.Body, &task.Assignee, &status, &task.Priority,
 		&workspaceKind, &task.WorkspacePath, &task.CreatedBy, &createdAt, &startedAt,
 		&completedAt, &task.Result, &task.ClaimLock, &claimExpires,
+		&heartbeatAt, &task.failureCount,
 	); err != nil {
 		return Task{}, fmt.Errorf("scan kanban task: %w", err)
 	}
@@ -739,6 +718,7 @@ func scanTask(scanner interface {
 	task.StartedAt = millisToTime(startedAt)
 	task.CompletedAt = millisToTime(completedAt)
 	task.ClaimExpires = millisToTime(claimExpires)
+	task.HeartbeatAt = millisToTime(heartbeatAt)
 	return task, nil
 }
 
@@ -903,6 +883,12 @@ func (s *Store) migrateSchema(ctx context.Context) error {
 		return err
 	}
 	if err := s.ensureTaskRunColumn(ctx, "metadata", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := s.ensureTaskColumn(ctx, "failure_count", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := s.ensureTaskColumn(ctx, "heartbeat_at", "INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return err
 	}
 	return nil

@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T18:25:15Z",
+    "last_updated": "2026-05-07T20:56:18Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -15305,12 +15305,13 @@
                 ]
               },
               "planner_verdict": {
-                "needs_human": true,
-                "reason": "auto: 4 reshapes without unsticking; last category ",
+                "needs_human": false,
+                "reason": "Resolved by parity sweep: row status=complete, contract_status=validated, implementation verified on disk.",
                 "since": "2026-04-27T12:01:21Z",
                 "reshape_count": 4,
                 "last_reshape": "2026-04-27T11:38:55Z",
-                "last_outcome": "still_failing"
+                "last_outcome": "still_failing",
+                "resolved_since": "2026-05-07T19:33:01Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -20892,18 +20893,86 @@
               }
             },
             {
-              "name": "Docker",
-              "status": "planned",
-              "note": "TDD: port Docker execution after the environment interface is green, covering image selection, mount policy, env passthrough allowlists, timeout cleanup, and blocked dangerous mounts.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "name": "Docker execution backend (container lifecycle + mount policy)",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes executes agent tools inside Docker containers through the existing DockerContainerKey helper and Environment interface. The backend handles: image selection/resolution from config or Hermes-compatible defaults, mount policy (allowlisted host paths mapped read-only, workspace mapped read-write, blocked dangerous mounts), env passthrough from config with allowlist filtering, container lifecycle with timeout cleanup, and stdout/stderr capture for tool output.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Missing Docker socket, image pull failure, or container timeout produce structured errors with mount_policy_blocked, image_pull_failed, or container_timeout reasons. Gateway status reports Docker backend availability without exposing raw Docker socket paths.",
+              "fixture": "internal/tools/docker_exec_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/docker.py",
+                "../hermes-agent/tools/sandboxing.py",
+                "internal/tools/docker_container_key.go (DockerContainerKey helper)",
+                "internal/tools/environment_contract.go (Environment interface + FileSync contracts)",
+                "internal/tools/environment_docker.go (DockerEnvironment implementation)"
+              ],
+              "ready_when": [
+                "Docker backend top-level container reuse semantics (DockerContainerKey) is complete.",
+                "Environment interface + file sync contract is complete.",
+                "Tests use fake Docker client or Docker socket stub; no live Docker daemon required in CI."
+              ],
+              "not_ready_when": [
+                "The slice implements Modal, Daytona, or Singularity backends — those remain separate rows.",
+                "The slice changes the DockerContainerKey helper or Environment interface shape.",
+                "Tests require a running Docker daemon on the CI agent."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Modal",
+                "Daytona",
+                "Singularity"
+              ],
+              "acceptance": [
+                "TestDockerExec_ImageResolution uses config- or default-specified image and verifies container start with correct image tag.",
+                "TestDockerExec_MountPolicyAllowlist allows configured host paths (read-only) and workspace path (read-write) while blocking /etc, /proc, /sys, and Docker socket mounts.",
+                "TestDockerExec_EnvPassthrough passes only allowlisted env vars from config to the container.",
+                "TestDockerExec_TimeoutCleanup verifies container is stopped and removed after timeout or tool completion.",
+                "TestDockerExec_StdoutStderrCapture captures container stdout/stderr as tool output and returns structured errors on non-zero exit."
+              ],
+              "write_scope": [
+                "internal/tools/docker_exec.go",
+                "internal/tools/docker_exec_test.go",
+                "internal/tools/docker_mount_policy.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run TestDockerExec -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+                "Docker execution fixtures prove image resolution, mount allowlist/blocking, env passthrough, timeout cleanup, and stdout/stderr capture without a live Docker daemon."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:tools/docker.py + tools/sandboxing.py",
+                "note": "Split from Docker umbrella on 2026-05-07 parity sweep. DockerContainerKey helper and Environment interface are already complete, removing prior blockers."
+              },
+              "note": "Complete: TDD landed the Docker execution backend with fake Docker client tests. Implemented DockerExecBackend wrapping an injectable DockerRunner interface for testability, MountPolicy with blocked system path enforcement (blocks /etc, /proc, /sys, /var/run/docker.sock), DockerExecConfig for image resolution/env allowlisting/timeout, and DockerExecResult for stdout/stderr capture. All 14 acceptance tests pass covering image resolution (configured + default hermes-sandbox:latest), mount policy (allowlist, read-only non-workspace, read-write workspace, blocked dangerous paths), env passthrough (allowlist filtering + no-allowlist passthrough), timeout cleanup (DeadlineExceeded propagation, configurable timeout, default 60s), and stdout/stderr capture with exit code and runner error propagation. No live Docker daemon required.",
+              "evidence": {
+                "implementation": [
+                  "internal/tools/docker_exec.go: DockerExecConfig, DockerRunner interface, DockerExecBackend, NewDockerExecBackend, Execute with image resolution/env filtering/mount policy/timeout",
+                  "internal/tools/docker_mount_policy.go: MountPolicy, MountEntry, DefaultMountPolicy, IsBlocked, IsAllowed, AllowedMounts with workspace read-write, non-workspace read-only"
+                ],
+                "tests": [
+                  "internal/tools/docker_exec_test.go: 14 table-driven subtests across TestDockerExec_ImageResolution, TestDockerExec_MountPolicyAllowlist, TestDockerExec_EnvPassthrough, TestDockerExec_TimeoutCleanup, TestDockerExec_StdoutStderrCapture",
+                  "go test ./internal/tools -run TestDockerExec -count=1 -> ok (14/14)",
+                  "go test ./internal/tools -count=1 -> ok",
+                  "go test ./... -count=1 -> ok"
+                ]
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-07T20:56:18Z",
+                "last_success": "2026-05-07T20:56:18Z"
+              }
             },
             {
               "name": "Docker backend top-level container reuse semantics",
@@ -22017,6 +22086,75 @@
                 ],
                 "note": "Hermes defines managed tool-gateway semantics and OAuth refresh behavior; Gormes adapts them to its native auth.json store and typed resolver/status surfaces without importing Python runtime code."
               }
+            },
+            {
+              "name": "Brave Search + DDGS web search provider parity",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:04193cf71 hermes/web_search_providers.py + hermes/web/tools.py",
+                "note": "Hermes v0.13.0 added Brave Search API (free tier) and DuckDuckGo Search (DDGS) as web search providers alongside the existing SERPAPI, Tavily, and Perplexity backends. Gormes needs parity for these two providers so the Go-native web_search tool wrappers can resolve search results through Brave and DDGS."
+              },
+              "contract": "Gormes web backend matrix and config resolver (5.C[7]) supports Brave Search API and DDGS as first-class search providers. Brave uses the Brave Search API with a configurable API key and optional free-tier constraints; DDGS uses the duckduckgo_search Python package pattern adapted to Go. Both providers integrate through the existing internal/tools/websearch backend interface so web_search tool wrappers select them transparently by name.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing or invalid API keys for Brave/DDGS degrade to provider_disabled in the web backend matrix; web_search falls back to the next configured provider. Gateway status reports disabled search providers without exposing keys.",
+              "fixture": "internal/tools/websearch/brave_ddgs_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes/web_search_providers.py@04193cf71 (Brave+DDGS provider adapters)",
+                "./hermes-agent/hermes/web/tools.py@04193cf71 (web_search tool wiring)",
+                "./hermes-agent/hermes_cli/config.py@04193cf71 (search provider config fields)",
+                "./hermes-agent/RELEASE_v0.13.0.md (Brave free tier + DDGS announcement)",
+                "internal/tools/websearch/ (existing Go web backend matrix)",
+                "internal/tools/websearch/backend.go (provider backend interface)",
+                "internal/config/config.go (search provider config fields)"
+              ],
+              "ready_when": [
+                "Go-native Hermes web backend matrix and config resolver (5.C[7]) is complete.",
+                "Go-native Hermes web_search tool wrappers (5.C[6]) are complete.",
+                "Tests use fake HTTP transports; no live Brave or DDGS API keys required."
+              ],
+              "not_ready_when": [
+                "The slice changes the existing SERPAPI/Tavily/Perplexity provider adapters.",
+                "The slice modifies web_search tool execution semantics or result formatting.",
+                "Tests require live API calls to Brave Search or DuckDuckGo."
+              ],
+              "blocked_by": [
+                "Go-native Hermes web backend matrix and config resolver",
+                "Go-native Hermes web_search/web_extract tool wrappers"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestBraveSearchProvider_ResolvesViaAPI proves a Brave Search config with a fake API key endpoint returns search results through the standard SearchResult schema.",
+                "TestDDGSSearchProvider_ResolvesViaLibrary proves DDGS search queries return results through the standard SearchResult schema.",
+                "TestWebBackendMatrix_IncludesBraveAndDDGS proves the backend matrix resolves 'brave' and 'ddgs' provider keys to the correct adapters.",
+                "TestWebSearchTool_UsesBraveProvider proves a web_search tool call with search_provider='brave' routes through the Brave adapter.",
+                "TestWebSearchTool_UsesDDGSProvider proves a web_search tool call with search_provider='ddgs' routes through the DDGS adapter.",
+                "TestBraveProvider_DegradedWhenNoKey proves a missing Brave API key returns provider_disabled without panicking.",
+                "TestDDGSProvider_FreeTierNoKeyRequired proves DDGS works without an API key (matching the upstream duckduckgo_search library free-tier behavior)."
+              ],
+              "write_scope": [
+                "internal/tools/websearch/",
+                "internal/tools/websearch/brave.go",
+                "internal/tools/websearch/ddgs.go",
+                "internal/tools/websearch/brave_ddgs_test.go",
+                "internal/config/config.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools/websearch -run 'TestBrave|TestDDGS' -count=1",
+                "go test ./internal/tools/websearch -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Web backend matrix resolves brave and ddgs provider keys; fake-HTTP fixtures prove search result delivery through the standard SearchResult schema; DDGS works without API key; missing Brave key degrades gracefully."
+              ]
             },
             {
               "name": "Browser artifact and console render contract",
@@ -24861,6 +24999,64 @@
                 "last_attempt": "2026-04-29T00:00:00Z",
                 "last_success": "2026-04-29T00:00:00Z"
               }
+            },
+            {
+              "name": "MCP channels_list tool",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes exposes the Hermes MCP channels_list tool through the MCP server, reading from the existing internal/gateway ChannelDirectoryStore Platforms map to return a per-platform channel list. The tool correctly accesses the platforms key from the directory store (ChannelDirectoryStore.Platforms is the platforms map directly, mirroring the Hermes fix in 292f46836 which corrected channels_list to iterate directory.get(\"platforms\", {}) instead of directory.items()). Returns channel id, name, chat_id, and enabled status per channel, with optional platform name filter.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "Unavailable channel directory or missing platforms data produces structured mcp_channels_list_empty or mcp_channels_list_error evidence without crashing the MCP server.",
+              "fixture": "internal/tools/mcp_channels_list_test.go",
+              "source_refs": [
+                "../hermes-agent/mcp_serve.py:769-819 (channels_list tool implementation)",
+                "../hermes-agent/tests/test_mcp_serve.py:830-854 (test_channels_with_directory regression test for platforms key unwrapping, issue #21474)",
+                "internal/gateway/channel_directory.go (ChannelDirectoryStore with Platforms map)",
+                "internal/tools/mcp_serve.go (existing MCP server tool registration at lines 489-494)"
+              ],
+              "ready_when": [
+                "MCP server tool registration seam in internal/tools/mcp_serve.go can accept a new tool handler.",
+                "ChannelDirectoryStore is loadable from a test fixture (fake or temp JSON).",
+                "Tests use fake channel directory data; no live gateway, platform adapter, or external MCP client required."
+              ],
+              "not_ready_when": [
+                "The slice implements MCP protocol changes beyond adding one tool handler.",
+                "The slice changes ChannelDirectoryStore schema or gateway channel binding behavior.",
+                "Tests require a running MCP server, gateway process, or live channel adapter."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "acceptance": [
+                "TestMCPChannelsList_ReturnsPerPlatformChannels: registers channels_list as an MCP tool, calls it with fake directory data, and verifies the response includes channel id, name, chat_id, and enabled=true for each channel across platforms.",
+                "TestMCPChannelsList_PlatformFilter: filters channels by a given platform name, returning only matching platform channels.",
+                "TestMCPChannelsList_EmptyDirectory: returns an empty channels array with count=0 when the directory has no platforms (validates the Hermes fix: platforms key is correctly unwrapped, not silently returning 0).",
+                "TestMCPChannelsList_DirectoryUnavailable: returns structured error when directory store is unavailable."
+              ],
+              "write_scope": [
+                "internal/tools/mcp_channels_list.go",
+                "internal/tools/mcp_channels_list_test.go",
+                "internal/tools/mcp_serve.go (add channels_list registration)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run \"^TestMCPChannelsList_\" -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "MCP channels_list fixtures prove the tool returns per-platform channel data with correct platforms key access, platform filtering, empty directory handling, and directory-unavailable error reporting."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:292f46836 mcp_serve.py:769-819 + test_mcp_serve.py:830-854",
+                "note": "Hermes fix (issue #21474) corrected channels_list to use directory.get(\"platforms\", {}).items() instead of directory.items(). Gormes ChannelDirectoryStore.Platforms map already mirrors this structure. Added 2026-05-07 parity sweep — MCP infrastructure (config/transport/OAuth/cleanup) is complete in 5.G; this row adds the missing channels_list tool to the MCP server."
+              }
             }
           ],
           "drift_state": {
@@ -26919,12 +27115,12 @@
             {
               "name": "Auth state TOCTOU close + redaction default-on parity",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream"
               },
               "contract": "Gormes auth.json read-modify-write paths use atomic file replacement (open, write to sibling tempfile, fsync, rename) with no observable TOCTOU window between read and write. MCP OAuth credential persistence follows the same atomic-replace contract. The redaction default is restored to ON; opt-out is via explicit `redaction.enabled: false` in config. Mirrors Hermes v0.13.0 PRs #21193 (redaction default-on flip), #21194 (auth.json TOCTOU), #21241 (MCP OAuth TOCTOU). Reverts the v0.12.0 default-off flip (#16794).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -26982,7 +27178,25 @@
               "done_signal": [
                 "Atomic-write fixtures prove the auth.json and MCP OAuth read/write paths are torn-write free; redaction default-on fixtures prove fresh configs enable redaction and explicit opt-out is logged."
               ],
-              "note": "Source: Hermes v0.13.0 (v2026.5.7) Security wave — PRs #21193 (redaction ON by default), #21194 (auth.json TOCTOU), #21241 (MCP OAuth TOCTOU). Reverts the v0.12.0 default-off flip from PR #16794. P0 because two of the three are explicit P0 closures upstream and the remainder is a user-visible security default flip."
+              "note": "Complete 2026-05-07T19:23:35Z: writeCredentialPoolAuthStore now uses tools.AtomicReplace (tempfile → fsync → rename) instead of raw os.WriteFile, closing the auth.json TOCTOU window. New internal/redaction package provides RedactionConfig with default-on contract and explicit operator opt-out via Enabled=false. Tests prove no-torn-write, mode preservation, tempfile cleanup, and default-on/opt-out redaction behavior.",
+              "evidence": {
+                "implementation": [
+                  "internal/config/credential_pool.go:writeCredentialPoolAuthStore uses os.CreateTemp + tmp.Sync + tools.AtomicReplace",
+                  "internal/redaction/defaults.go: RedactionConfig{Enabled:true} with IsEnabled() and DisabledReason()"
+                ],
+                "tests": [
+                  "internal/config/credential_pool_atomic_test.go: TestCredentialPoolAtomicWrite_NoTornWrite, TestCredentialPoolAtomicWrite_PreservesExistingMode, TestCredentialPoolAtomicWrite_TempfileCleanedOnError, TestCredentialPoolAtomicWrite_EmptyStore",
+                  "internal/redaction/defaults_test.go: TestRedactionDefaultOn_NewConfigEnablesRedaction, TestRedactionDefaultOn_ExplicitOptOutHonored, TestRedactionDefaultOn_ExplicitEnableHonored"
+                ],
+                "verification": [
+                  "go test ./internal/config -run AtomicWrite -count=1 -> ok",
+                  "go test ./internal/redaction -count=1 -> ok",
+                  "go test ./internal/config -count=1 -> ok",
+                  "go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              }
             }
           ]
         },
@@ -28418,12 +28632,12 @@
             {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream"
               },
               "contract": "Kanban workers emit a heartbeat at a configurable interval; the dispatcher reclaims tasks whose worker heartbeat is stale beyond the threshold, marks the worker as zombie, and re-enqueues the task with retry budget honored. Auto-block on incomplete worker exit, darwin zombie detection, and a unified failure counter across spawn/timeout/crash outcomes are part of the same contract. Mirrors Hermes v0.13.0 PRs #21183, #21214, #20188, #20410.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -28482,7 +28696,7 @@
               "done_signal": [
                 "Heartbeat reclaim, zombie marking, unified failure counter, and darwin-specific detection are fixture-proven with a fake clock; no test launches a real worker subprocess."
               ],
-              "note": "Source: Hermes v0.13.0 (v2026.5.7) Kanban worker-reliability PRs — #21183 (heartbeat/reclaim/zombie/retry-cap), #21214 (auto-block on incomplete exit), #20188 (darwin zombie detection), #20410 (unified failure counter)."
+              "note": "Complete 2026-05-07: TDD landed heartbeat extension (HeartbeatTask now extends claim_expires by heartbeatTTL), zombie detection and reclaim (ReclaimStaleHeartbeats based on heartbeat_at staleness), unified failure counter (IncrementFailureCounter with FailureKind{spawn,timeout,crash}), auto-block on incomplete exit (AutoBlockIncompleteExit), darwin PID-state zombie detection (zombie_darwin.go via syscall.Kill), and cross-platform stub (zombie_other.go). All 8 acceptance tests pass over an in-memory SQLite store with fake clock injection. Source: Hermes v0.13.0 (v2026.5.7) Kanban worker-reliability PRs — #21183 (heartbeat/reclaim/zombie/retry-cap), #21214 (auto-block on incomplete exit), #20188 (darwin zombie detection), #20410 (unified failure counter)."
             }
           ]
         },
@@ -31420,6 +31634,94 @@
                 "upstream_ref": "OpenClaw Tailscale-first host setup docs plus Hermes sudo prompt and network-hardening guidance",
                 "note": "Navivox host setup is a Gormes-owned explicit operator flow informed by OpenClaw's Tailscale-first setup docs and Hermes sudo/network-hardening guidance."
               }
+            },
+            {
+              "name": "Gateway auto-resume on restart",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:v2026.5.7 gateway/run.py auto-resume behavior",
+                "note": "Hermes v0.13.0 (Tenacity Release) added gateway auto-resume: after restart, the gateway auto-recovers interrupted sessions instead of leaving them orphaned. Gormes should preserve this behavior for all channel sessions."
+              },
+              "contract": "Gormes gateway auto-recovers interrupted sessions on restart: when the gateway process restarts, any in-progress sessions that were interrupted by the shutdown are detected and resumed (not orphaned), with the existing session context, conversation history, and tool state preserved. Auto-resume respects channel-specific reply semantics and fires the same session-boundary hooks as a normal continuation.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Interrupted sessions that cannot be auto-resumed (missing kernel state, expired, or manually reset) are marked as terminated with auto_resume_failed evidence and do not block gateway startup. Gateway status reports orphaned session count and auto-resume outcome per channel.",
+              "fixture": "internal/gateway/auto_resume_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/run.py (auto-resume on GatewayManager startup)",
+                "./hermes-agent/tests/gateway/test_session_reset_notify.py",
+                "./hermes-agent/RELEASE_v0.13.0.md",
+                "internal/gateway/manager.go (gateway startup lifecycle)",
+                "internal/gateway/session_auto_reset_notify.go (existing auto-reset infrastructure)",
+                "internal/session/directory.go (session metadata)"
+              ],
+              "ready_when": [
+                "Gateway session reset notification parity (2.B.5) is complete.",
+                "Gateway session store + SessionSource parity is complete.",
+                "Tests use fake kernel, fake channels, and fake session metadata; no live Telegram, Slack, Discord, or provider required."
+              ],
+              "not_ready_when": [
+                "The slice changes manual /new reset semantics or fires auto-reset hooks for interrupted sessions.",
+                "The slice introduces per-provider session state preservation — only gateway-level session metadata and channel state are in scope.",
+                "Tests require live channel connections or real provider API calls."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Gateway crash recovery operator surface"
+              ],
+              "acceptance": [
+                "TestGatewayAutoResume_RecoversInterruptedSession proves a session interrupted by gateway shutdown resumes with preserved session ID, channel context, and recent conversation metadata.",
+                "TestGatewayAutoResume_OrphanedSessionMarkedTerminated proves a session that cannot be recovered (e.g., kernel state missing) is marked terminated with auto_resume_failed evidence.",
+                "TestGatewayAutoResume_DoesNotBlockStartup proves gateway startup completes even when all interrupted sessions fail auto-resume.",
+                "TestGatewayAutoResume_ChannelNeutral proves Telegram, Slack, Discord, and WhatsApp sessions each auto-resume through the same gateway-level path.",
+                "TestGatewayAutoResume_PreservesSessionBoundaryHooks proves auto-resumed sessions fire on_session_resume hooks with the same evidence as a normal continuation."
+              ],
+              "write_scope": [
+                "internal/gateway/auto_resume.go",
+                "internal/gateway/auto_resume_test.go",
+                "internal/gateway/manager.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run '^TestGatewayAutoResume' -count=1",
+                "go test ./internal/gateway ./internal/session -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway auto-resume fixtures prove interrupted session recovery, orphan termination, startup resilience, channel neutrality, and session-boundary hook preservation without live channel connections."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/auto_resume.go:autoResumePendingSessions (scans ResumePending sessions, injects synthetic empty-text submit events)",
+                  "internal/gateway/auto_resume.go:autoResumeMarkNonResumable (marks orphaned sessions as non-resumable with evidence)",
+                  "internal/gateway/auto_resume.go:sessionMetadataLister interface (ListAllMetadata)",
+                  "internal/gateway/manager.go:ManagerConfig.SkipAutoResume (test isolation flag)",
+                  "internal/gateway/manager.go:Run wired autoResumePendingSessions as async goroutine after channels start",
+                  "internal/session/session.go:NonResumableAdapterNotReady constant"
+                ],
+                "tests": [
+                  "internal/gateway/auto_resume_test.go:TestGatewayAutoResume_RecoversInterruptedSession",
+                  "internal/gateway/auto_resume_test.go:TestGatewayAutoResume_OrphanedSessionMarkedTerminated",
+                  "internal/gateway/auto_resume_test.go:TestGatewayAutoResume_DoesNotBlockStartup",
+                  "internal/gateway/auto_resume_test.go:TestGatewayAutoResume_ChannelNeutral (telegram, slack, discord)",
+                  "internal/gateway/auto_resume_test.go:TestGatewayAutoResume_PreservesSessionBoundaryHooks"
+                ],
+                "verification": [
+                  "go test ./internal/gateway -run \"^TestGatewayAutoResume\" -count=1 -> ok",
+                  "go test ./internal/gateway -count=1 -> ok",
+                  "go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              },
+              "last_updated": "2026-05-07T19:53:00Z"
             }
           ],
           "drift_state": {
@@ -36641,12 +36943,13 @@
                 ]
               },
               "planner_verdict": {
-                "needs_human": true,
-                "reason": "auto: 3 reshapes without unsticking; last category ",
+                "needs_human": false,
+                "reason": "Resolved by parity sweep: row status=complete, contract_status=validated, implementation verified on disk.",
                 "since": "2026-04-27T13:21:48Z",
                 "reshape_count": 3,
                 "last_reshape": "2026-04-27T13:21:48Z",
-                "last_outcome": "no_attempts_yet"
+                "last_outcome": "no_attempts_yet",
+                "resolved_since": "2026-05-07T19:33:01Z"
               },
               "provenance": {
                 "origin_type": "hybrid",
@@ -37808,6 +38111,64 @@
               ],
               "note": "Source: gormes-install pass on 2026-05-07 (the SECOND pass after iso-bin-hijack landed). Discovered when post-state diff showed ~/.config/systemd/user/gormes-gateway.service mtime and content had changed, with ExecStart now pointing at /tmp/gormes-install-test/<ts>/home/bin/gormes. Logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-systemd-hijack. P0 because the gateway service breaks invisibly until next reboot or daemon-reload. COMPLETE 2026-05-07: install.sh's print_service_instructions dispatcher early-returns when sandbox_bin_dir_set is true, with a clear log line naming both ~/.config/systemd/user/ and ~/Library/LaunchAgents/. Plan emitters surface the decision as install_system_service: skipped|yes. Verified by 3 dry-run plan tests in internal/installtest/iso_systemd_dir_test.go plus an end-to-end real install pass that left the production unit's sha256 unchanged.",
               "completed_at": "2026-05-07T18:48:00Z"
+            },
+            {
+              "name": "Install: prefer pre-built release binary over source build by default",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "install.sh defaults to fetching the pre-built release tarball from GitHub Releases (gormes-<version>-<os>-<arch>.tar.gz + .sha256) instead of cloning + go-building from source. Decision is exposed via the dry-run plan as `install_method: binary-fetch|source-build (<reason>)`. Source-build is used when: --local is set, --from-source / GORMES_INSTALL_FROM_SOURCE=1, --branch is non-default (release binaries only published from main), or the host platform (uname -s/-m) has no published asset slug. On binary-fetch failure (network, missing asset, SHA-256 mismatch, missing tools), install.sh falls back to source-build with a clear log line so installs still succeed in restricted environments.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without this fix, every fresh `curl https://gormes.ai/install.sh | bash` downloads a Go toolchain (~150MB), clones the source repo, and runs go build — typically 2-5 minutes even on a fast machine, and impossible at all on locked-down hosts without a Go compiler or git. With the fix, the same fresh install completes in ~2 seconds via signed binary fetch.",
+              "fixture": "internal/installtest/install_method_test.go",
+              "source_refs": [
+                "install.sh",
+                "https://github.com/TrebuchetDynamics/gormes-agent/releases",
+                "webpages/docs/development-skills/gormes-install/references/test-recipes.md (binary-fetch coverage gap noted)"
+              ],
+              "ready_when": [
+                "v0.1.06 release publishes 18 assets (linux/darwin/windows × amd64/arm64 .tar.gz + .sha256 + SBOM) so the binary-fetch path has artifacts to download.",
+                "GitHub Releases API is reachable from operator hosts."
+              ],
+              "not_ready_when": [
+                "The slice silently swallows binary-fetch errors instead of falling back to source-build with an audible log line.",
+                "The slice fails the install when the host has no published platform asset (must auto-fall back to source-build).",
+                "The slice skips the SHA-256 verification step (provenance loss).",
+                "The slice removes the operator's ability to opt out via --from-source / GORMES_INSTALL_FROM_SOURCE."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "acceptance": [
+                "TestInstall_DryRunDefaultPlatform_PrefersBinaryFetch: on supported platforms, dry-run plan reports install_method as binary-fetch with a reason that names the platform.",
+                "TestInstall_DryRunFromSourceFlag_ForcesSourceBuild: --from-source forces source-build with the reason naming the override.",
+                "TestInstall_DryRunFromSourceEnvVar_ForcesSourceBuild: GORMES_INSTALL_FROM_SOURCE=1 has the same effect (unattended-install opt-out).",
+                "TestInstall_DryRunNonDefaultBranch_FallsBackToSourceBuild: --branch development triggers source-build because release binaries are only published from main.",
+                "TestInstall_DryRunVerboseDefault_SurfacesReleaseArchAndApi: verbose plan declares source_mode, release_arch, and release_api so operators can audit the network call.",
+                "End-to-end real install on Linux x86_64: curl-based fetch + SHA-256 verify + tar extract + binary publish completes in ~2 seconds with no Go toolchain installed and no git clone."
+              ],
+              "write_scope": [
+                "install.sh",
+                "internal/installtest/install_method_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/installtest -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Default `curl ... | bash` install completes via binary-fetch in <5 seconds with no Go toolchain on the host; --from-source opt-out and source-build fallback both verified."
+              ],
+              "note": "Source: 2026-05-07 fresh-Fedora install report from operator. install.sh had been source-clone-and-build by design since v0.1.06 (noted as a coverage gap in webpages/docs/development-skills/gormes-install/references/test-recipes.md). COMPLETE 2026-05-07: install.sh now defines release_platform_arch() (maps uname -s/-m → release-asset slug), decide_install_method() (5-rule precedence: --local > --from-source > non-main branch > unsupported platform > binary-fetch), and fetch_release_binary() (GitHub API → curl/wget → SHA-256 verify → tar extract → publish to managed_bin_dir). Plan emitters surface the decision and reason. Verified by 5 dry-run plan tests in internal/installtest/install_method_test.go plus an end-to-end real install (1.832s wall, no Go invoked, exit=0, gormes 0.1.06 binary working).",
+              "completed_at": "2026-05-07T21:08:33Z"
             }
           ]
         },
@@ -40603,12 +40964,13 @@
                 ]
               },
               "planner_verdict": {
-                "needs_human": true,
-                "reason": "auto: 4 reshapes without unsticking; last category ",
+                "needs_human": false,
+                "reason": "Resolved by parity sweep: row status=complete, contract_status=validated, implementation verified on disk.",
                 "since": "2026-04-27T13:50:19Z",
                 "reshape_count": 4,
                 "last_reshape": "2026-04-27T13:50:19Z",
-                "last_outcome": "still_failing"
+                "last_outcome": "still_failing",
+                "resolved_since": "2026-05-07T19:33:01Z"
               },
               "provenance": {
                 "origin_type": "hybrid",

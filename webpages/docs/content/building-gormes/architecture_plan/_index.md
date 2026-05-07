@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 70/99 subphases shipped · 23 in progress · 6 planned
+**Overall:** 69/99 subphases shipped · 24 in progress · 6 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -678,7 +678,7 @@ classification and row-backed implementation queue.
 - [x] Terminal snapshot source stdout suppression guard
 - [ ] Terminal deleted-cwd recovery guard
 - [x] Raw tool-call parser fixture matrix
-- [ ] Docker
+- [x] Docker execution backend (container lifecycle + mount policy)
 - [x] Docker backend top-level container reuse semantics
 - [ ] Modal
 - [ ] Daytona
@@ -698,6 +698,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web extract safety policy and summarizer
 - [x] Go-native Hermes web_crawl tool adapter
 - [x] Go-native Hermes web managed gateway status and live smoke closure
+- [ ] Brave Search + DDGS web search provider parity
 - [x] Browser artifact and console render contract
 - [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
@@ -740,7 +741,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration ✅
+### 5.G — MCP Integration 🔨
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -754,6 +755,7 @@ classification and row-backed implementation queue.
 - [x] MCP circuit breaker cooldown + reconnect reset
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
+- [ ] MCP channels_list tool
 
 ### 5.H — ACP Integration ✅
 
@@ -797,7 +799,7 @@ classification and row-backed implementation queue.
 - [x] Secrets Runtime Controls
 - [x] Security Audit Command
 - [x] Email allowlist pre-dispatch loop guard
-- [ ] Auth state TOCTOU close + redaction default-on parity
+- [x] Auth state TOCTOU close + redaction default-on parity
 
 ### 5.K — Code Execution ✅
 
@@ -826,7 +828,7 @@ classification and row-backed implementation queue.
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
-- [ ] Kanban worker heartbeat, reclaim, and zombie detection
+- [x] Kanban worker heartbeat, reclaim, and zombie detection
 
 ### 5.N — Misc Operator Tools ✅
 
@@ -875,6 +877,7 @@ classification and row-backed implementation queue.
 - [x] Cron script/workdir/inactivity execution binding
 - [x] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
+- [x] Gateway auto-resume on restart
 
 ### 5.O — Hermes CLI Parity 🔨
 
@@ -978,6 +981,7 @@ classification and row-backed implementation queue.
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
 - [x] Install isolation: skip system service install when sandbox bin dir is set
+- [x] Install: prefer pre-built release binary over source build by default
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
