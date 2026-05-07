@@ -702,6 +702,7 @@ classification and row-backed implementation queue.
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 - [x] Go browser harness binary repo + integration lane (placeholder)
+- [x] Browser session inactivity cleanup thread
 
 ### 5.D — Vision + Image Generation 🔨
 
