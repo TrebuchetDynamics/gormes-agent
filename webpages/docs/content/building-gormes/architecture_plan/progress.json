@@ -40571,7 +40571,8 @@
                 "A child row cites non-existent adapter files or lacks provenance fields in its event payload."
               ],
               "unblocks": [
-                "Telegram gateway event-bus adapter"
+                "Telegram gateway event-bus adapter",
+                "Discord gateway event-bus adapter"
               ],
               "acceptance": [
                 "Child rows prove incoming channel messages publish MessageReceived events with source, channel_id/chat_id, user_id, message_id, command kind, text/body, and trace_id.",
@@ -40648,6 +40649,75 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible Telegram inbound normalization",
                 "note": "The shared event bus is a Gormes-owned architecture row; Telegram inbound fields come from the existing Hermes-compatible gateway.InboundEvent normalization path."
+              }
+            },
+            {
+              "name": "Discord gateway event-bus adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Discord inbound events can be mirrored onto the shared event bus through a Go-native adapter that publishes the channel-neutral gateway.message.received topic with Discord provenance, parsed command kind/body, guild/channel/thread/message/user identifiers, and trace_id without changing Discord gateway session handling or normal inbox submit delivery.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system",
+                "gateway"
+              ],
+              "degraded_mode": "If the dispatcher or event bus is unavailable, the adapter returns discord_event_bus_unavailable evidence to the caller and does not block the existing Discord inbox submit path.",
+              "fixture": "internal/channels/discord/bus_adapter_test.go",
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "hermes-agent/gateway/platforms/discord.py@b816fd4e2:on_message",
+                "hermes-agent/gateway/platforms/discord.py@b816fd4e2:_handle_message",
+                "hermes-agent/tests/gateway/test_discord_system_messages.py@b816fd4e2",
+                "hermes-agent/tests/gateway/test_discord_document_handling.py@b816fd4e2",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/channels/discord/bot.go",
+                "internal/channels/discord/session_source_metadata_test.go"
+              ],
+              "ready_when": [
+                "Event bus core, Telegram gateway event-bus adapter, and full message-flow event-bus integration tests are complete and validated.",
+                "Discord Run already normalizes MessageCreate events into gateway.InboundEvent values with guild, parent channel, thread, message, and user provenance, so the slice can mirror those events without touching live Discord connections."
+              ],
+              "not_ready_when": [
+                "The slice rewrites Discord gateway session startup, slash-command registration, attachment downloads, reaction lifecycle, or gateway turn execution.",
+                "The slice starts a second event bus or drops existing channel inbox delivery when event publication fails.",
+                "Tests require live Discord credentials, network calls, or real GORMES_HOME state."
+              ],
+              "acceptance": [
+                "TestBusAdapter_PublishInboundMessageReceived proves a Discord gateway.InboundEvent publishes exactly one gateway.message.received event with source=discord, stable trace_id, event kind, body/text, chat_id, user_id, message_id, thread_id, and reply_to_message_id fields.",
+                "TestBusAdapter_PublishInboundForumThreadProvenance proves forum/thread messages preserve parent chat, canonical thread ID, guild ID, and Discord source metadata in the event payload.",
+                "TestBusAdapter_PublishInboundRejectsNilDispatcher proves missing dispatcher returns typed discord_event_bus_unavailable evidence instead of panicking.",
+                "Gateway dispatcher fixtures prove parent_chat_id and guild_id survive MessageEventPayload JSON marshaling for threaded Discord events."
+              ],
+              "write_scope": [
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event_dispatch_test.go",
+                "internal/channels/discord/bus_adapter.go",
+                "internal/channels/discord/bus_adapter_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestEventDispatch -count=1",
+                "go test ./internal/channels/discord -run TestBusAdapter -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Discord bus-adapter fixtures prove channel-neutral gateway.message.received publication with Discord provenance and a non-panicking unavailable path, without live Discord or changing existing inbox delivery."
+              ],
+              "note": "2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows are below 90, and the only open P1 row is the non-selectable event-bus umbrella whose next completion-biased child is Discord after the validated Telegram adapter and full-flow integration test. This row is Gormes-owned event-bus architecture over active Hermes Discord ingress semantics: Hermes b816fd4e2 filters and normalizes Discord MessageCreate/thread traffic, while Gormes already has Discord gateway.InboundEvent provenance fixtures but no event-bus publication adapter for Discord. Complete: TDD added shared parent_chat_id/guild_id fields to gateway.MessageEventPayload plus a Discord BusAdapter that mirrors normalized inbound events to gateway.message.received, derives stable trace IDs from guild/chat/thread/message IDs, returns discord_event_bus_unavailable for missing dispatchers, and leaves Discord session startup plus inbox submit delivery untouched.",
+              "evidence": {
+                "implementation": "internal/gateway/event_dispatch.go, internal/channels/discord/bus_adapter.go",
+                "tests": "go test ./internal/gateway -run TestEventDispatch -count=1; go test ./internal/channels/discord -run TestBusAdapter -count=1",
+                "note": "Gateway and Discord fixtures prove threaded message payload round-trip, forum parent/guild/thread/message provenance from the existing Discord inbound normalization fixture, stable fallback trace IDs, and nil-dispatcher degraded evidence without live Discord."
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible Discord inbound normalization",
+                "note": "The shared event bus is a Gormes-owned architecture row; Discord inbound fields come from the existing Hermes-compatible gateway.InboundEvent normalization path."
               }
             },
             {

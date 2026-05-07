@@ -22,6 +22,8 @@ type MessageEventPayload struct {
 	ChatID           string `json:"chat_id"`
 	ChatName         string `json:"chat_name,omitempty"`
 	ChatType         string `json:"chat_type,omitempty"`
+	ParentChatID     string `json:"parent_chat_id,omitempty"`
+	GuildID          string `json:"guild_id,omitempty"`
 	UserID           string `json:"user_id,omitempty"`
 	UserName         string `json:"user_name,omitempty"`
 	ThreadID         string `json:"thread_id,omitempty"`
@@ -42,6 +44,8 @@ func MessageEventPayloadFromInbound(ev InboundEvent) MessageEventPayload {
 		ChatID:           ev.ChatID,
 		ChatName:         ev.ChatName,
 		ChatType:         ev.ChatType,
+		ParentChatID:     ev.ParentChatID,
+		GuildID:          ev.GuildID,
 		UserID:           ev.UserID,
 		UserName:         ev.UserName,
 		ThreadID:         ev.ThreadID,

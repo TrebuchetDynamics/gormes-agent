@@ -75,6 +75,50 @@ func TestEventDispatcher_MessageEventPayloadRoundTrip(t *testing.T) {
 	}
 }
 
+func TestEventDispatcher_MessageEventPayloadRoundTripThreadProvenance(t *testing.T) {
+	bus := events.NewInProcessEventBus()
+	defer bus.Close()
+
+	delivered := make(chan events.Event, 1)
+	bus.Subscribe(TopicMessageReceived, func(e events.Event) {
+		delivered <- e
+	})
+
+	disp := NewEventDispatcher(bus)
+	payload := MessageEventPayload{
+		Platform:     "discord",
+		ChatID:       "forum-100",
+		ParentChatID: "forum-100",
+		GuildID:      "guild-1",
+		UserID:       "user-7",
+		ThreadID:     "thread-200",
+		MessageID:    "msg-201",
+		MsgID:        "msg-201",
+		Kind:         "submit",
+		Text:         "follow up from the forum post",
+		Body:         "follow up from the forum post",
+	}
+	if err := disp.PublishMessageReceived("discord", "trace-discord-201", payload); err != nil {
+		t.Fatalf("PublishMessageReceived: %v", err)
+	}
+
+	select {
+	case got := <-delivered:
+		if got.Source != "discord" || got.TraceID != "trace-discord-201" {
+			t.Fatalf("event provenance = source:%q trace:%q, want discord/trace-discord-201", got.Source, got.TraceID)
+		}
+		var decoded MessageEventPayload
+		if err := json.Unmarshal(got.Payload, &decoded); err != nil {
+			t.Fatalf("payload decode: %v", err)
+		}
+		if decoded != payload {
+			t.Fatalf("decoded payload = %+v, want %+v", decoded, payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for message payload event")
+	}
+}
+
 func TestEventDispatcher_PublishMessageSent(t *testing.T) {
 	bus := events.NewInProcessEventBus()
 	defer bus.Close()
