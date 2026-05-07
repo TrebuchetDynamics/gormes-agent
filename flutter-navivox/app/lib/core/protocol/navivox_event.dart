@@ -27,11 +27,43 @@ class NavivoxToolCall {
     required this.name,
     required this.status,
     required this.summary,
+    this.artifacts = const [],
   });
 
   final String name;
   final String status;
   final String summary;
+  final List<NavivoxToolArtifact> artifacts;
+
+  NavivoxToolCall copyWith({
+    String? name,
+    String? status,
+    String? summary,
+    List<NavivoxToolArtifact>? artifacts,
+  }) {
+    return NavivoxToolCall(
+      name: name ?? this.name,
+      status: status ?? this.status,
+      summary: summary ?? this.summary,
+      artifacts: artifacts ?? this.artifacts,
+    );
+  }
+}
+
+class NavivoxToolArtifact {
+  const NavivoxToolArtifact({
+    required this.id,
+    required this.kind,
+    required this.title,
+    this.summary,
+    this.ref,
+  });
+
+  final String id;
+  final String kind;
+  final String title;
+  final String? summary;
+  final String? ref;
 }
 
 class NavivoxVoiceMessage {
