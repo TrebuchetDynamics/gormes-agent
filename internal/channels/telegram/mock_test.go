@@ -177,6 +177,11 @@ func (m *mockClient) StopReceivingUpdates() {
 	m.mu.Unlock()
 }
 
+func (m *mockClient) uploadSuccess(msgID int) *tgbotapi.APIResponse {
+	result, _ := json.Marshal(tgbotapi.Message{MessageID: msgID})
+	return &tgbotapi.APIResponse{Ok: true, Result: result}
+}
+
 func (m *mockClient) closeUpdates() {
 	close(m.updatesCh)
 }

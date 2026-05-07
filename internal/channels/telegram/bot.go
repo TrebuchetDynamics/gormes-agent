@@ -109,6 +109,7 @@ const telegramReactionEndpoint = "setMessageReaction"
 const telegramSendMessageEndpoint = "sendMessage"
 const telegramSendChatActionEndpoint = "sendChatAction"
 const telegramGeneralTopicThreadID = "1"
+const maxSendRetries = 3
 
 func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	if log == nil {
@@ -533,11 +534,28 @@ func (b *Bot) SendThread(ctx context.Context, chatID, threadID, text string) (st
 	if includeThread {
 		params.AddNonZero("message_thread_id", thread)
 	}
-	msg, err := b.sendRawMessageWithParseFallback(ctx, params)
-	if err != nil {
-		return "", err
+
+	var lastErr error
+	for attempt := 0; attempt < maxSendRetries; attempt++ {
+		msg, err := b.sendRawMessageWithParseFallback(ctx, params)
+		if err == nil {
+			return strconv.Itoa(msg.MessageID), nil
+		}
+		lastErr = err
+
+		if isThreadNotFoundError(err) && includeThread {
+			delete(params, "message_thread_id")
+			includeThread = false
+			continue
+		}
+		if isTimedOutError(err) {
+			return "", err
+		}
+		if !isTransientNetworkError(err) {
+			return "", err
+		}
 	}
-	return strconv.Itoa(msg.MessageID), nil
+	return "", lastErr
 }
 
 func (b *Bot) SendThreadReply(ctx context.Context, chatID, threadID, replyToMsgID, text string) (string, error) {
@@ -560,11 +578,28 @@ func (b *Bot) SendThreadReply(ctx context.Context, chatID, threadID, replyToMsgI
 	if includeThread {
 		params.AddNonZero("message_thread_id", thread)
 	}
-	msg, err := b.sendRawMessageWithParseFallback(ctx, params)
-	if err != nil {
-		return "", err
+
+	var lastErr error
+	for attempt := 0; attempt < maxSendRetries; attempt++ {
+		msg, err := b.sendRawMessageWithParseFallback(ctx, params)
+		if err == nil {
+			return strconv.Itoa(msg.MessageID), nil
+		}
+		lastErr = err
+
+		if isThreadNotFoundError(err) && includeThread {
+			delete(params, "message_thread_id")
+			includeThread = false
+			continue
+		}
+		if isTimedOutError(err) {
+			return "", err
+		}
+		if !isTransientNetworkError(err) {
+			return "", err
+		}
 	}
-	return strconv.Itoa(msg.MessageID), nil
+	return "", lastErr
 }
 
 func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
@@ -831,6 +866,35 @@ func isMarkdownParseError(err error) bool {
 	return strings.Contains(lower, "parse") || strings.Contains(lower, "markdown")
 }
 
+func isThreadNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "thread not found")
+}
+
+func isTimedOutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "timedout") ||
+		strings.Contains(lower, "timed out") ||
+		strings.Contains(lower, "i/o timeout")
+}
+
+func isTransientNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "network") ||
+		strings.Contains(lower, "connection") ||
+		strings.Contains(lower, "eof") ||
+		strings.Contains(lower, "reset") ||
+		strings.Contains(lower, "broken pipe")
+}
+
 // SendChatAction issues a Telegram sendChatAction request. action is one of
 // the documented Telegram chat actions ("typing", "upload_photo", etc.).
 // Failures are returned to the caller; this method does not retry, log, or
@@ -881,10 +945,28 @@ func (b *Bot) SendThreadChatAction(ctx context.Context, chatID, threadID, action
 	if includeThread {
 		params.AddNonZero("message_thread_id", thread)
 	}
-	if _, err := b.client.UploadFiles(telegramSendChatActionEndpoint, params, nil); err != nil {
-		return fmt.Errorf("telegram: SendThreadChatAction: %w", err)
+
+	var lastErr error
+	for attempt := 0; attempt < maxSendRetries; attempt++ {
+		_, err := b.client.UploadFiles(telegramSendChatActionEndpoint, params, nil)
+		if err == nil {
+			return nil
+		}
+		lastErr = fmt.Errorf("telegram: SendThreadChatAction: %w", err)
+
+		if isThreadNotFoundError(err) && includeThread {
+			delete(params, "message_thread_id")
+			includeThread = false
+			continue
+		}
+		if isTimedOutError(err) {
+			return lastErr
+		}
+		if !isTransientNetworkError(err) {
+			return lastErr
+		}
 	}
-	return nil
+	return lastErr
 }
 
 // StartTyping starts Telegram's transient typing indicator and refreshes it no
