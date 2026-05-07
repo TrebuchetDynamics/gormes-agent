@@ -23526,8 +23526,8 @@
             },
             {
               "name": "Update bundled skills across active and named profiles",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes skill update/sync paths seed reviewed bundled skills into the active profile and every named profile, target explicit profile roots, preserve user-modified skills, and return a deterministic per-profile summary without writing to unrelated homes.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -23580,10 +23580,11 @@
               "done_signal": [
                 "Profile-sync fixtures prove bundled skills are updated across active and named profiles, user edits are preserved, summaries are deterministic, and tests never touch live homes or registries."
               ],
+              "note": "Complete 2026-05-06: added internal/skills profile sync over injected profile roots plus gormes skills sync command seams. Focused tests prove active/default/work profile writes, user-modified conflict preservation, deterministic redacted summaries, and command binding through fake roots with no network or live-home mutation.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:20edca75e hermes_cli/main.py update skill sync",
-                "note": "Hermes fixed update to sync bundled skills to every profile including the active profile; Gormes tracks the same invariant in its native skills/update paths."
+                "note": "Hermes fixed update to sync bundled skills to every profile including the active profile; Gormes tracks the same invariant in its native skills/update paths. Parity sweep 2026-05-06 raised this to P1 because it is source-backed, small, builder-ready, and unblocks operator-visible skills/profile parity while planned-row count is 70."
               }
             },
             {

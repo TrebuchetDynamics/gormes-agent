@@ -731,7 +731,7 @@ classification and row-backed implementation queue.
 - [x] Skill preprocessing + dynamic slash commands
 - [x] [IMPORTANT:] prompt prefix for cron and skill commands
 - [x] Skills list — enabled/disabled status column + --enabled-only filter
-- [ ] Update bundled skills across active and named profiles
+- [x] Update bundled skills across active and named profiles
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 

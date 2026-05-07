@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,8 +17,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type skillsProfileSyncSeams struct {
+	BundledRoot func() string
+	Profiles    func() ([]skills.SkillProfileRoot, error)
+	Sync        func(context.Context, skills.BundledSkillProfileSyncRequest) (skills.BundledSkillProfileSyncReport, error)
+}
+
 func newSkillsCommand() *cobra.Command {
-	return cli.NewSkillsCommand(cli.SkillsCommandDeps{
+	return newSkillsCommandWithProfileSync(skillsProfileSyncSeams{})
+}
+
+func newSkillsCommandWithProfileSync(syncSeams skillsProfileSyncSeams) *cobra.Command {
+	cmd := cli.NewSkillsCommand(cli.SkillsCommandDeps{
 		ListInstalledSkills: func(opts skills.ListOptions, disabled map[string]struct{}) []skills.SkillRow {
 			cfg, err := config.Load(nil)
 			if err != nil {
@@ -31,6 +42,73 @@ func newSkillsCommand() *cobra.Command {
 			Store:   configSkillStore{},
 		},
 	})
+	cmd.AddCommand(newSkillsSyncCommand(syncSeams))
+	return cmd
+}
+
+func newSkillsSyncCommand(seams skillsProfileSyncSeams) *cobra.Command {
+	if seams.BundledRoot == nil {
+		seams.BundledRoot = skills.BundledRoot
+	}
+	if seams.Profiles == nil {
+		seams.Profiles = defaultSkillSyncProfiles
+	}
+	if seams.Sync == nil {
+		seams.Sync = skills.SyncBundledSkillsToProfiles
+	}
+
+	return &cobra.Command{
+		Use:   "sync",
+		Short: "Sync bundled skills into all configured profiles",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			profiles, err := seams.Profiles()
+			if err != nil {
+				return err
+			}
+			report, err := seams.Sync(cmd.Context(), skills.BundledSkillProfileSyncRequest{
+				BundledRoot: seams.BundledRoot(),
+				Profiles:    profiles,
+			})
+			if err != nil {
+				return err
+			}
+			for _, summary := range report.Summaries {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s\tadded=%d unchanged=%d conflicts=%d failed=%d\n", summary.Profile, summary.Added, summary.Unchanged, summary.Conflicts, summary.Failed)
+			}
+			return nil
+		},
+	}
+}
+
+func defaultSkillSyncProfiles() ([]skills.SkillProfileRoot, error) {
+	names, err := defaultListKnownProfiles()
+	if err != nil {
+		return nil, err
+	}
+	activePath := filepath.Join(config.GormesHome(), "active_profile")
+	if active, err := cli.ReadActiveProfile(activePath); err == nil {
+		names = append(names, strings.TrimSpace(active))
+	} else if !errors.Is(err, cli.ErrActiveProfileUnset) {
+		return nil, err
+	}
+
+	seen := map[string]bool{}
+	out := make([]skills.SkillProfileRoot, 0, len(names))
+	xdgRoot := filepath.Dir(config.GormesHome())
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		root, err := cli.ResolveProfileRoot(name, xdgRoot)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, skills.SkillProfileRoot{Name: name, Root: root})
+	}
+	return out, nil
 }
 
 type httpSkillFetcher struct {
