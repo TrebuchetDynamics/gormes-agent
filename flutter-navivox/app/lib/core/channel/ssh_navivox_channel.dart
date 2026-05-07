@@ -35,12 +35,17 @@ class SshNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   final DateTime Function() _clock;
   late final NavivoxFrameReader _reader;
   StreamSubscription<NavivoxFrame>? _frameSubscription;
+  final StreamController<NavivoxApprovalRequest> _approvals =
+      StreamController<NavivoxApprovalRequest>.broadcast();
 
   NavivoxChannelState _state = const NavivoxChannelState();
   bool _closed = false;
 
   @override
   NavivoxChannelState get state => _state;
+
+  @override
+  Stream<NavivoxApprovalRequest> get approvalRequests => _approvals.stream;
 
   @override
   void enterFakeServerMode() {
@@ -82,11 +87,28 @@ class SshNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     );
   }
 
+  @override
+  void respondToApproval({required String approvalId, required bool approved}) {
+    if (_closed) return;
+    final frame = NavivoxFrame(
+      type: 'tool.approval.responded',
+      messageId: _uuid.v4(),
+      timestamp: _clock(),
+      contentType: 'application/json',
+      payload: Uint8List.fromList(
+        utf8.encode(jsonEncode({'approved': approved})),
+      ),
+      metadata: {'approval_id': approvalId},
+    );
+    _transport.sink.add(NavivoxFrameCodec.encode(frame));
+  }
+
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
     await _frameSubscription?.cancel();
     await _reader.close();
+    await _approvals.close();
     await _transport.close();
   }
 
@@ -118,11 +140,92 @@ class SshNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
       case 'voice.transcript':
       case 'voice.audio':
         _appendVoiceMessage(frame);
+      case 'tool.call.started':
+      case 'tool.call.progress':
+      case 'tool.call.completed':
+      case 'tool.call.failed':
+      case 'tool.call.cancelled':
+      case 'tool.call.blocked':
+        _upsertToolCall(frame);
+      case 'tool.approval.requested':
+        _emitApproval(frame);
       default:
         // Unknown frames are ignored at the channel layer — higher-level
-        // features (config, agent, tool) listen on their own bus.
+        // features (config, agent admin) listen on their own bus.
         break;
     }
+  }
+
+  void _upsertToolCall(NavivoxFrame frame) {
+    final toolCallId = frame.metadata['tool_call_id']?.toString();
+    if (toolCallId == null || toolCallId.isEmpty) return;
+
+    Map<String, Object?> body = const {};
+    try {
+      final decoded = jsonDecode(utf8.decode(frame.payload));
+      if (decoded is Map<String, Object?>) body = decoded;
+    } catch (_) {
+      // Tolerate non-JSON payloads — the lifecycle status comes from the
+      // frame type, not the body.
+    }
+
+    // The status part of the frame type drives the UI ("started", "progress",
+    // "completed", "failed", "cancelled", "blocked").
+    final status = frame.type.substring('tool.call.'.length);
+
+    final existing = _state.messages.indexWhere(
+      (m) => m.id == toolCallId && m.kind == NavivoxMessageKind.toolCall,
+    );
+
+    final priorName = existing >= 0
+        ? _state.messages[existing].toolCall?.name ?? ''
+        : '';
+    final name = body['name']?.toString() ?? priorName;
+    final summary =
+        body['summary']?.toString() ??
+        (existing >= 0
+            ? _state.messages[existing].toolCall?.summary ?? ''
+            : '');
+
+    final message = NavivoxChatMessage(
+      id: toolCallId,
+      author: NavivoxMessageAuthor.assistant,
+      kind: NavivoxMessageKind.toolCall,
+      createdAt: frame.timestamp,
+      toolCall: NavivoxToolCall(name: name, status: status, summary: summary),
+    );
+
+    if (existing >= 0) {
+      final next = List<NavivoxChatMessage>.from(_state.messages);
+      next[existing] = message;
+      _state = _state.copyWith(messages: next);
+    } else {
+      _state = _state.copyWith(messages: [..._state.messages, message]);
+    }
+    notifyListeners();
+  }
+
+  void _emitApproval(NavivoxFrame frame) {
+    final approvalId = frame.metadata['approval_id']?.toString();
+    final toolCallId = frame.metadata['tool_call_id']?.toString();
+    if (approvalId == null || toolCallId == null) return;
+
+    Map<String, Object?> body = const {};
+    try {
+      final decoded = jsonDecode(utf8.decode(frame.payload));
+      if (decoded is Map<String, Object?>) body = decoded;
+    } catch (_) {
+      /* ignore */
+    }
+
+    _approvals.add(
+      NavivoxApprovalRequest(
+        id: approvalId,
+        toolCallId: toolCallId,
+        prompt: body['prompt']?.toString() ?? '',
+        risk: body['risk']?.toString(),
+      ),
+    );
   }
 
   void _appendChatMessage(NavivoxFrame frame) {

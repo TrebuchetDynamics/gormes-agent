@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -26,8 +27,15 @@ class FakeNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   Uint8List? _lastSentFrameBytes;
   final List<NavivoxFrame> _lastReceivedFrames = [];
 
+  final StreamController<NavivoxApprovalRequest> _approvals =
+      StreamController<NavivoxApprovalRequest>.broadcast();
+  final List<({String approvalId, bool approved})> _approvalResponses = [];
+
   @override
   NavivoxChannelState get state => _state;
+
+  @override
+  Stream<NavivoxApprovalRequest> get approvalRequests => _approvals.stream;
 
   /// Last frame produced by [sendText], encoded once and decoded again so tests
   /// can inspect the wire-level shape.
@@ -37,6 +45,26 @@ class FakeNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
   /// Frames synthesised as a mock server response to the last [sendText].
   List<NavivoxFrame> get lastReceivedFrames =>
       List.unmodifiable(_lastReceivedFrames);
+
+  /// Approval responses captured by [respondToApproval] for tests to inspect.
+  List<({String approvalId, bool approved})> get approvalResponses =>
+      List.unmodifiable(_approvalResponses);
+
+  /// Test-side hook: pretend the server requested approval.
+  void emitApprovalRequest(NavivoxApprovalRequest request) {
+    _approvals.add(request);
+  }
+
+  @override
+  void respondToApproval({required String approvalId, required bool approved}) {
+    _approvalResponses.add((approvalId: approvalId, approved: approved));
+  }
+
+  @override
+  void dispose() {
+    _approvals.close();
+    super.dispose();
+  }
 
   @override
   void enterFakeServerMode() {
