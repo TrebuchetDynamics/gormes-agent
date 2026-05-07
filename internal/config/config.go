@@ -42,6 +42,7 @@ type Config struct {
 	Telegram   TelegramCfg       `toml:"telegram" yaml:"telegram"`
 	Discord    DiscordCfg        `toml:"discord" yaml:"discord"`
 	Slack      SlackCfg          `toml:"slack" yaml:"slack"`
+	Teams      TeamsCfg          `toml:"teams" yaml:"teams"`
 	Yuanbao    YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
 	Web        WebCfg            `toml:"web" yaml:"web"`
 	Browser    BrowserCfg        `toml:"browser" yaml:"browser"`
@@ -595,6 +596,10 @@ func defaults() Config {
 			RequireMention:    true,
 			ReplyInThread:     true,
 		},
+		Teams: TeamsCfg{
+			Enabled: false,
+			Port:    TeamsDefaultPort,
+		},
 		Security: SecurityCfg{
 			WebsiteBlocklist: WebsiteBlocklistCfg{
 				BaseDir: GormesHome(),
@@ -941,6 +946,39 @@ func loadEnv(cfg *Config) error {
 		}
 		cfg.Slack.ReplyInThread = parsed
 	}
+	if v := os.Getenv("GORMES_TEAMS_ENABLED"); v != "" {
+		parsed, err := parseEnvBool("GORMES_TEAMS_ENABLED", v)
+		if err != nil {
+			return err
+		}
+		cfg.Teams.Enabled = parsed
+	}
+	if v := os.Getenv("TEAMS_CLIENT_ID"); v != "" {
+		cfg.Teams.ClientID = v
+	}
+	if v := os.Getenv("TEAMS_CLIENT_SECRET"); v != "" {
+		cfg.Teams.ClientSecret = v
+	}
+	if v := os.Getenv("TEAMS_TENANT_ID"); v != "" {
+		cfg.Teams.TenantID = v
+	}
+	if v := os.Getenv("TEAMS_PORT"); v != "" {
+		parsed, err := parseEnvInt("TEAMS_PORT", v)
+		if err != nil {
+			return err
+		}
+		cfg.Teams.Port = parsed
+	}
+	if v := os.Getenv("TEAMS_ALLOWED_USERS"); v != "" {
+		cfg.Teams.AllowedUsers = parseEnvCSV(v)
+	}
+	if v := os.Getenv("TEAMS_ALLOW_ALL_USERS"); v != "" {
+		parsed, err := parseEnvBool("TEAMS_ALLOW_ALL_USERS", v)
+		if err != nil {
+			return err
+		}
+		cfg.Teams.AllowAllUsers = parsed
+	}
 	if v := os.Getenv("GORMES_SKILLS_ROOT"); v != "" {
 		cfg.Skills.Root = v
 	}
@@ -1181,6 +1219,13 @@ func validateConfig(cfg *Config) error {
 	cfg.Slack.BotToken = strings.TrimSpace(cfg.Slack.BotToken)
 	cfg.Slack.AppToken = strings.TrimSpace(cfg.Slack.AppToken)
 	cfg.Slack.AllowedChannelID = strings.TrimSpace(cfg.Slack.AllowedChannelID)
+	cfg.Teams.ClientID = strings.TrimSpace(cfg.Teams.ClientID)
+	cfg.Teams.ClientSecret = strings.TrimSpace(cfg.Teams.ClientSecret)
+	cfg.Teams.TenantID = strings.TrimSpace(cfg.Teams.TenantID)
+	cfg.Teams.AllowedUsers = compactStrings(cfg.Teams.AllowedUsers)
+	if cfg.Teams.Port <= 0 {
+		cfg.Teams.Port = TeamsDefaultPort
+	}
 	cfg.Bindings = normalizeAgentBindings(cfg.Bindings)
 	if err := normalizeAgentsConfig(GormesHome(), &cfg.Agents, cfg.Bindings); err != nil {
 		return err

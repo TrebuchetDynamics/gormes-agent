@@ -1168,7 +1168,7 @@ classification and row-backed implementation queue.
 - [x] Yuanbao protocol envelope + markdown fixtures
 - [x] Yuanbao media/sticker attachment normalization
 - [x] Yuanbao gateway runtime + toolset registration
-- [ ] Microsoft Teams adapter plugin seam
+- [x] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
 
 <!-- PROGRESS:END -->

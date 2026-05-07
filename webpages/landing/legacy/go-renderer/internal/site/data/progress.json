@@ -44071,8 +44071,8 @@
             },
             {
               "name": "Microsoft Teams adapter plugin seam",
-              "priority": "P3",
-              "status": "planned",
+              "priority": "P2",
+              "status": "complete",
               "contract": "Gormes ports Hermes' Microsoft Teams platform as a disabled-by-default plugin-backed channel seam before live Bot Framework binding: config resolves TEAMS_CLIENT_ID, TEAMS_CLIENT_SECRET, TEAMS_TENANT_ID, and TEAMS_PORT from env or explicit platform config with redacted status; plugin registration exposes teams with TEAMS_ALLOWED_USERS, TEAMS_ALLOW_ALL_USERS, max message length 28000, and setup guidance; fake runtime tests normalize personal/group/channel activities, prefer AAD object IDs, filter self messages, deduplicate activity IDs, strip `<at>...</at>` bot mentions, cache image attachments as PHOTO events, and send text/typing/adaptive approval cards through fake app clients.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -44115,12 +44115,17 @@
                 "TestTeamsGatewayRegistrationDisabledByDefault proves `gormes gateway` lists Teams as configured-unavailable until explicitly enabled with fake credentials and never starts a live listener in unit tests."
               ],
               "write_scope": [
-                "internal/channels/teams/",
+                "internal/channels/teams/runtime.go",
+                "internal/channels/teams/runtime_test.go",
+                "internal/config/config.go",
                 "internal/config/teams_config.go",
+                "internal/config/teams_config_test.go",
                 "cmd/gormes/teams_gateway_test.go",
                 "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_status.go",
                 "internal/cli/toolset_config.go",
-                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+                "internal/cli/teams_toolset_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/channels/teams ./internal/config -run '^TestTeams' -count=1",
@@ -44132,6 +44137,7 @@
               "done_signal": [
                 "Teams fixtures prove disabled-by-default config/plugin status, fake inbound normalization, fake send/typing/adaptive-card approval behavior, and gateway registration without live Microsoft services."
               ],
+              "note": "Complete 2026-05-07: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 85, so no new row was added. The P1 gateway event-bus row was an umbrella parent, P2 Kanban/Prompt/Telegram rows remained draft or prerequisite-blocked, and this Hermes b816fd4e2 Teams plugin platform gap was the highest validated builder-ready source-backed row. TDD added a Go-native internal/channels/teams fakeable runtime seam with plugin metadata, activity normalization for personal/group/channel chats, AAD ID preference, self and duplicate filters, Teams mention stripping, image attachment cache/degraded evidence, text chunking, typing sends, and approval-card action handling. Config/status/gateway/CLI fixtures prove TEAMS_* env and [teams] config precedence, redacted missing-credential status, disabled-by-default registration, fake credential registration through the shared manager, and teams toolset scoping without live Microsoft SDKs, HTTP listeners, public tunnels, or credentials.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 plugins/platforms/teams/adapter.py",

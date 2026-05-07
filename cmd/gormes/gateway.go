@@ -91,6 +91,7 @@ type gatewayChannelFactories struct {
 	Telegram gatewayChannelFactory
 	Discord  gatewayChannelFactory
 	Slack    gatewayChannelFactory
+	Teams    gatewayChannelFactory
 	Yuanbao  gatewayChannelFactory
 }
 
@@ -109,8 +110,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	securityReport := evaluateGatewayStartupSecurity(cfg, os.Getenv)
 	cfg = securityReport.Config
 	logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Yuanbao.Enabled {
-		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
+	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled {
+		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], or [yuanbao] in config.toml")
 	}
 	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
 		return err
@@ -210,8 +211,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		securityReport := evaluateGatewayStartupSecurity(next, os.Getenv)
 		next = securityReport.Config
 		logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Yuanbao.Enabled {
-			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
+		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled {
+			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], or [yuanbao] in config.toml")
 		}
 		if _, err := ensureGatewayAgentTemplates(next, slog.Default()); err != nil {
 			return gateway.ManagerConfig{}, err
@@ -352,6 +353,9 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				ChannelPrompts:       cfg.Slack.ChannelPrompts,
 			}), nil
 		},
+		Teams: func(config.Config, *slog.Logger) (gateway.Channel, error) {
+			return nil, errors.New("teams_live_transport_unavailable: live Bot Framework binding is not implemented; Teams is fakeable only in this slice")
+		},
 		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
 			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
 		},
@@ -456,6 +460,13 @@ func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
 		}
 		out["telegram"] = users
 	}
+	if teamsUsers := cfg.Teams.AllowedUserIDs(); len(teamsUsers) > 0 {
+		users := make(map[string]bool, len(teamsUsers))
+		for _, id := range teamsUsers {
+			users[id] = true
+		}
+		out["teams"] = users
+	}
 	return out
 }
 
@@ -479,6 +490,9 @@ func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool) {
 			allowedChats["slack"] = cfg.Slack.AllowedChannelID
 		}
 		allowDiscovery["slack"] = cfg.Slack.FirstRunDiscovery
+	}
+	if cfg.Teams.Enabled {
+		allowDiscovery["teams"] = false
 	}
 	if cfg.Yuanbao.Enabled {
 		if cfg.Yuanbao.AllowedConversationID != "" {
@@ -589,6 +603,30 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 				}
 				registered++
 				log.Info("gateway: slack channel enabled", "allowed_channel_id", cfg.Slack.AllowedChannelID)
+			}
+		}
+	}
+
+	if cfg.Teams.Enabled {
+		if missing := cfg.Teams.MissingCredentials(); len(missing) > 0 {
+			errText := "teams: missing " + strings.Join(missing, ",")
+			writeGatewayChannelDegraded(status, "teams", errText)
+			log.Warn("gateway: teams channel disabled by missing credentials", "missing", strings.Join(missing, ","))
+		} else {
+			if factories.Teams == nil {
+				return registered, fmt.Errorf("register teams: missing channel factory")
+			}
+			ch, err := factories.Teams(cfg, log)
+			if err != nil {
+				errText := "teams: startup failed: " + err.Error()
+				writeGatewayChannelDegraded(status, "teams", errText)
+				log.Warn("gateway: teams channel startup failed", "err", err)
+			} else {
+				if err := mgr.Register(ch); err != nil {
+					return registered, fmt.Errorf("register teams: %w", err)
+				}
+				registered++
+				log.Info("gateway: teams channel enabled", "port", cfg.Teams.EffectivePort(), "allowed_user_count", len(cfg.Teams.AllowedUserIDs()))
 			}
 		}
 	}
@@ -713,6 +751,9 @@ func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string)
 	if strings.TrimSpace(cfg.Slack.AllowedChannelID) != "" {
 		return true
 	}
+	if len(cfg.Teams.AllowedUserIDs()) > 0 || cfg.Teams.AllowAllUsers {
+		return true
+	}
 	if strings.TrimSpace(cfg.Yuanbao.AllowedConversationID) != "" {
 		return true
 	}
@@ -722,6 +763,7 @@ func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string)
 		"TELEGRAM_ALLOWED_USERS",
 		"GORMES_DISCORD_CHANNEL_ID",
 		"GORMES_SLACK_CHANNEL_ID",
+		"TEAMS_ALLOWED_USERS",
 	} {
 		if strings.TrimSpace(lookupEnv(key)) != "" {
 			return true
@@ -731,7 +773,7 @@ func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string)
 }
 
 func gatewayStartupAllowAllConfigured(lookupEnv func(string) string) bool {
-	for _, key := range []string{"GATEWAY_ALLOW_ALL_USERS", "TELEGRAM_ALLOW_ALL_USERS"} {
+	for _, key := range []string{"GATEWAY_ALLOW_ALL_USERS", "TELEGRAM_ALLOW_ALL_USERS", "TEAMS_ALLOW_ALL_USERS"} {
 		if parseGatewayStartupBool(lookupEnv(key)) {
 			return true
 		}
