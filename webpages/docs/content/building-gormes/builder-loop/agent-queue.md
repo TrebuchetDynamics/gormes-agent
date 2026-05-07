@@ -110,27 +110,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send, ../hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_typing, ../hermes-agent/tests/gateway/test_telegram_thread_fallback.py@b816fd4e2, ../hermes-agent/tests/gateway/test_telegram_reply_mode.py@b816fd4e2, internal/channels/telegram/bot.go, internal/channels/telegram/client.go, internal/gateway/delivery.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Gateway probe auth/capability HTTP closeout
-
-- Phase: 5 / 5.N
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Close the remaining OpenClaw-style gateway probe gap after the completed TCP discover/probe slice: probe authenticated HTTP health/capabilities endpoints with redacted evidence for unavailable, unauthenticated, unsupported, and mismatched gateways.
-- Trust class: operator, gateway
-- Ready when: The base Gateway Discover and Probe row is complete, so this closeout can build on the existing `gormes gateway probe` command without duplicating TCP reachability., Gateway status, health, and capabilities endpoints are stable enough to probe with hermetic httptest servers and fake auth sources.
-- Not ready when: The slice requires a live Telegram, Discord, Slack, or gateway process to pass tests., The slice reimplements Bonjour/TCP discovery instead of layering HTTP auth/capability probes over the completed gateway_discover contract.
-- Degraded mode: HTTP probe failures show endpoint, status code, and auth source classification without leaking bearer tokens, gateway passwords, or SecretRef values.
-- Fixture: `cmd/gormes/gateway_probe_http_test.go`
-- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_discover.go`, `cmd/gormes/gateway_probe_http_test.go`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP\|Gateway.*Capability' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway HTTP probe closeout gives operators redacted auth, health, and capability evidence without reading source code or contacting live channels.
-- Acceptance: gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, unsupported capability, and malformed response., Output redacts bearer tokens, gateway passwords, and SecretRef values while preserving auth-source classification., The completed TCP discover/probe behavior remains covered by the Gateway Discover and Probe row and is not duplicated here.
-- Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, ../openclaw/src/commands/gateway-status/probe-run.ts, internal/tools/gateway_discover.go, cmd/gormes/gateway.go, cmd/gormes/gateway_discover.go, internal/apiserver/server.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 6. Sandbox isolation depth selection
+## 5. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -150,7 +130,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Behavioral pattern extraction from session logs
+## 6. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -170,7 +150,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Skill code execution runtime
+## 7. Skill code execution runtime
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -190,7 +170,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Skill dependency resolution and composition
+## 8. Skill dependency resolution and composition
 
 - Phase: 6 / 6.L
 - Owner: `skills`
@@ -210,7 +190,7 @@ selection.
 - Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Skill validation on load with execution proof
+## 9. Skill validation on load with execution proof
 
 - Phase: 6 / 6.L
 - Owner: `skills`

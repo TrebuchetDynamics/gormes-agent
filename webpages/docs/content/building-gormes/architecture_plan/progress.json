@@ -29809,9 +29809,9 @@
             {
               "name": "Gateway probe auth/capability HTTP closeout",
               "status": "planned",
-              "priority": "P2",
-              "contract": "Close the remaining OpenClaw-style gateway probe gap after the completed TCP discover/probe slice: probe authenticated HTTP health/capabilities endpoints with redacted evidence for unavailable, unauthenticated, unsupported, and mismatched gateways.",
-              "contract_status": "draft",
+              "priority": "P1",
+              "contract": "Close the remaining Hermes API-server gateway probe gap after the completed TCP discover/probe slice: expose and probe Hermes-compatible `/health`, `/health/detailed`, and authenticated `/v1/capabilities` HTTP endpoints with redacted evidence for unavailable, unauthenticated, unsupported-capability, and malformed gateways.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -29821,9 +29821,8 @@
               "degraded_mode": "HTTP probe failures show endpoint, status code, and auth source classification without leaking bearer tokens, gateway passwords, or SecretRef values.",
               "fixture": "cmd/gormes/gateway_probe_http_test.go",
               "source_refs": [
-                "../openclaw/src/cli/gateway-secret-options.ts",
-                "../openclaw/src/security/audit-gateway-auth-selection.test.ts",
-                "../openclaw/src/commands/gateway-status/probe-run.ts",
+                "./hermes-agent/gateway/platforms/api_server.py@b816fd4e2:_handle_health,_handle_health_detailed,_handle_capabilities",
+                "./hermes-agent/tests/gateway/test_api_server.py@b816fd4e2:TestCapabilitiesEndpoint",
                 "internal/tools/gateway_discover.go",
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_discover.go",
@@ -29831,15 +29830,16 @@
               ],
               "ready_when": [
                 "The base Gateway Discover and Probe row is complete, so this closeout can build on the existing `gormes gateway probe` command without duplicating TCP reachability.",
-                "Gateway status, health, and capabilities endpoints are stable enough to probe with hermetic httptest servers and fake auth sources."
+                "Hermes exposes `/health`, `/health/detailed`, and `/v1/capabilities` in the current API server, and tests can probe them with hermetic httptest servers and fake auth sources."
               ],
               "not_ready_when": [
                 "The slice requires a live Telegram, Discord, Slack, or gateway process to pass tests.",
                 "The slice reimplements Bonjour/TCP discovery instead of layering HTTP auth/capability probes over the completed gateway_discover contract."
               ],
               "acceptance": [
-                "gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, unsupported capability, and malformed response.",
-                "Output redacts bearer tokens, gateway passwords, and SecretRef values while preserving auth-source classification.",
+                "`internal/apiserver` exposes `/v1/capabilities` with Hermes-compatible object, platform, auth, features, and endpoint metadata, and requires bearer auth when API auth is configured.",
+                "`gormes gateway probe --url` uses fake HTTP tests for success, unauthorized, unavailable, unsupported capability, and malformed response.",
+                "Output and JSON redact bearer tokens, gateway passwords, and SecretRef values while preserving auth-source classification.",
                 "The completed TCP discover/probe behavior remains covered by the Gateway Discover and Probe row and is not duplicated here."
               ],
               "write_scope": [
@@ -29847,16 +29847,19 @@
                 "cmd/gormes/gateway_discover.go",
                 "cmd/gormes/gateway_probe_http_test.go",
                 "internal/apiserver/",
+                "internal/tools/gateway_discover.go",
+                "internal/tools/gateway_discover_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
+                "go test ./internal/tools -run 'Gateway.*HTTP|Gateway.*Capability' -count=1",
                 "go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP|Gateway.*Capability' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Gateway HTTP probe closeout gives operators redacted auth, health, and capability evidence without reading source code or contacting live channels."
               ],
-              "note": "2026-05-06 all-topic parity sweep: the previous `Gateway discover/probe command` row overlapped the complete `Gateway Discover and Probe` row, whose implementation covers Bonjour/TCP discovery, reachability, runtime-status merge, and usage-cost. This row now tracks only the residual authenticated HTTP health/capability probe behavior; priority lowered to P2 so it no longer outranks source-backed P1 Hermes rows."
+              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows with 58 planned rows. No new row was added. The sweep found this row was builder-ready but stale-framed as OpenClaw; current Hermes b816fd4e2 API server source/tests explicitly define `/health`, `/health/detailed`, and authenticated `/v1/capabilities`, while Gormes has TCP probe and health routes but no capabilities route/probe. Promoted to P1 as the highest source-backed builder-ready gateway/operator closeout."
             },
             {
               "name": "Safety-critical panic and swallowed-error closeout",
