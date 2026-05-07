@@ -70,28 +70,7 @@ selection.
 - Unblocks: Modal, Daytona, Singularity
 - Why now: Unblocks Modal, Daytona, Singularity.
 
-## 3. Gateway auto-resume on restart
-
-- Phase: 5 / 5.N
-- Owner: `gateway`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Gormes gateway auto-recovers interrupted sessions on restart: when the gateway process restarts, any in-progress sessions that were interrupted by the shutdown are detected and resumed (not orphaned), with the existing session context, conversation history, and tool state preserved. Auto-resume respects channel-specific reply semantics and fires the same session-boundary hooks as a normal continuation.
-- Trust class: gateway, operator
-- Ready when: Gateway session reset notification parity (2.B.5) is complete., Gateway session store + SessionSource parity is complete., Tests use fake kernel, fake channels, and fake session metadata; no live Telegram, Slack, Discord, or provider required.
-- Not ready when: The slice changes manual /new reset semantics or fires auto-reset hooks for interrupted sessions., The slice introduces per-provider session state preservation — only gateway-level session metadata and channel state are in scope., Tests require live channel connections or real provider API calls.
-- Degraded mode: Interrupted sessions that cannot be auto-resumed (missing kernel state, expired, or manually reset) are marked as terminated with auto_resume_failed evidence and do not block gateway startup. Gateway status reports orphaned session count and auto-resume outcome per channel.
-- Fixture: `internal/gateway/auto_resume_test.go`
-- Write scope: `internal/gateway/auto_resume.go`, `internal/gateway/auto_resume_test.go`, `internal/gateway/manager.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/gateway -run '^TestGatewayAutoResume' -count=1`, `go test ./internal/gateway ./internal/session -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway auto-resume fixtures prove interrupted session recovery, orphan termination, startup resilience, channel neutrality, and session-boundary hook preservation without live channel connections.
-- Acceptance: TestGatewayAutoResume_RecoversInterruptedSession proves a session interrupted by gateway shutdown resumes with preserved session ID, channel context, and recent conversation metadata., TestGatewayAutoResume_OrphanedSessionMarkedTerminated proves a session that cannot be recovered (e.g., kernel state missing) is marked terminated with auto_resume_failed evidence., TestGatewayAutoResume_DoesNotBlockStartup proves gateway startup completes even when all interrupted sessions fail auto-resume., TestGatewayAutoResume_ChannelNeutral proves Telegram, Slack, Discord, and WhatsApp sessions each auto-resume through the same gateway-level path., TestGatewayAutoResume_PreservesSessionBoundaryHooks proves auto-resumed sessions fire on_session_resume hooks with the same evidence as a normal continuation.
-- Source refs: ./hermes-agent/gateway/run.py (auto-resume on GatewayManager startup), ./hermes-agent/tests/gateway/test_session_reset_notify.py, ./hermes-agent/RELEASE_v0.13.0.md, internal/gateway/manager.go (gateway startup lifecycle), internal/gateway/session_auto_reset_notify.go (existing auto-reset infrastructure), internal/session/directory.go (session metadata)
-- Unblocks: Gateway crash recovery operator surface
-- Why now: Unblocks Gateway crash recovery operator surface.
-
-## 4. TD engineering blog scaffolded and live
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -113,7 +92,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 5. Sandbox isolation depth selection
+## 4. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -133,7 +112,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Behavioral pattern extraction from session logs
+## 5. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -153,7 +132,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Agentic-porting-kit repo scaffold
+## 6. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -174,7 +153,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Built-with-Gormes page scaffold
+## 7. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

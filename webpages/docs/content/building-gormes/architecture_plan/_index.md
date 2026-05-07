@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 69/99 subphases shipped · 24 in progress · 6 planned
+**Overall:** 70/99 subphases shipped · 23 in progress · 6 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -698,6 +698,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web extract safety policy and summarizer
 - [x] Go-native Hermes web_crawl tool adapter
 - [x] Go-native Hermes web managed gateway status and live smoke closure
+- [ ] Brave Search + DDGS web search provider parity
 - [x] Browser artifact and console render contract
 - [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
@@ -828,7 +829,7 @@ classification and row-backed implementation queue.
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 - [ ] Kanban worker heartbeat, reclaim, and zombie detection
 
-### 5.N — Misc Operator Tools 🔨
+### 5.N — Misc Operator Tools ✅
 
 - [x] Todo
 - [x] Clarify
@@ -875,7 +876,7 @@ classification and row-backed implementation queue.
 - [x] Cron script/workdir/inactivity execution binding
 - [x] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
-- [ ] Gateway auto-resume on restart
+- [x] Gateway auto-resume on restart
 
 ### 5.O — Hermes CLI Parity 🔨
 
