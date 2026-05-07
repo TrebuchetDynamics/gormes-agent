@@ -981,6 +981,7 @@ classification and row-backed implementation queue.
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
 - [x] Install isolation: skip system service install when sandbox bin dir is set
+- [x] Install: prefer pre-built release binary over source build by default
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
