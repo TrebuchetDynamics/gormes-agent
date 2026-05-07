@@ -68,6 +68,8 @@ orchestrator-test-all:
 orchestrator-lint:
 	@if command -v shellcheck >/dev/null 2>&1; then \
 	  shellcheck scripts/gormes-auto-codexu-orchestrator.sh \
+	    scripts/codexu-gormes-builder-loop.sh \
+	    scripts/codexu-gormes-builder-cron.sh \
 	    scripts/orchestrator/audit.sh \
 	    scripts/orchestrator/daily-digest.sh \
 	    scripts/orchestrator/install-service.sh \
