@@ -219,6 +219,13 @@ In progress:
 
 Latest public release: [v0.1.05](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.05).
 
+Current `development` head after `v0.1.05` also includes fixture-backed work
+for the OpenClaw-compatible `gormes migrate claw` alias, cron `no_agent`
+script-only watchdog jobs, planned gateway-stop markers, WSL-safe service PATH
+handling, and Navivox SSH/admin/key-import/tool-approval groundwork. Those
+changes are merged to `development` and will move into the next public release
+after the normal release lane.
+
 <details>
 <summary>Roadmap phase rollup</summary>
 
