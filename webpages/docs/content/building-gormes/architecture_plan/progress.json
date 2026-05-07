@@ -38569,7 +38569,7 @@
             },
             {
               "name": "Native TUI clipboard, OSC52, and terminal setup parity",
-              "priority": "P2",
+              "priority": "P1",
               "status": "planned",
               "contract": "Gormes ports the active Hermes Ink terminal integration helpers as pure Go-native services behind injectable process/env/filesystem seams: clipboard read fallbacks, macOS clipboard write, OSC52 query/decode with tmux passthrough, VS Code-family keybinding setup with conflict detection/backups, truecolor environment resolution, and terminal parity hints. It preserves the current terminal-native selection help until real copy support is explicitly wired.",
               "contract_status": "validated",
@@ -38582,11 +38582,11 @@
               "degraded_mode": "Missing clipboard commands, unsupported OSC52, binary-looking/empty clipboard payloads, SSH terminal setup refusal, keybinding conflicts, backup/write failures, and NO_COLOR/truecolor constraints return tui_terminal_* evidence rather than advertising unavailable copy/setup behavior.",
               "fixture": "internal/tui/clipboard_test.go; internal/tui/terminal_setup_test.go",
               "source_refs": [
-                "../hermes-agent/ui-tui/src/__tests__/clipboard.test.ts@b816fd4e2",
-                "../hermes-agent/ui-tui/src/__tests__/osc52.test.ts@b816fd4e2",
-                "../hermes-agent/ui-tui/src/__tests__/terminalSetup.test.ts@b816fd4e2",
-                "../hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts@b816fd4e2",
-                "../hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts@b816fd4e2",
+                "./hermes-agent/ui-tui/src/__tests__/clipboard.test.ts@b816fd4e2",
+                "./hermes-agent/ui-tui/src/__tests__/osc52.test.ts@b816fd4e2",
+                "./hermes-agent/ui-tui/src/__tests__/terminalSetup.test.ts@b816fd4e2",
+                "./hermes-agent/ui-tui/src/__tests__/forceTruecolor.test.ts@b816fd4e2",
+                "./hermes-agent/ui-tui/src/__tests__/terminalParity.test.ts@b816fd4e2",
                 "internal/tui/selection_help.go",
                 "internal/tui/hermes_keybindings_test.go"
               ],
@@ -38629,6 +38629,7 @@
               "done_signal": [
                 "TUI terminal helper fixtures prove clipboard, OSC52, keybinding setup, truecolor, and terminal parity decisions through injected seams without touching the live terminal."
               ],
+              "note": "2026-05-07 bounded all-topic Hermes parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Phase 3/4 closure rows, provider/auth/account usage, and browser automation were already complete; planned-row count was 64, below the 90-row cap, but no new row was needed. This unblocked active Hermes Ink TUI terminal-helper row is promoted to P1 because the remaining P1 event-bus parent is inventory-only and this slice has exact upstream fixtures plus completed selection-help/keybinding blockers.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 ui-tui/src/__tests__/clipboard.test.ts + osc52.test.ts + terminalSetup.test.ts",
