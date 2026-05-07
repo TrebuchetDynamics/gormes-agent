@@ -44,6 +44,55 @@ func TestCodexuBuilderLoopStatusReportsPauseState(t *testing.T) {
 	}
 }
 
+func TestCodexuBuilderLoopStatusReportsLiveProgressSignals(t *testing.T) {
+	repoRoot := testRepoRoot(t)
+	stateDir := t.TempDir()
+	tmpRepo := filepath.Join(stateDir, "repo")
+	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+
+	writeFile(t, filepath.Join(tmpRepo, "README.md"), []byte("before\n"), 0o644)
+	runCommand(t, tmpRepo, "git", "init")
+	runCommand(t, tmpRepo, "git", "config", "user.name", "Test User")
+	runCommand(t, tmpRepo, "git", "config", "user.email", "test@example.com")
+	runCommand(t, tmpRepo, "git", "add", ".")
+	runCommand(t, tmpRepo, "git", "commit", "-m", "init")
+	writeFile(t, filepath.Join(tmpRepo, "README.md"), []byte("after\n"), 0o644)
+	writeFile(t, filepath.Join(stateDir, "logs", "20260507T000000Z.log"), []byte("runner active\n"), 0o600)
+	writeFile(t, filepath.Join(stateDir, "last-message.txt"), []byte("last message\n"), 0o600)
+
+	cmd := exec.Command("bash", script, "status")
+	cmd.Dir = repoRoot
+	cmd.Env = overlayEnv(os.Environ(),
+		"GORMES_CODEXU_REPO="+tmpRepo,
+		"GORMES_CODEXU_STATE_DIR="+stateDir,
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("status failed: %v\noutput:\n%s", err, string(out))
+	}
+
+	output := string(out)
+	for _, want := range []string{
+		"live progress:",
+		"repo_dirty_state=dirty",
+		"repo_dirty_count=1",
+		"repo_ahead=unknown",
+		"repo_behind=unknown",
+		"latest_log=" + filepath.Join(stateDir, "logs", "20260507T000000Z.log"),
+		"latest_log_size_bytes=14",
+		"latest_log_age_seconds=",
+		"last_message_file=" + filepath.Join(stateDir, "last-message.txt"),
+		"last_message_age_seconds=",
+		"current_run_state=absent",
+		"last_success_state=absent",
+		"last_failure_state=absent",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("status output missing %q:\n%s", want, output)
+		}
+	}
+}
+
 func TestCodexuBuilderLoopAutoClearsExpiredPauseBeforeRunner(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	stateDir := t.TempDir()
