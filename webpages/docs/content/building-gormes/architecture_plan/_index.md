@@ -1043,6 +1043,7 @@ classification and row-backed implementation queue.
 - [ ] Gateway channel adapters publish to event bus
 - [x] Telegram gateway event-bus adapter
 - [x] Discord gateway event-bus adapter
+- [x] Slack gateway event-bus adapter
 - [x] Agent turn and tool execution events on bus
 - [x] Event bus integration test: full message flow
 

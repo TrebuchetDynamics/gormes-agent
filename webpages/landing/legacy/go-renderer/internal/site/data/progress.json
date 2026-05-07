@@ -40592,7 +40592,8 @@
               ],
               "unblocks": [
                 "Telegram gateway event-bus adapter",
-                "Discord gateway event-bus adapter"
+                "Discord gateway event-bus adapter",
+                "Slack gateway event-bus adapter"
               ],
               "acceptance": [
                 "Child rows prove incoming channel messages publish MessageReceived events with source, channel_id/chat_id, user_id, message_id, command kind, text/body, and trace_id.",
@@ -40606,7 +40607,7 @@
               "done_signal": [
                 "The parent remains non-selectable while channel-specific child rows provide runnable implementation and tests."
               ],
-              "note": "2026-05-06 all-topic weakness sweep: this row previously cited non-existent adapter.go files and mixed five channels plus outbound delivery into one selectable P1 implementation. It is now an umbrella parent; execute child rows such as `Telegram gateway event-bus adapter` before adding Discord, Slack, WhatsApp, WeChat, or outbound subscriber slices."
+              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned/porting/fixture-ready rows were exactly 90, so no P3/P4 row was added. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, and the full-flow integration proof are complete, leaving future child slices for WhatsApp, WeChat, or outbound subscriber paths."
             },
             {
               "name": "Telegram gateway event-bus adapter",
@@ -40738,6 +40739,72 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible Discord inbound normalization",
                 "note": "The shared event bus is a Gormes-owned architecture row; Discord inbound fields come from the existing Hermes-compatible gateway.InboundEvent normalization path."
+              }
+            },
+            {
+              "name": "Slack gateway event-bus adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Slack inbound events can be mirrored onto the shared event bus through a Go-native adapter that publishes the channel-neutral gateway.message.received topic with Slack provenance, parsed command kind/body, channel/thread/message/team/user identifiers, and trace_id without changing Slack Socket Mode, channel-shim inbox delivery, or kernel turn execution.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system",
+                "gateway"
+              ],
+              "degraded_mode": "If the dispatcher or event bus is unavailable, the adapter returns slack_event_bus_unavailable evidence to the caller and does not block the existing Slack inbox submit path.",
+              "fixture": "internal/slack/bus_adapter_test.go",
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "hermes-agent/gateway/platforms/slack.py@b816fd4e2:_handle_slack_message",
+                "hermes-agent/gateway/platforms/slack.py@b816fd4e2:_handle_slack_slash_command",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/slack/channel.go",
+                "internal/slack/bot.go"
+              ],
+              "ready_when": [
+                "Event bus core, Telegram gateway event-bus adapter, Discord gateway event-bus adapter, and full message-flow event-bus integration tests are complete and validated.",
+                "Slack Channel already normalizes Socket Mode events into gateway.InboundEvent values with channel, thread, message timestamp, user, and command provenance, so the slice can mirror those events without touching live Slack connections."
+              ],
+              "not_ready_when": [
+                "The slice rewrites Slack Socket Mode startup, Block Kit/rich-text extraction, mention gating, approval buttons, media upload, or kernel turn execution.",
+                "The slice starts a second event bus or drops existing channel inbox delivery when event publication fails.",
+                "Tests require live Slack credentials, network calls, Slack app manifests, or real GORMES_HOME state."
+              ],
+              "acceptance": [
+                "TestBusAdapter_PublishInboundMessageReceived proves a Slack gateway.InboundEvent publishes exactly one gateway.message.received event with source=slack, stable trace_id, event kind, body/text, channel/chat_id, user_id, message_id, thread_id, and team/account metadata.",
+                "TestBusAdapter_PublishInboundFallbackTraceID proves missing trace IDs derive from Slack account/team, channel, thread, and message timestamp provenance.",
+                "TestBusAdapter_PublishInboundRejectsNilDispatcher proves missing dispatcher returns typed slack_event_bus_unavailable evidence instead of panicking.",
+                "Gateway dispatcher fixtures keep MessageEventPayload JSON round-trip coverage for shared fields reused by Slack."
+              ],
+              "write_scope": [
+                "internal/slack/bus_adapter.go",
+                "internal/slack/bus_adapter_test.go",
+                "internal/slack/channel.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/slack -run TestBusAdapter -count=1",
+                "go test ./internal/gateway -run TestEventDispatch -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Slack bus-adapter fixtures prove channel-neutral gateway.message.received publication with Slack provenance and a non-panicking unavailable path, without live Slack or changing existing inbox delivery."
+              ],
+              "note": "Complete 2026-05-07: TDD added `internal/slack/bus_adapter.go` and `bus_adapter_test.go`, mirroring normalized Slack inbound events onto `gateway.message.received` with source=slack, stable trace IDs, team/account, channel, thread, message timestamp, user, kind, text, and body provenance. `internal/slack/channel.go` now preserves Slack `TeamID` as gateway `AccountID` so the bus payload can carry workspace provenance from the existing channel-shim path. Missing dispatchers return typed `slack_event_bus_unavailable` evidence without touching Socket Mode, Block Kit parsing, mention gating, approval buttons, media upload, inbox delivery, or kernel turn execution.",
+              "evidence": {
+                "implementation": "internal/slack/bus_adapter.go, internal/slack/channel.go",
+                "tests": "go test ./internal/slack -run TestBusAdapter -count=1; go test ./internal/gateway -run TestEventDispatch -count=1",
+                "note": "RED failed on missing NewBusAdapter and ErrEventBusUnavailable; GREEN proves Slack event-bus publication, fallback trace IDs, nil-dispatcher degraded evidence, and account/team provenance through the existing Slack channel normalization path."
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible Slack inbound normalization",
+                "note": "The shared event bus is a Gormes-owned architecture row; Slack inbound behavior follows the active Hermes Slack Socket Mode adapter while Gormes mirrors the existing gateway.InboundEvent normalization path."
               }
             },
             {

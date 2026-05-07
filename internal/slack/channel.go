@@ -151,6 +151,7 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 	}
 	return gateway.InboundEvent{
 		Platform:    "slack",
+		AccountID:   strings.TrimSpace(e.TeamID),
 		ChatID:      channelID,
 		ChatType:    slackChatType(e.ChannelID, e.ChatType),
 		UserID:      userID,
