@@ -312,15 +312,20 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 		{Action: setupActionFull, Label: "Full setup - configure everything"},
 	}
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "No existing Gormes configuration was found.")
-	fmt.Fprintln(out, "How would you like to set up Gormes?")
+	cli.ClearScreen(out)
+	cli.PrintHeader(out, "How would you like to set up Gormes?")
+	fmt.Fprintln(out, cli.Dim(out, "  No existing Gormes configuration was found."))
 	fmt.Fprintln(out)
 	for i, option := range options {
-		prefix := "   (○)"
+		var prefix, label string
 		if i == 0 {
-			prefix = " → (●)"
+			prefix = " " + cli.BrightCyan(out, "→") + " " + cli.BrightCyan(out, "(●)")
+			label = cli.Bold(out, option.Label)
+		} else {
+			prefix = "   " + cli.Dim(out, "(○)")
+			label = option.Label
 		}
-		fmt.Fprintf(out, "%s %s\n", prefix, option.Label)
+		fmt.Fprintf(out, "%s %s\n", prefix, label)
 	}
 	fmt.Fprintln(out)
 	action, err := seams.ChooseSetupAction(cmd, options, 0)
@@ -379,15 +384,20 @@ func setupTopLevelOptions() []setupMenuOption {
 
 func printSetupTopLevelMenu(cmd *cobra.Command, options []setupMenuOption, defaultOption int) {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "What would you like to do?")
-	fmt.Fprintln(out, "  Enter a number/name, or q to cancel.")
+	cli.ClearScreen(out)
+	cli.PrintHeader(out, "What would you like to do?")
+	fmt.Fprintln(out, cli.Dim(out, "  Enter a number/name, or q to cancel."))
 	fmt.Fprintln(out)
 	for i, option := range options {
-		prefix := "   (○)"
+		var prefix, label string
 		if i == defaultOption {
-			prefix = " → (●)"
+			prefix = " " + cli.BrightCyan(out, "→") + " " + cli.BrightCyan(out, "(●)")
+			label = cli.Bold(out, option.Label)
+		} else {
+			prefix = "   " + cli.Dim(out, "(○)")
+			label = option.Label
 		}
-		fmt.Fprintf(out, "%s %s\n", prefix, option.Label)
+		fmt.Fprintf(out, "%s %s\n", prefix, label)
 	}
 	fmt.Fprintln(out)
 }
@@ -450,7 +460,8 @@ func stripSetupInputNoise(answer string) string {
 
 func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "Quick Setup - configure missing items only")
+	cli.ClearScreen(out)
+	cli.PrintHeader(out, "Quick Setup - configure missing items only")
 	current, err := seams.LoadCurrentModel()
 	if err != nil {
 		return fmt.Errorf("quick setup: load current model: %w", err)
@@ -592,7 +603,9 @@ func launchSetupChat(cmd *cobra.Command) error {
 }
 
 func runSetupProviderSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	fmt.Fprintln(cmd.OutOrStdout(), "Setup section: provider")
+	out := cmd.OutOrStdout()
+	cli.ClearScreen(out)
+	cli.PrintHeader(out, "Setup section: provider")
 	if nonInteractive {
 		return setupProviderNonInteractive(cmd)
 	}
@@ -857,7 +870,9 @@ func runSetupBindingsSection(cmd *cobra.Command, seams setupCommandSeams, nonInt
 }
 
 func runSetupModelSection(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	fmt.Fprintln(cmd.OutOrStdout(), "Setup section: model")
+	out := cmd.OutOrStdout()
+	cli.ClearScreen(out)
+	cli.PrintHeader(out, "Setup section: model")
 	if nonInteractive {
 		current, err := seams.LoadCurrentModel()
 		if err != nil {
