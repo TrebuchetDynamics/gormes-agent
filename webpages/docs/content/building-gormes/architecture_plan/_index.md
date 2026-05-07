@@ -1041,6 +1041,7 @@ classification and row-backed implementation queue.
 
 - [x] Event bus core: pub/sub interface + in-process implementation
 - [ ] Gateway channel adapters publish to event bus
+- [x] Weixin gateway event-bus adapter
 - [x] WeCom gateway event-bus adapter
 - [x] Telegram gateway event-bus adapter
 - [x] Discord gateway event-bus adapter

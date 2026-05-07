@@ -40623,7 +40623,8 @@
                 "Discord gateway event-bus adapter",
                 "Slack gateway event-bus adapter",
                 "WhatsApp gateway event-bus adapter",
-                "WeCom gateway event-bus adapter"
+                "WeCom gateway event-bus adapter",
+                "Weixin gateway event-bus adapter"
               ],
               "acceptance": [
                 "Child rows prove incoming channel messages publish MessageReceived events with source, channel_id/chat_id, user_id, message_id, command kind, text/body, and trace_id.",
@@ -40637,7 +40638,75 @@
               "done_signal": [
                 "The parent remains non-selectable while channel-specific child rows provide runnable implementation and tests."
               ],
-              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 54, so adding one source-backed P1 child was allowed and preferred over any P3/P4 expansion. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, WhatsApp, WeCom, and the full-flow integration proof are complete, leaving future Weixin or outbound subscriber paths."
+              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 54, so adding one source-backed P1 child was allowed and preferred over any P3/P4 expansion. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, WhatsApp, WeCom, Weixin, and the full-flow integration proof are complete, leaving future outbound subscriber paths."
+            },
+            {
+              "name": "Weixin gateway event-bus adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Weixin inbound events can be mirrored onto the shared event bus through a Go-native adapter that publishes the channel-neutral gateway.message.received topic with Weixin provenance, parsed command kind/body, chat type, chat/user/message identifiers, and trace_id without changing Weixin long-poll bootstrap, context-token reply continuity, content deduplication, media handling, or normal inbox submit delivery.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system",
+                "gateway"
+              ],
+              "degraded_mode": "If the dispatcher or event bus is unavailable, the adapter returns weixin_event_bus_unavailable evidence to the caller and does not block the existing Weixin inbox submit path.",
+              "fixture": "internal/channels/weixin/bus_adapter_test.go",
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "hermes-agent/gateway/platforms/weixin.py@b816fd4e2:_process_message",
+                "hermes-agent/gateway/platforms/weixin.py@b816fd4e2:_guess_chat_type",
+                "hermes-agent/tests/gateway/test_weixin.py@b816fd4e2:TestWeixinConfig.test_apply_env_overrides_configures_weixin",
+                "hermes-agent/tests/gateway/test_weixin.py@b816fd4e2:TestWeixinContentDedup.test_duplicate_content_with_different_message_ids_is_dropped",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/channels/weixin/bot.go",
+                "internal/channels/weixin/runtime.go"
+              ],
+              "ready_when": [
+                "Event bus core, Telegram, Discord, Slack, WhatsApp, WeCom, and full message-flow event-bus rows are complete and validated.",
+                "Weixin shared-chassis bot seam and transport/bootstrap layer are complete, so the slice can mirror the existing gateway.InboundEvent normalization without touching live iLink polling, QR login, media upload/download, or network code."
+              ],
+              "not_ready_when": [
+                "The slice rewrites Weixin long-poll startup, QR login, context-token persistence, content deduplication, chunking, markdown/media handling, reply continuity, or gateway turn execution.",
+                "The slice starts a second event bus or drops existing channel inbox delivery when event publication fails.",
+                "Tests require live Weixin credentials, network calls, QR login, real GORMES_HOME state, or Hermes runtime imports."
+              ],
+              "acceptance": [
+                "TestBusAdapter_PublishInboundMessageReceived proves a Weixin gateway.InboundEvent publishes exactly one gateway.message.received event with source=weixin, stable trace_id, event kind, body/text, chat_id, chat_type, user_id, user_name, message_id, and msg_id fields.",
+                "TestBusAdapter_PublishInboundFallbackTraceID proves missing trace IDs derive from Weixin chat, user, and message provenance produced by the existing Bot.toInboundEvent path.",
+                "TestBusAdapter_PublishInboundRejectsNilDispatcher proves missing dispatcher returns typed weixin_event_bus_unavailable evidence instead of panicking.",
+                "Existing Weixin bot/runtime fixtures continue to prove policy guards, context-token send continuity, long-poll credential validation, and persistence seams are unchanged."
+              ],
+              "write_scope": [
+                "internal/channels/weixin/bot.go",
+                "internal/channels/weixin/bus_adapter.go",
+                "internal/channels/weixin/bus_adapter_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/weixin -run 'TestBusAdapter|TestBot|TestDecideRuntime|TestContextTokens' -count=1",
+                "go test ./internal/gateway -run TestEventDispatch -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Weixin bus-adapter fixtures prove channel-neutral gateway.message.received publication with Weixin provenance and a non-panicking unavailable path, without live Weixin or changing existing inbox delivery."
+              ],
+              "note": "Complete 2026-05-07: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 54, so this cycle added one source-backed P1 row instead of expanding lower-priority backlog. TDD added `internal/channels/weixin/bus_adapter.go` and `bus_adapter_test.go`, mirroring normalized Weixin inbound events onto `gateway.message.received` with source=weixin, stable trace IDs, chat type, chat/user/message IDs, user name, command kind, text, and body provenance. `internal/channels/weixin/bot.go` now preserves ChatType and MessageID alongside MsgID so event-bus subscribers can route and deduplicate from the existing Weixin normalization path. Missing dispatchers return typed `weixin_event_bus_unavailable` evidence without touching long-poll bootstrap, QR login, context-token persistence, content deduplication, chunking, markdown/media handling, reply continuity, inbox delivery, or gateway turn execution.",
+              "evidence": {
+                "implementation": "internal/channels/weixin/bus_adapter.go, internal/channels/weixin/bot.go",
+                "tests": "go test ./internal/channels/weixin -run TestBusAdapter -count=1; go test ./internal/channels/weixin -run 'TestBot|TestDecideRuntime|TestContextTokens' -count=1; go test ./internal/gateway -run TestEventDispatch -count=1",
+                "note": "RED failed on missing NewBusAdapter and ErrEventBusUnavailable; GREEN proves Weixin event-bus publication, fallback trace IDs, nil-dispatcher degraded evidence, and bot-derived chat type/message ID provenance without live Weixin."
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible Weixin inbound normalization",
+                "note": "The shared event bus is a Gormes-owned architecture row; Weixin inbound fields follow the active Hermes Weixin iLink adapter while Gormes mirrors the existing gateway.InboundEvent path."
+              }
             },
             {
               "name": "WeCom gateway event-bus adapter",
