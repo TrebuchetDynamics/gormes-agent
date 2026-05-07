@@ -50,6 +50,15 @@ TMP_DIR_COUNT=0
 OS=""
 DISTRO=""
 
+# Detect non-interactive mode (e.g. curl | bash). Under `set -eu`, `read` on a
+# closed stdin can silently abort the entire script. prompt_yes_no falls back
+# to /dev/tty when stdin is a pipe so curl|bash users still get prompts.
+if [ -t 0 ]; then
+  IS_INTERACTIVE=true
+else
+  IS_INTERACTIVE=false
+fi
+
 log() {
   if [ "$#" -eq 0 ] || [ -z "$*" ]; then
     printf '\n' >&2
@@ -66,6 +75,39 @@ log_blue() { printf '\033[1;34m%s\033[0m\n' "$*" >&2; }
 verbose() {
   [ "$VERBOSE" -eq 1 ] || return 0
   log "$@"
+}
+
+# prompt_yes_no QUESTION [DEFAULT]
+# DEFAULT is "yes" or "no" (default: "no"). Returns 0 for yes, 1 for no.
+# Reads from stdin when interactive, /dev/tty when stdin is a pipe (curl|bash),
+# or returns the default when no terminal is reachable.
+prompt_yes_no() {
+  pyn_q="$1"
+  pyn_default="${2:-no}"
+  case "$pyn_default" in
+    y|Y|yes|YES|true|1) pyn_suffix="[Y/n]" ;;
+    *) pyn_suffix="[y/N]" ;;
+  esac
+
+  pyn_answer=""
+  if [ "$IS_INTERACTIVE" = "true" ]; then
+    printf '%s %s ' "$pyn_q" "$pyn_suffix" >&2
+    IFS= read -r pyn_answer || pyn_answer=""
+  elif (: < /dev/tty) >/dev/null 2>&1; then
+    printf '%s %s ' "$pyn_q" "$pyn_suffix" > /dev/tty
+    IFS= read -r pyn_answer < /dev/tty || pyn_answer=""
+  fi
+
+  case "$pyn_answer" in
+    "")
+      case "$pyn_default" in
+        y|Y|yes|YES|true|1) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+    y|Y|yes|YES) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 print_banner() {
@@ -565,12 +607,28 @@ run_privileged() {
     return
   fi
 
-  if has sudo; then
+  if ! has sudo; then
+    fail "administrator permission is needed to install missing OS packages; install them manually or rerun with sudo available"
+  fi
+
+  # Passwordless sudo — just run.
+  if sudo -n true 2>/dev/null; then
     sudo "$@"
     return
   fi
 
-  fail "administrator permission is needed to install missing OS packages; install them manually or rerun with sudo available"
+  # Password sudo with a TTY available — confirm, then read password from /dev/tty.
+  if (: < /dev/tty) >/dev/null 2>&1; then
+    log_info "sudo is needed to install missing OS packages."
+    log_info "Gormes itself does not require or retain root access."
+    if prompt_yes_no "Run: sudo $*" "yes"; then
+      sudo "$@" < /dev/tty
+      return
+    fi
+    fail "skipped sudo step; install required packages manually and rerun"
+  fi
+
+  fail "sudo password prompt is not available in this shell; install the required OS packages manually and rerun"
 }
 
 install_os_packages() {
@@ -587,8 +645,10 @@ install_os_packages() {
   fi
 
   if has apt-get; then
-    run_privileged apt-get update
-    run_privileged apt-get install -y "$@"
+    # env keeps DEBIAN_FRONTEND/NEEDRESTART_MODE across the sudo barrier so
+    # whiptail/needrestart dialogs don't block unattended (curl|bash) installs.
+    run_privileged env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get update
+    run_privileged env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y "$@"
     return
   fi
 
@@ -976,6 +1036,115 @@ build_gormes() {
   log_success "Gormes binary ready"
 }
 
+PATH_CONFIG_FILES=""
+PATH_CONFIG_RESULT=""
+
+write_path_to_shell_config() {
+  wpsc_config="$1"
+  wpsc_bin_dir="$2"
+  wpsc_marker="# Gormes installer — added ${wpsc_bin_dir} to PATH"
+  if grep -F "$wpsc_marker" "$wpsc_config" >/dev/null 2>&1; then
+    return 1
+  fi
+  {
+    printf '\n%s\n' "$wpsc_marker"
+    printf 'export PATH="%s:$PATH"\n' "$wpsc_bin_dir"
+  } >> "$wpsc_config"
+  return 0
+}
+
+write_path_to_fish_config() {
+  wpfc_config="$1"
+  wpfc_bin_dir="$2"
+  wpfc_marker="# Gormes installer — added ${wpfc_bin_dir} to PATH"
+  if grep -F "$wpfc_marker" "$wpfc_config" >/dev/null 2>&1; then
+    return 1
+  fi
+  {
+    printf '\n%s\n' "$wpfc_marker"
+    printf 'fish_add_path "%s"\n' "$wpfc_bin_dir"
+  } >> "$wpfc_config"
+  return 0
+}
+
+ensure_path_in_shell_config() {
+  epsc_bin_dir="$1"
+  PATH_CONFIG_FILES=""
+  if path_contains_dir "$epsc_bin_dir"; then
+    PATH_CONFIG_RESULT="already_on_path"
+    return 0
+  fi
+
+  PATH_CONFIG_RESULT="written"
+
+  epsc_login_shell="${SHELL:-/bin/sh}"
+  epsc_shell_name="${epsc_login_shell##*/}"
+
+  case "$epsc_shell_name" in
+    fish)
+      epsc_fish_dir="$HOME/.config/fish"
+      epsc_fish_config="${epsc_fish_dir}/config.fish"
+      mkdir -p "$epsc_fish_dir"
+      [ -f "$epsc_fish_config" ] || : > "$epsc_fish_config"
+      if write_path_to_fish_config "$epsc_fish_config" "$epsc_bin_dir"; then
+        PATH_CONFIG_FILES="$epsc_fish_config"
+      fi
+      ;;
+    zsh)
+      for epsc_config in "$HOME/.zshrc" "$HOME/.zprofile"; do
+        [ -f "$epsc_config" ] || continue
+        if write_path_to_shell_config "$epsc_config" "$epsc_bin_dir"; then
+          PATH_CONFIG_FILES="${PATH_CONFIG_FILES}${PATH_CONFIG_FILES:+ }${epsc_config}"
+        fi
+      done
+      if [ -z "$PATH_CONFIG_FILES" ] && [ ! -f "$HOME/.zshrc" ]; then
+        : > "$HOME/.zshrc"
+        if write_path_to_shell_config "$HOME/.zshrc" "$epsc_bin_dir"; then
+          PATH_CONFIG_FILES="$HOME/.zshrc"
+        fi
+      fi
+      ;;
+    *)
+      # bash, sh, dash, ksh, unknown — write to the standard bash files plus
+      # ~/.profile (which login bash/sh sources on Ubuntu/Debian/WSL).
+      for epsc_config in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+        [ -f "$epsc_config" ] || continue
+        if write_path_to_shell_config "$epsc_config" "$epsc_bin_dir"; then
+          PATH_CONFIG_FILES="${PATH_CONFIG_FILES}${PATH_CONFIG_FILES:+ }${epsc_config}"
+        fi
+      done
+      ;;
+  esac
+
+  # FHS root layout on Linux: /etc/profile pathmunges /usr/local/bin into PATH
+  # for login shells, but RHEL/Rocky/Alma 8+ non-login interactive root shells
+  # (sudo -s, su, tmux, web terminals) skip /etc/profile and lose it. Probe
+  # with `bash -i -c` so we only patch ~/.bashrc when actually needed.
+  if is_root_linux_install && ! has_legacy_checkout && has bash; then
+    if ! env -i HOME="$HOME" TERM="${TERM:-dumb}" PATH="/usr/bin:/bin" \
+        bash -i -c 'command -v gormes' >/dev/null 2>&1; then
+      epsc_rhel_marker="# Gormes installer — ensure /usr/local/bin is on PATH (RHEL non-login shells)"
+      epsc_bashrc="$HOME/.bashrc"
+      [ -f "$epsc_bashrc" ] || : > "$epsc_bashrc"
+      if ! grep -F "$epsc_rhel_marker" "$epsc_bashrc" >/dev/null 2>&1; then
+        {
+          printf '\n%s\n' "$epsc_rhel_marker"
+          printf 'export PATH="/usr/local/bin:$PATH"\n'
+        } >> "$epsc_bashrc"
+        PATH_CONFIG_FILES="${PATH_CONFIG_FILES}${PATH_CONFIG_FILES:+ }${epsc_bashrc}"
+      fi
+    fi
+  fi
+
+  # Make the bin dir visible to downstream steps in this same install run.
+  PATH="${epsc_bin_dir}:${PATH}"
+  export PATH
+
+  if [ -n "$PATH_CONFIG_FILES" ]; then
+    log_success "added ${epsc_bin_dir} to PATH in: ${PATH_CONFIG_FILES}"
+  fi
+}
+
 publish_command() {
   bin_dir=$(pick_bin_dir)
   build_bin="$(managed_bin_dir)/gormes"
@@ -986,6 +1155,7 @@ publish_command() {
   verbose "publish target: ${published_bin}"
   publish_built_binary "$build_bin" "$published_bin"
   update_active_command "$build_bin" "$published_bin"
+  ensure_path_in_shell_config "$bin_dir"
   log_success "gormes command ready"
 }
 
@@ -1326,6 +1496,15 @@ print_summary() {
 
   if path_contains_dir "$bin_dir"; then
     log "  PATH:   ${bin_dir} ✓"
+  elif [ -n "${PATH_CONFIG_FILES:-}" ]; then
+    log "  PATH:   ${bin_dir} (added to ${PATH_CONFIG_FILES})"
+    log ""
+    case "${SHELL##*/}" in
+      zsh)  log "Reload your shell to pick up the new PATH: source ~/.zshrc" ;;
+      bash) log "Reload your shell to pick up the new PATH: source ~/.bashrc" ;;
+      fish) log "Reload your shell to pick up the new PATH: source ~/.config/fish/config.fish" ;;
+      *)    log "Reload your shell or open a new terminal to pick up the new PATH." ;;
+    esac
   else
     log ""
     log "Add to PATH (copy one):"
