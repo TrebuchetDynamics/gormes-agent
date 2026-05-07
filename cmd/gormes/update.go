@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -91,19 +92,53 @@ func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport) {
 	if branch == "" {
 		branch = "main"
 	}
-	fmt.Fprintf(out, "update branch: %s\n", branch)
+	fmt.Fprintln(out, cli.Bold(out, "⚕ Updating Gormes Agent..."))
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "update branch:"), branch)
 	if report.PreviousBranch != "" {
-		fmt.Fprintf(out, "previous branch: %s\n", report.PreviousBranch)
+		fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "previous branch:"), report.PreviousBranch)
 	}
 	for _, evidence := range report.Evidence {
+		glyph, color := updateGlyphAndColor(out, evidence.Kind)
+		kind := color(out, string(evidence.Kind))
 		detail := strings.TrimSpace(evidence.Detail)
 		if detail == "" {
-			fmt.Fprintf(out, "%s\n", evidence.Kind)
+			fmt.Fprintf(out, "%s %s\n", glyph, kind)
 			continue
 		}
-		fmt.Fprintf(out, "%s\t%s\n", evidence.Kind, detail)
+		fmt.Fprintf(out, "%s %s\t%s\n", glyph, kind, detail)
+	}
+	fmt.Fprintln(out)
+	if report.Failed {
+		fmt.Fprintln(out, cli.Bold(out, "✗ Update failed"))
+	} else {
+		fmt.Fprintln(out, cli.Green(out, cli.Bold(out, "✓ Update complete!")))
 	}
 	if report.OperatorRecovery != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), report.OperatorRecovery)
+	}
+}
+
+// updateGlyphAndColor maps an UpdateEvidenceKind to a status glyph and the
+// color helper used to wrap the kind string. Mapping is by name suffix so
+// adding a new evidence kind doesn't require editing this function unless
+// its semantic class differs from the suffix convention.
+//
+//	*_failed, *_error               → ✗ (bold)
+//	*_unavailable, *_timeout        → ⚠ (yellow)
+//	update_check, *_log_mirrored,
+//	  update_not_managed_checkout   → ℹ (dim)
+//	default                         → ✓ (green)
+func updateGlyphAndColor(w io.Writer, kind cli.UpdateEvidenceKind) (string, func(io.Writer, string) string) {
+	s := string(kind)
+	switch {
+	case strings.HasSuffix(s, "_failed"), strings.HasSuffix(s, "_error"):
+		return cli.Bold(w, "✗"), cli.Bold
+	case strings.HasSuffix(s, "_unavailable"), strings.HasSuffix(s, "_timeout"):
+		return cli.Yellow(w, "⚠"), cli.Yellow
+	case s == "update_check", strings.HasSuffix(s, "_log_mirrored"), s == "update_not_managed_checkout":
+		return cli.Dim(w, "ℹ"), cli.Dim
+	default:
+		return cli.Green(w, "✓"), cli.Green
 	}
 }

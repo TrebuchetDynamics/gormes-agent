@@ -1,0 +1,173 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/spf13/cobra"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+)
+
+// runUpdateCommandWithReport synthesizes a cli.UpdateReport and runs the
+// update command through the cobra plumbing so the test exercises the same
+// stdout pipeline operators see, including printUpdateReport.
+func runUpdateCommandWithReport(t *testing.T, report cli.UpdateReport) (stdout, stderr string) {
+	t.Helper()
+	cmd := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(_ context.Context, _ cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return report
+		},
+	})
+	var outBuf, errBuf bytes.Buffer
+	cmd.SetOut(&outBuf)
+	cmd.SetErr(&errBuf)
+	cmd.SetArgs(nil)
+	_ = cmd.Execute()
+	return outBuf.String(), errBuf.String()
+}
+
+// TestUpdateCommand_StructuredHeaderEmitsBanner proves the human transcript
+// now leads with the Hermes-style ⚕ banner. Closes the audit-row gap that
+// the operator-visible output was a Spartan `update branch: …` followed by
+// raw evidence_kind\tdetail rows.
+func TestUpdateCommand_StructuredHeaderEmitsBanner(t *testing.T) {
+	stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+		Branch: "main",
+		Evidence: []cli.UpdateEvidence{
+			{Kind: cli.UpdateEvidenceCheck, Detail: "checked update readiness for main"},
+		},
+	})
+	if !strings.Contains(stdout, "⚕ Updating Gormes Agent...") {
+		t.Fatalf("update output should lead with the ⚕ banner; got:\n%s", stdout)
+	}
+	// Banner must come BEFORE the existing per-evidence rows so the visual
+	// hierarchy reads top-down.
+	bannerIdx := strings.Index(stdout, "⚕ Updating Gormes Agent...")
+	branchIdx := strings.Index(stdout, "update branch:")
+	if bannerIdx >= branchIdx {
+		t.Fatalf("⚕ banner must precede the `update branch:` line; got:\n%s", stdout)
+	}
+}
+
+// TestUpdateCommand_SuccessAddsCheckmarkSummary proves the report ends with
+// a single `✓ Update complete!` summary line, matching Hermes' update UX.
+func TestUpdateCommand_SuccessAddsCheckmarkSummary(t *testing.T) {
+	stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+		Branch: "main",
+		Evidence: []cli.UpdateEvidence{
+			{Kind: cli.UpdateEvidenceAutostashCreated, Detail: "stashed local changes"},
+			{Kind: cli.UpdateEvidenceAutostashRestored, Detail: "restored stash refs/stash@{0}"},
+		},
+	})
+	if !strings.Contains(stdout, "✓ Update complete!") {
+		t.Fatalf("successful update should end with `✓ Update complete!`; got:\n%s", stdout)
+	}
+	// The summary must come AFTER the per-evidence block.
+	summaryIdx := strings.Index(stdout, "✓ Update complete!")
+	lastEvidenceIdx := strings.LastIndex(stdout, "update_autostash_restored")
+	if summaryIdx < lastEvidenceIdx {
+		t.Fatalf("`✓ Update complete!` must come after the last evidence row; got:\n%s", stdout)
+	}
+}
+
+// TestUpdateCommand_FailedAddsCrossSummary proves a failed update ends with
+// `✗ Update failed` and routes operator recovery guidance to stderr (where
+// it always went; this row only adds the summary glyph in stdout).
+func TestUpdateCommand_FailedAddsCrossSummary(t *testing.T) {
+	stdout, stderr := runUpdateCommandWithReport(t, cli.UpdateReport{
+		Branch: "main",
+		Failed: true,
+		Evidence: []cli.UpdateEvidence{
+			{Kind: cli.UpdateEvidenceNetworkError, Detail: "dial tcp: connection refused"},
+		},
+		OperatorRecovery: "Check your network connection and rerun gormes update.",
+	})
+	if !strings.Contains(stdout, "✗ Update failed") {
+		t.Fatalf("failed update should end stdout with `✗ Update failed`; got:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "Check your network connection") {
+		t.Fatalf("operator recovery must still route to stderr; got stderr:\n%s", stderr)
+	}
+}
+
+// TestUpdateCommand_PreservesEvidenceKindsForMachineReadability proves
+// every UpdateEvidenceKind string still appears verbatim in stdout so
+// downstream parsers and existing tests that grep for `update_*` kinds
+// continue to work. This is the backward-compatibility contract.
+func TestUpdateCommand_PreservesEvidenceKindsForMachineReadability(t *testing.T) {
+	wantKinds := []cli.UpdateEvidenceKind{
+		cli.UpdateEvidenceAutostashCreated,
+		cli.UpdateEvidenceAutostashRestored,
+		cli.UpdateEvidenceGatewayRestarted,
+	}
+	evidence := make([]cli.UpdateEvidence, len(wantKinds))
+	for i, k := range wantKinds {
+		evidence[i] = cli.UpdateEvidence{Kind: k, Detail: "fixture"}
+	}
+	stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+		Branch:   "main",
+		Evidence: evidence,
+	})
+	for _, k := range wantKinds {
+		if !strings.Contains(stdout, string(k)) {
+			t.Fatalf("evidence kind %q must still appear verbatim in stdout for parser compatibility; got:\n%s", k, stdout)
+		}
+	}
+}
+
+// TestUpdateCommand_GlyphsByEvidenceClass proves outcome glyphs map
+// correctly: success kinds get ✓, error/failed kinds get ✗, unavailable/
+// timeout kinds get ⚠. This is the operator-visible at-a-glance scan.
+func TestUpdateCommand_GlyphsByEvidenceClass(t *testing.T) {
+	cases := []struct {
+		kind       cli.UpdateEvidenceKind
+		wantGlyph  string
+		wantAround string
+	}{
+		{cli.UpdateEvidenceAutostashCreated, "✓", "update_autostash_created"},
+		{cli.UpdateEvidenceGatewayRestarted, "✓", "update_gateway_restarted"},
+		{cli.UpdateEvidenceNetworkError, "✗", "update_network_error"},
+		{cli.UpdateEvidenceBranchSwitchFailed, "✗", "update_branch_switch_failed"},
+		{cli.UpdateEvidenceGatewayRestartUnavailable, "⚠", "update_gateway_restart_unavailable"},
+		{cli.UpdateEvidenceGatewayRestartTimeout, "⚠", "update_gateway_restart_timeout"},
+		{cli.UpdateEvidenceCheck, "ℹ", "update_check"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.kind), func(t *testing.T) {
+			stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+				Branch:   "main",
+				Evidence: []cli.UpdateEvidence{{Kind: tc.kind, Detail: "fixture"}},
+			})
+			needle := tc.wantGlyph + " " + tc.wantAround
+			if !strings.Contains(stdout, needle) {
+				t.Fatalf("expected %q in stdout; got:\n%s", needle, stdout)
+			}
+		})
+	}
+}
+
+// TestUpdateCommand_NoColorStripsAnsi proves NO_COLOR=1 strips every
+// styling escape from stdout/stderr. Captured-transcript safety.
+func TestUpdateCommand_NoColorStripsAnsi(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	stdout, stderr := runUpdateCommandWithReport(t, cli.UpdateReport{
+		Branch: "main",
+		Evidence: []cli.UpdateEvidence{
+			{Kind: cli.UpdateEvidenceGatewayRestarted, Detail: "pid 12345"},
+		},
+	})
+	if strings.Contains(stdout, "\x1b[") {
+		t.Fatalf("NO_COLOR=1 must strip ANSI from stdout; got %q", stdout)
+	}
+	if strings.Contains(stderr, "\x1b[") {
+		t.Fatalf("NO_COLOR=1 must strip ANSI from stderr; got %q", stderr)
+	}
+}
+
+// silence the "imported and not used" warning if cobra is later removed
+// from this test's symbol references; keep an explicit reference.
+var _ = (*cobra.Command)(nil)
