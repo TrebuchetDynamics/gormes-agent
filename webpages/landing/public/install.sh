@@ -1208,9 +1208,22 @@ publish_built_binary() {
   rm -f "$backup"
 }
 
+# sandbox_bin_dir_set returns true (exit 0) when the operator explicitly set
+# GORMES_BIN_DIR or GORMES_PREFIX. When true, the installer treats the
+# resolved bin dir as an authoritative isolation boundary and must not reach
+# outside it (e.g., must not overwrite an existing gormes binary discovered
+# elsewhere on PATH such as ~/.local/bin/gormes). Closes iso-bin-hijack.
+sandbox_bin_dir_set() {
+  [ -n "${GORMES_BIN_DIR:-}" ] || [ -n "${GORMES_PREFIX:-}" ]
+}
+
 update_active_command() {
   build_bin="$1"
   published_bin="$2"
+  if sandbox_bin_dir_set; then
+    log "skipping active PATH command update (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+    return 0
+  fi
   paths=""
   if has which; then
     paths=$(which -a gormes 2>/dev/null || true)
@@ -1647,6 +1660,11 @@ print_install_plan_body() {
   log "  install_home: $(managed_home_dir)"
   log "  managed_binary: $(managed_bin_dir)/gormes"
   log "  published_binary: $(pick_bin_dir)/gormes"
+  if sandbox_bin_dir_set; then
+    log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+  else
+    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+  fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
 }
@@ -1691,6 +1709,11 @@ print_verbose_plan() {
   log "  managed_binary: $(managed_bin_dir)/gormes"
   log "  published_binary: $(pick_bin_dir)/gormes"
   log "  active_command: ${active_bin}"
+  if sandbox_bin_dir_set; then
+    log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+  else
+    log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+  fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
 }
