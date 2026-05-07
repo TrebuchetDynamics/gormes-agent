@@ -29808,7 +29808,7 @@
             },
             {
               "name": "Gateway probe auth/capability HTTP closeout",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Close the remaining Hermes API-server gateway probe gap after the completed TCP discover/probe slice: expose and probe Hermes-compatible `/health`, `/health/detailed`, and authenticated `/v1/capabilities` HTTP endpoints with redacted evidence for unavailable, unauthenticated, unsupported-capability, and malformed gateways.",
               "contract_status": "validated",
@@ -29859,7 +29859,20 @@
               "done_signal": [
                 "Gateway HTTP probe closeout gives operators redacted auth, health, and capability evidence without reading source code or contacting live channels."
               ],
-              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows with 58 planned rows. No new row was added. The sweep found this row was builder-ready but stale-framed as OpenClaw; current Hermes b816fd4e2 API server source/tests explicitly define `/health`, `/health/detailed`, and authenticated `/v1/capabilities`, while Gormes has TCP probe and health routes but no capabilities route/probe. Promoted to P1 as the highest source-backed builder-ready gateway/operator closeout."
+              "health": {
+                "attempt_count": 3,
+                "last_attempt": "2026-05-07T07:31:53Z",
+                "last_success": "2026-05-07T07:31:53Z",
+                "evidence": [
+                  "RED: go test ./internal/apiserver -run TestAPIServerCapabilitiesEndpoint -count=1 failed because /v1/capabilities returned 404.",
+                  "GREEN: go test ./internal/apiserver -run TestAPIServerCapabilitiesEndpoint -count=1 passed after adding the Hermes-compatible capabilities route and auth guard.",
+                  "RED: go test ./internal/tools -run 'Gateway.*HTTP|Gateway.*Capability' -count=1 failed because the HTTP capability prober, auth evidence, and redacted classifications were missing.",
+                  "GREEN: go test ./internal/tools -run 'Gateway.*HTTP|Gateway.*Capability' -count=1 passed after adding HTTP health/detailed-health/capabilities probing, unsupported/malformed/unauthorized classifications, and secret redaction.",
+                  "RED: go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP|Gateway.*Capability' -count=1 failed because gormes gateway probe --url still used TCP-only probing.",
+                  "GREEN: go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP|Gateway.*Capability' -count=1 passed after manual --url probes switched to HTTP capabilities with env/config auth-source evidence."
+                ]
+              },
+              "note": "Complete: Gormes now exposes a Hermes-compatible `/v1/capabilities` API-server route with bearer auth when configured, keeps `/health` and `/health/detailed` unauthenticated, and switches `gormes gateway probe --url` to a hermetic HTTP health/capabilities probe. Probe JSON/text classifies unavailable, unauthorized, unsupported-capability, and malformed-capabilities outcomes, preserves auth-source labels such as env:GATEWAY_PROXY_KEY/config:gateway.proxy_key/none, redacts bearer tokens and secret-like values, and leaves the completed TCP discovery/probe path covered by discovered/default gateway probes."
             },
             {
               "name": "Safety-critical panic and swallowed-error closeout",

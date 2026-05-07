@@ -2,11 +2,15 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,16 +33,29 @@ const (
 	GatewayUsageCostCodeCompleted   = "gateway_usage_cost_completed"
 	GatewayUsageCostCodeUnavailable = "gateway_usage_cost_unavailable"
 
-	GatewayDegradedNoGateways           = "no_gateways_discovered"
-	GatewayDegradedBonjourUnavailable   = "bonjour_discovery_unavailable"
-	GatewayDegradedProbeTimeout         = "probe_timeout"
-	GatewayDegradedUsageDataUnavailable = "usage_data_unavailable"
+	GatewayDegradedNoGateways            = "no_gateways_discovered"
+	GatewayDegradedBonjourUnavailable    = "bonjour_discovery_unavailable"
+	GatewayDegradedProbeTimeout          = "probe_timeout"
+	GatewayDegradedHTTPProbeUnavailable  = "http_probe_unavailable"
+	GatewayDegradedHTTPUnauthorized      = "http_probe_unauthorized"
+	GatewayDegradedCapabilityUnsupported = "http_capability_unsupported"
+	GatewayDegradedCapabilityMalformed   = "http_capability_malformed"
+	GatewayDegradedUsageDataUnavailable  = "usage_data_unavailable"
 
-	GatewayHealthTCPReachable = "tcp_reachable"
-	GatewayHealthUnreachable  = "unreachable"
+	GatewayHealthTCPReachable              = "tcp_reachable"
+	GatewayHealthUnreachable               = "unreachable"
+	GatewayHealthHTTPHealthy               = "http_healthy"
+	GatewayHealthHTTPUnavailable           = "http_unavailable"
+	GatewayHealthHTTPUnauthorized          = "http_unauthorized"
+	GatewayHealthHTTPCapabilityUnsupported = "capability_unsupported"
+	GatewayHealthHTTPCapabilityMalformed   = "capability_malformed"
 
-	GatewayProbeStatusRuntimeRunning = "runtime_running"
-	GatewayProbeStatusUnavailable    = "unavailable"
+	GatewayProbeStatusRuntimeRunning        = "runtime_running"
+	GatewayProbeStatusUnavailable           = "unavailable"
+	GatewayProbeStatusCapabilityReady       = "capability_ready"
+	GatewayProbeStatusUnauthorized          = "unauthorized"
+	GatewayProbeStatusUnsupportedCapability = "unsupported_capability"
+	GatewayProbeStatusMalformedCapabilities = "malformed_capabilities"
 )
 
 const (
@@ -512,16 +529,34 @@ type GatewayProbeResult struct {
 }
 
 type GatewayProbeTarget struct {
-	Endpoint  GatewayEndpoint `json:"endpoint"`
-	Reachable bool            `json:"reachable"`
-	Health    string          `json:"health"`
-	Status    string          `json:"status"`
-	LatencyMs int64           `json:"latencyMs,omitempty"`
-	Error     string          `json:"error,omitempty"`
+	Endpoint     GatewayEndpoint             `json:"endpoint"`
+	Reachable    bool                        `json:"reachable"`
+	Health       string                      `json:"health"`
+	Status       string                      `json:"status"`
+	LatencyMs    int64                       `json:"latencyMs,omitempty"`
+	Error        string                      `json:"error,omitempty"`
+	Capabilities *GatewayCapabilitiesSummary `json:"capabilities,omitempty"`
 }
 
 type GatewayEndpointProber interface {
 	ProbeGatewayEndpoint(context.Context, GatewayEndpoint) GatewayProbeTarget
+}
+
+type GatewayHTTPAuth struct {
+	Token  string
+	Source string
+}
+
+type GatewayCapabilitiesSummary struct {
+	Object       string   `json:"object,omitempty"`
+	Platform     string   `json:"platform,omitempty"`
+	Model        string   `json:"model,omitempty"`
+	AuthType     string   `json:"authType,omitempty"`
+	AuthRequired bool     `json:"authRequired"`
+	AuthSource   string   `json:"authSource,omitempty"`
+	StatusCode   int      `json:"statusCode,omitempty"`
+	Features     []string `json:"features,omitempty"`
+	Endpoints    []string `json:"endpoints,omitempty"`
 }
 
 type GatewayEndpointProberFunc func(context.Context, GatewayEndpoint) GatewayProbeTarget
@@ -577,12 +612,12 @@ func ProbeGateways(ctx context.Context, req GatewayProbeRequest) GatewayProbeRes
 		if target.Status == "" {
 			target.Status = gatewayProbeStatusFromRuntime(target.Reachable, req.Runtime)
 		}
-		if target.Reachable {
+		if gatewayProbeTargetOK(target) {
 			reachable = true
 		} else if target.Error != "" {
 			endpoint := target.Endpoint
 			warnings = append(warnings, GatewayDegradedStatus{
-				Reason:   GatewayDegradedProbeTimeout,
+				Reason:   gatewayProbeWarningReason(target),
 				Message:  target.Error,
 				Endpoint: &endpoint,
 			})
@@ -607,6 +642,33 @@ func ProbeGateways(ctx context.Context, req GatewayProbeRequest) GatewayProbeRes
 		Targets:   targets,
 		Warnings:  warnings,
 		Degraded:  len(warnings) > 0,
+	}
+}
+
+func gatewayProbeTargetOK(target GatewayProbeTarget) bool {
+	if !target.Reachable {
+		return false
+	}
+	switch target.Health {
+	case GatewayHealthHTTPUnauthorized, GatewayHealthHTTPCapabilityUnsupported, GatewayHealthHTTPCapabilityMalformed, GatewayHealthHTTPUnavailable:
+		return false
+	default:
+		return true
+	}
+}
+
+func gatewayProbeWarningReason(target GatewayProbeTarget) string {
+	switch target.Health {
+	case GatewayHealthHTTPUnauthorized:
+		return GatewayDegradedHTTPUnauthorized
+	case GatewayHealthHTTPCapabilityUnsupported:
+		return GatewayDegradedCapabilityUnsupported
+	case GatewayHealthHTTPCapabilityMalformed:
+		return GatewayDegradedCapabilityMalformed
+	case GatewayHealthHTTPUnavailable:
+		return GatewayDegradedHTTPProbeUnavailable
+	default:
+		return GatewayDegradedProbeTimeout
 	}
 }
 
@@ -664,6 +726,228 @@ func (p TCPGatewayProber) ProbeGatewayEndpoint(ctx context.Context, endpoint Gat
 		Health:    GatewayHealthTCPReachable,
 		LatencyMs: latency,
 	}
+}
+
+type HTTPGatewayProber struct {
+	Timeout time.Duration
+	Client  *http.Client
+	Auth    GatewayHTTPAuth
+	Now     func() time.Time
+}
+
+func (p HTTPGatewayProber) ProbeGatewayEndpoint(ctx context.Context, endpoint GatewayEndpoint) GatewayProbeTarget {
+	endpoint = NormalizeGatewayEndpoint(endpoint)
+	timeout := p.Timeout
+	if timeout <= 0 {
+		timeout = defaultGatewayProbeTimeout
+	}
+	client := p.Client
+	if client == nil {
+		client = &http.Client{Timeout: timeout}
+	}
+	now := p.Now
+	if now == nil {
+		now = time.Now
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	started := now()
+
+	baseURL := gatewayHTTPBaseURL(endpoint)
+	healthStatus, _, err := p.get(ctx, client, baseURL+"/health", false)
+	if err != nil {
+		return p.httpTarget(endpoint, false, GatewayHealthHTTPUnavailable, GatewayProbeStatusUnavailable, now().Sub(started).Milliseconds(), 0, "health probe: "+p.redact(err.Error()), nil)
+	}
+	if healthStatus < 200 || healthStatus >= 300 {
+		return p.httpTarget(endpoint, false, GatewayHealthHTTPUnavailable, GatewayProbeStatusUnavailable, now().Sub(started).Milliseconds(), healthStatus, fmt.Sprintf("health status=%d", healthStatus), nil)
+	}
+
+	detailedStatus, _, err := p.get(ctx, client, baseURL+"/health/detailed", false)
+	if err != nil {
+		return p.httpTarget(endpoint, false, GatewayHealthHTTPUnavailable, GatewayProbeStatusUnavailable, now().Sub(started).Milliseconds(), 0, "health_detailed probe: "+p.redact(err.Error()), nil)
+	}
+	if detailedStatus < 200 || detailedStatus >= 300 {
+		return p.httpTarget(endpoint, false, GatewayHealthHTTPUnavailable, GatewayProbeStatusUnavailable, now().Sub(started).Milliseconds(), detailedStatus, fmt.Sprintf("health_detailed status=%d", detailedStatus), nil)
+	}
+
+	capStatus, capBody, err := p.get(ctx, client, baseURL+"/v1/capabilities", true)
+	authSource := p.authSource()
+	if err != nil {
+		summary := &GatewayCapabilitiesSummary{StatusCode: capStatus, AuthSource: authSource}
+		return p.httpTarget(endpoint, false, GatewayHealthHTTPUnavailable, GatewayProbeStatusUnavailable, now().Sub(started).Milliseconds(), capStatus, "capabilities probe: "+p.redact(err.Error()), summary)
+	}
+	if capStatus == http.StatusUnauthorized || capStatus == http.StatusForbidden {
+		summary := &GatewayCapabilitiesSummary{StatusCode: capStatus, AuthSource: authSource}
+		return p.httpTarget(endpoint, true, GatewayHealthHTTPUnauthorized, GatewayProbeStatusUnauthorized, now().Sub(started).Milliseconds(), capStatus, fmt.Sprintf("capabilities status=%d auth_source=%s", capStatus, authSource), summary)
+	}
+	if capStatus < 200 || capStatus >= 300 {
+		summary := &GatewayCapabilitiesSummary{StatusCode: capStatus, AuthSource: authSource}
+		return p.httpTarget(endpoint, true, GatewayHealthHTTPCapabilityUnsupported, GatewayProbeStatusUnsupportedCapability, now().Sub(started).Milliseconds(), capStatus, fmt.Sprintf("capabilities status=%d auth_source=%s", capStatus, authSource), summary)
+	}
+
+	summary, err := summarizeGatewayCapabilities(capBody, capStatus, authSource)
+	if err != nil {
+		return p.httpTarget(endpoint, true, GatewayHealthHTTPCapabilityMalformed, GatewayProbeStatusMalformedCapabilities, now().Sub(started).Milliseconds(), capStatus, "capabilities malformed: "+p.redact(err.Error()), summary)
+	}
+	if !gatewayCapabilitiesSupported(summary) {
+		return p.httpTarget(endpoint, true, GatewayHealthHTTPCapabilityUnsupported, GatewayProbeStatusUnsupportedCapability, now().Sub(started).Milliseconds(), capStatus, "capabilities missing required Hermes API-server features", summary)
+	}
+	return p.httpTarget(endpoint, true, GatewayHealthHTTPHealthy, GatewayProbeStatusCapabilityReady, now().Sub(started).Milliseconds(), capStatus, "", summary)
+}
+
+func (p HTTPGatewayProber) get(ctx context.Context, client *http.Client, url string, authenticated bool) (int, []byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	if authenticated && strings.TrimSpace(p.Auth.Token) != "" {
+		req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(p.Auth.Token))
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return resp.StatusCode, nil, err
+	}
+	return resp.StatusCode, body, nil
+}
+
+func (p HTTPGatewayProber) httpTarget(endpoint GatewayEndpoint, reachable bool, health string, status string, latency int64, statusCode int, message string, capabilities *GatewayCapabilitiesSummary) GatewayProbeTarget {
+	if capabilities != nil && capabilities.StatusCode == 0 {
+		capabilities.StatusCode = statusCode
+	}
+	if capabilities != nil && capabilities.AuthSource == "" {
+		capabilities.AuthSource = p.authSource()
+	}
+	return GatewayProbeTarget{
+		Endpoint:     endpoint,
+		Reachable:    reachable,
+		Health:       health,
+		Status:       status,
+		LatencyMs:    latency,
+		Error:        p.redact(message),
+		Capabilities: capabilities,
+	}
+}
+
+func (p HTTPGatewayProber) authSource() string {
+	source := strings.TrimSpace(p.Auth.Source)
+	if source == "" {
+		return "none"
+	}
+	return source
+}
+
+func (p HTTPGatewayProber) redact(message string) string {
+	return redactGatewayProbeText(message, p.Auth.Token)
+}
+
+func gatewayHTTPBaseURL(endpoint GatewayEndpoint) string {
+	scheme := "http"
+	if endpoint.Scheme == "wss" {
+		scheme = "https"
+	}
+	return scheme + "://" + net.JoinHostPort(endpoint.Address, strconv.Itoa(endpoint.Port))
+}
+
+type gatewayCapabilitiesPayload struct {
+	Object    string         `json:"object"`
+	Platform  string         `json:"platform"`
+	Model     string         `json:"model"`
+	Auth      gatewayCapAuth `json:"auth"`
+	Features  map[string]any `json:"features"`
+	Endpoints map[string]struct {
+		Method string `json:"method"`
+		Path   string `json:"path"`
+	} `json:"endpoints"`
+}
+
+type gatewayCapAuth struct {
+	Type     string `json:"type"`
+	Required bool   `json:"required"`
+}
+
+func summarizeGatewayCapabilities(body []byte, statusCode int, authSource string) (*GatewayCapabilitiesSummary, error) {
+	var payload gatewayCapabilitiesPayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return &GatewayCapabilitiesSummary{StatusCode: statusCode, AuthSource: authSource}, err
+	}
+	features := make([]string, 0, len(payload.Features))
+	for name, value := range payload.Features {
+		if enabled, ok := value.(bool); ok && enabled {
+			features = append(features, name)
+		}
+	}
+	sort.Strings(features)
+	endpoints := make([]string, 0, len(payload.Endpoints))
+	for name, endpoint := range payload.Endpoints {
+		if endpoint.Path != "" {
+			endpoints = append(endpoints, name)
+		}
+	}
+	sort.Strings(endpoints)
+	return &GatewayCapabilitiesSummary{
+		Object:       strings.TrimSpace(payload.Object),
+		Platform:     strings.TrimSpace(payload.Platform),
+		Model:        strings.TrimSpace(payload.Model),
+		AuthType:     strings.TrimSpace(payload.Auth.Type),
+		AuthRequired: payload.Auth.Required,
+		AuthSource:   authSource,
+		StatusCode:   statusCode,
+		Features:     features,
+		Endpoints:    endpoints,
+	}, nil
+}
+
+func gatewayCapabilitiesSupported(summary *GatewayCapabilitiesSummary) bool {
+	if summary == nil {
+		return false
+	}
+	if summary.Object != "hermes.api_server.capabilities" {
+		return false
+	}
+	if summary.AuthType != "bearer" {
+		return false
+	}
+	for _, feature := range []string{
+		"chat_completions",
+		"responses_api",
+		"run_submission",
+		"run_status",
+		"run_events_sse",
+		"run_stop",
+		"tool_progress_events",
+	} {
+		if !gatewayProbeStringSliceContains(summary.Features, feature) {
+			return false
+		}
+	}
+	for _, endpoint := range []string{
+		"health",
+		"health_detailed",
+		"chat_completions",
+		"runs",
+		"run_status",
+		"run_events",
+		"run_stop",
+	} {
+		if !gatewayProbeStringSliceContains(summary.Endpoints, endpoint) {
+			return false
+		}
+	}
+	return true
+}
+
+func gatewayProbeStringSliceContains(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }
 
 type GatewayUsageSession struct {
@@ -869,4 +1153,26 @@ func sanitizeGatewayError(err error) string {
 		return "unknown error"
 	}
 	return msg
+}
+
+var (
+	gatewayProbeBearerPattern     = regexp.MustCompile(`(?i)\bbearer\s+["']?[^"'\s]+`)
+	gatewayProbeSecretPairPattern = regexp.MustCompile(`(?i)\b(api[_-]?key|token|password|secret)=([^&\s"']+)`)
+)
+
+func redactGatewayProbeText(text string, secrets ...string) string {
+	redacted := strings.TrimSpace(text)
+	if redacted == "" {
+		return ""
+	}
+	for _, secret := range secrets {
+		secret = strings.TrimSpace(secret)
+		if secret == "" {
+			continue
+		}
+		redacted = strings.ReplaceAll(redacted, secret, "[redacted]")
+	}
+	redacted = gatewayProbeBearerPattern.ReplaceAllString(redacted, "Bearer [redacted]")
+	redacted = gatewayProbeSecretPairPattern.ReplaceAllString(redacted, "$1=[redacted]")
+	return redacted
 }

@@ -314,6 +314,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/health/detailed", s.handleDetailedHealth)
 	s.mux.HandleFunc("/v1/health/detailed", s.handleDetailedHealth)
 	s.mux.HandleFunc("/v1/models", s.handleModels)
+	s.mux.HandleFunc("/v1/capabilities", s.handleCapabilities)
 	s.mux.HandleFunc("/v1/chat/completions", s.handleChatCompletions)
 	s.mux.HandleFunc("/v1/responses", s.handleResponses)
 	s.mux.HandleFunc("/v1/responses/", s.handleResponseByID)
@@ -390,6 +391,50 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 				"root":       s.modelName,
 				"parent":     nil,
 			},
+		},
+	})
+}
+
+func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	if !s.authorized(r) {
+		writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"object":   "hermes.api_server.capabilities",
+		"platform": "gormes-agent",
+		"model":    s.modelName,
+		"auth": map[string]any{
+			"type":     "bearer",
+			"required": s.apiKey != "",
+		},
+		"features": map[string]any{
+			"chat_completions":           true,
+			"chat_completions_streaming": true,
+			"responses_api":              true,
+			"responses_streaming":        true,
+			"run_submission":             true,
+			"run_status":                 true,
+			"run_events_sse":             true,
+			"run_stop":                   true,
+			"tool_progress_events":       true,
+			"session_continuity_header":  "X-Hermes-Session-Id",
+			"cors":                       false,
+		},
+		"endpoints": map[string]map[string]string{
+			"health":           {"method": "GET", "path": "/health"},
+			"health_detailed":  {"method": "GET", "path": "/health/detailed"},
+			"models":           {"method": "GET", "path": "/v1/models"},
+			"chat_completions": {"method": "POST", "path": "/v1/chat/completions"},
+			"responses":        {"method": "POST", "path": "/v1/responses"},
+			"runs":             {"method": "POST", "path": "/v1/runs"},
+			"run_status":       {"method": "GET", "path": "/v1/runs/{run_id}"},
+			"run_events":       {"method": "GET", "path": "/v1/runs/{run_id}/events"},
+			"run_stop":         {"method": "POST", "path": "/v1/runs/{run_id}/stop"},
 		},
 	})
 }

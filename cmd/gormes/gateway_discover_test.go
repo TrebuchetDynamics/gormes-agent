@@ -53,6 +53,16 @@ func TestGatewayDiscoverProbeCommandShowsReachabilityHealthAndStatus(t *testing.
 		t.Fatalf("listen: %v", err)
 	}
 	defer listener.Close()
+	tcpAddr := listener.Addr().(*net.TCPAddr)
+	restoreDiscoverer := gatewayDiscovererForTest(t, tools.GatewayDiscovererFunc(func(context.Context) ([]tools.GatewayEndpoint, error) {
+		return []tools.GatewayEndpoint{{
+			InstanceName: "tcp-gateway",
+			Address:      tcpAddr.IP.String(),
+			Port:         tcpAddr.Port,
+			Source:       tools.GatewayEndpointSourceBonjour,
+		}}, nil
+	}))
+	defer restoreDiscoverer()
 	restoreRuntime := gatewayProbeRuntimeSummaryForTest(t, tools.GatewayRuntimeSummary{
 		State:          "running",
 		Validation:     "live",
@@ -64,7 +74,7 @@ func TestGatewayDiscoverProbeCommandShowsReachabilityHealthAndStatus(t *testing.
 	defer restoreRuntime()
 
 	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "probe", "--url", "ws://"+listener.Addr().String(), "--json")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "probe", "--json")
 	if err != nil {
 		t.Fatalf("gateway probe --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
@@ -72,11 +82,21 @@ func TestGatewayDiscoverProbeCommandShowsReachabilityHealthAndStatus(t *testing.
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("invalid JSON: %v\n%s", err, stdout)
 	}
-	if !got.OK || len(got.Targets) != 1 || !got.Targets[0].Reachable {
-		t.Fatalf("probe result = %+v, want one reachable target", got)
+	if !got.OK || len(got.Targets) == 0 {
+		t.Fatalf("probe result = %+v, want a reachable target", got)
 	}
-	if got.Targets[0].Health != tools.GatewayHealthTCPReachable {
-		t.Fatalf("health = %q, want %q", got.Targets[0].Health, tools.GatewayHealthTCPReachable)
+	var target *tools.GatewayProbeTarget
+	for i := range got.Targets {
+		if got.Targets[i].Endpoint.Port == tcpAddr.Port {
+			target = &got.Targets[i]
+			break
+		}
+	}
+	if target == nil || !target.Reachable {
+		t.Fatalf("targets = %+v, want discovered TCP target reachable", got.Targets)
+	}
+	if target.Health != tools.GatewayHealthTCPReachable {
+		t.Fatalf("health = %q, want %q", target.Health, tools.GatewayHealthTCPReachable)
 	}
 	if got.Runtime.State != "running" || got.Runtime.Platforms["telegram"] != "running" {
 		t.Fatalf("runtime = %+v, want running telegram summary", got.Runtime)
