@@ -14,29 +14,50 @@ import (
 var errMockDiscordAttachmentReadUnavailable = errors.New("mock discord attachment read unavailable")
 
 type mockSession struct {
-	mu                   sync.Mutex
-	opened               bool
-	openOnce             sync.Once
-	openCh               chan struct{}
-	closed               bool
-	handlers             []interface{}
-	sent                 []mockSent
-	complexSent          []mockComplexSent
-	edits                []mockEdit
-	reactionsAdded       []mockReaction
-	reactionsRemove      []mockReaction
-	nextMsgID            int
-	openErr              error
-	sendErr              error
-	sendErrWhenReference error
-	editErr              error
-	reactionErr          error
-	attachmentBytes      map[string][]byte
-	attachmentErr        error
-	attachmentReads      int
+	mu                       sync.Mutex
+	opened                   bool
+	openOnce                 sync.Once
+	openCh                   chan struct{}
+	closed                   bool
+	handlers                 []interface{}
+	sent                     []mockSent
+	complexSent              []mockComplexSent
+	edits                    []mockEdit
+	reactionsAdded           []mockReaction
+	reactionsRemove          []mockReaction
+	applicationCommands      []*discordgo.ApplicationCommand
+	interactionResponses     []*discordgo.InteractionResponse
+	followups                []*discordgo.WebhookParams
+	threadStartCalls         []mockThreadStart
+	messageThreadStarts      []mockMessageThreadStart
+	nextMsgID                int
+	currentUserID            string
+	openErr                  error
+	sendErr                  error
+	sendErrWhenReference     error
+	editErr                  error
+	reactionErr              error
+	commandErr               error
+	interactionErr           error
+	threadStartErr           error
+	messageThreadErr         error
+	threadStartResult        *discordgo.Channel
+	messageThreadStartResult *discordgo.Channel
+	attachmentBytes          map[string][]byte
+	attachmentErr            error
+	attachmentReads          int
 }
 
 type mockSent struct{ ChannelID, Content, MsgID string }
+type mockThreadStart struct {
+	ChannelID string
+	Data      *discordgo.ThreadStart
+}
+type mockMessageThreadStart struct {
+	ChannelID string
+	MessageID string
+	Data      *discordgo.ThreadStart
+}
 type mockComplexSent struct {
 	ChannelID string
 	MsgID     string
@@ -88,6 +109,76 @@ func (m *mockSession) AddHandler(handler interface{}) func() {
 	m.handlers = append(m.handlers, handler)
 	m.mu.Unlock()
 	return func() {}
+}
+
+func (m *mockSession) CurrentUserID() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.currentUserID
+}
+
+func (m *mockSession) ApplicationCommandBulkOverwrite(_ string, _ string, commands []*discordgo.ApplicationCommand, _ ...discordgo.RequestOption) ([]*discordgo.ApplicationCommand, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.commandErr != nil {
+		return nil, m.commandErr
+	}
+	m.applicationCommands = append([]*discordgo.ApplicationCommand(nil), commands...)
+	return commands, nil
+}
+
+func (m *mockSession) InteractionRespond(_ *discordgo.Interaction, resp *discordgo.InteractionResponse, _ ...discordgo.RequestOption) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.interactionErr != nil {
+		return m.interactionErr
+	}
+	m.interactionResponses = append(m.interactionResponses, resp)
+	return nil
+}
+
+func (m *mockSession) FollowupMessageCreate(_ *discordgo.Interaction, _ bool, data *discordgo.WebhookParams, _ ...discordgo.RequestOption) (*discordgo.Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.interactionErr != nil {
+		return nil, m.interactionErr
+	}
+	m.followups = append(m.followups, data)
+	resp := &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+	}
+	if data != nil {
+		resp.Data = &discordgo.InteractionResponseData{Content: data.Content, Flags: data.Flags}
+	}
+	m.interactionResponses = append(m.interactionResponses, resp)
+	id := nextID(&m.nextMsgID)
+	return &discordgo.Message{ID: id}, nil
+}
+
+func (m *mockSession) ThreadStartComplex(channelID string, data *discordgo.ThreadStart, _ ...discordgo.RequestOption) (*discordgo.Channel, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.threadStartCalls = append(m.threadStartCalls, mockThreadStart{ChannelID: channelID, Data: data})
+	if m.threadStartErr != nil {
+		return nil, m.threadStartErr
+	}
+	if m.threadStartResult != nil {
+		return m.threadStartResult, nil
+	}
+	return &discordgo.Channel{ID: nextID(&m.nextMsgID), ParentID: channelID, Name: data.Name, Type: discordgo.ChannelTypeGuildPublicThread}, nil
+}
+
+func (m *mockSession) MessageThreadStartComplex(channelID, messageID string, data *discordgo.ThreadStart, _ ...discordgo.RequestOption) (*discordgo.Channel, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.messageThreadStarts = append(m.messageThreadStarts, mockMessageThreadStart{ChannelID: channelID, MessageID: messageID, Data: data})
+	if m.messageThreadErr != nil {
+		return nil, m.messageThreadErr
+	}
+	if m.messageThreadStartResult != nil {
+		return m.messageThreadStartResult, nil
+	}
+	return &discordgo.Channel{ID: nextID(&m.nextMsgID), ParentID: channelID, Name: data.Name, Type: discordgo.ChannelTypeGuildPublicThread}, nil
 }
 
 func (m *mockSession) ChannelMessageSend(channelID, content string) (*discordgo.Message, error) {
@@ -223,6 +314,51 @@ func (m *mockSession) deliverThreadDelete(thread *discordgo.ThreadDelete) bool {
 		}
 	}
 	return false
+}
+
+func (m *mockSession) deliverInteraction(interaction *discordgo.InteractionCreate) bool {
+	m.mu.Lock()
+	handlers := append([]interface{}{}, m.handlers...)
+	m.mu.Unlock()
+	for _, h := range handlers {
+		if fn, ok := h.(func(*discordgo.Session, *discordgo.InteractionCreate)); ok {
+			fn(nil, interaction)
+			return true
+		}
+	}
+	return false
+}
+
+func (m *mockSession) applicationCommandsSnapshot() []*discordgo.ApplicationCommand {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]*discordgo.ApplicationCommand, len(m.applicationCommands))
+	copy(out, m.applicationCommands)
+	return out
+}
+
+func (m *mockSession) interactionResponsesSnapshot() []*discordgo.InteractionResponse {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]*discordgo.InteractionResponse, len(m.interactionResponses))
+	copy(out, m.interactionResponses)
+	return out
+}
+
+func (m *mockSession) threadStartCallsSnapshot() []mockThreadStart {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]mockThreadStart, len(m.threadStartCalls))
+	copy(out, m.threadStartCalls)
+	return out
+}
+
+func (m *mockSession) messageThreadStartCallsSnapshot() []mockMessageThreadStart {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]mockMessageThreadStart, len(m.messageThreadStarts))
+	copy(out, m.messageThreadStarts)
+	return out
 }
 
 func (m *mockSession) sentSnapshot() []mockSent {

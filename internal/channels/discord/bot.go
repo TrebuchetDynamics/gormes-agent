@@ -55,6 +55,9 @@ type Config struct {
 	// Discord autocomplete refreshes. Nil means this adapter has no cached skill
 	// group to refresh.
 	SkillCollector func(context.Context) ([]gateway.PlatformCommand, error)
+	// PluginCommands are plugin-provided slash commands that Discord can expose
+	// as top-level native commands when they do not shadow built-ins.
+	PluginCommands []gateway.PlatformCommand
 }
 
 type Bot struct {
@@ -163,6 +166,9 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 		case <-ctx.Done():
 		}
 	})
+	b.session.AddHandler(func(_ *discordgo.Session, i *discordgo.InteractionCreate) {
+		b.handleInteraction(ctx, inbox, b.session, i)
+	})
 	b.session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m == nil || m.Message == nil {
 			return
@@ -184,6 +190,9 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 	})
 	if err := b.session.Open(); err != nil {
 		return fmt.Errorf("discord: open session: %w", err)
+	}
+	if err := b.registerSlashCommands(ctx); err != nil {
+		b.log.Warn("discord slash command registration unavailable", "err", err)
 	}
 	<-ctx.Done()
 	_ = b.Disconnect(ctx)
@@ -311,6 +320,9 @@ func normalizeSkillGroupCommands(commands []gateway.PlatformCommand) ([]gateway.
 }
 
 func (b *Bot) acceptMessage(s *discordgo.Session, m *discordgo.Message) bool {
+	if m.Type != discordgo.MessageTypeDefault && m.Type != discordgo.MessageTypeReply {
+		return false
+	}
 	ctx := b.admissionContext(s, m)
 	result := EvaluateAdmission(b.admissionPolicy(), ctx)
 	return result.Allowed

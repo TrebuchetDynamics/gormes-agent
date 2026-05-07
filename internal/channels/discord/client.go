@@ -19,3 +19,18 @@ type discordSession interface {
 	MessageReactionRemoveMe(channelID, messageID, emoji string) error
 	ReadAttachment(ctx context.Context, attachment *discordgo.MessageAttachment) ([]byte, error)
 }
+
+type discordCommandRegistrar interface {
+	CurrentUserID() string
+	ApplicationCommandBulkOverwrite(appID, guildID string, commands []*discordgo.ApplicationCommand, options ...discordgo.RequestOption) ([]*discordgo.ApplicationCommand, error)
+}
+
+type discordInteractionResponder interface {
+	InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error
+	FollowupMessageCreate(interaction *discordgo.Interaction, wait bool, data *discordgo.WebhookParams, options ...discordgo.RequestOption) (*discordgo.Message, error)
+}
+
+type discordThreadStarter interface {
+	ThreadStartComplex(channelID string, data *discordgo.ThreadStart, options ...discordgo.RequestOption) (*discordgo.Channel, error)
+	MessageThreadStartComplex(channelID, messageID string, data *discordgo.ThreadStart, options ...discordgo.RequestOption) (*discordgo.Channel, error)
+}
