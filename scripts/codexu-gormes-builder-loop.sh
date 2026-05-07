@@ -6,7 +6,8 @@ PATH="$HOME/.local/bin:$HOME/go/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bi
 export PATH
 
 REPO_ROOT="${GORMES_CODEXU_REPO:-/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent}"
-RUNNER="${GORMES_CODEXU_RUNNER:-$REPO_ROOT/scripts/codexu-gormes-builder-cron.sh}"
+DEFAULT_RUNNER="$REPO_ROOT/scripts/codexu-gormes-builder-cron.sh"
+RUNNER="${GORMES_CODEXU_RUNNER:-$DEFAULT_RUNNER}"
 STATE_DIR="${GORMES_CODEXU_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/gormes-agent/codexu-builder}"
 LOOP_LOCK="${GORMES_CODEXU_LOOP_LOCK:-$STATE_DIR/loop.lock}"
 INTERVAL_SECONDS="${GORMES_CODEXU_LOOP_INTERVAL:-60}"
@@ -242,7 +243,7 @@ runner_ready() {
     log "runner syntax check failed: $RUNNER"
     return 1
   fi
-  if ! command -v codexu >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/codexu" ]]; then
+  if [[ "$RUNNER" == "$DEFAULT_RUNNER" ]] && ! command -v codexu >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/codexu" ]]; then
     log "codexu is not available on PATH or at $HOME/.local/bin/codexu"
     return 1
   fi

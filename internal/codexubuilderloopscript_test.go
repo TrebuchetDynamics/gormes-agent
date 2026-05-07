@@ -47,6 +47,10 @@ func TestCodexuBuilderLoopStatusReportsPauseState(t *testing.T) {
 func TestCodexuBuilderLoopAutoClearsExpiredPauseBeforeRunner(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	stateDir := t.TempDir()
+	homeDir := filepath.Join(stateDir, "home")
+	if err := os.Mkdir(homeDir, 0o700); err != nil {
+		t.Fatalf("mkdir home: %v", err)
+	}
 	runner := filepath.Join(stateDir, "runner.sh")
 	writeFile(t, runner, []byte(`#!/usr/bin/env bash
 set -Eeuo pipefail
@@ -70,6 +74,8 @@ printf 'timestamp=%q\nreason=%q\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "test reques
 		"GORMES_CODEXU_LOOP_INTERVAL=0",
 		"GORMES_CODEXU_PAUSE_POLL=1",
 		"GORMES_CODEXU_FAIL_BACKOFF=1",
+		"HOME="+homeDir,
+		"PATH=/usr/local/bin:/usr/bin:/bin",
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
