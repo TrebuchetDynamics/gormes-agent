@@ -86,6 +86,18 @@ func runGatewayStop(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("gateway stop: refusing to stop live gateway with active_agents=%d", snapshot.Status.ActiveAgents)
 	}
 
+	markerStore := gateway.NewPlannedStopStore(gateway.DefaultPlannedStopMarkerPath(config.GatewayRuntimeStatusPath()))
+	if err := markerStore.Write(ctx, gateway.PlannedStopMarker{
+		TargetPID:       pid,
+		TargetStartTime: gatewayStopStartTime(snapshot),
+		Generation:      snapshot.Status.Generation,
+		Reason:          "gateway stop",
+	}); err != nil {
+		fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: planned_stop_marker_unavailable pid=%d error=%q\n", pid, err.Error())
+	} else {
+		fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: planned_stop_marker_written pid=%d\n", pid)
+	}
+
 	if err := signalGatewayStopProcess(pid, os.Interrupt); err != nil {
 		return fmt.Errorf("gateway stop: signal pid %d: %w", pid, err)
 	}
@@ -113,6 +125,16 @@ func gatewayStopPID(snapshot gateway.RuntimeStatusSnapshot) int {
 		return snapshot.Validation.PID
 	}
 	return snapshot.Status.PID
+}
+
+func gatewayStopStartTime(snapshot gateway.RuntimeStatusSnapshot) int64 {
+	if snapshot.Validation.ExpectedStartTime > 0 {
+		return snapshot.Validation.ExpectedStartTime
+	}
+	if snapshot.Status.StartTime > 0 {
+		return snapshot.Status.StartTime
+	}
+	return snapshot.Validation.ActualStartTime
 }
 
 func waitForGatewayStop(ctx context.Context, store gatewayStopRuntimeStore) (gateway.RuntimeProcessValidation, error) {

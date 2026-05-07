@@ -14,6 +14,9 @@ LOG_DIR="${GORMES_CODEXU_LOG_DIR:-$STATE_DIR/logs}"
 LOCK_FILE="${GORMES_CODEXU_LOCK_FILE:-$STATE_DIR/run.lock}"
 CODEXU_BIN="${CODEXU_BIN:-codexu}"
 SKIP_REMOTE_SYNC="${GORMES_CODEXU_SKIP_REMOTE_SYNC:-0}"
+BACKEND="${GORMES_BUILDER_BACKEND:-codexu}"
+OPENCODE_BIN="${GORMES_OPENCODE_BIN:-opencode}"
+OPENCODE_MODEL="${GORMES_OPENCODE_MODEL:-opencode-go/deepseek-v4-pro}"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -40,6 +43,18 @@ resolve_codexu() {
   fi
   if [[ -x "$REPO_ROOT/scripts/orchestrator/codexu" ]]; then
     printf '%s\n' "$REPO_ROOT/scripts/orchestrator/codexu"
+    return 0
+  fi
+  return 1
+}
+
+resolve_opencode() {
+  if command -v "$OPENCODE_BIN" >/dev/null 2>&1; then
+    command -v "$OPENCODE_BIN"
+    return 0
+  fi
+  if [[ -x "$HOME/.opencode/bin/opencode" ]]; then
+    printf '%s\n' "$HOME/.opencode/bin/opencode"
     return 0
   fi
   return 1
@@ -140,35 +155,65 @@ main() {
     sync_development_branch
   fi
 
-  local resolved_codexu
-  resolved_codexu="$(resolve_codexu)" || die "codexu command not found"
-  log "using codexu at $resolved_codexu"
+  case "$BACKEND" in
+    codexu|opencode) ;;
+    *) die "unsupported GORMES_BUILDER_BACKEND: $BACKEND (expected codexu|opencode)" ;;
+  esac
+
+  local resolved_bin
+  if [[ "$BACKEND" == "opencode" ]]; then
+    resolved_bin="$(resolve_opencode)" || die "opencode command not found"
+    log "using opencode at $resolved_bin with model $OPENCODE_MODEL"
+  else
+    resolved_bin="$(resolve_codexu)" || die "codexu command not found"
+    log "using codexu at $resolved_bin"
+  fi
 
   if [[ "${1:-}" == "--dry-run" ]]; then
-    log "dry run: would execute codexu builder prompt with timeout $RUN_TIMEOUT"
+    log "dry run: would execute $BACKEND builder prompt with timeout $RUN_TIMEOUT"
     codex_prompt
     exit 0
   fi
 
   set +e
-  codex_prompt | timeout "$RUN_TIMEOUT" "$resolved_codexu" exec \
-    --sandbox danger-full-access \
-    -c 'approval_policy="never"' \
-    -C "$REPO_ROOT" \
-    --color never \
-    --output-last-message "$LAST_MESSAGE" \
-    - >>"$RUN_LOG" 2>&1
-  local status=$?
+  local status
+  if [[ "$BACKEND" == "opencode" ]]; then
+    local opencode_log="$LOG_DIR/$RUN_ID.opencode.jsonl"
+    codex_prompt | timeout "$RUN_TIMEOUT" "$resolved_bin" run \
+      --model "$OPENCODE_MODEL" \
+      --dir "$REPO_ROOT" \
+      --format json \
+      --dangerously-skip-permissions \
+      >"$opencode_log" 2>>"$RUN_LOG"
+    status=$?
+    cat "$opencode_log" >>"$RUN_LOG"
+    if command -v jq >/dev/null 2>&1 && [[ -s "$opencode_log" ]]; then
+      jq -r 'select(.type=="text") | .part.text' "$opencode_log" 2>/dev/null \
+        | awk 'NF' \
+        | tail -n 1 >"$LAST_MESSAGE" || true
+    else
+      printf 'opencode backend: see %s for full transcript\n' "$opencode_log" >"$LAST_MESSAGE"
+    fi
+  else
+    codex_prompt | timeout "$RUN_TIMEOUT" "$resolved_bin" exec \
+      --sandbox danger-full-access \
+      -c 'approval_policy="never"' \
+      -C "$REPO_ROOT" \
+      --color never \
+      --output-last-message "$LAST_MESSAGE" \
+      - >>"$RUN_LOG" 2>&1
+    status=$?
+  fi
   set -e
 
   if [[ "$status" -eq 124 ]]; then
-    die "codexu run timed out after $RUN_TIMEOUT"
+    die "$BACKEND run timed out after $RUN_TIMEOUT"
   fi
   if [[ "$status" -ne 0 ]]; then
-    die "codexu run failed with status $status"
+    die "$BACKEND run failed with status $status"
   fi
 
-  log "codexu builder cron finished"
+  log "$BACKEND builder cron finished"
 }
 
 main "$@"

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -28,6 +29,8 @@ type Config struct {
 	IgnoredChannelIDs      []string
 	FreeResponseChannelIDs []string
 	NoThreadChannelIDs     []string
+	ChannelSkillBindings   any
+	ChannelPrompts         any
 	RequireMention         bool
 	RequireMentionSet      bool
 	AutoThread             bool
@@ -48,6 +51,13 @@ type Config struct {
 	// AttachmentHTTPClient fetches SSRF-gated URL fallbacks in tests and
 	// production. Empty uses a bounded default client.
 	AttachmentHTTPClient *http.Client
+	// SkillCollector returns the current gateway-visible skill command set for
+	// Discord autocomplete refreshes. Nil means this adapter has no cached skill
+	// group to refresh.
+	SkillCollector func(context.Context) ([]gateway.PlatformCommand, error)
+	// PluginCommands are plugin-provided slash commands that Discord can expose
+	// as top-level native commands when they do not shadow built-ins.
+	PluginCommands []gateway.PlatformCommand
 }
 
 type Bot struct {
@@ -65,6 +75,10 @@ type Bot struct {
 
 	replyMu        sync.Mutex
 	replyFirstSent map[string]bool
+
+	skillMu       sync.RWMutex
+	skillCommands []gateway.PlatformCommand
+	skillHidden   int
 }
 
 type discordThread struct {
@@ -152,6 +166,9 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 		case <-ctx.Done():
 		}
 	})
+	b.session.AddHandler(func(_ *discordgo.Session, i *discordgo.InteractionCreate) {
+		b.handleInteraction(ctx, inbox, b.session, i)
+	})
 	b.session.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		if m == nil || m.Message == nil {
 			return
@@ -173,6 +190,9 @@ func (b *Bot) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error 
 	})
 	if err := b.session.Open(); err != nil {
 		return fmt.Errorf("discord: open session: %w", err)
+	}
+	if err := b.registerSlashCommands(ctx); err != nil {
+		b.log.Warn("discord slash command registration unavailable", "err", err)
 	}
 	<-ctx.Done()
 	_ = b.Disconnect(ctx)
@@ -199,6 +219,7 @@ func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Messag
 		userID = m.Author.ID
 	}
 	chatID := m.ChannelID
+	scopeChannelID := strings.TrimSpace(m.ChannelID)
 	threadID := ""
 	chatName := ""
 	parentChatID := ""
@@ -230,11 +251,78 @@ func (b *Bot) toInboundEventWithContext(ctx context.Context, m *discordgo.Messag
 		MessageID:    messageID,
 		Kind:         kind,
 		Text:         body,
-		Attachments:  attachments,
+		AutoSkills:   gateway.ResolveChannelSkills(b.cfg.ChannelSkillBindings, scopeChannelID, parentChatID),
+		ChannelPrompt: gateway.ResolveChannelPrompt(
+			b.cfg.ChannelPrompts,
+			scopeChannelID,
+			parentChatID,
+		),
+		Attachments: attachments,
 	}, true
 }
 
+// RefreshSkillGroup refreshes the adapter-owned skill command cache used by
+// Discord autocomplete. It mutates only in-memory command state; no Discord API
+// sync is required.
+func (b *Bot) RefreshSkillGroup(ctx context.Context) (gateway.SkillGroupRefreshResult, error) {
+	b.skillMu.RLock()
+	previousCount := len(b.skillCommands)
+	previousHidden := b.skillHidden
+	b.skillMu.RUnlock()
+	if b.cfg.SkillCollector == nil {
+		return gateway.SkillGroupRefreshResult{Channel: b.Name(), Count: previousCount, Hidden: previousHidden}, nil
+	}
+	commands, err := b.cfg.SkillCollector(ctx)
+	if err != nil {
+		return gateway.SkillGroupRefreshResult{Channel: b.Name(), Count: previousCount, Hidden: previousHidden}, err
+	}
+	commands, hidden := normalizeSkillGroupCommands(commands)
+	b.skillMu.Lock()
+	b.skillCommands = commands
+	b.skillHidden = hidden
+	b.skillMu.Unlock()
+	return gateway.SkillGroupRefreshResult{Channel: b.Name(), Count: len(commands), Hidden: hidden}, nil
+}
+
+// SkillGroupCommands returns a defensive copy of the cached Discord skill
+// autocomplete commands.
+func (b *Bot) SkillGroupCommands() []gateway.PlatformCommand {
+	b.skillMu.RLock()
+	defer b.skillMu.RUnlock()
+	return append([]gateway.PlatformCommand(nil), b.skillCommands...)
+}
+
+func normalizeSkillGroupCommands(commands []gateway.PlatformCommand) ([]gateway.PlatformCommand, int) {
+	out := make([]gateway.PlatformCommand, 0, len(commands))
+	seen := map[string]struct{}{}
+	hidden := 0
+	for _, cmd := range commands {
+		name := strings.TrimSpace(cmd.Name)
+		if name == "" {
+			hidden++
+			continue
+		}
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			hidden++
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, gateway.PlatformCommand{
+			Name:        name,
+			Description: strings.TrimSpace(cmd.Description),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
+	})
+	return out, hidden
+}
+
 func (b *Bot) acceptMessage(s *discordgo.Session, m *discordgo.Message) bool {
+	if m.Type != discordgo.MessageTypeDefault && m.Type != discordgo.MessageTypeReply {
+		return false
+	}
 	ctx := b.admissionContext(s, m)
 	result := EvaluateAdmission(b.admissionPolicy(), ctx)
 	return result.Allowed

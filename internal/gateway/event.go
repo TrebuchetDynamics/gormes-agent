@@ -170,6 +170,13 @@ type InboundEvent struct {
 	ReplyToText string
 	Kind        EventKind
 	Text        string
+	// AutoSkills carries channel-scoped skills resolved by adapters from
+	// Hermes-compatible channel_skill_bindings.
+	AutoSkills []string
+	// ChannelPrompt carries an ephemeral per-channel prompt resolved by the
+	// adapter. It is injected for this turn only and never mutates global
+	// prompt or skill configuration.
+	ChannelPrompt string
 
 	ThreadLifecycle *ThreadLifecycleEvent
 

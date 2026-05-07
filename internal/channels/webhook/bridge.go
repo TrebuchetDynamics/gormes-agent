@@ -15,9 +15,11 @@ var templateToken = regexp.MustCompile(`\{([a-zA-Z0-9_.]+)\}`)
 // RouteConfig is the subset of webhook route config needed to turn a payload
 // into a prompt plus a gateway delivery target.
 type RouteConfig struct {
-	Prompt       string
-	Deliver      string
-	DeliverExtra map[string]any
+	Secret       string         `json:"secret,omitempty"`
+	Events       []string       `json:"events,omitempty"`
+	Prompt       string         `json:"prompt,omitempty"`
+	Deliver      string         `json:"deliver,omitempty"`
+	DeliverExtra map[string]any `json:"deliver_extra,omitempty"`
 }
 
 // PromptDelivery is the typed bridge result used by future webhook or generic

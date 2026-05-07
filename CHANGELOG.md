@@ -8,6 +8,61 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.1.06] - 2026-05-07
+
+Date alias: `v2026.5.7` (adopting the Hermes-style `vYYYY.M.D` taxonomy in
+release notes and `release.json`; the canonical git tag remains `v0.1.06`
+until the release workflow accepts date-based tags as a separate concern).
+
+### Added
+- Phase 8 (Reputation & Publication) in `progress.json` with seven subphases
+  (8.A–8.G) and ten gormes-owned builder-ready rows: TD blog scaffold, social
+  presence, README rewrite, landing-page positioning audit, engineering
+  writeup #1, sharp v1.0 differentiator decision, single-binary release
+  pipeline, agentic-porting-kit extraction, loop $/iteration cost telemetry,
+  and built-with-Gormes page.
+- `docs/content/building-gormes/strategy/success-plan.md` — 12-month strategy
+  doc capturing the methodology-first North Star, quarterly roadmap, 30-day
+  action sprint, reputation-metrics scoreboard, and risk register.
+- Six builder-ready Hermes-parity rows from the v2026.4.30 + v2026.5.7
+  upstream sweep: provider client lazy-init for cold-start, plugin
+  `transform_llm_output` lifecycle hook, native `video_analyze` tool
+  contract, Kanban worker heartbeat/reclaim/zombie detection, Google Chat
+  shared-chassis adapter seam, and auth-state TOCTOU close + redaction
+  default-on parity (P0 security row).
+- Methodology section on the landing page (`#methodology`) with live
+  loop-output metrics, four pillar cards, and a link into the architecture
+  plan.
+
+### Changed
+- Repositioned `webpages/landing/` hero, kicker, sub-lines, secondary CTA,
+  proof strip, and top nav from "Run AI agents from one Go binary" to
+  "AI agent runtime in one Go binary" with the autonomous-porting loop as
+  the trust play. Outcome-first per the landing-quality rubric; methodology
+  is the differentiator.
+- Refreshed `gormes-hermes-parity` skill workflow to refresh the
+  `hermes-agent` git submodule to upstream `main` HEAD before classifying
+  behavior atoms, with a fetch+ff-only fallback for legacy clones.
+- README dropped the gitignore entry for `hermes-agent/` now that the
+  upstream reference checkout is tracked as a submodule.
+
+### Fixed
+- `progress.json` schema slips in the v0.12.0 + v0.13.0 parity rows
+  corrected: `provenance` now uses the struct shape
+  `{origin_type: "upstream"|"gormes"}`, and `trust_class: "plugin"` was
+  replaced with the valid `system` value.
+
+### Infrastructure
+- `hermes-agent` is now tracked as a git submodule pinned to
+  `NousResearch/hermes-agent` `main` (sha `7e2af0c2e`), replacing the
+  previous gitignored side-clone. Mirrors 7 missing upstream-hermes docs
+  for mirrored-coverage parity.
+- `scripts/codexu-gormes-builder-cron.sh` and the loop wrapper gained an
+  `opencode/deepseek-v4-pro` backend alongside the codexu path, switchable
+  via `GORMES_BUILDER_BACKEND`. The cron loop now runs on opencode.
+- Phase 6.L code executor and dependency resolver rows marked complete with
+  passing tests.
+
 ## [0.1.05] - 2026-05-06
 
 ### Added

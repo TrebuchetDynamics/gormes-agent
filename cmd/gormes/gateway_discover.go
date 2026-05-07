@@ -95,6 +95,9 @@ func newGatewayProbeCommand() *cobra.Command {
 			}
 			endpoints := []tools.GatewayEndpoint{}
 			discoverer := newGatewayDiscoverer(time.Duration(timeoutMs) * time.Millisecond)
+			prober := tools.GatewayEndpointProber(tools.TCPGatewayProber{
+				Timeout: time.Duration(timeoutMs) * time.Millisecond,
+			})
 			if strings.TrimSpace(urlRaw) != "" {
 				endpoint, err := tools.ParseGatewayEndpoint(urlRaw, tools.GatewayEndpointSourceManual)
 				if err != nil {
@@ -102,6 +105,14 @@ func newGatewayProbeCommand() *cobra.Command {
 				}
 				endpoints = append(endpoints, endpoint)
 				discoverer = nil
+				cfg, err := config.Load(nil)
+				if err != nil {
+					return fmt.Errorf("config: %w", err)
+				}
+				prober = tools.HTTPGatewayProber{
+					Timeout: time.Duration(timeoutMs) * time.Millisecond,
+					Auth:    gatewayProbeHTTPAuth(cfg, os.Getenv),
+				}
 			} else {
 				endpoints = append(endpoints, tools.NormalizeGatewayEndpoint(tools.GatewayEndpoint{
 					Address: "127.0.0.1",
@@ -116,10 +127,8 @@ func newGatewayProbeCommand() *cobra.Command {
 			result := tools.ProbeGateways(cmd.Context(), tools.GatewayProbeRequest{
 				Discoverer: discoverer,
 				Endpoints:  endpoints,
-				Prober: tools.TCPGatewayProber{
-					Timeout: time.Duration(timeoutMs) * time.Millisecond,
-				},
-				Runtime: runtimeSummary,
+				Prober:     prober,
+				Runtime:    runtimeSummary,
 			})
 			if jsonOut {
 				if err := encodeIndentedJSON(cmd.OutOrStdout(), result); err != nil {
@@ -138,6 +147,22 @@ func newGatewayProbeCommand() *cobra.Command {
 	cmd.Flags().StringVar(&urlRaw, "url", "", "explicit gateway URL or host:port to probe")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "print gateway probe as JSON")
 	return cmd
+}
+
+func gatewayProbeHTTPAuth(cfg config.Config, lookupEnv func(string) string) tools.GatewayHTTPAuth {
+	if lookupEnv == nil {
+		lookupEnv = os.Getenv
+	}
+	if token := strings.TrimSpace(lookupEnv("GATEWAY_PROXY_KEY")); token != "" {
+		return tools.GatewayHTTPAuth{Token: token, Source: "env:GATEWAY_PROXY_KEY"}
+	}
+	if token := strings.TrimSpace(lookupEnv("GORMES_DASHBOARD_API_KEY")); token != "" {
+		return tools.GatewayHTTPAuth{Token: token, Source: "env:GORMES_DASHBOARD_API_KEY"}
+	}
+	if token := strings.TrimSpace(cfg.Gateway.ProxyKey); token != "" {
+		return tools.GatewayHTTPAuth{Token: token, Source: "config:gateway.proxy_key"}
+	}
+	return tools.GatewayHTTPAuth{Source: "none"}
 }
 
 func newGatewayUsageCostCommand() *cobra.Command {

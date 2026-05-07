@@ -2,6 +2,9 @@
 node_modules/
 .astro/
 dist/
+# Temp build directories created by docs build tooling, named with a process-
+# unique suffix (e.g. .gormes-docs-astro-build-2070463986).
+.gormes-docs-astro-build-*/
 
 # Starlight reads from src/content/docs, but docs/content remains the
 # canonical repository docs source. The sync script regenerates this tree.

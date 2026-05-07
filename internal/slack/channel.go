@@ -29,6 +29,8 @@ type ChannelConfig struct {
 	RequireMention       any
 	StrictMention        any
 	FreeResponseChannels any
+	ChannelSkillBindings any
+	ChannelPrompts       any
 	LookupEnv            func(string) string
 }
 
@@ -149,6 +151,7 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 	}
 	return gateway.InboundEvent{
 		Platform:    "slack",
+		AccountID:   strings.TrimSpace(e.TeamID),
 		ChatID:      channelID,
 		ChatType:    slackChatType(e.ChannelID, e.ChatType),
 		UserID:      userID,
@@ -158,6 +161,12 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 		ReplyToText: replyToText,
 		Kind:        kind,
 		Text:        body,
+		AutoSkills:  gateway.ResolveChannelSkills(c.cfg.ChannelSkillBindings, channelID, ""),
+		ChannelPrompt: gateway.ResolveChannelPrompt(
+			c.cfg.ChannelPrompts,
+			channelID,
+			"",
+		),
 	}, true
 }
 

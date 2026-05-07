@@ -43,6 +43,7 @@ var platformDefaultToolsets = map[string]string{
 // it; CLI/cron/other-platform pickers must reject the toolset and the runtime
 // surface must keep it out of default toolsets.
 var platformScopedToolsets = map[string][]string{
+	"teams":   {"teams"},
 	"yuanbao": {"yuanbao"},
 }
 

@@ -23,6 +23,18 @@ type ReplySender interface {
 	SendReply(ctx context.Context, chatID, replyToMsgID, text string) (msgID string, err error)
 }
 
+// ThreadSender is implemented by channels that can address a native threaded
+// conversation while sending plain text.
+type ThreadSender interface {
+	SendThread(ctx context.Context, chatID, threadID, text string) (msgID string, err error)
+}
+
+// ThreadReplySender is implemented by channels that can combine native thread
+// targeting with a native reply/quote to an inbound platform message.
+type ThreadReplySender interface {
+	SendThreadReply(ctx context.Context, chatID, threadID, replyToMsgID, text string) (msgID string, err error)
+}
+
 // OutboundMediaKind classifies local files for native platform send paths.
 type OutboundMediaKind string
 
@@ -84,6 +96,19 @@ type ReplyPlaceholderCapable interface {
 	SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (msgID string, err error)
 }
 
+// ThreadPlaceholderCapable is implemented by editable channels that can create
+// their streaming placeholder in a native thread.
+type ThreadPlaceholderCapable interface {
+	SendThreadPlaceholder(ctx context.Context, chatID, threadID string) (msgID string, err error)
+}
+
+// ThreadReplyPlaceholderCapable is implemented by editable channels that can
+// create their streaming placeholder as both a native thread send and a native
+// reply to the inbound platform message.
+type ThreadReplyPlaceholderCapable interface {
+	SendThreadReplyPlaceholder(ctx context.Context, chatID, threadID, replyToMsgID string) (msgID string, err error)
+}
+
 // TypingCapable is implemented by channels that can show a typing indicator.
 // The returned stop function must be idempotent.
 type TypingCapable interface {
@@ -94,6 +119,12 @@ type TypingCapable interface {
 // actions such as Telegram sendChatAction.
 type TypingActionCapable interface {
 	SendChatAction(ctx context.Context, chatID, action string) error
+}
+
+// ThreadTypingActionCapable is implemented by channels that can show typing
+// indicators inside a native thread.
+type ThreadTypingActionCapable interface {
+	SendThreadChatAction(ctx context.Context, chatID, threadID, action string) error
 }
 
 // ProcessingOutcome is the channel-neutral terminal state for best-effort

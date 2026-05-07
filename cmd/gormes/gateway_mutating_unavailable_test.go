@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -106,6 +108,131 @@ func TestGatewayStopSignalsValidatedLiveRuntime(t *testing.T) {
 		}
 	}
 	assertGatewayStopDidNotOpenDurableStores(t)
+}
+
+func TestGatewayStopPlannedMarkerWrittenBeforeSignal(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayStopRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					StartTime:    987654,
+					Generation:   9,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:            gateway.RuntimeProcessValidationLive,
+					Live:              true,
+					PID:               4242,
+					ExpectedStartTime: 987654,
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					GatewayState: gateway.GatewayStateStopped,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:  gateway.RuntimeProcessValidationStalePID,
+					Live:    false,
+					PID:     4242,
+					Message: "process is not running",
+				},
+			},
+		},
+	}
+	restoreStore := gatewayStopRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayStopSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "stop", "--timeout=100ms")
+	if err != nil {
+		t.Fatalf("gateway stop: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 1 {
+		t.Fatalf("signals = %+v, want one signal after marker write", signals)
+	}
+
+	raw, err := os.ReadFile(gateway.DefaultPlannedStopMarkerPath(config.GatewayRuntimeStatusPath()))
+	if err != nil {
+		t.Fatalf("read planned stop marker: %v", err)
+	}
+	var marker gateway.PlannedStopMarker
+	if err := json.Unmarshal(raw, &marker); err != nil {
+		t.Fatalf("decode planned stop marker: %v\n%s", err, raw)
+	}
+	if marker.TargetPID != 4242 || marker.TargetStartTime != 987654 || marker.Generation != 9 {
+		t.Fatalf("marker target = %+v, want pid/start/generation 4242/987654/9", marker)
+	}
+	if marker.Reason != "gateway stop" {
+		t.Fatalf("marker reason = %q, want gateway stop", marker.Reason)
+	}
+	if marker.WrittenAt == "" || marker.StopperPID <= 0 {
+		t.Fatalf("marker missing written_at or stopper_pid: %+v", marker)
+	}
+	if !strings.Contains(stdout, "planned_stop_marker_written") {
+		t.Fatalf("stdout missing planned marker evidence:\n%s", stdout)
+	}
+	assertGatewayStopDidNotOpenDurableStores(t)
+}
+
+func TestGatewayStopSignalLoopConsumesPlannedMarker(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	sigCh := make(chan os.Signal, 1)
+	mgr := &fakeShutdownManager{
+		called:  make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	consumed := false
+	restoreConsumer := gatewayPlannedStopConsumerForTest(t, func(context.Context) (gateway.PlannedStopConsumeResult, error) {
+		consumed = true
+		return gateway.PlannedStopConsumeResult{Status: gateway.PlannedStopConsumeMatched, Matched: true}, nil
+	})
+	defer restoreConsumer()
+
+	done := make(chan struct{})
+	forceExit := make(chan int, 1)
+	go func() {
+		defer close(done)
+		runGatewaySignalLoop(sigCh, 200*time.Millisecond, mgr, cancel, nil, func(code int) {
+			forceExit <- code
+		})
+	}()
+
+	sigCh <- syscall.SIGTERM
+	select {
+	case <-mgr.called:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Shutdown was not called after planned SIGTERM")
+	}
+	close(mgr.release)
+	select {
+	case <-rootCtx.Done():
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("root context not canceled after planned shutdown")
+	}
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("signal loop did not return")
+	}
+	if !consumed {
+		t.Fatal("planned stop marker consumer was not called for SIGTERM")
+	}
+	select {
+	case code := <-forceExit:
+		t.Fatalf("planned stop forced exit code %d", code)
+	default:
+	}
 }
 
 func TestGatewayStopRefusesActiveAgents(t *testing.T) {
@@ -405,5 +532,14 @@ func gatewayReloadSignalForTest(t *testing.T, signal func(int, os.Signal) error)
 	signalGatewayReloadProcess = signal
 	return func() {
 		signalGatewayReloadProcess = previous
+	}
+}
+
+func gatewayPlannedStopConsumerForTest(t *testing.T, consume func(context.Context) (gateway.PlannedStopConsumeResult, error)) func() {
+	t.Helper()
+	previous := consumeGatewayPlannedStopMarkerForSelf
+	consumeGatewayPlannedStopMarkerForSelf = consume
+	return func() {
+		consumeGatewayPlannedStopMarkerForSelf = previous
 	}
 }

@@ -27,110 +27,72 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Extension Lifecycle Hook System
+## 1. Sharp v1.0 differentiator decision
 
-- Phase: 5 / 5.I
-- Owner: `tools`
-- Size: `large`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Port agent-zero extension lifecycle hook system: register extensions at 8+ lifecycle points (agent_init, monologue_start/end, message_loop_start/end, before_main_llm_call, prompt_before/after, stream_chunk, tool_before/after, context_deleted). Extension chain executes in registration order with per-extension timeout and panic isolation.
-- Trust class: operator, system
-- Ready when: Kernel state machine transitions are well-defined., Plugin registry supports lifecycle callback registration.
-- Not ready when: The row introduces Python dependency., The row adds hooks without timeout/panic recovery per extension.
-- Degraded mode: Extension load failure, timeout, or panic reports per-extension status with degraded extension skipped. No single extension failure blocks the agent turn.
-- Fixture: `internal/kernel/extensions_test.go`
-- Write scope: `internal/kernel/extensions.go`, `internal/kernel/extensions_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/kernel -run TestExtensions -count=1`, `go run ./cmd/progress validate`
-- Done signal: Extension lifecycle hook system ships with 8+ hook points and per-extension error isolation.
-- Acceptance: Extensions register for monologue_start, message_loop_start, prompt_before, prompt_after, stream_chunk, tool_before, tool_after hooks., Extension chain executes in registration order., Extension timeout or panic does not crash agent turn., gormes extensions list shows registered extensions with hook points.
-- Source refs: agent-zero helpers/extension.py (@extensible decorator), agent-zero agent.py (hook points), docs/content/building-gormes/agent-zero-feature-analysis.md, internal/kernel/kernel.go
-- Unblocks: Plugin ecosystem, Skill injection pipeline
-- Why now: Unblocks Plugin ecosystem, Skill injection pipeline.
-
-## 2. Channels Capabilities Introspection
-
-- Phase: 5 / 5.N
-- Owner: `tools`
+- Phase: 8 / 8.D
+- Owner: `docs`
 - Size: `small`
 - Status: `planned`
-- Priority: `P2`
-- Contract: Port OpenClaw's channels capabilities: gormes channels capabilities shows provider capabilities (intents/scopes + supported features) for each configured channel. Enables operators to understand what each channel adapter supports before configuring it.
+- Priority: `P0`
+- Contract: A short decision document records the sharp v1.0 differentiator: a single paragraph stating what Gormes 1.0 will be (recommended: "runs the 30 most-used Hermes skills unchanged, in a single 30 MB Go binary, on Termux + Windows-without-Python + locked-down corp Linux"), the curated 30-skill list, the explicit exclusion list of what 1.0 will NOT do, and the date the decision was ratified. The decision unblocks every downstream messaging row.
 - Trust class: operator
-- Ready when: Channel adapters expose capability metadata., CLI channel command routing is defined.
-- Not ready when: The row hardcodes per-channel capabilities., The row requires live channel connections for capability discovery.
-- Degraded mode: Unconfigured channel, missing adapter, or capability query failure reports per-channel status with 'unknown' capability rather than crashing.
-- Fixture: `internal/channels/capabilities_test.go`
-- Write scope: `internal/channels/capabilities.go`, `internal/channels/capabilities_test.go`, `cmd/gormes/channels_capabilities.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels -run TestCapabilities -count=1`, `go run ./cmd/progress validate`
-- Done signal: gormes channels capabilities ships for all configured channel adapters.
-- Acceptance: gormes channels capabilities --channel telegram shows intents, scopes, and supported features., Output includes media support, command support, and format limitations per channel., Unconfigured channels show 'not configured' status.
-- Source refs: openclaw channels capabilities CLI surface, internal/channels/* (adapter implementations), docs/content/building-gormes/openclaw-platform-parity-audit.md
-- Unblocks: Channel configuration UX
-- Why now: Unblocks Channel configuration UX.
+- Ready when: Operator has read success-plan.md and considered alternative differentiators., An evidence-backed shortlist of the 30 most-used Hermes skills exists (telemetry, repo signal, or operator judgement — but recorded).
+- Not ready when: The doc is empty placeholder text., The differentiator is still phrased as "Hermes in Go" or "feature parity"., The exclusion list is missing — readers cannot self-select.
+- Degraded mode: Without a written, dated differentiator, the README and landing page cannot be rewritten coherently and the parity backlog has no Pareto filter.
+- Fixture: `docs/content/building-gormes/strategy/v1-differentiator.md`
+- Write scope: `docs/content/building-gormes/strategy/v1-differentiator.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Strategic decision row; the artifact is a written-down decision. Validation is the existence of the doc with the required sections.
+- Done signal: v1-differentiator.md exists, fits the schema above, and is referenced from README.md and landing-page hero.
+- Acceptance: docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date., The differentiator paragraph fits in <50 words., The exclusion list explicitly mentions areas Gormes 1.0 will not chase (TUI parity beyond core, dashboard, web app, full i18n, etc.).
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, hermes-agent/skills/, internal/skills/
+- Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
+- Why now: P0 handoff; needs contract proof before closeout.
 
-## 3. Prompt Fragment Include System
+## 2. TD engineering blog scaffolded and live
 
-- Phase: 5 / 5.N
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Port agent-zero prompt fragment system: prompts stored as fragments with {{include filename.md}} directives, priority search order (agent profile > user > plugin > default), {{include original}} chains through hierarchy, variables substituted at render time.
-- Trust class: operator, system
-- Ready when: Extension lifecycle hooks (5.I) provide prompt_before/after hook points., Skill system supports profile-level prompt overrides.
-- Not ready when: The row hardcodes prompt content in Go strings., The row bypasses existing prompt builder contract.
-- Degraded mode: Missing fragment, circular include, or render failure reports prompt_fragment_error with chain trace.
-- Fixture: `internal/hermes/prompt_fragments_test.go`
-- Write scope: `internal/hermes/prompt_fragments.go`, `internal/hermes/prompt_fragments_test.go`, `prompts/*.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/hermes -run TestPromptFragments -count=1`, `go run ./cmd/progress validate`
-- Done signal: Prompt fragment system ships with {{include}}, {{include original}}, and variable substitution.
-- Acceptance: {{include agent.system.main.role.md}} resolves through priority search., {{include original}} chains through profile > user > default hierarchy., Circular includes detected and reported., Fragment cache invalidates on file change.
-- Source refs: agent-zero prompts/ (72 fragment files), agent-zero agent.py:prepare_prompt, docs/content/building-gormes/agent-zero-feature-analysis.md
-- Unblocks: Agent profile customization, Plugin prompt injection
-- Why now: Unblocks Agent profile customization, Plugin prompt injection.
-
-## 4. Gateway probe auth/capability HTTP closeout
-
-- Phase: 5 / 5.N
-- Owner: `gateway`
+- Phase: 8 / 8.A
+- Owner: `docs`
 - Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Close the remaining OpenClaw-style gateway probe gap after the completed TCP discover/probe slice: probe authenticated HTTP health/capabilities endpoints with redacted evidence for unavailable, unauthenticated, unsupported, and mismatched gateways.
-- Trust class: operator, gateway
-- Ready when: The base Gateway Discover and Probe row is complete, so this closeout can build on the existing `gormes gateway probe` command without duplicating TCP reachability., Gateway status, health, and capabilities endpoints are stable enough to probe with hermetic httptest servers and fake auth sources.
-- Not ready when: The slice requires a live Telegram, Discord, Slack, or gateway process to pass tests., The slice reimplements Bonjour/TCP discovery instead of layering HTTP auth/capability probes over the completed gateway_discover contract.
-- Degraded mode: HTTP probe failures show endpoint, status code, and auth source classification without leaking bearer tokens, gateway passwords, or SecretRef values.
-- Fixture: `cmd/gormes/gateway_probe_http_test.go`
-- Write scope: `cmd/gormes/gateway.go`, `cmd/gormes/gateway_discover.go`, `cmd/gormes/gateway_probe_http_test.go`, `internal/apiserver/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./cmd/gormes ./internal/apiserver -run 'Gateway.*Probe.*HTTP\|Gateway.*Capability' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gateway HTTP probe closeout gives operators redacted auth, health, and capability evidence without reading source code or contacting live channels.
-- Acceptance: gormes gateway probe --url uses fake HTTP tests for success, unauthorized, unavailable, unsupported capability, and malformed response., Output redacts bearer tokens, gateway passwords, and SecretRef values while preserving auth-source classification., The completed TCP discover/probe behavior remains covered by the Gateway Discover and Probe row and is not duplicated here.
-- Source refs: ../openclaw/src/cli/gateway-secret-options.ts, ../openclaw/src/security/audit-gateway-auth-selection.test.ts, ../openclaw/src/commands/gateway-status/probe-run.ts, internal/tools/gateway_discover.go, cmd/gormes/gateway.go, cmd/gormes/gateway_discover.go, internal/apiserver/server.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Transactional tool execution with snapshot/rollback
-
-- Phase: 5 / 5.U
-- Owner: `tools`
-- Size: `large`
 - Status: `planned`
 - Priority: `P1`
-- Contract: Wrap each uncertain tool call as an atomic transaction with ACID properties. Filesystem snapshot before execution; rollback on failure, error, or policy violation. Guarantees system consistency regardless of agent behavior.
-- Trust class: system
-- Ready when: Command classifier exists (5.U row 1), Sandbox filesystem supports snapshot/rollback
-- Not ready when: No snapshot mechanism available on target OS
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/tools/transactional_executor.go`, `internal/tools/transactional_executor_test.go`, `internal/tools/snapshot.go`
-- Test commands: `go test ./internal/tools -run TestTransactionalExecutor -count=1`, `go test ./internal/tools -run TestSnapshot -count=1`
-- Done signal: Transactional executor tests prove rollback on failure and commit on success with filesystem integrity
-- Acceptance: Uncertain tool calls create filesystem snapshot before execution, Failed tool calls roll back to pre-execution state, Successful tool calls commit snapshot changes, Rollback is atomic — no partial state after failure, Snapshot overhead <2s per transaction on typical project, Audit log records snapshot/rollback/commit events
-- Source refs: docs/content/papers/safety-and-deployment.md, arXiv:2512.12806 (Fault-Tolerant Sandboxing 2025), internal/tools/executor.go, internal/tools/sandbox.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+- Contract: TrebuchetDynamics has a publicly reachable engineering blog with a working Atom/RSS feed, an /about page that names the org and the methodology, and a deploy pipeline so a markdown commit becomes a published post without manual intervention. Hosting choice is owner's call (Astro/Hugo/Eleventy + Cloudflare/Vercel/GitHub Pages); the row is done when a stranger can subscribe to a feed and read one published post.
+- Trust class: operator
+- Ready when: Hosting choice and blog framework are decided (operator decision; not loop-driven)., A subdomain or path on an existing TD-controlled domain is available.
+- Not ready when: The blog is private, password-protected, or behind authentication., There is no Atom/RSS feed at a stable URL., The first post is empty or placeholder text rather than the writeup #1 draft or a real introduction.
+- Degraded mode: Without a publication outlet, every loop commit is invisible in the reputation market; the strategy described in success-plan.md cannot start.
+- Fixture: `webpages/blog/ (or chosen blog repo path)`
+- Write scope: `webpages/blog/ (or external blog repo path)`, `DNS / Cloudflare / hosting config (operator-only)`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Documentation/infrastructure row; success is the URL being live and the feed being reachable, validated by the acceptance checklist.
+- Done signal: Public blog URL + feed URL recorded in success-plan.md and README.md.
+- Acceptance: Blog is reachable at a public URL with at least one real (non-placeholder) post., An Atom or RSS feed exists at a stable, discoverable URL., Publishing a new post is a markdown-commit-and-merge operation; no console click-through required., An /about page exists that names TrebuchetDynamics and points at gormes-agent + agentic-porting-kit.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
+- Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
+- Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 6. Sandbox isolation depth selection
+## 3. Loop $/iteration cost metric in status file
+
+- Phase: 8 / 8.F
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: The autonomous builder loop records a cost-per-iteration estimate in its status file (loop-health.env or a sibling file), broken down by backend (codexu vs opencode/<model>), accumulated daily and monthly. For opencode, use the JSONL event stream's `cost` and `tokens` fields per run; for codexu, use a documented fallback estimate. A `--cost-report` subcommand on the loop wrapper prints the rolling 7-day and 30-day spend.
+- Trust class: operator, system
+- Ready when: The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl)., Per-run cost is extractable from the JSONL via a simple jq aggregation.
+- Not ready when: Cost is reported as a fake or placeholder number when JSONL data is unavailable; degraded mode must surface unknown_cost evidence instead., The metric is a wallclock proxy ("runtime seconds") rather than a real spend estimate.
+- Degraded mode: Without cost telemetry, the operating principle "$/feature shipped" cannot be enforced; the loop runs at indefinite cost.
+- Fixture: `internal/loopcost/cost_test.go`
+- Write scope: `internal/loopcost/cost.go`, `internal/loopcost/cost_test.go`, `scripts/codexu-gormes-builder-loop.sh`, `scripts/codexu-gormes-builder-cron.sh`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/loopcost -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Cost rollups appear in loop-health.env; --cost-report subcommand prints rollups; fixture-tested aggregation handles missing data without lying.
+- Acceptance: TestLoopCost_AggregatesOpencodeJSONL parses a captured opencode JSONL fixture and produces a per-run cost summary., TestLoopCost_DailyRollup combines per-run summaries into a 24-hour rolling spend., TestLoopCost_MissingDataIsUnknown returns unknown_cost evidence rather than zero when JSONL is absent., The loop wrapper's `--cost-report` (or equivalent) subcommand prints the 7-day and 30-day rollups in <100 ms.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, scripts/codexu-gormes-builder-loop.sh, scripts/codexu-gormes-builder-cron.sh
+- Unblocks: Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop
+- Why now: Unblocks Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop.
+
+## 4. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -150,7 +112,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Behavioral pattern extraction from session logs
+## 5. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -170,64 +132,45 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Skill code execution runtime
+## 6. Agentic-porting-kit repo scaffold
 
-- Phase: 6 / 6.L
+- Phase: 8 / 8.E
 - Owner: `skills`
 - Size: `large`
 - Status: `planned`
 - Priority: `P2`
-- Contract: Skills are not just markdown instructions — they contain executable code that can be run in a sandboxed environment. This mirrors Voyager's code-as-action pattern: skills are validated, sandboxed, and can be composed by the agent at runtime.
-- Trust class: operator, system
-- Ready when: Skill loader parses structured skill files, Sandbox execution exists for tool calls
-- Not ready when: Skill files are plain text only (no code blocks), No sandbox isolation available
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/skills/code_executor.go`, `internal/skills/code_executor_test.go`, `internal/skills/skill_runtime.go`
-- Test commands: `go test ./internal/skills -run TestCodeExecutor -count=1`, `go test ./internal/skills -run TestSkillRuntime -count=1`
-- Done signal: Code executor tests prove skills with code blocks execute in sandbox with input/output contract
-- Acceptance: Skill files with code blocks are executable in sandbox, Execution is sandboxed with the same isolation as tool calls, Skill code has access to skill-defined dependencies, Execution timeout prevents runaway skills, Execution output is captured and returned to agent, Skill can define input parameters accepted from agent
-- Source refs: docs/content/papers/foundational-architectures.md, Voyager (arXiv:2305.16291), internal/skills/loader.go, internal/skills/executor.go, internal/tools/sandbox.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 9. Skill dependency resolution and composition
-
-- Phase: 6 / 6.L
-- Owner: `skills`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Skills can declare dependencies on other skills. The runtime resolves the dependency graph before execution. The agent can compose skills by chaining: output of Skill A feeds into input of Skill B. Dependencies are validated at load time.
+- Contract: The gormes-* skill set (gormes-planner, gormes-builder, gormes-tdd-slice, gormes-parity-auditor, gormes-references, gormes-skill-manager) is extracted into a separate public TrebuchetDynamics repo (`agentic-porting-kit` or equivalent), with a README that frames the kit as a generic Python→Go porting toolkit, a worked example using a small non-Hermes target, and a clear license. The kit must work standalone — its rows must be loadable by Codex or Claude Code in any repo, not just Gormes.
 - Trust class: operator
-- Ready when: Skill code execution exists (6.L row 1), Skills have structured metadata with dependency declarations
-- Not ready when: Skills have no dependency model, Code execution runtime not available
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/skills/dependency_resolver.go`, `internal/skills/dependency_resolver_test.go`, `internal/skills/composer.go`
-- Test commands: `go test ./internal/skills -run TestDependencyResolver -count=1`, `go test ./internal/skills -run TestComposer -count=1`
-- Done signal: Dependency tests prove circular deps rejected and chained composition works with error attribution
-- Acceptance: Skill dependency graph resolved at load time, Circular dependencies detected and rejected with clear error, Missing dependencies reported with skill name and missing dep, Agent can chain Skill A output → Skill B input, Composition failures surface which step in the chain failed, Load-time validation catches 100% of dependency errors before execution
-- Source refs: docs/content/papers/foundational-architectures.md, Voyager skill library composition, internal/skills/loader.go, internal/skills/registry.go
+- Ready when: All listed skills have a README of their own that does not assume the Gormes repo layout., Skills' references that hard-code Gormes paths have been parameterized or generalized.
+- Not ready when: Skills still hard-code paths under docs/content/building-gormes/., The extracted kit cannot be tested without cloning Gormes.
+- Degraded mode: Without extraction, the methodology is invisible to other teams; "the loop is the product" cannot be substantiated externally.
+- Fixture: `(separate repo: TrebuchetDynamics/agentic-porting-kit)`
+- Write scope: `(separate repo)`, `webpages/docs/development-skills/ (de-Gormes-fy paths)`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Cross-repo extraction; success is measured by the kit working standalone in a fresh checkout, not unit tests inside Gormes.
+- Done signal: Repo URL recorded in success-plan.md and README.md; star count tracked monthly.
+- Acceptance: Public repo TrebuchetDynamics/agentic-porting-kit exists with the listed skills., Repo README explains the kit independent of Gormes/Hermes., A worked example demonstrates the kit on a non-Hermes target (any small Python project being ported to Go)., Skills can be loaded into a fresh Codex or Claude Code session and successfully plan-and-execute one row in the example target.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Skill validation on load with execution proof
+## 7. Built-with-Gormes page scaffold
 
-- Phase: 6 / 6.L
-- Owner: `skills`
+- Phase: 8 / 8.G
+- Owner: `docs`
 - Size: `small`
 - Status: `planned`
-- Priority: `P2`
-- Contract: When a skill is loaded or created, run a lightweight validation: parse code blocks, execute in sandbox with a canary input, verify output contract. Skills that fail validation are marked as broken and not offered to the agent. Passing skills carry a 'validated' trust marker.
-- Trust class: system
-- Ready when: Skill code execution exists (6.L row 1)
-- Not ready when: No sandbox execution available for validation
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/skills/validator.go`, `internal/skills/validator_test.go`
-- Test commands: `go test ./internal/skills -run TestValidator -count=1`
-- Done signal: Validator tests prove broken skills are caught at load time with clear error messages
-- Acceptance: Skills validated on load before appearing in agent's tool list, Canary execution with minimal input verifies basic functionality, Broken skills marked with error details (not silently skipped), Validation is fast (<500ms per skill, runs in background goroutine), Operator can force-load a broken skill with explicit override flag, Validation results visible in skill registry status
-- Source refs: docs/content/papers/foundational-architectures.md, Voyager iterative prompting with execution feedback, internal/skills/loader.go
+- Priority: `P3`
+- Contract: A page at gormes.ai/built-with (or equivalent path on the docs site) lists real production deployments of Gormes, even if there is initially only one entry (the operator's own). The page has a documented submission process (PR-based) and a template entry shape. The point is to make the slot exist so it can be filled, not to fake usage.
+- Trust class: operator
+- Ready when: Landing page exists., An entry template (yaml or md) is decided.
+- Not ready when: Entries are fabricated., The submission process is unwritten.
+- Degraded mode: Without the page, even genuine outside users have no place to land their name; reputation compounds through visibility.
+- Fixture: `webpages/landing/src/pages/built-with.astro (or equivalent)`
+- Write scope: `webpages/landing/src/`, `CONTRIBUTING.md`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `(cd webpages/landing && npm run test:e2e)`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Public page live with at least one truthful entry; submission process documented.
+- Acceptance: /built-with (or chosen path) is reachable on the public landing site., The page renders at least one real entry (operator's own deployment, with truthful description)., A submission template + PR-based process is documented either inline on the page or in CONTRIBUTING.md.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

@@ -25,6 +25,7 @@ const (
 )
 
 const telegramPollingConflictMaxRetries = 3
+const telegramPollingNetworkMaxRetries = 10
 
 // TelegramStartupError is the typed operator evidence returned when Telegram
 // startup must fail before message ingress begins.
@@ -58,6 +59,14 @@ type telegramTokenLock interface {
 
 type telegramTokenLocker interface {
 	AcquireTelegramToken(context.Context, string) (telegramTokenLock, gateway.TokenLockEvidence, error)
+}
+
+type telegramPollingDrainer interface {
+	DrainPollingConnections(context.Context) error
+}
+
+type telegramHeartbeatProber interface {
+	ProbeTelegramHeartbeat(context.Context) error
 }
 
 type gatewayTelegramTokenLocker struct {
@@ -170,6 +179,7 @@ func (b *Bot) handlePollingError(ctx context.Context, err error) (bool, error) {
 				}
 			}
 			b.log.Warn("telegram polling conflict; retrying", "attempt", b.pollingConflictCount, "max", telegramPollingConflictMaxRetries)
+			b.drainPollingConnections(ctx)
 			return true, nil
 		}
 		return false, newTelegramStartupError(
@@ -180,14 +190,57 @@ func (b *Bot) handlePollingError(ctx context.Context, err error) (bool, error) {
 		)
 	}
 	if telegramLooksLikeNetworkError(err) {
-		return false, newTelegramStartupError(
-			telegramStartupCodeConnectError,
-			"telegram startup network failure: "+sanitizeTelegramStartupError(err),
-			true,
-			err,
-		)
+		b.pollingConflictCount++
+		if b.pollingConflictCount > telegramPollingNetworkMaxRetries {
+			return false, newTelegramStartupError(
+				telegramStartupCodeConnectError,
+				fmt.Sprintf("telegram polling could not reconnect after %d network retries: %s", telegramPollingNetworkMaxRetries, sanitizeTelegramStartupError(err)),
+				true,
+				err,
+			)
+		}
+		b.log.Warn("telegram polling network error; reconnecting", "attempt", b.pollingConflictCount, "max", telegramPollingNetworkMaxRetries, "err", sanitizeTelegramStartupError(err))
+		b.drainPollingConnections(ctx)
+		delay := b.telegramPollingConflictRetryDelay()
+		if delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return false, nil
+			case <-timer.C:
+			}
+		}
+		b.probeTelegramHeartbeat(ctx)
+		return true, nil
 	}
 	return false, err
+}
+
+func (b *Bot) drainPollingConnections(ctx context.Context) {
+	if b == nil || b.client == nil {
+		return
+	}
+	drainer, ok := b.client.(telegramPollingDrainer)
+	if !ok {
+		return
+	}
+	if err := drainer.DrainPollingConnections(ctx); err != nil {
+		b.log.Debug("telegram polling request drain failed", "err", sanitizeTelegramStartupError(err))
+	}
+}
+
+func (b *Bot) probeTelegramHeartbeat(ctx context.Context) {
+	if b == nil || b.client == nil {
+		return
+	}
+	prober, ok := b.client.(telegramHeartbeatProber)
+	if !ok {
+		return
+	}
+	if err := prober.ProbeTelegramHeartbeat(ctx); err != nil {
+		b.log.Debug("telegram heartbeat probe failed", "err", sanitizeTelegramStartupError(err))
+	}
 }
 
 func (b *Bot) telegramPollingConflictRetryDelay() time.Duration {

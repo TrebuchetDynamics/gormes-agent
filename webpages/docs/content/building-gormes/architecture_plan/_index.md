@@ -87,17 +87,18 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 66/92 subphases shipped · 25 in progress · 1 planned
+**Overall:** 69/99 subphases shipped · 23 in progress · 7 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
+| Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 7/12 subphases |
+| Phase 5 — The Final Purge | 🔨 | 6/22 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
+| Phase 8 — Reputation & Publication | ⏳ | 0/7 subphases |
 
 ---
 
@@ -135,7 +136,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -177,7 +178,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing 🔨
+### 2.B.5 — Session Context + Delivery Routing ✅
 
 - [x] Gateway session store + SessionSource parity
 - [x] Gateway manual reset session-boundary hooks
@@ -240,17 +241,18 @@ classification and row-backed implementation queue.
 - [x] Discord interaction authorization + mention safety guards
 - [x] Gateway processing lifecycle reactions for Telegram and Discord
 - [x] Telegram text batching + caption merge parity
-- [ ] Cross-platform multi-image native batching
+- [x] Cross-platform multi-image native batching
 - [x] Discord message admission + reply-mode policy
-- [ ] Webhook dynamic route reload + signed rate-limit order
-- [ ] Slack/Discord channel-scoped skills, prompts, and reload resync
-- [ ] Telegram fallback transport + polling reconnect recovery
-- [ ] Telegram sticker vision adapter binding
-- [ ] Discord native slash/thread command registration parity
+- [x] Webhook dynamic route reload + signed rate-limit order
+- [x] Slack/Discord channel-scoped skills, prompts, and reload resync
+- [x] Telegram fallback transport + polling reconnect recovery
+- [x] Telegram sticker vision adapter binding
+- [x] Discord native slash/thread command registration parity
 - [x] Telegram entity-only mention boundary closeout
-- [ ] Telegram forum thread fallback + send retry safety
-- [ ] Telegram semantic MarkdownV2 formatter + table rewrite
-- [ ] Gateway platform reconnect isolation + channel health limits
+- [x] Telegram thread-aware outbound text + typing seam
+- [x] Telegram forum thread fallback + send retry safety
+- [x] Telegram semantic MarkdownV2 formatter + table rewrite
+- [x] Gateway platform reconnect isolation + channel health limits
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -282,6 +284,7 @@ classification and row-backed implementation queue.
 - [x] SQLite cron_runs audit + CRON.md mirror
 - [x] Heartbeat [SYSTEM:] + [SILENT] delivery contract
 - [x] Architecture planner tasks manager script
+- [x] Cron no-agent script-only short-circuit
 
 ### 2.E.0 — OS-AI Spine: Deterministic Subagent Runtime ✅
 
@@ -700,14 +703,16 @@ classification and row-backed implementation queue.
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
 - [x] Go browser harness binary repo + integration lane (placeholder)
+- [x] Browser session inactivity cleanup thread
 
 ### 5.D — Vision + Image Generation 🔨
 
-- [ ] Multimodal in/out
+- [x] Multimodal in/out
 - [x] Image input mode router + native content parts
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch
+- [ ] Native video_analyze tool contract
 
 ### 5.E — TTS / Voice / Transcription 🔨
 
@@ -770,7 +775,8 @@ classification and row-backed implementation queue.
 - [x] Hindsight memory setup blank-input preservation
 - [x] Agent Hooks Registry
 - [x] Plugin Marketplace + Doctor
-- [ ] Extension Lifecycle Hook System
+- [x] Extension Lifecycle Hook System
+- [ ] Plugin lifecycle hook: transform_llm_output
 
 ### 5.J — Approval / Security Guards 🔨
 
@@ -791,6 +797,7 @@ classification and row-backed implementation queue.
 - [x] Secrets Runtime Controls
 - [x] Security Audit Command
 - [x] Email allowlist pre-dispatch loop guard
+- [ ] Auth state TOCTOU close + redaction default-on parity
 
 ### 5.K — Code Execution ✅
 
@@ -817,9 +824,11 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban production worker process binding
 - [x] Hermes Kanban worker tools and prompt gating
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
+- [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [ ] Kanban worker heartbeat, reclaim, and zombie detection
 
-### 5.N — Misc Operator Tools 🔨
+### 5.N — Misc Operator Tools ✅
 
 - [x] Todo
 - [x] Clarify
@@ -849,7 +858,7 @@ classification and row-backed implementation queue.
 - [x] SecretRef runtime snapshot activation
 - [x] OpenClaw security audit --deep --fix
 - [x] ACP bridge doctor/status evidence
-- [ ] Gateway probe auth/capability HTTP closeout
+- [x] Gateway probe auth/capability HTTP closeout
 - [x] Safety-critical panic and swallowed-error closeout
 - [x] Session Health Monitoring
 - [x] Evidence-Before-Claims Quality Gate
@@ -858,13 +867,13 @@ classification and row-backed implementation queue.
 - [x] Session Rollover Automation
 - [x] System Events, Heartbeat, and Presence
 - [x] Gateway Discover and Probe
-- [ ] Channels Capabilities Introspection
-- [ ] Prompt Fragment Include System
+- [x] Channels Capabilities Introspection
+- [x] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
 - [x] Cron env-ref expansion + parallel run state serialization
 - [x] Cron script/workdir/inactivity execution binding
-- [ ] Cron no-agent script-only watchdog mode
+- [x] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
 
 ### 5.O — Hermes CLI Parity 🔨
@@ -927,7 +936,7 @@ classification and row-backed implementation queue.
 - [x] CLI profile name validator
 - [x] CLI profile root resolver
 - [x] CLI active-profile store
-- [ ] CLI profile path and active-profile store (deprecated umbrella)
+- [x] CLI profile path and active-profile store (deprecated umbrella)
 - [x] Top-level oneshot flag and model/provider resolver
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
@@ -955,7 +964,7 @@ classification and row-backed implementation queue.
 - [x] CLI setup/onboard/help text fidelity matrix
 - [x] Hermes CLI alias and suggestion fidelity matrix
 - [x] Logs Command
-- [ ] Gateway planned stop marker + WSL systemd PATH parity
+- [x] Gateway planned stop marker + WSL systemd PATH parity
 - [x] Gateway stale-code self-check uses git HEAD SHA
 
 ### 5.P — Docker / Packaging 🔨
@@ -993,7 +1002,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes status bar renderer
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
-- [ ] Native TUI clipboard, OSC52, and terminal setup parity
+- [x] Native TUI clipboard, OSC52, and terminal setup parity
 - [x] Native TUI image/file drop + paste collapse ingress
 - [x] Native TUI Hermes slash completion helpers
 - [x] Native TUI absolute path completion routing
@@ -1014,6 +1023,7 @@ classification and row-backed implementation queue.
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
+- [ ] Provider client lazy-init for TUI cold-start budget
 
 ### 5.R — Code Execution Mode Policy 🔨
 
@@ -1033,14 +1043,20 @@ classification and row-backed implementation queue.
 ### 5.U — Fault-Tolerant Sandbox Execution 🔨
 
 - [x] Pre-execution command classification
-- [ ] Transactional tool execution with snapshot/rollback
+- [x] Transactional tool execution with snapshot/rollback
 - [ ] Sandbox isolation depth selection
 
 ### 5.V — Unified Event Bus 🔨
 
 - [x] Event bus core: pub/sub interface + in-process implementation
 - [ ] Gateway channel adapters publish to event bus
+- [x] Gateway outbound sends publish message-sent events
+- [x] Weixin gateway event-bus adapter
+- [x] WeCom gateway event-bus adapter
 - [x] Telegram gateway event-bus adapter
+- [x] Discord gateway event-bus adapter
+- [x] Slack gateway event-bus adapter
+- [x] WhatsApp gateway event-bus adapter
 - [x] Agent turn and tool execution events on bus
 - [x] Event bus integration test: full message flow
 
@@ -1107,11 +1123,11 @@ classification and row-backed implementation queue.
 - [x] Iterative prompt mutation and scoring loop
 - [ ] Behavioral pattern extraction from session logs
 
-### 6.L — Composable Skill Execution (Voyager) ⏳
+### 6.L — Composable Skill Execution (Voyager) ✅
 
-- [ ] Skill code execution runtime
-- [ ] Skill dependency resolution and composition
-- [ ] Skill validation on load with execution proof
+- [x] Skill code execution runtime
+- [x] Skill dependency resolution and composition
+- [x] Skill validation on load with execution proof
 
 ## Phase 7 — Paused Channel Backlog 🔨
 
@@ -1122,7 +1138,7 @@ classification and row-backed implementation queue.
 - [x] Inbound event normalization + session identity
 - [x] Reply/send contract on shared chassis
 - [ ] Signal transport/bootstrap layer
-- [ ] Signal markdown bodyRanges + attachment rate scheduler
+- [x] Signal markdown bodyRanges + attachment rate scheduler
 
 ### 7.B — Email + SMS Adapters ✅
 
@@ -1162,8 +1178,44 @@ classification and row-backed implementation queue.
 - [x] Yuanbao protocol envelope + markdown fixtures
 - [x] Yuanbao media/sticker attachment normalization
 - [x] Yuanbao gateway runtime + toolset registration
-- [ ] Microsoft Teams adapter plugin seam
+- [x] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
+- [ ] Google Chat shared-chassis platform adapter seam
+
+## Phase 8 — Reputation & Publication ⏳
+
+*TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.*
+
+### 8.A — Publication Infrastructure ⏳
+
+- [ ] TD engineering blog scaffolded and live
+- [ ] TD social presence connected to blog feed
+
+### 8.B — Repository Messaging ⏳
+
+- [ ] README rewrite to methodology-first positioning
+- [ ] gormes.ai landing page positioning audit
+
+### 8.C — Engineering Writeups ⏳
+
+- [ ] Engineering writeup #1: autonomous Hermes-porting loop
+
+### 8.D — Sharp v1.0 ⏳
+
+- [ ] Sharp v1.0 differentiator decision
+- [ ] Single-binary cross-platform release pipeline
+
+### 8.E — Toolkit Extraction ⏳
+
+- [ ] Agentic-porting-kit repo scaffold
+
+### 8.F — Cost Discipline & Loop Economics ⏳
+
+- [ ] Loop $/iteration cost metric in status file
+
+### 8.G — Community & External Contributions ⏳
+
+- [ ] Built-with-Gormes page scaffold
 
 <!-- PROGRESS:END -->
 

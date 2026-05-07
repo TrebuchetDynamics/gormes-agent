@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { page, trackerLabel } from '../data/landing.js';
+import { page } from '../data/landing.js';
 
 const sectionShell = 'mx-auto max-w-5xl px-5 sm:px-7';
 const sectionPad = 'py-16 sm:py-20';
@@ -69,29 +69,29 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
           alt=""
           aria-hidden="true"
         />
-        <div class={`${sectionShell} hero-inner relative z-10 py-20 sm:py-24`}>
+        <div class={`${sectionShell} hero-inner relative z-10 py-16 sm:py-20`}>
           <div class="hero-content max-w-3xl">
             <img
-              class="hero-logo mb-8 block w-full max-w-[720px]"
+              class="hero-logo mb-6 block w-full max-w-[720px]"
               src="/static/gormes-agent-logo-blue.svg"
               alt="GORMES-AGENT"
             />
             <p class="kicker mb-4 text-xs font-bold uppercase text-[#eeece5]/50">{page.heroKicker}</p>
-            <h1 class="hero-title mb-6 max-w-[740px] break-words font-serif text-[clamp(2.25rem,8vw,4.75rem)] font-black leading-[0.98] text-white">
+            <h1 class="hero-title mb-5 max-w-[740px] break-words font-serif text-[clamp(2.25rem,8vw,4.75rem)] font-black leading-[0.98] text-white">
               {page.heroHeadline}
             </h1>
             <div class="hero-subhead max-w-2xl space-y-1 text-base leading-7 text-[#eeece5]/75 sm:text-lg">
               {page.heroLines.map((line) => <p>{line}</p>)}
             </div>
-            <div class="hero-note mt-7 max-w-2xl border-l-2 border-[#f0c84b] pl-4">
+            <div class="hero-note mt-5 max-w-2xl border-l-2 border-[#f0c84b] pl-4">
               <p class="hero-note-stamp text-sm font-bold text-[#f0c84b]">{page.heroFilterStamp}</p>
               <p class="hero-note-body mt-1 text-sm leading-6 text-[#eeece5]/70">{page.heroFilterLine}</p>
             </div>
-            <div class="hero-ctas mt-8 flex flex-col gap-3 sm:flex-row">
+            <div class="hero-ctas mt-6 flex flex-col gap-3 sm:flex-row">
               <a class={buttonPrimary} href={page.primaryCta.href}>{page.primaryCta.label}</a>
               <a class={buttonSecondary} href={page.secondaryCta.href}>{page.secondaryCta.label}</a>
             </div>
-            <div class="proof-strip mt-7 flex flex-wrap gap-2">
+            <div class="proof-strip mt-5 flex flex-wrap gap-2">
               {page.proofStrip.map((item) => (
                 <span class="proof-item rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 text-xs font-bold text-[#eeece5]/75">
                   {item}
@@ -99,6 +99,42 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section id="methodology" class={`methodology border-b border-white/10 bg-gradient-to-b from-[#0d1117] to-[#090b0f] ${sectionPad}`}>
+        <div class={`${sectionShell} methodology-inner`}>
+          <p class="kicker mb-3 text-xs font-bold uppercase text-[#73cedd]">{page.methodologyLabel}</p>
+          <h2 class="section-title mb-5 max-w-3xl text-3xl font-bold leading-tight text-[#eeece5]">{page.methodologyHeadline}</h2>
+          <p class="methodology-intro max-w-3xl text-base leading-7 text-[#eeece5]/72">{page.methodologyIntro}</p>
+
+          <div class="methodology-metrics mt-8">
+            <p class="font-mono text-xs font-bold uppercase text-[#f0c84b]">{page.methodologyMetricLabel}</p>
+            <div class="mt-4 grid gap-4 sm:grid-cols-3">
+              {page.methodologyMetrics.map((metric) => (
+                <article class={`${cardShell} methodology-metric`}>
+                  <p class="metric-value font-mono text-3xl font-black text-[#73cedd]">{metric.value}</p>
+                  <p class="metric-label mt-1 text-sm font-bold text-[#eeece5]">{metric.label}</p>
+                  <p class="metric-detail mt-2 text-xs leading-5 text-[#eeece5]/65">{metric.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div class="methodology-pillars mt-10 grid gap-4 md:grid-cols-2">
+            {page.methodologyPillars.map((pillar) => (
+              <article class={`${cardShell} methodology-pillar`}>
+                <h3 class="text-base font-bold text-[#eeece5]">{pillar.title}</h3>
+                <p class="mt-3 text-sm leading-6 text-[#eeece5]/72">{pillar.body}</p>
+              </article>
+            ))}
+          </div>
+
+          <p class="methodology-link mt-7 text-sm font-bold text-[#f0c84b]">
+            <a class="hover:text-[#ffd968]" href={page.methodologyLink.href}>
+              {page.methodologyLink.label}
+            </a>
+          </p>
         </div>
       </section>
 
@@ -247,7 +283,7 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
 
           <p class="roadmap-footer mt-5 text-sm font-bold text-[#f0c84b]">
             <a class="hover:text-[#ffd968]" href={page.progressTrackerUrl}>
-              {trackerLabel} · Full progress tracker →
+              {page.roadmapLinkLabel}
             </a>
           </p>
         </div>

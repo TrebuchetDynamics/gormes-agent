@@ -21,11 +21,15 @@ type HookEvent struct {
 	Point    HookPoint
 	Platform string
 	ChatID   string
+	ThreadID string
 	MsgID    string
-	Kind     EventKind
-	Text     string
-	Inbound  *InboundEvent
-	Err      error
+	// ReplyToMessageID carries the triggering platform message when the send
+	// used a channel reply/threading API.
+	ReplyToMessageID string
+	Kind             EventKind
+	Text             string
+	Inbound          *InboundEvent
+	Err              error
 }
 
 type HookFunc func(context.Context, HookEvent)

@@ -44,6 +44,9 @@ func TestDecideRuntime_BridgeFirstDefaultOwnsBridgeSession(t *testing.T) {
 	if !plan.Bridge.ManagedProcess {
 		t.Fatal("Bridge.ManagedProcess = false, want true")
 	}
+	if plan.Bridge.TypingResponseCleanup != TypingResponseCleanupClose {
+		t.Fatalf("Bridge.TypingResponseCleanup = %q, want %q", plan.Bridge.TypingResponseCleanup, TypingResponseCleanupClose)
+	}
 	if plan.Bridge.SessionPath != wantSessionPath {
 		t.Fatalf("Bridge.SessionPath = %q, want %q", plan.Bridge.SessionPath, wantSessionPath)
 	}

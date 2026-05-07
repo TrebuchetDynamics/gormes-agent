@@ -55,9 +55,51 @@ class FakeNavivoxChannel extends ChangeNotifier implements NavivoxChannel {
     _approvals.add(request);
   }
 
+  /// Test-side hook: pretend the server returned the config schema.
+  void emitConfigSchema(Map<String, Object?> schema) {
+    _state = _state.copyWith(configSchema: schema);
+    notifyListeners();
+  }
+
+  /// Test-side hook: pretend the server returned the current config values.
+  void emitConfigValues(Map<String, Object?> values) {
+    _state = _state.copyWith(configValues: values);
+    notifyListeners();
+  }
+
   @override
   void respondToApproval({required String approvalId, required bool approved}) {
     _approvalResponses.add((approvalId: approvalId, approved: approved));
+  }
+
+  @override
+  void requestAgentList() {
+    // The fake channel publishes a built-in trio so the UI can render without
+    // a real server.
+    _state = _state.copyWith(agents: const [
+      NavivoxAgent(id: 'default', name: 'Default', status: 'active'),
+      NavivoxAgent(id: 'arch', name: 'Architect', status: 'active'),
+    ]);
+    notifyListeners();
+  }
+
+  @override
+  void selectAgent(String agentId) {
+    _state = _state.copyWith(selectedAgentId: agentId);
+    notifyListeners();
+  }
+
+  @override
+  void sendConfigSet({required String field, required Object? value}) {
+    _state = _state.copyWith(
+      configValues: {..._state.configValues, field: value},
+    );
+    notifyListeners();
+  }
+
+  @override
+  void sendConfigSecretSet({required String name, required String secret}) {
+    // The fake never stores the secret — UI must rely on server confirmation.
   }
 
   @override

@@ -150,13 +150,15 @@ func (b *Bot) toInboundEvent(msg InboundMessage) (gateway.InboundEvent, bool) {
 
 	kind, body := gateway.ParseInboundText(text)
 	return gateway.InboundEvent{
-		Platform: "wecom",
-		ChatID:   chatID,
-		UserID:   userID,
-		UserName: strings.TrimSpace(msg.UserName),
-		MsgID:    strings.TrimSpace(msg.MessageID),
-		Kind:     kind,
-		Text:     body,
+		Platform:  "wecom",
+		ChatID:    chatID,
+		ChatType:  strings.TrimSpace(msg.ChatType),
+		UserID:    userID,
+		UserName:  strings.TrimSpace(msg.UserName),
+		MsgID:     strings.TrimSpace(msg.MessageID),
+		MessageID: strings.TrimSpace(msg.MessageID),
+		Kind:      kind,
+		Text:      body,
 	}, true
 }
 

@@ -15,6 +15,9 @@ type realSession struct {
 }
 
 var _ discordSession = (*realSession)(nil)
+var _ discordCommandRegistrar = (*realSession)(nil)
+var _ discordInteractionResponder = (*realSession)(nil)
+var _ discordThreadStarter = (*realSession)(nil)
 
 func NewRealSession(token string) (discordSession, error) {
 	if token == "" {
@@ -36,6 +39,33 @@ func (r *realSession) Close() error { return r.s.Close() }
 
 func (r *realSession) AddHandler(handler interface{}) func() {
 	return r.s.AddHandler(handler)
+}
+
+func (r *realSession) CurrentUserID() string {
+	if r.s.State == nil || r.s.State.User == nil {
+		return ""
+	}
+	return strings.TrimSpace(r.s.State.User.ID)
+}
+
+func (r *realSession) ApplicationCommandBulkOverwrite(appID, guildID string, commands []*discordgo.ApplicationCommand, options ...discordgo.RequestOption) ([]*discordgo.ApplicationCommand, error) {
+	return r.s.ApplicationCommandBulkOverwrite(appID, guildID, commands, options...)
+}
+
+func (r *realSession) InteractionRespond(interaction *discordgo.Interaction, resp *discordgo.InteractionResponse, options ...discordgo.RequestOption) error {
+	return r.s.InteractionRespond(interaction, resp, options...)
+}
+
+func (r *realSession) FollowupMessageCreate(interaction *discordgo.Interaction, wait bool, data *discordgo.WebhookParams, options ...discordgo.RequestOption) (*discordgo.Message, error) {
+	return r.s.FollowupMessageCreate(interaction, wait, data, options...)
+}
+
+func (r *realSession) ThreadStartComplex(channelID string, data *discordgo.ThreadStart, options ...discordgo.RequestOption) (*discordgo.Channel, error) {
+	return r.s.ThreadStartComplex(channelID, data, options...)
+}
+
+func (r *realSession) MessageThreadStartComplex(channelID, messageID string, data *discordgo.ThreadStart, options ...discordgo.RequestOption) (*discordgo.Channel, error) {
+	return r.s.MessageThreadStartComplex(channelID, messageID, data, options...)
 }
 
 func (r *realSession) ChannelMessageSend(channelID, content string) (*discordgo.Message, error) {

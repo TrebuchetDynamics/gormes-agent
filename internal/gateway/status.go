@@ -284,6 +284,189 @@ type RuntimeStatusWriter interface {
 	UpdateRuntimeStatus(context.Context, RuntimeStatusUpdate) error
 }
 
+const (
+	plannedStopMarkerKind = "gormes-gateway-planned-stop"
+
+	// PlannedStopMarkerTTL mirrors Hermes' short-lived planned-stop marker
+	// window. Stale markers are removed and never mask later unexpected exits.
+	PlannedStopMarkerTTL = time.Minute
+)
+
+// PlannedStopMarker is written before an operator-initiated gateway stop sends
+// SIGTERM/SIGINT to the live gateway process.
+type PlannedStopMarker struct {
+	Kind            string `json:"kind"`
+	TargetPID       int    `json:"target_pid"`
+	TargetStartTime int64  `json:"target_start_time"`
+	StopperPID      int    `json:"stopper_pid"`
+	Generation      uint64 `json:"generation"`
+	Reason          string `json:"reason,omitempty"`
+	WrittenAt       string `json:"written_at"`
+}
+
+type PlannedStopConsumeStatus string
+
+const (
+	PlannedStopConsumeMissing    PlannedStopConsumeStatus = "missing"
+	PlannedStopConsumeMatched    PlannedStopConsumeStatus = "matched"
+	PlannedStopConsumeStale      PlannedStopConsumeStatus = "stale"
+	PlannedStopConsumeMismatched PlannedStopConsumeStatus = "mismatched"
+	PlannedStopConsumeInvalid    PlannedStopConsumeStatus = "invalid"
+)
+
+type PlannedStopConsumeResult struct {
+	Status  PlannedStopConsumeStatus
+	Matched bool
+	Reason  string
+	Marker  PlannedStopMarker
+}
+
+// PlannedStopStore persists one planned-stop marker as atomic JSON.
+type PlannedStopStore struct {
+	path      string
+	now       func() time.Time
+	pid       func() int
+	startTime func(int) (int64, bool)
+	ttl       time.Duration
+}
+
+func NewPlannedStopStore(path string) *PlannedStopStore {
+	return &PlannedStopStore{
+		path:      path,
+		now:       func() time.Time { return time.Now().UTC() },
+		pid:       os.Getpid,
+		startTime: procProcessStartTime,
+		ttl:       PlannedStopMarkerTTL,
+	}
+}
+
+func DefaultPlannedStopMarkerPath(runtimeStatusPath string) string {
+	if runtimeStatusPath == "" {
+		return ".gateway-planned-stop.json"
+	}
+	return filepath.Join(filepath.Dir(runtimeStatusPath), ".gateway-planned-stop.json")
+}
+
+func (s *PlannedStopStore) Write(ctx context.Context, marker PlannedStopMarker) error {
+	if s == nil || s.path == "" {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if marker.Kind == "" {
+		marker.Kind = plannedStopMarkerKind
+	}
+	if marker.StopperPID == 0 {
+		marker.StopperPID = s.currentPID()
+	}
+	if marker.WrittenAt == "" {
+		marker.WrittenAt = s.currentTime().Format(time.RFC3339Nano)
+	}
+	return writeRestartJSONAtomic(ctx, s.path, marker)
+}
+
+func (s *PlannedStopStore) ConsumeForSelf(ctx context.Context) (PlannedStopConsumeResult, error) {
+	if s == nil || s.path == "" {
+		return PlannedStopConsumeResult{Status: PlannedStopConsumeMissing}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return PlannedStopConsumeResult{}, err
+	}
+	raw, err := os.ReadFile(s.path)
+	if errors.Is(err, os.ErrNotExist) {
+		return PlannedStopConsumeResult{Status: PlannedStopConsumeMissing}, nil
+	}
+	if err != nil {
+		return PlannedStopConsumeResult{}, fmt.Errorf("read planned stop marker: %w", err)
+	}
+	if len(raw) == 0 {
+		_ = s.Clear(context.Background())
+		return PlannedStopConsumeResult{Status: PlannedStopConsumeInvalid, Reason: "empty marker"}, nil
+	}
+
+	var marker PlannedStopMarker
+	if err := json.Unmarshal(raw, &marker); err != nil {
+		_ = s.Clear(context.Background())
+		return PlannedStopConsumeResult{Status: PlannedStopConsumeInvalid, Reason: "decode marker: " + err.Error()}, nil
+	}
+	if marker.Kind != "" && marker.Kind != plannedStopMarkerKind {
+		_ = s.Clear(context.Background())
+		return PlannedStopConsumeResult{Status: PlannedStopConsumeInvalid, Reason: "marker kind mismatch", Marker: marker}, nil
+	}
+	if s.plannedStopMarkerStale(marker) {
+		_ = s.Clear(context.Background())
+		return PlannedStopConsumeResult{Status: PlannedStopConsumeStale, Reason: "marker is stale", Marker: marker}, nil
+	}
+
+	result := PlannedStopConsumeResult{Status: PlannedStopConsumeMismatched, Reason: "target pid/start_time mismatch", Marker: marker}
+	if s.plannedStopMarkerMatchesSelf(marker) {
+		result.Status = PlannedStopConsumeMatched
+		result.Matched = true
+		result.Reason = ""
+	}
+	_ = s.Clear(context.Background())
+	return result, nil
+}
+
+func (s *PlannedStopStore) Clear(ctx context.Context) error {
+	if s == nil || s.path == "" {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := os.Remove(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove planned stop marker: %w", err)
+	}
+	return nil
+}
+
+func (s *PlannedStopStore) currentTime() time.Time {
+	if s != nil && s.now != nil {
+		return s.now().UTC()
+	}
+	return time.Now().UTC()
+}
+
+func (s *PlannedStopStore) currentPID() int {
+	if s != nil && s.pid != nil {
+		return s.pid()
+	}
+	return os.Getpid()
+}
+
+func (s *PlannedStopStore) markerTTL() time.Duration {
+	if s != nil && s.ttl > 0 {
+		return s.ttl
+	}
+	return PlannedStopMarkerTTL
+}
+
+func (s *PlannedStopStore) plannedStopMarkerStale(marker PlannedStopMarker) bool {
+	writtenAt, err := time.Parse(time.RFC3339Nano, marker.WrittenAt)
+	if err != nil {
+		return true
+	}
+	return s.currentTime().Sub(writtenAt) > s.markerTTL()
+}
+
+func (s *PlannedStopStore) plannedStopMarkerMatchesSelf(marker PlannedStopMarker) bool {
+	if marker.TargetPID <= 0 || marker.TargetStartTime == 0 {
+		return false
+	}
+	pid := s.currentPID()
+	if marker.TargetPID != pid {
+		return false
+	}
+	startTime := s.startTime
+	if startTime == nil {
+		startTime = procProcessStartTime
+	}
+	actualStartTime, ok := startTime(pid)
+	return ok && actualStartTime != 0 && actualStartTime == marker.TargetStartTime
+}
+
 // RuntimeStatusStore persists the gateway runtime status as atomic JSON.
 type RuntimeStatusStore struct {
 	path             string

@@ -29,6 +29,49 @@ func newMigrateCommand() *cobra.Command {
 	return cmd
 }
 
+func newClawCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "claw",
+		Short:        "Hermes-compatible OpenClaw migration tools",
+		SilenceUsage: true,
+	}
+	cmd.AddCommand(newClawMigrateCommand())
+	return cmd
+}
+
+func newClawMigrateCommand() *cobra.Command {
+	var (
+		source         string
+		dryRun         bool
+		yes            bool
+		overwrite      bool
+		migrateSecrets bool
+	)
+	cmd := &cobra.Command{
+		Use:          "migrate",
+		Short:        "Migrate OpenClaw state into Gormes using the Hermes claw migrate spelling",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if dryRun && yes {
+				return newExitCodeError(2, errors.New("gormes claw migrate: --dry-run and --yes are mutually exclusive"))
+			}
+			if !dryRun && !yes {
+				return newExitCodeError(2, errors.New("gormes claw migrate: use --yes to apply or --dry-run to inspect"))
+			}
+			if dryRun {
+				return runMigrateOpenClawDryRun(cmd, source)
+			}
+			return runMigrateOpenClawApply(cmd, source, "", overwrite, migrateSecrets)
+		},
+	}
+	cmd.Flags().StringVar(&source, "source", "", "explicit OpenClaw home directory; preferred over ~/.openclaw, ~/.clawdbot, and ~/.moltbot")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the migration manifest without writing any Gormes file")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "apply the migration manifest into Gormes")
+	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "overwrite existing destination keys flagged as conflict in the manifest")
+	cmd.Flags().BoolVar(&migrateSecrets, "migrate-secrets", false, "import secret env values; without this flag, secret rows are reported as secret_skipped")
+	return cmd
+}
+
 func newMigrateHermesCommand() *cobra.Command {
 	var (
 		source    string

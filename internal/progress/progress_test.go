@@ -62,10 +62,9 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["1"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 1 = %q, want complete", got)
 	}
-	// Phase 2 is back in progress while the Telegram topic-mode closeout row
-	// tracks fresh upstream command/auth/debounce drift.
-	if got := p.Phases["2"].DerivedStatus(); got != StatusInProgress {
-		t.Errorf("Phase 2 = %q, want in_progress", got)
+	// Phase 2 is complete — all 21/21 subphases and 73 routing/context rows shipped.
+	if got := p.Phases["2"].DerivedStatus(); got != StatusComplete {
+		t.Errorf("Phase 2 = %q, want complete", got)
 	}
 	// Phase 3 is complete once the local-first markdown MCP memory requirement
 	// joins the existing durable-memory parity rows as validated.
@@ -453,8 +452,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 2.B.5 = %q, want in_progress while gateway routing rows remain planned", got)
+	if got := routing.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 2.B.5 = %q, want complete — all session-context and delivery-routing rows shipped", got)
 	}
 	routingItems := itemsByName(routing.Items)
 	topicCloseout := routingItems["Telegram topic mode off/help/auth/debounce closeout"]

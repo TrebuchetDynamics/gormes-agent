@@ -161,6 +161,7 @@ func escapeTelegramMarkdown(text string) string {
 
 func renderTelegramFinalMarkdown(text string) string {
 	text = stripOuterMarkdownFence(strings.ReplaceAll(text, "\r\n", "\n"))
+	text = wrapTelegramMarkdownTables(text)
 	lines := strings.Split(text, "\n")
 	var b strings.Builder
 	inCode := false
@@ -203,8 +204,11 @@ func renderTelegramFinalMarkdown(text string) string {
 			b.WriteString(renderTelegramInlineMarkdown(body))
 			continue
 		}
-		if body, ok := parseMarkdownBlockquote(line); ok {
-			b.WriteString("❯ ")
+		if prefix, body, ok := parseMarkdownBlockquote(line); ok {
+			b.WriteString(prefix)
+			if body != "" {
+				b.WriteByte(' ')
+			}
 			b.WriteString(renderTelegramInlineMarkdown(body))
 			continue
 		}
@@ -214,6 +218,123 @@ func renderTelegramFinalMarkdown(text string) string {
 		b.WriteString("\n```")
 	}
 	return b.String()
+}
+
+func wrapTelegramMarkdownTables(text string) string {
+	if !strings.Contains(text, "|") || !strings.Contains(text, "-") {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	out := make([]string, 0, len(lines))
+	inFence := false
+	for i := 0; i < len(lines); {
+		line := lines[i]
+		if strings.HasPrefix(strings.TrimLeft(line, " \t"), "```") {
+			inFence = !inFence
+			out = append(out, line)
+			i++
+			continue
+		}
+		if inFence {
+			out = append(out, line)
+			i++
+			continue
+		}
+		if strings.Contains(line, "|") && i+1 < len(lines) && isTelegramMarkdownTableSeparator(lines[i+1]) {
+			block := []string{line, lines[i+1]}
+			j := i + 2
+			for j < len(lines) && isTelegramMarkdownTableRow(lines[j]) {
+				block = append(block, lines[j])
+				j++
+			}
+			out = append(out, renderTelegramMarkdownTable(block))
+			i = j
+			continue
+		}
+		out = append(out, line)
+		i++
+	}
+	return strings.Join(out, "\n")
+}
+
+func isTelegramMarkdownTableRow(line string) bool {
+	return strings.TrimSpace(line) != "" && strings.Contains(line, "|")
+}
+
+func isTelegramMarkdownTableSeparator(line string) bool {
+	cells := splitTelegramMarkdownTableRow(line)
+	if len(cells) < 2 {
+		return false
+	}
+	for _, cell := range cells {
+		cell = strings.TrimSpace(cell)
+		if cell == "" {
+			return false
+		}
+		if strings.HasPrefix(cell, ":") {
+			cell = strings.TrimPrefix(cell, ":")
+		}
+		if strings.HasSuffix(cell, ":") {
+			cell = strings.TrimSuffix(cell, ":")
+		}
+		if len(cell) == 0 {
+			return false
+		}
+		for _, r := range cell {
+			if r != '-' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func splitTelegramMarkdownTableRow(line string) []string {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "|") {
+		trimmed = strings.TrimPrefix(trimmed, "|")
+	}
+	if strings.HasSuffix(trimmed, "|") {
+		trimmed = strings.TrimSuffix(trimmed, "|")
+	}
+	parts := strings.Split(trimmed, "|")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return parts
+}
+
+func renderTelegramMarkdownTable(block []string) string {
+	if len(block) < 3 {
+		return strings.Join(block, "\n")
+	}
+	headers := splitTelegramMarkdownTableRow(block[0])
+	if len(headers) < 2 {
+		return strings.Join(block, "\n")
+	}
+	var rows []string
+	for index, line := range block[2:] {
+		cells := splitTelegramMarkdownTableRow(line)
+		for len(cells) < len(headers) {
+			cells = append(cells, "")
+		}
+		if len(cells) > len(headers) {
+			cells = cells[:len(headers)]
+		}
+		heading := fmt.Sprintf("Row %d", index+1)
+		for _, cell := range cells {
+			if strings.TrimSpace(cell) != "" {
+				heading = cell
+				break
+			}
+		}
+		lines := []string{"**" + heading + "**"}
+		for i, header := range headers {
+			lines = append(lines, "• "+header+": "+cells[i])
+		}
+		rows = append(rows, strings.Join(lines, "\n"))
+	}
+	return strings.Join(rows, "\n\n")
 }
 
 func stripOuterMarkdownFence(text string) string {
@@ -295,13 +416,17 @@ func parseMarkdownNumberedItem(line string) (string, string, string, bool) {
 	return line[:indentLen], line[indentLen:i], body, true
 }
 
-func parseMarkdownBlockquote(line string) (string, bool) {
+func parseMarkdownBlockquote(line string) (string, string, bool) {
 	trimmed := strings.TrimLeft(line, " \t")
 	if !strings.HasPrefix(trimmed, ">") {
-		return "", false
+		return "", "", false
 	}
-	body := strings.TrimSpace(strings.TrimPrefix(trimmed, ">"))
-	return body, body != ""
+	i := 0
+	for i < len(trimmed) && trimmed[i] == '>' {
+		i++
+	}
+	body := strings.TrimSpace(trimmed[i:])
+	return strings.Repeat(">", i), body, body != ""
 }
 
 func leadingWhitespaceLen(s string) int {
@@ -340,6 +465,32 @@ func renderTelegramInlineMarkdown(s string) string {
 					b.WriteByte('*')
 					b.WriteString(escapeTelegramMarkdown(content))
 					b.WriteByte('*')
+					i = contentEnd + 2
+					continue
+				}
+			}
+		}
+		if strings.HasPrefix(s[i:], "~~") {
+			if end := strings.Index(s[i+2:], "~~"); end >= 0 {
+				contentEnd := i + 2 + end
+				content := strings.TrimSpace(s[i+2 : contentEnd])
+				if content != "" {
+					b.WriteByte('~')
+					b.WriteString(escapeTelegramMarkdown(content))
+					b.WriteByte('~')
+					i = contentEnd + 2
+					continue
+				}
+			}
+		}
+		if strings.HasPrefix(s[i:], "||") {
+			if end := strings.Index(s[i+2:], "||"); end >= 0 {
+				contentEnd := i + 2 + end
+				content := strings.TrimSpace(s[i+2 : contentEnd])
+				if content != "" {
+					b.WriteString("||")
+					b.WriteString(escapeTelegramMarkdown(content))
+					b.WriteString("||")
 					i = contentEnd + 2
 					continue
 				}
@@ -438,7 +589,7 @@ func isASCIISpace(b byte) bool {
 
 func nextInlineSpecial(s string, start int) int {
 	next := len(s)
-	for _, marker := range []string{"`", "[", "**", "_", "*"} {
+	for _, marker := range []string{"`", "[", "**", "~~", "||", "_", "*"} {
 		if idx := strings.Index(s[start:], marker); idx >= 0 && start+idx < next {
 			next = start + idx
 		}

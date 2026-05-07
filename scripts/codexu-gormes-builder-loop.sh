@@ -21,6 +21,7 @@ PID_FILE="$STATE_DIR/loop.pid"
 CURRENT_RUN_FILE="$STATE_DIR/current-run.env"
 LAST_SUCCESS_FILE="$STATE_DIR/last-success.env"
 LAST_FAILURE_FILE="$STATE_DIR/last-failure.env"
+LAST_MESSAGE_FILE="$STATE_DIR/last-message.txt"
 PAUSE_FILE="$STATE_DIR/pause"
 STOP_FILE="$STATE_DIR/stop-after-current"
 LOG_DIR="$STATE_DIR/logs"
@@ -79,6 +80,82 @@ repo_branch() {
 
 repo_head() {
   git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || true
+}
+
+repo_porcelain_count() {
+  local output
+  if ! output="$(git -C "$REPO_ROOT" status --porcelain --untracked-files=all 2>/dev/null)"; then
+    printf 'unknown\n'
+    return 0
+  fi
+  if [[ -z "$output" ]]; then
+    printf '0\n'
+    return 0
+  fi
+  printf '%s\n' "$output" | wc -l | tr -d ' '
+  printf '\n'
+}
+
+repo_dirty_state() {
+  local count
+  count="$(repo_porcelain_count)"
+  if [[ "$count" == "unknown" ]]; then
+    printf 'unknown\n'
+  elif [[ "$count" == "0" ]]; then
+    printf 'clean\n'
+  else
+    printf 'dirty\n'
+  fi
+}
+
+repo_upstream_counts() {
+  local counts
+  if ! counts="$(git -C "$REPO_ROOT" rev-list --left-right --count '@{upstream}...HEAD' 2>/dev/null)"; then
+    printf 'unknown unknown\n'
+    return 0
+  fi
+  printf '%s\n' "$counts"
+}
+
+repo_behind_count() {
+  local behind ahead
+  read -r behind ahead < <(repo_upstream_counts)
+  printf '%s\n' "${behind:-unknown}"
+}
+
+repo_ahead_count() {
+  local behind ahead
+  read -r behind ahead < <(repo_upstream_counts)
+  printf '%s\n' "${ahead:-unknown}"
+}
+
+latest_log_path() {
+  find "$LOG_DIR" -maxdepth 1 -type f -name '*.log' -printf '%T@ %p\n' 2>/dev/null |
+    sort -nr |
+    awk 'NR == 1 { $1=""; sub(/^ /, ""); print; exit }'
+}
+
+file_size_bytes() {
+  local path="$1"
+  if [[ -z "$path" || ! -e "$path" ]]; then
+    printf 'unknown\n'
+    return 0
+  fi
+  stat -c %s "$path" 2>/dev/null || printf 'unknown\n'
+}
+
+file_age_seconds() {
+  local path="$1" mtime now
+  if [[ -z "$path" || ! -e "$path" ]]; then
+    printf 'unknown\n'
+    return 0
+  fi
+  mtime="$(stat -c %Y "$path" 2>/dev/null)" || {
+    printf 'unknown\n'
+    return 0
+  }
+  now="$(date +%s)"
+  printf '%s\n' "$((now - mtime))"
 }
 
 pause_field() {
@@ -153,6 +230,8 @@ clear_expired_pause() {
 }
 
 write_health() {
+  local latest_log
+  latest_log="$(latest_log_path)"
   atomic_kv_write "$HEALTH_FILE" \
     timestamp "$(timestamp)" \
     status "${1:-running}" \
@@ -165,6 +244,15 @@ write_health() {
     loop_started_at "$LOOP_STARTED_AT" \
     current_child "$CURRENT_CHILD" \
     consecutive_failures "$CONSECUTIVE_FAILURES" \
+    repo_dirty_state "$(repo_dirty_state)" \
+    repo_dirty_count "$(repo_porcelain_count)" \
+    repo_ahead "$(repo_ahead_count)" \
+    repo_behind "$(repo_behind_count)" \
+    latest_log "$latest_log" \
+    latest_log_size_bytes "$(file_size_bytes "$latest_log")" \
+    latest_log_age_seconds "$(file_age_seconds "$latest_log")" \
+    last_message_file "$LAST_MESSAGE_FILE" \
+    last_message_age_seconds "$(file_age_seconds "$LAST_MESSAGE_FILE")" \
     node "$(command -v node >/dev/null 2>&1 && node --version || true)" \
     codexu "$(command -v codexu 2>/dev/null || true)" \
     pause_file "$PAUSE_FILE" \
@@ -255,9 +343,21 @@ runner_ready() {
     log "runner syntax check failed: $RUNNER"
     return 1
   fi
-  if [[ "$RUNNER" == "$DEFAULT_RUNNER" ]] && ! command -v codexu >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/codexu" ]]; then
-    log "codexu is not available on PATH or at $HOME/.local/bin/codexu"
-    return 1
+  if [[ "$RUNNER" == "$DEFAULT_RUNNER" ]]; then
+    case "${GORMES_BUILDER_BACKEND:-codexu}" in
+      opencode)
+        if ! command -v opencode >/dev/null 2>&1 && [[ ! -x "$HOME/.opencode/bin/opencode" ]]; then
+          log "opencode is not available on PATH or at $HOME/.opencode/bin/opencode"
+          return 1
+        fi
+        ;;
+      codexu|*)
+        if ! command -v codexu >/dev/null 2>&1 && [[ ! -x "$HOME/.local/bin/codexu" ]]; then
+          log "codexu is not available on PATH or at $HOME/.local/bin/codexu"
+          return 1
+        fi
+        ;;
+    esac
   fi
   return 0
 }
@@ -292,6 +392,34 @@ print_pause_status() {
   fi
 }
 
+print_state_file() {
+  local label="$1" file="$2"
+  printf '\n%s:\n' "$label"
+  printf '%s_file=%s\n' "$label" "$file"
+  if [[ -f "$file" ]]; then
+    cat "$file"
+  else
+    printf '%s_state=absent\n' "$label"
+  fi
+}
+
+print_live_progress() {
+  local latest_log
+  latest_log="$(latest_log_path)"
+  printf '\nlive progress:\n'
+  printf 'repo_branch=%s\n' "$(repo_branch)"
+  printf 'repo_head=%s\n' "$(repo_head)"
+  printf 'repo_dirty_state=%s\n' "$(repo_dirty_state)"
+  printf 'repo_dirty_count=%s\n' "$(repo_porcelain_count)"
+  printf 'repo_ahead=%s\n' "$(repo_ahead_count)"
+  printf 'repo_behind=%s\n' "$(repo_behind_count)"
+  printf 'latest_log=%s\n' "$latest_log"
+  printf 'latest_log_size_bytes=%s\n' "$(file_size_bytes "$latest_log")"
+  printf 'latest_log_age_seconds=%s\n' "$(file_age_seconds "$latest_log")"
+  printf 'last_message_file=%s\n' "$LAST_MESSAGE_FILE"
+  printf 'last_message_age_seconds=%s\n' "$(file_age_seconds "$LAST_MESSAGE_FILE")"
+}
+
 print_status() {
   printf 'loop health: %s\n' "$HEALTH_FILE"
   if [[ -f "$HEALTH_FILE" ]]; then
@@ -300,6 +428,10 @@ print_status() {
     printf 'status=%q\n' "missing_health_file"
   fi
   print_pause_status
+  print_live_progress
+  print_state_file "current_run" "$CURRENT_RUN_FILE"
+  print_state_file "last_success" "$LAST_SUCCESS_FILE"
+  print_state_file "last_failure" "$LAST_FAILURE_FILE"
   printf '\nprocesses:\n'
   ps -eo pid,ppid,lstart,etime,cmd | grep -E 'gormes-codexu-builder-loop|codexu-gormes-builder-loop|codexu-gormes-builder-cron|codexu exec' | grep -v grep || true
   printf '\nlatest logs:\n'

@@ -185,6 +185,12 @@ func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel 
 			Detail: configuredSlackGatewayStatusDetail(cfg.Slack),
 		})
 	}
+	if cfg.Teams.Enabled {
+		channels = append(channels, gateway.StatusChannel{
+			Name:   "teams",
+			Detail: configuredTeamsGatewayStatusDetail(cfg.Teams),
+		})
+	}
 	return channels
 }
 
@@ -212,4 +218,8 @@ func configuredSlackGatewayStatusDetail(cfg config.SlackCfg) string {
 		detail = "allowed_channel_id=" + cfg.AllowedChannelID
 	}
 	return detail
+}
+
+func configuredTeamsGatewayStatusDetail(cfg config.TeamsCfg) string {
+	return cfg.RedactedStatus()
 }
