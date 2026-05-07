@@ -124,14 +124,16 @@ func NormalizeInboundWithIdentity(msg InboundMessage, identity IdentityContext) 
 
 	kind, body := gateway.ParseInboundText(text)
 	result.Event = gateway.InboundEvent{
-		Platform: platformName,
-		ChatID:   chatID,
-		ChatName: strings.TrimSpace(msg.ChatName),
-		UserID:   userID,
-		UserName: strings.TrimSpace(msg.UserName),
-		MsgID:    strings.TrimSpace(msg.MessageID),
-		Kind:     kind,
-		Text:     body,
+		Platform:  platformName,
+		ChatID:    chatID,
+		ChatName:  strings.TrimSpace(msg.ChatName),
+		ChatType:  string(chatKind),
+		UserID:    userID,
+		UserName:  strings.TrimSpace(msg.UserName),
+		MsgID:     strings.TrimSpace(msg.MessageID),
+		MessageID: strings.TrimSpace(msg.MessageID),
+		Kind:      kind,
+		Text:      body,
 	}
 	result.Decision = InboundDecisionRoute
 	return result

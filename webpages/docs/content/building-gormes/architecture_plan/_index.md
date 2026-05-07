@@ -1044,6 +1044,7 @@ classification and row-backed implementation queue.
 - [x] Telegram gateway event-bus adapter
 - [x] Discord gateway event-bus adapter
 - [x] Slack gateway event-bus adapter
+- [x] WhatsApp gateway event-bus adapter
 - [x] Agent turn and tool execution events on bus
 - [x] Event bus integration test: full message flow
 

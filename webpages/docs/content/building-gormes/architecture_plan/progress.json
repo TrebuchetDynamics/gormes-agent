@@ -40595,7 +40595,8 @@
                 "internal/gateway/event_dispatch.go",
                 "internal/channels/telegram/bot.go",
                 "internal/channels/discord/bot.go",
-                "internal/slack/bot.go"
+                "internal/slack/bot.go",
+                "internal/channels/whatsapp/inbound.go"
               ],
               "ready_when": [
                 "Event bus exists (5.V row 1).",
@@ -40609,7 +40610,8 @@
               "unblocks": [
                 "Telegram gateway event-bus adapter",
                 "Discord gateway event-bus adapter",
-                "Slack gateway event-bus adapter"
+                "Slack gateway event-bus adapter",
+                "WhatsApp gateway event-bus adapter"
               ],
               "acceptance": [
                 "Child rows prove incoming channel messages publish MessageReceived events with source, channel_id/chat_id, user_id, message_id, command kind, text/body, and trace_id.",
@@ -40623,7 +40625,7 @@
               "done_signal": [
                 "The parent remains non-selectable while channel-specific child rows provide runnable implementation and tests."
               ],
-              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned/porting/fixture-ready rows were exactly 90, so no P3/P4 row was added. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, and the full-flow integration proof are complete, leaving future child slices for WhatsApp, WeChat, or outbound subscriber paths."
+              "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 56 and planned plus porting rows were 88, so the completion-biased planner pass added one P1 child instead of any P3/P4 backlog. The event-bus parent remains a non-selectable umbrella; Telegram, Discord, Slack, WhatsApp, and the full-flow integration proof are complete, leaving future child slices for WeChat or outbound subscriber paths."
             },
             {
               "name": "Telegram gateway event-bus adapter",
@@ -40821,6 +40823,74 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible Slack inbound normalization",
                 "note": "The shared event bus is a Gormes-owned architecture row; Slack inbound behavior follows the active Hermes Slack Socket Mode adapter while Gormes mirrors the existing gateway.InboundEvent normalization path."
+              }
+            },
+            {
+              "name": "WhatsApp gateway event-bus adapter",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "WhatsApp inbound events can be mirrored onto the shared event bus through a Go-native adapter that publishes the channel-neutral gateway.message.received topic with WhatsApp provenance, parsed command kind/body, canonical chat/user identifiers, chat kind, message id, and trace_id without changing WhatsApp bridge/native runtime startup, QR pairing, self-chat guards, or normal inbox submit delivery.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "system",
+                "gateway"
+              ],
+              "degraded_mode": "If the dispatcher or event bus is unavailable, the adapter returns whatsapp_event_bus_unavailable evidence to the caller and does not block the existing WhatsApp inbox submit path.",
+              "fixture": "internal/channels/whatsapp/bus_adapter_test.go",
+              "source_refs": [
+                "docs/content/papers/agentic-os-design.md",
+                "hermes-agent/gateway/platforms/whatsapp.py@b816fd4e2:_poll_messages",
+                "hermes-agent/gateway/platforms/whatsapp.py@b816fd4e2:_build_message_event",
+                "hermes-agent/gateway/whatsapp_identity.py@b816fd4e2:canonical_whatsapp_identifier",
+                "hermes-agent/tests/gateway/test_session.py@b816fd4e2:TestWhatsAppSessionKeyConsistency",
+                "internal/events/bus.go",
+                "internal/gateway/event_dispatch.go",
+                "internal/gateway/event.go",
+                "internal/channels/whatsapp/inbound.go",
+                "internal/channels/whatsapp/send.go"
+              ],
+              "ready_when": [
+                "Event bus core, Telegram gateway event-bus adapter, Discord gateway event-bus adapter, Slack gateway event-bus adapter, and full message-flow event-bus integration tests are complete and validated.",
+                "WhatsApp NormalizeInboundWithIdentity already normalizes bridge/native messages into gateway.InboundEvent values with canonical chat/user/message provenance, so the slice can mirror those events without touching live WhatsApp connections."
+              ],
+              "not_ready_when": [
+                "The slice rewrites WhatsApp bridge startup, Baileys QR pairing, runtime selection, self-chat suppression, reconnect/retry behavior, media downloads, or gateway turn execution.",
+                "The slice starts a second event bus or drops existing channel inbox delivery when event publication fails.",
+                "Tests require live WhatsApp credentials, network calls, bridge processes, real GORMES_HOME state, or Hermes runtime imports."
+              ],
+              "acceptance": [
+                "TestBusAdapter_PublishInboundMessageReceived proves a WhatsApp InboundMessage normalized through NormalizeInboundWithIdentity publishes exactly one gateway.message.received event with source=whatsapp, stable trace_id, platform, chat_id, chat_type, user_id, user_name, message_id, msg_id, command kind, text, and body fields.",
+                "TestBusAdapter_PublishInboundFallbackTraceID proves missing trace IDs derive from WhatsApp chat, user, and message provenance.",
+                "TestBusAdapter_PublishInboundRejectsNilDispatcher proves missing dispatcher returns typed whatsapp_event_bus_unavailable evidence instead of panicking.",
+                "Existing WhatsApp inbound and send-contract fixtures continue to prove canonical JID/LID identity, self-chat suppression, and outbound reply pairing are unchanged."
+              ],
+              "write_scope": [
+                "internal/channels/whatsapp/inbound.go",
+                "internal/channels/whatsapp/bus_adapter.go",
+                "internal/channels/whatsapp/bus_adapter_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/whatsapp -run TestBusAdapter -count=1",
+                "go test ./internal/channels/whatsapp -run 'TestNormalizeInbound|TestWhatsApp' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "WhatsApp bus-adapter fixtures prove channel-neutral gateway.message.received publication with canonical WhatsApp provenance and a non-panicking unavailable path, without live WhatsApp or changing existing inbox delivery."
+              ],
+              "note": "Complete 2026-05-07: TDD added `internal/channels/whatsapp/bus_adapter.go` and `bus_adapter_test.go`, mirroring normalized WhatsApp inbound events onto `gateway.message.received` with source=whatsapp, stable trace IDs, canonical chat/user identifiers, chat kind, user name, message id, command kind, text, and body provenance. `internal/channels/whatsapp/inbound.go` now preserves ChatType and MessageID alongside the existing MsgID so event-bus subscribers can distinguish direct/group surfaces and deduplicate by source message id. Missing dispatchers return typed `whatsapp_event_bus_unavailable` evidence without touching bridge/native runtime startup, QR pairing, self-chat suppression, reconnect/retry behavior, media downloads, inbox delivery, or gateway turn execution.",
+              "evidence": {
+                "implementation": "internal/channels/whatsapp/bus_adapter.go, internal/channels/whatsapp/inbound.go",
+                "tests": "go test ./internal/channels/whatsapp -run TestBusAdapter -count=1; go test ./internal/channels/whatsapp -run 'TestNormalizeInbound|TestWhatsApp' -count=1",
+                "note": "RED failed on missing NewBusAdapter and ErrEventBusUnavailable; GREEN proves WhatsApp event-bus publication, fallback trace IDs, nil-dispatcher degraded evidence, canonical inbound provenance, and unchanged WhatsApp normalization/send-contract fixtures without live WhatsApp."
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "Gormes-owned event bus architecture over Hermes-compatible WhatsApp inbound normalization",
+                "note": "The shared event bus is a Gormes-owned architecture row; WhatsApp inbound fields follow the active Hermes WhatsApp bridge adapter and identity canonicalization contract while Gormes mirrors the existing gateway.InboundEvent normalization path."
               }
             },
             {
