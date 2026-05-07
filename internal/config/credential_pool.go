@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 const (
@@ -724,7 +726,40 @@ func writeCredentialPoolAuthStore(hermesHome string, store credentialPoolAuthSto
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o600)
+
+	// Write atomically: tempfile → fsync → rename over target.
+	// Prevents concurrent readers from observing a partially-written auth.json.
+	tmp, err := os.CreateTemp(hermesHome, ".auth-*.json")
+	if err != nil {
+		return fmt.Errorf("atomic auth write: create tempfile: %w", err)
+	}
+	tmpPath := tmp.Name()
+	cleanup := func() { os.Remove(tmpPath) }
+	defer cleanup()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("atomic auth write: write tempfile: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return fmt.Errorf("atomic auth write: fsync tempfile: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("atomic auth write: close tempfile: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0o600); err != nil {
+		return fmt.Errorf("atomic auth write: chmod tempfile: %w", err)
+	}
+
+	_, err = tools.AtomicReplace(tmpPath, path, tools.AtomicReplaceOptions{
+		FirstWriteMode: 0o600,
+		Root:           hermesHome,
+	})
+	if err != nil {
+		return fmt.Errorf("atomic auth write: replace: %w", err)
+	}
+	return nil
 }
 
 func credentialPoolHermesHome(input string) (string, error) {
