@@ -248,6 +248,7 @@ classification and row-backed implementation queue.
 - [x] Telegram sticker vision adapter binding
 - [x] Discord native slash/thread command registration parity
 - [x] Telegram entity-only mention boundary closeout
+- [x] Telegram thread-aware outbound text + typing seam
 - [ ] Telegram forum thread fallback + send retry safety
 - [x] Telegram semantic MarkdownV2 formatter + table rewrite
 - [x] Gateway platform reconnect isolation + channel health limits

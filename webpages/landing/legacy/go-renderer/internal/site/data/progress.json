@@ -6425,6 +6425,98 @@
               }
             },
             {
+              "name": "Telegram thread-aware outbound text + typing seam",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Gateway outbound delivery preserves channel thread metadata for Telegram text, reply, placeholder, fresh-final, tool-progress, and typing-action sends without changing generic delivery parsing: manager hooks carry the active SessionSource thread ID into optional thread-aware channel capabilities, Telegram sends non-General text through raw Bot API sendMessage params with message_thread_id, omits message_thread_id for General topic thread `1` on text sends, and sends typed chat actions with message_thread_id when a thread is present.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Channels that do not implement thread-aware capabilities keep the existing Send/SendReply/SendPlaceholder/SendChatAction behavior; Telegram thread send parse failures keep the existing MarkdownV2 fallback path; retry and inbound forum detection remain in the parent fallback row.",
+              "fixture": "internal/gateway/thread_delivery_test.go; internal/channels/telegram/thread_send_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_metadata_thread_id",
+                "./hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_message_thread_id_for_send",
+                "./hermes-agent/gateway/platforms/telegram.py@b816fd4e2:_message_thread_id_for_typing",
+                "./hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send",
+                "./hermes-agent/gateway/platforms/telegram.py@b816fd4e2:send_typing",
+                "./hermes-agent/tests/gateway/test_telegram_thread_fallback.py@b816fd4e2:test_send_omits_general_topic_thread_id",
+                "./hermes-agent/tests/gateway/test_telegram_thread_fallback.py@b816fd4e2:test_send_typing_retries_without_general_thread_when_not_found",
+                "internal/gateway/channel.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/typing_action.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/client.go"
+              ],
+              "ready_when": [
+                "Telegram reply_to_mode, parse-mode fallback, media thread sends, approval thread sends, and channel directory thread target fixtures are complete.",
+                "The gateway turn source already carries SessionSource.ThreadID and tests can call setPinnedTurnSession with fake channels; no live Telegram API or SDK upgrade is required.",
+                "The slice only adds optional capability interfaces and Telegram raw sendMessage/sendChatAction payload helpers, leaving fallback/retry classification to the parent row."
+              ],
+              "not_ready_when": [
+                "The slice tries to decode inbound message_thread_id/is_forum from the pinned Go Telegram SDK, changes channel directory target parsing, or implements retry/backoff/thread-not-found fallback.",
+                "Non-Telegram channels are forced to implement thread-aware capabilities instead of degrading through existing send interfaces.",
+                "General topic text sends include message_thread_id=1, or typing actions drop the active thread metadata before the future fallback row can classify Telegram's thread-not-found response."
+              ],
+              "acceptance": [
+                "Gateway fixtures prove final pages, reply sends, fresh-final sends, tool-progress sends, placeholders, and typing actions use thread-aware optional interfaces when SessionSource.ThreadID is set and fall back unchanged when it is absent.",
+                "Telegram fixtures prove SendThread/SendThreadReply use raw sendMessage params with chat_id, text, parse_mode, reply_to_message_id, and non-General message_thread_id, while thread `1` omits message_thread_id for text sends.",
+                "Telegram typing fixtures prove SendThreadChatAction sends sendChatAction with message_thread_id for active threads including `1`, preserving the parent row's future retry-without-thread behavior."
+              ],
+              "write_scope": [
+                "internal/gateway/channel.go",
+                "internal/gateway/hooks.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/thread_delivery_test.go",
+                "internal/gateway/typing_action_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/thread_send_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestThreadAware|TestTypingAction' -count=1",
+                "go test ./internal/channels/telegram -run 'TestBot_SendThread|TestBot_SendThreadChatAction' -count=1",
+                "go test ./internal/channels/telegram ./internal/gateway -run 'Telegram|Thread|TypingAction' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway and Telegram fake fixtures prove thread metadata reaches text, reply, placeholder/fresh-final, tool-progress, and typing action sends without live network calls, while unsupported channels keep the existing delivery path."
+              ],
+              "note": "Complete 2026-05-07: TDD added optional gateway thread-aware send/reply/placeholder/typing capability interfaces, threaded hook/event payload propagation, manager dispatch plumbing for final pages, fresh-final sends, tool-progress messages, placeholders, and typing actions, plus Telegram raw sendMessage/sendChatAction helpers for fields missing from the pinned Go SDK. General-topic text sends omit message_thread_id=1, typing actions preserve thread_id=1 for the parent fallback row, unsupported channels keep the previous delivery path, and retry/inbound forum detection remain scoped to the existing draft fallback row.",
+              "outputs": [
+                "internal/gateway/channel.go",
+                "internal/gateway/hooks.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/thread_delivery_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/thread_send_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "evidence": [
+                "RED: go test ./internal/gateway -run 'TestThreadAware|TestTypingAction' -count=1 failed because final/tool-progress/typing sends dropped the pinned SessionSource thread ID.",
+                "RED: go test ./internal/channels/telegram -run 'TestBot_SendThread|TestBot_SendThreadChatAction' -count=1 failed because Bot lacked SendThread, SendThreadReply, and SendThreadChatAction.",
+                "GREEN: go test ./internal/gateway -run 'TestThreadAware|TestTypingAction' -count=1 passed.",
+                "GREEN: go test ./internal/channels/telegram -run 'TestBot_SendThread|TestBot_SendThreadChatAction' -count=1 passed.",
+                "GREEN: go test ./internal/channels/telegram ./internal/gateway -run 'Telegram|Thread|TypingAction' -count=1 passed."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b816fd4e2 gateway/platforms/telegram.py",
+                  "hermes:b816fd4e2 tests/gateway/test_telegram_thread_fallback.py"
+                ],
+                "note": "2026-05-07 cron all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 51. The only open P1 row was a non-selectable event-bus umbrella; CLI/TUI, provider/auth, Goncho/session, install/runtime, browser, docs/public, and release/operator surfaces had no unblocked P0/P1 builder-ready runtime row. The existing Telegram forum thread fallback row is source-backed but draft-blocked by thread-aware send/typing seams plus inbound message_thread_id/is_forum SDK gaps, so this split row adds one completion-biased P2 dependency instead of broadening the backlog."
+              }
+            },
+            {
               "name": "Telegram forum thread fallback + send retry safety",
               "status": "planned",
               "priority": "P2",

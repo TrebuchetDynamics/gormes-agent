@@ -21,6 +21,7 @@ type HookEvent struct {
 	Point    HookPoint
 	Platform string
 	ChatID   string
+	ThreadID string
 	MsgID    string
 	// ReplyToMessageID carries the triggering platform message when the send
 	// used a channel reply/threading API.

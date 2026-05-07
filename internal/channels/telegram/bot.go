@@ -91,15 +91,24 @@ type Bot struct {
 var _ gateway.Channel = (*Bot)(nil)
 var _ gateway.MessageEditor = (*Bot)(nil)
 var _ gateway.MessageDeleter = (*Bot)(nil)
+var _ gateway.ThreadSender = (*Bot)(nil)
+var _ gateway.ThreadReplySender = (*Bot)(nil)
 var _ gateway.MediaSender = (*Bot)(nil)
 var _ gateway.PlaceholderCapable = (*Bot)(nil)
+var _ gateway.ReplyPlaceholderCapable = (*Bot)(nil)
+var _ gateway.ThreadPlaceholderCapable = (*Bot)(nil)
+var _ gateway.ThreadReplyPlaceholderCapable = (*Bot)(nil)
 var _ gateway.TypingCapable = (*Bot)(nil)
+var _ gateway.ThreadTypingActionCapable = (*Bot)(nil)
 var _ gateway.DisconnectCapable = (*Bot)(nil)
 var _ gateway.ReactionCapable = (*Bot)(nil)
 
 const telegramCommandLimit = 100
 const telegramTypingRefreshInterval = 4 * time.Second
 const telegramReactionEndpoint = "setMessageReaction"
+const telegramSendMessageEndpoint = "sendMessage"
+const telegramSendChatActionEndpoint = "sendChatAction"
+const telegramGeneralTopicThreadID = "1"
 
 func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	if log == nil {
@@ -508,6 +517,56 @@ func (b *Bot) SendReply(ctx context.Context, chatID, replyToMsgID, text string) 
 	return strconv.Itoa(msg.MessageID), nil
 }
 
+func (b *Bot) SendThread(ctx context.Context, chatID, threadID, text string) (string, error) {
+	if strings.TrimSpace(threadID) == "" {
+		return b.Send(ctx, chatID, text)
+	}
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	thread, includeThread, err := telegramThreadIDForTextSend(threadID)
+	if err != nil {
+		return "", err
+	}
+	params := telegramSendMessageParams(id, 0, text, tgbotapi.ModeMarkdownV2)
+	if includeThread {
+		params.AddNonZero("message_thread_id", thread)
+	}
+	msg, err := b.sendRawMessageWithParseFallback(ctx, params)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(msg.MessageID), nil
+}
+
+func (b *Bot) SendThreadReply(ctx context.Context, chatID, threadID, replyToMsgID, text string) (string, error) {
+	if strings.TrimSpace(threadID) == "" {
+		return b.SendReply(ctx, chatID, replyToMsgID, text)
+	}
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	replyID, err := strconv.Atoi(replyToMsgID)
+	if err != nil {
+		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+	}
+	thread, includeThread, err := telegramThreadIDForTextSend(threadID)
+	if err != nil {
+		return "", err
+	}
+	params := telegramSendMessageParams(id, replyID, text, tgbotapi.ModeMarkdownV2)
+	if includeThread {
+		params.AddNonZero("message_thread_id", thread)
+	}
+	msg, err := b.sendRawMessageWithParseFallback(ctx, params)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(msg.MessageID), nil
+}
+
 func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
 	_ = ctx
 	id, err := parseChatID(chatID)
@@ -594,6 +653,67 @@ func (b *Bot) sendMediaWithThread(chatID int64, replyID int, media gateway.Outbo
 	return strconv.Itoa(msg.MessageID), nil
 }
 
+func telegramThreadIDForTextSend(threadID string) (int, bool, error) {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" || threadID == telegramGeneralTopicThreadID {
+		return 0, false, nil
+	}
+	thread, err := strconv.Atoi(threadID)
+	if err != nil {
+		return 0, false, fmt.Errorf("telegram: invalid thread ID %q: %w", threadID, err)
+	}
+	return thread, true, nil
+}
+
+func telegramThreadIDForAction(threadID string) (int, bool, error) {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return 0, false, nil
+	}
+	thread, err := strconv.Atoi(threadID)
+	if err != nil {
+		return 0, false, fmt.Errorf("telegram: invalid thread ID %q: %w", threadID, err)
+	}
+	return thread, true, nil
+}
+
+func telegramSendMessageParams(chatID int64, replyID int, text, parseMode string) tgbotapi.Params {
+	params := tgbotapi.Params{}
+	params.AddNonZero64("chat_id", chatID)
+	params.AddNonZero("reply_to_message_id", replyID)
+	params.AddNonEmpty("text", text)
+	params.AddNonEmpty("parse_mode", parseMode)
+	return params
+}
+
+func (b *Bot) sendRawMessageWithParseFallback(_ context.Context, params tgbotapi.Params) (tgbotapi.Message, error) {
+	resp, err := b.client.UploadFiles(telegramSendMessageEndpoint, params, nil)
+	if err != nil && isMarkdownParseError(err) {
+		b.log.Warn("telegram MarkdownV2 parse failed, falling back to plain text", "err", err)
+		retry := make(tgbotapi.Params, len(params))
+		for key, value := range params {
+			retry[key] = value
+		}
+		delete(retry, "parse_mode")
+		retry["text"] = stripTelegramMarkdownV2(retry["text"])
+		resp, err = b.client.UploadFiles(telegramSendMessageEndpoint, retry, nil)
+	}
+	if err != nil {
+		return tgbotapi.Message{}, err
+	}
+	return telegramMessageFromAPIResponse(resp)
+}
+
+func telegramMessageFromAPIResponse(resp *tgbotapi.APIResponse) (tgbotapi.Message, error) {
+	var msg tgbotapi.Message
+	if resp != nil && len(resp.Result) > 0 {
+		if err := json.Unmarshal(resp.Result, &msg); err != nil {
+			return tgbotapi.Message{}, err
+		}
+	}
+	return msg, nil
+}
+
 func telegramMediaUploadEndpoint(media gateway.OutboundMedia) (endpoint, field string, err error) {
 	switch gateway.ClassifyOutboundMedia(media) {
 	case gateway.OutboundMediaKindAudio:
@@ -616,8 +736,16 @@ func (b *Bot) SendPlaceholder(ctx context.Context, chatID string) (string, error
 	return b.Send(ctx, chatID, "⏳")
 }
 
+func (b *Bot) SendThreadPlaceholder(ctx context.Context, chatID, threadID string) (string, error) {
+	return b.SendThread(ctx, chatID, threadID, "⏳")
+}
+
 func (b *Bot) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
 	return b.SendReply(ctx, chatID, replyToMsgID, "⏳")
+}
+
+func (b *Bot) SendThreadReplyPlaceholder(ctx context.Context, chatID, threadID, replyToMsgID string) (string, error) {
+	return b.SendThreadReply(ctx, chatID, threadID, replyToMsgID, "⏳")
 }
 
 func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error {
@@ -723,6 +851,38 @@ func (b *Bot) SendChatAction(_ context.Context, chatID, action string) error {
 	cfg := tgbotapi.NewChatAction(id, action)
 	if _, err := b.client.Request(cfg); err != nil {
 		return fmt.Errorf("telegram: SendChatAction: %w", err)
+	}
+	return nil
+}
+
+func (b *Bot) SendThreadChatAction(ctx context.Context, chatID, threadID, action string) error {
+	if strings.TrimSpace(threadID) == "" {
+		return b.SendChatAction(ctx, chatID, action)
+	}
+	chatID = strings.TrimSpace(chatID)
+	action = strings.TrimSpace(action)
+	if chatID == "" {
+		return errors.New("telegram: SendThreadChatAction requires non-empty chat_id")
+	}
+	if action == "" {
+		return errors.New("telegram: SendThreadChatAction requires non-empty action")
+	}
+	id, err := strconv.ParseInt(chatID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("telegram: SendThreadChatAction invalid chat_id %q: %w", chatID, err)
+	}
+	thread, includeThread, err := telegramThreadIDForAction(threadID)
+	if err != nil {
+		return err
+	}
+	params := tgbotapi.Params{}
+	params.AddNonZero64("chat_id", id)
+	params.AddNonEmpty("action", action)
+	if includeThread {
+		params.AddNonZero("message_thread_id", thread)
+	}
+	if _, err := b.client.UploadFiles(telegramSendChatActionEndpoint, params, nil); err != nil {
+		return fmt.Errorf("telegram: SendThreadChatAction: %w", err)
 	}
 	return nil
 }

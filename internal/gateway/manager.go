@@ -283,6 +283,7 @@ type hookedPlaceholderEditor struct {
 	base         placeholderEditor
 	manager      *Manager
 	platform     string
+	threadID     string
 	replyToMsgID string
 }
 
@@ -293,6 +294,7 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 		Point:            HookBeforeSend,
 		Platform:         h.platform,
 		ChatID:           chatID,
+		ThreadID:         h.threadID,
 		ReplyToMessageID: h.replyToMsgID,
 		Text:             placeholderText,
 	})
@@ -302,8 +304,24 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 		err   error
 	)
 	if h.replyToMsgID != "" {
-		if replySender, ok := h.base.(ReplyPlaceholderCapable); ok {
+		if h.threadID != "" {
+			if replySender, ok := h.base.(ThreadReplyPlaceholderCapable); ok {
+				msgID, err = replySender.SendThreadReplyPlaceholder(ctx, chatID, h.threadID, h.replyToMsgID)
+			} else if placeholder, ok := h.base.(ThreadPlaceholderCapable); ok {
+				msgID, err = placeholder.SendThreadPlaceholder(ctx, chatID, h.threadID)
+			} else if replySender, ok := h.base.(ReplyPlaceholderCapable); ok {
+				msgID, err = replySender.SendReplyPlaceholder(ctx, chatID, h.replyToMsgID)
+			} else {
+				msgID, err = h.base.SendPlaceholder(ctx, chatID)
+			}
+		} else if replySender, ok := h.base.(ReplyPlaceholderCapable); ok {
 			msgID, err = replySender.SendReplyPlaceholder(ctx, chatID, h.replyToMsgID)
+		} else {
+			msgID, err = h.base.SendPlaceholder(ctx, chatID)
+		}
+	} else if h.threadID != "" {
+		if placeholder, ok := h.base.(ThreadPlaceholderCapable); ok {
+			msgID, err = placeholder.SendThreadPlaceholder(ctx, chatID, h.threadID)
 		} else {
 			msgID, err = h.base.SendPlaceholder(ctx, chatID)
 		}
@@ -320,6 +338,7 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 			Point:            HookOnError,
 			Platform:         h.platform,
 			ChatID:           chatID,
+			ThreadID:         h.threadID,
 			ReplyToMessageID: h.replyToMsgID,
 			Text:             placeholderText,
 			Err:              err,
@@ -335,6 +354,7 @@ func (h hookedPlaceholderEditor) SendPlaceholder(ctx context.Context, chatID str
 		Point:            HookAfterSend,
 		Platform:         h.platform,
 		ChatID:           chatID,
+		ThreadID:         h.threadID,
 		MsgID:            msgID,
 		ReplyToMessageID: h.replyToMsgID,
 		Text:             placeholderText,
@@ -352,6 +372,7 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 		Point:            HookBeforeSend,
 		Platform:         h.platform,
 		ChatID:           chatID,
+		ThreadID:         h.threadID,
 		ReplyToMessageID: h.replyToMsgID,
 		Text:             text,
 	})
@@ -361,8 +382,24 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 		err   error
 	)
 	if h.replyToMsgID != "" {
-		if replySender, ok := h.base.(ReplySender); ok {
+		if h.threadID != "" {
+			if replySender, ok := h.base.(ThreadReplySender); ok {
+				msgID, err = replySender.SendThreadReply(ctx, chatID, h.threadID, h.replyToMsgID, text)
+			} else if threadSender, ok := h.base.(ThreadSender); ok {
+				msgID, err = threadSender.SendThread(ctx, chatID, h.threadID, text)
+			} else if replySender, ok := h.base.(ReplySender); ok {
+				msgID, err = replySender.SendReply(ctx, chatID, h.replyToMsgID, text)
+			} else {
+				msgID, err = sender.Send(ctx, chatID, text)
+			}
+		} else if replySender, ok := h.base.(ReplySender); ok {
 			msgID, err = replySender.SendReply(ctx, chatID, h.replyToMsgID, text)
+		} else {
+			msgID, err = sender.Send(ctx, chatID, text)
+		}
+	} else if h.threadID != "" {
+		if threadSender, ok := h.base.(ThreadSender); ok {
+			msgID, err = threadSender.SendThread(ctx, chatID, h.threadID, text)
 		} else {
 			msgID, err = sender.Send(ctx, chatID, text)
 		}
@@ -379,6 +416,7 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 			Point:            HookOnError,
 			Platform:         h.platform,
 			ChatID:           chatID,
+			ThreadID:         h.threadID,
 			ReplyToMessageID: h.replyToMsgID,
 			Text:             text,
 			Err:              err,
@@ -394,6 +432,7 @@ func (h hookedPlaceholderEditor) Send(ctx context.Context, chatID, text string) 
 		Point:            HookAfterSend,
 		Platform:         h.platform,
 		ChatID:           chatID,
+		ThreadID:         h.threadID,
 		MsgID:            msgID,
 		ReplyToMessageID: h.replyToMsgID,
 		Text:             text,
@@ -1339,8 +1378,8 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	if ch == nil {
 		return
 	}
-	m.maybeSendTypingAction(ctx, ch, f.Phase, chatID)
-	m.dispatchToolProgress(ctx, ch, platform, chatID, f)
+	m.maybeSendTypingAction(ctx, ch, f.Phase, chatID, threadID)
+	m.dispatchToolProgress(ctx, ch, platform, chatID, threadID, f)
 	pe, ok := ch.(placeholderEditor)
 	if !ok {
 		if m.sendNoEdit(ctx, ch, f, chatID, replyToMsgID, threadID) {
@@ -1362,9 +1401,9 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			(*coCancel)()
 			*co = nil
 			*coCancel = nil
-			m.sendFinalPages(ctx, ch, chatID, "", finalPages[1:])
+			m.sendFinalPages(ctx, ch, chatID, threadID, "", finalPages[1:])
 		} else {
-			m.sendFinalPages(ctx, ch, chatID, "", finalPages)
+			m.sendFinalPages(ctx, ch, chatID, threadID, "", finalPages)
 		}
 		m.deliverMedia(ctx, ch, chatID, replyToMsgID, threadID, media)
 		m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
@@ -1404,6 +1443,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 				base:         pe,
 				manager:      m,
 				platform:     platform,
+				threadID:     threadID,
 				replyToMsgID: replyToMsgID,
 			}, time.Duration(m.cfg.CoalesceMs)*time.Millisecond, chatID, opts...)
 			*co = nc
@@ -1413,7 +1453,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 	}
 }
 
-func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform, chatID string, f kernel.RenderFrame) {
+func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform, chatID, threadID string, f kernel.RenderFrame) {
 	if _, ok := ch.(MessageEditor); !ok {
 		return
 	}
@@ -1447,7 +1487,7 @@ func (m *Manager) dispatchToolProgress(ctx context.Context, ch Channel, platform
 		}
 	}
 
-	newMsgID, err := m.sendWithHooks(ctx, ch, chatID, text)
+	newMsgID, err := m.sendWithHooksThread(ctx, ch, chatID, threadID, text)
 	if err != nil {
 		return
 	}
@@ -1463,35 +1503,43 @@ func (m *Manager) sendNoEdit(ctx context.Context, ch Channel, f kernel.RenderFra
 	switch f.Phase {
 	case kernel.PhaseIdle:
 		finalPages, media := m.formatFinalDeliveryPages(ch.Name(), f)
-		m.sendFinalPages(ctx, ch, chatID, replyToMsgID, finalPages)
+		m.sendFinalPages(ctx, ch, chatID, threadID, replyToMsgID, finalPages)
 		m.deliverMedia(ctx, ch, chatID, replyToMsgID, threadID, media)
 		return true
 	case kernel.PhaseFailed, kernel.PhaseCancelling:
-		_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, m.formatError(ch.Name(), f))
+		_, _ = m.sendWithHooksReplyThread(ctx, ch, chatID, threadID, replyToMsgID, m.formatError(ch.Name(), f))
 		return true
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
 		if text := m.formatStream(ch.Name(), f); text != "" {
-			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, text)
+			_, _ = m.sendWithHooksReplyThread(ctx, ch, chatID, threadID, replyToMsgID, text)
 		}
 	}
 	return false
 }
 
 func (m *Manager) sendWithHooks(ctx context.Context, ch Channel, chatID, text string) (string, error) {
-	return m.sendWithHooksReply(ctx, ch, chatID, "", text)
+	return m.sendWithHooksReplyThread(ctx, ch, chatID, "", "", text)
 }
 
-func (m *Manager) sendFinalPages(ctx context.Context, ch Channel, chatID, replyToMsgID string, pages []string) {
+func (m *Manager) sendWithHooksThread(ctx context.Context, ch Channel, chatID, threadID, text string) (string, error) {
+	return m.sendWithHooksReplyThread(ctx, ch, chatID, threadID, "", text)
+}
+
+func (m *Manager) sendFinalPages(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID string, pages []string) {
 	for i, page := range pages {
 		if i == 0 {
-			_, _ = m.sendWithHooksReply(ctx, ch, chatID, replyToMsgID, page)
+			_, _ = m.sendWithHooksReplyThread(ctx, ch, chatID, threadID, replyToMsgID, page)
 			continue
 		}
-		_, _ = m.sendWithHooks(ctx, ch, chatID, page)
+		_, _ = m.sendWithHooksThread(ctx, ch, chatID, threadID, page)
 	}
 }
 
 func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, replyToMsgID, text string) (string, error) {
+	return m.sendWithHooksReplyThread(ctx, ch, chatID, "", replyToMsgID, text)
+}
+
+func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID, text string) (string, error) {
 	if ch == nil {
 		return "", nil
 	}
@@ -1499,6 +1547,7 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 		Point:            HookBeforeSend,
 		Platform:         ch.Name(),
 		ChatID:           chatID,
+		ThreadID:         threadID,
 		ReplyToMessageID: replyToMsgID,
 		Text:             text,
 	}
@@ -1509,8 +1558,24 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 		err   error
 	)
 	if replyToMsgID != "" {
-		if replySender, ok := ch.(ReplySender); ok {
+		if threadID != "" {
+			if replySender, ok := ch.(ThreadReplySender); ok {
+				msgID, err = replySender.SendThreadReply(ctx, chatID, threadID, replyToMsgID, text)
+			} else if threadSender, ok := ch.(ThreadSender); ok {
+				msgID, err = threadSender.SendThread(ctx, chatID, threadID, text)
+			} else if replySender, ok := ch.(ReplySender); ok {
+				msgID, err = replySender.SendReply(ctx, chatID, replyToMsgID, text)
+			} else {
+				msgID, err = ch.Send(ctx, chatID, text)
+			}
+		} else if replySender, ok := ch.(ReplySender); ok {
 			msgID, err = replySender.SendReply(ctx, chatID, replyToMsgID, text)
+		} else {
+			msgID, err = ch.Send(ctx, chatID, text)
+		}
+	} else if threadID != "" {
+		if threadSender, ok := ch.(ThreadSender); ok {
+			msgID, err = threadSender.SendThread(ctx, chatID, threadID, text)
 		} else {
 			msgID, err = ch.Send(ctx, chatID, text)
 		}
@@ -1527,6 +1592,7 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 			Point:            HookOnError,
 			Platform:         ch.Name(),
 			ChatID:           chatID,
+			ThreadID:         threadID,
 			ReplyToMessageID: replyToMsgID,
 			Text:             text,
 			Err:              err,
@@ -1542,6 +1608,7 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 		Point:            HookAfterSend,
 		Platform:         ch.Name(),
 		ChatID:           chatID,
+		ThreadID:         threadID,
 		MsgID:            msgID,
 		ReplyToMessageID: replyToMsgID,
 		Text:             text,
@@ -1567,6 +1634,7 @@ func (m *Manager) publishMessageSentEvent(ev HookEvent) {
 	payload := MessageEventPayload{
 		Platform:         ev.Platform,
 		ChatID:           ev.ChatID,
+		ThreadID:         ev.ThreadID,
 		MessageID:        ev.MsgID,
 		MsgID:            ev.MsgID,
 		ReplyToMessageID: ev.ReplyToMessageID,

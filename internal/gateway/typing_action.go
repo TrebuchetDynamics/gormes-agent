@@ -32,7 +32,7 @@ func isTypingActionPhase(phase kernel.Phase) bool {
 	}
 }
 
-func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase kernel.Phase, chatID string) {
+func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase kernel.Phase, chatID, threadID string) {
 	if !isTypingActionPhase(phase) {
 		return
 	}
@@ -41,7 +41,7 @@ func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase k
 		return
 	}
 
-	key := ch.Name() + "\x00" + chatID
+	key := ch.Name() + "\x00" + chatID + "\x00" + threadID
 	now := m.now()
 	m.typingActionMu.Lock()
 	if m.typingActionLast == nil {
@@ -55,7 +55,17 @@ func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase k
 	m.typingActionLast[key] = now
 	m.typingActionMu.Unlock()
 
-	if err := actor.SendChatAction(ctx, chatID, typingActionName); err != nil {
+	var err error
+	if threadID != "" {
+		if threadActor, ok := ch.(ThreadTypingActionCapable); ok {
+			err = threadActor.SendThreadChatAction(ctx, chatID, threadID, typingActionName)
+		} else {
+			err = actor.SendChatAction(ctx, chatID, typingActionName)
+		}
+	} else {
+		err = actor.SendChatAction(ctx, chatID, typingActionName)
+	}
+	if err != nil {
 		m.recordTypingActionFailure(ch.Name())
 	}
 }
