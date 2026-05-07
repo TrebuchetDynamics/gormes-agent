@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T17:04:10Z",
+    "last_updated": "2026-05-07T17:57:27Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -26952,10 +26952,7 @@
                 "Tests use sleeps to trigger the TOCTOU window instead of a fake-fs/fake-clock.",
                 "MCP OAuth persistence still uses non-atomic write while auth.json is fixed in the same slice (split if needed)."
               ],
-              "blocked_by": [
-                "Token vault",
-                "Trajectory writer + redaction gates"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Atomic credential rotation across providers",
                 "Hermes debug share redact-at-upload parity"
@@ -37639,6 +37636,171 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ]
+            },
+            {
+              "name": "Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "When `GORMES_BIN_DIR` (or `--bin-dir`) is set to a directory the operator intends as a sandbox, install.sh must publish the gormes command only into that directory and must NOT also rewrite an existing `gormes` binary discovered elsewhere on PATH (typically `~/.local/bin/gormes`). The current behavior emits `updating active PATH command /home/<user>/.local/bin/gormes` and replaces a production symlink with one pointing at the sandbox, which dangles when the sandbox dir is reaped. Sandbox passes must be observably side-effect-free outside the sandbox prefix.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without this fix, any operator running install.sh with a sandbox bin dir (e.g., for testing, in a container, in CI) silently mutates the host's production gormes symlink. The gormes-install skill flags this as iso-bin-hijack on every sandbox pass.",
+              "fixture": "internal/installtest/iso_bin_dir_test.go",
+              "source_refs": [
+                "webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack",
+                "webpages/docs/development-skills/gormes-install/SKILL.md",
+                "install.sh",
+                "cmd/gormes/uninstall_dryrun_test.go"
+              ],
+              "ready_when": [
+                "An installtest harness exists that can exec `sh install.sh` in a temp HOME with isolated PATH and assert on post-state.",
+                "install.sh exposes the active-PATH-command-update logic in a function reachable from a shell-level test."
+              ],
+              "not_ready_when": [
+                "The fix removes the convenient default behavior of updating an existing PATH-discovered gormes binary on a normal upgrade install (default invocation, no sandbox env vars).",
+                "The slice changes the public default install path or the operator-facing flags in a backwards-incompatible way without a migration note.",
+                "Tests rely on touching the real `~/.local/bin/gormes` symlink instead of a temp HOME with isolated PATH."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Install isolation: skip shell-rc PATH write when bin dir is under /tmp",
+                "Install transcript: only print systemd block when unit file actually written"
+              ],
+              "acceptance": [
+                "TestInstall_SandboxBinDir_DoesNotTouchExistingPathBinary execs install.sh in a temp HOME with `GORMES_BIN_DIR=$TMP/sb-bin` and a fake `~/.local/bin/gormes` symlink already present; the fake symlink target is unchanged after install.",
+                "TestInstall_DefaultBinDir_StillUpdatesPathBinary preserves the convenient default behavior: with no sandbox env vars, install.sh DOES update an existing PATH-discovered gormes symlink so upgrade-in-place still works.",
+                "TestInstall_VerboseLogReportsSandboxBoundary asserts the install transcript logs the sandbox boundary decision (e.g., \"sandbox bin dir set; skipping active PATH command update\") so the behavior is auditable."
+              ],
+              "write_scope": [
+                "install.sh",
+                "internal/installtest/iso_bin_dir_test.go",
+                "internal/installtest/harness.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/installtest -run IsoBinDir -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Sandbox install with `GORMES_BIN_DIR` set to a temp path leaves any pre-existing `~/.local/bin/gormes` symlink untouched; default install retains upgrade-in-place behavior; both are fixture-proven."
+              ],
+              "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack. P1 because every sandbox pass mutates a production binary path without operator consent. Recommended approach: track a `sandbox_isolated` flag in install.sh derived from `[ -n \"$GORMES_BIN_DIR\" ] && [ -n \"$GORMES_INSTALL_HOME\" ]` (or an explicit `--no-rewrite-active-path` flag) and gate the active-PATH rewrite on its absence."
+            },
+            {
+              "name": "Install isolation: skip shell-rc PATH write when bin dir is under /tmp",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "When the resolved published-binary directory is under `/tmp/` or otherwise marked as ephemeral, install.sh must not write `export PATH=...` lines into the operator's shell rc files (`~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.zprofile`). Today it always writes those lines, which leaves a dangling PATH entry every time `/tmp/` is reaped. Provide an explicit `--no-shell-init` flag for operators who want to opt out unconditionally.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without this fix, sandbox install passes leave permanent dangling PATH entries in the operator's login shell config. The gormes-install skill flags this as iso-shellrc-leak on every sandbox pass.",
+              "fixture": "internal/installtest/iso_shellrc_test.go",
+              "source_refs": [
+                "webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-shellrc-leak",
+                "webpages/docs/development-skills/gormes-install/SKILL.md",
+                "install.sh"
+              ],
+              "ready_when": [
+                "Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary (the iso-bin-hijack row) is complete and the sandbox-detection helper is reusable.",
+                "An installtest harness exists that can exec install.sh with a temp HOME and assert on shell-rc file diffs."
+              ],
+              "not_ready_when": [
+                "The slice removes shell-rc PATH write for the default install path (a fresh-user install of `~/.local/bin/gormes` should still get the standard PATH line).",
+                "The new `--no-shell-init` flag is silently accepted but has no effect.",
+                "Tests modify the real operator's `~/.bashrc` / `~/.profile` instead of a temp HOME."
+              ],
+              "blocked_by": [
+                "Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestInstall_SandboxBinDirUnderTmp_SkipsShellRcWrite runs install.sh with `GORMES_BIN_DIR=/tmp/<sandbox>/bin`; `~/.bashrc` and `~/.profile` (in temp HOME) are byte-identical pre and post.",
+                "TestInstall_DefaultBinDir_WritesShellRc preserves the default shell-rc init behavior for fresh users.",
+                "TestInstall_NoShellInitFlag_SkipsShellRcWrite proves `--no-shell-init` is honored even when bin dir is the default `~/.local/bin`.",
+                "TestInstall_VerboseLogReportsSkippedShellRc asserts the install transcript logs the skip decision so operators can see why their PATH wasn't modified."
+              ],
+              "write_scope": [
+                "install.sh",
+                "internal/installtest/iso_shellrc_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/installtest -run IsoShellRc -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Sandbox install with bin dir under `/tmp/` leaves shell rc files unchanged; default install still wires PATH; explicit `--no-shell-init` opt-out works for any bin dir; all three are fixture-proven."
+              ],
+              "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-shellrc-leak. Detection heuristic: the resolved bin dir starts with `/tmp/` or matches `${TMPDIR:-/tmp}/`. Future extension (separate row) could mark an install \"ephemeral\" via an explicit `GORMES_INSTALL_EPHEMERAL=1` env var so containers and CI can opt in regardless of bin-dir path."
+            },
+            {
+              "name": "Install transcript: only print systemd block when unit file actually written",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The install transcript's `systemd user service installed:` block must only print when install.sh actually writes a systemd user unit file AND `systemctl --user` is reachable. Today the block prints unconditionally on every successful install, telling operators to run `systemctl --user start gormes-gateway` even when no unit file exists. The command then fails. Either install the unit and print the block, or print nothing — the in-between state of \"announce a service we did not install\" is the regression.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without this fix, every install pass tells the operator a service was installed when none was. Operators who follow the suggested commands hit `Failed to start gormes-gateway.service: Unit not found` and reasonably conclude the install is broken. The gormes-install skill flags this as msg-systemd-fiction on every install.",
+              "fixture": "internal/installtest/systemd_block_test.go",
+              "source_refs": [
+                "webpages/docs/development-skills/gormes-install/references/known-issues.md#msg-systemd-fiction",
+                "webpages/docs/development-skills/gormes-install/SKILL.md",
+                "install.sh"
+              ],
+              "ready_when": [
+                "An installtest harness exists that can exec install.sh in a temp HOME and assert on transcript content + on-disk systemd unit files."
+              ],
+              "not_ready_when": [
+                "The slice removes the systemd block in the case where install.sh DID write a real unit file (regressing the helpful happy path).",
+                "The slice prints a confusing replacement message when systemd is unavailable; either print the real block or print nothing.",
+                "Tests rely on the host having or lacking systemd; harness must shim `systemctl` so the test outcome is deterministic."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "acceptance": [
+                "TestInstall_NoSystemdAvailable_OmitsSystemdBlock runs install.sh in a temp HOME with `PATH` shadowing `systemctl` to a stub that exits non-zero; the install transcript does NOT contain the `systemd user service installed:` block.",
+                "TestInstall_SystemdAvailableButUnitNotWritten_OmitsBlock proves that even with a working `systemctl`, if the install code path skips the unit-file write, the transcript also skips the block (no fiction).",
+                "TestInstall_SystemdUnitActuallyWritten_PrintsBlock proves the helpful happy path still prints the block when a unit file is actually created in the temp HOME's user-units directory."
+              ],
+              "write_scope": [
+                "install.sh",
+                "internal/installtest/systemd_block_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/installtest -run SystemdBlock -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Install transcript prints the systemd block only when a unit file was actually written and `systemctl --user` is reachable; transcript-content tests prove all three states (no systemd, systemd but no unit, unit written)."
+              ],
+              "note": "Source: gormes-install pass on 2026-05-07 against install.sh@08706c6d3, logged in webpages/docs/development-skills/gormes-install/references/known-issues.md#msg-systemd-fiction. Concrete check: gate the block on `command -v systemctl >/dev/null && [ -n \"$XDG_RUNTIME_DIR\" ] && [ -f \"$systemd_unit_path\" ]` after the unit-write step. Independent of the iso-bin-hijack and iso-shellrc-leak rows; can be picked up first if the operator wants the smallest fix to land."
             }
           ]
         },

@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Sharp v1.0 differentiator decision
+## 1. Auth state TOCTOU close + redaction default-on parity
+
+- Phase: 5 / 5.J
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P0`
+- Contract: Gormes auth.json read-modify-write paths use atomic file replacement (open, write to sibling tempfile, fsync, rename) with no observable TOCTOU window between read and write. MCP OAuth credential persistence follows the same atomic-replace contract. The redaction default is restored to ON; opt-out is via explicit `redaction.enabled: false` in config. Mirrors Hermes v0.13.0 PRs #21193 (redaction default-on flip), #21194 (auth.json TOCTOU), #21241 (MCP OAuth TOCTOU). Reverts the v0.12.0 default-off flip (#16794).
+- Trust class: operator, system
+- Ready when: 4.G `Token vault` is complete and exposes the auth.json read/write seam., 4.E `Trajectory writer + redaction gates` is complete and exposes the redaction-enabled config flag., A fake clock + fake filesystem exist in tests so concurrent read/write timing can be exercised deterministically.
+- Not ready when: Atomic replace is implemented only on Linux without portable handling for darwin/windows tempfile rename semantics., Redaction default-on is enforced silently without surfacing the operator-visible config knob `redaction.enabled: false`., Tests use sleeps to trigger the TOCTOU window instead of a fake-fs/fake-clock., MCP OAuth persistence still uses non-atomic write while auth.json is fixed in the same slice (split if needed).
+- Degraded mode: Without atomic replace, a concurrent read can observe a partially-written auth.json and crash the session; with the atomic-replace contract the read either sees the prior valid state or the new valid state, never a partial merge. Without redaction default-on, log capture, debug bundles, and trajectory writes leak credentials by default.
+- Fixture: `internal/auth/atomic_write_test.go`
+- Write scope: `internal/auth/atomic_write.go`, `internal/auth/atomic_write_test.go`, `internal/mcp/oauth_persistence.go`, `internal/redaction/defaults.go`, `internal/redaction/defaults_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/auth -run AtomicWrite -count=1`, `go test ./internal/mcp -run AtomicWrite -count=1`, `go test ./internal/redaction -run DefaultOn -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Atomic-write fixtures prove the auth.json and MCP OAuth read/write paths are torn-write free; redaction default-on fixtures prove fresh configs enable redaction and explicit opt-out is logged.
+- Acceptance: TestAuthAtomicWrite_ConcurrentReadObservesValidStateOnly proves a fake-fs concurrent reader sees either the prior valid file or the new valid file, never a torn write., TestAuthAtomicWrite_TempfileCleanedOnError proves a write failure leaves no orphan tempfile sibling., TestMCPOAuthAtomicWrite_FollowsSameContract proves MCP OAuth credential persistence uses the same atomic-replace path with the same fixture., TestRedactionDefaultOn_NewConfigEnablesRedaction proves a fresh Gormes config has redaction enabled by default., TestRedactionDefaultOn_ExplicitOptOutHonored proves `redaction.enabled: false` in config disables redaction and is logged as an explicit operator choice.
+- Source refs: hermes-agent/RELEASE_v0.13.0.md, hermes-agent/hermes_cli/auth.py, hermes-agent/agent/mcp/oauth.py, hermes-agent/utils.py, internal/auth/, internal/redaction/
+- Unblocks: Atomic credential rotation across providers, Hermes debug share redact-at-upload parity
+- Why now: P0 handoff; needs contract proof before closeout.
+
+## 2. Sharp v1.0 differentiator decision
 
 - Phase: 8 / 8.D
 - Owner: `docs`
@@ -49,7 +70,28 @@ selection.
 - Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
 - Why now: P0 handoff; needs contract proof before closeout.
 
-## 2. TD engineering blog scaffolded and live
+## 3. Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
+
+- Phase: 5 / 5.P
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: When `GORMES_BIN_DIR` (or `--bin-dir`) is set to a directory the operator intends as a sandbox, install.sh must publish the gormes command only into that directory and must NOT also rewrite an existing `gormes` binary discovered elsewhere on PATH (typically `~/.local/bin/gormes`). The current behavior emits `updating active PATH command /home/<user>/.local/bin/gormes` and replaces a production symlink with one pointing at the sandbox, which dangles when the sandbox dir is reaped. Sandbox passes must be observably side-effect-free outside the sandbox prefix.
+- Trust class: operator, system
+- Ready when: An installtest harness exists that can exec `sh install.sh` in a temp HOME with isolated PATH and assert on post-state., install.sh exposes the active-PATH-command-update logic in a function reachable from a shell-level test.
+- Not ready when: The fix removes the convenient default behavior of updating an existing PATH-discovered gormes binary on a normal upgrade install (default invocation, no sandbox env vars)., The slice changes the public default install path or the operator-facing flags in a backwards-incompatible way without a migration note., Tests rely on touching the real `~/.local/bin/gormes` symlink instead of a temp HOME with isolated PATH.
+- Degraded mode: Without this fix, any operator running install.sh with a sandbox bin dir (e.g., for testing, in a container, in CI) silently mutates the host's production gormes symlink. The gormes-install skill flags this as iso-bin-hijack on every sandbox pass.
+- Fixture: `internal/installtest/iso_bin_dir_test.go`
+- Write scope: `install.sh`, `internal/installtest/iso_bin_dir_test.go`, `internal/installtest/harness.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/installtest -run IsoBinDir -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Sandbox install with `GORMES_BIN_DIR` set to a temp path leaves any pre-existing `~/.local/bin/gormes` symlink untouched; default install retains upgrade-in-place behavior; both are fixture-proven.
+- Acceptance: TestInstall_SandboxBinDir_DoesNotTouchExistingPathBinary execs install.sh in a temp HOME with `GORMES_BIN_DIR=$TMP/sb-bin` and a fake `~/.local/bin/gormes` symlink already present; the fake symlink target is unchanged after install., TestInstall_DefaultBinDir_StillUpdatesPathBinary preserves the convenient default behavior: with no sandbox env vars, install.sh DOES update an existing PATH-discovered gormes symlink so upgrade-in-place still works., TestInstall_VerboseLogReportsSandboxBoundary asserts the install transcript logs the sandbox boundary decision (e.g., "sandbox bin dir set; skipping active PATH command update") so the behavior is auditable.
+- Source refs: webpages/docs/development-skills/gormes-install/references/known-issues.md#iso-bin-hijack, webpages/docs/development-skills/gormes-install/SKILL.md, install.sh, cmd/gormes/uninstall_dryrun_test.go
+- Unblocks: Install isolation: skip shell-rc PATH write when bin dir is under /tmp, Install transcript: only print systemd block when unit file actually written
+- Why now: Unblocks Install isolation: skip shell-rc PATH write when bin dir is under /tmp, Install transcript: only print systemd block when unit file actually written.
+
+## 4. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -71,7 +113,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Loop $/iteration cost metric in status file
+## 5. Loop $/iteration cost metric in status file
 
 - Phase: 8 / 8.F
 - Owner: `tools`
@@ -92,7 +134,27 @@ selection.
 - Unblocks: Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop
 - Why now: Unblocks Monthly cost review checklist, Engineering writeup #1: autonomous Hermes-porting loop.
 
-## 4. Sandbox isolation depth selection
+## 6. Install transcript: only print systemd block when unit file actually written
+
+- Phase: 5 / 5.P
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: The install transcript's `systemd user service installed:` block must only print when install.sh actually writes a systemd user unit file AND `systemctl --user` is reachable. Today the block prints unconditionally on every successful install, telling operators to run `systemctl --user start gormes-gateway` even when no unit file exists. The command then fails. Either install the unit and print the block, or print nothing — the in-between state of "announce a service we did not install" is the regression.
+- Trust class: operator
+- Ready when: An installtest harness exists that can exec install.sh in a temp HOME and assert on transcript content + on-disk systemd unit files.
+- Not ready when: The slice removes the systemd block in the case where install.sh DID write a real unit file (regressing the helpful happy path)., The slice prints a confusing replacement message when systemd is unavailable; either print the real block or print nothing., Tests rely on the host having or lacking systemd; harness must shim `systemctl` so the test outcome is deterministic.
+- Degraded mode: Without this fix, every install pass tells the operator a service was installed when none was. Operators who follow the suggested commands hit `Failed to start gormes-gateway.service: Unit not found` and reasonably conclude the install is broken. The gormes-install skill flags this as msg-systemd-fiction on every install.
+- Fixture: `internal/installtest/systemd_block_test.go`
+- Write scope: `install.sh`, `internal/installtest/systemd_block_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/installtest -run SystemdBlock -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Install transcript prints the systemd block only when a unit file was actually written and `systemctl --user` is reachable; transcript-content tests prove all three states (no systemd, systemd but no unit, unit written).
+- Acceptance: TestInstall_NoSystemdAvailable_OmitsSystemdBlock runs install.sh in a temp HOME with `PATH` shadowing `systemctl` to a stub that exits non-zero; the install transcript does NOT contain the `systemd user service installed:` block., TestInstall_SystemdAvailableButUnitNotWritten_OmitsBlock proves that even with a working `systemctl`, if the install code path skips the unit-file write, the transcript also skips the block (no fiction)., TestInstall_SystemdUnitActuallyWritten_PrintsBlock proves the helpful happy path still prints the block when a unit file is actually created in the temp HOME's user-units directory.
+- Source refs: webpages/docs/development-skills/gormes-install/references/known-issues.md#msg-systemd-fiction, webpages/docs/development-skills/gormes-install/SKILL.md, install.sh
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 7. Sandbox isolation depth selection
 
 - Phase: 5 / 5.U
 - Owner: `tools`
@@ -112,7 +174,7 @@ selection.
 - Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Behavioral pattern extraction from session logs
+## 8. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -132,7 +194,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Agentic-porting-kit repo scaffold
+## 9. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -153,7 +215,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Built-with-Gormes page scaffold
+## 10. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

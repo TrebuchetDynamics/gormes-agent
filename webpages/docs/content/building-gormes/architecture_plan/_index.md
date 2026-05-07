@@ -975,6 +975,9 @@ classification and row-backed implementation queue.
 - [x] Unix installer root/FHS layout policy
 - [ ] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
+- [ ] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
+- [ ] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
+- [ ] Install transcript: only print systemd block when unit file actually written
 
 ### 5.Q — API Server + TUI Gateway Streaming 🔨
 
