@@ -151,7 +151,9 @@ Load only the reference needed for the current pass:
 
 ## Workflow
 
-1. Establish baseline:
+1. Establish baseline. Refresh the in-repo `hermes-agent` submodule to upstream
+   `main` before reading parity refs so the sweep classifies against current
+   upstream truth, not a stale checkout:
 
 ```sh
 git status --short --branch
@@ -159,11 +161,24 @@ pwd
 git rev-parse --show-toplevel
 go run ./cmd/progress validate
 git rev-parse --short HEAD
+# Refresh hermes-agent (now a git submodule pinned to NousResearch/hermes-agent
+# main) to upstream HEAD before classifying behavior atoms. Falls back to a
+# plain fetch+ff-only if the path is a legacy clone, or no-op if absent.
+git submodule update --init --remote -- hermes-agent 2>/dev/null \
+  || git -C hermes-agent fetch --quiet origin main && git -C hermes-agent merge --ff-only origin/main 2>/dev/null \
+  || true
 HERMES_SRC="$(for p in ./hermes-agent ../hermes-agent references/hermes-agent; do [ -d "$p" ] && [ -f "$p/hermes_cli/main.py" ] && { printf '%s\n' "$p"; break; }; done)"
 HONCHO_SRC="$(for p in ./honcho ../honcho references/honcho; do [ -d "$p" ] && { printf '%s\n' "$p"; break; }; done)"
 git -C "$HERMES_SRC" rev-parse --short HEAD 2>/dev/null || true
 test -z "$HONCHO_SRC" || git -C "$HONCHO_SRC" rev-parse --short HEAD 2>/dev/null || true
 ```
+
+If `git submodule update --remote` advances the pinned submodule sha and the
+parity sweep ends up landing builder rows, treat the bumped sha as part of the
+parity-driven change set: stage `hermes-agent` in the parent repo and let
+`gormes-git` commit it alongside the row work. Do not commit a submodule bump
+on its own without parity evidence; record the upstream sha in
+`source_shas:` of the final report regardless.
 
 2. Choose one bounded surface. If the user asks for everything, produce a
    subsystem map and the next three concrete passes.
