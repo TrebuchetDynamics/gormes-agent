@@ -117,7 +117,7 @@ export const page = {
     },
   ],
   installFootnote:
-    'All paths end at the same gormes command. install.sh and install.ps1 also run gormes setup when a terminal is available.',
+    'All paths end at the same gormes command. install.sh can run gormes setup when a terminal is available; install.ps1 verifies offline doctor and then you run gormes setup explicitly.',
   installFootnoteLink: {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
@@ -156,7 +156,7 @@ export const page = {
     'Source build, inspectable install.sh (Linux/macOS/WSL2), and install.ps1 (native Windows) are the three promoted scout-release paths.',
     'Offline doctor runs before provider credentials or token spend.',
     'Secrets stay local under the Gormes home, not in the landing workflow.',
-    'install.sh and install.ps1 clone or update a managed source checkout, build gormes, verify the command, and can hand off to setup.',
+    'install.sh and install.ps1 clone or update a managed source checkout, build gormes, and verify the command. install.sh can hand off to setup; install.ps1 leaves setup as the next explicit command.',
     'Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.',
     'Every autonomous-loop commit passes a validation gate (go test, progress validate, git diff --check) before landing.',
     binaryMeasureLabel,

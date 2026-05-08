@@ -71,6 +71,7 @@ func TestAstroBuild(t *testing.T) {
 		"using-gormes/index.html",
 		"using-gormes/quickstart/index.html",
 		"using-gormes/install/index.html",
+		"using-gormes/windows-native/index.html",
 		"using-gormes/tui-mode/index.html",
 		"using-gormes/telegram-adapter/index.html",
 		"using-gormes/configuration/index.html",

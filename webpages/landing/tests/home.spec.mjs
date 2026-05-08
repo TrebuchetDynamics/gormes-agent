@@ -60,7 +60,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Teams that require signed enterprise releases, full Hermes parity, voice/TTS, or broad channel parity today.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Trust posture' })).toBeVisible();
   await expect(page.getByText('Source build, inspectable install.sh (Linux/macOS/WSL2), and install.ps1 (native Windows) are the three promoted scout-release paths.')).toBeVisible();
-  await expect(page.getByText('install.sh and install.ps1 clone or update a managed source checkout, build gormes, verify the command, and can hand off to setup.')).toBeVisible();
+  await expect(page.getByText('install.sh and install.ps1 clone or update a managed source checkout, build gormes, and verify the command. install.sh can hand off to setup; install.ps1 leaves setup as the next explicit command.')).toBeVisible();
   await expect(page.getByText(`Current measured Linux build: ~${landingBenchmarks.binary.size_mb} MB (${landingBenchmarks.binary.last_measured})`)).toBeVisible();
   await expect(page.getByText('Progress and benchmark data sync from repo sources during every landing build.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What works today' })).toBeVisible();
@@ -122,7 +122,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('#install').getByText('./bin/gormes goncho doctor --json', { exact: true })).toHaveCount(0);
   await expect(page.locator('#install').getByText('./bin/gormes')).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);
-  await expect(page.getByText('All paths end at the same gormes command. install.sh and install.ps1 also run gormes setup when a terminal is available.')).toBeVisible();
+  await expect(page.getByText('All paths end at the same gormes command. install.sh can run gormes setup when a terminal is available; install.ps1 verifies offline doctor and then you run gormes setup explicitly.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Single Binary Runtime' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Offline Proof', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Built-In Doctor' })).toBeVisible();

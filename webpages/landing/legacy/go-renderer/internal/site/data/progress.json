@@ -38821,18 +38821,84 @@
             },
             {
               "name": "Windows installer (install.ps1 + install.cmd) parity",
-              "status": "planned",
-              "note": "2026-05-06 all-topic parity sweep revisited release/operator public-surface rows and left this as a vague umbrella that must be split before builder selection. TDD slice 2 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): add `www.gormes.ai/internal/site/install.ps1` (native PowerShell) plus `install.cmd` wrapper that launches it, matching the Unix contract (user-scoped PATH, managed checkout, rerun-as-update, source-backed). Cover content/smoke assertions \u2014 PATH publication, managed checkout layout, release branch handling, and stable global command publication \u2014 via `install_windows_test.go` over fake toolchains; no live network calls in unit tests.",
-              "slice_size": "umbrella",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes exposes a native Windows install path with `install.ps1` plus `install.cmd`: the script supports one-line and inspect-first PowerShell entrypoints, managed checkout/update, user PATH publication, managed Go fallback, dry-run planning, gateway restart policy, offline verification, and public docs that describe the Windows-specific behavior without copying Hermes' Python/uv/Node installer claims.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If the PowerShell installer or docs drift, Windows operators either follow stale WSL-only guidance, miss the native PATH/update controls, or believe `install.ps1` runs setup automatically when it only verifies the offline doctor.",
+              "fixture": "webpages/landing/legacy/go-renderer/internal/site/install_pwsh_test.go; docs/windows_native_guide_test.go",
+              "source_refs": [
+                "../hermes-agent/website/docs/user-guide/windows-native.md@3299be6b:Quick install + installer behavior",
+                "../hermes-agent/website/docs/index.md@3299be6b:Windows install one-liner",
+                "../hermes-agent/tests/test_hermes_bootstrap.py@26bac67ef:partial-update entrypoint guard classified as Go-binary owned divergence",
+                "scripts/install.ps1",
+                "scripts/install.cmd",
+                "webpages/landing/legacy/go-renderer/internal/site/install_pwsh_test.go",
+                "docs/content/using-gormes/windows-native.md",
+                "webpages/docs/content/using-gormes/windows-native.md",
+                "webpages/landing/src/data/landing.js"
+              ],
+              "ready_when": [
+                "The canonical scripts/install.ps1 and scripts/install.cmd are present and served by the public site fixtures.",
+                "Docs can pin the Windows-specific contract without requiring a live Windows host or PowerShell in CI."
+              ],
               "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+                "The row tries to run a live Windows install, mutates user PATH during tests, adds Python/uv/Node bootstrap requirements, or claims setup is automatic from install.ps1.",
+                "The row implements Hermes' Python partial-update bootstrap guard instead of classifying it as an owned divergence for Gormes' Go binary."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "acceptance": [
+                "PowerShell installer fixtures prove the site copy matches scripts/install.ps1 and the script exposes managed checkout, user PATH, managed Go fallback, gateway restart, and offline doctor verification tokens.",
+                "Windows native docs expose the one-line and inspect-first commands, supported flags/env vars, default %LOCALAPPDATA%\\gormes layout, update/remove path, and common Windows pitfalls.",
+                "Docs tests reject copied Hermes Python/uv/Node installer claims and link the Windows guide from the Using Gormes index and install page.",
+                "Landing copy accurately says install.sh can hand off to setup while install.ps1 verifies offline doctor and leaves setup as an explicit next command."
+              ],
+              "write_scope": [
+                "scripts/install.ps1",
+                "scripts/install.cmd",
+                "docs/content/using-gormes/windows-native.md",
+                "webpages/docs/content/using-gormes/windows-native.md",
+                "docs/content/using-gormes/_index.md",
+                "webpages/docs/content/using-gormes/_index.md",
+                "docs/content/using-gormes/install.md",
+                "webpages/docs/content/using-gormes/install.md",
+                "docs/windows_native_guide_test.go",
+                "webpages/docs/windows_native_guide_test.go",
+                "docs/build_test.go",
+                "webpages/docs/build_test.go",
+                "docs/content/building-gormes/must-have-features.md",
+                "webpages/docs/content/building-gormes/must-have-features.md",
+                "webpages/landing/src/data/landing.js",
+                "webpages/landing/tests/home.spec.mjs",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs -run WindowsNative -count=1",
+                "go test ./webpages/docs -run 'TestWindowsNative|TestAstroBuild' -count=1",
+                "(cd webpages/landing/legacy/go-renderer && go test ./internal/site -run TestInstallPS1 -count=1)",
+                "(cd webpages/landing && npm run test:e2e)",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Windows native docs, landing copy, and public installer fixtures prove install.ps1/install.cmd are first-class Gormes paths with explicit setup handoff semantics."
               ],
-              "priority": "P3"
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:3299be6b website/docs/user-guide/windows-native.md",
+                  "hermes:3299be6b website/docs/index.md",
+                  "hermes:26bac67ef tests/test_hermes_bootstrap.py"
+                ],
+                "note": "Hermes' native Windows guide and landing one-liner make Windows install guidance an active parity surface. Gormes owns the Go-native implementation and explicitly diverges from Hermes' Python/uv/Node bootstrap and partial hermes_bootstrap import guard because the installed artifact is a Go binary."
+              },
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 30, so this cycle sharpened a stale existing P3 installer umbrella instead of adding backlog. Hermes 26bac67ef added a Python entrypoint hermes_bootstrap partial-update guard; Gormes classifies that as owned divergence because Go entrypoints do not import a runtime helper module. Hermes 3299be6b added native Windows docs and a landing one-liner; Gormes now has a native Windows guide, installer-doc links, tests rejecting Hermes Python/uv/Node copy, and landing copy that no longer claims install.ps1 runs setup automatically.",
+              "completed_at": "2026-05-08T00:00:00Z"
             },
             {
               "name": "Installer site asset/route coverage",

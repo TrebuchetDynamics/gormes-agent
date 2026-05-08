@@ -514,7 +514,7 @@ Real agent sessions run long. Without compression, the context window fills and 
 | OCI / Docker image | Shipped | Must-have |
 | Homebrew formula | Shipped | Must-have |
 | Unix installer (install.sh) source-backed update flow | Shipped | Must-have |
-| **Windows installer (install.ps1 + install.cmd)** | Gap | Must-have |
+| Windows installer (install.ps1 + install.cmd) | Shipped | Must-have |
 | **Installer site asset/route coverage** | Gap | Must-have |
 | Debian/RPM packages | Gap | Commodity |
 | Android APK / Termux | Gap | Commodity |

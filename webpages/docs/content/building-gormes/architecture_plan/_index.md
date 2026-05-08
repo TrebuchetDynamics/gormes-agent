@@ -989,7 +989,7 @@ classification and row-backed implementation queue.
 - [x] Homebrew
 - [x] Unix installer (install.sh) source-backed update flow
 - [x] Unix installer root/FHS layout policy
-- [ ] Windows installer (install.ps1 + install.cmd) parity
+- [x] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp

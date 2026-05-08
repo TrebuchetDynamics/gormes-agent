@@ -56,11 +56,22 @@ so operators can avoid bootstrap scripts.
 
 ## Windows PowerShell
 
+Convenience form:
+
+```powershell
+irm https://gormes.ai/install.ps1 | iex
+```
+
+Inspect-first form:
+
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
+
+See [Windows native](../windows-native/) for install locations, options,
+gateway restart behavior, PATH refresh, and update/remove steps.
 
 ## Go install directly
 
