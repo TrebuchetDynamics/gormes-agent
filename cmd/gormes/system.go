@@ -161,11 +161,36 @@ func parseSystemEventMode(raw string) (toolspkg.SystemEventMode, error) {
 	}
 }
 
+// systemEventReportJSON, systemPresenceReportJSON, and
+// systemSnapshotReportJSON wrap the internal/tools result types with
+// build provenance so fleet automation pushing runtime presence/event
+// state across machines can attribute each JSON document to the binary
+// version that emitted it. Existing top-level fields stay addressable
+// through struct embedding — Go's JSON decoder ignores the unknown
+// `build` field for callers parsing the old shape.
+type systemEventReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	toolspkg.SystemEventResult
+}
+
+type systemPresenceReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	toolspkg.SystemPresenceResult
+}
+
+type systemSnapshotReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	toolspkg.SystemEventsSnapshot
+}
+
 func writeSystemEventResult(cmd *cobra.Command, result toolspkg.SystemEventResult, jsonOut bool) {
 	if jsonOut {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(result)
+		_ = enc.Encode(systemEventReportJSON{
+			Build:             newBuildProvenance(),
+			SystemEventResult: result,
+		})
 		return
 	}
 	if result.OK {
@@ -193,7 +218,10 @@ func writeSystemPresenceResult(cmd *cobra.Command, result toolspkg.SystemPresenc
 	if jsonOut {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(result)
+		_ = enc.Encode(systemPresenceReportJSON{
+			Build:                newBuildProvenance(),
+			SystemPresenceResult: result,
+		})
 		return
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%s ok=%t component=%s status=%s\n", result.Code, result.OK, result.Entry.Component, result.Entry.Status)
@@ -203,7 +231,10 @@ func writeSystemPresenceSnapshot(cmd *cobra.Command, snapshot toolspkg.SystemEve
 	if jsonOut {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(snapshot)
+		_ = enc.Encode(systemSnapshotReportJSON{
+			Build:                newBuildProvenance(),
+			SystemEventsSnapshot: snapshot,
+		})
 		return
 	}
 	if len(snapshot.Presence) == 0 {

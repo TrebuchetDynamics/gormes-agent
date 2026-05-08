@@ -11,6 +11,33 @@ import (
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
+// TestSecurityAuditCommand_JSONIncludesBuildProvenance proves
+// `gormes security audit --json` emits a top-level `build` envelope so
+// fleet automation aggregating audit findings across machines can
+// attribute each result to the binary version that emitted it.
+// Existing top-level SecurityAuditResult fields stay addressable
+// through struct embedding — additive change.
+func TestSecurityAuditCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "security", "audit", "--json")
+	if err != nil {
+		t.Fatalf("security audit --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		OK bool `json:"ok"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+}
+
 func TestSecurityAuditCommandOutputsJSONAndAppliesSafeFixes(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	t.Setenv("GATEWAY_PROXY_URL", "")

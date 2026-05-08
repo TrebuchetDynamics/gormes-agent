@@ -138,6 +138,41 @@ func TestMigrateOpenClawApply_CommandWiring(t *testing.T) {
 	}
 }
 
+// TestMigrateOpenClawCleanup_JSONIncludesBuildProvenance proves
+// `gormes migrate openclaw cleanup --dry-run` emits a top-level
+// `build` envelope so fleet automation orchestrating
+// post-OpenClaw-migration archival across machines can attribute each
+// cleanup outcome to the binary version that emitted it. Existing
+// top-level fields stay addressable.
+func TestMigrateOpenClawCleanup_JSONIncludesBuildProvenance(t *testing.T) {
+	root := setupMigrateOpenClawEnv(t)
+	home := filepath.Join(root, "fake-home")
+	for _, dir := range []string{".openclaw", ".clawdbot", ".moltbot"} {
+		if err := os.MkdirAll(filepath.Join(home, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+	_, stdout, stderr, err := executeMigrateOpenClaw("openclaw", "cleanup", "--dry-run")
+	if err != nil {
+		t.Fatalf("migrate openclaw cleanup --dry-run: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		DryRun bool `json:"dry_run"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if !got.DryRun {
+		t.Errorf("dry_run = false, want true (still addressable)")
+	}
+}
+
 func TestMigrateOpenClawCleanup_DryRunCommandWiring(t *testing.T) {
 	root := setupMigrateOpenClawEnv(t)
 	home := filepath.Join(root, "fake-home")

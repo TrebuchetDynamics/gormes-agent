@@ -10,6 +10,56 @@ import (
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
+// TestSystemCommands_JSONIncludeBuildProvenance proves
+// `gormes system event/presence --json` and the snapshot read-back all
+// emit a top-level `build` envelope so fleet automation pushing
+// runtime presence/event state across machines can attribute each
+// JSON document to the binary version that emitted it. Existing
+// SystemEventResult/SystemPresenceResult/SystemEventsSnapshot fields
+// remain addressable through struct embedding.
+func TestSystemCommands_JSONIncludeBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "system", "event", "gateway restart", "--mode", "now", "--json")
+	if err != nil {
+		t.Fatalf("system event --json: %v\nstderr=%s", err, stderr)
+	}
+	var eventGot struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		OK bool `json:"ok"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &eventGot); jsonErr != nil {
+		t.Fatalf("event JSON decode: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if eventGot.Build.Version != Version {
+		t.Errorf("event build.version = %q, want %q", eventGot.Build.Version, Version)
+	}
+	if !eventGot.OK {
+		t.Errorf("event ok = false, want true (still addressable)")
+	}
+
+	cmd2 := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err = executeOneshotFlagCommand(cmd2, "system", "presence", "--component", "gateway", "--status", "running", "--reason", "test", "--json")
+	if err != nil {
+		t.Fatalf("system presence --json: %v\nstderr=%s", err, stderr)
+	}
+	var presGot struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		OK bool `json:"ok"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &presGot); jsonErr != nil {
+		t.Fatalf("presence JSON decode: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if presGot.Build.Version != Version {
+		t.Errorf("presence build.version = %q, want %q", presGot.Build.Version, Version)
+	}
+}
+
 func TestSystemEventCommandWritesJSONAuditAndStatus(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 

@@ -333,6 +333,13 @@ type migrateOpenClawApplyReportJSON struct {
 	openclawmigrate.ApplyOutcome
 }
 
+// migrateOpenClawCleanupReportJSON wraps openclawmigrate.CleanupOutcome
+// with build provenance.
+type migrateOpenClawCleanupReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	openclawmigrate.CleanupOutcome
+}
+
 func newMigrateOpenClawCleanupCommand() *cobra.Command {
 	var (
 		dryRun bool
@@ -359,7 +366,10 @@ func newMigrateOpenClawCleanupCommand() *cobra.Command {
 			}
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
-			if err := enc.Encode(out); err != nil {
+			if err := enc.Encode(migrateOpenClawCleanupReportJSON{
+				Build:          newBuildProvenance(),
+				CleanupOutcome: out,
+			}); err != nil {
 				return fmt.Errorf("gormes migrate openclaw cleanup: encode outcome: %w", err)
 			}
 			return nil
