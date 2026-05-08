@@ -40,12 +40,16 @@ func newDoctorCommand() *cobra.Command {
 // end (JSON mode). Calling sites stay branch-free: every check uses
 // the same Add() entry point.
 type doctorReporter struct {
-	w        io.Writer
-	asJSON   bool
+	w         io.Writer
+	asJSON    bool
 	collected []doctor.CheckResult
+	failed    bool
 }
 
 func (r *doctorReporter) Add(c doctor.CheckResult) {
+	if c.Status == doctor.StatusFail {
+		r.failed = true
+	}
 	if r.asJSON {
 		r.collected = append(r.collected, c)
 		return
@@ -60,7 +64,10 @@ func (r *doctorReporter) Finalize() error {
 	if r.collected == nil {
 		r.collected = []doctor.CheckResult{}
 	}
-	body, err := json.MarshalIndent(map[string]any{"checks": r.collected}, "", "  ")
+	body, err := json.MarshalIndent(map[string]any{
+		"failed": r.failed,
+		"checks": r.collected,
+	}, "", "  ")
 	if err != nil {
 		return err
 	}
