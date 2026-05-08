@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -472,6 +473,50 @@ func TestRunRegistry_BoundsEventsBacklogToCap(t *testing.T) {
 	}
 }
 
+// TestAPIServerRunEvents_EmitsSnapshotPreludeComment proves
+// `GET /v1/runs/{run_id}/events` writes an SSE comment containing
+// the run snapshot summary before any backlog event so consumers
+// see context (status, events_count, etc.) immediately even when
+// the backlog is empty. SSE comments start with `:` per spec and
+// are ignored by EventSource clients while remaining visible to
+// raw HTTP debuggers.
+func TestAPIServerRunEvents_EmitsSnapshotPreludeComment(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	// Stop so SSE drain returns immediately.
+	if rec := postJSON(t, h, "/v1/runs/"+started.RunID+"/stop", nil, nil); rec.Code != http.StatusOK {
+		t.Fatalf("stop = %d", rec.Code)
+	}
+
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID+"/events", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("events status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, ": snapshot ") {
+		t.Errorf("SSE body missing snapshot prelude:\n%s", body)
+	}
+	if !strings.Contains(body, started.RunID) {
+		t.Errorf("snapshot prelude missing run_id %q:\n%s", started.RunID, body)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
 // TestAPIServerRunEvents_KeepFlagPreservesRunForStatusQuery proves
 // that `GET /v1/runs/{run_id}/events?keep=true` does NOT remove the
 // run from the registry after the SSE stream closes, so callers can
@@ -881,6 +926,78 @@ func TestAPIServerRunStatus_IncludesLastEventAt(t *testing.T) {
 	}
 
 	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunStatus_IncludesToolCallsCount proves the run
+// snapshot exposes `tool_calls_count` — the number of tool.progress
+// events emitted so far. Dashboards showing tool activity per run
+// (e.g. "Read File 3x, Bash 1x") read this directly without
+// scanning the events backlog.
+func TestAPIServerRunStatus_IncludesToolCallsCount(t *testing.T) {
+	loop := newBlockingRunLoopWithToolProgress(t, 3)
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitToolProgress(t)
+
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		ToolCallsCount int `json:"tool_calls_count"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.ToolCallsCount != 3 {
+		t.Errorf("tool_calls_count = %d, want 3", got.ToolCallsCount)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// toolProgressLoop emits the requested number of tool.progress
+// events, then blocks awaiting release.
+type toolProgressLoop struct {
+	*blockingRunLoop
+	progressCount int
+	progressDone  chan struct{}
+}
+
+func newBlockingRunLoopWithToolProgress(t *testing.T, count int) *toolProgressLoop {
+	return &toolProgressLoop{
+		blockingRunLoop: newBlockingRunLoop(),
+		progressCount:   count,
+		progressDone:    make(chan struct{}),
+	}
+}
+
+func (l *toolProgressLoop) StreamTurn(ctx context.Context, req TurnRequest, cb StreamCallbacks) (TurnResult, error) {
+	for i := 0; i < l.progressCount; i++ {
+		_ = cb.OnToolProgress(ToolProgressEvent{Name: "fake_tool", Status: "completed"})
+	}
+	close(l.progressDone)
+	return l.blockingRunLoop.StreamTurn(ctx, req, cb)
+}
+
+func (l *toolProgressLoop) waitToolProgress(t *testing.T) {
+	t.Helper()
+	select {
+	case <-l.progressDone:
+	case <-time.After(time.Second):
+		t.Fatal("tool progress events did not arrive")
+	}
 }
 
 // TestAPIServerRunStatus_IncludesLastEventType proves the run status

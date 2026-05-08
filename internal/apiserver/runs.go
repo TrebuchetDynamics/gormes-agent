@@ -236,14 +236,15 @@ func (r *runRegistry) status(id string) (string, bool) {
 // carries the loop's failure message when Status == "failed"; empty
 // otherwise.
 type runStatusSnapshot struct {
-	Status        string
-	SessionID     string
-	CreatedAt     int64
-	TerminatedAt  int64
-	EventsCount   int
-	LastEventType string
-	LastEventAt   int64
-	Error         string
+	Status         string
+	SessionID      string
+	CreatedAt      int64
+	TerminatedAt   int64
+	EventsCount    int
+	ToolCallsCount int
+	LastEventType  string
+	LastEventAt    int64
+	Error          string
 }
 
 // listSnapshots returns a stable-sorted list of all live runs in the
@@ -291,6 +292,11 @@ func (r *runRegistry) snapshot(id string) (runStatusSnapshot, bool) {
 	if n := len(rec.events); n > 0 {
 		snap.LastEventType = rec.events[n-1].Event
 		snap.LastEventAt = rec.events[n-1].Timestamp
+	}
+	for _, ev := range rec.events {
+		if ev.Event == "tool.progress" {
+			snap.ToolCallsCount++
+		}
 	}
 	switch {
 	case rec.stopped:
@@ -519,6 +525,9 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		if snap.SessionID != "" {
 			entry["session_id"] = snap.SessionID
 		}
+		if snap.ToolCallsCount > 0 {
+			entry["tool_calls_count"] = snap.ToolCallsCount
+		}
 		if snap.LastEventType != "" {
 			entry["last_event_type"] = snap.LastEventType
 		}
@@ -660,6 +669,9 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	if snap.SessionID != "" {
 		body["session_id"] = snap.SessionID
+	}
+	if snap.ToolCallsCount > 0 {
+		body["tool_calls_count"] = snap.ToolCallsCount
 	}
 	if snap.LastEventType != "" {
 		body["last_event_type"] = snap.LastEventType
