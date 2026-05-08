@@ -54,10 +54,20 @@ type Config struct {
 	Skills     SkillsCfg         `toml:"skills" yaml:"skills"`
 	Delegation DelegationCfg     `toml:"delegation" yaml:"delegation"`
 	Goncho     GonchoCfg         `toml:"goncho" yaml:"goncho"`
+	Updates    UpdatesCfg        `toml:"updates" yaml:"updates"`
 	// Resume is set only via the --resume CLI flag; intentionally not
 	// a TOML field. Empty means "use whatever internal/session had
 	// persisted for this binary's default key."
 	Resume string `toml:"-"`
+}
+
+// UpdatesCfg controls `gormes update` behavior. PreUpdateBackup is the
+// config equivalent of `--backup` and is silent-default off. BackupKeep
+// is the retention budget applied after a successful write; <=0 keeps
+// the built-in default of 5 (matches Hermes' upstream).
+type UpdatesCfg struct {
+	PreUpdateBackup bool `toml:"pre_update_backup" yaml:"pre_update_backup"`
+	BackupKeep      int  `toml:"backup_keep" yaml:"backup_keep"`
 }
 
 type TelegramCfg struct {
@@ -637,6 +647,10 @@ func defaults() Config {
 			DefaultTimeout:        45 * time.Second,
 			RunLogPath:            "",
 			MaxWaiting:            128,
+		},
+		Updates: UpdatesCfg{
+			PreUpdateBackup: false,
+			BackupKeep:      5,
 		},
 		Goncho: GonchoCfg{
 			Enabled:                      true,

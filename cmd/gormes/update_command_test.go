@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -79,6 +81,84 @@ func TestUpdateCommandFailureReturnsOperatorEvidence(t *testing.T) {
 		if !strings.Contains(combined, want) {
 			t.Fatalf("combined output missing %q:\nstdout=%s\nstderr=%s\nerr=%v", want, stdout, stderr, err)
 		}
+	}
+}
+
+// TestResolveBackupKeep proves the retention-budget resolver: positive
+// values flow through from `[updates] backup_keep`, while 0/negative/
+// missing config all fall back to defaultBackupKeep (5). This is the
+// surface defaultBackupWriterFor reads to size the post-write prune.
+func TestResolveBackupKeep(t *testing.T) {
+	cases := []struct {
+		name       string
+		tomlBody   string
+		wantKeep   int
+		writeFile  bool
+	}{
+		{name: "no config file", tomlBody: "", wantKeep: 5, writeFile: false},
+		{name: "missing updates section", tomlBody: "[hermes]\nmodel = \"x\"\n", wantKeep: 5, writeFile: true},
+		{name: "explicit 7", tomlBody: "[updates]\nbackup_keep = 7\n", wantKeep: 7, writeFile: true},
+		{name: "zero falls back", tomlBody: "[updates]\nbackup_keep = 0\n", wantKeep: 5, writeFile: true},
+		{name: "negative falls back", tomlBody: "[updates]\nbackup_keep = -3\n", wantKeep: 5, writeFile: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgHome := t.TempDir()
+			t.Setenv("XDG_CONFIG_HOME", cfgHome)
+			t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+			if tc.writeFile {
+				dir := filepath.Join(cfgHome, "gormes")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(tc.tomlBody), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got := resolveBackupKeep()
+			if got != tc.wantKeep {
+				t.Fatalf("resolveBackupKeep() = %d, want %d", got, tc.wantKeep)
+			}
+		})
+	}
+}
+
+// TestUpdateCommandReadsConfigBackupOptIn proves the cmd-side wiring
+// loads `[updates] pre_update_backup = true` from config.toml and passes
+// it to the lifecycle as BackupConfigEnabled. Without this, operators
+// who set the config value would still need to pass --backup on every
+// update run.
+func TestUpdateCommandReadsConfigBackupOptIn(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	dir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[updates]
+pre_update_backup = true
+backup_keep = 7
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var got cli.UpdateLifecycleOptions
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(_ context.Context, opts cli.UpdateLifecycleOptions) cli.UpdateReport {
+			got = opts
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+
+	if _, stderr, err := executeRootCommandForTest(command, "--check"); err != nil {
+		t.Fatalf("update --check: %v stderr=%s", err, stderr)
+	}
+	if !got.BackupConfigEnabled {
+		t.Fatalf("BackupConfigEnabled = false, want true from `[updates] pre_update_backup = true`; got=%+v", got)
 	}
 }
 
