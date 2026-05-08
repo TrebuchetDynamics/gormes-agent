@@ -1190,6 +1190,66 @@ func TestAPIServerRunsList_RejectsUnknownStatusFilter(t *testing.T) {
 	}
 }
 
+// TestAPIServerRunsList_FiltersBySessionID proves
+// `GET /v1/runs?session_id=...` returns only runs matching the
+// session_id. Dashboards rendering "all runs in this session" need
+// server-side filtering rather than downloading all runs and
+// filtering client-side. Same JSON envelope as the other filters.
+func TestAPIServerRunsList_FiltersBySessionID(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	now := time.Unix(1_700_011_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	// Run 1 in session A.
+	r1 := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping", "session_id": "sess-A"}, nil)
+	if r1.Code != http.StatusAccepted {
+		t.Fatalf("POST 1 = %d", r1.Code)
+	}
+	loop.waitStarted(t)
+	var s1 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r1.Body.Bytes(), &s1)
+
+	// Run 2 in session B.
+	now = time.Unix(1_700_011_010, 0)
+	r2 := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping", "session_id": "sess-B"}, nil)
+	if r2.Code != http.StatusAccepted {
+		t.Fatalf("POST 2 = %d", r2.Code)
+	}
+	var s2 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r2.Body.Bytes(), &s2)
+
+	// Filter for session A only.
+	rec := getJSON(t, h, "/v1/runs?session_id=sess-A", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Total int `json:"total"`
+		Runs  []struct {
+			RunID     string `json:"run_id"`
+			SessionID string `json:"session_id"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Total != 1 {
+		t.Fatalf("total = %d, want 1", got.Total)
+	}
+	if got.Runs[0].RunID != s1.RunID || got.Runs[0].SessionID != "sess-A" {
+		t.Errorf("filtered = %+v, want %s/sess-A", got.Runs, s1.RunID)
+	}
+
+	loop.release(TurnResult{SessionID: s1.RunID})
+}
+
 // TestAPIServerRunsList_StatusFilterAcceptsMultipleValues proves
 // `GET /v1/runs?status=stopped,failed` returns runs matching ANY of
 // the comma-separated values. Fleet automation surfacing terminal
@@ -1407,6 +1467,43 @@ func TestAPIServerRuns_BuildAttribution(t *testing.T) {
 	}
 	if got.RunID == "" || got.Status != "started" {
 		t.Errorf("run start envelope = %+v, want run_id populated and status=started", got)
+	}
+}
+
+// TestAPIServerCapabilities_AdvertisesRunLifecycleEvents proves
+// `/v1/capabilities` features advertise the typed lifecycle event
+// names emitted by the run SSE stream so SDKs and dashboards can
+// build switch-statements without hard-coding strings. The list
+// covers every event type the registry publishes.
+func TestAPIServerCapabilities_AdvertisesRunLifecycleEvents(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", Loop: &fakeTurnLoop{}})
+	rec := getJSON(t, srv.Handler(), "/v1/capabilities", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var got struct {
+		Features struct {
+			RunLifecycleEvents []string `json:"run_lifecycle_events"`
+		} `json:"features"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	want := map[string]bool{
+		"run.started":     false,
+		"run.completed":   false,
+		"run.failed":      false,
+		"run.stopped":     false,
+		"message.delta":   false,
+		"tool.progress":   false,
+	}
+	for _, ev := range got.Features.RunLifecycleEvents {
+		want[ev] = true
+	}
+	for ev, present := range want {
+		if !present {
+			t.Errorf("features.run_lifecycle_events missing %q (got %v)", ev, got.Features.RunLifecycleEvents)
+		}
 	}
 }
 

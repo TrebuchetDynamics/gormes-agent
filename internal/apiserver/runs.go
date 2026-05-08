@@ -450,6 +450,7 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = parsed
 	}
+	sessionFilter := strings.TrimSpace(r.URL.Query().Get("session_id"))
 	order := strings.TrimSpace(r.URL.Query().Get("order"))
 	if order != "" && order != "asc" && order != "desc" {
 		writeOpenAIError(w, http.StatusBadRequest,
@@ -479,6 +480,9 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if sinceUnix > 0 && snap.CreatedAt < sinceUnix {
+			continue
+		}
+		if sessionFilter != "" && snap.SessionID != sessionFilter {
 			continue
 		}
 		total++
