@@ -39,10 +39,13 @@ type DetailedHealthResponseStoreInput struct {
 }
 
 type DetailedHealthRunEventsInput struct {
-	Available     bool
-	Active        int
-	OrphanedSwept int
-	TTLSeconds    int
+	Available      bool
+	Active         int
+	OrphanedSwept  int
+	TTLSeconds     int
+	CompletedTotal int
+	FailedTotal    int
+	StoppedTotal   int
 }
 
 type DetailedHealthGatewayInput struct {
@@ -96,12 +99,15 @@ type DetailedHealthResponseStoreSection struct {
 }
 
 type DetailedHealthRunEventsSection struct {
-	Status        string                   `json:"status"`
-	Available     bool                     `json:"available"`
-	Active        int                      `json:"active"`
-	OrphanedSwept int                      `json:"orphaned_swept"`
-	TTLSeconds    int                      `json:"ttl_seconds"`
-	Evidence      []DetailedHealthEvidence `json:"evidence"`
+	Status         string                   `json:"status"`
+	Available      bool                     `json:"available"`
+	Active         int                      `json:"active"`
+	OrphanedSwept  int                      `json:"orphaned_swept"`
+	TTLSeconds     int                      `json:"ttl_seconds"`
+	CompletedTotal int                      `json:"completed_total"`
+	FailedTotal    int                      `json:"failed_total"`
+	StoppedTotal   int                      `json:"stopped_total"`
+	Evidence       []DetailedHealthEvidence `json:"evidence"`
 }
 
 type DetailedHealthGatewaySection struct {
@@ -172,12 +178,15 @@ func detailedHealthResponseStore(input DetailedHealthResponseStoreInput) Detaile
 
 func detailedHealthRunEvents(input DetailedHealthRunEventsInput) DetailedHealthRunEventsSection {
 	section := DetailedHealthRunEventsSection{
-		Status:        detailedHealthStatusReady,
-		Available:     input.Available,
-		Active:        input.Active,
-		OrphanedSwept: input.OrphanedSwept,
-		TTLSeconds:    input.TTLSeconds,
-		Evidence:      []DetailedHealthEvidence{},
+		Status:         detailedHealthStatusReady,
+		Available:      input.Available,
+		Active:         input.Active,
+		OrphanedSwept:  input.OrphanedSwept,
+		TTLSeconds:     input.TTLSeconds,
+		CompletedTotal: input.CompletedTotal,
+		FailedTotal:    input.FailedTotal,
+		StoppedTotal:   input.StoppedTotal,
+		Evidence:       []DetailedHealthEvidence{},
 	}
 	if !input.Available {
 		section.Status = detailedHealthStatusDegraded
