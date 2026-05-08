@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,6 +89,91 @@ func TestCheckpointsCLI_Status_ReportsStoreDetails(t *testing.T) {
 	}
 }
 
+// TestCheckpointsCLI_Status_JSONEmitsStructured proves
+// `gormes checkpoints status --json` returns a `{build, root, …}`
+// document operator scripts can parse to monitor /rollback storage
+// growth, identify orphans before pruning, and feed dashboards
+// without scraping column-formatted text. Build provenance leads —
+// same convention as update/doctor/restore/status `--json`.
+func TestCheckpointsCLI_Status_JSONEmitsStructured(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	root := checkpointTestRoot(tmp)
+	os.MkdirAll(root, 0o755)
+
+	now := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	live := filepath.Join(tmp, "live-project")
+	os.MkdirAll(live, 0o755)
+	seedCheckpointShadow(t, root, "live-shadow", live, now.Add(-30*time.Minute))
+	orphan := filepath.Join(tmp, "deleted-project")
+	seedCheckpointShadow(t, root, "orphan-shadow", orphan, now.Add(-2*time.Hour))
+
+	cmd := newCheckpointsCommand()
+	cmd.SetArgs([]string{"status", "--json"})
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("checkpoints status --json: %v", err)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Root             string `json:"root"`
+		TotalSizeBytes   int64  `json:"total_size_bytes"`
+		StoreSizeBytes   int64  `json:"store_size_bytes"`
+		LegacySizeBytes  int64  `json:"legacy_size_bytes"`
+		ProjectCount     int    `json:"project_count"`
+		Projects         []struct {
+			Name      string    `json:"name"`
+			Workdir   string    `json:"workdir"`
+			Commits   int       `json:"commits"`
+			LastTouch time.Time `json:"last_touch"`
+			Exists    bool      `json:"exists"`
+		} `json:"projects"`
+		LegacyArchives []struct {
+			Name      string `json:"name"`
+			SizeBytes int64  `json:"size_bytes"`
+		} `json:"legacy_archives"`
+	}
+	if jsonErr := jsonUnmarshalCheckpoints(out.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("status --json must be valid JSON: %v\nstdout=%s", jsonErr, out.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Errorf("got.build.git_commit must be non-empty")
+	}
+	if got.ProjectCount != 2 {
+		t.Errorf("project_count = %d, want 2", got.ProjectCount)
+	}
+	var sawLive, sawOrphan bool
+	for _, p := range got.Projects {
+		if p.Workdir == live {
+			sawLive = true
+			if !p.Exists {
+				t.Errorf("live project must report exists=true")
+			}
+		}
+		if p.Workdir == orphan {
+			sawOrphan = true
+			if p.Exists {
+				t.Errorf("orphan project must report exists=false")
+			}
+		}
+	}
+	if !sawLive || !sawOrphan {
+		t.Errorf("status JSON must include both live and orphan; got %+v", got.Projects)
+	}
+}
+
+func jsonUnmarshalCheckpoints(b []byte, v any) error {
+	return json.Unmarshal(b, v)
+}
+
 func TestCheckpointsCLI_List_IsStatusAlias(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
@@ -157,6 +243,57 @@ func TestCheckpointsCLI_Prune_DeletesOrphanAndStale(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(root, "active-shadow")); err != nil {
 		t.Errorf("active shadow was pruned: %v", err)
+	}
+}
+
+// TestCheckpointsCLI_Prune_DryRunPreviewsWithoutDeleting proves that
+// `gormes checkpoints prune --dry-run` reports the orphan/stale counts
+// the operator WOULD lose, but leaves every shadow directory intact on
+// disk. Without this, operators can only learn the blast radius by
+// actually deleting — which is the very thing they were trying to
+// preview. This is symmetric with `update --backup` dry-run and
+// `restore --json` preview: destructive ops must offer a non-destructive
+// rehearsal.
+func TestCheckpointsCLI_Prune_DryRunPreviewsWithoutDeleting(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	root := checkpointTestRoot(tmp)
+	os.MkdirAll(root, 0o755)
+
+	now := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	orphanWorkdir := filepath.Join(tmp, "deleted-project")
+	seedCheckpointShadow(t, root, "orphan-shadow", orphanWorkdir, now.Add(-2*time.Hour))
+
+	staleWorkdir := filepath.Join(tmp, "stale")
+	os.MkdirAll(staleWorkdir, 0o755)
+	seedCheckpointShadow(t, root, "stale-shadow", staleWorkdir, now.Add(-10*24*time.Hour))
+
+	cmd := newCheckpointsCommand()
+	cmd.SetArgs([]string{"prune", "--dry-run", "--retention-days", "5", "--max-size-mb", "500"})
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("checkpoints prune --dry-run: %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "DRY RUN") {
+		t.Errorf("dry-run output must announce DRY RUN so operators don't mistake the preview for an applied prune\n%s", output)
+	}
+	// Both shadow dirs MUST still be on disk — that's what makes this a dry run.
+	if _, err := os.Stat(filepath.Join(root, "orphan-shadow")); err != nil {
+		t.Errorf("orphan-shadow was deleted by --dry-run: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "stale-shadow")); err != nil {
+		t.Errorf("stale-shadow was deleted by --dry-run: %v", err)
+	}
+	// Counts still show what WOULD have been pruned.
+	if !strings.Contains(output, "Deleted orphan:  1") {
+		t.Errorf("dry-run must still tally orphan candidates\n%s", output)
+	}
+	if !strings.Contains(output, "Deleted stale:   1") {
+		t.Errorf("dry-run must still tally stale candidates\n%s", output)
 	}
 }
 

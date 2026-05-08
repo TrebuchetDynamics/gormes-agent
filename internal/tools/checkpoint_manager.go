@@ -309,6 +309,14 @@ type PruneResult struct {
 // orphan deletion. maxSizeMB is a soft cap on total store size after prune;
 // if exceeded, the oldest commits across projects are dropped.
 func PruneCheckpoints(root string, retentionDays int, keepOrphans bool, maxSizeMB int, now func() time.Time) PruneResult {
+	return PruneCheckpointsDryRun(root, retentionDays, keepOrphans, maxSizeMB, false, now)
+}
+
+// PruneCheckpointsDryRun mirrors PruneCheckpoints but skips the RemoveAll
+// when dryRun is true. Counts and BytesFreed still reflect what WOULD
+// have been freed, so operators can preview the blast radius without
+// losing /rollback history they meant to keep.
+func PruneCheckpointsDryRun(root string, retentionDays int, keepOrphans bool, maxSizeMB int, dryRun bool, now func() time.Time) PruneResult {
 	if root == "" {
 		root = DefaultCheckpointRoot()
 	}
@@ -337,7 +345,9 @@ func PruneCheckpoints(root string, retentionDays int, keepOrphans bool, maxSizeM
 		if !ok || !pathExists(workdir) {
 			if !keepOrphans {
 				sz, _ := dirSize(shadow)
-				_ = os.RemoveAll(shadow)
+				if !dryRun {
+					_ = os.RemoveAll(shadow)
+				}
 				result.DeletedOrphan++
 				result.BytesFreed += sz
 			}
@@ -347,7 +357,9 @@ func PruneCheckpoints(root string, retentionDays int, keepOrphans bool, maxSizeM
 		newest, ok := newestCheckpointMTime(shadow)
 		if ok && now().Sub(newest) > retention {
 			sz, _ := dirSize(shadow)
-			_ = os.RemoveAll(shadow)
+			if !dryRun {
+				_ = os.RemoveAll(shadow)
+			}
 			result.DeletedStale++
 			result.BytesFreed += sz
 		}

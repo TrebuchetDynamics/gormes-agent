@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -42,6 +43,7 @@ func newCheckpointsStatusCommand() *cobra.Command {
 		RunE:  runCheckpointsStatus,
 	}
 	cmd.Flags().Int("limit", 20, "max projects to list")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, root, total_size_bytes, …, projects: [...], legacy_archives: [...]}`")
 	return cmd
 }
 
@@ -52,7 +54,37 @@ func newCheckpointsListCommand() *cobra.Command {
 		RunE:  runCheckpointsStatus,
 	}
 	cmd.Flags().Int("limit", 20, "max projects to list")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON (see `status --json`)")
 	return cmd
+}
+
+// checkpointsStatusJSON is the wire shape for `checkpoints status --json`.
+// Operator scripts driving /rollback storage monitoring parse this to
+// alert on growth, identify orphans before pruning, and feed dashboards
+// without scraping column-formatted text. Build provenance leads —
+// same convention as the rest of the `--json` arc.
+type checkpointsStatusJSON struct {
+	Build           buildProvenanceJSON         `json:"build"`
+	Root            string                      `json:"root"`
+	TotalSizeBytes  int64                       `json:"total_size_bytes"`
+	StoreSizeBytes  int64                       `json:"store_size_bytes"`
+	LegacySizeBytes int64                       `json:"legacy_size_bytes"`
+	ProjectCount    int                         `json:"project_count"`
+	Projects        []checkpointsProjectJSON    `json:"projects"`
+	LegacyArchives  []checkpointsLegacyJSON     `json:"legacy_archives"`
+}
+
+type checkpointsProjectJSON struct {
+	Name      string    `json:"name"`
+	Workdir   string    `json:"workdir"`
+	Commits   int       `json:"commits"`
+	LastTouch time.Time `json:"last_touch"`
+	Exists    bool      `json:"exists"`
+}
+
+type checkpointsLegacyJSON struct {
+	Name      string `json:"name"`
+	SizeBytes int64  `json:"size_bytes"`
 }
 
 func runCheckpointsStatus(cmd *cobra.Command, _ []string) error {
@@ -61,6 +93,41 @@ func runCheckpointsStatus(cmd *cobra.Command, _ []string) error {
 	result, err := tools.StoreStatus(root)
 	if err != nil {
 		return fmt.Errorf("checkpoints: %w", err)
+	}
+
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		report := checkpointsStatusJSON{
+			Build:           newBuildProvenance(),
+			Root:            result.Root,
+			TotalSizeBytes:  result.TotalSizeBytes,
+			StoreSizeBytes:  result.StoreSizeBytes,
+			LegacySizeBytes: result.LegacySizeBytes,
+			ProjectCount:    result.ProjectCount,
+			Projects:        make([]checkpointsProjectJSON, len(result.Projects)),
+			LegacyArchives:  make([]checkpointsLegacyJSON, len(result.LegacyArchives)),
+		}
+		for i, p := range result.Projects {
+			report.Projects[i] = checkpointsProjectJSON{
+				Name:      p.Name,
+				Workdir:   p.Workdir,
+				Commits:   p.Commits,
+				LastTouch: p.LastTouch,
+				Exists:    p.Exists,
+			}
+		}
+		for i, a := range result.LegacyArchives {
+			report.LegacyArchives[i] = checkpointsLegacyJSON{
+				Name:      a.Name,
+				SizeBytes: a.SizeBytes,
+			}
+		}
+		body, marshalErr := json.MarshalIndent(report, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
 	}
 
 	if result.ProjectCount == 0 && result.LegacySizeBytes == 0 {
@@ -122,6 +189,7 @@ func newCheckpointsPruneCommand() *cobra.Command {
 	cmd.Flags().Int("retention-days", 7, "drop projects whose last_touch is older than N days")
 	cmd.Flags().Int("max-size-mb", 500, "after orphan/stale prune, drop oldest commits per project until total size <= this")
 	cmd.Flags().Bool("keep-orphans", false, "skip deleting projects whose workdir no longer exists")
+	cmd.Flags().Bool("dry-run", false, "preview which orphan/stale shadows would be deleted without touching disk")
 	return cmd
 }
 
@@ -130,19 +198,28 @@ func runCheckpointsPrune(cmd *cobra.Command, _ []string) error {
 	retentionDays, _ := cmd.Flags().GetInt("retention-days")
 	maxSizeMB, _ := cmd.Flags().GetInt("max-size-mb")
 	keepOrphans, _ := cmd.Flags().GetBool("keep-orphans")
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-	fmt.Fprintln(out, "Pruning checkpoint store…")
+	if dryRun {
+		fmt.Fprintln(out, "DRY RUN — previewing checkpoint store prune (no files deleted)…")
+	} else {
+		fmt.Fprintln(out, "Pruning checkpoint store…")
+	}
 	fmt.Fprintf(out, "  retention_days:    %d\n", retentionDays)
 	fmt.Fprintf(out, "  delete_orphans:    %v\n", !keepOrphans)
 	fmt.Fprintf(out, "  max_total_size_mb: %d\n", maxSizeMB)
 	fmt.Fprintln(out)
 
-	result := tools.PruneCheckpoints(tools.DefaultCheckpointRoot(), retentionDays, keepOrphans, maxSizeMB, time.Now)
+	result := tools.PruneCheckpointsDryRun(tools.DefaultCheckpointRoot(), retentionDays, keepOrphans, maxSizeMB, dryRun, time.Now)
 	fmt.Fprintf(out, "Scanned:         %d\n", result.Scanned)
 	fmt.Fprintf(out, "Deleted orphan:  %d\n", result.DeletedOrphan)
 	fmt.Fprintf(out, "Deleted stale:   %d\n", result.DeletedStale)
 	fmt.Fprintf(out, "Errors:          %d\n", result.Errors)
 	fmt.Fprintf(out, "Bytes reclaimed: %s\n", formatBytes(result.BytesFreed))
+	if dryRun {
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Re-run without --dry-run to apply.")
+	}
 	return nil
 }
 
