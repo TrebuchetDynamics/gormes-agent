@@ -646,11 +646,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.C matrix bot refs=%v contract=%q, want threadtext/thread detail", matrixBot.SourceRefs, matrixBot.Contract)
 	}
 	mattermostBot := matrixItems["Mattermost shared-chassis bot seam"]
-	if mattermostBot.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C mattermost bot status = %q, want planned", mattermostBot.Status)
+	if mattermostBot.Status != StatusComplete {
+		t.Fatalf("Phase 7.C mattermost bot status = %q, want complete", mattermostBot.Status)
 	}
-	if mattermostBot.ContractStatus != ContractStatusDraft || len(mattermostBot.WriteScope) == 0 || len(mattermostBot.TestCommands) == 0 {
-		t.Fatalf("Phase 7.C mattermost bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", mattermostBot.ContractStatus, len(mattermostBot.WriteScope), len(mattermostBot.TestCommands))
+	if mattermostBot.ContractStatus != ContractStatusValidated || len(mattermostBot.WriteScope) == 0 || len(mattermostBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C mattermost bot readiness = contract_status %q scope=%d tests=%d, want validated builder-ready row", mattermostBot.ContractStatus, len(mattermostBot.WriteScope), len(mattermostBot.TestCommands))
 	}
 	if !containsString(mattermostBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(mattermostBot.Contract, "REST/websocket") {
 		t.Fatalf("Phase 7.C mattermost bot refs=%v contract=%q, want threadtext/REST-WS detail", mattermostBot.SourceRefs, mattermostBot.Contract)

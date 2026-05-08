@@ -69,28 +69,7 @@ selection.
 - Unblocks: Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start
 - Why now: Unblocks Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start.
 
-## 3. Mattermost shared-chassis bot seam
-
-- Phase: 7 / 7.C
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Gormes adds a Mattermost-specific seam over internal/channels/threadtext before REST/websocket transport: parse posted-event payloads into gateway events, ignore self/system/duplicate posts, preserve root_id as canonical thread_id, model reply_mode=thread vs off for outbound root_id decisions, and keep upload/edit/status hooks fakeable.
-- Trust class: gateway, operator
-- Ready when: Threaded text adapter contract suite is complete., The slice can create internal/channels/mattermost with pure event parser and fake delivery hooks., No REST/websocket client is required; tests inject double-encoded posted event JSON and fake post/upload responses.
-- Not ready when: The slice opens websocket sessions, calls Mattermost REST APIs, uploads files, reads real env/config, or implements live reconnect., System posts or bot self posts can enter gateway dispatch., reply_mode=off still sets root_id, or reply_mode=thread drops root_id for replies.
-- Degraded mode: Mattermost status reports mattermost_transport_unavailable while seam fixtures prove event parsing, dedup, mention gating, and reply-target behavior without REST or websocket sessions.
-- Fixture: `internal/channels/mattermost/seam_test.go`
-- Write scope: `internal/channels/mattermost/seam.go`, `internal/channels/mattermost/seam_test.go`, `internal/channels/threadtext/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels/mattermost ./internal/channels/threadtext -run 'TestMattermostSeam\|TestThreadText' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Mattermost seam fixtures prove posted-event parsing, self/system/duplicate drops, mention gating, reply-mode root_id behavior, and unchanged threadtext behavior without live Mattermost APIs.
-- Acceptance: TestMattermostSeamParsePostedEvent proves double-encoded posted events yield gateway text, channel ID, sender ID, message ID, chat type, and canonical root_id thread ID., TestMattermostSeamDropsSelfSystemAndDuplicatePosts proves self, system, malformed, duplicate, and non-posted events do not dispatch., TestMattermostSeamMentionGatingInputs proves DM, require-mention, and free-channel decisions are pure inputs and match Hermes fixture cases., TestMattermostSeamReplyModeThreadSetsRootID proves reply_mode=thread sets root_id and reply_mode=off omits it., Existing internal/channels/threadtext tests remain green.
-- Source refs: ../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter, ../hermes-agent/gateway/platforms/mattermost.py:send, ../hermes-agent/gateway/platforms/mattermost.py:_handle_ws_event, ../hermes-agent/tests/gateway/test_mattermost.py:test_send_with_thread_reply, ../hermes-agent/tests/gateway/test_mattermost.py:test_send_without_thread_no_root_id, ../hermes-agent/tests/gateway/test_mattermost.py:test_parse_posted_event, ../hermes-agent/tests/gateway/test_mattermost.py:test_thread_id_from_root_id, ../hermes-agent/tests/gateway/test_mattermost.py:test_duplicate_post_ignored, internal/channels/threadtext/contract.go, internal/channels/threadtext/contract_test.go, references/go-agent-os/trpc-agent-go/agent/callbacks.go, references/go-agent-os/engram/internal/mcp/activity.go
-- Unblocks: Mattermost REST/WS bootstrap layer, Mattermost media upload contract
-- Why now: Unblocks Mattermost REST/WS bootstrap layer, Mattermost media upload contract.
-
-## 4. TD engineering blog scaffolded and live
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -112,7 +91,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 5. Behavioral pattern extraction from session logs
+## 4. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -132,7 +111,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Agentic-porting-kit repo scaffold
+## 5. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -153,7 +132,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Built-with-Gormes page scaffold
+## 6. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

@@ -23668,15 +23668,24 @@
             {
               "name": "Skill registries",
               "status": "planned",
-              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows.",
+              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows. 2026-05-07 parity sweep mapped upstream sources.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
               "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "source_refs": [
+                "../hermes-agent/agent/skill_commands.py",
+                "../hermes-agent/agent/skill_preprocessing.py",
+                "../hermes-agent/agent/skill_utils.py",
+                "../hermes-agent/tools/skills_tool.py",
+                "../hermes-agent/tools/skill_manager_tool.py",
+                "../hermes-agent/tools/skills_sync.py",
+                "../hermes-agent/tools/skills_hub.py"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows with exact write_scope and test_commands referencing the source_refs above."
               ]
             },
             {
@@ -26131,15 +26140,20 @@
             {
               "name": "Dangerous action gating",
               "status": "planned",
-              "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, and policy-integration tasks below before dangerous terminal/file/code tools become available.",
+              "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, and policy-integration tasks below before dangerous terminal/file/code tools become available. 2026-05-07 parity sweep: Hermes approval.py (1195+ lines) has smart-approve LLM, tirith security integration, gateway blocking queues, per-session allowlist persistence, and plugin hooks — all absent from Gormes' 139-line approval.go.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
               "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "source_refs": [
+                "../hermes-agent/tools/approval.py",
+                "../hermes-agent/tools/tirith/",
+                "../hermes-agent/gateway/approval.py"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows covering smart-approve LLM, tirith security integration, gateway blocking queues, and per-session allowlist persistence."
               ]
             },
             {
@@ -27341,7 +27355,14 @@
                 "Checkpoint shadow-repo GC policy",
                 "File read dedup cache invalidation and wrapper guard"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Start with checkpoint policy and read-dedup guards before exposing write-capable file tools to the native agent loop."
+              "source_refs": [
+                "../hermes-agent/hermes_cli/checkpoints.py",
+                "../hermes-agent/tools/checkpoint_manager.py",
+                "../hermes-agent/tools/file_operations.py",
+                "../hermes-agent/tools/file_tools.py",
+                "../hermes-agent/tools/patch_parser.py"
+              ],
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Gormes has no checkpoints CLI parity. Start with checkpoint policy and read-dedup guards before exposing write-capable file tools to the native agent loop."
             },
             {
               "name": "Checkpoint shadow-repo GC policy",
@@ -44685,10 +44706,10 @@
             },
             {
               "name": "Mattermost shared-chassis bot seam",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Gormes adds a Mattermost-specific seam over internal/channels/threadtext before REST/websocket transport: parse posted-event payloads into gateway events, ignore self/system/duplicate posts, preserve root_id as canonical thread_id, model reply_mode=thread vs off for outbound root_id decisions, and keep upload/edit/status hooks fakeable.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
