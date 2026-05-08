@@ -145,6 +145,73 @@ func TestPruneBackups_MissingDirReturnsNoOp(t *testing.T) {
 	}
 }
 
+// TestListBackups_NewestFirst proves the listing helper returns
+// pre-update-*.zip files sorted by mtime (newest first), with stat
+// metadata populated. Operators see this list through `gormes restore
+// --list` and need the newest one at the top so the first row is the
+// most likely rollback target.
+func TestListBackups_NewestFirst(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now()
+	stamps := []string{
+		"pre-update-20260501T000000Z.zip",
+		"pre-update-20260502T000000Z.zip",
+		"pre-update-20260503T000000Z.zip",
+	}
+	for i, name := range stamps {
+		full := filepath.Join(dir, name)
+		if err := os.WriteFile(full, []byte("body"+name), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+		mt := now.Add(time.Duration(i) * time.Hour)
+		if err := os.Chtimes(full, mt, mt); err != nil {
+			t.Fatalf("chtimes %s: %v", name, err)
+		}
+	}
+	// Drop a stray operator-owned file that must not appear in the list.
+	if err := os.WriteFile(filepath.Join(dir, "NOTES.md"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("write NOTES.md: %v", err)
+	}
+
+	got, err := ListBackups(dir)
+	if err != nil {
+		t.Fatalf("ListBackups: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("ListBackups returned %d entries, want 3 (operator file must be filtered)", len(got))
+	}
+	wantOrder := []string{
+		"pre-update-20260503T000000Z.zip",
+		"pre-update-20260502T000000Z.zip",
+		"pre-update-20260501T000000Z.zip",
+	}
+	for i, want := range wantOrder {
+		if filepath.Base(got[i].Path) != want {
+			t.Fatalf("got[%d].Path = %q, want %q (newest first)", i, filepath.Base(got[i].Path), want)
+		}
+		if got[i].SizeBytes <= 0 {
+			t.Fatalf("got[%d].SizeBytes = %d, want > 0", i, got[i].SizeBytes)
+		}
+		if got[i].ModTime.IsZero() {
+			t.Fatalf("got[%d].ModTime is zero, want stat mtime", i)
+		}
+	}
+}
+
+// TestListBackups_MissingDirIsEmpty proves a non-existent backups dir
+// is a quiet empty-list (matches PruneBackups' fresh-install no-op).
+// Operators on a fresh install hitting `gormes restore --list` should
+// see "no backups found", not an error.
+func TestListBackups_MissingDirIsEmpty(t *testing.T) {
+	got, err := ListBackups(filepath.Join(t.TempDir(), "does-not-exist"))
+	if err != nil {
+		t.Fatalf("missing dir must be no-op; got err = %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("missing dir must yield empty list; got %d entries", len(got))
+	}
+}
+
 func listZipNames(t *testing.T, dir string) []string {
 	t.Helper()
 	ents, err := os.ReadDir(dir)

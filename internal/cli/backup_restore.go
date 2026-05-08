@@ -1,0 +1,112 @@
+package cli
+
+import (
+	"archive/zip"
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// RestoreFromZip extracts every entry of the zip at zipPath into
+// destDir, overwriting existing files. This is the rollback path
+// consumed by `gormes restore --path`.
+//
+// Safety:
+//   - Zip entry names containing `..`, absolute paths, or that resolve
+//     outside destDir after Clean+Join are rejected with a typed error.
+//     Operators must not be able to restore a corrupted/malicious zip
+//     into arbitrary filesystem locations.
+//   - Parent directories are created with 0o755 as needed.
+//   - Files are written 0o644 (regular file mode); zip entry mode bits
+//     are intentionally ignored to keep the restore deterministic.
+//
+// Atomicity is per-file (write-then-rename via O_TRUNC); the operation
+// is NOT all-or-nothing across files. A failure mid-restore leaves
+// partial extraction on disk — operators recover by re-running with
+// the same zip after fixing the cause (free disk, permissions).
+func RestoreFromZip(ctx context.Context, zipPath, destDir string) error {
+	if strings.TrimSpace(zipPath) == "" {
+		return fmt.Errorf("restore: zip path is empty")
+	}
+	if strings.TrimSpace(destDir) == "" {
+		return fmt.Errorf("restore: dest dir is empty")
+	}
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("restore: open zip: %w", err)
+	}
+	defer zr.Close()
+
+	absDest, err := filepath.Abs(destDir)
+	if err != nil {
+		return fmt.Errorf("restore: resolve dest: %w", err)
+	}
+	if err := os.MkdirAll(absDest, 0o755); err != nil {
+		return fmt.Errorf("restore: mkdir dest: %w", err)
+	}
+
+	for _, f := range zr.File {
+		if errCtx := ctx.Err(); errCtx != nil {
+			return errCtx
+		}
+		target, err := safeJoinForRestore(absDest, f.Name)
+		if err != nil {
+			return err
+		}
+		if f.FileInfo().IsDir() {
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return fmt.Errorf("restore: mkdir %s: %w", f.Name, err)
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return fmt.Errorf("restore: mkdir parent %s: %w", f.Name, err)
+		}
+		if err := writeRestoreEntry(f, target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// safeJoinForRestore rejects zip entry names whose Clean+Join target
+// escapes destDir. Returns the absolute on-disk target on success.
+func safeJoinForRestore(absDest, name string) (string, error) {
+	if filepath.IsAbs(name) || strings.HasPrefix(name, "/") {
+		return "", fmt.Errorf("restore: zip entry %q has absolute path; rejected to prevent escape", name)
+	}
+	target := filepath.Join(absDest, filepath.FromSlash(name))
+	cleanTarget := filepath.Clean(target)
+	rel, err := filepath.Rel(absDest, cleanTarget)
+	if err != nil {
+		return "", fmt.Errorf("restore: zip entry %q: resolve rel: %w", name, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("restore: zip entry %q escapes dest via path traversal; rejected", name)
+	}
+	return cleanTarget, nil
+}
+
+func writeRestoreEntry(f *zip.File, target string) error {
+	rc, err := f.Open()
+	if err != nil {
+		return fmt.Errorf("restore: open entry %s: %w", f.Name, err)
+	}
+	defer rc.Close()
+
+	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("restore: create %s: %w", f.Name, err)
+	}
+	if _, err := io.Copy(out, rc); err != nil {
+		_ = out.Close()
+		return fmt.Errorf("restore: copy %s: %w", f.Name, err)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("restore: close %s: %w", f.Name, err)
+	}
+	return nil
+}

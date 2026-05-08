@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,29 @@ func TestUpdateCommandRegistersNativeUpdate(t *testing.T) {
 	for _, want := range []string{"--branch", "--check", "--yes", "--restart-gateway", "--kill-stale-dashboard"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("update help missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+// TestUpdateCommand_HelpDocumentsRollbackWorkflow proves the long
+// description of `gormes update --help` introduces the backup-restore
+// rollback loop. Operators who never read the CHANGELOG should still
+// discover that --backup pairs with `gormes restore --latest` for
+// recovery.
+func TestUpdateCommand_HelpDocumentsRollbackWorkflow(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeOneshotFlagCommand(cmd, "update", "--help")
+	if err != nil {
+		t.Fatalf("update --help: %v", err)
+	}
+	for _, want := range []string{
+		"--backup",
+		"gormes restore",
+		"--latest",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("update --help long description must mention %q so the rollback workflow is discoverable; got:\n%s", want, stdout)
 		}
 	}
 }
@@ -52,6 +76,104 @@ func TestUpdateCommandUsesInjectedLifecycle(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "update branch: development") || !strings.Contains(stdout, "update_autostash_restored") {
 		t.Fatalf("stdout missing summary/evidence:\n%s", stdout)
+	}
+}
+
+// TestUpdateCommand_JSONEmitsReport proves `gormes update --json`
+// replaces the human-readable print path with a machine-readable JSON
+// document containing branch, evidence array, failed flag, and any
+// operator_recovery hint. CI/cron consumers can parse the result
+// without scraping ANSI-styled stdout.
+func TestUpdateCommand_JSONEmitsReport(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(_ context.Context, _ cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{
+				Branch:         "main",
+				PreviousBranch: "main",
+				Evidence: []cli.UpdateEvidence{
+					{Kind: cli.UpdateEvidenceAutostashCreated, Detail: "stashed local changes"},
+					{Kind: cli.UpdateEvidenceGatewayRestarted, Detail: "pid 12345"},
+				},
+			}
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(command, "--json")
+	if err != nil {
+		t.Fatalf("update --json: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+
+	var got struct {
+		Branch         string `json:"branch"`
+		PreviousBranch string `json:"previous_branch"`
+		Failed         bool   `json:"failed"`
+		Evidence       []struct {
+			Kind   string `json:"kind"`
+			Detail string `json:"detail"`
+		} `json:"evidence"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Branch != "main" {
+		t.Fatalf("got.Branch = %q, want main", got.Branch)
+	}
+	if got.Failed {
+		t.Fatalf("got.Failed = true, want false on success")
+	}
+	if len(got.Evidence) != 2 {
+		t.Fatalf("got %d evidence entries, want 2", len(got.Evidence))
+	}
+	if got.Evidence[0].Kind != "update_autostash_created" {
+		t.Fatalf("got.Evidence[0].Kind = %q, want `update_autostash_created`", got.Evidence[0].Kind)
+	}
+	// JSON mode must not interleave the human-readable banner.
+	if strings.Contains(stdout, "⚕ Updating Gormes Agent") {
+		t.Fatalf("--json must not emit the human banner; got:\n%s", stdout)
+	}
+}
+
+// TestUpdateCommand_JSONOnFailureReturnsExitNonZero proves --json still
+// honors the exit-code contract: a failed lifecycle exits non-zero so
+// CI/cron `if cmd; then` checks work, while the JSON body on stdout
+// remains parseable.
+func TestUpdateCommand_JSONOnFailureReturnsExitNonZero(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{
+				Branch: "main",
+				Failed: true,
+				Evidence: []cli.UpdateEvidence{
+					{Kind: cli.UpdateEvidenceNetworkError, Detail: "dial tcp: connection refused"},
+				},
+				OperatorRecovery: "check network and retry",
+			}
+		},
+	})
+
+	stdout, _, err := executeRootCommandForTest(command, "--json")
+	if err == nil {
+		t.Fatalf("failed update with --json must return non-nil error; stdout=%s", stdout)
+	}
+	if code := exitCodeFromError(err); code == 0 {
+		t.Fatalf("failed update --json exit code = 0, want non-zero")
+	}
+	var got struct {
+		Failed           bool   `json:"failed"`
+		OperatorRecovery string `json:"operator_recovery"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if !got.Failed {
+		t.Fatalf("got.Failed = false, want true on failure")
+	}
+	if !strings.Contains(got.OperatorRecovery, "network") {
+		t.Fatalf("got.OperatorRecovery = %q, want it to surface the recovery hint", got.OperatorRecovery)
 	}
 }
 

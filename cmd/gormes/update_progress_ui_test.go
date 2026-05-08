@@ -137,6 +137,9 @@ func TestUpdateCommand_GlyphsByEvidenceClass(t *testing.T) {
 		{cli.UpdateEvidenceGatewayRestartUnavailable, "⚠", "update_gateway_restart_unavailable"},
 		{cli.UpdateEvidenceGatewayRestartTimeout, "⚠", "update_gateway_restart_timeout"},
 		{cli.UpdateEvidenceCheck, "ℹ", "update_check"},
+		// Rollback hint reads as an actionable next step (`gormes
+		// restore --latest --yes`) — same visual class as `_requested`.
+		{cli.UpdateEvidenceRollbackHint, "◆", "update_rollback_hint"},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.kind), func(t *testing.T) {
