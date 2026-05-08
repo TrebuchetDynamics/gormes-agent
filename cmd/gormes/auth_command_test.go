@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -112,6 +113,120 @@ func TestGormesAuthListRedactsSecrets(t *testing.T) {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
+	}
+}
+
+// TestGormesAuthListJSONEmitsRedactedCredentialPool proves
+// `gormes auth list <provider> --json` returns a parseable
+// `{build, provider, credentials: [...]}` document with the same
+// redacted fields the human row already emits. CI/cron consumers
+// monitoring fleet credential health (which provider is exhausted,
+// which is in cooldown, which has no entries) need a structured shape
+// — scraping the human "(2 credentials)" header is fragile across
+// formatting changes.
+func TestGormesAuthListJSONEmitsRedactedCredentialPool(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: "openrouter"}, []config.PooledCredential{
+		{
+			ID:              "openrouter-manual-1",
+			Label:           "personal",
+			AuthType:        config.CredentialAuthAPIKey,
+			Source:          "manual",
+			AccessToken:     "plain-list-json-secret",
+			RefreshToken:    "plain-list-json-refresh",
+			LastStatus:      config.CredentialStatusExhausted,
+			LastErrorReason: "rate_limited",
+		},
+	}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "list", "openrouter", "--json")
+	if err != nil {
+		t.Fatalf("auth list --json: %v\nstdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, leak := range []string{"plain-list-json-secret", "plain-list-json-refresh"} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("auth list --json leaked %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Provider    string `json:"provider"`
+		Redacted    bool   `json:"redacted"`
+		Credentials []struct {
+			ID              string `json:"id"`
+			Label           string `json:"label"`
+			AuthType        string `json:"auth_type"`
+			Source          string `json:"source"`
+			Status          string `json:"status"`
+			Reason          string `json:"reason"`
+			SecretsRedacted bool   `json:"secrets_redacted"`
+		} `json:"credentials"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Provider != "openrouter" {
+		t.Fatalf("got.Provider = %q, want openrouter", got.Provider)
+	}
+	if !got.Redacted {
+		t.Fatalf("got.Redacted = false, want true")
+	}
+	if len(got.Credentials) != 1 {
+		t.Fatalf("got %d credentials, want 1", len(got.Credentials))
+	}
+	c := got.Credentials[0]
+	if c.ID != "openrouter-manual-1" || c.Label != "personal" || c.AuthType != "api_key" {
+		t.Fatalf("credential shape unexpected: %+v", c)
+	}
+	if c.Status != "exhausted" || c.Reason != "rate_limited" {
+		t.Fatalf("status/reason = %q/%q, want exhausted/rate_limited", c.Status, c.Reason)
+	}
+	if !c.SecretsRedacted {
+		t.Fatalf("secrets_redacted must be true; got %+v", c)
+	}
+	// JSON mode must not interleave the human row, which would make stdout
+	// unparseable.
+	if strings.Contains(stdout, "openrouter (1 credentials)") {
+		t.Fatalf("--json must not emit the human row; got:\n%s", stdout)
+	}
+}
+
+// TestGormesAuthListJSONEmptyPoolEmitsEmptyArray proves the JSON
+// surface stays parseable when no credentials exist for a provider —
+// consumers see `{"credentials": []}`, not the free-form
+// `credential_pool_empty provider=X` message.
+func TestGormesAuthListJSONEmptyPoolEmitsEmptyArray(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeOneshotFlagCommand(cmd, "auth", "list", "openrouter", "--json")
+	if err != nil {
+		t.Fatalf("auth list --json on empty pool: %v", err)
+	}
+	var got struct {
+		Provider    string `json:"provider"`
+		Credentials []any  `json:"credentials"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("empty-pool stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Provider != "openrouter" {
+		t.Fatalf("got.Provider = %q, want openrouter", got.Provider)
+	}
+	if got.Credentials == nil {
+		t.Fatalf("credentials must be `[]`, not omitted/null; got %q", stdout)
+	}
+	if len(got.Credentials) != 0 {
+		t.Fatalf("empty pool credentials must have len=0; got %d", len(got.Credentials))
 	}
 }
 
