@@ -676,7 +676,7 @@ classification and row-backed implementation queue.
 
 - [x] Environment interface + file sync contract
 - [x] Terminal snapshot source stdout suppression guard
-- [ ] Terminal deleted-cwd recovery guard
+- [x] Terminal deleted-cwd recovery guard
 - [x] Raw tool-call parser fixture matrix
 - [x] Docker execution backend (container lifecycle + mount policy)
 - [x] Docker backend top-level container reuse semantics
