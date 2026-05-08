@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -248,5 +249,110 @@ func TestUninstallDryRunOutputIsGroupedAndStable(t *testing.T) {
 
 	if sb1.String() != sb2.String() {
 		t.Errorf("dry-run output not byte-stable between runs")
+	}
+}
+
+// TestUninstallCommand_DryRunJSONEmitsStructuredPreview proves
+// `gormes uninstall --json` (default dry-run) returns a parseable
+// `{build, action: "preview", dry_run: true, total, groups: [{name, paths}]}`
+// document so fleet automation can audit what WOULD be removed across
+// many machines without scraping bracketed prose. Same convention as
+// restore --json preview.
+func TestUninstallCommand_DryRunJSONEmitsStructuredPreview(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	for _, name := range []string{"config.toml", "auth.json"} {
+		if err := os.WriteFile(filepath.Join(home, name), []byte("body"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := newUninstallCommand()
+	var stdout strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall --json (dry-run): %v\nstdout=%s", err, stdout.String())
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action string `json:"action"`
+		DryRun bool   `json:"dry_run"`
+		Total  int    `json:"total"`
+		Groups []struct {
+			Name  string   `json:"name"`
+			Paths []string `json:"paths"`
+		} `json:"groups"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout.String()), &got); jsonErr != nil {
+		t.Fatalf("uninstall --json (dry-run) must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "preview" {
+		t.Errorf("action = %q, want %q", got.Action, "preview")
+	}
+	if !got.DryRun {
+		t.Errorf("dry_run must be true in dry-run JSON")
+	}
+	if got.Total < 2 {
+		t.Errorf("total = %d, want >=2 (config.toml + auth.json)", got.Total)
+	}
+	// Files MUST stay untouched — JSON dry-run is still a dry-run.
+	if _, err := os.Stat(filepath.Join(home, "config.toml")); err != nil {
+		t.Errorf("dry-run JSON must not delete files: config.toml stat err=%v", err)
+	}
+}
+
+// TestUninstallCommand_ExecuteJSONEmitsStructuredOutcome proves
+// `--dry-run=false --yes --json` returns
+// `{build, action: "uninstalled", removed, failed, groups: [...]}`
+// so fleet automation can confirm cleanup completed across machines.
+// Apply mode reports actual removed/failed counts; dry_run is false.
+func TestUninstallCommand_ExecuteJSONEmitsStructuredOutcome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	for _, name := range []string{"config.toml", "auth.json"} {
+		if err := os.WriteFile(filepath.Join(home, name), []byte("body"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := newUninstallCommand()
+	var stdout strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"--dry-run=false", "--yes", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall --yes --json: %v\nstdout=%s", err, stdout.String())
+	}
+
+	var got struct {
+		Action  string `json:"action"`
+		DryRun  bool   `json:"dry_run"`
+		Removed int    `json:"removed"`
+		Failed  int    `json:"failed"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout.String()), &got); jsonErr != nil {
+		t.Fatalf("uninstall --yes --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Action != "uninstalled" {
+		t.Errorf("action = %q, want %q", got.Action, "uninstalled")
+	}
+	if got.DryRun {
+		t.Errorf("dry_run must be false in apply mode")
+	}
+	if got.Removed < 2 {
+		t.Errorf("removed = %d, want >=2 (config.toml + auth.json)", got.Removed)
+	}
+	if got.Failed != 0 {
+		t.Errorf("failed = %d, want 0", got.Failed)
+	}
+	if _, err := os.Stat(filepath.Join(home, "config.toml")); !os.IsNotExist(err) {
+		t.Errorf("apply must remove config.toml; stat err=%v", err)
 	}
 }

@@ -391,6 +391,126 @@ func TestGatewayReloadNoLiveRuntimeIsIdempotent(t *testing.T) {
 	assertGatewayStopDidNotOpenDurableStores(t)
 }
 
+// TestGatewayReload_JSONEmitsStructuredOutcome proves
+// `gormes gateway reload --json` returns a parseable
+// `{build, action, live, pid, signal, status}` document so fleet
+// rollout automation that triggers gateway reloads after config
+// changes can confirm the SIGHUP landed on the right pid without
+// scraping prose. `action` distinguishes "reloaded" from "noop".
+func TestGatewayReload_JSONEmitsStructuredOutcome(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayReloadRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Status: gateway.RuntimeStatus{
+				Kind:         "gormes-gateway",
+				PID:          7474,
+				GatewayState: gateway.GatewayStateRunning,
+			},
+			Validation: gateway.RuntimeProcessValidation{
+				Status: gateway.RuntimeProcessValidationLive,
+				Live:   true,
+				PID:    7474,
+			},
+		},
+	}
+	restoreStore := gatewayReloadRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayReloadSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "reload", "--json")
+	if err != nil {
+		t.Fatalf("gateway reload --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 1 || signals[0].pid != 7474 || signals[0].signal != syscall.SIGHUP {
+		t.Fatalf("signals = %+v, want one SIGHUP for pid 7474", signals)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action string `json:"action"`
+		Live   bool   `json:"live"`
+		PID    int    `json:"pid"`
+		Signal string `json:"signal"`
+		Status string `json:"status"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("gateway reload --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "reloaded" {
+		t.Errorf("action = %q, want %q", got.Action, "reloaded")
+	}
+	if !got.Live {
+		t.Errorf("live must be true after reload")
+	}
+	if got.PID != 7474 {
+		t.Errorf("pid = %d, want 7474", got.PID)
+	}
+	if got.Signal != "SIGHUP" {
+		t.Errorf("signal = %q, want %q", got.Signal, "SIGHUP")
+	}
+}
+
+// TestGatewayReload_JSONNoopWhenNoLiveRuntime proves that when the
+// gateway isn't running, `--json` reports `action: "noop"` and
+// `live: false` rather than returning an error. Fleet automation
+// reloading config across many machines treats "no live runtime" as
+// "nothing to do" and continues with the next host.
+func TestGatewayReload_JSONNoopWhenNoLiveRuntime(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayReloadRuntimeStore{
+		snapshot: gateway.RuntimeStatusSnapshot{
+			Missing: true,
+			Validation: gateway.RuntimeProcessValidation{
+				Status:  gateway.RuntimeProcessValidationMissingState,
+				Live:    false,
+				Message: "runtime status is missing",
+			},
+		},
+	}
+	restoreStore := gatewayReloadRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayReloadSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, _, err := executeGatewayMutatingCommand(t, "reload", "--json")
+	if err != nil {
+		t.Fatalf("gateway reload --json (no runtime) should be idempotent: %v\nstdout=%s", err, stdout)
+	}
+	if len(signals) != 0 {
+		t.Fatalf("signals = %+v, want none for missing runtime", signals)
+	}
+	var got struct {
+		Action  string `json:"action"`
+		Live    bool   `json:"live"`
+		Status  string `json:"status"`
+		Message string `json:"message"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("gateway reload --json (no runtime) must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Action != "noop" {
+		t.Errorf("action = %q, want %q", got.Action, "noop")
+	}
+	if got.Live {
+		t.Errorf("live must be false when no runtime")
+	}
+}
+
 func TestGatewayMutatingExitCodeIsStable(t *testing.T) {
 	codes := make(map[string]int, len(gatewayMutatingUnavailableSubcommands))
 	for _, sub := range gatewayMutatingUnavailableSubcommands {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +20,7 @@ func newUninstallCommand() *cobra.Command {
 		yes            bool
 		keepConfig     bool
 		keepCredential bool
+		asJSON         bool
 	)
 	cmd := &cobra.Command{
 		Use:   "uninstall",
@@ -30,6 +32,7 @@ func newUninstallCommand() *cobra.Command {
 				Yes:            yes,
 				KeepConfig:     keepConfig,
 				KeepCredential: keepCredential,
+				JSON:           asJSON,
 			})
 		},
 	}
@@ -37,6 +40,7 @@ func newUninstallCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&yes, "yes", false, "Confirm destructive removal")
 	cmd.Flags().BoolVar(&keepConfig, "keep-config", false, "Preserve config files")
 	cmd.Flags().BoolVar(&keepCredential, "keep-credentials", false, "Preserve credential pool")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: dry-run returns `{build, action: 'preview', dry_run, total, groups: [...]}`; `--yes --dry-run=false` returns `{build, action: 'uninstalled', dry_run: false, removed, failed, groups: [...]}`")
 	return cmd
 }
 
@@ -45,6 +49,27 @@ type uninstallOptions struct {
 	Yes            bool
 	KeepConfig     bool
 	KeepCredential bool
+	JSON           bool
+}
+
+// uninstallReportJSON is the wire shape for `gormes uninstall --json`.
+// Fleet automation parses this to audit cleanup across machines:
+// `dry_run: true` distinguishes the preview from the apply outcome.
+// `groups` lists what would be / was removed by category, so scripts
+// can branch on missing categories without scraping bracketed prose.
+type uninstallReportJSON struct {
+	Build   buildProvenanceJSON      `json:"build"`
+	Action  string                   `json:"action"`
+	DryRun  bool                     `json:"dry_run"`
+	Total   int                      `json:"total"`
+	Removed int                      `json:"removed,omitempty"`
+	Failed  int                      `json:"failed,omitempty"`
+	Groups  []uninstallGroupJSON     `json:"groups"`
+}
+
+type uninstallGroupJSON struct {
+	Name  string   `json:"name"`
+	Paths []string `json:"paths"`
 }
 
 type artifactGroup struct {
@@ -62,9 +87,82 @@ func runUninstall(cmd *cobra.Command, opts uninstallOptions) error {
 		groups = removeGroup(groups, "credentials")
 	}
 	if opts.DryRun || !opts.Yes {
+		if opts.JSON {
+			return printDryRunJSON(cmd.OutOrStdout(), groups)
+		}
 		return printDryRun(cmd.OutOrStdout(), groups)
 	}
+	if opts.JSON {
+		return executeUninstallJSON(cmd.OutOrStdout(), cmd.ErrOrStderr(), groups)
+	}
 	return executeUninstall(cmd.OutOrStdout(), cmd.ErrOrStderr(), groups)
+}
+
+func printDryRunJSON(out io.Writer, groups []artifactGroup) error {
+	total := 0
+	report := uninstallReportJSON{
+		Build:  newBuildProvenance(),
+		Action: "preview",
+		DryRun: true,
+		Groups: make([]uninstallGroupJSON, 0, len(groups)),
+	}
+	for _, g := range groups {
+		total += len(g.Paths)
+		if len(g.Paths) == 0 {
+			continue
+		}
+		report.Groups = append(report.Groups, uninstallGroupJSON{
+			Name:  g.Name,
+			Paths: append([]string{}, g.Paths...),
+		})
+	}
+	report.Total = total
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
+}
+
+func executeUninstallJSON(out, errOut io.Writer, groups []artifactGroup) error {
+	var removed, failed int
+	report := uninstallReportJSON{
+		Build:  newBuildProvenance(),
+		Action: "uninstalled",
+		DryRun: false,
+		Groups: make([]uninstallGroupJSON, 0, len(groups)),
+	}
+	for _, g := range groups {
+		if len(g.Paths) == 0 {
+			continue
+		}
+		report.Groups = append(report.Groups, uninstallGroupJSON{
+			Name:  g.Name,
+			Paths: append([]string{}, g.Paths...),
+		})
+		for _, p := range g.Paths {
+			clean := strings.TrimSuffix(p, "/")
+			if err := os.RemoveAll(clean); err != nil {
+				fmt.Fprintf(errOut, "warning: could not remove %s: %v\n", clean, err)
+				failed++
+				continue
+			}
+			removed++
+		}
+	}
+	report.Total = removed + failed
+	report.Removed = removed
+	report.Failed = failed
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	if failed > 0 {
+		return newExitCodeError(2, fmt.Errorf("uninstall: %d artifact(s) could not be removed (see warnings on stderr)", failed))
+	}
+	return nil
 }
 
 func collectArtifacts(home string) []artifactGroup {

@@ -53,7 +53,7 @@ func newCuratorCommandWithDeps(deps curatorCommandDeps) *cobra.Command {
 }
 
 func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show curator status and skill stats",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -62,6 +62,14 @@ func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
 			state, err := curator.LoadState()
 			if err != nil {
 				return err
+			}
+			rows, err := skills.ListAgentCreatedSkillUsage(root)
+			if err != nil {
+				return err
+			}
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				return writeCuratorStatusJSON(cmd.OutOrStdout(), state, rows)
 			}
 			status := "ENABLED"
 			if state.Paused {
@@ -98,13 +106,91 @@ func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
 			if _, err := fmt.Fprintf(out, "  archive after:  %dd unused\n", skills.DefaultCuratorArchiveDays); err != nil {
 				return err
 			}
-			rows, err := skills.ListAgentCreatedSkillUsage(root)
-			if err != nil {
-				return err
-			}
 			return writeCuratorStatusRows(cmd, rows)
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, state, defaults, skills: {total, rows: [...]}}`")
+	return cmd
+}
+
+// curatorStatusReportJSON is the wire shape for `curator status --json`.
+// Fleet dashboards parse this to monitor curator across machines without
+// scraping multi-section prose. `state` mirrors the CuratorState struct;
+// `defaults` documents the build-baked thresholds; `skills.rows` lets
+// dashboards sort by activity, identify stale skills, and feed alerts.
+type curatorStatusReportJSON struct {
+	Build    buildProvenanceJSON       `json:"build"`
+	State    curatorStateJSON          `json:"state"`
+	Defaults curatorDefaultsJSON       `json:"defaults"`
+	Skills   curatorSkillsJSON         `json:"skills"`
+}
+
+type curatorStateJSON struct {
+	Paused                 bool       `json:"paused"`
+	RunCount               int        `json:"run_count"`
+	LastRunAt              *time.Time `json:"last_run_at,omitempty"`
+	LastRunDurationSeconds float64    `json:"last_run_duration_seconds,omitempty"`
+	LastRunSummary         string     `json:"last_run_summary,omitempty"`
+	LastReportPath         string     `json:"last_report_path,omitempty"`
+}
+
+type curatorDefaultsJSON struct {
+	IntervalHours int `json:"interval_hours"`
+	StaleDays     int `json:"stale_days"`
+	ArchiveDays   int `json:"archive_days"`
+}
+
+type curatorSkillsJSON struct {
+	Total int                 `json:"total"`
+	Rows  []curatorSkillRowJSON `json:"rows"`
+}
+
+type curatorSkillRowJSON struct {
+	Name           string    `json:"name"`
+	Activity       int       `json:"activity"`
+	UseCount       int       `json:"use_count"`
+	LastUsedAt     time.Time `json:"last_used_at,omitempty"`
+	LastActivityAt time.Time `json:"last_activity_at,omitempty"`
+	SkillDir       string    `json:"skill_dir,omitempty"`
+}
+
+func writeCuratorStatusJSON(out interface{ Write(p []byte) (int, error) }, state skills.CuratorState, rows []skills.AgentCreatedSkillUsage) error {
+	report := curatorStatusReportJSON{
+		Build: newBuildProvenance(),
+		State: curatorStateJSON{
+			Paused:                 state.Paused,
+			RunCount:               state.RunCount,
+			LastRunAt:              state.LastRunAt,
+			LastRunDurationSeconds: state.LastRunDurationSeconds,
+			LastRunSummary:         state.LastRunSummary,
+			LastReportPath:         state.LastReportPath,
+		},
+		Defaults: curatorDefaultsJSON{
+			IntervalHours: skills.DefaultCuratorIntervalHours,
+			StaleDays:     skills.DefaultCuratorStaleDays,
+			ArchiveDays:   skills.DefaultCuratorArchiveDays,
+		},
+		Skills: curatorSkillsJSON{
+			Total: len(rows),
+			Rows:  make([]curatorSkillRowJSON, len(rows)),
+		},
+	}
+	for i, r := range rows {
+		report.Skills.Rows[i] = curatorSkillRowJSON{
+			Name:           r.Name,
+			Activity:       r.Record.UseCount,
+			UseCount:       r.Record.UseCount,
+			LastUsedAt:     r.Record.LastUsedAt,
+			LastActivityAt: r.LastActivityAt,
+			SkillDir:       r.SkillDir,
+		}
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
 }
 
 func newCuratorRunCommand(deps curatorCommandDeps) *cobra.Command {
@@ -231,6 +317,7 @@ func newCuratorUnpinCommand(deps curatorCommandDeps) *cobra.Command {
 
 func newCuratorBackupCommand(deps curatorCommandDeps) *cobra.Command {
 	var reason string
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "backup",
 		Short: "Take a manual curator snapshot",
@@ -243,18 +330,47 @@ func newCuratorBackupCommand(deps curatorCommandDeps) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(curatorBackupReportJSON{
+					Build:        newBuildProvenance(),
+					ID:           backup.ID,
+					ArchivePath:  backup.ArchivePath,
+					ManifestPath: backup.ManifestPath,
+					Reason:       reason,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return err
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "curator: snapshot created at %s\n", filepath.Dir(backup.ArchivePath))
 			return err
 		},
 	}
 	cmd.Flags().StringVar(&reason, "reason", "", "Free-text label stored in manifest.json")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, id, archive_path, manifest_path, reason}`")
 	return cmd
+}
+
+// curatorBackupReportJSON is the wire shape for `curator backup --json`.
+// Fleet automation taking pre-deploy snapshots parses this to record
+// the snapshot id (for later rollback) and archive path. The reason
+// echo lets dashboards correlate snapshots with the deploy that
+// triggered them.
+type curatorBackupReportJSON struct {
+	Build        buildProvenanceJSON `json:"build"`
+	ID           string              `json:"id"`
+	ArchivePath  string              `json:"archive_path"`
+	ManifestPath string              `json:"manifest_path"`
+	Reason       string              `json:"reason"`
 }
 
 func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 	var list bool
 	var backupID string
 	var yes bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "rollback",
 		Short: "Restore skills from a curator snapshot",
@@ -265,6 +381,9 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 				return err
 			}
 			if list {
+				if asJSON {
+					return writeCuratorBackupListJSON(cmd.OutOrStdout(), rows)
+				}
 				return writeCuratorBackupList(cmd, rows)
 			}
 			target := resolveCuratorBackupID(rows, backupID)
@@ -276,8 +395,10 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 				}
 				return newExitCodeError(1, fmt.Errorf("curator_rollback_snapshot_missing"))
 			}
-			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Rollback target: %s\n", target); err != nil {
-				return err
+			if !asJSON {
+				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Rollback target: %s\n", target); err != nil {
+					return err
+				}
 			}
 			if !yes {
 				if _, err := fmt.Fprintln(cmd.OutOrStdout(), "This will replace the current Gormes skills tree after taking a safety snapshot."); err != nil {
@@ -295,6 +416,19 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 			}
 			rollback, err := skills.RollbackCuratorBackup(root, target, curatorNow(deps))
 			if err != nil {
+				return err
+			}
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(curatorRollbackReportJSON{
+					Build:               newBuildProvenance(),
+					Action:              "rolled_back",
+					RestoredBackupID:    rollback.RestoredBackupID,
+					PreRollbackBackupID: rollback.PreRollbackBackupID,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
 				return err
 			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "curator: rollback restored %s (safety snapshot %s)\n", rollback.RestoredBackupID, rollback.PreRollbackBackupID)
