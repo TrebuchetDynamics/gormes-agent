@@ -29,9 +29,14 @@ func init() {
 var doctorGitHubAuthRunner = doctor.DefaultGitHubAuthStatusRunner
 
 var doctorCmd = &cobra.Command{
-	Use:   "doctor",
-	Short: "Verify Gormes runtime: provider readiness + built-in tools",
+	Use:           "doctor",
+	Short:         "Verify Gormes runtime: provider readiness + built-in tools",
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		out := cmd.OutOrStdout()
+		errOut := cmd.ErrOrStderr()
+
 		cfg, err := config.Load(nil)
 		if err != nil {
 			return err
@@ -41,94 +46,94 @@ var doctorCmd = &cobra.Command{
 		activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
 		cfg = activatedCfg
 		secretRuntimeResult := doctorSecretRuntimeStatus(secretSnapshot, secretActivationErr)
-		fmt.Fprint(cmd.OutOrStdout(), secretRuntimeResult.Format())
+		fmt.Fprint(out, secretRuntimeResult.Format())
 		if secretRuntimeResult.Status == doctor.StatusFail {
-			os.Exit(2)
+			return newExitCodeError(2, fmt.Errorf("doctor: secret runtime failed"))
 		}
 
 		if !offline {
 			providerName := cfg.Hermes.Provider
 			if doctorProviderHealthUsesAuthReadiness(cfg) {
 				if !configuredProviderAuthPresent(cfg) {
-					fmt.Fprintf(os.Stderr,
+					fmt.Fprintf(errOut,
 						"[FAIL] provider health: auth missing (%s)\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
 						doctorProviderHealthTarget(cfg))
-					os.Exit(1)
+					return newExitCodeError(1, fmt.Errorf("doctor: provider auth missing"))
 				}
-				fmt.Printf("[PASS] provider health: auth-ready (%s)\n", doctorProviderHealthTarget(cfg))
+				fmt.Fprintf(out, "[PASS] provider health: auth-ready (%s)\n", doctorProviderHealthTarget(cfg))
 			} else {
 				c, err := newProviderHTTPClient(cfg, providerName)
 				if err != nil {
 					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-					fmt.Fprintf(os.Stderr,
+					fmt.Fprintf(errOut,
 						"[FAIL] provider setup: %s\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
 						redactedErr)
-					os.Exit(1)
+					return newExitCodeError(1, fmt.Errorf("doctor: provider setup failed: %s", redactedErr))
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 				defer cancel()
 				if err := c.Health(ctx); err != nil {
 					target := doctorProviderHealthTarget(cfg)
 					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-					fmt.Fprintf(os.Stderr,
+					fmt.Fprintf(errOut,
 						"[FAIL] provider health: NOT reachable (%s): %v\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
 						target, redactedErr)
-					os.Exit(1)
+					return newExitCodeError(1, fmt.Errorf("doctor: provider unreachable"))
 				}
-				fmt.Printf("[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
+				fmt.Fprintf(out, "[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
 			}
 		} else {
-			fmt.Println("[SKIP] provider health: skipped (--offline)")
+			fmt.Fprintln(out, "[SKIP] provider health: skipped (--offline)")
 		}
 
-		fmt.Print(doctorTUIStatus().Format())
+		fmt.Fprint(out, doctorTUIStatus().Format())
 
 		// Toolbox section — inspect the built-in registry. Runs in both modes.
 		reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
 		result := doctor.CheckTools(reg)
-		fmt.Print(result.Format())
-		fmt.Print(doctorWebToolsStatus(cfg).Format())
-		fmt.Print(doctorBrowserRuntimeStatus().Format())
-		fmt.Print(doctorACPBridgeStatus().Format())
-		fmt.Print(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
+		fmt.Fprint(out, result.Format())
+		fmt.Fprint(out, doctorWebToolsStatus(cfg).Format())
+		fmt.Fprint(out, doctorBrowserRuntimeStatus().Format())
+		fmt.Fprint(out, doctorACPBridgeStatus().Format())
+		fmt.Fprint(out, doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
 			Env:             doctorGitHubAuthEnv(),
 			RunGHAuthStatus: doctorGitHubAuthRunner,
 		}).Format())
-		fmt.Print(doctorGonchoConfig(cfg).Format())
+		fmt.Fprint(out, doctorGonchoConfig(cfg).Format())
 
 		runtimeStatus := gateway.RuntimeStatus{}
 		if snapshot, err := gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()).ReadRuntimeStatusSnapshot(context.Background()); err == nil && !snapshot.Missing {
 			runtimeStatus = snapshot.Status
 		}
-		fmt.Print(doctorSlackGatewayConfig(cfg, runtimeStatus).Format())
-		fmt.Print(doctorCustomEndpointReadiness(cfg).Format())
+		fmt.Fprint(out, doctorSlackGatewayConfig(cfg, runtimeStatus).Format())
+		fmt.Fprint(out, doctorCustomEndpointReadiness(cfg).Format())
 
 		if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled {
-			fmt.Println("[WARN] gateway: no channels configured ([telegram], [discord], or [slack])")
+			fmt.Fprintln(out, "[WARN] gateway: no channels configured ([telegram], [discord], or [slack])")
 		} else {
 			if cfg.Telegram.BotToken != "" {
 				if _, err := telegram.NewRealClient(cfg.Telegram.BotToken); err != nil {
-					fmt.Printf("[FAIL] gateway/telegram: %v\n", err)
-					os.Exit(2)
+					fmt.Fprintf(out, "[FAIL] gateway/telegram: %v\n", err)
+					return newExitCodeError(2, fmt.Errorf("doctor: telegram client init failed: %w", err))
 				}
-				fmt.Printf("[PASS] gateway/telegram: %s\n", configuredTelegramGatewayStatusDetail(cfg.Telegram))
+				fmt.Fprintf(out, "[PASS] gateway/telegram: %s\n", configuredTelegramGatewayStatusDetail(cfg.Telegram))
 			} else {
-				fmt.Println("[SKIP] gateway/telegram: disabled")
+				fmt.Fprintln(out, "[SKIP] gateway/telegram: disabled")
 			}
 
 			if cfg.Discord.Enabled() {
 				if _, err := discord.NewRealSession(cfg.Discord.Token); err != nil {
-					fmt.Printf("[FAIL] gateway/discord: %v\n", err)
-					os.Exit(2)
+					fmt.Fprintf(out, "[FAIL] gateway/discord: %v\n", err)
+					return newExitCodeError(2, fmt.Errorf("doctor: discord session init failed: %w", err))
 				}
-				fmt.Printf("[PASS] gateway/discord: allowed_channel_id=%s\n", cfg.Discord.AllowedChannelID)
+				fmt.Fprintf(out, "[PASS] gateway/discord: allowed_channel_id=%s\n", cfg.Discord.AllowedChannelID)
 			} else {
-				fmt.Println("[SKIP] gateway/discord: disabled")
+				fmt.Fprintln(out, "[SKIP] gateway/discord: disabled")
 			}
 		}
 
 		if result.Status == doctor.StatusFail {
-			os.Exit(2)
+			return newExitCodeError(2, fmt.Errorf("doctor: toolbox check failed"))
 		}
 		return nil
 	},
