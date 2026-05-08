@@ -127,11 +127,13 @@ func TestAPIServerJobsCompatCreateUpdateDeletePauseResumeRun(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
-	var deleteResp map[string]bool
+	var deleteResp struct {
+		OK bool `json:"ok"`
+	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &deleteResp); err != nil {
 		t.Fatalf("decode delete response: %v", err)
 	}
-	if !deleteResp["ok"] {
+	if !deleteResp.OK {
 		t.Fatalf("delete response = %+v, want ok true", deleteResp)
 	}
 }

@@ -146,7 +146,10 @@ func (s *Server) handleCronAdminCreate(w http.ResponseWriter, r *http.Request) {
 
 	job := jobFromSpec(spec)
 	job.ID = id
-	writeJSON(w, http.StatusCreated, map[string]any{"job": cronAdminJobViewFor(job, s.now())})
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"build": s.buildInfo,
+		"job":   cronAdminJobViewFor(job, s.now()),
+	})
 }
 
 func (s *Server) handleLegacyAPIJobs(w http.ResponseWriter, r *http.Request) {
@@ -337,7 +340,10 @@ func (s *Server) handleLegacyAPIJobsDelete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	s.recordCronAdminEvent(r.Context(), CronAdminAuditEvent{Action: "delete", JobID: id, Outcome: "ok"})
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build": s.buildInfo,
+		"ok":    true,
+	})
 }
 
 func (s *Server) handleLegacyAPIJobsPauseResume(w http.ResponseWriter, r *http.Request, id string, pause bool) {
@@ -373,11 +379,18 @@ func (s *Server) handleLegacyAPIJobsPauseResume(w http.ResponseWriter, r *http.R
 	s.recordCronAdminEvent(r.Context(), CronAdminAuditEvent{Action: action, JobID: id, Outcome: "ok"})
 	if s.cronJobs != nil {
 		if job, err := s.cronJobs.Get(id); err == nil {
-			writeJSON(w, http.StatusOK, map[string]any{"job": cronAdminJobViewFor(job, s.now())})
+			writeJSON(w, http.StatusOK, map[string]any{
+				"build": s.buildInfo,
+				"job":   cronAdminJobViewFor(job, s.now()),
+			})
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"job_id": id, "paused": pause})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build":  s.buildInfo,
+		"job_id": id,
+		"paused": pause,
+	})
 }
 
 func (s *Server) handleLegacyAPIJobsRun(w http.ResponseWriter, r *http.Request, id string) {
@@ -403,6 +416,7 @@ func (s *Server) handleLegacyAPIJobsRun(w http.ResponseWriter, r *http.Request, 
 	}
 	s.recordCronAdminEvent(r.Context(), CronAdminAuditEvent{Action: "trigger", JobID: id, Outcome: "ok"})
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":       s.buildInfo,
 		"job_id":      id,
 		"run_id":      res.RunID,
 		"status":      res.Status,
@@ -454,7 +468,10 @@ func (s *Server) handleCronAdminUpdate(w http.ResponseWriter, r *http.Request, i
 
 	job := jobFromSpec(spec)
 	job.ID = id
-	writeJSON(w, http.StatusOK, map[string]any{"job": cronAdminJobViewFor(job, s.now())})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build": s.buildInfo,
+		"job":   cronAdminJobViewFor(job, s.now()),
+	})
 }
 
 func (s *Server) handleCronAdminDelete(w http.ResponseWriter, r *http.Request, id string) {
@@ -529,11 +546,18 @@ func (s *Server) handleCronAdminPauseResume(w http.ResponseWriter, r *http.Reque
 	s.recordCronAdminEvent(r.Context(), CronAdminAuditEvent{Action: action, JobID: id, Outcome: "ok"})
 	if s.cronJobs != nil {
 		if job, err := s.cronJobs.Get(id); err == nil {
-			writeJSON(w, http.StatusOK, map[string]any{"job": cronAdminJobViewFor(job, s.now())})
+			writeJSON(w, http.StatusOK, map[string]any{
+				"build": s.buildInfo,
+				"job":   cronAdminJobViewFor(job, s.now()),
+			})
 			return
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"job_id": id, "paused": pause})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build":  s.buildInfo,
+		"job_id": id,
+		"paused": pause,
+	})
 }
 
 func (s *Server) handleCronAdminTrigger(w http.ResponseWriter, r *http.Request, id string) {
@@ -559,6 +583,7 @@ func (s *Server) handleCronAdminTrigger(w http.ResponseWriter, r *http.Request, 
 	}
 	s.recordCronAdminEvent(r.Context(), CronAdminAuditEvent{Action: "trigger", JobID: id, Outcome: "ok"})
 	writeJSON(w, http.StatusAccepted, map[string]any{
+		"build":       s.buildInfo,
 		"job_id":      id,
 		"run_id":      res.RunID,
 		"status":      res.Status,

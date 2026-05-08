@@ -98,7 +98,10 @@ func (s *Server) handleCronAdminJobs(w http.ResponseWriter, r *http.Request) {
 	for _, job := range jobs {
 		views = append(views, cronAdminJobViewFor(job, now))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"jobs": views})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build": s.buildInfo,
+		"jobs":  views,
+	})
 }
 
 func (s *Server) handleCronAdminJobByID(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +187,10 @@ func (s *Server) respondCronAdminJob(w http.ResponseWriter, _ *http.Request, job
 		writeOpenAIError(w, http.StatusInternalServerError, "Cron job lookup failed: "+err.Error(), "server_error", "", "cron_store_unavailable")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"job": cronAdminJobViewFor(job, s.now())})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build": s.buildInfo,
+		"job":   cronAdminJobViewFor(job, s.now()),
+	})
 }
 
 func (s *Server) respondCronAdminRunHistory(w http.ResponseWriter, r *http.Request, jobID string) {
@@ -213,6 +219,7 @@ func (s *Server) respondCronAdminRunHistory(w http.ResponseWriter, r *http.Reque
 		views = append(views, cronAdminRunViewFor(run))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":  s.buildInfo,
 		"job_id": jobID,
 		"runs":   views,
 		"limit":  limit,

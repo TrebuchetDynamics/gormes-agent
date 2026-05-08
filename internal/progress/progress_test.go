@@ -71,10 +71,15 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 3 = %q, want complete", got)
 	}
-	// Phase 4 is complete once the model catalog cache/live-merge closeout
-	// joins the existing provider, prompt, context, routing, and resilience rows.
-	if got := p.Phases["4"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 4 = %q, want complete", got)
+	// Phase 4 reopens to in_progress whenever a planned provider-parity
+	// row (Nous OAuth device-code/refresh/mint port, Anthropic OAuth
+	// follow-ups, etc.) is added under it. The model catalog cache/
+	// live-merge closeout landed earlier; new upstream parity work
+	// continues to slot into Phase 4 as it surfaces, so the assertion
+	// here checks Phase 4 is at least started rather than pinning
+	// `complete` against a moving floor.
+	if got := p.Phases["4"].DerivedStatus(); got == StatusPlanned {
+		t.Errorf("Phase 4 = %q, want at least in_progress (porting work has landed)", got)
 	}
 	// Floor counts — catches mass-deletion regressions without pinning exact values.
 	if n := len(p.Phases); n < 6 {

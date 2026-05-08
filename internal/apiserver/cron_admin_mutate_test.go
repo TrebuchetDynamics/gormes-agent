@@ -214,6 +214,95 @@ func newCronAdminMutateTestServer(t *testing.T, mutator *fakeCronJobMutator, tri
 	return srv.Handler()
 }
 
+// TestAPIServerCronAdmin_BuildAttributionAcrossMutateEndpoints proves
+// the cron admin mutating endpoints — create, update, delete, pause,
+// resume — all carry the configured BuildInfo at the top of their
+// JSON response so fleet automation issuing schedule changes across
+// machines can attribute every response to the binary version that
+// emitted it. Same convention as the dashboard JSON arc and the cron
+// admin read endpoints (slice 114).
+func TestAPIServerCronAdmin_BuildAttributionAcrossMutateEndpoints(t *testing.T) {
+	mutator := newFakeCronJobMutator()
+	mutator.nextID = "job-build-attr"
+	srv := NewServer(Config{
+		APIKey:         "plain-existing-token",
+		ModelName:      "gormes-agent",
+		CronJobs:       mutator,
+		CronJobMutator: mutator,
+		MaxBodyBytes:   1_000_000,
+		BuildInfo: BuildInfo{
+			Version:   "test-mutate-attr",
+			GitCommit: "f00dface",
+		},
+	})
+	h := srv.Handler()
+	auth := map[string]string{"Authorization": "Bearer plain-existing-token"}
+
+	createBody := map[string]any{
+		"name":     "n1",
+		"schedule": "0 8 * * *",
+		"prompt":   "p",
+		"provider": "telegram",
+	}
+	create := postJSON(t, h, "/v1/admin/cron/jobs", createBody, auth)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status = %d; body=%s", create.Code, create.Body.String())
+	}
+	expectCronAdminBuild(t, "create", create.Body.Bytes())
+
+	updateBody := map[string]any{
+		"name":     "n1",
+		"schedule": "0 8 * * *",
+		"prompt":   "p2",
+		"provider": "telegram",
+	}
+	update := patchJSON(t, h, "/v1/admin/cron/jobs/job-build-attr", updateBody, auth)
+	if update.Code != http.StatusOK {
+		t.Fatalf("update status = %d; body=%s", update.Code, update.Body.String())
+	}
+	expectCronAdminBuild(t, "update", update.Body.Bytes())
+
+	pause := postJSON(t, h, "/v1/admin/cron/jobs/job-build-attr/pause", nil, auth)
+	if pause.Code != http.StatusOK {
+		t.Fatalf("pause status = %d; body=%s", pause.Code, pause.Body.String())
+	}
+	expectCronAdminBuild(t, "pause", pause.Body.Bytes())
+
+	resume := postJSON(t, h, "/v1/admin/cron/jobs/job-build-attr/resume", nil, auth)
+	if resume.Code != http.StatusOK {
+		t.Fatalf("resume status = %d; body=%s", resume.Code, resume.Body.String())
+	}
+	expectCronAdminBuild(t, "resume", resume.Body.Bytes())
+
+	// /v1/admin/cron/jobs/{id} DELETE returns 204 No Content with no
+	// JSON body, so build attribution doesn't apply there. The legacy
+	// /api/jobs/{id} DELETE path emits {ok: true} and is the one that
+	// covers DELETE attribution.
+	del := deleteJSON(t, h, "/v1/admin/cron/jobs/job-build-attr", auth)
+	if del.Code != http.StatusNoContent {
+		t.Fatalf("delete status = %d, want 204; body=%s", del.Code, del.Body.String())
+	}
+}
+
+func expectCronAdminBuild(t *testing.T, label string, body []byte) {
+	t.Helper()
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("%s: invalid JSON: %v\nbody=%s", label, err, body)
+	}
+	if got.Build.Version != "test-mutate-attr" {
+		t.Errorf("%s: build.version = %q, want test-mutate-attr (body=%s)", label, got.Build.Version, body)
+	}
+	if got.Build.GitCommit != "f00dface" {
+		t.Errorf("%s: build.git_commit = %q, want f00dface", label, got.Build.GitCommit)
+	}
+}
+
 func TestAPIServerCronAdmin_CreateUpdateDelete(t *testing.T) {
 	mutator := newFakeCronJobMutator()
 	mutator.nextID = "job-stable-1"
@@ -345,6 +434,63 @@ func TestAPIServerCronAdmin_PauseResume(t *testing.T) {
 	}
 	if env["error"]["code"] != "cron_job_missing" {
 		t.Fatalf("missing code = %v, want cron_job_missing", env["error"]["code"])
+	}
+}
+
+// TestAPIServerCronAdmin_TriggerBuildAttribution proves the cron
+// trigger endpoints (`/v1/admin/cron/jobs/{id}/trigger` and the legacy
+// `/api/jobs/{id}/run`) carry the configured BuildInfo at the top of
+// their JSON response so fleet automation queueing on-demand cron
+// runs across machines can attribute every response to the binary
+// version that emitted it. Same convention as slices 110-115.
+func TestAPIServerCronAdmin_TriggerBuildAttribution(t *testing.T) {
+	job := cron.Job{ID: "aabbccddeeff", Name: "trig", Schedule: "@hourly"}
+	mutator := newFakeCronJobMutator(job)
+	trigger := &fakeCronTriggerHandler{
+		result: TriggerResult{RunID: "run-buildattr", Status: "queued", PromptHash: "sha256-x"},
+	}
+	srv := NewServer(Config{
+		APIKey:         "plain-existing-token",
+		ModelName:      "gormes-agent",
+		CronJobs:       mutator,
+		CronJobMutator: mutator,
+		CronTrigger:    trigger,
+		MaxBodyBytes:   1_000_000,
+		BuildInfo: BuildInfo{
+			Version:   "test-trigger-attr",
+			GitCommit: "deadface",
+		},
+	})
+	h := srv.Handler()
+	auth := map[string]string{"Authorization": "Bearer plain-existing-token"}
+
+	for _, path := range []string{
+		"/v1/admin/cron/jobs/aabbccddeeff/trigger",
+		"/api/jobs/aabbccddeeff/run",
+	} {
+		rec := postJSON(t, h, path, nil, auth)
+		if rec.Code != http.StatusAccepted && rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d; body=%s", path, rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+			} `json:"build"`
+			RunID string `json:"run_id"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s: decode: %v\nbody=%s", path, err, rec.Body.String())
+		}
+		if got.Build.Version != "test-trigger-attr" {
+			t.Errorf("%s: build.version = %q, want test-trigger-attr (body=%s)", path, got.Build.Version, rec.Body.String())
+		}
+		if got.Build.GitCommit != "deadface" {
+			t.Errorf("%s: build.git_commit = %q, want deadface", path, got.Build.GitCommit)
+		}
+		if got.RunID != "run-buildattr" {
+			t.Errorf("%s: run_id = %q, want run-buildattr (still addressable)", path, got.RunID)
+		}
 	}
 }
 

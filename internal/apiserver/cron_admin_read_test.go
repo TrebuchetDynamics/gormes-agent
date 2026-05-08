@@ -72,6 +72,61 @@ func newCronAdminTestServer(t *testing.T, jobs *fakeCronJobReader, runs *fakeCro
 	return srv.Handler()
 }
 
+// TestAPIServerCronAdmin_BuildAttributionAcrossReadEndpoints proves
+// `/v1/admin/cron/jobs`, `/v1/admin/cron/jobs/{id}`, and
+// `/v1/admin/cron/jobs/{id}/runs` all carry the configured BuildInfo
+// at the top of their JSON response so fleet automation aggregating
+// cron schedule state across machines can attribute every response to
+// the binary version that emitted it. Same convention as the dashboard
+// JSON arc (slices 110-113).
+func TestAPIServerCronAdmin_BuildAttributionAcrossReadEndpoints(t *testing.T) {
+	jobs := &fakeCronJobReader{
+		jobs: []cron.Job{
+			{ID: "job-1", Name: "n1", Schedule: "0 8 * * *", CreatedAt: 1700000000},
+		},
+	}
+	runs := &fakeCronRunReader{}
+	srv := NewServer(Config{
+		APIKey:       "plain-existing-token",
+		ModelName:    "gormes-agent",
+		CronJobs:     jobs,
+		CronRuns:     runs,
+		MaxBodyBytes: 1_000_000,
+		BuildInfo: BuildInfo{
+			Version:   "test-cron-attr",
+			GitCommit: "deadcafe",
+		},
+	})
+	h := srv.Handler()
+	auth := map[string]string{"Authorization": "Bearer plain-existing-token"}
+
+	for _, path := range []string{
+		"/v1/admin/cron/jobs",
+		"/v1/admin/cron/jobs/job-1",
+		"/v1/admin/cron/jobs/job-1/runs",
+	} {
+		rec := getJSON(t, h, path, auth)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d; body=%s", path, rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+			} `json:"build"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s: decode: %v\nbody=%s", path, err, rec.Body.String())
+		}
+		if got.Build.Version != "test-cron-attr" {
+			t.Errorf("%s: build.version = %q, want test-cron-attr (body=%s)", path, got.Build.Version, rec.Body.String())
+		}
+		if got.Build.GitCommit != "deadcafe" {
+			t.Errorf("%s: build.git_commit = %q, want deadcafe", path, got.Build.GitCommit)
+		}
+	}
+}
+
 func TestAPIServerCronAdmin_ListJobs(t *testing.T) {
 	jobs := &fakeCronJobReader{
 		jobs: []cron.Job{

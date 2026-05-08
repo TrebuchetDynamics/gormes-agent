@@ -113,6 +113,7 @@ type dashboardExtensionStatus struct {
 }
 
 type dashboardPluginInventoryResponse struct {
+	Build         BuildInfo                       `json:"build"`
 	Runtime       dashboardExtensionRuntimeStatus `json:"runtime"`
 	Themes        dashboardThemeInventoryStatus   `json:"themes"`
 	Plugins       []pluginmeta.PluginStatus       `json:"plugins"`
@@ -186,6 +187,7 @@ func (s *Server) handleDashboardModelInfo(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":                    s.buildInfo,
 		"model":                    s.modelName,
 		"provider":                 s.providerName,
 		"auto_context_length":      0,
@@ -205,6 +207,7 @@ func (s *Server) handleDashboardModelOptions(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":     s.buildInfo,
 		"model":     s.modelName,
 		"provider":  s.providerName,
 		"providers": s.dashboardModelProviders(),
@@ -220,7 +223,10 @@ func (s *Server) handleDashboardOAuthProviders(w http.ResponseWriter, r *http.Re
 		writeDashboardUnauthorized(w)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"providers": cloneDashboardOAuthProviders(s.oauthProviders)})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build":     s.buildInfo,
+		"providers": cloneDashboardOAuthProviders(s.oauthProviders),
+	})
 }
 
 func (s *Server) handleDashboardPlugins(w http.ResponseWriter, r *http.Request) {
@@ -228,7 +234,9 @@ func (s *Server) handleDashboardPlugins(w http.ResponseWriter, r *http.Request) 
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, dashboardPluginInventoryFromInventory(s.pluginInventory))
+	resp := dashboardPluginInventoryFromInventory(s.pluginInventory)
+	resp.Build = s.buildInfo
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleDashboardSessions(w http.ResponseWriter, r *http.Request) {
@@ -248,6 +256,7 @@ func (s *Server) handleDashboardSessions(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":    s.buildInfo,
 		"sessions": sessions,
 		"total":    total,
 		"limit":    limit,
