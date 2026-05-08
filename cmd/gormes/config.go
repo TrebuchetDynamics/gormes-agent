@@ -262,15 +262,24 @@ func newConfigGetCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			var value string
 			switch key {
 			case "hermes.endpoint":
-				fmt.Fprintln(out, cfg.Hermes.Endpoint)
+				value = cfg.Hermes.Endpoint
 			case "hermes.model":
-				fmt.Fprintln(out, cfg.Hermes.Model)
+				value = cfg.Hermes.Model
 			case "hermes.provider":
-				fmt.Fprintln(out, cfg.Hermes.Provider)
+				value = cfg.Hermes.Provider
 			default:
 				return fmt.Errorf("gormes config get: unknown key %q (try `gormes config show` for the resolved schema)", key)
+			}
+			// Empty non-secret values render as "(not set)" so output
+			// mirrors the secret-key form (and operators don't see a
+			// silent blank line that looks like a hung command).
+			if strings.TrimSpace(value) == "" {
+				fmt.Fprintln(out, "(not set)")
+			} else {
+				fmt.Fprintln(out, value)
 			}
 			return nil
 		},

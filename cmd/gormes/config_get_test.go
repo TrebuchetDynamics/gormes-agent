@@ -111,3 +111,28 @@ func TestConfigGet_NoArgErrors(t *testing.T) {
 		t.Fatalf("config get with no key must error; stderr=%q", stderr)
 	}
 }
+
+// TestConfigGet_EmptyNonSecretEmitsNotSetMarker pins UX consistency:
+// when a non-secret key resolves to the empty string, emit `(not set)`
+// rather than a blank line. Without this, `gormes config get
+// hermes.endpoint` on a fresh install prints a single empty line that
+// looks like a hung command, while `gormes config get hermes.api_key`
+// (secret) already prints `(not set)`. The two should agree.
+func TestConfigGet_EmptyNonSecretEmitsNotSetMarker(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+
+	stdout, stderr, err := executeRootCommandForTest(
+		newRootCommandWithRuntime(rootRuntime{}),
+		"config", "get", "hermes.endpoint",
+	)
+	if err != nil {
+		t.Fatalf("config get hermes.endpoint: %v\nstdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if strings.TrimSpace(stdout) == "" {
+		t.Fatalf("config get on empty key must emit a placeholder (e.g. \"(not set)\") not a silent blank line; got stdout=%q", stdout)
+	}
+	if !strings.Contains(stdout, "not set") {
+		t.Errorf("placeholder must read like \"(not set)\" to match the secret-key form; got %q", stdout)
+	}
+}
