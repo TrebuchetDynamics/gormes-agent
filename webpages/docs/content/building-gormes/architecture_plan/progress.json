@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-08T12:30:00Z",
+    "last_updated": "2026-05-08T22:00:00Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -41500,18 +41500,87 @@
             },
             {
               "name": "Strict-mode CWD + interpreter parity",
-              "status": "planned",
-              "note": "TDD slice 2 of 4: strict mode keeps today's behavior frozen — isolated tmpdir CWD plus the canonical interpreter resolved via `LocalCodeSandbox.resolveRuntime`. Fixtures must prove the 5.K blocked-result envelope (status, error, filesystem_access, network_access) is unchanged and that relative imports/filesystem access outside the tmpdir continue to fail. This slice exists only to pin the reference behavior before project-mode lands.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Strict-mode code execution preserves the current Gormes security-first sandbox contract: isolated tmpdir CWD, canonical interpreter resolved via LocalCodeSandbox.resolveRuntime, the existing 5.K blocked-result envelope (status, error, filesystem_access, network_access) is byte-identical, and relative imports plus filesystem access outside tmpdir continue to fail. Unit tests drive resolution via injected env only, not the real host. The contract is pinned before project-mode lands so the strict-to-project diff is measurable.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "If strict-mode resolution fails (no interpreter found), the 5.K blocked-result envelope returns execute_code_unavailable instead of silently falling back to a permissive mode.",
+              "fixture": "internal/tools/execute_code_strict_mode_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/terminal_tool.py:_resolve_python_binary strict-mode path",
+                "../hermes-agent/tools/terminal_tool.py:LocalCodeSandbox sandbox directory creation",
+                "internal/tools/execute_code.go:NewExecuteCodeTool",
+                "internal/tools/execute_code.go:sandboxGuardReason",
+                "internal/tools/execute_code.go:LocalCodeSandbox.resolveRuntime"
+              ],
+              "ready_when": [
+                "5.K blocked-result envelope and sandbox guard are fixture-locked.",
+                "Tests can inject synthetic env/fs state; no live venv, conda, or host interpreter is required."
+              ],
               "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+                "The slice changes the 5.K blocked-result envelope shape or the sandbox-guard reason set.",
+                "Tests rely on the host's real Python/Node/Ruby installation."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "acceptance": [
+                "TestStrictMode_Contract/isolated_temp_dir proves strict mode creates a unique temp dir per execution and no execution can read or write outside it.",
+                "TestStrictMode_Contract/canonical_interpreter proves resolveRuntime uses the system PATH without venv/conda detection.",
+                "TestStrictMode_Contract/blocked_result_envelope_unchanged proves the 5.K envelope shape (status, error, filesystem_access, network_access) matches the pre-split reference exactly.",
+                "TestStrictMode_Contract/relative_imports_fail_outside_tempdir proves sandboxGuardReason blocks cat outside the sandbox tmpdir boundary.",
+                "TestStrictMode_Contract/no_host_filesystem_access proves sandboxGuardReason blocks ls regardless of host filesystem state."
+              ],
+              "write_scope": [
+                "internal/tools/execute_code_strict_mode.go",
+                "internal/tools/execute_code_strict_mode_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestStrictMode_' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Six strict-mode fixtures pass; the existing 5.K blocked-result envelope shape is preserved byte-identical; no host venv/conda/real-filesystem dependency."
               ],
-              "priority": "P2"
+              "evidence": {
+                "implementation": [
+                  "internal/tools/execute_code_strict_mode.go:StrictModeSandbox wrapping LocalCodeSandbox",
+                  "internal/tools/execute_code_strict_mode.go:NewStrictModeSandbox with canonical exec.LookPath",
+                  "internal/tools/execute_code_strict_mode.go:newStrictModeSandboxWithLookPath test seam",
+                  "internal/tools/execute_code_strict_mode.go:StrictModeBlockedResultEnvelope canonical 5.K reference shape",
+                  "internal/tools/execute_code_strict_mode.go:StrictModeBlockedEnvelopeShape / StrictModeLookPath"
+                ],
+                "tests": [
+                  "internal/tools/execute_code_strict_mode_test.go:TestStrictMode_Contract/isolated_temp_dir",
+                  "internal/tools/execute_code_strict_mode_test.go:TestStrictMode_Contract/canonical_interpreter",
+                  "internal/tools/execute_code_strict_mode_test.go:TestStrictMode_Contract/blocked_result_envelope_unchanged",
+                  "internal/tools/execute_code_strict_mode_test.go:TestStrictMode_Contract/relative_imports_fail_outside_tempdir",
+                  "internal/tools/execute_code_strict_mode_test.go:TestStrictMode_Contract/no_host_filesystem_access",
+                  "internal/tools/execute_code_strict_mode_test.go:TestStrictMode_EnvelopeShapeMatchesReference"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run TestStrictMode -count=1 -> ok (6/6)",
+                  "go test ./internal/tools -count=1 -> ok",
+                  "go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok (8 phases)",
+                  "git diff --check -> ok"
+                ]
+              },
+              "note": "2026-05-08 planner+builder pass: converted from inventory-only umbrella placeholder to validated TDD slice. Hermes terminal_tool.py strict-mode path plus Gormes sandbox guard provide the contract reference. Six fixtures prove the current sandbox behavior is frozen as strict mode: isolated temp dir, canonical system-PATH interpreter, blocked-result envelope preserving 5.K fields, and sandbox guard blocking filesystem/network access.",
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:a3131862b tools/terminal_tool.py",
+                  "hermes:a3131862b tools/terminal_tool.py:LocalCodeSandbox"
+                ],
+                "note": "Hermes defines strict-mode sandbox creation and interpreter resolution; Gormes already has the 5.K blocked-result envelope and sandbox guard. This slice pins the strict-mode contract before project-mode lands."
+              }
             },
             {
               "name": "Project-mode CWD + active venv detection",

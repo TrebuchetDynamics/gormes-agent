@@ -1040,7 +1040,7 @@ classification and row-backed implementation queue.
 ### 5.R — Code Execution Mode Policy 🔨
 
 - [x] Execution-mode resolver + config precedence
-- [ ] Strict-mode CWD + interpreter parity
+- [x] Strict-mode CWD + interpreter parity
 - [ ] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over
 
