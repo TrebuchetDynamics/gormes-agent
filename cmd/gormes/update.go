@@ -87,21 +87,30 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// Best-effort config read: when config.Load fails or no
+			// config exists, fall through with zero-value Updates so
+			// `gormes update` keeps working on a fresh install with
+			// no config.toml.
+			var updatesCfg config.UpdatesCfg
+			if cfg, cfgErr := config.Load(nil); cfgErr == nil {
+				updatesCfg = cfg.Updates
+			}
 			report := seams.RunLifecycle(cmd.Context(), cli.UpdateLifecycleOptions{
-				CheckoutDir:        checkoutDir,
-				Branch:             branch,
-				CheckOnly:          checkOnly,
-				Yes:                yes,
-				RestartGateway:     restartGateway,
-				KillStaleDashboard: killStaleDashboard,
-				Backup:             backup,
-				NoBackup:           noBackup,
-				SkillSync:          seams.SkillSyncFor(checkoutDir),
-				WebBuild:           seams.WebBuildFor(checkoutDir, skipWeb),
-				ConfigCheck:        seams.ConfigCheckFn,
-				ConfigMigrate:      seams.ConfigMigrateFn,
-				BackupWriter:       seams.BackupWriterFor(),
-				Git:                cli.RealUpdateGitRunner{},
+				CheckoutDir:         checkoutDir,
+				Branch:              branch,
+				CheckOnly:           checkOnly,
+				Yes:                 yes,
+				RestartGateway:      restartGateway,
+				KillStaleDashboard:  killStaleDashboard,
+				Backup:              backup,
+				NoBackup:            noBackup,
+				BackupConfigEnabled: updatesCfg.PreUpdateBackup,
+				SkillSync:           seams.SkillSyncFor(checkoutDir),
+				WebBuild:            seams.WebBuildFor(checkoutDir, skipWeb),
+				ConfigCheck:         seams.ConfigCheckFn,
+				ConfigMigrate:       seams.ConfigMigrateFn,
+				BackupWriter:        seams.BackupWriterFor(),
+				Git:                 cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
 				report.Branch = branch
@@ -216,9 +225,25 @@ func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
 }
 
 // defaultBackupKeep is the retention budget the production BackupWriter
-// applies after each successful write. Matches Hermes' default for
-// `updates.backup_keep`.
+// applies after each successful write when config.toml does not set
+// `[updates] backup_keep`. Matches Hermes' default.
 const defaultBackupKeep = 5
+
+// resolveBackupKeep reads `[updates] backup_keep` from config and falls
+// back to defaultBackupKeep when the value is missing, zero, or
+// negative. The fallback for non-positive values matches PruneBackups'
+// keep<=0 safety: an operator who set 0 by mistake should not lose
+// every backup on the next run.
+func resolveBackupKeep() int {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return defaultBackupKeep
+	}
+	if cfg.Updates.BackupKeep <= 0 {
+		return defaultBackupKeep
+	}
+	return cfg.Updates.BackupKeep
+}
 
 // defaultBackupWriterFor builds the production BackupWriter. Returns nil
 // when GormesHome is unset (so the lifecycle keeps the policy-only
@@ -226,12 +251,13 @@ const defaultBackupKeep = 5
 // under `<home>/backups/pre-update-<UTC>.zip`, skipping the existing
 // IsExcludedFromBackup paths (checkpoints/, backups/, *.db-{wal,shm,journal}),
 // then prunes older backups in the same directory to keep the newest
-// `defaultBackupKeep` files.
+// resolveBackupKeep() files.
 func defaultBackupWriterFor() cli.BackupWriter {
 	home := config.GormesHome()
 	if home == "" {
 		return nil
 	}
+	keep := resolveBackupKeep()
 	return func(ctx context.Context) (cli.BackupResult, error) {
 		stamp := time.Now().UTC().Format("20060102T150405Z")
 		dest := filepath.Join(home, "backups", "pre-update-"+stamp+".zip")
@@ -242,7 +268,7 @@ func defaultBackupWriterFor() cli.BackupWriter {
 		// Prune is best-effort: a prune failure must not surface as a
 		// backup-write failure (the new zip is already on disk and
 		// usable).
-		if count, freed, _ := cli.PruneBackups(filepath.Dir(dest), defaultBackupKeep); count > 0 {
+		if count, freed, _ := cli.PruneBackups(filepath.Dir(dest), keep); count > 0 {
 			res.PrunedCount = count
 			res.PrunedBytes = freed
 		}
