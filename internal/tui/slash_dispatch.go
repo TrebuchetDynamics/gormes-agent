@@ -139,6 +139,8 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("copy", copySlashHandler)
 	r.Register("browser", browserSlashHandler, WithBusyAvailable())
 	r.Register("kanban", kanbanSlashHandler, WithBusyAvailable())
+	r.Register("quit", quitSlashHandler)
+	r.Register("exit", quitSlashHandler)
 	return r
 }
 
@@ -261,4 +263,8 @@ func copyStatusForEvidence(result ComposerCopyResult) string {
 	default:
 		return "copy: nothing to copy"
 	}
+}
+
+func quitSlashHandler(_ string, _ *Model) SlashResult {
+	return SlashResult{Handled: true, Cmd: tea.Quit}
 }

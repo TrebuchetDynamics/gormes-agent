@@ -47,6 +47,31 @@ func TestHermesSlashDispatchBehavior_LocalHandlersStillRun(t *testing.T) {
 	}
 }
 
+func TestHermesSlashDispatchBehavior_QuitExitsLocally(t *testing.T) {
+	for _, input := range []string{"/quit", "/exit"} {
+		t.Run(input, func(t *testing.T) {
+			sub := &nopSubmitter{}
+			m := newSlashDispatchBehaviorModel(sub)
+			m.editor.SetValue(input)
+
+			next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			updated, ok := next.(Model)
+			if !ok {
+				t.Fatalf("Update returned %T, want tui.Model", next)
+			}
+			if sub.calls != 0 {
+				t.Fatalf("%s reached Submitter %d time(s), want 0", input, sub.calls)
+			}
+			if got := updated.editor.Value(); got != "" {
+				t.Fatalf("editor value after %s = %q, want cleared", input, got)
+			}
+			if !cmdEmitsQuit(cmd) {
+				t.Fatalf("%s did not emit tea.Quit", input)
+			}
+		})
+	}
+}
+
 func TestHermesSlashDispatchBehavior_KnownUnhandledCommandsNeverSubmit(t *testing.T) {
 	for _, input := range []string{
 		"/model gpt-5.2",
@@ -167,4 +192,21 @@ func enterSlashDispatchBehavior(t *testing.T, m Model, input string) Model {
 	}
 	runTestCmd(t, cmd)
 	return updated
+}
+
+func cmdEmitsQuit(cmd tea.Cmd) bool {
+	if cmd == nil {
+		return false
+	}
+	switch msg := cmd().(type) {
+	case tea.QuitMsg:
+		return true
+	case tea.BatchMsg:
+		for _, nested := range msg {
+			if cmdEmitsQuit(nested) {
+				return true
+			}
+		}
+	}
+	return false
 }

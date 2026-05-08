@@ -41367,6 +41367,79 @@
               ]
             },
             {
+              "name": "Native TUI /quit local exit binding",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-08T00:00:00Z",
+              "contract": "Gormes native TUI treats `/quit` and `/exit` as local exit commands matching current Hermes Ink: slash dispatch consumes the editor, schedules Bubble Tea quit, never calls the submitter/kernel, and never falls through to gateway or unavailable-command evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If the TUI cannot exit locally, the slash text is still consumed with explicit evidence rather than being submitted to the provider; the correct implementation path is local `tea.Quit`, not a gateway request.",
+              "fixture": "internal/tui/slash_dispatch_behavior_test.go::TestHermesSlashDispatchBehavior_QuitExitsLocally",
+              "source_refs": [
+                "../hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts@6f7b698a0:exits locally for /quit",
+                "../hermes-agent/ui-tui/src/app/createSlashHandler.ts:createSlashHandler",
+                "internal/cli/command_registry.go:CommandRegistry quit/exit",
+                "internal/tui/slash_dispatch.go:NewDefaultSlashRegistry",
+                "internal/tui/update.go:tea.KeyEnter slash dispatch path"
+              ],
+              "ready_when": [
+                "Native TUI Hermes slash dispatch behavioral matrix is complete.",
+                "Current Hermes Ink source is resolved and shows `/quit` exits locally without gateway fallback.",
+                "The worker can exercise Bubble Tea Update with fake submitter/canceller seams and without a live terminal, gateway, provider, Node, or Python."
+              ],
+              "not_ready_when": [
+                "The slice changes Ctrl+C/Ctrl+D key handling, gateway `/quit` policy, session reset behavior, or provider turn submission.",
+                "The slice leaves `/quit` as recognized-but-unavailable evidence in the native TUI.",
+                "The slice treats `/exit` differently from the upstream `/quit` alias semantics already declared in CommandRegistry."
+              ],
+              "blocked_by": [
+                "Native TUI Hermes slash dispatch behavioral matrix"
+              ],
+              "unblocks": [
+                "Native TUI Ink behavioral transcript golden matrix"
+              ],
+              "acceptance": [
+                "TestHermesSlashDispatchBehavior_QuitExitsLocally proves `/quit` clears the editor, does not call Submitter, and returns a Bubble Tea quit command.",
+                "The same fixture proves `/exit` follows the local quit path through the existing alias contract.",
+                "Existing slash dispatch behavior tests still prove known-unhandled commands do not submit and local handlers keep running."
+              ],
+              "write_scope": [
+                "internal/tui/slash_dispatch.go",
+                "internal/tui/slash_dispatch_behavior_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_QuitExitsLocally|TestHermesSlashDispatchBehavior_' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Native TUI fixtures prove `/quit` and `/exit` exit locally without submitter/kernel/gateway fallback, matching Hermes 6f7b698a0."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:6f7b698a0 ui-tui/src/__tests__/createSlashHandler.test.ts",
+                "note": "The 2026-05-08 all-topic parity sweep refreshed Hermes to 7c174e65f and found the previous complete slash-dispatch matrix stale for `/quit`: active Hermes now asserts a local exit path. Other scanned surfaces stayed covered, owned, blocked, or already row-backed."
+              },
+              "note": "Complete 2026-05-08: planner sweep found the completed slash-dispatch matrix stale after Hermes 6f7b698a0 added `/quit` local exit coverage. Planned rows were 29, below the 90-row cap, so one new source-backed P1 row was allowed. TDD added a Bubble Tea fixture proving `/quit` and `/exit` clear the editor, avoid Submitter, and emit tea.Quit, then registered both local handlers in the default native TUI slash registry. The sibling Hermes 7c174e65f Termux update hardening is Python/uv-specific and maps to Gormes-owned Go installer/update behavior, so it did not add a runtime row in this cycle.",
+              "evidence": {
+                "implementation": [
+                  "internal/tui/slash_dispatch.go: NewDefaultSlashRegistry registers `/quit` and `/exit` with quitSlashHandler.",
+                  "internal/tui/slash_dispatch.go: quitSlashHandler consumes the slash command and returns tea.Quit."
+                ],
+                "verification": [
+                  "RED: go test ./internal/tui -run TestHermesSlashDispatchBehavior_QuitExitsLocally -count=1 failed because `/quit` and `/exit` did not emit tea.Quit.",
+                  "GREEN: go test ./internal/tui -run 'TestHermesSlashDispatchBehavior_QuitExitsLocally|TestHermesSlashDispatchBehavior_' -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Native TUI Hermes tool progress + modal panel renderers",
               "priority": "P2",
               "status": "complete",

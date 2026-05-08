@@ -1031,6 +1031,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes slash completion helpers
 - [x] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
+- [x] Native TUI /quit local exit binding
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [x] Native TUI Ink behavioral transcript golden matrix
 - [x] Channel/TUI iteration-limit finalization transcript fixture
