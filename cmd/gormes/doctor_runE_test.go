@@ -33,6 +33,34 @@ func TestDoctorCommand_OfflineRoutedThroughCobra(t *testing.T) {
 	}
 }
 
+// TestDoctorCommand_JSONFieldOrderPutsFailedBeforeChecks proves the
+// JSON output uses a stable field order with summary fields (`failed`)
+// before the per-check array. This matches `update --json`'s
+// convention so downstream tooling that pretty-prints / diffs JSON
+// reports gets a predictable structure across surfaces. Relying on
+// `map[string]any` alphabetic sort would put `checks` before `failed`
+// — inconsistent with the rest of the --json arc.
+func TestDoctorCommand_JSONFieldOrderPutsFailedBeforeChecks(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
+	_ = cmd.Execute()
+
+	body := stdout.String()
+	failedIdx := strings.Index(body, `"failed"`)
+	checksIdx := strings.Index(body, `"checks"`)
+	if failedIdx < 0 || checksIdx < 0 {
+		t.Fatalf("output missing failed/checks fields:\n%s", body)
+	}
+	if failedIdx >= checksIdx {
+		t.Fatalf("`failed` must precede `checks` in JSON for stable consumer rendering; got failedIdx=%d checksIdx=%d", failedIdx, checksIdx)
+	}
+}
+
 // TestDoctorCommand_JSONReportsFailedFieldFromWorstCheck proves the
 // JSON document carries a top-level "failed" boolean derived from the
 // worst-status check encountered. Monitoring consumers branch on this

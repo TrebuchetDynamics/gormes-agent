@@ -57,16 +57,26 @@ func (r *doctorReporter) Add(c doctor.CheckResult) {
 	fmt.Fprint(r.w, c.Format())
 }
 
+// doctorReportJSON is the wire shape for `gormes doctor --json`.
+// Field order matters for consumer rendering — summary fields lead,
+// per-check array follows. Mirrors the convention update --json /
+// status --json / restore --list --json use.
+type doctorReportJSON struct {
+	Failed bool                  `json:"failed"`
+	Checks []doctor.CheckResult  `json:"checks"`
+}
+
 func (r *doctorReporter) Finalize() error {
 	if !r.asJSON {
 		return nil
 	}
-	if r.collected == nil {
-		r.collected = []doctor.CheckResult{}
+	checks := r.collected
+	if checks == nil {
+		checks = []doctor.CheckResult{}
 	}
-	body, err := json.MarshalIndent(map[string]any{
-		"failed": r.failed,
-		"checks": r.collected,
+	body, err := json.MarshalIndent(doctorReportJSON{
+		Failed: r.failed,
+		Checks: checks,
 	}, "", "  ")
 	if err != nil {
 		return err
