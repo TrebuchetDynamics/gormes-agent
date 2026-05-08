@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -56,6 +57,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	var backup bool
 	var noBackup bool
 	var skipWeb bool
+	var asJSON bool
 
 	if seams.CheckoutDir == nil {
 		seams.CheckoutDir = os.Getwd
@@ -80,8 +82,28 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a managed Gormes source checkout",
+		Use:           "update",
+		Short:         "Update a managed Gormes source checkout",
+		SilenceUsage:  true,
+		Long: `Update a managed Gormes source checkout: fetch + fast-forward, sync
+bundled skills, rebuild the web UI, run a config schema migration check,
+and restart the gateway.
+
+Backup and rollback:
+
+  gormes update --backup           take a pre-update zip of GORMES_HOME
+                                   before pulling source. Set
+                                   ` + "`[updates] pre_update_backup = true`" + ` in
+                                   config.toml to make this the default.
+  gormes restore --list            enumerate available pre-update zips,
+                                   newest first.
+  gormes restore --latest --yes    roll back to the most recent zip
+                                   (overwrites files in GORMES_HOME).
+
+When ` + "`--backup`" + ` is set and the update later fails, the report ends with
+a ` + "`◆ update_rollback_hint`" + ` line spelling out the restore command above
+so the recovery path is visible inline.
+`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			checkoutDir, err := seams.CheckoutDir()
 			if err != nil {
@@ -118,7 +140,13 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 			if checkOnly && !updateReportHasEvidence(report, cli.UpdateEvidenceCheck) {
 				report.Evidence = append([]cli.UpdateEvidence{{Kind: cli.UpdateEvidenceCheck, Detail: "no checkout mutations requested"}}, report.Evidence...)
 			}
-			printUpdateReport(cmd, report)
+			if asJSON {
+				if err := printUpdateReportJSON(cmd, report); err != nil {
+					return err
+				}
+			} else {
+				printUpdateReport(cmd, report)
+			}
 			if report.Failed {
 				message := "gormes update failed"
 				if report.OperatorRecovery != "" {
@@ -134,10 +162,50 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "assume yes for non-destructive recovery prompts")
 	cmd.Flags().StringVar(&restartGateway, "restart-gateway", "auto", "restart policy for a live gateway: auto, always, or never")
 	cmd.Flags().BoolVar(&killStaleDashboard, "kill-stale-dashboard", false, "stop stale dashboard processes after a successful update")
-	cmd.Flags().BoolVar(&backup, "backup", false, "create a single-run pre-update backup of ~/.gormes (writer is a follow-up slice; this surface emits the policy decision)")
+	cmd.Flags().BoolVar(&backup, "backup", false, "create a single-run pre-update backup zip of ~/.gormes; restore later with `gormes restore --latest --yes`")
 	cmd.Flags().BoolVar(&noBackup, "no-backup", false, "force-skip the pre-update backup; beats --backup and config opt-in")
 	cmd.Flags().BoolVar(&skipWeb, "skip-web", false, "skip the web UI rebuild step after pulling source")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable JSON report instead of the human-readable progress UX (suitable for CI/cron consumers)")
 	return cmd
+}
+
+// updateReportJSON shapes UpdateReport for machine-readable output.
+// Mirrors the internal/cli struct field-for-field with snake_case JSON
+// tags. Defined in cmd/gormes so internal/cli stays free of presentation
+// concerns.
+type updateReportJSON struct {
+	Branch           string                  `json:"branch"`
+	PreviousBranch   string                  `json:"previous_branch,omitempty"`
+	Failed           bool                    `json:"failed"`
+	Evidence         []updateEvidenceJSON    `json:"evidence"`
+	OperatorRecovery string                  `json:"operator_recovery,omitempty"`
+	DashboardPIDs    []int                   `json:"dashboard_pids,omitempty"`
+}
+
+type updateEvidenceJSON struct {
+	Kind   string `json:"kind"`
+	Detail string `json:"detail,omitempty"`
+}
+
+func printUpdateReportJSON(cmd *cobra.Command, report cli.UpdateReport) error {
+	out := cmd.OutOrStdout()
+	shaped := updateReportJSON{
+		Branch:           report.Branch,
+		PreviousBranch:   report.PreviousBranch,
+		Failed:           report.Failed,
+		Evidence:         make([]updateEvidenceJSON, len(report.Evidence)),
+		OperatorRecovery: report.OperatorRecovery,
+		DashboardPIDs:    report.DashboardPIDs,
+	}
+	for i, e := range report.Evidence {
+		shaped.Evidence[i] = updateEvidenceJSON{Kind: string(e.Kind), Detail: e.Detail}
+	}
+	body, err := json.MarshalIndent(shaped, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
 }
 
 func updateReportHasEvidence(report cli.UpdateReport, kind cli.UpdateEvidenceKind) bool {
@@ -348,7 +416,7 @@ func updateGlyphAndColor(w io.Writer, kind cli.UpdateEvidenceKind) (string, func
 		return cli.Yellow(w, "⚠"), cli.Yellow
 	case strings.HasSuffix(s, "_skipped"), s == "update_check", strings.HasSuffix(s, "_log_mirrored"), s == "update_not_managed_checkout":
 		return cli.Dim(w, "ℹ"), cli.Dim
-	case strings.HasSuffix(s, "_requested"):
+	case strings.HasSuffix(s, "_requested"), strings.HasSuffix(s, "_hint"):
 		return cli.BrightCyan(w, "◆"), cli.BrightCyan
 	default:
 		return cli.Green(w, "✓"), cli.Green

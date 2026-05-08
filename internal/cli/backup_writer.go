@@ -18,6 +18,54 @@ import (
 // prefix to filter operator-owned files away from the prune target set.
 const backupFilenamePrefix = "pre-update-"
 
+// BackupListing describes one pre-update backup zip discovered under
+// the operator's backups directory. Returned by ListBackups for the
+// `gormes restore --list` operator surface.
+type BackupListing struct {
+	Path      string
+	SizeBytes int64
+	ModTime   time.Time
+}
+
+// ListBackups enumerates `pre-update-*.zip` files under backupDir and
+// returns them sorted newest-first by mtime. Files that don't match the
+// pattern are ignored (operators may store unrelated files in the same
+// directory). A missing backupDir is a quiet empty-list — fresh
+// installs with no prior backups should see "no backups found", not an
+// error.
+func ListBackups(backupDir string) ([]BackupListing, error) {
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("backup list: read dir: %w", err)
+	}
+	out := make([]BackupListing, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasPrefix(name, backupFilenamePrefix) || filepath.Ext(name) != ".zip" {
+			continue
+		}
+		info, infoErr := e.Info()
+		if infoErr != nil {
+			continue
+		}
+		out = append(out, BackupListing{
+			Path:      filepath.Join(backupDir, name),
+			SizeBytes: info.Size(),
+			ModTime:   info.ModTime(),
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].ModTime.After(out[j].ModTime)
+	})
+	return out, nil
+}
+
 // PruneBackups removes older pre-update backup zips from backupDir,
 // keeping the newest `keep` files by mtime. Returns the number of files
 // removed and total bytes freed. Files that don't match the

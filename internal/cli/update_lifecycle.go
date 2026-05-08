@@ -47,6 +47,7 @@ const (
 	UpdateEvidenceConfigMigrateNeeded       UpdateEvidenceKind = "update_config_migrate_needed"
 	UpdateEvidenceConfigMigrateCompleted    UpdateEvidenceKind = "update_config_migrate_completed"
 	UpdateEvidenceConfigMigrateFailed       UpdateEvidenceKind = "update_config_migrate_failed"
+	UpdateEvidenceRollbackHint              UpdateEvidenceKind = "update_rollback_hint"
 )
 
 // ConfigVersionResult is the abstract per-update return from a
@@ -434,6 +435,36 @@ func emitPreUpdateBackupPolicy(ctx context.Context, report *UpdateReport, option
 	report.add(UpdateEvidencePreBackupCompleted, detail)
 }
 
+// appendRollbackHintIfApplicable adds an `update_rollback_hint`
+// evidence record to the report when:
+//   - the lifecycle terminated with Failed=true, AND
+//   - a `pre_backup_completed` record is in evidence (proof a usable
+//     zip exists on disk).
+//
+// The hint names `gormes restore --latest --yes` so operators see the
+// recovery command inline without having to look up the restore CLI
+// shape from documentation. Skipped on success, on no-backup runs, and
+// on backup-write failures (no zip = nothing to restore).
+func appendRollbackHintIfApplicable(report *UpdateReport) {
+	if report == nil || !report.Failed {
+		return
+	}
+	hasCompletedBackup := false
+	for _, ev := range report.Evidence {
+		if ev.Kind == UpdateEvidencePreBackupCompleted {
+			hasCompletedBackup = true
+			break
+		}
+	}
+	if !hasCompletedBackup {
+		return
+	}
+	report.add(
+		UpdateEvidenceRollbackHint,
+		"to roll back to the pre-update state, run: gormes restore --latest --yes",
+	)
+}
+
 // formatBackupSize renders a byte count as a human-readable string with
 // the smallest unit that keeps the number under 1024.
 func formatBackupSize(bytes int64) string {
@@ -463,7 +494,13 @@ func formatBackupDuration(ms int64) string {
 	return fmt.Sprintf("%.2fs", float64(ms)/1000.0)
 }
 
-func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) UpdateReport {
+func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) (report UpdateReport) {
+	// Append a rollback hint when the lifecycle ends with Failed=true
+	// AND a usable pre-update zip exists on disk. Centralized in a
+	// defer so every early-return failure path picks it up without
+	// scattering the gating across 17 return points.
+	defer func() { appendRollbackHintIfApplicable(&report) }()
+
 	branch := strings.TrimSpace(options.Branch)
 	if branch == "" {
 		branch = "main"
@@ -472,7 +509,7 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 	if checkoutDir == "" {
 		checkoutDir = "."
 	}
-	report := UpdateReport{Branch: branch}
+	report = UpdateReport{Branch: branch}
 
 	if options.CheckOnly {
 		report.add(UpdateEvidenceCheck, fmt.Sprintf("checked update readiness for %s", branch))
