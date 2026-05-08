@@ -22,6 +22,29 @@ func TestVersionCommand_HumanFormat(t *testing.T) {
 	}
 }
 
+// TestVersionCommand_JSONIncludesGitCommitField proves --json carries
+// a git_commit field. Defaults to "unknown" in dev/source builds; CI
+// release builds are expected to inject the build-time SHA via ldflags
+// (-X main.GitCommit=<sha>) in a follow-up CI slice. Fleet automation
+// verifying binaries against a specific commit reads this field.
+func TestVersionCommand_JSONIncludesGitCommitField(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	root := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeRootCommandForTest(root, "version", "--json")
+	if err != nil {
+		t.Fatalf("version --json: %v", err)
+	}
+	var got struct {
+		GitCommit string `json:"git_commit"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.GitCommit == "" {
+		t.Fatalf("git_commit must be non-empty (`unknown` in dev builds is acceptable); got %q", stdout)
+	}
+}
+
 // TestVersionCommand_JSONIncludesSemverAndDateAlias proves --json emits
 // both the canonical semver and the Hermes-style vYYYY.M.D date alias.
 // Fleet automation that tracks Gormes deployments across operators

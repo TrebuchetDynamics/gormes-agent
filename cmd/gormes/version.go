@@ -23,6 +23,21 @@ var Version = "0.1.07"
 // `gormes version --json`.
 var VersionDateAlias = "v2026.5.7"
 
+// GitCommit is the source SHA the binary was built from. Defaults to
+// "unknown" in dev/source builds; release CI is expected to inject the
+// real value via `-ldflags="-X main.GitCommit=<sha>"`. Fleet automation
+// verifying binaries against a specific commit reads this field
+// through `gormes version --json`.
+var GitCommit = "unknown"
+
+// versionReportJSON is the wire shape for `gormes version --json`.
+// Field order matches the rest of the --json arc: identity fields lead.
+type versionReportJSON struct {
+	Version   string `json:"version"`
+	DateAlias string `json:"date_alias"`
+	GitCommit string `json:"git_commit"`
+}
+
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print gormes version",
@@ -30,9 +45,10 @@ var versionCmd = &cobra.Command{
 		out := cmd.OutOrStdout()
 		asJSON, _ := cmd.Flags().GetBool("json")
 		if asJSON {
-			body, err := json.MarshalIndent(map[string]string{
-				"version":    Version,
-				"date_alias": VersionDateAlias,
+			body, err := json.MarshalIndent(versionReportJSON{
+				Version:   Version,
+				DateAlias: VersionDateAlias,
+				GitCommit: GitCommit,
 			}, "", "  ")
 			if err != nil {
 				return err
