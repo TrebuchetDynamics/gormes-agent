@@ -809,6 +809,7 @@ classification and row-backed implementation queue.
 ### 5.L — File Ops + Patches 🔨
 
 - [ ] Atomic checkpoints
+- [ ] Checkpoints CLI (status/list/prune/clear/clear-legacy)
 - [x] Checkpoint shadow-repo GC policy
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation

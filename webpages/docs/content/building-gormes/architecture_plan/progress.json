@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-08T04:34:57Z",
+    "last_updated": "2026-05-08T05:30:00Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -27362,7 +27362,83 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Gormes has no checkpoints CLI parity. Start with checkpoint policy and read-dedup guards before exposing write-capable file tools to the native agent loop."
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (planned). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py)."
+            },
+            {
+              "name": "Checkpoints CLI (status/list/prune/clear/clear-legacy)",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Gormes exposes a `gormes checkpoints` CLI commandtree mirroring Hermes' `hermes_cli/checkpoints.py` (faa13e49f): bare `gormes checkpoints` → status, `gormes checkpoints status [--limit N]` → total size + project count + per-project breakdown with workdir/commits/last-touch/state, `gormes checkpoints list [--limit N]` → alias for status, `gormes checkpoints prune [--retention-days N] [--max-size-mb N] [--keep-orphans]` → delete orphan/stale checkpoints and GC the store with a confirmation prompt, `gormes checkpoints clear [-f|--force]` → delete the entire checkpoint base (asks confirmation unless -f), `gormes checkpoints clear-legacy [-f|--force]` → delete only legacy archive directories. All commands consume the existing internal/tools.CheckpointManager read model (store_status, prune, clear, clear_legacy) and require no live agent, provider, network, or gateway. Output formatting mirrors Hermes: bytes in human-readable units (B/KB/MB/GB/TB), timestamps in relative age (Xs/m/h/d ago), orphan/live state flags, and per-project columnar layout.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing checkpoint root or empty store produces `No checkpoint store at <path>` instead of a panic or raw os.Stat error. Unreadable shadow repos or missing workdir markers produce orphan/live evidence in status output without aborting.",
+              "fixture": "cmd/gormes/checkpoints_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/checkpoints.py@faa13e49f",
+                "./hermes-agent/tools/checkpoint_manager.py@faa13e49f",
+                "internal/tools/checkpoint_manager.go",
+                "internal/tools/checkpoint_manager_test.go",
+                "cmd/gormes/checkpoints.go"
+              ],
+              "ready_when": [
+                "Checkpoint shadow-repo GC policy is complete (verified — internal/tools/checkpoint_manager.go exists with NewCheckpointManager, Status, store_status semantics).",
+                "File read dedup cache invalidation and wrapper guard is complete (verified — this is the read-contract guard).",
+                "The slice can test with t.TempDir checkpoint roots and synthetic shadow repos only; no live git, provider, network, gateway, or write-capable file tools are needed.",
+                "internal/tools/checkpoint_manager.go exposes or can be extended to expose store_status, prune, clear_all, and clear_legacy as exported functions the CLI can call."
+              ],
+              "not_ready_when": [
+                "The slice exposes write_file, patch_apply, or checkpoint_restore tools before the read-only CLI is fixture-locked.",
+                "The slice shells out to git or deletes real repositories outside t.TempDir in tests.",
+                "The slice requires a live model, provider turn, gateway channel, or Telegram/Discord bot token.",
+                "The CLI implementation bypasses the existing CheckpointManager contract and re-implements checkpoint discovery from scratch."
+              ],
+              "blocked_by": [
+                "Checkpoint shadow-repo GC policy",
+                "File read dedup cache invalidation and wrapper guard"
+              ],
+              "unblocks": [
+                "Write-capable file tools (file_operations.py port)",
+                "Patch parser (patch_parser.py port)"
+              ],
+              "acceptance": [
+                "TestCheckpointsCLI_Status_ReportsStoreDetails: `gormes checkpoints status` with a seeded temp checkpoint root reports total size, project count, and a per-project table with workdir, commits, last-touch (relative age), and live/orphan state.",
+                "TestCheckpointsCLI_List_IsStatusAlias: `gormes checkpoints list` produces byte-identical output to `gormes checkpoints status`.",
+                "TestCheckpointsCLI_Prune_DeletesOrphanAndStale: `gormes checkpoints prune --retention-days 3 --keep-orphans=false` with synthetic orphan/shadow repos deletes expected repos, reports counts (scanned/deleted_orphan/deleted_stale/errors/bytes_freed), and preserves active shadows.",
+                "TestCheckpointsCLI_Prune_KeepOrphansFlag: `gormes checkpoints prune --keep-orphans` skips orphan deletion while still pruning stale active shadows.",
+                "TestCheckpointsCLI_Prune_DefaultRetentionAndSize: bare `gormes checkpoints prune` uses defaults retention-days=7, max-size-mb=500 without requiring explicit flags.",
+                "TestCheckpointsCLI_Clear_WithForceFlag: `gormes checkpoints clear -f` deletes the entire checkpoint base without prompting and reports bytes reclaimed.",
+                "TestCheckpointsCLI_ClearLegacy_ReportsArchives: `gormes checkpoints clear-legacy` lists legacy archives with name/size, prompts for confirmation, and deletes on `-f`.",
+                "TestCheckpointsCLI_EmptyStoreNoPanic: `gormes checkpoints status` with no checkpoint root produces a clean message instead of a panic.",
+                "TestCheckpointsCLI_BareCheckpointsDefaultsToStatus: bare `gormes checkpoints` with no subcommand invokes the status handler (mirroring Hermes parser.set_defaults(func=cmd_status)).",
+                "TestCheckpointsCLI_NoProviderSubmits: a fake kernel/provider capture proves none of the checkpoints subcommands submit a turn to the model."
+              ],
+              "note": "Added by gormes-planner parity sweep 2026-05-08: the existing checkpoint_manager.go backend provides the read/write model; this row ports the 5-subcommand Hermes CLI surface (checkpoints.py:status/list/prune/clear/clear-legacy) as a Cobra commandtree under cmd/gormes/. No write-capable file/patch tools are exposed by this slice — it is read-only CLI parity that unblocks downstream file_operations and patch_parser ports.",
+              "write_scope": [
+                "cmd/gormes/checkpoints.go",
+                "cmd/gormes/checkpoints_test.go",
+                "internal/tools/checkpoint_manager.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestCheckpointsCLI' -count=1",
+                "go test ./cmd/gormes ./internal/tools -count=1",
+                "go test ./... -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Ten named checkpoints CLI fixtures pass; `gormes checkpoints status|list|prune|clear|clear-legacy` mirror Hermes output format; no provider turn is submitted; all tests use t.TempDir checkpoint roots with synthetic shadow repos only."
+              ],
+              "provenance": {
+                "origin_type": "porting",
+                "upstream_ref": "hermes:faa13e49f hermes_cli/checkpoints.py + tools/checkpoint_manager.py",
+                "note": "Hermes defines the 5-subcommand checkpoint CLI surface (status/list/prune/clear/clear-legacy). Gormes owns the Go internal/tools CheckpointManager backend and XDG checkpoint root; this row ports the CLI commandtree."
+              }
             },
             {
               "name": "Checkpoint shadow-repo GC policy",
