@@ -71,6 +71,39 @@ func executeMigrateOpenClaw(args ...string) (*cobra.Command, string, string, err
 	return cmd, stdout.String(), stderr.String(), err
 }
 
+// TestMigrateOpenClawDryRun_JSONIncludesBuildProvenance proves
+// `gormes migrate openclaw --dry-run` emits a top-level `build`
+// envelope so fleet automation orchestrating OpenClaw-to-Gormes
+// migration across machines can attribute each manifest to the binary
+// version that emitted it. Existing top-level fields stay addressable.
+func TestMigrateOpenClawDryRun_JSONIncludesBuildProvenance(t *testing.T) {
+	root := setupMigrateOpenClawEnv(t)
+	src := filepath.Join(root, "src")
+	writeOpenClawCLIFixture(t, src)
+
+	_, stdout, stderr, err := executeMigrateOpenClaw("openclaw", "--dry-run", "--source", src)
+	if err != nil {
+		t.Fatalf("migrate openclaw --dry-run: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Source struct {
+			Selected string `json:"selected"`
+		} `json:"source"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Source.Selected != "explicit_source" {
+		t.Errorf("source.selected = %q, want explicit_source (still addressable)", got.Source.Selected)
+	}
+}
+
 func TestMigrateOpenClawDryRun_PrintsManifestJSONAndCounts(t *testing.T) {
 	root := setupMigrateOpenClawEnv(t)
 	src := filepath.Join(root, "src")

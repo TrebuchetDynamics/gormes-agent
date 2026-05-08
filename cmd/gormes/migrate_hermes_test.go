@@ -87,6 +87,40 @@ func executeMigrateHermes(args ...string) (*cobra.Command, string, string, error
 	return cmd, stdout.String(), stderr.String(), err
 }
 
+// TestMigrateHermesDryRun_JSONIncludesBuildProvenance proves
+// `gormes migrate hermes --dry-run` emits a top-level `build` envelope
+// so fleet automation orchestrating Hermes-to-Gormes migration across
+// machines can attribute each manifest to the binary version that
+// emitted it. Existing top-level fields (source/counts/...) remain
+// addressable through struct embedding — additive change.
+func TestMigrateHermesDryRun_JSONIncludesBuildProvenance(t *testing.T) {
+	root := setupMigrateHermesEnv(t)
+	src := filepath.Join(root, "src")
+	writeMigrateFixture(t, src)
+
+	_, stdout, stderr, err := executeMigrateHermes("hermes", "--dry-run", "--source", src)
+	if err != nil {
+		t.Fatalf("migrate hermes --dry-run: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Source struct {
+			Selected string `json:"selected"`
+		} `json:"source"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Source.Selected != "explicit_source" {
+		t.Errorf("source.selected = %q, want explicit_source (still addressable)", got.Source.Selected)
+	}
+}
+
 func TestMigrateHermesDryRun_PrintsManifestJSONAndCounts(t *testing.T) {
 	root := setupMigrateHermesEnv(t)
 	src := filepath.Join(root, "src")

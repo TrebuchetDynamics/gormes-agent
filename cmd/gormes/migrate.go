@@ -105,6 +105,17 @@ func newMigrateHermesCommand() *cobra.Command {
 	return cmd
 }
 
+// migrateHermesDryRunReportJSON wraps the migrate hermes manifest with
+// build provenance so fleet automation orchestrating Hermes-to-Gormes
+// migration across machines can attribute each manifest to the binary
+// version that emitted it. Existing manifest fields stay top-level via
+// struct embedding — callers parsing the old shape continue to work
+// because Go's JSON decoder ignores the unknown `build` field.
+type migrateHermesDryRunReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	*migratehermes.Manifest
+}
+
 // runMigrateHermesDryRun preserves the existing JSON manifest output for
 // `gormes migrate hermes --dry-run` so dry-run callers see the same
 // fixture-validated payload after the writer slice lands.
@@ -118,7 +129,10 @@ func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
 	}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(m); err != nil {
+	if err := enc.Encode(migrateHermesDryRunReportJSON{
+		Build:    newBuildProvenance(),
+		Manifest: m,
+	}); err != nil {
 		return fmt.Errorf("gormes migrate hermes: encode manifest: %w", err)
 	}
 	return nil
@@ -167,10 +181,22 @@ func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bo
 	}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
+	if err := enc.Encode(migrateHermesApplyReportJSON{
+		Build:        newBuildProvenance(),
+		WriteOutcome: out,
+	}); err != nil {
 		return fmt.Errorf("gormes migrate hermes: encode outcome: %w", err)
 	}
 	return nil
+}
+
+// migrateHermesApplyReportJSON wraps migratehermes.WriteOutcome with
+// build provenance so fleet automation orchestrating
+// Hermes-to-Gormes migration across machines can attribute each apply
+// outcome to the binary version that emitted it.
+type migrateHermesApplyReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	migratehermes.WriteOutcome
 }
 
 // gormesConfigPath returns the destination config.toml path used when
@@ -215,6 +241,16 @@ func newMigrateOpenClawCommand() *cobra.Command {
 	return cmd
 }
 
+// migrateOpenClawDryRunReportJSON wraps the migrate openclaw manifest
+// with build provenance so fleet automation orchestrating
+// OpenClaw-to-Gormes migration across machines can attribute each
+// manifest to the binary version that emitted it. Existing manifest
+// fields stay top-level via struct embedding.
+type migrateOpenClawDryRunReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	*openclawmigrate.Manifest
+}
+
 func runMigrateOpenClawDryRun(cmd *cobra.Command, source string) error {
 	m, err := openclawmigrate.BuildManifest(openclawmigrate.Options{
 		Source:            strings.TrimSpace(source),
@@ -225,7 +261,10 @@ func runMigrateOpenClawDryRun(cmd *cobra.Command, source string) error {
 	}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(m); err != nil {
+	if err := enc.Encode(migrateOpenClawDryRunReportJSON{
+		Build:    newBuildProvenance(),
+		Manifest: m,
+	}); err != nil {
 		return fmt.Errorf("gormes migrate openclaw: encode manifest: %w", err)
 	}
 	return nil
@@ -278,10 +317,20 @@ func runMigrateOpenClawApply(cmd *cobra.Command, source, dest string, overwrite,
 	}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
+	if err := enc.Encode(migrateOpenClawApplyReportJSON{
+		Build:        newBuildProvenance(),
+		ApplyOutcome: out,
+	}); err != nil {
 		return fmt.Errorf("gormes migrate openclaw: encode outcome: %w", err)
 	}
 	return nil
+}
+
+// migrateOpenClawApplyReportJSON wraps openclawmigrate.ApplyOutcome
+// with build provenance.
+type migrateOpenClawApplyReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	openclawmigrate.ApplyOutcome
 }
 
 func newMigrateOpenClawCleanupCommand() *cobra.Command {

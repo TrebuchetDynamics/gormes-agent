@@ -42,6 +42,47 @@ RANDOM_USER_VAR=plainvalue
 	}
 }
 
+// TestMigrateOpenClawApply_JSONIncludesBuildProvenance proves
+// `gormes migrate openclaw --yes` emits a top-level `build` envelope so
+// fleet automation orchestrating OpenClaw-to-Gormes migration across
+// machines can attribute each apply outcome to the binary version that
+// emitted it. Existing top-level fields stay addressable.
+func TestMigrateOpenClawApply_JSONIncludesBuildProvenance(t *testing.T) {
+	root := setupMigrateOpenClawEnv(t)
+	src := filepath.Join(root, "openclaw-src")
+	writeOpenClawApplyFixture(t, src)
+	dest := filepath.Join(root, "dest")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+	_, stdout, stderr, err := executeMigrateOpenClaw(
+		"openclaw", "--yes",
+		"--source", src,
+		"--dest", dest,
+		"--secrets",
+	)
+	if err != nil {
+		t.Fatalf("migrate openclaw --yes: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Counts struct {
+			Migrated int `json:"migrated"`
+		} `json:"counts"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Counts.Migrated < 1 {
+		t.Errorf("counts.migrated = %d, want >= 1 (still addressable)", got.Counts.Migrated)
+	}
+}
+
 func TestMigrateOpenClawApply_CommandWiring(t *testing.T) {
 	root := setupMigrateOpenClawEnv(t)
 	src := filepath.Join(root, "openclaw-src")
