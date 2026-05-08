@@ -924,5 +924,29 @@ func dumpCrash(r any) {
 	}
 	defer f.Close()
 	fmt.Fprintf(f, "panic: %v\n\n%s\n", r, debug.Stack())
-	fmt.Fprintln(os.Stderr, "gormes crashed — log at "+path)
+	fmt.Fprintln(os.Stderr, crashStderrMessage(r, path))
+}
+
+// crashStderrMessage formats the user-facing panic message printed to
+// stderr after dumpCrash writes the full log file. It surfaces the panic
+// excerpt inline so operators can diagnose one-line panics (e.g. cobra
+// flag-shorthand collisions) without opening the log; the path is always
+// appended for cases where the excerpt alone is insufficient.
+//
+// The excerpt is truncated to the first line and clamped to 200 runes to
+// keep the stderr message readable when a panic carries a multi-line
+// stack body or a very long detail string.
+func crashStderrMessage(panicValue any, logPath string) string {
+	excerpt := fmt.Sprintf("%v", panicValue)
+	if i := strings.IndexAny(excerpt, "\r\n"); i >= 0 {
+		excerpt = excerpt[:i]
+	}
+	const maxRunes = 200
+	if len([]rune(excerpt)) > maxRunes {
+		excerpt = string([]rune(excerpt)[:maxRunes]) + "…"
+	}
+	if excerpt == "" {
+		return "gormes crashed — log at " + logPath
+	}
+	return "gormes crashed: " + excerpt + "\nfull log: " + logPath
 }
