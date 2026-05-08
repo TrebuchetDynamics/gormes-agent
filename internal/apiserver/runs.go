@@ -84,9 +84,13 @@ func (r *runRegistry) setClock(now func() time.Time) {
 }
 
 func (r *runRegistry) create(id string, cancel context.CancelFunc) {
+	r.createWithSession(id, "", cancel)
+}
+
+func (r *runRegistry) createWithSession(id, sessionID string, cancel context.CancelFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.runs[id] = &runRecord{id: id, createdAt: r.now(), cancel: cancel}
+	r.runs[id] = &runRecord{id: id, sessionID: sessionID, createdAt: r.now(), cancel: cancel}
 	r.requestTotal++
 }
 
@@ -229,6 +233,7 @@ func (r *runRegistry) status(id string) (string, bool) {
 // otherwise.
 type runStatusSnapshot struct {
 	Status        string
+	SessionID     string
 	CreatedAt     int64
 	TerminatedAt  int64
 	EventsCount   int
@@ -271,6 +276,7 @@ func (r *runRegistry) snapshot(id string) (runStatusSnapshot, bool) {
 		return runStatusSnapshot{}, false
 	}
 	snap := runStatusSnapshot{
+		SessionID:   rec.sessionID,
 		CreatedAt:   rec.createdAt.Unix(),
 		EventsCount: len(rec.events),
 		Error:       rec.errMsg,
@@ -378,7 +384,7 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 	s.runs.setClock(s.now)
 	s.runs.sweepOrphans()
 	turnCtx, cancel := context.WithCancel(context.Background())
-	s.runs.create(runID, cancel)
+	s.runs.createWithSession(runID, turnReq.SessionID, cancel)
 	go s.runAsyncTurn(turnCtx, runID, turnReq)
 	writeJSON(w, http.StatusAccepted, map[string]any{"build": s.buildInfo, "run_id": runID, "status": "started"})
 }
@@ -484,6 +490,9 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 			"status":       snap.Status,
 			"created_at":   snap.CreatedAt,
 			"events_count": snap.EventsCount,
+		}
+		if snap.SessionID != "" {
+			entry["session_id"] = snap.SessionID
 		}
 		if snap.LastEventType != "" {
 			entry["last_event_type"] = snap.LastEventType
@@ -618,6 +627,9 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 		"status":       snap.Status,
 		"created_at":   snap.CreatedAt,
 		"events_count": snap.EventsCount,
+	}
+	if snap.SessionID != "" {
+		body["session_id"] = snap.SessionID
 	}
 	if snap.LastEventType != "" {
 		body["last_event_type"] = snap.LastEventType
