@@ -22,6 +22,20 @@ func newCheckpointsCommand() *cobra.Command {
 Commands mirror Hermes' hermes checkpoints CLI. None require the agent to be
 running — safe to call at any time.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Bare `gormes checkpoints` falls through to status as a
+			// convenience. With a positional arg cobra has already
+			// failed to match it to a real subcommand, so it's a typo
+			// — surface "did you mean" parity with other parent
+			// commands (slice 26) instead of silently running status.
+			if len(args) > 0 {
+				if cmd.SuggestionsMinimumDistance <= 0 {
+					cmd.SuggestionsMinimumDistance = 2
+				}
+				if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
+					return fmt.Errorf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
+				}
+				return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			}
 			return runCheckpointsStatus(cmd, args)
 		},
 	}
@@ -64,14 +78,14 @@ func newCheckpointsListCommand() *cobra.Command {
 // without scraping column-formatted text. Build provenance leads —
 // same convention as the rest of the `--json` arc.
 type checkpointsStatusJSON struct {
-	Build           buildProvenanceJSON         `json:"build"`
-	Root            string                      `json:"root"`
-	TotalSizeBytes  int64                       `json:"total_size_bytes"`
-	StoreSizeBytes  int64                       `json:"store_size_bytes"`
-	LegacySizeBytes int64                       `json:"legacy_size_bytes"`
-	ProjectCount    int                         `json:"project_count"`
-	Projects        []checkpointsProjectJSON    `json:"projects"`
-	LegacyArchives  []checkpointsLegacyJSON     `json:"legacy_archives"`
+	Build           buildProvenanceJSON      `json:"build"`
+	Root            string                   `json:"root"`
+	TotalSizeBytes  int64                    `json:"total_size_bytes"`
+	StoreSizeBytes  int64                    `json:"store_size_bytes"`
+	LegacySizeBytes int64                    `json:"legacy_size_bytes"`
+	ProjectCount    int                      `json:"project_count"`
+	Projects        []checkpointsProjectJSON `json:"projects"`
+	LegacyArchives  []checkpointsLegacyJSON  `json:"legacy_archives"`
 }
 
 type checkpointsProjectJSON struct {
@@ -378,12 +392,12 @@ func newCheckpointsClearLegacyCommand() *cobra.Command {
 // computed BEFORE delete so JSON consumers can audit/log exactly which
 // legacy directories are gone.
 type checkpointsClearLegacyJSON struct {
-	Build          buildProvenanceJSON       `json:"build"`
-	Root           string                    `json:"root"`
-	Action         string                    `json:"action"`
-	ArchivesBefore []checkpointsLegacyJSON   `json:"archives_before"`
-	Deleted        int                       `json:"deleted"`
-	BytesFreed     int64                     `json:"bytes_freed"`
+	Build          buildProvenanceJSON     `json:"build"`
+	Root           string                  `json:"root"`
+	Action         string                  `json:"action"`
+	ArchivesBefore []checkpointsLegacyJSON `json:"archives_before"`
+	Deleted        int                     `json:"deleted"`
+	BytesFreed     int64                   `json:"bytes_freed"`
 }
 
 func runCheckpointsClearLegacy(cmd *cobra.Command, _ []string) error {

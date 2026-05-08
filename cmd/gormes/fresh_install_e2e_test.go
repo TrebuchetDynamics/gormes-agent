@@ -1,0 +1,220 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// TestFreshInstallE2E_NoNullArrayFieldsInJSON is the consolidated
+// fresh-install conformance battery for the `--json` arc. It runs
+// every documented read-only inventory command on a synthetic clean
+// GORMES_HOME and asserts the convention we've enforced piecewise
+// in slices 32-38: every empty inventory must serialize as an empty
+// array (`[]`) or empty map (`{}`), never `null`. Fleet automation
+// iterating those surfaces without nil-checks then can't crash on
+// missing state.
+//
+// New `--json` surfaces inherit this contract by name: if a command
+// is added to the suite below, it gets the no-null check for free.
+// Add new entries here when shipping a new `--json` surface so the
+// next nuke+reinstall+probe cycle finds nothing.
+//
+// This is the E2E layer above the per-command unit tests
+// (kanban_list_json_empty_test.go, gateway_status_json_empty_test.go,
+// etc.): unit tests assert per-command shape; this test asserts the
+// invariant holds across the entire surface.
+func TestFreshInstallE2E_NoNullArrayFieldsInJSON(t *testing.T) {
+	root := freshInstallE2EHome(t)
+
+	// Each entry: command-line args (without `gormes` prefix).
+	// All commands are run in `--json` mode; commands that don't
+	// support `--json` are excluded (they're covered by sibling
+	// text-mode E2E batteries).
+	cases := [][]string{
+		{"session", "list", "--json"},
+		{"memory", "status", "--json"},
+		{"status", "--json", "--progress", filepath.Join(root, "no-such-progress.json")},
+		{"gateway", "probe", "--json"},
+		{"gateway", "discover", "--json", "--timeout", "50"},
+		{"gateway", "status", "--json"},
+		{"kanban", "list", "--json"},
+		{"kanban", "boards", "list", "--json"},
+		{"auth", "list", "--json"},
+		{"profile", "list", "--json"},
+		{"profile", "show", "--json"},
+		{"checkpoints", "status", "--json"},
+		{"channels", "capabilities", "--json"},
+		{"config", "show", "--json"},
+		{"config", "check", "--json"},
+		{"onboard", "--json"},
+		{"onboard", "--wizard", "--json", "--non-interactive"},
+		{"version", "--json"},
+		{"restore", "--list", "--json"},
+		{"update", "--check", "--json"},
+		{"plugins", "list", "--json"},
+	}
+
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, _, _ := executeRootCommandForTest(cmd, args...)
+			// Some commands return a non-zero exit on degraded
+			// state (gateway probe, status with missing
+			// progress.json, etc.) — that's fine. The contract
+			// under test is JSON shape, not exit code.
+
+			if strings.TrimSpace(stdout) == "" {
+				// Some commands legitimately emit empty stdout on
+				// error paths (e.g. flag-validation failures from
+				// cobra). Skip those — sibling unit tests cover
+				// the error-mode shape.
+				return
+			}
+
+			var parsed map[string]any
+			if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+				// Not JSON (some commands ignore --json on certain
+				// flag combos). Sibling unit tests own the
+				// per-command --json contract; here we only
+				// enforce no-null on the JSON surfaces that emit
+				// JSON.
+				return
+			}
+			banned := findNullFields(parsed, "")
+			if len(banned) > 0 {
+				t.Fatalf("command %q --json emitted null fields where empty arrays/maps are required: %s\nfull stdout:\n%s",
+					strings.Join(args, " "), strings.Join(banned, ", "), stdout)
+			}
+		})
+	}
+}
+
+// TestFreshInstallE2E_TypoSuggestionsAcrossParents is the
+// consolidated battery for slice 26 (parent-command typo
+// suggestions). It sweeps every documented parent that exposes
+// only subcommands and proves a single-edit-distance typo
+// surfaces "did you mean" guidance.
+//
+// The historical regression was that cobra's `NoArgs` validator
+// short-circuited the suggestion path; the in-tree
+// `installParentUnknownSubcommandGuards` helper now installs the
+// typo-aware guard. This test pins the contract per-parent so any
+// new parent ships with suggestions for free, OR the regression
+// is loud at CI time.
+func TestFreshInstallE2E_TypoSuggestionsAcrossParents(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cases := []struct {
+		parent           string
+		typo             string
+		wantedSuggestion string
+	}{
+		{"session", "lst", "list"},
+		{"session", "expor", "export"},
+		{"memory", "statuss", "status"},
+		{"goncho", "doctorr", "doctor"},
+		{"kanban", "lst", "list"},
+		{"profile", "lst", "list"},
+		{"profile", "infoo", "info"},
+		{"channels", "capabilites", "capabilities"},
+		{"checkpoints", "statuss", "status"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.parent+"_"+tc.typo, func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, tc.parent, tc.typo)
+			if err == nil {
+				t.Fatalf("typo `%s %s` must error; stdout=%q stderr=%q", tc.parent, tc.typo, stdout, stderr)
+			}
+			combined := strings.ToLower(err.Error() + "\n" + stderr + "\n" + stdout)
+			if !strings.Contains(combined, "did you mean") {
+				t.Fatalf("typo `%s %s` must include `did you mean…`; got:\n%s", tc.parent, tc.typo, combined)
+			}
+			if !strings.Contains(combined, strings.ToLower(tc.wantedSuggestion)) {
+				t.Fatalf("typo `%s %s` must suggest %q; got:\n%s", tc.parent, tc.typo, tc.wantedSuggestion, combined)
+			}
+		})
+	}
+}
+
+// TestFreshInstallE2E_FreshInstallReadOnlyCommandsExitZero pins the
+// empty-state UX battery: read-only inventory commands on a fresh
+// install (no memory.db, no kanban.db, no sessions, no plugins)
+// must succeed with exit 0 and a friendly empty-state message.
+// Slices 21 (session list), 23 (memory status), 25 (memory schema-less),
+// 32-33 (kanban) all fixed individual cases; this test pins the
+// invariant across the inventory surface so no new command
+// regresses.
+func TestFreshInstallE2E_FreshInstallReadOnlyCommandsExitZero(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cases := [][]string{
+		{"session", "list"},
+		{"memory", "status"},
+		{"kanban", "list"},
+		{"kanban", "boards", "list"},
+		{"auth", "list"},
+		{"profile", "list"},
+		{"checkpoints", "list"},
+		{"plugins", "list"},
+	}
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, args...)
+			if err != nil {
+				t.Fatalf("fresh-install `%s` must exit 0; got %v\nstdout=%s\nstderr=%s",
+					strings.Join(args, " "), err, stdout, stderr)
+			}
+		})
+	}
+}
+
+// freshInstallE2EHome sets up a synthetic GORMES_HOME the way a
+// fresh install looks: empty directory, no DBs, no auth, no
+// gateway state. Returns the root for tests that want to construct
+// paths underneath.
+func freshInstallE2EHome(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", filepath.Join(root, "gormes-home"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg-data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
+	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes-home"))
+	t.Setenv("CODEX_HOME", filepath.Join(root, "codex-home"))
+	// Belt-and-suspenders: zero out any provider env that could
+	// otherwise let auth status pick up the developer's real creds.
+	t.Setenv("GORMES_API_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	return root
+}
+
+// findNullFields walks a decoded JSON document and returns the
+// dot-paths of every field whose value is `null`. Used by the no-null
+// E2E battery to flag fields that should be `[]`/`{}`.
+func findNullFields(v any, path string) []string {
+	switch t := v.(type) {
+	case nil:
+		return []string{path}
+	case map[string]any:
+		var out []string
+		for k, child := range t {
+			out = append(out, findNullFields(child, fmt.Sprintf("%s.%s", path, k))...)
+		}
+		return out
+	case []any:
+		// Empty arrays are explicitly fine; we only flag null
+		// values, not empty containers. Items within the array are
+		// not walked (they may legitimately contain null fields
+		// like missing optional record sub-objects).
+		return nil
+	}
+	return nil
+}

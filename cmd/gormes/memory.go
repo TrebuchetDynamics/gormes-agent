@@ -120,6 +120,21 @@ type memoryExtractorJSON struct {
 }
 
 func emitMemoryStatusJSON(cmd *cobra.Command, extractor memory.ExtractorStatus, queue goncho.QueueStatus) error {
+	// Normalize nil slices/maps to empty containers so JSON consumers
+	// iterate without nil-checks. Same convention enforced for
+	// session list, kanban list/boards, gateway probe/discover/status.
+	if extractor.ErrorSummary == nil {
+		extractor.ErrorSummary = []memory.DeadLetterErrorSummary{}
+	}
+	if extractor.RecentDeadLetters == nil {
+		extractor.RecentDeadLetters = []memory.DeadLetterSummary{}
+	}
+	if extractor.RecentSkippedSyncs == nil {
+		extractor.RecentSkippedSyncs = []memory.SkippedSyncSummary{}
+	}
+	if queue.WorkUnits == nil {
+		queue.WorkUnits = map[string]goncho.QueueWorkUnitStatus{}
+	}
 	body, err := json.MarshalIndent(memoryStatusReportJSON{
 		Build: newBuildProvenance(),
 		Extractor: memoryExtractorJSON{
