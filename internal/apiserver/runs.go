@@ -34,6 +34,7 @@ type runRegistry struct {
 
 type runRecord struct {
 	id           string
+	sessionID    string
 	createdAt    time.Time
 	terminatedAt time.Time
 	events       []runEvent
@@ -393,13 +394,33 @@ func isValidRunStatusFilter(s string) bool {
 	return false
 }
 
+// parseStatusFilters splits a `?status=` value on commas and trims
+// whitespace, returning the non-empty filter list. Empty input yields
+// nil so callers can short-circuit "no filter".
+func parseStatusFilters(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
-	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
-	if statusFilter != "" && !isValidRunStatusFilter(statusFilter) {
-		writeOpenAIError(w, http.StatusBadRequest,
-			"Invalid status filter "+statusFilter+"; valid values: "+strings.Join(validRunStatusFilters, ", "),
-			"invalid_request_error", "status", "invalid_status_filter")
-		return
+	statusFilters := parseStatusFilters(r.URL.Query().Get("status"))
+	for _, f := range statusFilters {
+		if !isValidRunStatusFilter(f) {
+			writeOpenAIError(w, http.StatusBadRequest,
+				"Invalid status filter "+f+"; valid values: "+strings.Join(validRunStatusFilters, ", "),
+				"invalid_request_error", "status", "invalid_status_filter")
+			return
+		}
 	}
 	var sinceUnix int64
 	if since := strings.TrimSpace(r.URL.Query().Get("since")); since != "" {
@@ -439,8 +460,17 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 	entries := make([]map[string]any, 0, len(snaps))
 	total := 0
 	for _, snap := range snaps {
-		if statusFilter != "" && snap.Status != statusFilter {
-			continue
+		if len(statusFilters) > 0 {
+			match := false
+			for _, f := range statusFilters {
+				if snap.Status == f {
+					match = true
+					break
+				}
+			}
+			if !match {
+				continue
+			}
 		}
 		if sinceUnix > 0 && snap.CreatedAt < sinceUnix {
 			continue

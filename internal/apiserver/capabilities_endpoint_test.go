@@ -666,6 +666,45 @@ func TestAPIServerRunStatus_IncludesTerminatedAtWhenTerminal(t *testing.T) {
 	loop.release(TurnResult{SessionID: started.RunID})
 }
 
+// TestAPIServerRunStatus_IncludesSessionID proves the run status
+// response carries `session_id` so dashboards grouping runs by
+// session can do so without re-deriving from the run_id alone.
+// Hermes' Responses API supports explicit session_id; runs created
+// without one fall back to using run_id as session_id.
+func TestAPIServerRunStatus_IncludesSessionID(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping", "session_id": "sess-abc-123"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		SessionID string `json:"session_id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.SessionID != "sess-abc-123" {
+		t.Errorf("session_id = %q, want sess-abc-123", got.SessionID)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
 // TestAPIServerRunStatus_IncludesLastEventAt proves the run status
 // response carries `last_event_at` (unix seconds of most recent
 // event timestamp) so dashboards can detect silent runs by computing
@@ -1149,6 +1188,68 @@ func TestAPIServerRunsList_RejectsUnknownStatusFilter(t *testing.T) {
 			t.Errorf("error body missing valid status %q: %s", want, body)
 		}
 	}
+}
+
+// TestAPIServerRunsList_StatusFilterAcceptsMultipleValues proves
+// `GET /v1/runs?status=stopped,failed` returns runs matching ANY of
+// the comma-separated values. Fleet automation surfacing terminal
+// runs (failed OR stopped) needs this to avoid two round-trips.
+// Whitespace around commas is tolerated.
+func TestAPIServerRunsList_StatusFilterAcceptsMultipleValues(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	now := time.Unix(1_700_010_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	// Run 1: in_progress (start, never release).
+	r1 := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if r1.Code != http.StatusAccepted {
+		t.Fatalf("POST 1 = %d", r1.Code)
+	}
+	loop.waitStarted(t)
+	var s1 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r1.Body.Bytes(), &s1)
+
+	// Run 2: stopped.
+	now = time.Unix(1_700_010_010, 0)
+	r2 := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if r2.Code != http.StatusAccepted {
+		t.Fatalf("POST 2 = %d", r2.Code)
+	}
+	var s2 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r2.Body.Bytes(), &s2)
+	if rec := postJSON(t, h, "/v1/runs/"+s2.RunID+"/stop", nil, nil); rec.Code != http.StatusOK {
+		t.Fatalf("stop 2 = %d", rec.Code)
+	}
+
+	// Filter for stopped,in_progress should return both.
+	rec := getJSON(t, h, "/v1/runs?status=stopped,in_progress", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Total int `json:"total"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Total != 2 {
+		t.Errorf("multi-status total = %d, want 2", got.Total)
+	}
+
+	// Whitespace tolerated.
+	rec2 := getJSON(t, h, "/v1/runs?status=stopped%2C%20in_progress", nil)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("whitespace status = %d; body=%s", rec2.Code, rec2.Body.String())
+	}
+
+	loop.release(TurnResult{SessionID: s1.RunID})
 }
 
 // TestAPIServerRunsList_FiltersByStatusQuery proves
