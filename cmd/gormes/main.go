@@ -239,6 +239,19 @@ func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
 	cmd.SilenceUsage = true
 	cmd.Args = nil
 	cmd.FParseErrWhitelist.UnknownFlags = true
+	// cobra.Command.SuggestionsFor compares against
+	// SuggestionsMinimumDistance literally, but the field stays at 0
+	// until cobra's own findSuggestions lazy-inits it to 2. We don't
+	// route through findSuggestions (it's package-private), so a typo
+	// like `gormes session lst` would otherwise only match the
+	// suggestByPrefix branch — `lst` is NOT a prefix of `list`, so no
+	// suggestion ever fires. Setting the field explicitly here keeps
+	// edit-distance-1 typos within the suggestion window, matching the
+	// "Did you mean: config" UX `gormes confg` already gets at the
+	// root level.
+	if cmd.SuggestionsMinimumDistance <= 0 {
+		cmd.SuggestionsMinimumDistance = 2
+	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
 			if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
