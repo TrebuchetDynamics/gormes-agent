@@ -19,10 +19,10 @@ import (
 // machines without scraping multi-section prose. Secrets are reduced to
 // set/(not set) markers — never raw values.
 type configShowReportJSON struct {
-	Build   buildProvenanceJSON       `json:"build"`
-	Paths   configShowPathsJSON       `json:"paths"`
-	Hermes  configShowHermesJSON      `json:"hermes"`
-	Secrets configShowSecretsJSON     `json:"secrets"`
+	Build   buildProvenanceJSON   `json:"build"`
+	Paths   configShowPathsJSON   `json:"paths"`
+	Hermes  configShowHermesJSON  `json:"hermes"`
+	Secrets configShowSecretsJSON `json:"secrets"`
 }
 
 type configShowPathsJSON struct {
@@ -46,14 +46,14 @@ type configShowSecretsJSON struct {
 // `ok` is the single boolean CI pipelines can branch on; `issues`
 // reports per-field severity for richer reporting.
 type configCheckReportJSON struct {
-	Build         buildProvenanceJSON     `json:"build"`
-	Paths         configShowPathsJSON     `json:"paths"`
-	ConfigVersion int                     `json:"config_version"`
-	LatestVersion int                     `json:"latest_version"`
-	DotenvPresent bool                    `json:"dotenv_present"`
-	Issues        []configCheckIssueJSON  `json:"issues"`
-	OK            bool                    `json:"ok"`
-	Error         string                  `json:"error,omitempty"`
+	Build         buildProvenanceJSON    `json:"build"`
+	Paths         configShowPathsJSON    `json:"paths"`
+	ConfigVersion int                    `json:"config_version"`
+	LatestVersion int                    `json:"latest_version"`
+	DotenvPresent bool                   `json:"dotenv_present"`
+	Issues        []configCheckIssueJSON `json:"issues"`
+	OK            bool                   `json:"ok"`
+	Error         string                 `json:"error,omitempty"`
 }
 
 type configCheckIssueJSON struct {
@@ -147,6 +147,7 @@ func newConfigCommand() *cobra.Command {
 	cmd.AddCommand(newConfigPathCommand())
 	cmd.AddCommand(newConfigEnvPathCommand())
 	cmd.AddCommand(newConfigShowCommand())
+	cmd.AddCommand(newConfigGetCommand())
 	cmd.AddCommand(newConfigSetCommand())
 	cmd.AddCommand(newConfigEditCommand())
 	cmd.AddCommand(newConfigCheckCommand())
@@ -210,6 +211,70 @@ func newConfigEnvPathCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, kind, path}")
+	return cmd
+}
+
+// newConfigGetCommand reads a single config value back, the natural
+// counterpart to `config set <key> <value>`. Operators previously had
+// to grep `config show` text or read config.toml directly to verify
+// what they had just set.
+//
+// Secret keys (api_key, *_TOKEN, etc.) emit the same redacted status
+// the show command prints (`(set)` / `(not set)`) so the raw value
+// never leaks into shell history. Non-secret keys emit the value
+// verbatim followed by a newline so callers can `$(gormes config get
+// hermes.endpoint)` the result safely.
+func newConfigGetCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "get <key>",
+		Short: "Read a configuration value (redacted for secret keys)",
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return errors.New("usage: gormes config get <key>")
+			}
+			if len(args) > 1 {
+				return errors.New("gormes config get takes exactly one argument: <key>")
+			}
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			key := strings.TrimSpace(args[0])
+			if key == "" {
+				return errors.New("gormes config get: empty key")
+			}
+			out := cmd.OutOrStdout()
+			if config.IsSecretKey(key) {
+				envName := config.SecretEnvName(key)
+				cfg, err := config.Load(nil)
+				if err != nil {
+					return err
+				}
+				// Mirror `config show`'s redaction precedence: TOML's
+				// resolved api_key first, then the env override.
+				value := cfg.Hermes.APIKey
+				if value == "" {
+					value = os.Getenv(envName)
+				}
+				fmt.Fprintln(out, redactedSecretStatus(value))
+				return nil
+			}
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return err
+			}
+			switch key {
+			case "hermes.endpoint":
+				fmt.Fprintln(out, cfg.Hermes.Endpoint)
+			case "hermes.model":
+				fmt.Fprintln(out, cfg.Hermes.Model)
+			case "hermes.provider":
+				fmt.Fprintln(out, cfg.Hermes.Provider)
+			default:
+				return fmt.Errorf("gormes config get: unknown key %q (try `gormes config show` for the resolved schema)", key)
+			}
+			return nil
+		},
+	}
 	return cmd
 }
 
