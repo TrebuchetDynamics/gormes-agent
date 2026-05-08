@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,25 +13,38 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
-var (
-	uninstallDryRun         bool
-	uninstallYes            bool
-	uninstallKeepConfig     bool
-	uninstallKeepCredential bool
-)
-
 func newUninstallCommand() *cobra.Command {
+	var (
+		dryRun         bool
+		yes            bool
+		keepConfig     bool
+		keepCredential bool
+	)
 	cmd := &cobra.Command{
 		Use:   "uninstall",
 		Short: "Remove Gormes artifacts from this system",
 		Long:  "Enumerates every artifact Gormes wrote. Dry-run by default; use --yes to confirm.",
-		RunE:  runUninstall,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runUninstall(cmd, uninstallOptions{
+				DryRun:         dryRun,
+				Yes:            yes,
+				KeepConfig:     keepConfig,
+				KeepCredential: keepCredential,
+			})
+		},
 	}
-	cmd.Flags().BoolVar(&uninstallDryRun, "dry-run", true, "List artifacts without deleting")
-	cmd.Flags().BoolVar(&uninstallYes, "yes", false, "Confirm destructive removal")
-	cmd.Flags().BoolVar(&uninstallKeepConfig, "keep-config", false, "Preserve config files")
-	cmd.Flags().BoolVar(&uninstallKeepCredential, "keep-credentials", false, "Preserve credential pool")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", true, "List artifacts without deleting")
+	cmd.Flags().BoolVar(&yes, "yes", false, "Confirm destructive removal")
+	cmd.Flags().BoolVar(&keepConfig, "keep-config", false, "Preserve config files")
+	cmd.Flags().BoolVar(&keepCredential, "keep-credentials", false, "Preserve credential pool")
 	return cmd
+}
+
+type uninstallOptions struct {
+	DryRun         bool
+	Yes            bool
+	KeepConfig     bool
+	KeepCredential bool
 }
 
 type artifactGroup struct {
@@ -38,19 +52,19 @@ type artifactGroup struct {
 	Paths []string
 }
 
-func runUninstall(_ *cobra.Command, _ []string) error {
+func runUninstall(cmd *cobra.Command, opts uninstallOptions) error {
 	home := config.GormesHome()
 	groups := collectArtifacts(home)
-	if uninstallKeepConfig {
+	if opts.KeepConfig {
 		groups = removeGroup(groups, "config")
 	}
-	if uninstallKeepCredential {
+	if opts.KeepCredential {
 		groups = removeGroup(groups, "credentials")
 	}
-	if uninstallDryRun || !uninstallYes {
-		return printDryRun(groups)
+	if opts.DryRun || !opts.Yes {
+		return printDryRun(cmd.OutOrStdout(), groups)
 	}
-	return executeUninstall(groups)
+	return executeUninstall(cmd.OutOrStdout(), cmd.ErrOrStderr(), groups)
 }
 
 func collectArtifacts(home string) []artifactGroup {
@@ -101,35 +115,35 @@ func removeGroup(groups []artifactGroup, name string) []artifactGroup {
 	return out
 }
 
-func printDryRun(groups []artifactGroup) error {
+func printDryRun(out io.Writer, groups []artifactGroup) error {
 	total := 0
 	for _, g := range groups {
 		total += len(g.Paths)
 	}
-	fmt.Printf("uninstall dry-run: %d artifact(s)\n\n", total)
+	fmt.Fprintf(out, "uninstall dry-run: %d artifact(s)\n\n", total)
 	for _, g := range groups {
-		fmt.Printf("[%s]\n", g.Name)
+		fmt.Fprintf(out, "[%s]\n", g.Name)
 		for _, p := range g.Paths {
-			fmt.Printf("  %s\n", p)
+			fmt.Fprintf(out, "  %s\n", p)
 		}
-		fmt.Println()
+		fmt.Fprintln(out)
 	}
 	if total == 0 {
-		fmt.Println("No Gormes artifacts found.")
+		fmt.Fprintln(out, "No Gormes artifacts found.")
 	}
 	return nil
 }
 
-func executeUninstall(groups []artifactGroup) error {
+func executeUninstall(out, errOut io.Writer, groups []artifactGroup) error {
 	for _, g := range groups {
-		fmt.Printf("removing [%s]...\n", g.Name)
+		fmt.Fprintf(out, "removing [%s]...\n", g.Name)
 		for _, p := range g.Paths {
 			clean := strings.TrimSuffix(p, "/")
 			if err := os.RemoveAll(clean); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not remove %s: %v\n", clean, err)
+				fmt.Fprintf(errOut, "warning: could not remove %s: %v\n", clean, err)
 			}
 		}
 	}
-	fmt.Println("\nuninstall complete.")
+	fmt.Fprintln(out, "\nuninstall complete.")
 	return nil
 }

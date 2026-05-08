@@ -64,35 +64,60 @@ func TestUninstallKeepConfigExcludesGroup(t *testing.T) {
 	}
 }
 
+// TestUninstallCommand_DryRunRoutesThroughCobraWriters proves the
+// command writes its dry-run output via cmd.OutOrStdout() so end-to-end
+// tests can capture stdout instead of forking through helpers like
+// printDryRunTo. Without this, runUninstall's fmt.Printf goes to
+// os.Stdout directly and bypasses cobra's writer plumbing — meaning
+// the test fixture in this file had to copy-paste a parallel
+// `printDryRunTo` helper to verify formatting. The refactor matches
+// the same testability pattern doctor adopted (commit 39ff073db).
+func TestUninstallCommand_DryRunRoutesThroughCobraWriters(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newUninstallCommand()
+	var stdout, stderr strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	got := stdout.String()
+	if got == "" {
+		t.Fatalf("uninstall must write to cmd.OutOrStdout(); captured stdout is empty (output likely went to os.Stdout)")
+	}
+	for _, want := range []string{"uninstall dry-run:", "[config]", "config.toml"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("uninstall stdout missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestUninstallDryRunOutputIsGroupedAndStable(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644)
 
-	// First run
+	// First run — exercise the real printDryRun, not a copy-paste helper.
 	groups1 := collectArtifacts(home)
 	var sb1 strings.Builder
-	printDryRunTo(&sb1, groups1)
+	if err := printDryRun(&sb1, groups1); err != nil {
+		t.Fatalf("printDryRun: %v", err)
+	}
 
-	// Second run should produce identical output
+	// Second run should produce identical output.
 	groups2 := collectArtifacts(home)
 	var sb2 strings.Builder
-	printDryRunTo(&sb2, groups2)
+	if err := printDryRun(&sb2, groups2); err != nil {
+		t.Fatalf("printDryRun: %v", err)
+	}
 
 	if sb1.String() != sb2.String() {
 		t.Errorf("dry-run output not byte-stable between runs")
-	}
-}
-
-func printDryRunTo(sb *strings.Builder, groups []artifactGroup) {
-	total := 0
-	for _, g := range groups {
-		total += len(g.Paths)
-	}
-	for _, g := range groups {
-		sb.WriteString("[" + g.Name + "]\n")
-		for _, p := range g.Paths {
-			sb.WriteString("  " + p + "\n")
-		}
 	}
 }
