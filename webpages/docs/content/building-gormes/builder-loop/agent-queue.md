@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. TD engineering blog scaffolded and live
+## 1. Agent lifecycle hooks (agent:start, agent:step, agent:end)
+
+- Phase: 5 / 5.O
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Gormes gateway hook system fires agent:start, agent:step, and agent:end HookPoints around kernel turn processing, mirroring Hermes' gateway/hooks.py agent lifecycle event types. agent:start fires when the kernel begins processing a message; agent:step fires after each tool-calling turn iteration; agent:end fires when the kernel completes processing. Hook errors during agent lifecycle events are logged but do not abort the turn.
+- Trust class: system
+- Ready when: HookPoint constants for HookAgentStart, HookAgentStep, HookAgentEnd are added to internal/gateway/hooks.go., Kernel fires HookAgentStart before entering the tool loop, HookAgentStep after each iteration, HookAgentEnd on exit., Tests prove hook callbacks receive HookEvent with agent_name, session_id, platform context.
+- Not ready when: Hook errors abort the turn instead of being logged., The implementation adds hook points without corresponding kernel fire sites.
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/gateway/hooks.go`, `internal/gateway/hooks_test.go`, `internal/kernel/kernel.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway -run 'HookAgent' -count=1`, `go test ./internal/kernel -run 'AgentLifecycle' -count=1`
+- Done signal: go test ./internal/gateway ./internal/kernel -count=1 passes with agent lifecycle hook coverage., go run ./cmd/progress validate passes.
+- Acceptance: HookAgentStart fires exactly once per agent turn, before any tool calls., HookAgentStep fires after each tool-batch outcome, carrying iteration index and tool result summary., HookAgentEnd fires exactly once per agent turn, even when the turn errors or hits iteration limit., All three hook points are exercised by gateway-level integration tests with fake hook callbacks.
+- Source refs: ./hermes-agent/gateway/hooks.py:agent:start, agent:step, agent:end event types, ./hermes-agent/gateway/run.py:GatewayRunner._run_agent integration, internal/gateway/hooks.go:HookPoint, Hooks, internal/kernel/kernel.go:Run, processTurn, internal/kernel/toolexec.go:executeToolBatch
+- Unblocks: Plugin/extension observation of agent turn boundaries, Tool-call audit hooks at agent step granularity, Agent completion telemetry and logging
+- Why now: Unblocks Plugin/extension observation of agent turn boundaries, Tool-call audit hooks at agent step granularity, Agent completion telemetry and logging.
+
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -49,7 +70,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 2. Behavioral pattern extraction from session logs
+## 3. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -69,7 +90,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Agentic-porting-kit repo scaffold
+## 4. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -90,7 +111,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Built-with-Gormes page scaffold
+## 5. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

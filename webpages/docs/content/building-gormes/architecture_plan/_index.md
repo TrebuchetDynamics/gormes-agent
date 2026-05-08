@@ -948,7 +948,7 @@ classification and row-backed implementation queue.
 - [x] Effective toolset picker dedupes bundled plugin keys
 - [ ] Gateway, platform, webhook, and cron management CLI
 - [x] WhatsApp top-level pairing wizard shell
-- [ ] WhatsApp live Baileys QR pairing wizard
+- [x] WhatsApp live Baileys QR pairing wizard
 - [x] Gateway management CLI read-model closeout
 - [x] Gateway mutating-subcommand unavailability stub
 - [x] Service RestartSec parser helper
@@ -970,6 +970,7 @@ classification and row-backed implementation queue.
 - [x] Logs Command
 - [x] Gateway planned stop marker + WSL systemd PATH parity
 - [x] Gateway stale-code self-check uses git HEAD SHA
+- [ ] Agent lifecycle hooks (agent:start, agent:step, agent:end)
 
 ### 5.P — Docker / Packaging 🔨
 
