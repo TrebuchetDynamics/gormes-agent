@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. TD engineering blog scaffolded and live
+## 1. Hermes Kanban slash/gateway/dashboard surfaces
+
+- Phase: 5 / 5.M
+- Owner: `gateway`
+- Size: `large`
+- Status: `in_progress`
+- Priority: `P2`
+- Contract: Gormes ports the operator surfaces around Kanban: /kanban routes in TUI/gateway use the same parser/output as gormes kanban, gateway status exposes dispatcher state and nudge capability, and the dashboard shows live Kanban tasks, lanes, filters, worker runs, and dispatcher nudges over authenticated Gormes dashboard routes.
+- Trust class: operator, gateway, system
+- Ready when: Hermes Kanban durable board core is complete., Dispatcher and worker-tool rows define the status/read-model events the dashboard should render., Dashboard authentication and WebSocket/event-stream patterns are validated for existing Gormes dashboard routes.
+- Not ready when: Slash commands duplicate CLI parsing and diverge from gormes kanban output., Dashboard endpoints expose Kanban data without the active Gormes dashboard session token., The dashboard implies live dispatcher/worker features before the dispatcher row is complete.
+- Degraded mode: When the dispatcher or dashboard stream is unavailable, operators see kanban_dispatcher_unavailable or kanban_dashboard_unavailable evidence; /kanban remains recognized and unavailable rather than leaking to the model.
+- Fixture: `internal/gateway/kanban_command_test.go; internal/tui/kanban_slash_test.go; internal/dashboard/kanban_dashboard_test.go`
+- Write scope: `internal/cli/`, `internal/gateway/`, `internal/tui/`, `internal/dashboard/`, `web/`, `cmd/gormes/kanban.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway ./internal/cli -run TestKanbanSlash -count=1`, `go test ./internal/dashboard -run TestKanbanDashboard -count=1`, `go run ./cmd/progress validate`
+- Done signal: /kanban, gateway status/nudge, and dashboard Kanban lanes are authenticated, share CLI output semantics, and surface unavailable dispatcher evidence clearly.
+- Acceptance: Slash fixtures prove /kanban create/list/show/complete uses the same command implementation as gormes kanban and no slash text reaches the model., Gateway fixtures prove /kanban output is formatted for platform messages and respects active-turn policy., Dashboard route fixtures prove tasks, lanes, filters, runs, and dispatcher nudge endpoints require authentication and stream bounded updates., Status fixtures prove dispatcher state is operator-visible without reading live Hermes config.
+- Source refs: ../hermes-agent/hermes_cli/commands.py@54e78cadb:CommandDef('kanban'), ../hermes-agent/hermes_cli/kanban.py@54e78cadb:run_slash, ../hermes-agent/gateway/run.py@54e78cadb:_handle_kanban_command, ../hermes-agent/plugins/kanban/dashboard@54e78cadb, ../hermes-agent/hermes_cli/kanban_specify.py@24d48ffb8:specify triage fleshing, ../hermes-agent/hermes_cli/kanban_diagnostics.py@7d66d30d7:tooltips + docs link
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -49,7 +69,27 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 2. Behavioral pattern extraction from session logs
+## 3. Hermes Kanban multi-board, workspace, and run-history parity
+
+- Phase: 5 / 5.M
+- Owner: `orchestrator`
+- Size: `large`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Gormes extends the default Kanban core to Hermes multi-board and workspace semantics: board registry/list/create/switch/rename/remove, per-board database roots, scratch/worktree/dir workspace allocation, comments/events/runs/log retention, notification subscriptions, stats/watch/tail views, and garbage collection policies.
+- Trust class: operator, child-agent, gateway, system
+- Ready when: Hermes Kanban durable board core is complete., Dispatcher and worker-tool rows define run/log/heartbeat data that board views should expose., A Gormes-owned board namespace policy exists and rejects Hermes env aliases outside migrate commands.
+- Not ready when: Board switching reads HERMES_KANBAN_BOARD or ~/.hermes board files as live config., Workspace allocation creates git worktrees in tests or deletes real operator directories., GC can delete active-task logs, workspaces, or board databases without explicit archived/retention checks.
+- Degraded mode: Unsupported board names, workspace collisions, missing log files, invalid notification subscriptions, and GC denial return typed evidence without deleting active task state or crossing into Hermes home directories.
+- Fixture: `internal/kanban/boards_test.go; internal/kanban/workspaces_test.go; cmd/gormes/kanban_command_test.go`
+- Write scope: `internal/kanban/`, `cmd/gormes/kanban.go`, `internal/gateway/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/kanban -run 'TestKanban(Board\|Workspace\|Run\|Notification\|GC)' -count=1`, `go test ./cmd/gormes -run TestKanbanCommand -count=1`, `go run ./cmd/progress validate`
+- Done signal: Gormes Kanban supports Gormes-owned board namespaces, workspaces, comments/events/runs/logs, notifications, stats/watch/tail, and safe GC without live Hermes config.
+- Acceptance: Board fixtures prove list/create/switch/rename/remove behavior under temp GORMES_KANBAN_HOME roots with no Hermes state reads., Workspace fixtures prove scratch, worktree, and dir metadata resolution without creating real git worktrees in unit tests., Runs/log/event fixtures prove show/context/tail/watch/stats expose deterministic read models., Notification fixtures prove subscribe/list/unsubscribe records are scoped to Gormes gateway sources., GC fixtures prove archived-task workspaces, old events, and old logs are pruned only under explicit retention rules.
+- Source refs: ../hermes-agent/hermes_cli/kanban.py@54e78cadb:boards/workspace/log/runs/gc commands, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:board registry and workspace helpers, ../hermes-agent/tests/hermes_cli/test_kanban_db.py@54e78cadb:tenant/board/workspace tests, ../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:context/tenant/json tests
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 4. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -69,7 +109,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Agentic-porting-kit repo scaffold
+## 5. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -90,7 +130,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Built-with-Gormes page scaffold
+## 6. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
