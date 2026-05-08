@@ -34093,6 +34093,79 @@
               }
             },
             {
+              "name": "Gormes profile distribution metadata readout",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Port Hermes' new shareable profile-distribution metadata surface without implementing remote git install/update in this slice: Gormes reads `distribution.yaml` from resolved profile roots, applies Hermes manifest defaults, surfaces distribution name/version/source/env requirements through `gormes profile list`, `gormes profile show`, and `gormes profile info <name>`, and treats plain profiles as non-distributions without failing.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If a profile has malformed distribution metadata, Gormes returns typed parse evidence for that profile without mutating profile roots, cloning git repos, reading live Hermes homes, or leaking raw profile root paths in list/show output.",
+              "fixture": "internal/cli/profile_distribution_test.go; cmd/gormes/profile_command_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/profile_distribution.py@f209a3585:DistributionManifest,EnvRequirement,read_manifest,describe_distribution",
+                "./hermes-agent/hermes_cli/profiles.py@f209a3585:_read_distribution_meta,list_profiles",
+                "./hermes-agent/hermes_cli/main.py@f209a3585:cmd_profile profile install/update/info branches and profile list distribution column",
+                "./hermes-agent/tests/hermes_cli/test_profile_distribution.py@f209a3585",
+                "./hermes-agent/website/docs/reference/profile-commands.md@f209a3585:Profile distributions",
+                "cmd/gormes/profile.go",
+                "internal/cli/profile_name.go",
+                "internal/cli/profile_root.go",
+                "internal/cli/active_profile.go"
+              ],
+              "ready_when": [
+                "Gormes profile command binding is complete and can resolve profile names to Gormes-owned profile roots.",
+                "The existing Go module already depends on gopkg.in/yaml.v3, so manifest parsing can be hermetic.",
+                "Tests can use fake profile command seams and temp directories; no live ~/.hermes, ~/.gormes, credentials, git network, or remote provider is required."
+              ],
+              "not_ready_when": [
+                "The slice shells out to git, clones a remote distribution, overwrites distribution-owned files, updates config.yaml, creates aliases, or schedules cron jobs.",
+                "The slice reads HERMES_HOME, ~/.hermes, ~/.gormes, or an operator's live profile roots in tests.",
+                "The slice expands into full profile create/delete/rename/export/import parity instead of the distribution metadata readout."
+              ],
+              "blocked_by": [
+                "Gormes profile command binding"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestReadProfileDistributionManifestDefaults proves `distribution.yaml` parsing matches Hermes defaults: missing version becomes 0.1.0, omitted env `required` becomes true, and explicit distribution_owned entries are normalized.",
+                "TestGormesProfileListShowsDistributionMetadata proves human and JSON `profile list` output include distribution name/version for distribution profiles while plain profiles remain listed.",
+                "TestGormesProfileShowIncludesDistributionSummary proves active-profile `show` includes a distribution summary without printing raw profile root paths.",
+                "TestGormesProfileInfoRendersDistributionManifest proves `profile info <name>` prints manifest description, source, installed timestamp, and env requirements; non-distribution profiles return a non-error explanatory message."
+              ],
+              "write_scope": [
+                "internal/cli/profile_distribution.go",
+                "internal/cli/profile_distribution_test.go",
+                "cmd/gormes/profile.go",
+                "cmd/gormes/profile_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run '^TestReadProfileDistributionManifest' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesProfile(ListShowsDistributionMetadata|ShowIncludesDistributionSummary|InfoRendersDistributionManifest)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Profile-distribution fixtures prove Gormes reads Hermes-compatible distribution.yaml metadata and surfaces it through profile list/show/info without git/network side effects or raw profile root leakage."
+              ],
+              "completed_at": "2026-05-08T17:13:38Z",
+              "evidence": {
+                "implementation": "internal/cli/profile_distribution.go reads Hermes-compatible distribution.yaml metadata with default version/env-required normalization; cmd/gormes/profile.go wires profile list/show/info through fakeable seams without git/network/profile mutation side effects.",
+                "tests": "go test ./internal/cli -run '^TestReadProfileDistributionManifest' -count=1; go test ./cmd/gormes -run '^TestGormesProfile(ListShowsDistributionMetadata|ShowIncludesDistributionSummary|InfoRendersDistributionManifest)' -count=1; go run ./cmd/progress validate; git diff --check",
+                "note": "The slice intentionally stops at metadata/readout parity for the upstream f209a3585 profile-distribution feature. Git clone, install, update, config overwrite, alias creation, and cron scheduling remain outside this bounded row."
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f209a3585 feat(profile): shareable profile distributions via git (#20831)",
+                "note": "Added by the 2026-05-08 all-topic parity sweep after refreshing the in-repo hermes-agent submodule. This row captures the metadata/readout slice of the new upstream profile-distribution surface; install/update mutation is intentionally out of scope for this bounded cycle."
+              }
+            },
+            {
               "name": "Model and profile selector seam (Cobra + gateway)",
               "status": "complete",
               "priority": "P1",

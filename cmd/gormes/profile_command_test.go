@@ -31,6 +31,9 @@ type profileCommandFakeSeams struct {
 	writeActiveProfileCalls []string
 
 	knownProfiles []string
+
+	distributionByRoot map[string]cli.ProfileDistributionManifest
+	distributionErr    error
 }
 
 func (f *profileCommandFakeSeams) defaults() profileCommandSeams {
@@ -66,6 +69,16 @@ func (f *profileCommandFakeSeams) defaults() profileCommandSeams {
 		},
 		ListKnownProfiles: func() ([]string, error) {
 			return append([]string(nil), f.knownProfiles...), nil
+		},
+		ReadDistributionManifest: func(root string) (cli.ProfileDistributionManifest, bool, error) {
+			if f.distributionErr != nil {
+				return cli.ProfileDistributionManifest{}, false, f.distributionErr
+			}
+			if f.distributionByRoot == nil {
+				return cli.ProfileDistributionManifest{}, false, nil
+			}
+			manifest, ok := f.distributionByRoot[root]
+			return manifest, ok, nil
 		},
 	}
 }
@@ -472,6 +485,129 @@ func TestGormesProfileSelectorWiring(t *testing.T) {
 	}
 	if !strings.Contains(profile.RootPath, "default") {
 		t.Fatalf("Profile.RootPath = %q, want a path containing 'default'", profile.RootPath)
+	}
+}
+
+func TestGormesProfileListShowsDistributionMetadata(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		knownProfiles:     []string{"default", "work", "research"},
+		distributionByRoot: map[string]cli.ProfileDistributionManifest{
+			"/tmp/gormes-test-home/profiles/work": {
+				Name:    "telemetry",
+				Version: "1.2.3",
+			},
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "list")
+	if err != nil {
+		t.Fatalf("profile list: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "telemetry@1.2.3") {
+		t.Fatalf("list output missing distribution summary:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "/tmp/gormes-test-home") {
+		t.Fatalf("profile list leaked raw profile root:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	stdout, stderr, err = runProfileTestCommand(t, fake.defaults(), "list", "--json")
+	if err != nil {
+		t.Fatalf("profile list --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Profiles []struct {
+			Name         string `json:"name"`
+			Distribution *struct {
+				Name    string `json:"name"`
+				Version string `json:"version"`
+			} `json:"distribution,omitempty"`
+		} `json:"profiles"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("profile list --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	for _, profile := range got.Profiles {
+		if profile.Name == "work" {
+			if profile.Distribution == nil {
+				t.Fatalf("work profile missing distribution object in JSON: %+v", got.Profiles)
+			}
+			if profile.Distribution.Name != "telemetry" || profile.Distribution.Version != "1.2.3" {
+				t.Fatalf("distribution = %+v, want telemetry@1.2.3", profile.Distribution)
+			}
+			return
+		}
+	}
+	t.Fatalf("work profile missing from JSON: %+v", got.Profiles)
+}
+
+func TestGormesProfileShowIncludesDistributionSummary(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		distributionByRoot: map[string]cli.ProfileDistributionManifest{
+			"/tmp/gormes-test-home/profiles/work": {
+				Name:    "telemetry",
+				Version: "1.2.3",
+				Source:  "github.com/acme/telemetry",
+			},
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "show")
+	if err != nil {
+		t.Fatalf("profile show: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "distribution: telemetry@1.2.3") {
+		t.Fatalf("show output missing distribution summary:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "/tmp/gormes-test-home") {
+		t.Fatalf("profile show leaked raw profile root:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+func TestGormesProfileInfoRendersDistributionManifest(t *testing.T) {
+	defaultValue := "http://127.0.0.1:8000/sse"
+	fake := &profileCommandFakeSeams{
+		knownProfiles: []string{"work", "plain"},
+		distributionByRoot: map[string]cli.ProfileDistributionManifest{
+			"/tmp/gormes-test-home/profiles/work": {
+				Name:           "telemetry",
+				Version:        "1.2.3",
+				Description:    "Compliance monitor",
+				Source:         "github.com/acme/telemetry",
+				InstalledAt:    "2026-05-08T00:00:00Z",
+				HermesRequires: ">=0.12.0",
+				EnvRequires: []cli.ProfileDistributionEnvRequirement{
+					{Name: "OPENAI_API_KEY", Description: "OpenAI key", Required: true},
+					{Name: "GRAPHITI_MCP_URL", Required: false, Default: &defaultValue},
+				},
+			},
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "info", "work")
+	if err != nil {
+		t.Fatalf("profile info: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Distribution: telemetry",
+		"Version:      1.2.3",
+		"Description:  Compliance monitor",
+		"Requires:     Hermes >=0.12.0",
+		"Source:       github.com/acme/telemetry",
+		"Installed:    2026-05-08T00:00:00Z",
+		"OPENAI_API_KEY (required)",
+		"GRAPHITI_MCP_URL (optional)",
+		"default: http://127.0.0.1:8000/sse",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("profile info missing %q:\n%s", want, stdout)
+		}
+	}
+
+	stdout, stderr, err = runProfileTestCommand(t, fake.defaults(), "info", "plain")
+	if err != nil {
+		t.Fatalf("profile info plain should be non-error: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Profile 'plain' is not a distribution") {
+		t.Fatalf("plain profile message mismatch:\n%s", stdout)
 	}
 }
 
