@@ -221,7 +221,20 @@ func runGonchoDoctor(cmd *cobra.Command, _ []string) error {
 func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB, peer, sessionKey, scope string, sources []string, requireProvider bool) (gonchoDoctorReport, int, error) {
 	schema, err := memory.ReadSchemaStatus(ctx, db)
 	if err != nil {
-		return gonchoDoctorReport{}, 2, err
+		// 0-byte memory.db (created by an aborted setup or a dummy
+		// touch) opens fine via sqlite but has no `schema_meta`
+		// table. Without this branch ReadSchemaStatus leaks the
+		// raw `sqlite3: SQL logic error: no such table: schema_meta`
+		// to operators, which looks like a corrupt-DB bug rather
+		// than the "schema not applied yet" diagnostic it actually
+		// is. Synthesize an empty schema status so the existing
+		// "not current" branch below renders the same structured
+		// `runtime_storage_error` exit-2 report.
+		if strings.Contains(err.Error(), "no such table") {
+			schema = memory.SchemaStatus{}
+		} else {
+			return gonchoDoctorReport{}, 2, err
+		}
 	}
 	if !schema.Current || !requiredSchemaTablesPresent(schema.Tables) {
 		report := gonchoDoctorReport{
