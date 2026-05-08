@@ -14,7 +14,7 @@ import (
 func TestCodexuBuilderLoopStatusReportsPauseState(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	stateDir := t.TempDir()
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 
 	cmd := exec.Command("bash", script, "pause", "--ttl", "10m", "gormes-git waiting for active run")
 	cmd.Dir = repoRoot
@@ -49,7 +49,7 @@ func TestCodexuBuilderLoopStatusReportsLiveProgressSignals(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	stateDir := t.TempDir()
 	tmpRepo := filepath.Join(stateDir, "repo")
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 
 	writeFile(t, filepath.Join(tmpRepo, "README.md"), []byte("before\n"), 0o644)
 	runCommand(t, tmpRepo, "git", "init")
@@ -114,7 +114,7 @@ printf 'timestamp=%q\nreason=%q\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "test reques
 		t.Fatalf("write pause: %v", err)
 	}
 
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 	cmd := exec.Command("timeout", "10s", "bash", script, "run")
 	cmd.Dir = repoRoot
 	cmd.Env = overlayEnv(os.Environ(),
@@ -156,7 +156,7 @@ while [ ! -f "$GORMES_CODEXU_STATE_DIR/release-runner" ]; do
 done
 `), 0o755)
 
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 	cmd := exec.Command("bash", script, "run")
 	cmd.Dir = repoRoot
 	cmd.Env = overlayEnv(os.Environ(),

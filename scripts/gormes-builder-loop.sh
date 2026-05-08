@@ -5,17 +5,17 @@ umask 077
 PATH="$HOME/.local/bin:$HOME/go/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 export PATH
 
-REPO_ROOT="${GORMES_CODEXU_REPO:-/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent}"
-DEFAULT_RUNNER="$REPO_ROOT/scripts/codexu-gormes-builder-cron.sh"
-RUNNER="${GORMES_CODEXU_RUNNER:-$DEFAULT_RUNNER}"
-STATE_DIR="${GORMES_CODEXU_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/gormes-agent/codexu-builder}"
-LOOP_LOCK="${GORMES_CODEXU_LOOP_LOCK:-$STATE_DIR/loop.lock}"
-INTERVAL_SECONDS="${GORMES_CODEXU_LOOP_INTERVAL:-60}"
-FAIL_BACKOFF_SECONDS="${GORMES_CODEXU_FAIL_BACKOFF:-300}"
-PAUSE_POLL_SECONDS="${GORMES_CODEXU_PAUSE_POLL:-60}"
-DEFAULT_PAUSE_TTL_SECONDS="${GORMES_CODEXU_PAUSE_TTL:-1800}"
-LEGACY_PAUSE_MAX_AGE_SECONDS="${GORMES_CODEXU_LEGACY_PAUSE_MAX_AGE:-$DEFAULT_PAUSE_TTL_SECONDS}"
-NODE_VERSION="${GORMES_CODEXU_NODE_VERSION:-22.21.1}"
+REPO_ROOT="${GORMES_BUILDER_REPO:-${GORMES_CODEXU_REPO:-/home/xel/git/sages-openclaw/workspace-mineru/gormes-agent}}"
+DEFAULT_RUNNER="$REPO_ROOT/scripts/gormes-builder-cron.sh"
+RUNNER="${GORMES_BUILDER_RUNNER:-${GORMES_CODEXU_RUNNER:-$DEFAULT_RUNNER}}"
+STATE_DIR="${GORMES_BUILDER_STATE_DIR:-${GORMES_CODEXU_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/gormes-agent/builder}}"
+LOOP_LOCK="${GORMES_BUILDER_LOOP_LOCK:-${GORMES_CODEXU_LOOP_LOCK:-$STATE_DIR/loop.lock}}"
+INTERVAL_SECONDS="${GORMES_BUILDER_LOOP_INTERVAL:-${GORMES_CODEXU_LOOP_INTERVAL:-60}}"
+FAIL_BACKOFF_SECONDS="${GORMES_BUILDER_FAIL_BACKOFF:-${GORMES_CODEXU_FAIL_BACKOFF:-300}}"
+PAUSE_POLL_SECONDS="${GORMES_BUILDER_PAUSE_POLL:-${GORMES_CODEXU_PAUSE_POLL:-60}}"
+DEFAULT_PAUSE_TTL_SECONDS="${GORMES_BUILDER_PAUSE_TTL:-${GORMES_CODEXU_PAUSE_TTL:-1800}}"
+LEGACY_PAUSE_MAX_AGE_SECONDS="${GORMES_BUILDER_LEGACY_PAUSE_MAX_AGE:-${GORMES_CODEXU_LEGACY_PAUSE_MAX_AGE:-$DEFAULT_PAUSE_TTL_SECONDS}}"
+NODE_VERSION="${GORMES_BUILDER_NODE_VERSION:-${GORMES_CODEXU_NODE_VERSION:-22.21.1}}"
 HEALTH_FILE="$STATE_DIR/loop-health.env"
 PID_FILE="$STATE_DIR/loop.pid"
 CURRENT_RUN_FILE="$STATE_DIR/current-run.env"
@@ -25,7 +25,7 @@ LAST_MESSAGE_FILE="$STATE_DIR/last-message.txt"
 PAUSE_FILE="$STATE_DIR/pause"
 STOP_FILE="$STATE_DIR/stop-after-current"
 LOG_DIR="$STATE_DIR/logs"
-MAX_LOGS="${GORMES_CODEXU_MAX_LOGS:-80}"
+MAX_LOGS="${GORMES_BUILDER_MAX_LOGS:-${GORMES_CODEXU_MAX_LOGS:-80}}"
 LOOP_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 CURRENT_CHILD=""
 CURRENT_CHILD_OWN_SESSION=0
@@ -364,7 +364,7 @@ runner_ready() {
 
 shutdown() {
   local reason="${1:-signal}"
-  log "codexu builder loop stopping: $reason"
+  log "gormes builder loop stopping: $reason"
   without_loop_lock_fd write_health "stopping" "$reason"
   if [[ -n "$CURRENT_CHILD" ]] && kill -0 "$CURRENT_CHILD" 2>/dev/null; then
     log "forwarding stop to active runner pid $CURRENT_CHILD"
@@ -433,7 +433,7 @@ print_status() {
   print_state_file "last_success" "$LAST_SUCCESS_FILE"
   print_state_file "last_failure" "$LAST_FAILURE_FILE"
   printf '\nprocesses:\n'
-  ps -eo pid,ppid,lstart,etime,cmd | grep -E 'gormes-codexu-builder-loop|codexu-gormes-builder-loop|codexu-gormes-builder-cron|codexu exec' | grep -v grep || true
+  ps -eo pid,ppid,lstart,etime,cmd | grep -E 'gormes-builder-loop|gormes-builder-cron|gormes-codexu-builder-loop|codexu-gormes-builder-loop|codexu-gormes-builder-cron|codexu exec|opencode run' | grep -v grep || true
   printf '\nlatest logs:\n'
   ls -lt "$LOG_DIR" 2>/dev/null | head -n 8 || true
 }
@@ -451,7 +451,7 @@ doctor() {
   printf 'node=%s %s\n' "$(command -v node 2>/dev/null || true)" "$(node --version 2>/dev/null || true)"
   printf 'codexu=%s\n' "$(command -v codexu 2>/dev/null || true)"
   printf '\ncron:\n'
-  crontab -l 2>/dev/null | grep -F 'gormes-codexu-builder-loop' || true
+  crontab -l 2>/dev/null | grep -E 'gormes-builder-loop|gormes-codexu-builder-loop' || true
 }
 
 pause_loop() {
@@ -592,11 +592,11 @@ activate_node
 
 exec 8>"$LOOP_LOCK"
 if ! flock -n 8; then
-  log "codexu builder loop already running; exiting"
+  log "gormes builder loop already running; exiting"
   exit 0
 fi
 
-without_loop_lock_fd log "codexu builder loop started for $REPO_ROOT"
+without_loop_lock_fd log "gormes builder loop started for $REPO_ROOT"
 printf '%s\n' "$$" >"$PID_FILE"
 without_loop_lock_fd write_health "started"
 
