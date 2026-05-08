@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -64,15 +65,18 @@ func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
 }
 
 func newProfileShowCommand(seams profileCommandSeams) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:          "show",
 		Short:        "Show the active Gormes profile and its redacted root path",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runProfileShowCommand(cmd, seams)
+			return runProfileShowCommand(cmd, seams, asJSON)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, active, root}` JSON document with the same redacted root path the human surface prints")
+	return cmd
 }
 
 func newProfileSetCommand(seams profileCommandSeams) *cobra.Command {
@@ -88,29 +92,61 @@ func newProfileSetCommand(seams profileCommandSeams) *cobra.Command {
 }
 
 func newProfileListCommand(seams profileCommandSeams) *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:          "list",
 		Short:        "List known Gormes profiles and mark the active one",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runProfileListCommand(cmd, seams)
+			return runProfileListCommand(cmd, seams, asJSON)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, active, profiles: [...]}` JSON document (suitable for fleet inventory automation)")
+	return cmd
 }
 
-func runProfileShowCommand(cmd *cobra.Command, seams profileCommandSeams) error {
+func runProfileShowCommand(cmd *cobra.Command, seams profileCommandSeams, asJSON bool) error {
 	selector := newProfileSelectorFromSeams(seams)
 	profile, err := selector.Select(context.Background())
 	if err != nil {
 		if errors.Is(err, cli.ErrSelectorNoMatch) {
+			if asJSON {
+				return emitProfileShowJSON(cmd, "", "")
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), "active profile: <unset> (defaulting to 'default')")
 			return nil
 		}
 		return fmt.Errorf("gormes profile show: %w: %w", errActiveProfileCorrupt, err)
 	}
+	if asJSON {
+		return emitProfileShowJSON(cmd, profile.Name, redactProfileRootPath(profile.RootPath))
+	}
 	writeProfileSummary(cmd, profile.Name, profile.RootPath)
 	return nil
+}
+
+// profileShowReportJSON is the wire shape for `profile show --json`.
+// Build provenance leads, then the active marker and the redacted root
+// — same convention as the rest of the --json arc. `active` is empty
+// when no profile is set (the human surface emits "<unset>").
+type profileShowReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Active string              `json:"active"`
+	Root   string              `json:"root"`
+}
+
+func emitProfileShowJSON(cmd *cobra.Command, active, root string) error {
+	body, err := json.MarshalIndent(profileShowReportJSON{
+		Build:  newBuildProvenance(),
+		Active: active,
+		Root:   root,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func runProfileSetCommand(cmd *cobra.Command, seams profileCommandSeams, rawName string) error {
@@ -139,7 +175,7 @@ func writeProfileSummary(cmd *cobra.Command, name, root string) {
 	fmt.Fprintf(cmd.OutOrStdout(), "root: %s\n", redactProfileRootPath(root))
 }
 
-func runProfileListCommand(cmd *cobra.Command, seams profileCommandSeams) error {
+func runProfileListCommand(cmd *cobra.Command, seams profileCommandSeams, asJSON bool) error {
 	if seams.ListKnownProfiles == nil {
 		return fmt.Errorf("gormes profile list: %w", cli.ErrSelectorHelperUnavailable)
 	}
@@ -153,12 +189,28 @@ func runProfileListCommand(cmd *cobra.Command, seams profileCommandSeams) error 
 			active = strings.TrimSpace(name)
 		}
 	}
+	sorted := append([]string(nil), known...)
+	sort.Strings(sorted)
+	if asJSON {
+		profiles := make([]profileListEntryJSON, len(sorted))
+		for i, name := range sorted {
+			profiles[i] = profileListEntryJSON{Name: name, Active: name == active}
+		}
+		body, err := json.MarshalIndent(profileListReportJSON{
+			Build:    newBuildProvenance(),
+			Active:   active,
+			Profiles: profiles,
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
 	if len(known) == 0 {
 		fmt.Fprintln(cmd.OutOrStdout(), "no profiles found")
 		return nil
 	}
-	sorted := append([]string(nil), known...)
-	sort.Strings(sorted)
 	for _, name := range sorted {
 		marker := " "
 		if name == active {
@@ -167,6 +219,21 @@ func runProfileListCommand(cmd *cobra.Command, seams profileCommandSeams) error 
 		fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", marker, name)
 	}
 	return nil
+}
+
+// profileListReportJSON is the wire shape for `profile list --json`.
+// Build provenance leads, then the active marker and the profile array
+// — same convention as update / doctor / status / restore / auth /
+// gateway-status / secrets.
+type profileListReportJSON struct {
+	Build    buildProvenanceJSON    `json:"build"`
+	Active   string                 `json:"active"`
+	Profiles []profileListEntryJSON `json:"profiles"`
+}
+
+type profileListEntryJSON struct {
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
 }
 
 // redactProfileRootPath returns a bounded display form of a resolved profile

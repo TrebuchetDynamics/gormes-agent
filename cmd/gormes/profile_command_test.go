@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -111,6 +112,54 @@ func TestGormesProfileShowRendersActivePathRedacted(t *testing.T) {
 	}
 }
 
+// TestGormesProfileShowJSONEmitsStructuredActiveRoot proves
+// `gormes profile show --json` emits a parseable
+// `{build, active, root}` document with the SAME redacted root the
+// human surface prints. Operator scripts checking which profile is
+// active and where its root lives need a structured shape — scraping
+// the two-line "active profile: X\nroot: ..." text is fragile.
+func TestGormesProfileShowJSONEmitsStructuredActiveRoot(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		resolveProfileRoot: func(name string) (string, error) {
+			return "/home/operator-secret/.config/gormes/profiles/work", nil
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "show", "--json")
+	if err != nil {
+		t.Fatalf("show --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, leak := range []string{"/home/operator-secret"} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("show --json leaked raw path %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Active string `json:"active"`
+		Root   string `json:"root"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Active != "work" {
+		t.Fatalf("got.Active = %q, want work", got.Active)
+	}
+	if !strings.Contains(got.Root, "...") {
+		t.Fatalf("got.Root = %q, want a redacted form (`...` marker)", got.Root)
+	}
+	// JSON mode must not interleave the human row.
+	if strings.Contains(stdout, "active profile:") {
+		t.Fatalf("--json must not emit the human row; got:\n%s", stdout)
+	}
+}
+
 func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 	t.Run("invalid_name_is_rejected_before_store_write", func(t *testing.T) {
 		fake := &profileCommandFakeSeams{}
@@ -194,6 +243,85 @@ func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T)
 	// Raw paths must not leak.
 	if strings.Contains(stdout+stderr, "/home/operator-secret") {
 		t.Fatalf("list leaked raw path:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+// TestGormesProfileListJSONEmitsStructuredInventory proves
+// `gormes profile list --json` emits a parseable
+// `{build, active, profiles: [{name, active}, ...]}` document. Fleet
+// automation that wants to inventory profiles or check which is active
+// across hosts needs a structured shape — scraping the human " *"
+// marker is fragile and locale-dependent.
+func TestGormesProfileListJSONEmitsStructuredInventory(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		knownProfiles:     []string{"default", "work", "research"},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "list", "--json")
+	if err != nil {
+		t.Fatalf("list --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Active   string `json:"active"`
+		Profiles []struct {
+			Name   string `json:"name"`
+			Active bool   `json:"active"`
+		} `json:"profiles"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Active != "work" {
+		t.Fatalf("got.Active = %q, want work", got.Active)
+	}
+	if len(got.Profiles) != 3 {
+		t.Fatalf("got %d profiles, want 3", len(got.Profiles))
+	}
+	wantOrder := []string{"default", "research", "work"} // sorted
+	for i, p := range got.Profiles {
+		if p.Name != wantOrder[i] {
+			t.Fatalf("profile[%d].Name = %q, want %q (sorted)", i, p.Name, wantOrder[i])
+		}
+		wantActive := p.Name == "work"
+		if p.Active != wantActive {
+			t.Fatalf("profile[%d].Active = %t for %q, want %t", i, p.Active, p.Name, wantActive)
+		}
+	}
+	// JSON mode must not interleave the human row.
+	if strings.Contains(stdout, "* work") {
+		t.Fatalf("--json must not emit the human row; got:\n%s", stdout)
+	}
+}
+
+// TestGormesProfileListJSONNoProfilesEmitsEmptyArray proves the JSON
+// surface stays parseable when no profiles are known — consumers see
+// `{"profiles": []}`, not the free-form "no profiles found" message.
+func TestGormesProfileListJSONNoProfilesEmitsEmptyArray(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		knownProfiles: []string{},
+	}
+	stdout, _, err := runProfileTestCommand(t, fake.defaults(), "list", "--json")
+	if err != nil {
+		t.Fatalf("list --json on empty: %v", err)
+	}
+	var got struct {
+		Profiles []any `json:"profiles"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("empty stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Profiles == nil {
+		t.Fatalf("profiles must be `[]`, not omitted/null; got %q", stdout)
+	}
+	if len(got.Profiles) != 0 {
+		t.Fatalf("got %d profiles, want 0", len(got.Profiles))
 	}
 }
 

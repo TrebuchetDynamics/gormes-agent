@@ -94,7 +94,8 @@ func newAuthAddCommand() *cobra.Command {
 }
 
 func newAuthListCommand() *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:          "list [provider]",
 		Short:        "List provider credentials with secrets redacted",
 		Args:         cobra.MaximumNArgs(1),
@@ -104,9 +105,11 @@ func newAuthListCommand() *cobra.Command {
 			if len(args) > 0 {
 				provider = args[0]
 			}
-			return runAuthListCommand(cmd, provider)
+			return runAuthListCommand(cmd, provider, asJSON)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, provider, credentials: [...]}` JSON document with the same redacted fields the human row prints (suitable for fleet credential-health monitoring)")
+	return cmd
 }
 
 func newAuthRemoveCommand() *cobra.Command {
@@ -644,9 +647,12 @@ func runAuthAddCodexEmergencyImportCommand(cmd *cobra.Command, opts authAddOptio
 	return nil
 }
 
-func runAuthListCommand(cmd *cobra.Command, providerInput string) error {
+func runAuthListCommand(cmd *cobra.Command, providerInput string, asJSON bool) error {
 	provider := normalizeAuthProvider(providerInput)
 	if provider == "" {
+		if asJSON {
+			return emitAuthListJSON(cmd, "all", []config.RedactedCredentialStatus{})
+		}
 		fmt.Fprintln(cmd.OutOrStdout(), "credential_pool_empty provider=all redacted=true")
 		return nil
 	}
@@ -655,6 +661,9 @@ func runAuthListCommand(cmd *cobra.Command, providerInput string) error {
 		return fmt.Errorf("gormes auth list %s: %s", provider, evidence.Code)
 	}
 	status := pool.RedactedStatus()
+	if asJSON {
+		return emitAuthListJSON(cmd, provider, status.Entries)
+	}
 	if status.Count == 0 {
 		fmt.Fprintf(cmd.OutOrStdout(), "credential_pool_empty provider=%s redacted=true\n", provider)
 		return nil
@@ -673,6 +682,62 @@ func runAuthListCommand(cmd *cobra.Command, providerInput string) error {
 		fmt.Fprintf(out, "  %d. id=%s label=%s auth_type=%s source=%s status=%s reason=%s redacted=%t\n", i+1, entry.ID, entry.Label, entry.AuthType, displayCredentialSource(entry.Source), statusText, reason, entry.SecretsRedacted)
 	}
 	return nil
+}
+
+// authListReportJSON is the wire shape for `gormes auth list --json`.
+// Build provenance leads, then provider + credentials — same convention
+// as update / doctor / status / restore / auth-status / gateway-status /
+// secrets. Credentials carry exactly the fields the human row already
+// prints, with secrets pre-redacted upstream by RedactedStatus.
+type authListReportJSON struct {
+	Build       buildProvenanceJSON       `json:"build"`
+	Provider    string                    `json:"provider"`
+	Redacted    bool                      `json:"redacted"`
+	Credentials []authListCredentialJSON  `json:"credentials"`
+}
+
+type authListCredentialJSON struct {
+	ID              string `json:"id"`
+	Label           string `json:"label"`
+	AuthType        string `json:"auth_type"`
+	Source          string `json:"source"`
+	Status          string `json:"status"`
+	Reason          string `json:"reason"`
+	SecretsRedacted bool   `json:"secrets_redacted"`
+}
+
+func emitAuthListJSON(cmd *cobra.Command, provider string, entries []config.RedactedCredentialStatus) error {
+	creds := make([]authListCredentialJSON, len(entries))
+	for i, e := range entries {
+		statusText := e.LastStatus
+		if statusText == "" {
+			statusText = config.CredentialStatusOK
+		}
+		reason := e.LastErrorReason
+		if reason == "" {
+			reason = "-"
+		}
+		creds[i] = authListCredentialJSON{
+			ID:              e.ID,
+			Label:           e.Label,
+			AuthType:        string(e.AuthType),
+			Source:          displayCredentialSource(e.Source),
+			Status:          string(statusText),
+			Reason:          reason,
+			SecretsRedacted: e.SecretsRedacted,
+		}
+	}
+	body, err := json.MarshalIndent(authListReportJSON{
+		Build:       newBuildProvenance(),
+		Provider:    provider,
+		Redacted:    true,
+		Credentials: creds,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func runAuthRemoveCommand(cmd *cobra.Command, providerInput, target string) error {
