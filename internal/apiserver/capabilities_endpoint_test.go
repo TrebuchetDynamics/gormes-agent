@@ -361,6 +361,81 @@ func TestAPIServerRunStop_EnvelopeMirrorsStatusEnvelope(t *testing.T) {
 	loop.release(TurnResult{SessionID: started.RunID})
 }
 
+// TestRunRegistry_BoundsEventsBacklogToCap proves the per-record
+// events backlog is capped so a long-running run that emits many
+// tool.progress / message.delta events doesn't grow registry memory
+// unboundedly. When the cap is reached, the oldest events are
+// dropped — the most recent events stay visible to late subscribers.
+func TestRunRegistry_BoundsEventsBacklogToCap(t *testing.T) {
+	r := newRunRegistry(time.Hour, time.Now)
+	r.create("run_cap", nil)
+	for i := 0; i < runEventsBacklogCap+50; i++ {
+		r.publish("run_cap", runEvent{Event: "message.delta", RunID: "run_cap"})
+	}
+	snap, ok := r.snapshot("run_cap")
+	if !ok {
+		t.Fatal("snapshot returned false")
+	}
+	if snap.EventsCount > runEventsBacklogCap {
+		t.Errorf("events_count = %d, want <= %d (capped)", snap.EventsCount, runEventsBacklogCap)
+	}
+	if snap.LastEventType != "message.delta" {
+		t.Errorf("last_event_type = %q, want message.delta", snap.LastEventType)
+	}
+}
+
+// TestAPIServerRunEvents_KeepFlagPreservesRunForStatusQuery proves
+// that `GET /v1/runs/{run_id}/events?keep=true` does NOT remove the
+// run from the registry after the SSE stream closes, so callers can
+// subsequently fetch terminal status, duration, and error via
+// `GET /v1/runs/{run_id}`. Without `keep`, the run is removed on
+// stream end (current default to bound memory).
+func TestAPIServerRunEvents_KeepFlagPreservesRunForStatusQuery(t *testing.T) {
+	loop := &fakeTurnLoop{result: TurnResult{Content: "ok", SessionID: "sess-keep"}}
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+
+	// Drain events with keep=true.
+	events := getJSON(t, h, "/v1/runs/"+started.RunID+"/events?keep=true", nil)
+	if events.Code != http.StatusOK {
+		t.Fatalf("events status = %d", events.Code)
+	}
+
+	// Status should still be reachable after stream close.
+	status := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	if status.Code != http.StatusOK {
+		t.Fatalf("post-events status code = %d (want 200, run should be retained); body=%s", status.Code, status.Body.String())
+	}
+
+	// Confirm default removes the run: drain again WITHOUT keep, expect 404 on subsequent status.
+	loop2 := &fakeTurnLoop{result: TurnResult{Content: "ok", SessionID: "sess-no-keep"}}
+	srv2 := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop2,
+		ResponseStore: NewResponseStore(10),
+	})
+	h2 := srv2.Handler()
+	r2 := postJSON(t, h2, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	var s2 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r2.Body.Bytes(), &s2)
+	getJSON(t, h2, "/v1/runs/"+s2.RunID+"/events", nil)
+	gone := getJSON(t, h2, "/v1/runs/"+s2.RunID, nil)
+	if gone.Code != http.StatusNotFound {
+		t.Errorf("default events drain followed by status = %d, want 404", gone.Code)
+	}
+}
+
 // TestAPIServerRunStop_PublishesRunStoppedEventToBacklog proves
 // `POST /v1/runs/{run_id}/stop` records a typed `run.stopped`
 // lifecycle event in the SSE backlog so subscribers reading the
@@ -470,6 +545,166 @@ func TestAPIServerRunStop_CancelsRunAndReportsStopped(t *testing.T) {
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("unknown run stop status = %d, want 404; body=%s", missing.Code, missing.Body.String())
 	}
+}
+
+// TestAPIServerRunStatus_IncludesDurationOnTerminal proves the run
+// status response carries `duration_seconds` (terminated_at -
+// created_at) when the run reaches terminal status. Latency
+// dashboards consume this directly without arithmetic on two unix
+// timestamps in every render. Non-terminal runs omit the field.
+func TestAPIServerRunStatus_IncludesDurationOnTerminal(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	now := time.Unix(1_700_008_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	// Pre-stop: duration_seconds omitted.
+	pre := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	var preBody struct {
+		DurationSeconds int64 `json:"duration_seconds"`
+	}
+	json.Unmarshal(pre.Body.Bytes(), &preBody)
+	if preBody.DurationSeconds != 0 {
+		t.Errorf("pre-stop duration_seconds = %d, want 0 (omitempty for non-terminal)", preBody.DurationSeconds)
+	}
+
+	now = time.Unix(1_700_008_042, 0)
+	if rec := postJSON(t, h, "/v1/runs/"+started.RunID+"/stop", nil, nil); rec.Code != http.StatusOK {
+		t.Fatalf("stop = %d", rec.Code)
+	}
+
+	post := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	if post.Code != http.StatusOK {
+		t.Fatalf("post-stop status = %d", post.Code)
+	}
+	var postBody struct {
+		DurationSeconds int64 `json:"duration_seconds"`
+	}
+	if err := json.Unmarshal(post.Body.Bytes(), &postBody); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, post.Body.String())
+	}
+	if postBody.DurationSeconds != 42 {
+		t.Errorf("duration_seconds = %d, want 42", postBody.DurationSeconds)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunStatus_IncludesTerminatedAtWhenTerminal proves the
+// run status response carries `terminated_at` (unix seconds) when
+// the run reaches a terminal status (completed/failed/stopped) so
+// dashboards can compute run duration as terminated_at - created_at
+// without scraping events. Non-terminal runs omit the field.
+func TestAPIServerRunStatus_IncludesTerminatedAtWhenTerminal(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	now := time.Unix(1_700_007_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	// Pre-stop: terminated_at omitted.
+	pre := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	var preBody struct {
+		TerminatedAt int64 `json:"terminated_at"`
+	}
+	json.Unmarshal(pre.Body.Bytes(), &preBody)
+	if preBody.TerminatedAt != 0 {
+		t.Errorf("pre-stop terminated_at = %d, want 0 (omitempty for non-terminal)", preBody.TerminatedAt)
+	}
+
+	// Advance clock and stop the run.
+	now = time.Unix(1_700_007_045, 0)
+	if rec := postJSON(t, h, "/v1/runs/"+started.RunID+"/stop", nil, nil); rec.Code != http.StatusOK {
+		t.Fatalf("stop = %d", rec.Code)
+	}
+
+	post := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	if post.Code != http.StatusOK {
+		t.Fatalf("post-stop status = %d; body=%s", post.Code, post.Body.String())
+	}
+	var postBody struct {
+		Status       string `json:"status"`
+		TerminatedAt int64  `json:"terminated_at"`
+	}
+	if err := json.Unmarshal(post.Body.Bytes(), &postBody); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, post.Body.String())
+	}
+	if postBody.Status != "stopped" {
+		t.Errorf("status = %q, want stopped", postBody.Status)
+	}
+	if postBody.TerminatedAt != now.Unix() {
+		t.Errorf("terminated_at = %d, want %d (clock at stop)", postBody.TerminatedAt, now.Unix())
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunStatus_IncludesLastEventAt proves the run status
+// response carries `last_event_at` (unix seconds of most recent
+// event timestamp) so dashboards can detect silent runs by computing
+// `now - last_event_at`. Complements `last_event_type` to reveal
+// "stuck on tool.progress for 5 minutes" without scraping events.
+func TestAPIServerRunStatus_IncludesLastEventAt(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	now := time.Unix(1_700_009_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var got struct {
+		LastEventAt int64 `json:"last_event_at"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.LastEventAt != now.Unix() {
+		t.Errorf("last_event_at = %d, want %d", got.LastEventAt, now.Unix())
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
 }
 
 // TestAPIServerRunStatus_IncludesLastEventType proves the run status

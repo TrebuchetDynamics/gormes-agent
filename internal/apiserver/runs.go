@@ -13,6 +13,13 @@ import (
 
 const defaultRunStreamTTL = 5 * time.Minute
 
+// runEventsBacklogCap caps how many lifecycle/progress events the
+// registry retains per run. A long-running run emitting tool progress
+// or token deltas would otherwise grow memory unboundedly. Late SSE
+// subscribers see at most the most recent runEventsBacklogCap events;
+// older events are dropped FIFO.
+const runEventsBacklogCap = 1024
+
 type runRegistry struct {
 	mu             sync.Mutex
 	ttl            time.Duration
@@ -26,16 +33,17 @@ type runRegistry struct {
 }
 
 type runRecord struct {
-	id          string
-	createdAt   time.Time
-	events      []runEvent
-	subscribers []chan runEvent
-	cancel      context.CancelFunc
-	done        bool
-	failed      bool
-	stopped     bool
-	consumed    bool
-	errMsg      string
+	id           string
+	createdAt    time.Time
+	terminatedAt time.Time
+	events       []runEvent
+	subscribers  []chan runEvent
+	cancel       context.CancelFunc
+	done         bool
+	failed       bool
+	stopped      bool
+	consumed     bool
+	errMsg       string
 }
 
 type runEvent struct {
@@ -100,6 +108,7 @@ func (r *runRegistry) stop(id string) bool {
 	if !wasTerminal {
 		rec.stopped = true
 		rec.done = true
+		rec.terminatedAt = r.now()
 		r.stoppedTotal++
 		stoppedEvent := runEvent{Event: "run.stopped", RunID: id, Timestamp: r.now().Unix()}
 		rec.events = append(rec.events, stoppedEvent)
@@ -130,6 +139,9 @@ func (r *runRegistry) publish(id string, ev runEvent) {
 		return
 	}
 	rec.events = append(rec.events, ev)
+	if len(rec.events) > runEventsBacklogCap {
+		rec.events = rec.events[len(rec.events)-runEventsBacklogCap:]
+	}
 	subs := append([]chan runEvent(nil), rec.subscribers...)
 	r.mu.Unlock()
 	for _, ch := range subs {
@@ -161,6 +173,7 @@ func (r *runRegistry) finishWith(id string, failed bool, errMsg string) {
 		} else {
 			r.completedTotal++
 		}
+		rec.terminatedAt = r.now()
 	}
 	rec.done = true
 	if failed {
@@ -216,8 +229,10 @@ func (r *runRegistry) status(id string) (string, bool) {
 type runStatusSnapshot struct {
 	Status        string
 	CreatedAt     int64
+	TerminatedAt  int64
 	EventsCount   int
 	LastEventType string
+	LastEventAt   int64
 	Error         string
 }
 
@@ -259,8 +274,12 @@ func (r *runRegistry) snapshot(id string) (runStatusSnapshot, bool) {
 		EventsCount: len(rec.events),
 		Error:       rec.errMsg,
 	}
+	if !rec.terminatedAt.IsZero() {
+		snap.TerminatedAt = rec.terminatedAt.Unix()
+	}
 	if n := len(rec.events); n > 0 {
 		snap.LastEventType = rec.events[n-1].Event
+		snap.LastEventAt = rec.events[n-1].Timestamp
 	}
 	switch {
 	case rec.stopped:
@@ -439,6 +458,15 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		if snap.LastEventType != "" {
 			entry["last_event_type"] = snap.LastEventType
 		}
+		if snap.LastEventAt > 0 {
+			entry["last_event_at"] = snap.LastEventAt
+		}
+		if snap.TerminatedAt > 0 {
+			entry["terminated_at"] = snap.TerminatedAt
+			if snap.TerminatedAt > snap.CreatedAt {
+				entry["duration_seconds"] = snap.TerminatedAt - snap.CreatedAt
+			}
+		}
 		if snap.Error != "" {
 			entry["error"] = snap.Error
 		}
@@ -532,6 +560,9 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 		if snap.LastEventType != "" {
 			body["last_event_type"] = snap.LastEventType
 		}
+		if snap.TerminatedAt > 0 {
+			body["terminated_at"] = snap.TerminatedAt
+		}
 		if snap.Error != "" {
 			body["error"] = snap.Error
 		}
@@ -561,6 +592,15 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 	if snap.LastEventType != "" {
 		body["last_event_type"] = snap.LastEventType
 	}
+	if snap.LastEventAt > 0 {
+		body["last_event_at"] = snap.LastEventAt
+	}
+	if snap.TerminatedAt > 0 {
+		body["terminated_at"] = snap.TerminatedAt
+		if snap.TerminatedAt > snap.CreatedAt {
+			body["duration_seconds"] = snap.TerminatedAt - snap.CreatedAt
+		}
+	}
 	if snap.Error != "" {
 		body["error"] = snap.Error
 	}
@@ -568,6 +608,7 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID string) {
+	keep := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("keep")), "true")
 	backlog, ch, exists, done := s.runs.subscribe(runID)
 	if !exists {
 		writeOpenAIError(w, http.StatusNotFound, "Run not found: "+runID, "invalid_request_error", "", "run_not_found")
@@ -584,7 +625,9 @@ func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID s
 	if done {
 		writeSSEComment(w, "stream closed")
 		flush(w)
-		s.runs.remove(runID)
+		if !keep {
+			s.runs.remove(runID)
+		}
 		return
 	}
 	for {
@@ -595,7 +638,9 @@ func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID s
 			if !ok {
 				writeSSEComment(w, "stream closed")
 				flush(w)
-				s.runs.remove(runID)
+				if !keep {
+					s.runs.remove(runID)
+				}
 				return
 			}
 			writeSSEData(w, ev)
