@@ -59,6 +59,7 @@ func newSkillsCommandWithProfileSync(syncSeams skillsProfileSyncSeams) *cobra.Co
 			Fetcher: httpSkillFetcher{client: &http.Client{Timeout: 30 * time.Second}},
 			Store:   configSkillStore{},
 		},
+		BuildProvenance: func() any { return newBuildProvenance() },
 	})
 	cmd.AddCommand(newSkillsSyncCommand(syncSeams))
 	return cmd
