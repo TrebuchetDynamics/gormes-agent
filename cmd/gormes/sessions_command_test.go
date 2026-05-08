@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -51,6 +52,125 @@ func TestSessionsDeleteAndPruneEOFConfirmCancel(t *testing.T) {
 		t.Fatalf("prune stdout = %q, want Cancelled", stdout)
 	}
 	assertSessionCommandTurnCount(t, "sess-prune", 1)
+}
+
+// TestSessionExport_AcceptsIDPrefix proves the export command resolves
+// a session-id prefix the same way `session delete` does. Without
+// this, operators have to copy-paste the full id even though sibling
+// commands accept the unique prefix — a small but real ergonomic
+// inconsistency. The two commands are otherwise symmetric (both
+// destructive in their own way: delete removes, export reads).
+func TestSessionExport_AcceptsIDPrefix(t *testing.T) {
+	seedSessionsCommandDB(t, []sessionCommandSeed{
+		{id: "20260315_092437_c9a6ff", title: "target", role: "user", content: "body of target", ts: 100},
+		{id: "20260315_092500_other", role: "user", content: "other body", ts: 200},
+	})
+
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "export", "20260315_092437")
+	if err != nil {
+		t.Fatalf("session export <prefix>: %v\nstderr=%s", err, stderr)
+	}
+	if !strings.Contains(stdout, "body of target") {
+		t.Fatalf("export stdout missing seeded message body:\n%s", stdout)
+	}
+	// Must not export the other session.
+	if strings.Contains(stdout, "other body") {
+		t.Fatalf("export resolved to wrong session:\n%s", stdout)
+	}
+}
+
+// TestSessionExport_AmbiguousPrefixSurfacesError proves that when the
+// prefix is ambiguous, the command reports the conflict (matching the
+// `session delete` shape) rather than silently picking one match.
+func TestSessionExport_AmbiguousPrefixSurfacesError(t *testing.T) {
+	seedSessionsCommandDB(t, []sessionCommandSeed{
+		{id: "sess-ambig-a", role: "user", content: "alpha", ts: 100},
+		{id: "sess-ambig-b", role: "user", content: "beta", ts: 200},
+	})
+
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "export", "sess-ambig")
+	if err == nil {
+		t.Fatalf("ambiguous prefix must error; stdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(err.Error(), "ambig") && !strings.Contains(err.Error(), "multiple") {
+		t.Fatalf("err should explain ambiguity; got %q", err)
+	}
+}
+
+// TestSessionListJSONEmitsStructuredCatalog proves
+// `gormes session list --json` emits a parseable
+// `{build, sessions: [{id, title, preview, source, last_active_at, message_count}, ...]}`
+// document. Fleet automation that wants to inventory sessions across
+// hosts (which sessions are stale, which lack titles, message-count
+// distribution) needs a structured shape — scraping the four-column
+// human row is fragile when titles or previews contain spaces.
+func TestSessionListJSONEmitsStructuredCatalog(t *testing.T) {
+	seedSessionsCommandDB(t, []sessionCommandSeed{
+		{id: "sess-alpha", title: "Alpha Work", role: "user", content: "preview alpha", ts: 100},
+		{id: "sess-beta", title: "Beta Work", role: "user", content: "preview beta", ts: 200},
+	})
+
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "list", "--json")
+	if err != nil {
+		t.Fatalf("session list --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Sessions []struct {
+			ID           string `json:"id"`
+			Title        string `json:"title"`
+			Preview      string `json:"preview"`
+			Source       string `json:"source"`
+			MessageCount int    `json:"message_count"`
+			LastActiveAt int64  `json:"last_active_at"`
+		} `json:"sessions"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if len(got.Sessions) != 2 {
+		t.Fatalf("got %d sessions, want 2", len(got.Sessions))
+	}
+	// Verify ID is present for all entries — that's the resume handle.
+	for i, s := range got.Sessions {
+		if s.ID == "" {
+			t.Fatalf("session[%d].ID empty:\n%s", i, stdout)
+		}
+	}
+	// JSON mode must not interleave the human header row.
+	if strings.Contains(stdout, "Title") && strings.Contains(stdout, "Preview") && strings.Contains(stdout, "Last Active") {
+		t.Fatalf("--json must not emit the human header; got:\n%s", stdout)
+	}
+}
+
+// TestSessionListJSONEmptyDirectoryEmitsEmptyArray proves the JSON
+// surface stays parseable when no sessions exist — consumers see
+// `{"sessions": []}`, not the free-form "No sessions found." message.
+func TestSessionListJSONEmptyDirectoryEmitsEmptyArray(t *testing.T) {
+	seedSessionsCommandDB(t, nil)
+
+	stdout, _, err := runSessionsCommand(t, nil, "session", "list", "--json")
+	if err != nil {
+		t.Fatalf("session list --json on empty: %v", err)
+	}
+	var got struct {
+		Sessions []any `json:"sessions"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("empty stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Sessions == nil {
+		t.Fatalf("sessions must be `[]`, not omitted/null; got %q", stdout)
+	}
+	if len(got.Sessions) != 0 {
+		t.Fatalf("got %d sessions, want 0", len(got.Sessions))
+	}
 }
 
 func TestSessionsBrowseFallback(t *testing.T) {

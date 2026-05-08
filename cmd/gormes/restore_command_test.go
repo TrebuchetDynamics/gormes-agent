@@ -435,6 +435,31 @@ func TestRestoreCommand_DryRunShowsBlastRadius(t *testing.T) {
 	}
 }
 
+// TestRestoreCommand_LatestNoBackupsIncludesGuidance proves that when
+// `restore --latest` runs against an empty backups directory, the
+// error message also tells the operator HOW to create backups (the
+// `gormes update --backup` flag or the `[updates] pre_update_backup`
+// config key). Without this, operators stuck on a fresh install
+// without any backups read "no backups found" and are left to grep
+// through docs to figure out which flag enables them.
+func TestRestoreCommand_LatestNoBackupsIncludesGuidance(t *testing.T) {
+	cmd := newRestoreCommandWithSeams(restoreCommandSeams{
+		BackupsDir: func() string { return filepath.Join(t.TempDir(), "no-such-backups") },
+		HomeDir:    func() string { return t.TempDir() },
+	})
+	stdout, _, err := executeRootCommandForTest(cmd, "--latest")
+	if err == nil {
+		t.Fatalf("--latest with no backups must error; stdout=%s", stdout)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "no backups found") {
+		t.Fatalf("err must say `no backups found`; got %q", msg)
+	}
+	if !strings.Contains(msg, "--backup") {
+		t.Fatalf("err must hint at `--backup` flag; got %q", msg)
+	}
+}
+
 // TestRestoreCommand_LatestYesExtractsNewestZip proves the --latest
 // shorthand: among multiple pre-update zips, the one with the newest
 // mtime is extracted. Operators in a hurry shouldn't need to look up
@@ -510,5 +535,83 @@ func TestRestoreCommand_ListEmptyDirReportsNoBackups(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "no backups found") {
 		t.Fatalf("stdout missing empty-listing copy:\n%s", stdout)
+	}
+}
+
+// TestRestoreCommand_PathDryRunJSONEmitsStructuredPreview proves
+// `restore --path X --json` (without --yes) emits a JSON dry-run
+// preview rather than human prose. Operator scripts driving restore
+// previews — e.g., to surface "this would clobber 12 files" in CI/CD
+// approval gates — need a parseable shape, not log lines. The
+// `dry_run: true` flag plus `would_overwrite` / `would_create` lets
+// callers distinguish the preview from the executed `restored` shape.
+func TestRestoreCommand_PathDryRunJSONEmitsStructuredPreview(t *testing.T) {
+	srcDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(srcDir, "config.toml"), []byte("from-backup\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "new-file.toml"), []byte("net-new\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
+	if _, err := cli.WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+		t.Fatalf("WriteBackupZip: %v", err)
+	}
+
+	gormesHome := t.TempDir()
+	if err := os.WriteFile(filepath.Join(gormesHome, "config.toml"), []byte("untouched\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRestoreCommandWithSeams(restoreCommandSeams{
+		BackupsDir: func() string { return filepath.Dir(zipPath) },
+		HomeDir:    func() string { return gormesHome },
+	})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "--path", zipPath, "--json")
+	if err != nil {
+		t.Fatalf("restore --path --json (dry-run): %v stderr=%s", err, stderr)
+	}
+
+	// Files MUST stay untouched — JSON dry-run is still a dry-run.
+	got, _ := os.ReadFile(filepath.Join(gormesHome, "config.toml"))
+	if string(got) != "untouched\n" {
+		t.Fatalf("dry-run JSON must not modify files; got %q, want %q", got, "untouched\n")
+	}
+
+	var preview struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action          string `json:"action"`
+		Path            string `json:"path"`
+		Dest            string `json:"dest"`
+		DryRun          bool   `json:"dry_run"`
+		WouldOverwrite  int    `json:"would_overwrite"`
+		WouldCreate     int    `json:"would_create"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &preview); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if preview.Build.Version != Version {
+		t.Fatalf("preview.build.version = %q, want %q", preview.Build.Version, Version)
+	}
+	if preview.Action != "preview" {
+		t.Fatalf("preview.action = %q, want %q", preview.Action, "preview")
+	}
+	if !preview.DryRun {
+		t.Fatalf("preview.dry_run must be true; got false")
+	}
+	if preview.Path != zipPath {
+		t.Fatalf("preview.path = %q, want %q", preview.Path, zipPath)
+	}
+	if preview.Dest != gormesHome {
+		t.Fatalf("preview.dest = %q, want %q", preview.Dest, gormesHome)
+	}
+	if preview.WouldOverwrite != 1 {
+		t.Fatalf("preview.would_overwrite = %d, want 1 (config.toml)", preview.WouldOverwrite)
+	}
+	if preview.WouldCreate != 1 {
+		t.Fatalf("preview.would_create = %d, want 1 (new-file.toml)", preview.WouldCreate)
 	}
 }

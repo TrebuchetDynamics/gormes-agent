@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -112,6 +113,62 @@ func TestMemoryStatusCommand_PrintsGonchoQueueZeroState(t *testing.T) {
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+// TestMemoryStatusCommand_JSONEmitsStructuredSnapshot proves
+// `gormes memory status --json` emits a parseable
+// `{build, extractor: {...}, goncho_queue: {...}}` document. SREs
+// monitoring fleet memory backlog (worker_health, queue_depth,
+// dead_letter_count) need a structured shape for alerting; scraping
+// the multi-section human format is fragile.
+func TestMemoryStatusCommand_JSONEmitsStructuredSnapshot(t *testing.T) {
+	seedMemoryStatusDB(t)
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status --json: %v\nstderr=%s", err, stderr.String())
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Extractor struct {
+			WorkerHealth    string `json:"worker_health"`
+			QueueDepth      int    `json:"queue_depth"`
+			DeadLetterCount int    `json:"dead_letter_count"`
+		} `json:"extractor"`
+		GonchoQueue struct {
+			ObservabilityOnly bool `json:"observability_only"`
+		} `json:"goncho_queue"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Extractor.WorkerHealth == "" {
+		t.Fatalf("extractor.worker_health must be populated; got %+v", got.Extractor)
+	}
+	if got.Extractor.QueueDepth < 1 {
+		t.Fatalf("extractor.queue_depth = %d, want >= 1 (fixture seeds at least one queued turn)", got.Extractor.QueueDepth)
+	}
+	if got.Extractor.DeadLetterCount != 2 {
+		t.Fatalf("extractor.dead_letter_count = %d, want 2 (fixture seeds 2 dead letters)", got.Extractor.DeadLetterCount)
+	}
+	if !got.GonchoQueue.ObservabilityOnly {
+		t.Fatalf("goncho_queue.observability_only = false, want true (matches goncho doctor convention)")
+	}
+	// JSON mode must not interleave the human "Extractor status" header.
+	if strings.Contains(stdout.String(), "Extractor status") {
+		t.Fatalf("--json must not emit the human header; got:\n%s", stdout.String())
 	}
 }
 

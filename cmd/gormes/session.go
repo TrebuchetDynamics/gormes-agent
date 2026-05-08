@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -52,9 +53,13 @@ func newSessionListCommand() *cobra.Command {
 			defer db.Close()
 			source, _ := cmd.Flags().GetString("source")
 			limit, _ := cmd.Flags().GetInt("limit")
+			asJSON, _ := cmd.Flags().GetBool("json")
 			sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
 			if err != nil {
 				return err
+			}
+			if asJSON {
+				return emitSessionListJSON(cmd, sessions)
 			}
 			if len(sessions) == 0 {
 				fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
@@ -66,12 +71,57 @@ func newSessionListCommand() *cobra.Command {
 	}
 	cmd.Flags().String("source", "", "only list sessions from this source")
 	cmd.Flags().Int("limit", 20, "max sessions to list")
+	cmd.Flags().Bool("json", false, "emit a `{build, sessions: [...]}` JSON document (suitable for fleet inventory automation)")
 	return cmd
+}
+
+// sessionListReportJSON is the wire shape for `gormes session list --json`.
+// Build provenance leads, then the sessions array — same convention as
+// the rest of the --json arc. internal/session.DirectoryEntry is
+// tag-free; mirroring it here keeps presentation concerns out of the
+// session package.
+type sessionListReportJSON struct {
+	Build    buildProvenanceJSON       `json:"build"`
+	Sessions []sessionListEntryJSON    `json:"sessions"`
+}
+
+type sessionListEntryJSON struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Preview      string `json:"preview"`
+	Source       string `json:"source"`
+	StartedAt    int64  `json:"started_at"`
+	LastActiveAt int64  `json:"last_active_at"`
+	MessageCount int    `json:"message_count"`
+}
+
+func emitSessionListJSON(cmd *cobra.Command, entries []sessionpkg.DirectoryEntry) error {
+	out := make([]sessionListEntryJSON, len(entries))
+	for i, e := range entries {
+		out[i] = sessionListEntryJSON{
+			ID:           e.ID,
+			Title:        e.Title,
+			Preview:      e.Preview,
+			Source:       e.Source,
+			StartedAt:    e.StartedAt,
+			LastActiveAt: e.LastActiveAt,
+			MessageCount: e.MessageCount,
+		}
+	}
+	body, err := json.MarshalIndent(sessionListReportJSON{
+		Build:    newBuildProvenance(),
+		Sessions: out,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func newSessionExportCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "export <session-id>",
+		Use:   "export <session-id-or-prefix>",
 		Short: "Export a persisted session transcript",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,10 +144,25 @@ func newSessionExportCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			out, err := transcript.ExportMarkdown(context.Background(), db, args[0])
+			// Resolve the operator's input as a session id OR a unique
+			// prefix — same shape `session delete` accepts. Operators
+			// shouldn't have to copy-paste a 24-char id when a 7-char
+			// prefix already disambiguates.
+			resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
+			if err != nil {
+				if errors.Is(err, sessionpkg.ErrSessionNotFound) {
+					return fmt.Errorf("session %q not found", args[0])
+				}
+				if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
+					return fmt.Errorf("session export: prefix %q is ambiguous: %w", args[0], err)
+				}
+				return err
+			}
+
+			out, err := transcript.ExportMarkdown(context.Background(), db, resolved)
 			if err != nil {
 				if errors.Is(err, transcript.ErrSessionNotFound) {
-					return fmt.Errorf("session %q not found", args[0])
+					return fmt.Errorf("session %q not found", resolved)
 				}
 				return err
 			}

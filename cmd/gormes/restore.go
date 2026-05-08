@@ -70,6 +70,23 @@ func newRestoreCommandWithSeams(seams restoreCommandSeams) *cobra.Command {
 				if validateErr := cli.ValidateRestoreZip(resolvedPath); validateErr != nil {
 					return validateErr
 				}
+				if asJSON {
+					impact, _ := cli.SummarizeRestoreZipImpact(resolvedPath, home)
+					body, marshalErr := json.MarshalIndent(restorePreviewJSON{
+						Build:          newBuildProvenance(),
+						Action:         "preview",
+						Path:           resolvedPath,
+						Dest:           home,
+						DryRun:         true,
+						WouldOverwrite: impact.Overwrite,
+						WouldCreate:    impact.Create,
+					}, "", "  ")
+					if marshalErr != nil {
+						return marshalErr
+					}
+					fmt.Fprintln(out, string(body))
+					return nil
+				}
 				fmt.Fprintf(out, "DRY RUN — would extract %s", resolvedPath)
 				if info, statErr := os.Stat(resolvedPath); statErr == nil {
 					fmt.Fprintf(out,
@@ -120,7 +137,7 @@ func newRestoreCommandWithSeams(seams restoreCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&latest, "latest", false, "restore the newest pre-update backup (resolved by mtime)")
 	cmd.Flags().StringVar(&path, "path", "", "path to a pre-update-*.zip to restore (overwrites files in GORMES_HOME)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm the destructive restore (without --yes the command runs as a dry-run preview)")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `--list` returns `{build, backups: [...]}`; `--yes` returns `{build, action, path, dest, file_count, overwrote, created}`")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `--list` returns `{build, backups: [...]}`; dry-run returns `{build, action: 'preview', path, dest, dry_run, would_overwrite, would_create}`; `--yes` returns `{build, action: 'restored', path, dest, file_count, overwrote, created}`")
 	return cmd
 }
 
@@ -147,6 +164,23 @@ type restoreOutcomeJSON struct {
 	Created   int                 `json:"created"`
 }
 
+// restorePreviewJSON is the wire shape for `restore --path X --json`
+// without --yes — a dry-run preview. Operator scripts driving restore
+// gate decisions (CI/CD approvals, kanban hooks, audit logs) parse
+// this to learn the resolved zip, the dest root, and the blast radius
+// (`would_overwrite` + `would_create`) BEFORE pulling the trigger
+// with --yes. `dry_run: true` and `action: "preview"` distinguish it
+// from the post-extract `restored` outcome shape.
+type restorePreviewJSON struct {
+	Build          buildProvenanceJSON `json:"build"`
+	Action         string              `json:"action"`
+	Path           string              `json:"path"`
+	Dest           string              `json:"dest"`
+	DryRun         bool                `json:"dry_run"`
+	WouldOverwrite int                 `json:"would_overwrite"`
+	WouldCreate    int                 `json:"would_create"`
+}
+
 type backupListingJSON struct {
 	Path      string    `json:"path"`
 	SizeBytes int64     `json:"size_bytes"`
@@ -162,7 +196,7 @@ func resolveLatestBackup(backupsDir string) (string, error) {
 		return "", err
 	}
 	if len(entries) == 0 {
-		return "", fmt.Errorf("restore: no backups found in %s", backupsDir)
+		return "", fmt.Errorf("restore: no backups found in %s — to create backups run `gormes update --backup` or set `[updates] pre_update_backup = true` in config.toml", backupsDir)
 	}
 	return entries[0].Path, nil
 }

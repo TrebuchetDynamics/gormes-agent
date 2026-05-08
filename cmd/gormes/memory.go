@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -29,7 +30,8 @@ func newMemoryCommand() *cobra.Command {
 }
 
 func newMemoryStatusCommand() *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show extractor queue depth and dead letters",
 		Args:  cobra.NoArgs,
@@ -66,10 +68,57 @@ func newMemoryStatusCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if asJSON {
+				return emitMemoryStatusJSON(cmd, status, queueStatus)
+			}
 			_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(status, queueStatus))
 			return err
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, extractor, goncho_queue}` JSON document (suitable for SRE alerting on memory backlog)")
+	return cmd
+}
+
+// memoryStatusReportJSON is the wire shape for `memory status --json`.
+// Build provenance leads, then the two status sub-blocks the human
+// surface renders. Cmd-side mapping (rather than tagging the internal
+// types directly) keeps internal/memory and internal/goncho package
+// types tag-free and isolates the JSON wire contract here.
+type memoryStatusReportJSON struct {
+	Build       buildProvenanceJSON      `json:"build"`
+	Extractor   memoryExtractorJSON      `json:"extractor"`
+	GonchoQueue goncho.QueueStatus       `json:"goncho_queue"`
+}
+
+type memoryExtractorJSON struct {
+	WorkerHealth       string                          `json:"worker_health"`
+	QueueDepth         int                             `json:"queue_depth"`
+	DeadLetterCount    int                             `json:"dead_letter_count"`
+	SkippedSyncCount   int                             `json:"skipped_sync_count"`
+	ErrorSummary       []memory.DeadLetterErrorSummary `json:"error_summary"`
+	RecentDeadLetters  []memory.DeadLetterSummary      `json:"recent_dead_letters"`
+	RecentSkippedSyncs []memory.SkippedSyncSummary     `json:"recent_skipped_syncs"`
+}
+
+func emitMemoryStatusJSON(cmd *cobra.Command, extractor memory.ExtractorStatus, queue goncho.QueueStatus) error {
+	body, err := json.MarshalIndent(memoryStatusReportJSON{
+		Build: newBuildProvenance(),
+		Extractor: memoryExtractorJSON{
+			WorkerHealth:       extractor.WorkerHealth,
+			QueueDepth:         extractor.QueueDepth,
+			DeadLetterCount:    extractor.DeadLetterCount,
+			SkippedSyncCount:   extractor.SkippedSyncCount,
+			ErrorSummary:       extractor.ErrorSummary,
+			RecentDeadLetters:  extractor.RecentDeadLetters,
+			RecentSkippedSyncs: extractor.RecentSkippedSyncs,
+		},
+		GonchoQueue: queue,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func formatMemoryStatus(status memory.ExtractorStatus, queueStatus goncho.QueueStatus) string {
