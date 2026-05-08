@@ -32,6 +32,28 @@ func TestVersionCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
 	}
 }
 
+// TestRootCommand_VersionFlagPrintsVersion proves `gormes --version`
+// (and `-V` shorthand) print the binary's version line, matching the
+// near-universal CLI convention. Without this, operators running
+// `gormes --version` get an "unknown flag" error instead of the
+// version they're checking for. The command-form `gormes version`
+// already works; the flag-form is just a convention bridge.
+func TestRootCommand_VersionFlagPrintsVersion(t *testing.T) {
+	for _, flag := range []string{"--version", "-V"} {
+		t.Run(flag, func(t *testing.T) {
+			setupOneshotFlagTestEnv(t)
+			root := newRootCommandWithRuntime(rootRuntime{})
+			stdout, _, err := executeRootCommandForTest(root, flag)
+			if err != nil {
+				t.Fatalf("%s: %v\nstdout=%s", flag, err, stdout)
+			}
+			if !strings.Contains(stdout, Version) {
+				t.Fatalf("%s output must mention version %q; got %q", flag, Version, stdout)
+			}
+		})
+	}
+}
+
 // TestVersionCommand_HumanFormat is the regression baseline for the
 // existing default `gormes version` output. Refactoring to add --json
 // must not change the human-readable line.

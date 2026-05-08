@@ -121,7 +121,14 @@ func printDryRun(out io.Writer, groups []artifactGroup) error {
 		total += len(g.Paths)
 	}
 	fmt.Fprintf(out, "uninstall dry-run: %d artifact(s)\n\n", total)
+	// Skip empty groups so operators only see headers for groups with
+	// actual artifacts. Without this, every dry-run shows a wall of
+	// empty bracketed headers from the static group manifest, drowning
+	// out the groups that actually have content.
 	for _, g := range groups {
+		if len(g.Paths) == 0 {
+			continue
+		}
 		fmt.Fprintf(out, "[%s]\n", g.Name)
 		for _, p := range g.Paths {
 			fmt.Fprintf(out, "  %s\n", p)
@@ -135,15 +142,31 @@ func printDryRun(out io.Writer, groups []artifactGroup) error {
 }
 
 func executeUninstall(out, errOut io.Writer, groups []artifactGroup) error {
+	var removed, failed int
 	for _, g := range groups {
 		fmt.Fprintf(out, "removing [%s]...\n", g.Name)
 		for _, p := range g.Paths {
 			clean := strings.TrimSuffix(p, "/")
 			if err := os.RemoveAll(clean); err != nil {
 				fmt.Fprintf(errOut, "warning: could not remove %s: %v\n", clean, err)
+				failed++
+				continue
 			}
+			removed++
 		}
 	}
-	fmt.Fprintln(out, "\nuninstall complete.")
+	// Always surface both counts so operators see "0 failed" explicitly
+	// rather than inferring success from absence of warnings. Without
+	// the explicit failed count, an unrelated terminal scrollback could
+	// hide warnings and an operator could believe "uninstall complete"
+	// meant the whole tree was cleared.
+	fmt.Fprintf(out, "\nuninstall complete: %d removed, %d failed\n", removed, failed)
+	if failed > 0 {
+		// Return a non-nil error so cobra exits non-zero. Fleet
+		// scripts running `gormes uninstall --yes && echo OK` need
+		// the exit code as a machine signal — per-file stderr
+		// warnings alone don't survive into shell control flow.
+		return newExitCodeError(2, fmt.Errorf("uninstall: %d artifact(s) could not be removed (see warnings on stderr)", failed))
+	}
 	return nil
 }

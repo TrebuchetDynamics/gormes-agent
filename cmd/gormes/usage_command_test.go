@@ -5,7 +5,27 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
+
+// TestUsageCommand_HTTPClientHasBoundedTimeout proves the package-level
+// HTTP client carries a non-zero Timeout so an unresponsive provider
+// can't hang `gormes usage` indefinitely. Same defensive bound as
+// logsHTTPClient (slice 40); without it, http.DefaultClient's lack of
+// timeout leaks through to operator terminals.
+func TestUsageCommand_HTTPClientHasBoundedTimeout(t *testing.T) {
+	if usageHTTPClient == nil {
+		t.Fatal("usageHTTPClient must be configured at package init")
+	}
+	if usageHTTPClient.Timeout <= 0 {
+		t.Fatalf("usageHTTPClient.Timeout = %s, want a positive bound", usageHTTPClient.Timeout)
+	}
+	// Sanity bound: must be tighter than what an operator will tolerate.
+	// 60s is generous but bounded; >60s defeats the point.
+	if usageHTTPClient.Timeout > 60*time.Second {
+		t.Fatalf("usageHTTPClient.Timeout = %s, want <= 60s for operator responsiveness", usageHTTPClient.Timeout)
+	}
+}
 
 func TestUsageCommand_RendersUnsupportedProviderWithoutStartingTUI(t *testing.T) {
 	setupOneshotFlagTestEnv(t)

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -448,7 +447,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			if provider == "" {
 				provider = "openai-codex"
 			}
-			fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: http.DefaultClient}, func() time.Time { return time.Now().UTC() })
+			fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
 			return fetcher.Fetch(ctx, hermes.AccountUsageFetchRequest{Provider: provider, BaseURL: cfg.Hermes.Endpoint, APIKey: cfg.Hermes.APIKey})
 		},
 	}

@@ -39,6 +39,12 @@ type usageInvocation struct {
 	AccountID string
 }
 
+// usageHTTPClient bounds the provider account-usage fetch so an
+// unresponsive provider can't hang the operator's terminal. 30s gives
+// slow providers room to respond while preventing indefinite hangs;
+// http.DefaultClient has no timeout at all.
+var usageHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
 func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
 	cfg, err := config.Load(nil)
 	if err != nil {
@@ -51,7 +57,7 @@ func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
 	}
 	key := firstUsageString(invocation.APIKey, cfg.Hermes.APIKey)
 	baseURL := firstUsageString(invocation.BaseURL, cfg.Hermes.Endpoint)
-	fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: http.DefaultClient}, func() time.Time { return time.Now().UTC() })
+	fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
 	snapshot, err := fetcher.Fetch(cmd.Context(), hermes.AccountUsageFetchRequest{
 		Provider:  provider,
 		BaseURL:   baseURL,
