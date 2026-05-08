@@ -683,7 +683,7 @@ classification and row-backed implementation queue.
 - [x] Raw tool-call parser fixture matrix
 - [x] Docker execution backend (container lifecycle + mount policy)
 - [x] Docker backend top-level container reuse semantics
-- [ ] Modal
+- [x] Modal
 - [ ] Daytona
 - [ ] Singularity
 - [x] Sandbox Policy Explain
@@ -1025,6 +1025,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes status bar renderer
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
+- [ ] Native TUI Shift+Enter newline CSI-u parity
 - [x] Native TUI clipboard, OSC52, and terminal setup parity
 - [x] Native TUI image/file drop + paste collapse ingress
 - [x] Native TUI Hermes slash completion helpers

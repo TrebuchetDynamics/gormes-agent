@@ -10,13 +10,14 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
-// TestHermesKeybindings_AltEnterAndCtrlJInsertNewline proves multi-line input
-// works without submit. Hermes binds both Alt+Enter (escape, enter) and Ctrl+J
-// (c-j) as "insert newline" so multi-line drafts compose without ever
-// submitting. The pure resolver MUST classify both as ActionInsertNewline,
-// regardless of whether the editor draft is empty or contains text, and MUST
-// NOT classify them as ActionSubmit even on a single-line draft.
-func TestHermesKeybindings_AltEnterAndCtrlJInsertNewline(t *testing.T) {
+// TestHermesKeybindings_AltEnterCtrlJShiftEnterInsertNewline proves multi-line
+// input works without submit. Hermes binds Alt+Enter (escape, enter), Ctrl+J
+// (c-j), and modern-terminal Shift+Enter as "insert newline" so multi-line
+// drafts compose without ever submitting. The pure resolver MUST classify all
+// three as ActionInsertNewline, regardless of whether the editor draft is empty
+// or contains text, and MUST NOT classify them as ActionSubmit even on a
+// single-line draft.
+func TestHermesKeybindings_AltEnterCtrlJShiftEnterInsertNewline(t *testing.T) {
 	cases := []struct {
 		name string
 		ev   HermesKeyEvent
@@ -25,11 +26,13 @@ func TestHermesKeybindings_AltEnterAndCtrlJInsertNewline(t *testing.T) {
 		{"alt-enter with draft", HermesKeyEvent{Kind: HermesKeyEnter, Alt: true}},
 		{"ctrl-j empty draft", HermesKeyEvent{Kind: HermesKeyCtrlJ}},
 		{"ctrl-j with draft", HermesKeyEvent{Kind: HermesKeyCtrlJ}},
+		{"shift-enter empty draft", HermesKeyEvent{Kind: HermesKeyEnter, Shift: true}},
+		{"shift-enter with draft", HermesKeyEvent{Kind: HermesKeyEnter, Shift: true}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			st := HermesInputState{Text: "hello", Phase: HermesPhaseIdle}
-			if strings.HasPrefix(tc.name, "alt-enter empty") || strings.HasPrefix(tc.name, "ctrl-j empty") {
+			if strings.Contains(tc.name, "empty") {
 				st.Text = ""
 			}
 			got := ResolveHermesKey(tc.ev, st)
@@ -40,6 +43,60 @@ func TestHermesKeybindings_AltEnterAndCtrlJInsertNewline(t *testing.T) {
 				t.Fatalf("multi-line keybinding must never submit on its own draft")
 			}
 		})
+	}
+}
+
+func TestHermesKeybindings_ShiftEnterCSISequencesInsertNewline(t *testing.T) {
+	type namedCSIMessage []byte
+	for _, seq := range []string{
+		"\x1b[13;2u",
+		"\x1b[27;2;13~",
+		"\x1b[27;2;13u",
+	} {
+		t.Run(seq, func(t *testing.T) {
+			if !isHermesShiftEnterCSIMessage([]byte(seq)) {
+				t.Fatalf("isHermesShiftEnterCSIMessage(%q) = false, want true", seq)
+			}
+			if !isHermesShiftEnterCSIMessage(namedCSIMessage(seq)) {
+				t.Fatalf("isHermesShiftEnterCSIMessage(named %q) = false, want true", seq)
+			}
+		})
+	}
+
+	for _, seq := range []string{
+		"\r",
+		"\x1b\r",
+		"\x1b[13;5u",
+		"\x1b[27;5;13~",
+		"\x1b[31;2u",
+	} {
+		t.Run("reject "+seq, func(t *testing.T) {
+			if isHermesShiftEnterCSIMessage([]byte(seq)) {
+				t.Fatalf("isHermesShiftEnterCSIMessage(%q) = true, want false", seq)
+			}
+		})
+	}
+}
+
+func TestHermesKeybindings_ShiftEnterCSIMessageUpdatesEditor(t *testing.T) {
+	sub := &nopSubmitter{}
+	frames := make(chan kernel.RenderFrame, 1)
+	frames <- kernel.RenderFrame{Phase: kernel.PhaseIdle, Seq: 1}
+	m := NewModelWithOptions(frames, sub.submit, func() {}, Options{})
+	m.editor.SetValue("hello")
+
+	next, cmd := m.Update([]byte("\x1b[13;2u"))
+	updated, ok := next.(Model)
+	if !ok {
+		t.Fatalf("Update returned %T, want tui.Model", next)
+	}
+	runTestCmd(t, cmd)
+
+	if got := updated.editor.Value(); got != "hello\n" {
+		t.Fatalf("editor value = %q, want %q", got, "hello\n")
+	}
+	if sub.calls != 0 {
+		t.Fatalf("Shift+Enter CSI reached Submitter %d time(s), want 0", sub.calls)
 	}
 }
 

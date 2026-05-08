@@ -21035,7 +21035,7 @@
             },
             {
               "name": "Modal",
-              "status": "planned",
+              "status": "complete",
               "note": "TDD: freeze Modal request/job lifecycle, upload/download mapping, and unavailable-credential behavior as fixtures before any cloud execution path is enabled.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -40929,6 +40929,80 @@
                 "TUI queued submit dispatch while in-flight",
                 "Native TUI Hermes slash completion helpers"
               ]
+            },
+            {
+              "name": "Native TUI Shift+Enter newline CSI-u parity",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes TUI treats Shift+Enter byte sequences emitted by Kitty keyboard protocol / CSI-u and xterm modifyOtherKeys terminals as the same newline chord as Alt+Enter, while plain Enter continues to submit by state. Bubble Tea currently surfaces those distinct Shift+Enter sequences as unknown CSI messages instead of a KeyShiftEnter key, so Gormes normalizes only the three source-backed Shift+Enter sequences before they can be dropped by the editor.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Terminals that collapse Shift+Enter to plain Enter keep the existing Alt+Enter and Ctrl+J newline fallbacks; malformed or unrelated CSI input is ignored instead of submitting or mutating the draft.",
+              "fixture": "internal/tui/hermes_keybindings_test.go::TestHermesKeybindings_*ShiftEnter*",
+              "source_refs": [
+                "./hermes-agent/cli.py@f5b635f6a:install_shift_enter_alias import and existing handle_alt_enter newline binding",
+                "./hermes-agent/hermes_cli/pt_input_extras.py@f5b635f6a:install_shift_enter_alias",
+                "./hermes-agent/tests/cli/test_cli_shift_enter_newline.py@f5b635f6a",
+                "./hermes-agent/website/docs/user-guide/cli.md@f5b635f6a:Shift+Enter compatibility",
+                "internal/tui/update.go:ResolveHermesKey,Model.Update",
+                "internal/tui/hermes_keybindings_test.go"
+              ],
+              "ready_when": [
+                "Native TUI Hermes input keybinding semantics is complete, so the resolver and textarea submit path already distinguish newline chords from plain Enter.",
+                "Bubble Tea v1.3.10 remains the local TUI input source and does not expose a KeyShiftEnter constant for CSI-u / modifyOtherKeys Enter sequences.",
+                "The worker can test the normalization with hermetic byte-slice messages and pure resolver fixtures; no live terminal is required."
+              ],
+              "not_ready_when": [
+                "The slice edits vendored or module-cache Bubble Tea code instead of normalizing in Gormes.",
+                "The implementation broadens parsing to arbitrary CSI sequences or treats malformed CSI as Enter.",
+                "The slice changes slash command dispatch, provider submit semantics, busy-input policy, terminal setup files, or clipboard behavior."
+              ],
+              "blocked_by": [
+                "Native TUI Hermes input keybinding semantics"
+              ],
+              "acceptance": [
+                "TestHermesKeybindings_AltEnterCtrlJShiftEnterInsertNewline proves Alt+Enter, Ctrl+J, and a Shift-marked Enter event all resolve to InsertNewline and never Submit.",
+                "TestHermesKeybindings_ShiftEnterCSISequencesInsertNewline proves the three upstream byte sequences are recognized and unrelated CSI/plain Enter bytes are not.",
+                "TestHermesKeybindings_ShiftEnterCSIMessageUpdatesEditor proves a Shift+Enter CSI message inserts a newline into the Bubble Tea textarea without calling Submitter.",
+                "Existing plain Enter and busy-input keybinding fixtures still pass."
+              ],
+              "write_scope": [
+                "internal/tui/update.go",
+                "internal/tui/hermes_keybindings_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'TestHermesKeybindings_(AltEnterCtrlJShiftEnterInsertNewline|ShiftEnterCSI)' -count=1",
+                "go test ./internal/tui -run '^TestHermesKeybindings_' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Shift+Enter CSI-u and modifyOtherKeys fixtures prove multi-line input parity without changing plain Enter submission."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f5b635f6a cli.py + hermes_cli/pt_input_extras.py",
+                "note": "Hermes maps modern-terminal Shift+Enter byte sequences to the existing Alt+Enter newline key tuple. Gormes ports the behavior in Bubble Tea by recognizing Bubble Tea's unknown CSI payloads for only those exact sequences."
+              },
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep refreshed hermes-agent to d606df812 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 28, below the 90-row cap, so adding one P1 row was allowed. This source-backed TUI drift was selected because Hermes f5b635f6a maps Shift+Enter CSI-u / xterm modifyOtherKeys byte sequences to the existing Alt+Enter newline tuple, while Gormes' completed keybinding row only proved Alt+Enter and Ctrl+J. TDD added Shift-marked Enter resolution, exact byte-sequence normalization for Bubble Tea unknown CSI messages, and editor-level proof that the sequence inserts a newline without calling Submitter.",
+              "evidence": {
+                "implementation": [
+                  "internal/tui/update.go: ResolveHermesKey treats Shift+Enter as InsertNewline alongside Alt+Enter.",
+                  "internal/tui/update.go: Model.Update recognizes exactly the three Hermes Shift+Enter byte sequences before Bubble Tea drops them as unknown CSI messages.",
+                  "internal/tui/hermes_keybindings_test.go: resolver, byte-slice/named-slice, and editor fixtures prove newline insertion and no submit."
+                ],
+                "verification": [
+                  "RED: go test ./internal/tui -run 'TestHermesKeybindings_(AltEnterCtrlJShiftEnterInsertNewline|ShiftEnterCSI)' -count=1 failed on undefined isHermesShiftEnterCSIMessage.",
+                  "GREEN: go test ./internal/tui -run 'TestHermesKeybindings_(AltEnterCtrlJShiftEnterInsertNewline|ShiftEnterCSI)' -count=1 passed.",
+                  "GREEN: go test ./internal/tui -run '^TestHermesKeybindings_' -count=1 passed."
+                ]
+              }
             },
             {
               "name": "Native TUI clipboard, OSC52, and terminal setup parity",
