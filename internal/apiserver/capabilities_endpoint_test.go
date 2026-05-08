@@ -165,6 +165,60 @@ func TestAPIServerRunStatus_IncludesCreatedAtAndEventCount(t *testing.T) {
 	loop.release(TurnResult{SessionID: started.RunID})
 }
 
+// TestAPIServerDetailedHealth_AutoPopulatesRunEventsFromRegistry
+// proves that `/health/detailed` surfaces run lifecycle counters
+// automatically from the runRegistry — without requiring callers to
+// thread DetailedHealthRunEventsInput through their DetailedHealth
+// callback. Single source of truth: the runRegistry. Same arc as
+// `/v1/health` runs telemetry, but exposed through the structured
+// /health/detailed model.
+func TestAPIServerDetailedHealth_AutoPopulatesRunEventsFromRegistry(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d", start.Code)
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	loop.waitStarted(t)
+
+	if rec := postJSON(t, h, "/v1/runs/"+started.RunID+"/stop", nil, nil); rec.Code != http.StatusOK {
+		t.Fatalf("stop = %d", rec.Code)
+	}
+	loop.release(TurnResult{SessionID: started.RunID})
+
+	rec := getJSON(t, h, "/health/detailed", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		RunEvents struct {
+			Available    bool `json:"available"`
+			StoppedTotal int  `json:"stopped_total"`
+		} `json:"run_events"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if !got.RunEvents.Available {
+		t.Errorf("run_events.available = false, want true (registry is wired)")
+	}
+	if got.RunEvents.StoppedTotal != 1 {
+		t.Errorf("stopped_total = %d, want 1", got.RunEvents.StoppedTotal)
+	}
+}
+
 // TestAPIServerHealth_ReportsRunLifecycleCounters proves the
 // `/v1/health` runs telemetry exposes process-lifetime counters
 // (`completed_total`, `failed_total`, `stopped_total`) so fleet

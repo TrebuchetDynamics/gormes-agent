@@ -425,9 +425,37 @@ func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
 	if s.detailedHealth != nil {
 		input = s.detailedHealth()
 	}
+	if !input.RunEvents.Available {
+		input.RunEvents = s.runEventsHealthInput()
+	}
 	snapshot := DetailedHealthSnapshot(input)
 	snapshot.Build = s.buildInfo
 	writeJSON(w, http.StatusOK, snapshot)
+}
+
+// runEventsHealthInput builds DetailedHealthRunEventsInput from the
+// in-process runRegistry so /health/detailed always reflects truth
+// without requiring callers to thread these values through their
+// DetailedHealth callback. The registry is the single source of truth
+// for run lifecycle telemetry.
+func (s *Server) runEventsHealthInput() DetailedHealthRunEventsInput {
+	stats := s.runs.stats()
+	return DetailedHealthRunEventsInput{
+		Available:      true,
+		Active:         intFromAny(stats["active"]),
+		OrphanedSwept:  intFromAny(stats["orphaned_swept"]),
+		TTLSeconds:     intFromAny(stats["ttl_seconds"]),
+		CompletedTotal: intFromAny(stats["completed_total"]),
+		FailedTotal:    intFromAny(stats["failed_total"]),
+		StoppedTotal:   intFromAny(stats["stopped_total"]),
+	}
+}
+
+func intFromAny(v any) int {
+	if i, ok := v.(int); ok {
+		return i
+	}
+	return 0
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
