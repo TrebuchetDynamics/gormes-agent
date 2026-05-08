@@ -6,6 +6,32 @@ import (
 	"testing"
 )
 
+// TestVersionCommand_ConstructorReturnsIndependentInstances proves
+// that newVersionCommand() returns a fresh cobra.Command each call
+// with isolated flag state. Without a constructor, the package-level
+// versionCmd var would let an earlier `--json` flag set on one
+// instance leak into a later non-JSON invocation — same anti-pattern
+// that broke `doctorCmd` before its constructor refactor.
+func TestVersionCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
+	a := newVersionCommand()
+	b := newVersionCommand()
+	if a == b {
+		t.Fatal("newVersionCommand must return distinct instances; got the same pointer")
+	}
+	// Set --json on `a` then run `b` with default args; `b` must
+	// emit the human format, not JSON.
+	a.SetArgs([]string{"--json"})
+	_ = a.Execute()
+
+	var stdoutB strings.Builder
+	b.SetOut(&stdoutB)
+	b.SetArgs(nil)
+	_ = b.Execute()
+	if !strings.HasPrefix(strings.TrimSpace(stdoutB.String()), "gormes ") {
+		t.Fatalf("instance B (no --json) must emit human format; got %q", stdoutB.String())
+	}
+}
+
 // TestVersionCommand_HumanFormat is the regression baseline for the
 // existing default `gormes version` output. Refactoring to add --json
 // must not change the human-readable line.

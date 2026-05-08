@@ -47,7 +47,8 @@ jobs:
       - name: Refresh benchmark input
         run: |
           version=$(grep 'var Version =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
-          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.Version=${version}" -o bin/gormes ./cmd/gormes
+          git_commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.Version=${version} -X main.GitCommit=${git_commit}" -o bin/gormes ./cmd/gormes
 
       - name: Build Astro static site
         working-directory: webpages/landing

@@ -38,29 +38,34 @@ type versionReportJSON struct {
 	GitCommit string `json:"git_commit"`
 }
 
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Print gormes version",
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		out := cmd.OutOrStdout()
-		asJSON, _ := cmd.Flags().GetBool("json")
-		if asJSON {
-			body, err := json.MarshalIndent(versionReportJSON{
-				Version:   Version,
-				DateAlias: VersionDateAlias,
-				GitCommit: GitCommit,
-			}, "", "  ")
-			if err != nil {
-				return err
+// newVersionCommand returns a fresh `gormes version` cobra.Command.
+// Constructor pattern (rather than a package-level var with init-time
+// flag registration) avoids cross-test flag-value contamination on the
+// shared cobra FlagSet — each newRootCommand() builds an independent
+// instance.
+func newVersionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print gormes version",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			out := cmd.OutOrStdout()
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				body, err := json.MarshalIndent(versionReportJSON{
+					Version:   Version,
+					DateAlias: VersionDateAlias,
+					GitCommit: GitCommit,
+				}, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(out, string(body))
+				return nil
 			}
-			fmt.Fprintln(out, string(body))
+			fmt.Fprintln(out, "gormes", Version)
 			return nil
-		}
-		fmt.Fprintln(out, "gormes", Version)
-		return nil
-	},
-}
-
-func init() {
-	versionCmd.Flags().Bool("json", false, "emit a machine-readable {version, date_alias} JSON record (suitable for fleet automation)")
+		},
+	}
+	cmd.Flags().Bool("json", false, "emit a machine-readable {version, date_alias, git_commit} JSON record (suitable for fleet automation)")
+	return cmd
 }
