@@ -33,6 +33,12 @@ func TestLogsCommand_FileFallbackRoutesThroughCobraWriters(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(home, "gormes.log"), []byte(want), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	prevClient := logsHTTPClient
+	t.Cleanup(func() { logsHTTPClient = prevClient })
+	logsHTTPClient = &http.Client{Timeout: 10 * time.Millisecond}
+	prevURL := logsEndpointURL
+	t.Cleanup(func() { logsEndpointURL = prevURL })
+	logsEndpointURL = "http://127.0.0.1:1/dead-endpoint"
 
 	cmd := newLogsCommand()
 	var stdout, stderr bytes.Buffer
