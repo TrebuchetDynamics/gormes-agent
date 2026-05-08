@@ -28662,9 +28662,9 @@
             {
               "name": "Hermes Kanban slash/gateway/dashboard surfaces",
               "priority": "P2",
-              "status": "planned",
+              "status": "in_progress",
               "contract": "Gormes ports the operator surfaces around Kanban: /kanban routes in TUI/gateway use the same parser/output as gormes kanban, gateway status exposes dispatcher state and nudge capability, and the dashboard shows live Kanban tasks, lanes, filters, worker runs, and dispatcher nudges over authenticated Gormes dashboard routes.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "gateway",
               "trust_class": [
@@ -28702,7 +28702,7 @@
                 "Dashboard route fixtures prove tasks, lanes, filters, runs, and dispatcher nudge endpoints require authentication and stream bounded updates.",
                 "Status fixtures prove dispatcher state is operator-visible without reading live Hermes config."
               ],
-              "note": "Planned after dispatcher/tool rows. The current slice only recognizes /kanban as unavailable so user text does not leak to the model.",
+              "note": "Gateway /kanban slash command implemented 2026-05-08: EventKanban added to gateway event system, CommandRegistry updated from unavailable to immediate, CLI registry marked Ported=true with ActiveTurnPolicyBypass. Handler supports create/list/show/complete/claim/block/unblock/link/init subcommands delegating to internal/kanban.Store. Dashboard and TUI wiring remain for follow-up slices.",
               "write_scope": [
                 "internal/cli/",
                 "internal/gateway/",
@@ -28724,6 +28724,21 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:54e78cadb hermes_cli/kanban.py + gateway/run.py + plugins/kanban/dashboard",
                 "note": "Hermes defines the shared slash/gateway/dashboard operator surfaces; Gormes should use native auth and event-stream patterns."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/event.go: EventKanban constant + String()",
+                  "internal/gateway/commands.go: kanban CommandRegistry entry changed from EventUnknown/Unavailable to EventKanban/Immediate, added to ParseInboundText passthrough list",
+                  "internal/gateway/kanban_command.go: handleKanbanCommand with create/list/show/complete/claim/block/unblock/link/init subcommands",
+                  "internal/gateway/manager.go: EventKanban wired in handleInbound, handleSlashSubmitCommand, and dispatchCommandEvent",
+                  "internal/cli/command_registry.go: kanban Ported=true, ActiveTurnPolicyBypass",
+                  "internal/cli/command_registry_policy_test.go: TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands updated for landed handler"
+                ],
+                "verification": [
+                  "go test ./... -count=1 -> all packages ok",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
               }
             },
             {
