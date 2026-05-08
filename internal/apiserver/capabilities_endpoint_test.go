@@ -6,6 +6,79 @@ import (
 	"testing"
 )
 
+// TestAPIServerCapabilities_BuildAttribution proves `/v1/capabilities`
+// carries the configured BuildInfo at the top of the JSON response so
+// fleet automation discovering Gormes capabilities across machines
+// can attribute the contract advertisement to the binary version that
+// emitted it. Same convention as the dashboard JSON arc — additive to
+// the OpenAI-compatible contract since clients ignore unknown fields.
+func TestAPIServerCapabilities_BuildAttribution(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:   "test-cap-attr",
+			GitCommit: "feedfade",
+		},
+	})
+	rec := getJSON(t, srv.Handler(), "/v1/capabilities", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Object string `json:"object"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Build.Version != "test-cap-attr" {
+		t.Errorf("build.version = %q, want test-cap-attr (body=%s)", got.Build.Version, rec.Body.String())
+	}
+	if got.Build.GitCommit != "feedfade" {
+		t.Errorf("build.git_commit = %q, want feedfade", got.Build.GitCommit)
+	}
+	if got.Object != "hermes.api_server.capabilities" {
+		t.Errorf("object = %q, want hermes.api_server.capabilities (still addressable)", got.Object)
+	}
+}
+
+// TestAPIServerHealth_BuildAttribution proves `/health` and
+// `/v1/health` carry BuildInfo so fleet health-monitoring across
+// machines can attribute each probe to the binary version.
+func TestAPIServerHealth_BuildAttribution(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:   "test-health-attr",
+			GitCommit: "abad1dea",
+		},
+	})
+	for _, path := range []string{"/health", "/v1/health"} {
+		rec := getJSON(t, srv.Handler(), path, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d; body=%s", path, rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version string `json:"version"`
+			} `json:"build"`
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s decode: %v\nbody=%s", path, err, rec.Body.String())
+		}
+		if got.Build.Version != "test-health-attr" {
+			t.Errorf("%s build.version = %q, want test-health-attr (body=%s)", path, got.Build.Version, rec.Body.String())
+		}
+		if got.Status != "ok" {
+			t.Errorf("%s status = %q, want ok (still addressable)", path, got.Status)
+		}
+	}
+}
+
 func TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract(t *testing.T) {
 	srv := NewServer(Config{ModelName: "gormes-agent", Loop: &fakeTurnLoop{}})
 

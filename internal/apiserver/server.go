@@ -390,6 +390,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":     s.buildInfo,
 		"status":    "ok",
 		"platform":  "gormes-agent",
 		"responses": s.responseHealthStatus(),
@@ -406,7 +407,9 @@ func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
 	if s.detailedHealth != nil {
 		input = s.detailedHealth()
 	}
-	writeJSON(w, http.StatusOK, DetailedHealthSnapshot(input))
+	snapshot := DetailedHealthSnapshot(input)
+	snapshot.Build = s.buildInfo
+	writeJSON(w, http.StatusOK, snapshot)
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
@@ -444,6 +447,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":    s.buildInfo,
 		"object":   "hermes.api_server.capabilities",
 		"platform": "gormes-agent",
 		"model":    s.modelName,
