@@ -933,6 +933,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTopic:
 		m.handleTelegramTopicCommand(ctx, ch, ev)
 		return nil
+	case EventKanban:
+		m.handleKanbanCommand(ctx, ch, ev)
+		return nil
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
 		return nil
@@ -996,7 +999,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -1084,6 +1087,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventTopic:
 		m.handleTelegramTopicCommand(ctx, ch, ev)
+		return true
+	case EventKanban:
+		m.handleKanbanCommand(ctx, ch, ev)
 		return true
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)

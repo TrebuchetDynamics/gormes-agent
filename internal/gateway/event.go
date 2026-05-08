@@ -65,6 +65,10 @@ const (
 	EventGoal
 	// EventTopic handles Telegram private-chat topic-mode controls.
 	EventTopic
+	// EventKanban handles /kanban subcommands (create, list, show, complete,
+	// claim, block, unblock, link, init). All kanban operations bypass the
+	// model and delegate to the local kanban.Store.
+	EventKanban
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -118,6 +122,8 @@ func (k EventKind) String() string {
 		return "goal"
 	case EventTopic:
 		return "topic"
+	case EventKanban:
+		return "kanban"
 	default:
 		return "unknown"
 	}
