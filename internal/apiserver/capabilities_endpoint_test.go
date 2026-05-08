@@ -219,6 +219,45 @@ func TestAPIServerDetailedHealth_AutoPopulatesRunEventsFromRegistry(t *testing.T
 	}
 }
 
+// TestAPIServerHealth_ReportsRequestTotalRunsCounter proves the
+// `/v1/health` runs telemetry exposes a `request_total` counter
+// incremented every time a run is submitted via POST /v1/runs.
+// Operators measuring run throughput need this independent of
+// terminal-state counters (completed/failed/stopped) so they can
+// derive in-flight + abandoned counts without snapshot drift.
+func TestAPIServerHealth_ReportsRequestTotalRunsCounter(t *testing.T) {
+	loop := &fakeTurnLoop{result: TurnResult{Content: "ok", SessionID: "sess-throughput"}}
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	for i := 0; i < 3; i++ {
+		rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("POST %d status = %d", i, rec.Code)
+		}
+	}
+
+	rec := getJSON(t, h, "/v1/health", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("health = %d", rec.Code)
+	}
+	var got struct {
+		Runs struct {
+			RequestTotal int `json:"request_total"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Runs.RequestTotal != 3 {
+		t.Errorf("request_total = %d, want 3", got.Runs.RequestTotal)
+	}
+}
+
 // TestAPIServerHealth_ReportsRunLifecycleCounters proves the
 // `/v1/health` runs telemetry exposes process-lifetime counters
 // (`completed_total`, `failed_total`, `stopped_total`) so fleet
@@ -272,6 +311,54 @@ func TestAPIServerHealth_ReportsRunLifecycleCounters(t *testing.T) {
 	if got.Runs.StoppedTotal != 1 {
 		t.Errorf("stopped_total = %d, want 1", got.Runs.StoppedTotal)
 	}
+}
+
+// TestAPIServerRunStop_EnvelopeMirrorsStatusEnvelope proves the
+// stop response envelope mirrors the GET /v1/runs/{run_id} status
+// envelope shape — same `created_at` and `events_count` so callers
+// using `POST /stop` followed by `GET /v1/runs/{id}` see consistent
+// metadata or can cache the stop response as the canonical run snap.
+func TestAPIServerRunStop_EnvelopeMirrorsStatusEnvelope(t *testing.T) {
+	loop := newBlockingRunLoop()
+	now := time.Unix(1_700_001_000, 0)
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	srv.now = func() time.Time { return now }
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	loop.waitStarted(t)
+
+	rec := postJSON(t, srv.Handler(), "/v1/runs/"+started.RunID+"/stop", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stop status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		CreatedAt   int64 `json:"created_at"`
+		EventsCount int   `json:"events_count"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.CreatedAt != now.Unix() {
+		t.Errorf("created_at = %d, want %d", got.CreatedAt, now.Unix())
+	}
+	if got.EventsCount < 2 {
+		t.Errorf("events_count = %d, want >= 2 (run.started + run.stopped)", got.EventsCount)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
 }
 
 // TestAPIServerRunStop_PublishesRunStoppedEventToBacklog proves
@@ -382,6 +469,98 @@ func TestAPIServerRunStop_CancelsRunAndReportsStopped(t *testing.T) {
 	missing := postJSON(t, srv.Handler(), "/v1/runs/run_does_not_exist/stop", nil, nil)
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("unknown run stop status = %d, want 404; body=%s", missing.Code, missing.Body.String())
+	}
+}
+
+// TestAPIServerRunStatus_IncludesLastEventType proves the run status
+// response carries `last_event_type` reflecting the most recent
+// lifecycle event type published. Operators detecting stalled runs
+// stuck in the middle of streaming can spot a run with status
+// "in_progress" but `last_event_type=message.delta` from minutes ago,
+// distinguishing a stuck loop from one that hasn't started yet.
+func TestAPIServerRunStatus_IncludesLastEventType(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	rec := getJSON(t, srv.Handler(), "/v1/runs/"+started.RunID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		LastEventType string `json:"last_event_type"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.LastEventType != "run.started" {
+		t.Errorf("last_event_type = %q, want run.started", got.LastEventType)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunStatus_FailedRunIncludesErrorMessage proves the
+// run status endpoint surfaces the `error` field carrying the loop's
+// failure message when status is `failed`. Fleet automation polling
+// failed runs needs the error string to alert/route without scraping
+// the run.failed SSE event from the backlog. Successful runs omit the
+// `error` field via `omitempty` to keep the success envelope tight.
+func TestAPIServerRunStatus_FailedRunIncludesErrorMessage(t *testing.T) {
+	loop := &fakeTurnLoop{err: errors.New("upstream provider 503")}
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d", start.Code)
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	var got struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+	for time.Now().Before(deadline) {
+		rec := getJSON(t, srv.Handler(), "/v1/runs/"+started.RunID, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status code = %d; body=%s", rec.Code, rec.Body.String())
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+		}
+		if got.Status == "failed" {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got.Status != "failed" {
+		t.Fatalf("status = %q, want failed", got.Status)
+	}
+	if got.Error != "upstream provider 503" {
+		t.Errorf("error = %q, want \"upstream provider 503\"", got.Error)
 	}
 }
 
@@ -503,6 +682,354 @@ func TestAPIServerRunStatus_ReportsLifecycleAndAttribution(t *testing.T) {
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("missing status = %d, want 404; body=%s", missing.Code, missing.Body.String())
 	}
+}
+
+// TestAPIServerRunsList_FiltersBySinceTimestamp proves
+// `GET /v1/runs?since=<unix>` returns only runs whose created_at is
+// >= the given timestamp. Fleet automation polling for new runs
+// since the last poll uses this to avoid re-scanning runs it has
+// already seen, supporting incremental dashboards.
+func TestAPIServerRunsList_FiltersBySinceTimestamp(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour, // keep both runs alive past the orphan sweep
+	})
+	now := time.Unix(1_700_002_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	// Submit run at t=2000.
+	r1 := postJSON(t, h, "/v1/runs", map[string]any{"input": "old"}, nil)
+	if r1.Code != http.StatusAccepted {
+		t.Fatalf("POST 1 = %d", r1.Code)
+	}
+	loop.waitStarted(t)
+	var s1 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r1.Body.Bytes(), &s1)
+
+	// Advance clock by 30s (well within RunTTL) then submit run.
+	now = time.Unix(1_700_002_030, 0)
+	r2 := postJSON(t, h, "/v1/runs", map[string]any{"input": "new"}, nil)
+	if r2.Code != http.StatusAccepted {
+		t.Fatalf("POST 2 = %d", r2.Code)
+	}
+	var s2 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r2.Body.Bytes(), &s2)
+
+	// Sanity: both runs are tracked.
+	all := getJSON(t, h, "/v1/runs", nil)
+	var allBody struct{ Runs []map[string]any `json:"runs"` }
+	json.Unmarshal(all.Body.Bytes(), &allBody)
+	if len(allBody.Runs) != 2 {
+		t.Fatalf("baseline list count = %d, want 2; body=%s", len(allBody.Runs), all.Body.String())
+	}
+
+	// since=1700002015 should return only the second run.
+	rec := getJSON(t, h, "/v1/runs?since=1700002015", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Runs []struct {
+			RunID     string `json:"run_id"`
+			CreatedAt int64  `json:"created_at"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got.Runs) != 1 || got.Runs[0].RunID != s2.RunID {
+		t.Errorf("filtered = %+v, want only %s", got.Runs, s2.RunID)
+	}
+
+	loop.release(TurnResult{SessionID: s1.RunID})
+	loop.release(TurnResult{SessionID: s2.RunID})
+}
+
+// TestAPIServerRunsList_OrderDescNewestFirst proves
+// `GET /v1/runs?order=desc` returns runs newest-first by created_at,
+// so dashboards showing the most recent runs first don't have to
+// reverse the array client-side. Default order remains ascending
+// (run_id alpha), matching deterministic enumeration. Invalid order
+// values are rejected with 400.
+func TestAPIServerRunsList_OrderDescNewestFirst(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	now := time.Unix(1_700_006_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	for i := 0; i < 3; i++ {
+		now = time.Unix(1_700_006_000+int64(i), 0)
+		if rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil); rec.Code != http.StatusAccepted {
+			t.Fatalf("POST %d = %d", i, rec.Code)
+		}
+	}
+
+	rec := getJSON(t, h, "/v1/runs?order=desc", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Runs []struct {
+			CreatedAt int64 `json:"created_at"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got.Runs) != 3 {
+		t.Fatalf("runs count = %d, want 3", len(got.Runs))
+	}
+	if got.Runs[0].CreatedAt < got.Runs[1].CreatedAt || got.Runs[1].CreatedAt < got.Runs[2].CreatedAt {
+		t.Errorf("expected desc order; got created_ats: %d %d %d",
+			got.Runs[0].CreatedAt, got.Runs[1].CreatedAt, got.Runs[2].CreatedAt)
+	}
+
+	bad := getJSON(t, h, "/v1/runs?order=sideways", nil)
+	if bad.Code != http.StatusBadRequest {
+		t.Errorf("invalid order status = %d, want 400", bad.Code)
+	}
+}
+
+// TestAPIServerRunsList_IncludesTotalCount proves the response
+// envelope carries `total` — the number of runs after filtering but
+// before limit truncation. Pagination consumers need this to know
+// how many more pages to fetch and to detect new arrivals between
+// polls without separate API calls.
+func TestAPIServerRunsList_IncludesTotalCount(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	now := time.Unix(1_700_005_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	for i := 0; i < 4; i++ {
+		now = time.Unix(1_700_005_000+int64(i), 0)
+		if rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil); rec.Code != http.StatusAccepted {
+			t.Fatalf("POST %d = %d", i, rec.Code)
+		}
+	}
+
+	rec := getJSON(t, h, "/v1/runs?limit=2", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Total int              `json:"total"`
+		Runs  []map[string]any `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Total != 4 {
+		t.Errorf("total = %d, want 4 (post-filter, pre-limit)", got.Total)
+	}
+	if len(got.Runs) != 2 {
+		t.Errorf("runs = %d, want 2 (limited)", len(got.Runs))
+	}
+}
+
+// TestAPIServerRunsList_LimitsResultCount proves
+// `GET /v1/runs?limit=N` caps the response to N runs (oldest first
+// after sort). Operators querying high-cardinality fleets need to
+// bound response size; without this they'd have to filter
+// client-side after downloading the full set.
+func TestAPIServerRunsList_LimitsResultCount(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	now := time.Unix(1_700_004_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	// Submit 3 runs with distinct nano-times.
+	for i := 0; i < 3; i++ {
+		now = time.Unix(1_700_004_000+int64(i), 0)
+		rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("POST %d = %d", i, rec.Code)
+		}
+	}
+
+	// Without limit, expect 3.
+	all := getJSON(t, h, "/v1/runs", nil)
+	var allBody struct{ Runs []map[string]any `json:"runs"` }
+	json.Unmarshal(all.Body.Bytes(), &allBody)
+	if len(allBody.Runs) != 3 {
+		t.Fatalf("baseline = %d, want 3", len(allBody.Runs))
+	}
+
+	// limit=2 returns 2.
+	rec := getJSON(t, h, "/v1/runs?limit=2", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct{ Runs []map[string]any `json:"runs"` }
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got.Runs) != 2 {
+		t.Errorf("limit=2 returned %d runs, want 2", len(got.Runs))
+	}
+
+	// limit=0 or non-numeric → 400.
+	bad := getJSON(t, h, "/v1/runs?limit=banana", nil)
+	if bad.Code != http.StatusBadRequest {
+		t.Errorf("limit=banana status = %d, want 400", bad.Code)
+	}
+}
+
+// TestAPIServerRunsList_RejectsUnknownStatusFilter proves an unknown
+// `?status=` value returns 400 with the list of valid filters rather
+// than silently producing an empty list — a footgun for fleet
+// automation typo'ing a status value.
+func TestAPIServerRunsList_RejectsUnknownStatusFilter(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", Loop: &fakeTurnLoop{}, ResponseStore: NewResponseStore(10)})
+
+	rec := getJSON(t, srv.Handler(), "/v1/runs?status=banana", nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"in_progress", "completed", "failed", "stopped"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("error body missing valid status %q: %s", want, body)
+		}
+	}
+}
+
+// TestAPIServerRunsList_FiltersByStatusQuery proves
+// `GET /v1/runs?status=in_progress` returns only runs whose status
+// matches the filter. Fleet automation polling for stalled in-flight
+// runs needs status filtering server-side rather than client-side
+// across machines with potentially many tracked runs.
+func TestAPIServerRunsList_FiltersByStatusQuery(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	// Submit two runs, stop one, leave the other in-progress.
+	r1 := postJSON(t, h, "/v1/runs", map[string]any{"input": "run1"}, nil)
+	if r1.Code != http.StatusAccepted {
+		t.Fatalf("POST 1 = %d", r1.Code)
+	}
+	var s1 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r1.Body.Bytes(), &s1)
+	loop.waitStarted(t)
+
+	if rec := postJSON(t, h, "/v1/runs/"+s1.RunID+"/stop", nil, nil); rec.Code != http.StatusOK {
+		t.Fatalf("stop 1 = %d", rec.Code)
+	}
+
+	r2 := postJSON(t, h, "/v1/runs", map[string]any{"input": "run2"}, nil)
+	if r2.Code != http.StatusAccepted {
+		t.Fatalf("POST 2 = %d", r2.Code)
+	}
+	var s2 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r2.Body.Bytes(), &s2)
+	loop.waitStarted(t)
+
+	// Filter for in_progress only.
+	rec := getJSON(t, h, "/v1/runs?status=in_progress", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Runs []struct {
+			RunID  string `json:"run_id"`
+			Status string `json:"status"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if len(got.Runs) != 1 {
+		t.Fatalf("filtered runs = %d, want 1", len(got.Runs))
+	}
+	if got.Runs[0].RunID != s2.RunID || got.Runs[0].Status != "in_progress" {
+		t.Errorf("got = %+v, want only run %q in_progress", got.Runs, s2.RunID)
+	}
+
+	loop.release(TurnResult{SessionID: s2.RunID})
+}
+
+// TestAPIServerRunsList_ReturnsActiveRunsSnapshot proves
+// `GET /v1/runs` returns a list of currently-tracked runs with their
+// status snapshots so fleet automation auditing in-flight work
+// across machines can enumerate running runs without holding SSE
+// streams. List is bounded to the registry's live entries; finished
+// runs that have been swept or consumed are not present.
+func TestAPIServerRunsList_ReturnsActiveRunsSnapshot(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		BuildInfo:     BuildInfo{Version: "test-list-attr"},
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "hold"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	loop.waitStarted(t)
+
+	rec := getJSON(t, h, "/v1/runs", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Runs []struct {
+			RunID  string `json:"run_id"`
+			Status string `json:"status"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Build.Version != "test-list-attr" {
+		t.Errorf("build.version = %q, want test-list-attr", got.Build.Version)
+	}
+	if len(got.Runs) != 1 || got.Runs[0].RunID != started.RunID {
+		t.Errorf("runs = %+v, want one entry for %q", got.Runs, started.RunID)
+	}
+	if got.Runs[0].Status != "in_progress" {
+		t.Errorf("status = %q, want in_progress", got.Runs[0].Status)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
 }
 
 // TestAPIServerRuns_BuildAttribution proves `POST /v1/runs` carries the

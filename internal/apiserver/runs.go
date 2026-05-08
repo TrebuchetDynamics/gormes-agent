@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +19,7 @@ type runRegistry struct {
 	now            func() time.Time
 	runs           map[string]*runRecord
 	swept          int
+	requestTotal   int
 	completedTotal int
 	failedTotal    int
 	stoppedTotal   int
@@ -32,6 +35,7 @@ type runRecord struct {
 	failed      bool
 	stopped     bool
 	consumed    bool
+	errMsg      string
 }
 
 type runEvent struct {
@@ -74,6 +78,7 @@ func (r *runRegistry) create(id string, cancel context.CancelFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.runs[id] = &runRecord{id: id, createdAt: r.now(), cancel: cancel}
+	r.requestTotal++
 }
 
 // stop cancels the in-flight context for the run and marks it stopped.
@@ -136,14 +141,14 @@ func (r *runRegistry) publish(id string, ev runEvent) {
 }
 
 func (r *runRegistry) finish(id string) {
-	r.finishWith(id, false)
+	r.finishWith(id, false, "")
 }
 
-func (r *runRegistry) fail(id string) {
-	r.finishWith(id, true)
+func (r *runRegistry) fail(id string, errMsg string) {
+	r.finishWith(id, true, errMsg)
 }
 
-func (r *runRegistry) finishWith(id string, failed bool) {
+func (r *runRegistry) finishWith(id string, failed bool, errMsg string) {
 	r.mu.Lock()
 	rec := r.runs[id]
 	if rec == nil {
@@ -160,6 +165,9 @@ func (r *runRegistry) finishWith(id string, failed bool) {
 	rec.done = true
 	if failed {
 		rec.failed = true
+		if errMsg != "" {
+			rec.errMsg = errMsg
+		}
 	}
 	subs := append([]chan runEvent(nil), rec.subscribers...)
 	rec.subscribers = nil
@@ -200,11 +208,43 @@ func (r *runRegistry) status(id string) (string, bool) {
 
 // runStatusSnapshot is the read-model returned to fleet automation
 // polling `/v1/runs/{run_id}`. CreatedAt is unix seconds; EventsCount
-// reflects every lifecycle event published so far.
+// reflects every lifecycle event published so far. LastEventType is
+// the type of the most recent event in the backlog (e.g. "run.started",
+// "message.delta", "run.completed") for stalled-run detection. Error
+// carries the loop's failure message when Status == "failed"; empty
+// otherwise.
 type runStatusSnapshot struct {
-	Status      string
-	CreatedAt   int64
-	EventsCount int
+	Status        string
+	CreatedAt     int64
+	EventsCount   int
+	LastEventType string
+	Error         string
+}
+
+// listSnapshots returns a stable-sorted list of all live runs in the
+// registry. Finished runs that have been swept or consumed are not
+// present. Sort is by run_id ascending so callers see deterministic
+// ordering across polls.
+func (r *runRegistry) listSnapshots() []namedRunSnapshot {
+	r.mu.Lock()
+	ids := make([]string, 0, len(r.runs))
+	for id := range r.runs {
+		ids = append(ids, id)
+	}
+	r.mu.Unlock()
+	sort.Strings(ids)
+	out := make([]namedRunSnapshot, 0, len(ids))
+	for _, id := range ids {
+		if snap, ok := r.snapshot(id); ok {
+			out = append(out, namedRunSnapshot{RunID: id, runStatusSnapshot: snap})
+		}
+	}
+	return out
+}
+
+type namedRunSnapshot struct {
+	RunID string
+	runStatusSnapshot
 }
 
 func (r *runRegistry) snapshot(id string) (runStatusSnapshot, bool) {
@@ -217,6 +257,10 @@ func (r *runRegistry) snapshot(id string) (runStatusSnapshot, bool) {
 	snap := runStatusSnapshot{
 		CreatedAt:   rec.createdAt.Unix(),
 		EventsCount: len(rec.events),
+		Error:       rec.errMsg,
+	}
+	if n := len(rec.events); n > 0 {
+		snap.LastEventType = rec.events[n-1].Event
 	}
 	switch {
 	case rec.stopped:
@@ -262,6 +306,7 @@ func (r *runRegistry) stats() map[string]any {
 		"active":          len(r.runs),
 		"orphaned_swept":  r.swept,
 		"ttl_seconds":     int(r.ttl.Seconds()),
+		"request_total":   r.requestTotal,
 		"completed_total": r.completedTotal,
 		"failed_total":    r.failedTotal,
 		"stopped_total":   r.stoppedTotal,
@@ -269,6 +314,14 @@ func (r *runRegistry) stats() map[string]any {
 }
 
 func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		if !s.authorized(r) {
+			writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
+			return
+		}
+		s.handleListRuns(w, r)
+		return
+	}
 	if r.Method != http.MethodPost {
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
@@ -310,6 +363,94 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]any{"build": s.buildInfo, "run_id": runID, "status": "started"})
 }
 
+var validRunStatusFilters = []string{"in_progress", "completed", "failed", "stopped"}
+
+func isValidRunStatusFilter(s string) bool {
+	for _, v := range validRunStatusFilters {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
+	statusFilter := strings.TrimSpace(r.URL.Query().Get("status"))
+	if statusFilter != "" && !isValidRunStatusFilter(statusFilter) {
+		writeOpenAIError(w, http.StatusBadRequest,
+			"Invalid status filter "+statusFilter+"; valid values: "+strings.Join(validRunStatusFilters, ", "),
+			"invalid_request_error", "status", "invalid_status_filter")
+		return
+	}
+	var sinceUnix int64
+	if since := strings.TrimSpace(r.URL.Query().Get("since")); since != "" {
+		parsed, err := strconv.ParseInt(since, 10, 64)
+		if err != nil || parsed < 0 {
+			writeOpenAIError(w, http.StatusBadRequest,
+				"Invalid since timestamp "+since+"; expected non-negative unix seconds",
+				"invalid_request_error", "since", "invalid_since_filter")
+			return
+		}
+		sinceUnix = parsed
+	}
+	limit := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			writeOpenAIError(w, http.StatusBadRequest,
+				"Invalid limit "+raw+"; expected positive integer",
+				"invalid_request_error", "limit", "invalid_limit")
+			return
+		}
+		limit = parsed
+	}
+	order := strings.TrimSpace(r.URL.Query().Get("order"))
+	if order != "" && order != "asc" && order != "desc" {
+		writeOpenAIError(w, http.StatusBadRequest,
+			"Invalid order "+order+"; valid values: asc, desc",
+			"invalid_request_error", "order", "invalid_order")
+		return
+	}
+	snaps := s.runs.listSnapshots()
+	if order == "desc" {
+		sort.SliceStable(snaps, func(i, j int) bool {
+			return snaps[i].CreatedAt > snaps[j].CreatedAt
+		})
+	}
+	entries := make([]map[string]any, 0, len(snaps))
+	total := 0
+	for _, snap := range snaps {
+		if statusFilter != "" && snap.Status != statusFilter {
+			continue
+		}
+		if sinceUnix > 0 && snap.CreatedAt < sinceUnix {
+			continue
+		}
+		total++
+		if limit > 0 && len(entries) >= limit {
+			continue
+		}
+		entry := map[string]any{
+			"run_id":       snap.RunID,
+			"status":       snap.Status,
+			"created_at":   snap.CreatedAt,
+			"events_count": snap.EventsCount,
+		}
+		if snap.LastEventType != "" {
+			entry["last_event_type"] = snap.LastEventType
+		}
+		if snap.Error != "" {
+			entry["error"] = snap.Error
+		}
+		entries = append(entries, entry)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build": s.buildInfo,
+		"total": total,
+		"runs":  entries,
+	})
+}
+
 func (s *Server) runAsyncTurn(ctx context.Context, runID string, turnReq TurnRequest) {
 	now := s.now().Unix()
 	s.runs.publish(runID, runEvent{Event: "run.started", RunID: runID, Timestamp: now})
@@ -332,7 +473,7 @@ func (s *Server) runAsyncTurn(ctx context.Context, runID string, turnReq TurnReq
 	})
 	if err != nil {
 		s.runs.publish(runID, runEvent{Event: "run.failed", RunID: runID, Timestamp: s.now().Unix(), Error: err.Error()})
-		s.runs.fail(runID)
+		s.runs.fail(runID, err.Error())
 		return
 	}
 	s.runs.publish(runID, runEvent{
@@ -380,12 +521,21 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 			writeOpenAIError(w, http.StatusNotFound, "Run not found: "+runID, "invalid_request_error", "", "run_not_found")
 			return
 		}
-		status, _ := s.runs.status(runID)
-		writeJSON(w, http.StatusOK, map[string]any{
-			"build":  s.buildInfo,
-			"run_id": runID,
-			"status": status,
-		})
+		snap, _ := s.runs.snapshot(runID)
+		body := map[string]any{
+			"build":        s.buildInfo,
+			"run_id":       runID,
+			"status":       snap.Status,
+			"created_at":   snap.CreatedAt,
+			"events_count": snap.EventsCount,
+		}
+		if snap.LastEventType != "" {
+			body["last_event_type"] = snap.LastEventType
+		}
+		if snap.Error != "" {
+			body["error"] = snap.Error
+		}
+		writeJSON(w, http.StatusOK, body)
 		return
 	}
 	if suffix == "" || strings.Contains(suffix, "/") {
@@ -401,13 +551,20 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 		writeOpenAIError(w, http.StatusNotFound, "Run not found: "+suffix, "invalid_request_error", "", "run_not_found")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	body := map[string]any{
 		"build":        s.buildInfo,
 		"run_id":       suffix,
 		"status":       snap.Status,
 		"created_at":   snap.CreatedAt,
 		"events_count": snap.EventsCount,
-	})
+	}
+	if snap.LastEventType != "" {
+		body["last_event_type"] = snap.LastEventType
+	}
+	if snap.Error != "" {
+		body["error"] = snap.Error
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID string) {

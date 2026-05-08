@@ -6,6 +6,30 @@ import (
 	"testing"
 )
 
+// TestDetailedHealthSnapshot_RunEventsRequestTotal proves the run
+// events section also surfaces `request_total` — the count of every
+// run submitted to the registry — so /health/detailed can compute
+// in-flight + abandoned runs (request_total - completed - failed -
+// stopped - active) without reading /v1/health.
+func TestDetailedHealthSnapshot_RunEventsRequestTotal(t *testing.T) {
+	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
+		RunEvents: DetailedHealthRunEventsInput{
+			Available:    true,
+			RequestTotal: 22,
+		},
+	})
+	if got := snapshot.RunEvents.RequestTotal; got != 22 {
+		t.Errorf("request_total = %d, want 22", got)
+	}
+	raw, err := json.Marshal(snapshot.RunEvents)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"request_total":22`) {
+		t.Errorf("run_events JSON missing request_total: %s", raw)
+	}
+}
+
 // TestDetailedHealthSnapshot_RunEventsLifecycleCounters proves the
 // run events section surfaces process-lifetime lifecycle counters
 // (`completed_total`, `failed_total`, `stopped_total`) so fleet

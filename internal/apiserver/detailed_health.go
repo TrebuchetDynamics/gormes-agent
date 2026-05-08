@@ -43,6 +43,7 @@ type DetailedHealthRunEventsInput struct {
 	Active         int
 	OrphanedSwept  int
 	TTLSeconds     int
+	RequestTotal   int
 	CompletedTotal int
 	FailedTotal    int
 	StoppedTotal   int
@@ -104,6 +105,7 @@ type DetailedHealthRunEventsSection struct {
 	Active         int                      `json:"active"`
 	OrphanedSwept  int                      `json:"orphaned_swept"`
 	TTLSeconds     int                      `json:"ttl_seconds"`
+	RequestTotal   int                      `json:"request_total"`
 	CompletedTotal int                      `json:"completed_total"`
 	FailedTotal    int                      `json:"failed_total"`
 	StoppedTotal   int                      `json:"stopped_total"`
@@ -183,6 +185,7 @@ func detailedHealthRunEvents(input DetailedHealthRunEventsInput) DetailedHealthR
 		Active:         input.Active,
 		OrphanedSwept:  input.OrphanedSwept,
 		TTLSeconds:     input.TTLSeconds,
+		RequestTotal:   input.RequestTotal,
 		CompletedTotal: input.CompletedTotal,
 		FailedTotal:    input.FailedTotal,
 		StoppedTotal:   input.StoppedTotal,
