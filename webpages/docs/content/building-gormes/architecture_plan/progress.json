@@ -28857,7 +28857,7 @@
                 "Dashboard route fixtures prove tasks, lanes, filters, runs, and dispatcher nudge endpoints require authentication and stream bounded updates.",
                 "Status fixtures prove dispatcher state is operator-visible without reading live Hermes config."
               ],
-              "note": "Gateway /kanban slash command implemented 2026-05-08. Kanban dashboard API routes landed 2026-05-08: GET /api/kanban (lane summary), GET /api/kanban/tasks (with ?status=&assignee= filters), GET /api/kanban/tasks/{id} (single task), kanban panel in /api/status. DashboardPage.tsx shows live kanban board. TUI wiring remains for follow-up slices. Build provenance (version, git_commit, git_dirty, go_version) added to dashboard status and kanban responses 2026-05-08 for fleet-automation attribution. Fixture paths corrected 2026-05-08: removed phantom internal/gateway/kanban_command_test.go, internal/tui/kanban_slash_test.go, internal/dashboard/ (dir does not exist); pointed at real test files internal/apiserver/dashboard_kanban_test.go and internal/kanbantools/kanban_tools_test.go. 2026-05-08 all-topic parity sweep split native TUI `/kanban` dispatch into child row `Native TUI /kanban slash command binding over gormes kanban`; child is now complete. 2026-05-08 follow-up sweep split gateway `/kanban` shared-runner parity into child row `Gateway /kanban shared command-runner binding` so the parent no longer asks builders to finish gateway, TUI, and dashboard in one slice.",
+              "note": "Gateway /kanban slash command implemented 2026-05-08. Kanban dashboard API routes landed 2026-05-08: GET /api/kanban (lane summary), GET /api/kanban/tasks (with ?status=&assignee= filters), GET /api/kanban/tasks/{id} (single task), kanban panel in /api/status. DashboardPage.tsx shows live kanban board. TUI wiring remains for follow-up slices. Build provenance (version, git_commit, git_dirty, go_version) added to dashboard status and kanban responses 2026-05-08 for fleet-automation attribution. Fixture paths corrected 2026-05-08: removed phantom internal/gateway/kanban_command_test.go, internal/tui/kanban_slash_test.go, internal/dashboard/ (dir does not exist); pointed at real test files internal/apiserver/dashboard_kanban_test.go and internal/kanbantools/kanban_tools_test.go. 2026-05-08 all-topic parity sweep split native TUI `/kanban` dispatch into child row `Native TUI /kanban slash command binding over gormes kanban`; child is now complete. 2026-05-08 follow-up sweep split gateway `/kanban` shared-runner parity into child row `Gateway /kanban shared command-runner binding` so the parent no longer asks builders to finish gateway, TUI, and dashboard in one slice. 2026-05-08 bounded parity sweep against Hermes 508959668 found the dashboard dispatch quick path still row-backed: upstream `plugins/kanban/dashboard/plugin_api.py:/dispatch` runs one immediate dispatcher pass so the UI need not wait for the 60s gateway tick. Child row `Kanban dashboard dispatch quick path` now owns and completes that authenticated API slice.",
               "write_scope": [
                 "internal/cli/",
                 "internal/gateway/",
@@ -29089,6 +29089,87 @@
                   "RED: go test ./cmd/gormes -run TestGatewayKanbanSlash -count=1 failed because gatewayManagerConfig did not expose or inject a KanbanSlashRunner.",
                   "GREEN: go test ./internal/gateway -run 'TestKanbanCommand|TestActiveTurnCommandBypass' -count=1 passed.",
                   "GREEN: go test ./cmd/gormes -run TestGatewayKanbanSlash -count=1 passed."
+                ]
+              }
+            },
+            {
+              "name": "Kanban dashboard dispatch quick path",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "The authenticated Gormes dashboard exposes a Kanban dispatch quick path that mirrors Hermes' Kanban dashboard plugin `POST /dispatch`: operators can trigger one immediate dispatcher pass from the dashboard instead of waiting for the periodic gateway tick, receive the typed dispatch result with build attribution, and get explicit degraded evidence when the dispatcher seam is unavailable or fails.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the dashboard has no Kanban dispatcher seam or the pass fails, the endpoint returns kanban_dispatcher_unavailable or kanban_dispatch_failed without opening a Kanban database, starting a gateway loop, leaking worker env, or submitting slash text to the model.",
+              "fixture": "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_DispatchQuickPath",
+              "source_refs": [
+                "./hermes-agent/plugins/kanban/dashboard/plugin_api.py@508959668:/dispatch",
+                "./hermes-agent/gateway/run.py@508959668:_kanban_dispatcher_watcher",
+                "internal/apiserver/dashboard.go:handleDashboardKanban",
+                "internal/kanban/dispatcher.go:DispatchResult"
+              ],
+              "ready_when": [
+                "Hermes Kanban dispatcher and worker spawn loop is complete.",
+                "Kanban dashboard read routes already require the dashboard session token.",
+                "The slice can use an injected fake dispatcher seam; no live gateway, provider, worker subprocess, or Hermes home is required."
+              ],
+              "not_ready_when": [
+                "The implementation opens live Kanban storage from the apiserver instead of using an injected dispatcher seam.",
+                "The endpoint is unauthenticated, accepts non-POST methods, or returns success when the dispatcher seam is absent.",
+                "The endpoint starts a periodic dispatcher loop or spawns workers directly outside the existing dispatcher abstraction."
+              ],
+              "acceptance": [
+                "Dashboard fixtures prove `POST /api/kanban/dispatch?max=2` requires the active dashboard session token.",
+                "A fake dispatcher fixture proves the endpoint passes the max-spawn query value, returns build attribution and DispatchResult fields, and does not require a KanbanStore read.",
+                "Unavailable and failing-dispatch fixtures prove typed degraded errors: kanban_dispatcher_unavailable and kanban_dispatch_failed.",
+                "Existing dashboard Kanban read-route fixtures remain green."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "write_scope": [
+                "internal/apiserver/server.go",
+                "internal/apiserver/dashboard.go",
+                "internal/apiserver/dashboard_kanban_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/apiserver -run 'TestDashboardKanban_(DispatchQuickPath|Unauthorized|StoreUnavailable|OverviewLaneSummary)' -count=1",
+                "go test ./internal/apiserver -run TestDashboardKanban -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Authenticated dashboard dispatch quick path is fixture-proven with typed success/degraded responses and the Kanban parent row records completion evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:508959668 plugins/kanban/dashboard/plugin_api.py:/dispatch",
+                "note": "Hermes exposes a Kanban dashboard dispatch nudge so operators do not wait for the periodic gateway dispatcher tick; Gormes preserves the behavior through a Go-native injected dispatcher seam."
+              },
+              "note": "Complete 2026-05-08: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 28, below the 90-row cap. P1 docs/release rows remained operator- or infra-blocked; this P2 child was selected because the in-progress Kanban parent still named dispatcher nudges while Gormes only exposed read-only dashboard Kanban routes. TDD added an authenticated apiserver dispatch seam, `POST /api/kanban/dispatch?max=...`, build-attributed DispatchResult JSON, panel endpoint advertisement when configured, and degraded errors for missing/failing dispatcher seams.",
+              "evidence": {
+                "implementation": [
+                  "internal/apiserver/server.go: Config.KanbanDispatcher, KanbanDispatchOptions, and KanbanDispatcher interface wire the injected dashboard dispatch seam.",
+                  "internal/apiserver/server.go: /api/kanban/dispatch is registered as an authenticated dashboard route.",
+                  "internal/apiserver/dashboard.go: handleDashboardKanbanDispatch enforces POST + dashboard token, passes max query as MaxSpawn, returns build-attributed DispatchResult JSON, and reports kanban_dispatcher_unavailable / kanban_dispatch_failed degraded errors.",
+                  "internal/apiserver/dashboard.go: dashboardKanbanPanel advertises /api/kanban/dispatch only when a dispatcher seam is configured."
+                ],
+                "tests": [
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_DispatchQuickPath/requires_dashboard_session_token",
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_DispatchQuickPath/runs_injected_dispatcher_with_max_and_build_attribution",
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_DispatchQuickPath/reports_unavailable_seam",
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_DispatchQuickPath/reports_dispatch_failure"
+                ],
+                "verification": [
+                  "RED: go test ./internal/apiserver -run TestDashboardKanban_DispatchQuickPath -count=1 failed because KanbanDispatchOptions and Config.KanbanDispatcher did not exist.",
+                  "GREEN: go test ./internal/apiserver -run TestDashboardKanban_DispatchQuickPath -count=1 passed.",
+                  "GREEN: go test ./internal/apiserver -run 'TestDashboardKanban_(DispatchQuickPath|Unauthorized|StoreUnavailable|OverviewLaneSummary)' -count=1 passed.",
+                  "GREEN: go test ./internal/apiserver -run TestDashboardKanban -count=1 passed."
                 ]
               }
             },

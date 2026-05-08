@@ -150,7 +150,7 @@ func (s *Server) handleDashboardStatus(w http.ResponseWriter, r *http.Request) {
 		"plugins":       disabledPanel(dashboardPanelOptionalExtension, dashboardPluginPanelReason(s.pluginInventory)),
 		"pty_chat":      dashboardPtyChatPanel(s.chatTransport),
 		"chat_sidecar":  dashboardChatSidecarPanel(s.chatTransport),
-		"kanban":        dashboardKanbanPanel(s.kanbanStore),
+		"kanban":        dashboardKanbanPanel(s.kanbanStore, s.kanbanDispatcher),
 	}
 	if s.loop == nil {
 		panels["chat"] = disabledPanel(dashboardPanelBuiltIn, "native turn loop is not configured")
@@ -370,11 +370,15 @@ func dashboardPluginPanelReason(inventory pluginmeta.Inventory) string {
 	return "dashboard plugin runtime is not configured in the native API server"
 }
 
-func dashboardKanbanPanel(store KanbanStore) dashboardPanelStatus {
+func dashboardKanbanPanel(store KanbanStore, dispatcher KanbanDispatcher) dashboardPanelStatus {
 	if store == nil {
 		return disabledPanel(dashboardPanelOptional, "kanban store is not configured")
 	}
-	return enabledPanel(dashboardPanelOptional, "/api/kanban", "/api/kanban/tasks", "/api/kanban/tasks/{id}")
+	endpoints := []string{"/api/kanban", "/api/kanban/tasks", "/api/kanban/tasks/{id}"}
+	if dispatcher != nil {
+		endpoints = append(endpoints, "/api/kanban/dispatch")
+	}
+	return enabledPanel(dashboardPanelOptional, endpoints...)
 }
 
 func dashboardExtensionsFromInventory(in pluginmeta.Inventory) dashboardExtensionStatus {
@@ -582,6 +586,11 @@ type DashboardKanbanDispatcherStatus struct {
 	Reason    string `json:"reason,omitempty"`
 }
 
+type dashboardKanbanDispatchResponse struct {
+	Build  BuildInfo             `json:"build"`
+	Result kanban.DispatchResult `json:"result"`
+}
+
 func (s *Server) handleDashboardKanban(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
@@ -609,6 +618,33 @@ func (s *Server) handleDashboardKanban(w http.ResponseWriter, r *http.Request) {
 			Reason:    "dashboard kanban dispatcher status is not wired; gateway status provides dispatcher evidence",
 		},
 		TotalTasks: len(tasks),
+	})
+}
+
+func (s *Server) handleDashboardKanbanDispatch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
+		return
+	}
+	if s.kanbanDispatcher == nil {
+		writeOpenAIError(w, http.StatusServiceUnavailable, "Kanban dispatcher is not configured", "server_error", "", "kanban_dispatcher_unavailable")
+		return
+	}
+	opts := KanbanDispatchOptions{
+		MaxSpawn: parseDashboardInt(r.URL.Query().Get("max"), 8, 1, 100),
+	}
+	result, err := s.kanbanDispatcher.DispatchKanban(r.Context(), opts)
+	if err != nil {
+		writeOpenAIError(w, http.StatusInternalServerError, "Kanban dispatch failed", "server_error", "", "kanban_dispatch_failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, dashboardKanbanDispatchResponse{
+		Build:  s.buildInfo,
+		Result: result,
 	})
 }
 

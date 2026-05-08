@@ -70,6 +70,10 @@ type Config struct {
 	// interface. When nil, the kanban dashboard panel is disabled and
 	// endpoints respond with code "kanban_store_unavailable".
 	KanbanStore KanbanStore
+	// KanbanDispatcher is the write seam for the authenticated dashboard
+	// Kanban dispatch quick path. When nil, POST /api/kanban/dispatch reports
+	// kanban_dispatcher_unavailable.
+	KanbanDispatcher KanbanDispatcher
 	// BuildInfo carries the binary attribution (semver version, git
 	// commit, dirty flag, Go toolchain) the dashboard /api/status
 	// endpoint surfaces under `build`. Fleet automation querying
@@ -96,6 +100,17 @@ type BuildInfo struct {
 type KanbanStore interface {
 	ListTasks(ctx context.Context, filter kanban.ListFilter) ([]kanban.Task, error)
 	GetTask(ctx context.Context, id string) (kanban.Task, error)
+}
+
+// KanbanDispatchOptions carries the dashboard quick-dispatch parameters.
+type KanbanDispatchOptions struct {
+	MaxSpawn int
+}
+
+// KanbanDispatcher runs one immediate Kanban dispatcher pass for the
+// authenticated dashboard quick path.
+type KanbanDispatcher interface {
+	DispatchKanban(ctx context.Context, opts KanbanDispatchOptions) (kanban.DispatchResult, error)
 }
 
 // ChatTransportStatus describes the dashboard's embedded chat transports
@@ -132,6 +147,7 @@ type Server struct {
 	cronTrigger            CronTriggerHandler
 	cronAuditor            CronAdminAuditor
 	kanbanStore            KanbanStore
+	kanbanDispatcher       KanbanDispatcher
 	buildInfo              BuildInfo
 	statusMu               sync.Mutex
 	previousResponseMisses int
@@ -251,6 +267,7 @@ func NewServer(cfg Config) *Server {
 		cronTrigger:           cfg.CronTrigger,
 		cronAuditor:           cfg.CronAdminAuditor,
 		kanbanStore:           cfg.KanbanStore,
+		kanbanDispatcher:      cfg.KanbanDispatcher,
 		buildInfo:             cfg.BuildInfo,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
@@ -382,6 +399,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/sessions", s.handleDashboardSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
 	s.mux.HandleFunc("/api/kanban", s.handleDashboardKanban)
+	s.mux.HandleFunc("/api/kanban/dispatch", s.handleDashboardKanbanDispatch)
 	s.mux.HandleFunc("/api/kanban/tasks", s.handleDashboardKanbanTasks)
 	s.mux.HandleFunc("/api/kanban/tasks/", s.handleDashboardKanbanTaskByID)
 	s.mux.HandleFunc("/api/logs", s.handleDashboardLogs)
@@ -535,9 +553,9 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 				"run.failed",
 				"run.stopped",
 			},
-			"tool_progress_events":       true,
-			"session_continuity_header":  "X-Hermes-Session-Id",
-			"cors":                       false,
+			"tool_progress_events":      true,
+			"session_continuity_header": "X-Hermes-Session-Id",
+			"cors":                      false,
 		},
 		"endpoints": map[string]map[string]string{
 			"health":           {"method": "GET", "path": "/health"},

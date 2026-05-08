@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
@@ -15,6 +16,19 @@ type fakeKanbanStore struct {
 	tasks   []kanban.Task
 	listErr error
 	getErr  error
+}
+
+type fakeKanbanDispatcher struct {
+	result kanban.DispatchResult
+	err    error
+	calls  int
+	max    int
+}
+
+func (f *fakeKanbanDispatcher) DispatchKanban(_ context.Context, opts KanbanDispatchOptions) (kanban.DispatchResult, error) {
+	f.calls++
+	f.max = opts.MaxSpawn
+	return f.result, f.err
 }
 
 func (f *fakeKanbanStore) ListTasks(_ context.Context, filter kanban.ListFilter) ([]kanban.Task, error) {
@@ -341,6 +355,101 @@ func TestDashboardKanban_TaskByID(t *testing.T) {
 		rec := getJSON(t, h, "/api/kanban/tasks/nonexistent", auth)
 		if rec.Code != http.StatusNotFound {
 			t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestDashboardKanban_DispatchQuickPath(t *testing.T) {
+	auth := map[string]string{"X-Hermes-Session-Token": "fixture-token"}
+
+	t.Run("requires dashboard session token", func(t *testing.T) {
+		dispatcher := &fakeKanbanDispatcher{}
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanDispatcher:      dispatcher,
+		})
+		rec := postJSON(t, srv.Handler(), "/api/kanban/dispatch?max=2", nil, nil)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401; body=%s", rec.Code, rec.Body.String())
+		}
+		if dispatcher.calls != 0 {
+			t.Fatalf("dispatcher calls = %d, want 0 for unauthorized request", dispatcher.calls)
+		}
+	})
+
+	t.Run("runs injected dispatcher with max and build attribution", func(t *testing.T) {
+		dispatcher := &fakeKanbanDispatcher{
+			result: kanban.DispatchResult{
+				ReclaimedIDs:       []string{"old-claim"},
+				Spawned:            []kanban.SpawnRecord{{TaskID: "t1", Assignee: "alice", WorkspacePath: "/tmp/work", PID: 42}},
+				SkippedUnassigned:  []string{"t2"},
+				SpawnFailedIDs:     []string{"t3"},
+				AutoBlockedTaskIDs: []string{"t4"},
+			},
+		}
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanDispatcher:      dispatcher,
+			BuildInfo: BuildInfo{
+				Version:   "test-version-9.9.9",
+				GitCommit: "feedface",
+			},
+		})
+
+		rec := postJSON(t, srv.Handler(), "/api/kanban/dispatch?max=2", nil, auth)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+		}
+		if dispatcher.calls != 1 {
+			t.Fatalf("dispatcher calls = %d, want 1", dispatcher.calls)
+		}
+		if dispatcher.max != 2 {
+			t.Fatalf("dispatcher max = %d, want 2", dispatcher.max)
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+			} `json:"build"`
+			Result kanban.DispatchResult `json:"result"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode dispatch response: %v\nbody=%s", err, rec.Body.String())
+		}
+		if got.Build.Version != "test-version-9.9.9" || got.Build.GitCommit != "feedface" {
+			t.Fatalf("build = %+v, want version and commit attribution", got.Build)
+		}
+		if len(got.Result.Spawned) != 1 || got.Result.Spawned[0].TaskID != "t1" {
+			t.Fatalf("result.spawned = %+v, want task t1", got.Result.Spawned)
+		}
+		if len(got.Result.ReclaimedIDs) != 1 || got.Result.ReclaimedIDs[0] != "old-claim" {
+			t.Fatalf("result.reclaimed_ids = %+v, want old-claim", got.Result.ReclaimedIDs)
+		}
+	})
+
+	t.Run("reports unavailable seam", func(t *testing.T) {
+		srv := NewServer(Config{DashboardSessionToken: "fixture-token"})
+		rec := postJSON(t, srv.Handler(), "/api/kanban/dispatch", nil, auth)
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Fatalf("status = %d, want 503; body=%s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "kanban_dispatcher_unavailable") {
+			t.Fatalf("body missing kanban_dispatcher_unavailable: %s", rec.Body.String())
+		}
+	})
+
+	t.Run("reports dispatch failure", func(t *testing.T) {
+		dispatcher := &fakeKanbanDispatcher{err: errors.New("worker_spawn_failed: denied")}
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanDispatcher:      dispatcher,
+		})
+		rec := postJSON(t, srv.Handler(), "/api/kanban/dispatch", nil, auth)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want 500; body=%s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "kanban_dispatch_failed") {
+			t.Fatalf("body missing kanban_dispatch_failed: %s", rec.Body.String())
 		}
 	})
 }
