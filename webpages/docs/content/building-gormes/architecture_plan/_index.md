@@ -1165,7 +1165,7 @@ classification and row-backed implementation queue.
 
 - [x] Threaded text adapter contract suite
 - [x] Matrix shared-chassis bot seam
-- [ ] Matrix self/bridge sender drop helper
+- [x] Matrix self/bridge sender drop helper
 - [x] Mattermost shared-chassis bot seam
 - [ ] Matrix real client/bootstrap layer
 - [ ] Matrix E2EE device-id crypto-store binding

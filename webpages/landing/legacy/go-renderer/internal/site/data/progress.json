@@ -44823,10 +44823,10 @@
             },
             {
               "name": "Matrix self/bridge sender drop helper",
-              "priority": "P4",
-              "status": "planned",
+              "priority": "P2",
+              "status": "complete",
               "contract": "Matrix adapter exposes pure sender-classification helpers that drop bot self-events case-insensitively, fail closed when the bot user_id is unresolved, and treat appservice/system bridge senders with empty or leading-underscore localparts as non-user identities before pairing or gateway dispatch",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -44867,7 +44867,7 @@
                 "TestMatrixBridgeSenderFilter_AllowsRegularUsers proves `@alice:example` and `@alice_smith:example` remain pairable user senders.",
                 "Existing internal/channels/threadtext tests keep passing; no Matrix SDK or live homeserver is used."
               ],
-              "note": "Added after Hermes af3d5150 fixed a Matrix hall-of-mirrors pairing/echo loop by filtering self and bridge senders before pairing. Gormes has not started the Matrix runtime yet, so this is blocked behind the Matrix shared-chassis seam and kept helper-only.",
+              "note": "Complete 2026-05-08T16:16:48Z: parity sweep raised this from P4 to P2 because the Matrix shared-chassis seam is complete, Hermes af3d5150 fixed a Matrix hall-of-mirrors pairing/echo loop by filtering self and bridge senders before pairing, and this helper was the smallest source-backed safety slice blocking Matrix bootstrap. TDD landed pure internal/channels/matrix SenderFilter helpers with no Matrix SDK or homeserver dependency. Focused tests prove case-insensitive/trimmed self-drop, unresolved-user fail-closed behavior, leading-underscore appservice/bridge rejection, regular-user allowance, and unchanged threadtext behavior.",
               "write_scope": [
                 "internal/channels/matrix/sender_filter.go",
                 "internal/channels/matrix/sender_filter_test.go",
@@ -44886,7 +44886,8 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:af3d5150 gateway/platforms/matrix.py",
                 "note": "Direct Matrix safety drift from upstream Hermes; Gormes captures it now so future Matrix runtime work cannot reopen the hall-of-mirrors pairing loop."
-              }
+              },
+              "completed_at": "2026-05-08T16:16:48Z"
             },
             {
               "name": "Mattermost shared-chassis bot seam",
