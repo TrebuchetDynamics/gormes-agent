@@ -89,7 +89,12 @@ func runMCPLoginCommand(ctx context.Context, cmd *cobra.Command, runtime mcpLogi
 			return marshalErr
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), string(body))
-	} else {
+	} else if result.Evidence == tools.MCPLoginEvidenceSaved {
+		// Success path emits to stdout. On the error path cobra
+		// renders the returned `result` error on stderr already; the
+		// previous stdout print duplicated that line, so operators
+		// saw two identical "evidence=..." rows. Only print to
+		// stdout when there's nothing else carrying the message.
 		fmt.Fprintln(cmd.OutOrStdout(), result.Error())
 	}
 	switch result.Evidence {
