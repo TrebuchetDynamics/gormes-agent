@@ -778,7 +778,7 @@ classification and row-backed implementation queue.
 - [x] Agent Hooks Registry
 - [x] Plugin Marketplace + Doctor
 - [x] Extension Lifecycle Hook System
-- [ ] Plugin lifecycle hook: transform_llm_output
+- [x] Plugin lifecycle hook: transform_llm_output
 
 ### 5.J — Approval / Security Guards 🔨
 
