@@ -82,7 +82,10 @@ func TestRootStatusCommand_JSONEmitsStructuredBlockers(t *testing.T) {
                 "status": "blocker_active",
                 "blocker": "gateway lock",
                 "evidence": "sessions.db locked",
-                "owner": "operator"
+                "unblocks_when": "lock exits",
+                "owner": "operator",
+                "pivot": "run next P0 row",
+                "next_check": "2026-05-08T12:30:00-06:00"
               }
             }
           ]

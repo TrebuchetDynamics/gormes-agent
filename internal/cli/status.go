@@ -22,6 +22,47 @@ type statusBlocker struct {
 	Record   tools.BlockerRecord
 }
 
+// StatusBlocker is the exported, JSON-tagged shape of one active
+// blocker. Returned by CollectStatusBlockers for `gormes status --json`.
+// Embeds tools.BlockerRecord so all of its existing JSON fields (title,
+// type, status, evidence, owner, …) flatten into the same object.
+type StatusBlocker struct {
+	Phase    string `json:"phase"`
+	Subphase string `json:"subphase"`
+	Row      string `json:"row"`
+	tools.BlockerRecord
+}
+
+// CollectStatusBlockers loads progress from opts.ProgressPath and
+// returns the active-blocker list — same data RenderStatusReport
+// renders as text, but in machine-readable form for the JSON surface.
+//
+// A missing or unreadable progress file is reported as an empty list
+// with the Load error returned to the caller; callers can distinguish
+// "no blockers" (nil err, empty slice) from "couldn't read" (non-nil
+// err) at the boundary.
+func CollectStatusBlockers(opts StatusReportOptions) ([]StatusBlocker, error) {
+	progressPath := strings.TrimSpace(opts.ProgressPath)
+	if progressPath == "" {
+		progressPath = DefaultStatusProgressPath
+	}
+	prog, err := progress.Load(progressPath)
+	if err != nil {
+		return nil, err
+	}
+	internal := collectStatusBlockers(prog)
+	out := make([]StatusBlocker, len(internal))
+	for i, b := range internal {
+		out[i] = StatusBlocker{
+			Phase:         b.Phase,
+			Subphase:      b.Subphase,
+			Row:           b.Row,
+			BlockerRecord: tools.NormalizeBlockerRecord(b.Record),
+		}
+	}
+	return out, nil
+}
+
 func RenderStatusReport(opts StatusReportOptions) (string, error) {
 	progressPath := strings.TrimSpace(opts.ProgressPath)
 	if progressPath == "" {
