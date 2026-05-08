@@ -170,6 +170,29 @@ func runProfileSetCommand(cmd *cobra.Command, seams profileCommandSeams, rawName
 	if err := seams.ValidateProfileName(name); err != nil {
 		return fmt.Errorf("gormes profile set %q: %w: %w", name, errProfileNameInvalid, err)
 	}
+	// Refuse names not in the known-profiles list so operators don't
+	// silently end up pointing at a non-existent profile root. Without
+	// this guard a typo like `gormes profile set deafult` would write
+	// the marker, and every subsequent command would either fail with
+	// a cryptic "no such file or directory" or silently fall back to
+	// default (confusing). Only enforced when ListKnownProfiles is
+	// wired so test seams that stub the selector keep working.
+	if seams.ListKnownProfiles != nil {
+		known, err := seams.ListKnownProfiles()
+		if err == nil {
+			recognized := false
+			for _, k := range known {
+				if k == name {
+					recognized = true
+					break
+				}
+			}
+			if !recognized {
+				return fmt.Errorf("gormes profile set %q: unknown profile (known: %s)",
+					name, strings.Join(known, ", "))
+			}
+		}
+	}
 	if err := seams.WriteActiveProfile(name); err != nil {
 		return fmt.Errorf("gormes profile set %q: %w: %w", name, errProfileRootUnwritable, err)
 	}

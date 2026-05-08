@@ -179,7 +179,9 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 	})
 
 	t.Run("valid_name_writes_store_after_validation", func(t *testing.T) {
-		fake := &profileCommandFakeSeams{}
+		fake := &profileCommandFakeSeams{
+			knownProfiles: []string{"default", "work"},
+		}
 		stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "work")
 		if err != nil {
 			t.Fatalf("set valid name: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
@@ -208,6 +210,7 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 // matches the same secrets contract as `profile show`.
 func TestGormesProfileSet_JSONEmitsStructuredOutcome(t *testing.T) {
 	fake := &profileCommandFakeSeams{
+		knownProfiles: []string{"default", "work"},
 		resolveProfileRoot: func(name string) (string, error) {
 			return "/home/operator-secret/.config/gormes/profiles/" + name, nil
 		},
@@ -388,7 +391,9 @@ func TestGormesProfileListJSONNoProfilesEmitsEmptyArray(t *testing.T) {
 
 func TestGormesProfileSetUpdatesRootResolver(t *testing.T) {
 	t.Run("resolver_invoked_after_store_write_succeeds", func(t *testing.T) {
-		fake := &profileCommandFakeSeams{}
+		fake := &profileCommandFakeSeams{
+			knownProfiles: []string{"default", "research"},
+		}
 		var observedOrder []string
 		fake.writeActiveProfile = func(name string) error {
 			observedOrder = append(observedOrder, "write:"+name)
@@ -426,7 +431,9 @@ func TestGormesProfileSetUpdatesRootResolver(t *testing.T) {
 	})
 
 	t.Run("resolver_failure_after_write_surfaces_partial_failure", func(t *testing.T) {
-		fake := &profileCommandFakeSeams{}
+		fake := &profileCommandFakeSeams{
+			knownProfiles: []string{"default", "research"},
+		}
 		fake.resolveProfileRoot = func(name string) (string, error) {
 			return "", errors.New("disk full")
 		}
