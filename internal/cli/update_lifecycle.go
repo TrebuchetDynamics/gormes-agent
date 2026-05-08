@@ -42,7 +42,31 @@ const (
 	UpdateEvidenceWebBuildSkipped           UpdateEvidenceKind = "update_web_build_skipped"
 	UpdateEvidenceWebBuildUnavailable       UpdateEvidenceKind = "update_web_build_unavailable"
 	UpdateEvidenceWebBuildFailed            UpdateEvidenceKind = "update_web_build_failed"
+	UpdateEvidenceConfigMigrateNeeded       UpdateEvidenceKind = "update_config_migrate_needed"
+	UpdateEvidenceConfigMigrateCompleted    UpdateEvidenceKind = "update_config_migrate_completed"
+	UpdateEvidenceConfigMigrateFailed       UpdateEvidenceKind = "update_config_migrate_failed"
 )
+
+// ConfigVersionResult is the abstract per-update return from a
+// ConfigCheckRunner. It is decoupled from internal/config so the lifecycle
+// package stays import-free; callers in cmd/gormes/update.go adapt
+// internal/config.CheckReport into this shape.
+type ConfigVersionResult struct {
+	Current int
+	Latest  int
+}
+
+// ConfigCheckRunner is the seam invoked by RunUpdateLifecycle after the
+// web build step. It reports the on-disk config version vs. what this
+// binary writes. Returning a non-nil error emits update_config_migrate_failed
+// but never fails the overall update.
+type ConfigCheckRunner func(ctx context.Context) (ConfigVersionResult, error)
+
+// ConfigMigrateRunner is the seam invoked by RunUpdateLifecycle when the
+// operator passed --yes (or equivalent) AND the check reports an outdated
+// version. Returning a non-nil error emits update_config_migrate_failed
+// but never fails the overall update.
+type ConfigMigrateRunner func(ctx context.Context) error
 
 // WebBuildResult classifies the outcome of an optional web UI build step.
 // Exactly one of Skipped, Unavailable, or "completed" (neither flag set,
@@ -158,6 +182,16 @@ type UpdateLifecycleOptions struct {
 	// do not fail the update. A nil seam disables the step entirely
 	// (silent default — emits no web_build_* evidence).
 	WebBuild WebBuildRunner
+	// ConfigCheck is the optional config-version check seam. When set, it
+	// runs after the web build and reports current vs. latest schema
+	// versions. ConfigMigrate is invoked only when the operator passed
+	// Yes=true AND the check reports an outdated config; otherwise the
+	// lifecycle emits update_config_migrate_needed advisory evidence.
+	ConfigCheck ConfigCheckRunner
+	// ConfigMigrate is the optional auto-apply seam. Only invoked when
+	// Yes=true and ConfigCheck reports an outdated version. Errors emit
+	// update_config_migrate_failed but never fail the update.
+	ConfigMigrate ConfigMigrateRunner
 }
 
 type UpdateGitRunner interface {
@@ -234,6 +268,53 @@ func formatSkillSyncSummary(p SkillSyncProfileResult) string {
 		parts = append(parts, fmt.Sprintf("%d failed", p.Failed))
 	}
 	return strings.Join(parts, ", ")
+}
+
+// emitConfigMigrate inspects the on-disk config schema version through
+// the ConfigCheck seam and either auto-applies a migration (when
+// options.Yes is true and ConfigMigrate is non-nil) or emits an advisory
+// `update_config_migrate_needed` record pointing the operator at the
+// `gormes config migrate` command.
+//
+// Branch summary:
+//
+//	ConfigCheck nil                          → silent default (no evidence)
+//	ConfigCheck err                          → update_config_migrate_failed
+//	current >= latest                        → silent default (no nag)
+//	current < latest, not Yes                → update_config_migrate_needed
+//	current < latest, Yes, ConfigMigrate nil → update_config_migrate_needed
+//	current < latest, Yes, migrate err       → update_config_migrate_failed
+//	current < latest, Yes, migrate ok        → update_config_migrate_completed
+//
+// Best-effort: a non-nil error from either seam never fails the overall
+// update.
+func emitConfigMigrate(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions) {
+	if options.ConfigCheck == nil {
+		return
+	}
+	res, err := options.ConfigCheck(ctx)
+	if err != nil {
+		report.add(UpdateEvidenceConfigMigrateFailed, err.Error())
+		return
+	}
+	if res.Current >= res.Latest {
+		return
+	}
+	if !options.Yes || options.ConfigMigrate == nil {
+		report.add(
+			UpdateEvidenceConfigMigrateNeeded,
+			fmt.Sprintf("config schema v%d → v%d available; run `gormes config migrate` or rerun with --yes", res.Current, res.Latest),
+		)
+		return
+	}
+	if err := options.ConfigMigrate(ctx); err != nil {
+		report.add(UpdateEvidenceConfigMigrateFailed, err.Error())
+		return
+	}
+	report.add(
+		UpdateEvidenceConfigMigrateCompleted,
+		fmt.Sprintf("config schema migrated v%d → v%d", res.Current, res.Latest),
+	)
 }
 
 // emitWebBuild invokes the optional web UI rebuild seam after skill sync
@@ -425,6 +506,13 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 	// (matches Hermes' soft-failure contract — only `hermes web` treats
 	// a build failure as fatal). Silent default when seam is nil.
 	emitWebBuild(ctx, &report, options)
+
+	// Config schema migration check runs after web build. When --yes is
+	// set, the migration auto-applies; otherwise the lifecycle emits an
+	// advisory `needed` evidence pointing the operator at
+	// `gormes config migrate`. Silent default for already-current configs
+	// and nil seams.
+	emitConfigMigrate(ctx, &report, options)
 
 	if options.GatewayRestartPoll != nil && strings.TrimSpace(options.RestartGateway) != "never" {
 		report.append(EvaluateUpdateGatewayRestart(*options.GatewayRestartPoll))

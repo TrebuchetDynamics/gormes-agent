@@ -342,6 +342,32 @@ func TestUpdateCommand_WebBuildGlyphs(t *testing.T) {
 	}
 }
 
+// TestUpdateCommand_ConfigMigrateGlyphs proves the structured UX maps
+// each config_migrate_* evidence kind to the right glyph: completed → ✓,
+// needed → ⚠ (operator action required), failed → ✗.
+func TestUpdateCommand_ConfigMigrateGlyphs(t *testing.T) {
+	cases := []struct {
+		kind      cli.UpdateEvidenceKind
+		wantGlyph string
+	}{
+		{cli.UpdateEvidenceConfigMigrateCompleted, "✓"},
+		{cli.UpdateEvidenceConfigMigrateNeeded, "⚠"},
+		{cli.UpdateEvidenceConfigMigrateFailed, "✗"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.kind), func(t *testing.T) {
+			stdout, _ := runUpdateCommandWithReport(t, cli.UpdateReport{
+				Branch:   "main",
+				Evidence: []cli.UpdateEvidence{{Kind: tc.kind, Detail: "config schema v11 → v19 available"}},
+			})
+			needle := tc.wantGlyph + " " + string(tc.kind)
+			if !strings.Contains(stdout, needle) {
+				t.Fatalf("expected %q in stdout; got:\n%s", needle, stdout)
+			}
+		})
+	}
+}
+
 // TestUpdateCommand_PreBackupGlyphs proves the structured progress UX maps
 // the new pre-backup evidence kinds to clear glyphs: skipped → ℹ (dim),
 // requested → ◆ (bright cyan, matching Hermes' "◆ Creating pre-update

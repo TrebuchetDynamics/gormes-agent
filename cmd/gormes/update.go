@@ -28,6 +28,13 @@ type updateCommandSeams struct {
 	// directory and skip flag. Override in tests; default builds the real
 	// adapter that runs npm install + npm run build in `<checkoutDir>/web`.
 	WebBuildFor func(checkoutDir string, skipWeb bool) cli.WebBuildRunner
+	// ConfigCheckFn returns the on-disk config version vs. latest. Override
+	// in tests; default wraps internal/config.Check.
+	ConfigCheckFn cli.ConfigCheckRunner
+	// ConfigMigrateFn applies the latest schema migrations. Override in
+	// tests; default wraps internal/config.MigrateConfigFile against the
+	// resolved config path.
+	ConfigMigrateFn cli.ConfigMigrateRunner
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -56,6 +63,12 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	if seams.WebBuildFor == nil {
 		seams.WebBuildFor = defaultWebBuildFor
 	}
+	if seams.ConfigCheckFn == nil {
+		seams.ConfigCheckFn = defaultConfigCheck
+	}
+	if seams.ConfigMigrateFn == nil {
+		seams.ConfigMigrateFn = defaultConfigMigrate
+	}
 
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -76,6 +89,8 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 				NoBackup:           noBackup,
 				SkillSync:          seams.SkillSyncFor(checkoutDir),
 				WebBuild:           seams.WebBuildFor(checkoutDir, skipWeb),
+				ConfigCheck:        seams.ConfigCheckFn,
+				ConfigMigrate:      seams.ConfigMigrateFn,
 				Git:                cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
@@ -190,6 +205,23 @@ func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
 	}
 }
 
+// defaultConfigCheck wraps internal/config.Check into a context-taking
+// closure suitable for the lifecycle's ConfigCheckRunner seam.
+func defaultConfigCheck(_ context.Context) (cli.ConfigVersionResult, error) {
+	report, err := config.Check()
+	if err != nil {
+		return cli.ConfigVersionResult{}, err
+	}
+	return cli.ConfigVersionResult{Current: report.ConfigVersion, Latest: report.LatestVersion}, nil
+}
+
+// defaultConfigMigrate wraps internal/config.MigrateConfigFile against
+// the operator's current config path.
+func defaultConfigMigrate(_ context.Context) error {
+	_, err := config.MigrateConfigFile(config.ConfigPath())
+	return err
+}
+
 // defaultWebBuildFor builds the production WebBuildRunner. Behavior:
 //
 //	skipWeb=true                            → runner returns Skipped
@@ -241,7 +273,7 @@ func updateGlyphAndColor(w io.Writer, kind cli.UpdateEvidenceKind) (string, func
 	switch {
 	case strings.HasSuffix(s, "_failed"), strings.HasSuffix(s, "_error"):
 		return cli.Bold(w, "✗"), cli.Bold
-	case strings.HasSuffix(s, "_unavailable"), strings.HasSuffix(s, "_timeout"):
+	case strings.HasSuffix(s, "_unavailable"), strings.HasSuffix(s, "_timeout"), strings.HasSuffix(s, "_needed"):
 		return cli.Yellow(w, "⚠"), cli.Yellow
 	case strings.HasSuffix(s, "_skipped"), s == "update_check", strings.HasSuffix(s, "_log_mirrored"), s == "update_not_managed_checkout":
 		return cli.Dim(w, "ℹ"), cli.Dim
