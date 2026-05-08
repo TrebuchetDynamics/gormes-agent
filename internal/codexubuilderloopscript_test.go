@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -178,12 +179,23 @@ done
 	}
 	runnerPID := 0
 	defer func() {
+		// Cooperative path: write the sentinel so the runner's wait
+		// loop exits cleanly within ~100ms.
 		_ = os.WriteFile(filepath.Join(stateDir, "release-runner"), []byte("1\n"), 0o644)
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		if runnerPID != 0 {
-			waitForPIDExit(t, runnerPID, 2*time.Second)
+		if runnerPID == 0 {
+			return
 		}
+		// Defensive path: SIGKILL the runner unconditionally before
+		// the test's t.TempDir cleanup deletes its stateDir. Without
+		// this, ANY failure to read the sentinel (state dir already
+		// gone, slow write, race during t.Fatalf unwind) orphans the
+		// runner — its `while [ ! -f $STATE/release-runner ]` loop
+		// then spins forever against a missing dir, accumulating one
+		// leaked process per failed test run.
+		_ = syscall.Kill(runnerPID, syscall.SIGKILL)
+		waitForPIDExit(t, runnerPID, 2*time.Second)
 	}()
 
 	runnerPIDPath := filepath.Join(stateDir, "runner.pid")
