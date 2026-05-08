@@ -26721,6 +26721,80 @@
               "priority": "P2"
             },
             {
+              "name": "Cron approval mode config normalizer",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' cron-specific approval mode parser as a pure helper: cron approvals default to deny, and only approve/off/allow/yes opt cron jobs into recoverable dangerous-command auto-approval; ambiguous, empty, unsupported, or non-scalar values stay deny with stable degraded evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Invalid cron approval config reports cron_approval_mode_defaulted evidence and remains deny; approve-mode never bypasses hardline command blocks.",
+              "fixture": "internal/tools/approval_mode_test.go::TestNormalizeCronApprovalMode*",
+              "source_refs": [
+                "./hermes-agent/tools/approval.py@242da9db9:_get_cron_approval_mode",
+                "./hermes-agent/tools/approval.py@242da9db9:check_dangerous_command cron session branch",
+                "./hermes-agent/tools/approval.py@242da9db9:check_all_command_guards cron session branch",
+                "internal/tools/approval_mode.go",
+                "internal/tools/approval_mode_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Approval and security policy"
+              ],
+              "ready_when": [
+                "Approval mode config normalization, Recoverable dangerous patterns + blocked-result schema, and hardline detection are complete.",
+                "The slice is parser-only and can be table-tested without config file IO, cron scheduler execution, prompt UI, gateway callbacks, or shell execution."
+              ],
+              "not_ready_when": [
+                "The slice wires cron executor policy, starts a kernel turn, changes terminal execution, or prompts on stdin.",
+                "Unsupported values such as true, false, deny, manual, arrays, maps, numbers, or empty strings opt cron jobs into approval."
+              ],
+              "blocked_by": [
+                "Approval mode config normalization",
+                "Recoverable dangerous patterns + blocked-result schema"
+              ],
+              "unblocks": [
+                "Cron dangerous-command approval mode"
+              ],
+              "acceptance": [
+                "TestNormalizeCronApprovalMode_DefaultDeny proves nil, empty, deny, manual, true, false, arrays, maps, and numbers normalize to deny with default evidence where applicable.",
+                "TestNormalizeCronApprovalMode_ApproveAliases proves approve, off, allow, and yes trim/lowercase to approve without default evidence.",
+                "TestCronApprovalModeApproveDoesNotBypassHardline proves approve-mode cannot authorize GuardCommand('rm -rf /').",
+                "Existing TestNormalizeApprovalMode and TestApprovalMode fixtures remain green."
+              ],
+              "note": "Complete 2026-05-08: all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 30. P1 rows are operator-gated/draft release-publication work, P2 rows are mostly umbrella, blocked, or large. This parser split was the smallest source-backed P2 runtime safety gap from Hermes' cron approval contract. TDD added NormalizeCronApprovalMode with deny-by-default parsing, approve/off/allow/yes aliases, unsupported-value default evidence, and hardline non-bypassability; cron executor policy wiring remains row-backed by the umbrella.",
+              "write_scope": [
+                "internal/tools/approval_mode.go",
+                "internal/tools/approval_mode_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode|TestNormalizeApprovalMode|TestApprovalMode' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Cron approval-mode fixtures prove deny-by-default parsing, approve aliases, unsupported-value default evidence, and hardline non-bypassability without config IO, prompts, cron execution, or shell commands."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:242da9db9 tools/approval.py _get_cron_approval_mode",
+                "note": "Hermes supplies the cron-specific deny/approve parser; this child row lands the Go helper before the larger cron executor policy binding."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/approval_mode.go: NormalizeCronApprovalMode defaults cron approvals to deny, accepts approve/off/allow/yes aliases as approve, and emits cron_approval_mode_defaulted evidence for unsupported values.",
+                  "internal/tools/approval_mode_test.go: TestNormalizeCronApprovalModeDefaultDeny, TestNormalizeCronApprovalModeApproveAliases, and TestCronApprovalModeApproveDoesNotBypassHardline lock the parser contract."
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 failed on undefined NormalizeCronApprovalMode.",
+                  "GREEN: go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run 'TestNormalizeCronApprovalMode|TestCronApprovalMode|TestNormalizeApprovalMode|TestApprovalMode' -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Tirith, path, URL, and website policy integration",
               "status": "planned",
               "note": "TDD: compose external security findings with dangerous-command warnings into one guard decision so gateway/cron/CLI replays cannot bypass one check after only another was approved.",

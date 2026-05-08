@@ -58,6 +58,54 @@ func TestNormalizeApprovalModeDefaultsUnsupportedValues(t *testing.T) {
 	}
 }
 
+func TestNormalizeCronApprovalModeDefaultDeny(t *testing.T) {
+	for _, input := range []any{nil, "", "deny", "manual", "sometimes", true, false, 1, []string{"approve"}, map[string]string{"mode": "approve"}} {
+		t.Run("default", func(t *testing.T) {
+			mode := NormalizeCronApprovalMode(input)
+			if mode.Mode != "deny" {
+				t.Fatalf("NormalizeCronApprovalMode(%#v) mode = %q, want deny", input, mode.Mode)
+			}
+			if _, ok := input.(string); ok && mode.Defaulted && input == "deny" {
+				t.Fatalf("NormalizeCronApprovalMode(%#v) defaulted = true, want false", input)
+			}
+			if mode.Evidence["cron_approval_mode"] != "deny" {
+				t.Fatalf("NormalizeCronApprovalMode(%#v) evidence = %#v, want cron_approval_mode=deny", input, mode.Evidence)
+			}
+		})
+	}
+}
+
+func TestNormalizeCronApprovalModeApproveAliases(t *testing.T) {
+	for _, input := range []string{"approve", " APPROVE ", "off", "allow", "yes"} {
+		t.Run(input, func(t *testing.T) {
+			mode := NormalizeCronApprovalMode(input)
+			if mode.Mode != "approve" {
+				t.Fatalf("NormalizeCronApprovalMode(%q) mode = %q, want approve", input, mode.Mode)
+			}
+			if mode.Defaulted {
+				t.Fatalf("NormalizeCronApprovalMode(%q) defaulted = true, want false", input)
+			}
+			if mode.Evidence["cron_approval_mode"] != "approve" {
+				t.Fatalf("NormalizeCronApprovalMode(%q) evidence = %#v, want cron_approval_mode=approve", input, mode.Evidence)
+			}
+		})
+	}
+}
+
+func TestCronApprovalModeApproveDoesNotBypassHardline(t *testing.T) {
+	mode := NormalizeCronApprovalMode("approve")
+	result := GuardCommand("rm -rf /", mode.Mode)
+	if result.Approved {
+		t.Fatalf("GuardCommand hardline/%s approved = true, want false: %#v", mode.Mode, result)
+	}
+	if !result.Hardline {
+		t.Fatalf("GuardCommand hardline/%s hardline = false, want true: %#v", mode.Mode, result)
+	}
+	if result.ApprovalRequired {
+		t.Fatalf("GuardCommand hardline/%s approval required = true, want false: %#v", mode.Mode, result)
+	}
+}
+
 func TestApprovalModeOffBypassesRecoverableDangerousCommand(t *testing.T) {
 	result := GuardCommand("git reset --hard", "off")
 	if !result.Approved {

@@ -6,6 +6,9 @@ const (
 	ApprovalModeManual = "manual"
 	ApprovalModeSmart  = "smart"
 	ApprovalModeOff    = "off"
+
+	CronApprovalModeDeny    = "deny"
+	CronApprovalModeApprove = "approve"
 )
 
 // ApprovalMode describes a normalized dangerous-command approval mode plus
@@ -42,4 +45,29 @@ func NormalizeApprovalMode(value any) ApprovalMode {
 	mode.Defaulted = true
 	mode.Evidence["approval_mode_defaulted"] = "true"
 	return mode
+}
+
+// NormalizeCronApprovalMode ports Hermes' approvals.cron_mode parser. Cron is
+// non-interactive, so unsupported values fail closed to deny; only explicit
+// approve aliases opt into recoverable dangerous-command auto-approval.
+func NormalizeCronApprovalMode(value any) ApprovalMode {
+	mode := ApprovalMode{Mode: CronApprovalModeDeny, Evidence: map[string]string{"cron_approval_mode": CronApprovalModeDeny}}
+	raw, ok := value.(string)
+	if !ok {
+		mode.Defaulted = true
+		mode.Evidence["cron_approval_mode_defaulted"] = "true"
+		return mode
+	}
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case CronApprovalModeApprove, ApprovalModeOff, "allow", "yes":
+		mode.Mode = CronApprovalModeApprove
+		mode.Evidence["cron_approval_mode"] = CronApprovalModeApprove
+		return mode
+	case CronApprovalModeDeny:
+		return mode
+	default:
+		mode.Defaulted = true
+		mode.Evidence["cron_approval_mode_defaulted"] = "true"
+		return mode
+	}
 }
