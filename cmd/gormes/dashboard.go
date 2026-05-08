@@ -60,7 +60,9 @@ func newDashboardCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 43827, "Dashboard HTTP server port")
+	// No `-p` shorthand: root reserves -p for --profile (a persistent flag),
+	// and cobra's mergePersistentFlags would panic on shorthand collision.
+	cmd.Flags().IntVar(&port, "port", 43827, "Dashboard HTTP server port")
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "do not open the dashboard in a browser")
 	return cmd
 }
