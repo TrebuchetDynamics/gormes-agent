@@ -187,7 +187,7 @@ func runGonchoDoctor(cmd *cobra.Command, _ []string) error {
 		return newExitCodeError(1, err)
 	}
 
-	db, err := sql.Open("sqlite3", memoryPath)
+	db, err := sqlOpenGoncho(memoryPath)
 	if err != nil {
 		return newExitCodeError(2, fmt.Errorf("open memory db: %w", err))
 	}

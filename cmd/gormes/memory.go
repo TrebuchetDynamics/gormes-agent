@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +43,7 @@ func newMemoryStatusCommand() *cobra.Command {
 				return err
 			}
 
-			db, err := sql.Open("sqlite3", path)
+			db, err := sqlOpenGoncho(path)
 			if err != nil {
 				return fmt.Errorf("open memory db: %w", err)
 			}

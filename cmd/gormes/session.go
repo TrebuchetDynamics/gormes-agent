@@ -153,7 +153,7 @@ func newSessionExportCommand() *cobra.Command {
 				return err
 			}
 
-			db, err := sql.Open("sqlite3", path)
+			db, err := sqlOpenGoncho(path)
 			if err != nil {
 				return fmt.Errorf("open transcript db: %w", err)
 			}
@@ -410,7 +410,7 @@ func openSessionDirectoryDB() (*sql.DB, error) {
 		}
 		return nil, err
 	}
-	db, err := sql.Open("sqlite3", path)
+	db, err := sqlOpenGoncho(path)
 	if err != nil {
 		return nil, fmt.Errorf("open session directory db: %w", err)
 	}
@@ -581,7 +581,7 @@ func newTUISaveExportFunc() tui.SessionExportFunc {
 			return "", err
 		}
 
-		db, err := sql.Open("sqlite3", dbPath)
+		db, err := sqlOpenGoncho(dbPath)
 		if err != nil {
 			return "", fmt.Errorf("open transcript db: %w", err)
 		}
