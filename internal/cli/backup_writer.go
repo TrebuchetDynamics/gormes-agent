@@ -8,9 +8,81 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
+
+// backupFilenamePrefix matches the writer's destination naming
+// convention: pre-update-<UTC-timestamp>.zip. PruneBackups uses this
+// prefix to filter operator-owned files away from the prune target set.
+const backupFilenamePrefix = "pre-update-"
+
+// PruneBackups removes older pre-update backup zips from backupDir,
+// keeping the newest `keep` files by mtime. Returns the number of files
+// removed and total bytes freed. Files that don't match the
+// `pre-update-*.zip` pattern are ignored — operators can store their
+// own files in the same directory without losing them.
+//
+// Safety:
+//   - keep <= 0    → no-op (operators who pass --backup-keep 0 by mistake
+//                   should not lose data).
+//   - missing dir  → no-op (fresh installs with no prior backups must not
+//                   error during a post-write prune).
+//
+// On any per-file removal error, the helper reports the partial count
+// and freed total without surfacing the underlying error — pruning is
+// best-effort and must not block update completion.
+func PruneBackups(backupDir string, keep int) (removedCount int, freedBytes int64, err error) {
+	if keep <= 0 {
+		return 0, 0, nil
+	}
+	entries, readErr := os.ReadDir(backupDir)
+	if readErr != nil {
+		if os.IsNotExist(readErr) {
+			return 0, 0, nil
+		}
+		return 0, 0, fmt.Errorf("backup prune: read dir: %w", readErr)
+	}
+	type backupEntry struct {
+		path  string
+		mtime time.Time
+		size  int64
+	}
+	candidates := make([]backupEntry, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasPrefix(name, backupFilenamePrefix) || filepath.Ext(name) != ".zip" {
+			continue
+		}
+		info, infoErr := e.Info()
+		if infoErr != nil {
+			continue
+		}
+		candidates = append(candidates, backupEntry{
+			path:  filepath.Join(backupDir, name),
+			mtime: info.ModTime(),
+			size:  info.Size(),
+		})
+	}
+	if len(candidates) <= keep {
+		return 0, 0, nil
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return candidates[i].mtime.After(candidates[j].mtime)
+	})
+	for _, c := range candidates[keep:] {
+		if rmErr := os.Remove(c.path); rmErr != nil {
+			continue
+		}
+		removedCount++
+		freedBytes += c.size
+	}
+	return removedCount, freedBytes, nil
+}
 
 // WriteBackupZip walks sourceDir and writes a zip archive containing
 // every file that does NOT match the IsExcludedFromBackup rules. The

@@ -215,11 +215,18 @@ func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
 	}
 }
 
+// defaultBackupKeep is the retention budget the production BackupWriter
+// applies after each successful write. Matches Hermes' default for
+// `updates.backup_keep`.
+const defaultBackupKeep = 5
+
 // defaultBackupWriterFor builds the production BackupWriter. Returns nil
 // when GormesHome is unset (so the lifecycle keeps the policy-only
 // behavior). Otherwise returns a closure that writes a UTC-stamped zip
 // under `<home>/backups/pre-update-<UTC>.zip`, skipping the existing
-// IsExcludedFromBackup paths (checkpoints/, backups/, *.db-{wal,shm,journal}).
+// IsExcludedFromBackup paths (checkpoints/, backups/, *.db-{wal,shm,journal}),
+// then prunes older backups in the same directory to keep the newest
+// `defaultBackupKeep` files.
 func defaultBackupWriterFor() cli.BackupWriter {
 	home := config.GormesHome()
 	if home == "" {
@@ -228,7 +235,18 @@ func defaultBackupWriterFor() cli.BackupWriter {
 	return func(ctx context.Context) (cli.BackupResult, error) {
 		stamp := time.Now().UTC().Format("20060102T150405Z")
 		dest := filepath.Join(home, "backups", "pre-update-"+stamp+".zip")
-		return cli.WriteBackupZip(ctx, home, dest)
+		res, err := cli.WriteBackupZip(ctx, home, dest)
+		if err != nil {
+			return res, err
+		}
+		// Prune is best-effort: a prune failure must not surface as a
+		// backup-write failure (the new zip is already on disk and
+		// usable).
+		if count, freed, _ := cli.PruneBackups(filepath.Dir(dest), defaultBackupKeep); count > 0 {
+			res.PrunedCount = count
+			res.PrunedBytes = freed
+		}
+		return res, nil
 	}
 }
 

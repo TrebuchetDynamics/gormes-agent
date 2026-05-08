@@ -111,6 +111,53 @@ func TestUpdateLifecycle_BackupWriterNotInvokedWhenNoBackup(t *testing.T) {
 	}
 }
 
+// TestUpdateLifecycle_BackupCompletedDetailIncludesPruneInfoWhenPositive
+// proves the structured progress UX surfaces the prune count + freed
+// bytes in the same evidence record as the completed backup, but only
+// when at least one older backup was actually removed. Common case
+// (PrunedCount=0) keeps the transcript short.
+func TestUpdateLifecycle_BackupCompletedDetailIncludesPruneInfoWhenPositive(t *testing.T) {
+	writer := &fakeBackupWriter{result: BackupResult{
+		Path:        "/home/op/.gormes/backups/pre-update-x.zip",
+		SizeBytes:   2_500_000,
+		DurationMs:  1_200,
+		PrunedCount: 3,
+		PrunedBytes: 12_000_000,
+	}}
+	report := runCleanLifecycle(t, UpdateLifecycleOptions{
+		Backup:       true,
+		BackupWriter: writer.Write,
+	})
+	detail := findFirstEvidenceDetail(report, UpdateEvidencePreBackupCompleted, "pre-update-x.zip")
+	if !strings.Contains(detail, "pruned 3 older") {
+		t.Fatalf("detail must include prune count when >0; got %q", detail)
+	}
+	if !strings.Contains(detail, "freed") {
+		t.Fatalf("detail must include freed-bytes phrasing; got %q", detail)
+	}
+}
+
+// TestUpdateLifecycle_BackupCompletedDetailOmitsPruneSuffixWhenZero
+// proves the no-prune common case omits the prune-suffix entirely.
+// Operators on their first --backup run shouldn't see "pruned 0 older"
+// noise.
+func TestUpdateLifecycle_BackupCompletedDetailOmitsPruneSuffixWhenZero(t *testing.T) {
+	writer := &fakeBackupWriter{result: BackupResult{
+		Path:       "/tmp/x.zip",
+		SizeBytes:  1024,
+		DurationMs: 50,
+		// PrunedCount=0 (default)
+	}}
+	report := runCleanLifecycle(t, UpdateLifecycleOptions{
+		Backup:       true,
+		BackupWriter: writer.Write,
+	})
+	detail := findFirstEvidenceDetail(report, UpdateEvidencePreBackupCompleted, "/tmp/x.zip")
+	if strings.Contains(detail, "pruned") {
+		t.Fatalf("detail must omit prune phrasing when PrunedCount=0; got %q", detail)
+	}
+}
+
 // TestUpdateLifecycle_BackupSizeFormatting proves the size formatter
 // scales: bytes < 1024 → "B", < 1MB → "KB", < 1GB → "MB", >= 1GB → "GB".
 // Tested via the lifecycle-emitted detail to keep formatter/lifecycle

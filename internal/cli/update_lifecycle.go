@@ -63,10 +63,14 @@ type ConfigVersionResult struct {
 // SizeBytes is the byte count of the resulting archive. DurationMs is the
 // total wall time the writer took (used for the "✓ Pre-update backup
 // (4.0MB, 1.84s)" rendering in the structured progress UX).
+// PrunedCount and PrunedBytes report how many older backups the writer
+// also removed in the same call (zero when no retention pruning ran).
 type BackupResult struct {
-	Path       string
-	SizeBytes  int64
-	DurationMs int64
+	Path        string
+	SizeBytes   int64
+	DurationMs  int64
+	PrunedCount int
+	PrunedBytes int64
 }
 
 // BackupWriter is the seam invoked by RunUpdateLifecycle when policy
@@ -418,15 +422,16 @@ func emitPreUpdateBackupPolicy(ctx context.Context, report *UpdateReport, option
 		report.add(UpdateEvidencePreBackupFailed, err.Error())
 		return
 	}
-	report.add(
-		UpdateEvidencePreBackupCompleted,
-		fmt.Sprintf(
-			"%s (%s, %s)",
-			res.Path,
-			formatBackupSize(res.SizeBytes),
-			formatBackupDuration(res.DurationMs),
-		),
+	detail := fmt.Sprintf(
+		"%s (%s, %s)",
+		res.Path,
+		formatBackupSize(res.SizeBytes),
+		formatBackupDuration(res.DurationMs),
 	)
+	if res.PrunedCount > 0 {
+		detail += fmt.Sprintf("; pruned %d older (%s freed)", res.PrunedCount, formatBackupSize(res.PrunedBytes))
+	}
+	report.add(UpdateEvidencePreBackupCompleted, detail)
 }
 
 // formatBackupSize renders a byte count as a human-readable string with
