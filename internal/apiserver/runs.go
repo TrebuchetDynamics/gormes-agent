@@ -76,6 +76,9 @@ func (r *runRegistry) create(id string, cancel context.CancelFunc) {
 // stop cancels the in-flight context for the run and marks it stopped.
 // Idempotent: calling stop on an already-terminal run is a no-op for
 // the lifecycle but still returns true so the handler can respond 200.
+// Publishes a typed `run.stopped` lifecycle event into the backlog
+// before closing subscribers so SSE consumers see a terminal event
+// symmetrical with `run.completed` and `run.failed`.
 func (r *runRegistry) stop(id string) bool {
 	r.mu.Lock()
 	rec := r.runs[id]
@@ -85,20 +88,27 @@ func (r *runRegistry) stop(id string) bool {
 	}
 	cancel := rec.cancel
 	wasTerminal := rec.done
+	var subs []chan runEvent
 	if !wasTerminal {
 		rec.stopped = true
 		rec.done = true
-	}
-	subs := append([]chan runEvent(nil), rec.subscribers...)
-	rec.subscribers = nil
-	r.mu.Unlock()
-	if !wasTerminal && cancel != nil {
-		cancel()
-	}
-	if !wasTerminal {
+		stoppedEvent := runEvent{Event: "run.stopped", RunID: id, Timestamp: r.now().Unix()}
+		rec.events = append(rec.events, stoppedEvent)
+		subs = append([]chan runEvent(nil), rec.subscribers...)
+		rec.subscribers = nil
+		r.mu.Unlock()
 		for _, ch := range subs {
+			select {
+			case ch <- stoppedEvent:
+			default:
+			}
 			close(ch)
 		}
+	} else {
+		r.mu.Unlock()
+	}
+	if !wasTerminal && cancel != nil {
+		cancel()
 	}
 	return true
 }

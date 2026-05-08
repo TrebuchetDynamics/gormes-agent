@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -161,6 +162,50 @@ func TestAPIServerRunStatus_IncludesCreatedAtAndEventCount(t *testing.T) {
 		t.Errorf("status = %q, want in_progress", got.Status)
 	}
 
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunStop_PublishesRunStoppedEventToBacklog proves
+// `POST /v1/runs/{run_id}/stop` records a typed `run.stopped`
+// lifecycle event in the SSE backlog so subscribers reading the
+// events stream see a terminal event symmetrical with `run.completed`
+// and `run.failed`. Fleet automation surfacing run lifecycles needs
+// this typed terminus rather than relying on stream-close inference.
+func TestAPIServerRunStop_PublishesRunStoppedEventToBacklog(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d; body=%s", start.Code, start.Body.String())
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode start: %v", err)
+	}
+	loop.waitStarted(t)
+
+	stop := postJSON(t, srv.Handler(), "/v1/runs/"+started.RunID+"/stop", nil, nil)
+	if stop.Code != http.StatusOK {
+		t.Fatalf("stop status = %d; body=%s", stop.Code, stop.Body.String())
+	}
+
+	events := getJSON(t, srv.Handler(), "/v1/runs/"+started.RunID+"/events", nil)
+	if events.Code != http.StatusOK {
+		t.Fatalf("events status = %d; body=%s", events.Code, events.Body.String())
+	}
+	body := events.Body.String()
+	if !strings.Contains(body, `"event":"run.stopped"`) {
+		t.Errorf("events backlog missing run.stopped:\n%s", body)
+	}
+
+	// Release the loop so the goroutine exits.
 	loop.release(TurnResult{SessionID: started.RunID})
 }
 
