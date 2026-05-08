@@ -24,7 +24,10 @@ type runRecord struct {
 	createdAt   time.Time
 	events      []runEvent
 	subscribers []chan runEvent
+	cancel      context.CancelFunc
 	done        bool
+	failed      bool
+	stopped     bool
 	consumed    bool
 }
 
@@ -64,10 +67,40 @@ func (r *runRegistry) setClock(now func() time.Time) {
 	r.mu.Unlock()
 }
 
-func (r *runRegistry) create(id string) {
+func (r *runRegistry) create(id string, cancel context.CancelFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.runs[id] = &runRecord{id: id, createdAt: r.now()}
+	r.runs[id] = &runRecord{id: id, createdAt: r.now(), cancel: cancel}
+}
+
+// stop cancels the in-flight context for the run and marks it stopped.
+// Idempotent: calling stop on an already-terminal run is a no-op for
+// the lifecycle but still returns true so the handler can respond 200.
+func (r *runRegistry) stop(id string) bool {
+	r.mu.Lock()
+	rec := r.runs[id]
+	if rec == nil {
+		r.mu.Unlock()
+		return false
+	}
+	cancel := rec.cancel
+	wasTerminal := rec.done
+	if !wasTerminal {
+		rec.stopped = true
+		rec.done = true
+	}
+	subs := append([]chan runEvent(nil), rec.subscribers...)
+	rec.subscribers = nil
+	r.mu.Unlock()
+	if !wasTerminal && cancel != nil {
+		cancel()
+	}
+	if !wasTerminal {
+		for _, ch := range subs {
+			close(ch)
+		}
+	}
+	return true
 }
 
 func (r *runRegistry) publish(id string, ev runEvent) {
@@ -89,6 +122,14 @@ func (r *runRegistry) publish(id string, ev runEvent) {
 }
 
 func (r *runRegistry) finish(id string) {
+	r.finishWith(id, false)
+}
+
+func (r *runRegistry) fail(id string) {
+	r.finishWith(id, true)
+}
+
+func (r *runRegistry) finishWith(id string, failed bool) {
 	r.mu.Lock()
 	rec := r.runs[id]
 	if rec == nil {
@@ -96,6 +137,9 @@ func (r *runRegistry) finish(id string) {
 		return
 	}
 	rec.done = true
+	if failed {
+		rec.failed = true
+	}
 	subs := append([]chan runEvent(nil), rec.subscribers...)
 	rec.subscribers = nil
 	r.mu.Unlock()
@@ -119,6 +163,51 @@ func (r *runRegistry) subscribe(id string) ([]runEvent, <-chan runEvent, bool, b
 	ch := make(chan runEvent, 32)
 	rec.subscribers = append(rec.subscribers, ch)
 	return backlog, ch, true, false
+}
+
+// status reports whether the run is known and, if so, whether the
+// async turn has finished. Mirrors the lifecycle SSE callers see: a
+// run is `in_progress` until publish+finish, then `completed` until
+// it is removed (either after stream consumption or orphan sweep).
+func (r *runRegistry) status(id string) (string, bool) {
+	snapshot, ok := r.snapshot(id)
+	if !ok {
+		return "", false
+	}
+	return snapshot.Status, true
+}
+
+// runStatusSnapshot is the read-model returned to fleet automation
+// polling `/v1/runs/{run_id}`. CreatedAt is unix seconds; EventsCount
+// reflects every lifecycle event published so far.
+type runStatusSnapshot struct {
+	Status      string
+	CreatedAt   int64
+	EventsCount int
+}
+
+func (r *runRegistry) snapshot(id string) (runStatusSnapshot, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	rec := r.runs[id]
+	if rec == nil {
+		return runStatusSnapshot{}, false
+	}
+	snap := runStatusSnapshot{
+		CreatedAt:   rec.createdAt.Unix(),
+		EventsCount: len(rec.events),
+	}
+	switch {
+	case rec.stopped:
+		snap.Status = "stopped"
+	case rec.failed:
+		snap.Status = "failed"
+	case rec.done:
+		snap.Status = "completed"
+	default:
+		snap.Status = "in_progress"
+	}
+	return snap, true
 }
 
 func (r *runRegistry) remove(id string) {
@@ -191,15 +280,16 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 	}
 	s.runs.setClock(s.now)
 	s.runs.sweepOrphans()
-	s.runs.create(runID)
-	go s.runAsyncTurn(runID, turnReq)
+	turnCtx, cancel := context.WithCancel(context.Background())
+	s.runs.create(runID, cancel)
+	go s.runAsyncTurn(turnCtx, runID, turnReq)
 	writeJSON(w, http.StatusAccepted, map[string]any{"build": s.buildInfo, "run_id": runID, "status": "started"})
 }
 
-func (s *Server) runAsyncTurn(runID string, turnReq TurnRequest) {
+func (s *Server) runAsyncTurn(ctx context.Context, runID string, turnReq TurnRequest) {
 	now := s.now().Unix()
 	s.runs.publish(runID, runEvent{Event: "run.started", RunID: runID, Timestamp: now})
-	result, err := s.loop.StreamTurn(context.Background(), turnReq, StreamCallbacks{
+	result, err := s.loop.StreamTurn(ctx, turnReq, StreamCallbacks{
 		OnToken: func(token string) error {
 			s.runs.publish(runID, runEvent{Event: "message.delta", RunID: runID, Timestamp: s.now().Unix(), Delta: token})
 			return nil
@@ -218,7 +308,7 @@ func (s *Server) runAsyncTurn(runID string, turnReq TurnRequest) {
 	})
 	if err != nil {
 		s.runs.publish(runID, runEvent{Event: "run.failed", RunID: runID, Timestamp: s.now().Unix(), Error: err.Error()})
-		s.runs.finish(runID)
+		s.runs.fail(runID)
 		return
 	}
 	s.runs.publish(runID, runEvent{
@@ -236,20 +326,67 @@ func (s *Server) runAsyncTurn(runID string, turnReq TurnRequest) {
 }
 
 func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
-		return
-	}
 	if !s.authorized(r) {
 		writeOpenAIError(w, http.StatusUnauthorized, "Invalid API key", "invalid_request_error", "", "invalid_api_key")
 		return
 	}
 	suffix := strings.TrimPrefix(r.URL.Path, "/v1/runs/")
-	runID, ok := strings.CutSuffix(suffix, "/events")
-	if !ok || runID == "" || strings.Contains(runID, "/") {
+	if runID, ok := strings.CutSuffix(suffix, "/events"); ok {
+		if runID == "" || strings.Contains(runID, "/") {
+			writeOpenAIError(w, http.StatusNotFound, "Run not found", "invalid_request_error", "", "run_not_found")
+			return
+		}
+		if r.Method != http.MethodGet {
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+		s.streamRunEvents(w, r, runID)
+		return
+	}
+	if runID, ok := strings.CutSuffix(suffix, "/stop"); ok {
+		if runID == "" || strings.Contains(runID, "/") {
+			writeOpenAIError(w, http.StatusNotFound, "Run not found", "invalid_request_error", "", "run_not_found")
+			return
+		}
+		if r.Method != http.MethodPost {
+			writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+			return
+		}
+		if !s.runs.stop(runID) {
+			writeOpenAIError(w, http.StatusNotFound, "Run not found: "+runID, "invalid_request_error", "", "run_not_found")
+			return
+		}
+		status, _ := s.runs.status(runID)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"build":  s.buildInfo,
+			"run_id": runID,
+			"status": status,
+		})
+		return
+	}
+	if suffix == "" || strings.Contains(suffix, "/") {
 		writeOpenAIError(w, http.StatusNotFound, "Run not found", "invalid_request_error", "", "run_not_found")
 		return
 	}
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	snap, ok := s.runs.snapshot(suffix)
+	if !ok {
+		writeOpenAIError(w, http.StatusNotFound, "Run not found: "+suffix, "invalid_request_error", "", "run_not_found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build":        s.buildInfo,
+		"run_id":       suffix,
+		"status":       snap.Status,
+		"created_at":   snap.CreatedAt,
+		"events_count": snap.EventsCount,
+	})
+}
+
+func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID string) {
 	backlog, ch, exists, done := s.runs.subscribe(runID)
 	if !exists {
 		writeOpenAIError(w, http.StatusNotFound, "Run not found: "+runID, "invalid_request_error", "", "run_not_found")

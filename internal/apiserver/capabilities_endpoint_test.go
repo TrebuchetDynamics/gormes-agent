@@ -2,8 +2,10 @@ package apiserver
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
+	"time"
 )
 
 // TestAPIServerCapabilities_BuildAttribution proves `/v1/capabilities`
@@ -105,6 +107,247 @@ func TestAPIServerHealth_BuildAttribution(t *testing.T) {
 		if got.Status != "ok" {
 			t.Errorf("%s status = %q, want ok (still addressable)", path, got.Status)
 		}
+	}
+}
+
+// TestAPIServerRunStatus_IncludesCreatedAtAndEventCount proves
+// `GET /v1/runs/{run_id}` includes `created_at` (unix seconds) and
+// `events_count` (count of lifecycle events published so far) so
+// operators tracking long-running or stalled runs can compute age
+// and detect silent runs without subscribing to the SSE stream. Same
+// JSON envelope as the existing status endpoint — additive fields.
+func TestAPIServerRunStatus_IncludesCreatedAtAndEventCount(t *testing.T) {
+	loop := newBlockingRunLoop()
+	now := time.Unix(1_700_000_000, 0)
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		BuildInfo:     BuildInfo{Version: "test-counts-attr"},
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	srv.now = func() time.Time { return now }
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d; body=%s", start.Code, start.Body.String())
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode start: %v", err)
+	}
+	loop.waitStarted(t)
+
+	rec := getJSON(t, srv.Handler(), "/v1/runs/"+started.RunID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		CreatedAt   int64  `json:"created_at"`
+		EventsCount int    `json:"events_count"`
+		Status      string `json:"status"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.CreatedAt != now.Unix() {
+		t.Errorf("created_at = %d, want %d", got.CreatedAt, now.Unix())
+	}
+	if got.EventsCount < 1 {
+		t.Errorf("events_count = %d, want >= 1 (run.started published)", got.EventsCount)
+	}
+	if got.Status != "in_progress" {
+		t.Errorf("status = %q, want in_progress", got.Status)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunStop_CancelsRunAndReportsStopped proves
+// `POST /v1/runs/{run_id}/stop` cancels an in-progress run, the run
+// status transitions to `stopped`, and the response envelope carries
+// build attribution. Capabilities advertises this endpoint; this slice
+// ships the handler. Fleet automation killing runaway runs across
+// machines parses this response to confirm the stop landed.
+func TestAPIServerRunStop_CancelsRunAndReportsStopped(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		BuildInfo:     BuildInfo{Version: "test-stop-attr", GitCommit: "5106dead"},
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d; body=%s", start.Code, start.Body.String())
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode start: %v", err)
+	}
+	loop.waitStarted(t)
+
+	stop := postJSON(t, srv.Handler(), "/v1/runs/"+started.RunID+"/stop", nil, nil)
+	if stop.Code != http.StatusOK {
+		t.Fatalf("stop status = %d; body=%s", stop.Code, stop.Body.String())
+	}
+	var stopBody struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		RunID  string `json:"run_id"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(stop.Body.Bytes(), &stopBody); err != nil {
+		t.Fatalf("decode stop: %v\nbody=%s", err, stop.Body.String())
+	}
+	if stopBody.Build.Version != "test-stop-attr" || stopBody.Build.GitCommit != "5106dead" {
+		t.Errorf("build = %+v, want version=test-stop-attr commit=5106dead", stopBody.Build)
+	}
+	if stopBody.RunID != started.RunID {
+		t.Errorf("run_id = %q, want %q", stopBody.RunID, started.RunID)
+	}
+	if stopBody.Status != "stopped" {
+		t.Errorf("status = %q, want stopped", stopBody.Status)
+	}
+
+	// Release the blocking loop so the goroutine can exit cleanly.
+	loop.release(TurnResult{SessionID: started.RunID})
+
+	// A second stop on a terminal run is idempotent: still 200 with stopped.
+	again := postJSON(t, srv.Handler(), "/v1/runs/"+started.RunID+"/stop", nil, nil)
+	if again.Code != http.StatusOK {
+		t.Fatalf("idempotent stop status = %d; body=%s", again.Code, again.Body.String())
+	}
+
+	missing := postJSON(t, srv.Handler(), "/v1/runs/run_does_not_exist/stop", nil, nil)
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("unknown run stop status = %d, want 404; body=%s", missing.Code, missing.Body.String())
+	}
+}
+
+// TestAPIServerRunStatus_ReportsFailedStatusOnLoopError proves
+// `GET /v1/runs/{run_id}` surfaces a `failed` status when the async
+// turn returned an error, distinct from `completed`. Fleet automation
+// polling submitted runs needs this distinction to alert on failures
+// without scraping the SSE error event. Same JSON envelope as the
+// success path — build provenance leads.
+func TestAPIServerRunStatus_ReportsFailedStatusOnLoopError(t *testing.T) {
+	loop := &fakeTurnLoop{err: errors.New("upstream provider blew up")}
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		BuildInfo:     BuildInfo{Version: "test-runfail-attr"},
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d; body=%s", start.Code, start.Body.String())
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode start: %v", err)
+	}
+
+	// Poll briefly for the async turn to publish run.failed + finish.
+	deadline := time.Now().Add(2 * time.Second)
+	var got struct {
+		Status string `json:"status"`
+		Build  struct {
+			Version string `json:"version"`
+		} `json:"build"`
+	}
+	for time.Now().Before(deadline) {
+		rec := getJSON(t, srv.Handler(), "/v1/runs/"+started.RunID, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status code = %d; body=%s", rec.Code, rec.Body.String())
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+		}
+		if got.Status == "failed" {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got.Status != "failed" {
+		t.Errorf("status = %q, want failed (loop returned error)", got.Status)
+	}
+	if got.Build.Version != "test-runfail-attr" {
+		t.Errorf("build.version = %q, want test-runfail-attr", got.Build.Version)
+	}
+}
+
+// TestAPIServerRunStatus_ReportsLifecycleAndAttribution proves
+// `GET /v1/runs/{run_id}` returns the run's current lifecycle status
+// (`in_progress` while streaming, `completed` after the loop finishes)
+// plus build provenance, so fleet automation polling submitted runs
+// across machines can detect terminal state without holding an SSE
+// connection. The capabilities endpoint already advertises this route
+// — this slice ships the handler. Build provenance leads — same
+// convention as the rest of the JSON arc.
+func TestAPIServerRunStatus_ReportsLifecycleAndAttribution(t *testing.T) {
+	loop := &fakeTurnLoop{result: TurnResult{Content: "ok", SessionID: "sess-status"}}
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:   "test-runstatus-attr",
+			GitCommit: "deadc0de",
+		},
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+
+	start := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d; body=%s", start.Code, start.Body.String())
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode start: %v", err)
+	}
+	if started.RunID == "" {
+		t.Fatal("run_id empty in start envelope")
+	}
+
+	rec := getJSON(t, srv.Handler(), "/v1/runs/"+started.RunID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		RunID  string `json:"run_id"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Build.Version != "test-runstatus-attr" || got.Build.GitCommit != "deadc0de" {
+		t.Errorf("build = %+v, want version=test-runstatus-attr commit=deadc0de", got.Build)
+	}
+	if got.RunID != started.RunID {
+		t.Errorf("run_id = %q, want %q", got.RunID, started.RunID)
+	}
+	if got.Status != "in_progress" && got.Status != "completed" {
+		t.Errorf("status = %q, want in_progress or completed", got.Status)
+	}
+
+	missing := getJSON(t, srv.Handler(), "/v1/runs/run_does_not_exist", nil)
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("missing status = %d, want 404; body=%s", missing.Code, missing.Body.String())
 	}
 }
 

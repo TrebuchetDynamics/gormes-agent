@@ -289,7 +289,7 @@ func (s *Server) handleDashboardSessionByID(w http.ResponseWriter, r *http.Reque
 			writeOpenAIError(w, http.StatusNotFound, "Session not found: "+sessionID, "invalid_request_error", "", "session_not_found")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "session_id": sessionID})
+		writeJSON(w, http.StatusOK, map[string]any{"build": s.buildInfo, "ok": true, "session_id": sessionID})
 	default:
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 	}

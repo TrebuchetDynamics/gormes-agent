@@ -258,13 +258,45 @@ func TestDashboard_BuildAttributionPluginsAndDelete(t *testing.T) {
 	})
 
 	t.Run("session_delete", func(t *testing.T) {
-		// We can't easily wire a real session into responseStore here, so
-		// drive the helper directly: assert the DELETE 200 response
-		// shape. Drive via an unknown id which still emits a 404 — for
-		// build attribution coverage we want the 200 path. Use a
-		// helper that seeds a session via the responseStore wired into
-		// the server instance.
-		t.Skip("DELETE 200 path requires a stored session fixture not currently exposed in this contract test; status/plugins paths cover the attribution gap")
+		store := NewResponseStore(10)
+		seeded := NewServer(Config{
+			ModelName:     "gormes-agent",
+			ResponseStore: store,
+			BuildInfo: BuildInfo{
+				Version:   "test-build-rest",
+				GitCommit: "fee1b00d",
+				GitDirty:  true,
+				GoVersion: "go1.23.0-test",
+			},
+		})
+		if err := store.Put("resp_seed", StoredResponse{
+			Response:  ResponseObject{ID: "resp_seed", Object: "response", Status: "completed", Model: "gormes-agent"},
+			SessionID: "sess-delete",
+		}); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+		rec := deleteJSON(t, seeded.Handler(), "/api/sessions/sess-delete", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("delete status = %d; body=%s", rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+				GitDirty  bool   `json:"git_dirty"`
+			} `json:"build"`
+			OK        bool   `json:"ok"`
+			SessionID string `json:"session_id"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+		}
+		if got.Build.Version != "test-build-rest" || got.Build.GitCommit != "fee1b00d" || !got.Build.GitDirty {
+			t.Errorf("build = %+v, want version=test-build-rest commit=fee1b00d dirty=true", got.Build)
+		}
+		if !got.OK || got.SessionID != "sess-delete" {
+			t.Errorf("body = %+v, want ok=true session_id=sess-delete", got)
+		}
 	})
 }
 
