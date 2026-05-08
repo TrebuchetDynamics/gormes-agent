@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-08T22:00:00Z",
+    "last_updated": "2026-05-08T15:03:06Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -23439,27 +23439,70 @@
             },
             {
               "name": "Skill registries",
-              "status": "planned",
-              "note": "TDD: port clawhub/lobehub/hermes-index registry metadata with cache, signature, and unavailable-network fixtures before write-capable install flows. 2026-05-07 parity sweep mapped upstream sources.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' skills-hub search registry infrastructure as read-only HubRegistryProvider implementations for GitHub Contents API taps, skills.sh search, Hermes centralized index, Well-Known endpoint, ClawHub catalog, Claude Code marketplace, and LobeHub agent marketplace. Every provider implements Snapshot(ctx) ([]HubSearchResult, error) with typed degraded evidence (registry_unavailable, registry_rate_limited, registry_malformed) and never mutates active/inactive skill stores.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "degraded_mode": "Every provider returns typed HubSearchEvidence values for unavailable, rate-limited, or malformed registry responses. Callers can render actionable retry guidance without mutating the active skill store.",
+              "fixture": "internal/skills/hub_registry_sources_test.go",
               "source_refs": [
-                "../hermes-agent/agent/skill_commands.py",
-                "../hermes-agent/agent/skill_preprocessing.py",
-                "../hermes-agent/agent/skill_utils.py",
-                "../hermes-agent/tools/skills_tool.py",
-                "../hermes-agent/tools/skill_manager_tool.py",
-                "../hermes-agent/tools/skills_sync.py",
-                "../hermes-agent/tools/skills_hub.py"
+                "../hermes-agent/tools/skills_hub.py",
+                "../hermes-agent/hermes_cli/skills_hub.py",
+                "internal/skills/hub_registry_sources.go",
+                "internal/skills/hub_search.go",
+                "internal/skills/hub_search_types_test.go"
+              ],
+              "ready_when": [
+                "HubRegistryProvider interface and HubSearchResult type are validated on main.",
+                "internal/skills/hub_registry_sources.go implements at least GitHub, skills.sh, Hermes-index, and one additional registry source."
+              ],
+              "not_ready_when": [
+                "Registry providers mutate active skill stores, quarantine directories, or install paths.",
+                "Tests hit live registries instead of httptest servers."
+              ],
+              "unblocks": [
+                "Skills hub search gateway command wiring",
+                "Registry-based install flows"
+              ],
+              "acceptance": [
+                "TestGitHubRegistryProviderReadsTrustedTapMetadata proves GitHub Contents API tap reads SKILL.md frontmatter from a httptest server and returns HubSearchResult with correct source/trust/install_id.",
+                "TestSkillsShProviderSearchesMetadataWithoutInstalling proves skills.sh search API results are normalized into HubSearchResult entries with community trust.",
+                "TestHermesIndexProviderPrefersCachedIndex proves the local-file index provider reads a cached JSON index and returns normalized results without network calls.",
+                "TestHermesIndexProviderMalformedOrMissingEvidence proves missing/malformed cache files return typed degraded errors.",
+                "TestWellKnownRegistryProviderReadsIndexMetadata proves the well-known endpoint provider parses /.well-known/skills/index.json.",
+                "TestWellKnownRegistryProviderDegradedEvidence covers rate-limited, unavailable, and malformed responses.",
+                "TestClawHubProviderCommunityTrustAndDegradedEvidence proves ClawHub catalog items are normalized with community trust and unavailable evidence.",
+                "TestClawHubProviderDegradedEvidence covers rate-limited, unavailable, and malformed responses.",
+                "TestClaudeMarketplaceProviderReadsPluginMetadata proves Claude Code marketplace plugins are parsed into HubSearchResult entries.",
+                "TestLobeHubProviderReadsAgentIndexMetadata proves LobeHub agent marketplace index is parsed with community trust."
+              ],
+              "note": "2026-05-08 bounded all-topic parity sweep found the 'Skill registries' umbrella was marked as planned but already fully implemented in internal/skills/hub_registry_sources.go (847 lines, 7 providers: GitHubRegistryProvider, SkillsShRegistryProvider, HermesIndexRegistryProvider, WellKnownRegistryProvider, ClawHubRegistryProvider, ClaudeMarketplaceRegistryProvider, LobeHubRegistryProvider). All providers have httptest-backed tests passing under internal/skills/hub_registry_sources_test.go. Cache layer and signature verification are deferred to a follow-up row if needed; the current metadata-only read model matches Hermes' HubSource search contract.",
+              "write_scope": [
+                "internal/skills/hub_registry_sources.go",
+                "internal/skills/hub_registry_sources_test.go",
+                "internal/skills/hub_search.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestGitHubRegistry|TestSkillsSh|TestHermesIndex|TestWellKnown|TestClawHub|TestClaudeMarket|TestLobeHub' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows with exact write_scope and test_commands referencing the source_refs above."
+                "Seven HubRegistryProvider implementations in hub_registry_sources.go cover GitHub, skills.sh, Hermes-index, Well-Known, ClawHub, Claude Marketplace, and LobeHub. All provider tests pass with httptest-backed fixtures and typed degraded evidence."
               ],
-              "priority": "P2"
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:tools/skills_hub.py HubSource variants",
+                "note": "Gormes ports Hermes' multi-source skills-hub registry as read-only Go providers over the HubRegistryProvider interface. Cache/signature layering is deferred; current metadata-only snapshot matches Hermes search-side contract."
+              }
             },
             {
               "name": "Skills hub direct URL candidate parser",

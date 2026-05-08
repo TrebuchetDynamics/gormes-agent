@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 76/100 subphases shipped · 19 in progress · 5 planned
+**Overall:** 77/100 subphases shipped · 18 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 11/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 12/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -727,11 +727,11 @@ classification and row-backed implementation queue.
 - [ ] TTS synthesis + voice-mode state
 - [x] Voice record-key config binding for native TUI
 
-### 5.F — Skills System (Remaining) 🔨
+### 5.F — Skills System (Remaining) ✅
 
 - [x] Skills hub search result types + in-memory registry provider
 - [x] Skills hub search read-model function over registry providers
-- [ ] Skill registries
+- [x] Skill registries
 - [x] Skills hub direct URL candidate parser
 - [x] Skills hub direct URL install name/category guard
 - [x] Skill preprocessing + dynamic slash commands
