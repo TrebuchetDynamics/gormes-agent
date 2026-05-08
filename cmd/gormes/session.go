@@ -119,6 +119,20 @@ func emitSessionListJSON(cmd *cobra.Command, entries []sessionpkg.DirectoryEntry
 	return err
 }
 
+// sessionExportReportJSON is the wire shape for `gormes session export
+// <id> --json`. Fleet automation aggregating exported session
+// transcripts across machines parses this to ingest each export with
+// stable shape and binary attribution. Build provenance leads — same
+// convention as the rest of the `--json` arc. Content stays as a
+// single string field so consumers can re-render the exact markdown
+// the human-readable form prints.
+type sessionExportReportJSON struct {
+	Build     buildProvenanceJSON `json:"build"`
+	SessionID string              `json:"session_id"`
+	Format    string              `json:"format"`
+	Content   string              `json:"content"`
+}
+
 func newSessionExportCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export <session-id-or-prefix>",
@@ -126,6 +140,7 @@ func newSessionExportCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
+			asJSON, _ := cmd.Flags().GetBool("json")
 			if format != "markdown" {
 				return fmt.Errorf("unsupported export format %q", format)
 			}
@@ -167,11 +182,26 @@ func newSessionExportCommand() *cobra.Command {
 				return err
 			}
 
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(sessionExportReportJSON{
+					Build:     newBuildProvenance(),
+					SessionID: resolved,
+					Format:    format,
+					Content:   out,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return err
+			}
+
 			_, err = fmt.Fprint(cmd.OutOrStdout(), out)
 			return err
 		},
 	}
 	cmd.Flags().String("format", "markdown", "export format")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, session_id, format, content}")
 	return cmd
 }
 
