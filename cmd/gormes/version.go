@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -65,9 +66,10 @@ type buildProvenanceJSON struct {
 }
 
 // newBuildProvenance returns the build-provenance block populated from
-// the package-level Version + GitCommit ldflags-injected values.
+// the package-level Version + resolveGitCommit() value (ldflags-injected
+// GitCommit when present, else runtime/debug VCS fallback).
 func newBuildProvenance() buildProvenanceJSON {
-	return buildProvenanceJSON{Version: Version, GitCommit: GitCommit}
+	return buildProvenanceJSON{Version: Version, GitCommit: resolveGitCommit()}
 }
 
 // parseGitDirty interprets the build-time GitDirty string as a bool.
@@ -79,6 +81,63 @@ func parseGitDirty(value string) bool {
 		return true
 	}
 	return false
+}
+
+// resolveGitCommit returns the source SHA the binary was built from,
+// preferring the ldflags-injected GitCommit and falling back to
+// runtime/debug.ReadBuildInfo() vcs.revision so plain `go build` from a
+// developer machine still surfaces a real commit (Go 1.18+ embeds the
+// VCS sha automatically when -buildvcs=true, which is the default).
+//
+// Returns "unknown" when neither source is available (e.g. `go run`
+// invocations have empty BuildInfo.Settings).
+func resolveGitCommit() string {
+	settings := buildInfoSettings()
+	return resolveGitCommitFrom(GitCommit, settings)
+}
+
+func resolveGitCommitFrom(injected string, settings []debug.BuildSetting) string {
+	if injected != "" && injected != "unknown" {
+		return injected
+	}
+	for _, s := range settings {
+		if s.Key == "vcs.revision" && s.Value != "" {
+			if len(s.Value) >= 9 {
+				return s.Value[:9]
+			}
+			return s.Value
+		}
+	}
+	return "unknown"
+}
+
+// resolveGitDirty returns the build-time dirty flag, preferring the
+// ldflags-injected GitDirty and falling back to runtime/debug
+// vcs.modified for plain `go build` invocations.
+func resolveGitDirty() bool {
+	return resolveGitDirtyFrom(GitDirty, buildInfoSettings())
+}
+
+func resolveGitDirtyFrom(injected string, settings []debug.BuildSetting) bool {
+	if parseGitDirty(injected) {
+		return true
+	}
+	for _, s := range settings {
+		if s.Key == "vcs.modified" {
+			return strings.EqualFold(s.Value, "true")
+		}
+	}
+	return false
+}
+
+// buildInfoSettings is a thin wrapper around debug.ReadBuildInfo so the
+// resolveGit* helpers stay testable via the *From variants without
+// reaching into the runtime.
+func buildInfoSettings() []debug.BuildSetting {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		return info.Settings
+	}
+	return nil
 }
 
 // newVersionCommand returns a fresh `gormes version` cobra.Command.
@@ -97,8 +156,8 @@ func newVersionCommand() *cobra.Command {
 				body, err := json.MarshalIndent(versionReportJSON{
 					Version:   Version,
 					DateAlias: VersionDateAlias,
-					GitCommit: GitCommit,
-					GitDirty:  parseGitDirty(GitDirty),
+					GitCommit: resolveGitCommit(),
+					GitDirty:  resolveGitDirty(),
 					GoVersion: runtime.Version(),
 					OS:        runtime.GOOS,
 					Arch:      runtime.GOARCH,
@@ -109,7 +168,7 @@ func newVersionCommand() *cobra.Command {
 				fmt.Fprintln(out, string(body))
 				return nil
 			}
-			if parseGitDirty(GitDirty) {
+			if resolveGitDirty() {
 				fmt.Fprintln(out, "gormes", Version, "(dirty)")
 			} else {
 				fmt.Fprintln(out, "gormes", Version)

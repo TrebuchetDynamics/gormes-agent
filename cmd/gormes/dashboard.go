@@ -27,8 +27,8 @@ func newDashboardCommand() *cobra.Command {
 				DashboardBoundHost: "127.0.0.1",
 				BuildInfo: apiserver.BuildInfo{
 					Version:   Version,
-					GitCommit: GitCommit,
-					GitDirty:  parseGitDirty(GitDirty),
+					GitCommit: resolveGitCommit(),
+					GitDirty:  resolveGitDirty(),
 					GoVersion: runtime.Version(),
 				},
 			}

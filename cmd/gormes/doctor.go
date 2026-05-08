@@ -227,8 +227,8 @@ func buildDoctorCmd() *cobra.Command {
 // the summary labels the binary as a "source build" rather than showing
 // a bare `commit=unknown` — the sentinel value is accurate but cryptic.
 func doctorBuildIdentityStatus() doctor.CheckResult {
-	dirty := parseGitDirty(GitDirty)
-	short := GitCommit
+	dirty := resolveGitDirty()
+	short := resolveGitCommit()
 	if len(short) > 12 {
 		short = short[:12]
 	}
