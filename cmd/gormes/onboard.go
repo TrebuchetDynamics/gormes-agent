@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,40 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/spf13/cobra"
 )
+
+// onboardStatusReportJSON is the wire shape for `gormes onboard --json`.
+// Fleet automation querying first-run readiness across machines parses
+// this to inventory configured/missing setup without scraping prose.
+// Build provenance leads — same convention as the rest of the `--json`
+// arc. Secrets stay out: only `auth_configured` signals key presence.
+type onboardStatusReportJSON struct {
+	Build              buildProvenanceJSON          `json:"build"`
+	Home               string                       `json:"home"`
+	ConfigPath         string                       `json:"config_path"`
+	SkillsRoot         string                       `json:"skills_root"`
+	SkillsLocal        int                          `json:"skills_local"`
+	SkillsBundled      int                          `json:"skills_bundled"`
+	ProviderConfigured bool                         `json:"provider_configured"`
+	Provider           string                       `json:"provider,omitempty"`
+	Endpoint           string                       `json:"endpoint,omitempty"`
+	Model              string                       `json:"model,omitempty"`
+	AuthConfigured     bool                         `json:"auth_configured"`
+	DefaultAgent       string                       `json:"default_agent,omitempty"`
+	Agents             []onboardAgentJSON           `json:"agents,omitempty"`
+	Bindings           []onboardBindingJSON         `json:"bindings,omitempty"`
+}
+
+type onboardAgentJSON struct {
+	ID        string `json:"id"`
+	Workspace string `json:"workspace,omitempty"`
+	Default   bool   `json:"default,omitempty"`
+}
+
+type onboardBindingJSON struct {
+	Channel   string `json:"channel"`
+	AccountID string `json:"account_id,omitempty"`
+	AgentID   string `json:"agent_id"`
+}
 
 func newOnboardCommand() *cobra.Command {
 	return newOnboardCommandWithSeams(defaultOnboardCommandSeams())
@@ -43,6 +78,7 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 
 	var wizard bool
 	var nonInteractive bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "onboard",
 		Short:        "First-run status — see what's configured and what to do next",
@@ -51,6 +87,9 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 			cfg, err := config.Load(nil)
 			if err != nil {
 				return err
+			}
+			if asJSON {
+				return writeOnboardStatusJSON(cmd, cfg)
 			}
 			if wizard {
 				if nonInteractive || !seams.IsTTY() {
@@ -65,7 +104,47 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&wizard, "wizard", false, "show the first-run wizard plan")
 	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "render the wizard without prompts or external launches")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, home, config_path, provider, auth_configured, agents, bindings, ...}")
 	return cmd
+}
+
+func writeOnboardStatusJSON(cmd *cobra.Command, cfg config.Config) error {
+	local, builtin := onboardSkillCounts(cfg)
+	defaultAgent := cfg.Agents.DefaultAgentID()
+	report := onboardStatusReportJSON{
+		Build:              newBuildProvenance(),
+		Home:               config.GormesHome(),
+		ConfigPath:         config.ConfigPath(),
+		SkillsRoot:         cfg.SkillsRoot(),
+		SkillsLocal:        local,
+		SkillsBundled:      builtin,
+		ProviderConfigured: onboardProviderConfigured(cfg),
+		Provider:           strings.TrimSpace(cfg.Hermes.Provider),
+		Endpoint:           strings.TrimSpace(cfg.Hermes.Endpoint),
+		Model:              strings.TrimSpace(cfg.Hermes.Model),
+		AuthConfigured:     configuredProviderAuthPresent(cfg),
+		DefaultAgent:       defaultAgent,
+	}
+	for _, a := range cfg.Agents.List {
+		report.Agents = append(report.Agents, onboardAgentJSON{
+			ID:        a.ID,
+			Workspace: a.Workspace,
+			Default:   strings.EqualFold(a.ID, defaultAgent),
+		})
+	}
+	for _, b := range cfg.Bindings {
+		report.Bindings = append(report.Bindings, onboardBindingJSON{
+			Channel:   b.Match.Channel,
+			AccountID: b.Match.AccountID,
+			AgentID:   b.AgentID,
+		})
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
