@@ -32,7 +32,8 @@ func newKanbanCommand() *cobra.Command {
 }
 
 func newKanbanInitCommand() *cobra.Command {
-	return &cobra.Command{
+	var jsonOut bool
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize the local Kanban database",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -41,10 +42,30 @@ func newKanbanInitCommand() *cobra.Command {
 				return err
 			}
 			defer store.Close()
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "kanban initialized at %s\n", config.KanbanDBPath())
+			path := config.KanbanDBPath()
+			if jsonOut {
+				return writeKanbanJSON(cmd, kanbanInitReportJSON{
+					Build:  newBuildProvenance(),
+					Action: "initialized",
+					Path:   path,
+				})
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "kanban initialized at %s\n", path)
 			return err
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit machine-readable JSON: {build, action, path}")
+	return cmd
+}
+
+// kanbanInitReportJSON is the wire shape for `kanban init --json`.
+// Fleet automation provisioning the local Kanban database across
+// machines parses this to verify the seed outcome with binary
+// attribution.
+type kanbanInitReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	Path   string              `json:"path"`
 }
 
 func newKanbanCreateCommand() *cobra.Command {
@@ -68,7 +89,10 @@ func newKanbanCreateCommand() *cobra.Command {
 				return err
 			}
 			if jsonOut {
-				return writeKanbanJSON(cmd, task)
+				return writeKanbanJSON(cmd, kanbanTaskReportJSON{
+					Build: newBuildProvenance(),
+					Task:  task,
+				})
 			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Created %s (%s, assignee=%s)\n", task.ID, task.Status, displayAssignee(task.Assignee))
 			return err
@@ -105,7 +129,10 @@ func newKanbanListCommand() *cobra.Command {
 				return err
 			}
 			if jsonOut {
-				return writeKanbanJSON(cmd, tasks)
+				return writeKanbanJSON(cmd, kanbanListReportJSON{
+					Build: newBuildProvenance(),
+					Tasks: tasks,
+				})
 			}
 			for _, task := range tasks {
 				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s %s %s\n", kanbanStatusIcon(task.Status), task.ID, task.Status, task.Title); err != nil {
@@ -138,7 +165,10 @@ func newKanbanShowCommand() *cobra.Command {
 				return err
 			}
 			if jsonOut {
-				return writeKanbanJSON(cmd, task)
+				return writeKanbanJSON(cmd, kanbanTaskReportJSON{
+					Build: newBuildProvenance(),
+					Task:  task,
+				})
 			}
 			return writeKanbanTaskText(cmd, task)
 		},
@@ -197,10 +227,11 @@ func newKanbanClaimCommand() *cobra.Command {
 				return err
 			}
 			if jsonOut {
-				return writeKanbanJSON(cmd, struct {
-					Task    kanban.Task `json:"task"`
-					Claimed bool        `json:"claimed"`
-				}{Task: task, Claimed: claimed})
+				return writeKanbanJSON(cmd, kanbanClaimReportJSON{
+					Build:   newBuildProvenance(),
+					Task:    task,
+					Claimed: claimed,
+				})
 			}
 			if claimed {
 				_, err = fmt.Fprintf(cmd.OutOrStdout(), "Claimed %s\n", task.ID)
@@ -309,6 +340,39 @@ func newKanbanLinkCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
 	return cmd
+}
+
+// kanbanListReportJSON is the wire shape for `kanban list --json`.
+// Fleet automation aggregating Kanban inventory across machines parses
+// this to attribute each list snapshot to the binary version that
+// emitted it. Build provenance leads — same convention as the rest of
+// the `--json` arc. Existing list consumers parsed a bare `[]Task`;
+// this slice wraps under `tasks` to make room for `build`.
+type kanbanListReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	Tasks []kanban.Task       `json:"tasks"`
+}
+
+// kanbanClaimReportJSON is the wire shape for `kanban claim --json`.
+// The pre-build-provenance shape was `{task, claimed}`; this slice
+// adds `build` at the top so fleet automation orchestrating worker
+// assignment across machines can attribute each claim outcome.
+type kanbanClaimReportJSON struct {
+	Build   buildProvenanceJSON `json:"build"`
+	Task    kanban.Task         `json:"task"`
+	Claimed bool                `json:"claimed"`
+}
+
+// kanbanTaskReportJSON wraps a single kanban.Task with build
+// provenance for `kanban create --json` and `kanban show --json`.
+// Fleet automation orchestrating Kanban state across machines parses
+// this to attribute each task document to the binary version that
+// emitted it. Existing kanban.Task fields stay top-level via struct
+// embedding — callers parsing the old shape continue to work because
+// Go's JSON decoder ignores the unknown `build` field by default.
+type kanbanTaskReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	kanban.Task
 }
 
 // kanbanLifecycleReportJSON is the wire shape for `kanban
