@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -62,6 +63,17 @@ func TestMemoryStatusCommand_PrintsExtractorSummary(t *testing.T) {
 	}
 }
 
+// TestMemoryStatusCommand_MissingDatabase pins the empty-state UX:
+// on a fresh install the goncho memory.db doesn't exist yet (it's
+// created lazily on the first turn write), so a read-only inventory
+// command must report "queue empty / no DLQ entries / 0 jobs" rather
+// than raise a "memory database not found" error. Same shape as the
+// `session list` empty-state fence.
+//
+// Operator pain this prevents: `gormes memory status` is the natural
+// command an SRE runs to confirm the worker queue is healthy on a
+// freshly-imaged host. Erroring out makes that healthy state look
+// indistinguishable from a corrupt DB or permission error.
 func TestMemoryStatusCommand_MissingDatabase(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
@@ -74,15 +86,95 @@ func TestMemoryStatusCommand_MissingDatabase(t *testing.T) {
 	cmd.SetErr(&stderr)
 	cmd.SetArgs([]string{"memory", "status"})
 
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("Execute() error = nil, want missing-database error")
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() on fresh install must succeed; got %v\nstderr=%s", err, stderr.String())
 	}
-	if !strings.Contains(err.Error(), "memory database not found") {
-		t.Fatalf("error = %v, want missing database message", err)
+	out := stdout.String()
+	for _, want := range []string{
+		"Extractor status",
+		"queue_depth: 0",
+		"dead_letters: 0",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout missing %q on fresh-install zero state:\n%s", want, out)
+		}
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty", stdout.String())
+}
+
+// TestMemoryStatusCommand_EmptyDatabase_NoSchemaIsZeroState pins a
+// second corner of the empty-state UX: an existing-but-zero-byte
+// memory.db (observed in production after install/upgrade flows that
+// touched the file path but didn't run schema migrations) must not
+// surface a raw `sqlite3: SQL logic error: no such table: turns` to
+// the operator. Same empty-state contract as the missing-file path.
+func TestMemoryStatusCommand_EmptyDatabase_NoSchemaIsZeroState(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	gormesHome := filepath.Join(dataHome, "gormes")
+	t.Setenv("GORMES_HOME", gormesHome)
+	if err := os.MkdirAll(gormesHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Seed a 0-byte memory.db — exists but no goncho schema applied.
+	if err := os.WriteFile(filepath.Join(gormesHome, "memory.db"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status on 0-byte memory.db must succeed; got %v\nstderr=%s", err, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{"Extractor status", "queue_depth: 0", "dead_letters: 0"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout missing %q on schema-less DB:\n%s", want, out)
+		}
+	}
+	// The raw sqlite error must not leak through.
+	combined := out + stderr.String()
+	if strings.Contains(combined, "no such table") || strings.Contains(combined, "SQL logic error") {
+		t.Fatalf("raw sqlite error leaked to operator: %q", combined)
+	}
+}
+
+// TestMemoryStatusCommand_MissingDatabase_JSONEmitsZeroState keeps the
+// JSON surface symmetric: SREs scraping
+// `gormes memory status --json` from a freshly-imaged host should see
+// `{"extractor": {"queue_depth": 0, ...}}`, not a non-zero exit.
+func TestMemoryStatusCommand_MissingDatabase_JSONEmitsZeroState(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(dataHome, "gormes"))
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status --json on fresh install: %v\nstderr=%s", err, stderr.String())
+	}
+
+	var got struct {
+		Extractor struct {
+			QueueDepth      int `json:"queue_depth"`
+			DeadLetterCount int `json:"dead_letter_count"`
+		} `json:"extractor"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Extractor.QueueDepth != 0 {
+		t.Errorf("extractor.queue_depth = %d, want 0 on fresh install", got.Extractor.QueueDepth)
+	}
+	if got.Extractor.DeadLetterCount != 0 {
+		t.Errorf("extractor.dead_letter_count = %d, want 0 on fresh install", got.Extractor.DeadLetterCount)
 	}
 }
 

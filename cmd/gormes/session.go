@@ -47,14 +47,27 @@ func newSessionListCommand() *cobra.Command {
 		Use:   "list",
 		Short: "List recent sessions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := openSessionDirectoryDB()
-			if err != nil {
-				return err
-			}
-			defer db.Close()
 			source, _ := cmd.Flags().GetString("source")
 			limit, _ := cmd.Flags().GetInt("limit")
 			asJSON, _ := cmd.Flags().GetBool("json")
+			// On a fresh install the goncho memory.db doesn't exist
+			// yet (it's created lazily on the first turn write). For
+			// an inventory command the absence of state isn't an
+			// error — it's the empty state. Mutating commands
+			// (export/delete/continue) keep their hard error in
+			// openSessionDirectoryDB.
+			db, err := openSessionDirectoryDB()
+			if err != nil {
+				if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "memory database not found") {
+					if asJSON {
+						return emitSessionListJSON(cmd, nil)
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
+					return nil
+				}
+				return err
+			}
+			defer db.Close()
 			sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
 			if err != nil {
 				return err
@@ -82,8 +95,8 @@ func newSessionListCommand() *cobra.Command {
 // tag-free; mirroring it here keeps presentation concerns out of the
 // session package.
 type sessionListReportJSON struct {
-	Build    buildProvenanceJSON       `json:"build"`
-	Sessions []sessionListEntryJSON    `json:"sessions"`
+	Build    buildProvenanceJSON    `json:"build"`
+	Sessions []sessionListEntryJSON `json:"sessions"`
 }
 
 type sessionListEntryJSON struct {

@@ -39,7 +39,15 @@ func newMemoryStatusCommand() *cobra.Command {
 			path := config.MemoryDBPath()
 			if _, err := os.Stat(path); err != nil {
 				if errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("memory database not found at %s", path)
+					// Fresh install: goncho memory.db is created
+					// lazily on the first turn write. For a read-only
+					// inventory command absence of state is the empty
+					// state, not an error.
+					if asJSON {
+						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{})
+					}
+					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}))
+					return err
 				}
 				return err
 			}
@@ -52,6 +60,17 @@ func newMemoryStatusCommand() *cobra.Command {
 
 			status, err := memory.ReadExtractorStatus(context.Background(), db, 0)
 			if err != nil {
+				// memory.db exists but the goncho schema isn't
+				// present yet (0-byte file from a previous failed
+				// open, or an aborted setup). Same empty-state UX
+				// as the missing-file path.
+				if strings.Contains(err.Error(), "no such table: turns") {
+					if asJSON {
+						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{})
+					}
+					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}))
+					return err
+				}
 				return err
 			}
 			cfg, err := config.Load(nil)
@@ -85,9 +104,9 @@ func newMemoryStatusCommand() *cobra.Command {
 // types directly) keeps internal/memory and internal/goncho package
 // types tag-free and isolates the JSON wire contract here.
 type memoryStatusReportJSON struct {
-	Build       buildProvenanceJSON      `json:"build"`
-	Extractor   memoryExtractorJSON      `json:"extractor"`
-	GonchoQueue goncho.QueueStatus       `json:"goncho_queue"`
+	Build       buildProvenanceJSON `json:"build"`
+	Extractor   memoryExtractorJSON `json:"extractor"`
+	GonchoQueue goncho.QueueStatus  `json:"goncho_queue"`
 }
 
 type memoryExtractorJSON struct {
