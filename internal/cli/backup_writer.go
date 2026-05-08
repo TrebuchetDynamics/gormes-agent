@@ -148,6 +148,20 @@ func WriteBackupZip(ctx context.Context, sourceDir, destPath string) (BackupResu
 	if strings.TrimSpace(destPath) == "" {
 		return BackupResult{}, fmt.Errorf("backup: dest path is empty")
 	}
+	// Validate the source dir exists BEFORE opening any tmp file. Without
+	// this, a missing source surfaces as
+	// `backup: walk/write: lstat /path: no such file or directory`
+	// — a confusing chain that mentions a syscall name and a
+	// "walk/write" wrapper that implies mid-write failure rather than a
+	// missing input. Fast-fail keeps operators on track.
+	if info, err := os.Stat(sourceDir); err != nil {
+		if os.IsNotExist(err) {
+			return BackupResult{}, fmt.Errorf("backup: source dir not found: %s", sourceDir)
+		}
+		return BackupResult{}, fmt.Errorf("backup: source dir unreadable: %w", err)
+	} else if !info.IsDir() {
+		return BackupResult{}, fmt.Errorf("backup: source dir not a directory: %s", sourceDir)
+	}
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		return BackupResult{}, fmt.Errorf("backup: mkdir dest parent: %w", err)
 	}

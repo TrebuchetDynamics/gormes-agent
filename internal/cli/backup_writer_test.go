@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -82,6 +83,37 @@ func TestWriteBackupZip_AtomicRenameOnSuccessNoTmpLeak(t *testing.T) {
 	}
 	if _, err := os.Stat(dst + ".tmp"); !os.IsNotExist(err) {
 		t.Fatalf(".tmp file must not remain after a successful rename; stat err = %v", err)
+	}
+}
+
+// TestWriteBackupZip_RejectsMissingSourceDir proves the writer fails
+// fast with an operator-friendly "source dir not found" message when
+// the caller hands it a path that doesn't exist. Without this guard,
+// the underlying filepath.WalkDir error chain leaks "lstat /path: no
+// such file or directory" through a "backup: walk/write:" wrapper —
+// confusing operators with a syscall name and wording that suggests
+// mid-write failure rather than a missing input.
+func TestWriteBackupZip_RejectsMissingSourceDir(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "no-such-source-dir")
+	dst := filepath.Join(t.TempDir(), "out.zip")
+	_, err := WriteBackupZip(context.Background(), missing, dst)
+	if err == nil {
+		t.Fatal("missing source dir must error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "source dir not found") {
+		t.Fatalf("err must say `source dir not found`; got %q", msg)
+	}
+	if !strings.Contains(msg, missing) {
+		t.Fatalf("err must include the offending path; got %q", msg)
+	}
+	if strings.Contains(msg, "lstat") || strings.Contains(msg, "walk/write") {
+		t.Fatalf("err must NOT leak syscall name or walk-wording; got %q", msg)
+	}
+	// Atomic-rename invariant must still hold: no partial .tmp left
+	// behind on a fast-fail.
+	if _, statErr := os.Stat(dst + ".tmp"); !os.IsNotExist(statErr) {
+		t.Fatalf("fast-fail must not leave a tmp file; got statErr=%v", statErr)
 	}
 }
 

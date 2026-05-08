@@ -264,12 +264,22 @@ func TestValidateRestoreZip_RejectsPathTraversalEntry(t *testing.T) {
 }
 
 // TestRestoreFromZip_RejectsMissingSource proves a missing zip file is
-// surfaced as a typed error, not a silent no-op. Operators who pass a
-// stale path should see the failure.
+// surfaced as a typed error with the operator-friendly "zip not found"
+// wording, not the doubled "open ... open ..." chain that os.Open and
+// fmt.Errorf would otherwise produce. Operators who pass a stale path
+// should see the failure phrased so they can act on it directly.
 func TestRestoreFromZip_RejectsMissingSource(t *testing.T) {
-	err := RestoreFromZip(context.Background(), filepath.Join(t.TempDir(), "missing.zip"), t.TempDir())
+	missing := filepath.Join(t.TempDir(), "missing.zip")
+	err := RestoreFromZip(context.Background(), missing, t.TempDir())
 	if err == nil {
 		t.Fatal("missing source must error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "zip not found") {
+		t.Fatalf("err must say `zip not found`; got %q", msg)
+	}
+	if !strings.Contains(msg, missing) {
+		t.Fatalf("err must include the offending path; got %q", msg)
 	}
 }
 
