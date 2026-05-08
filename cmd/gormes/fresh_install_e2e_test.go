@@ -176,6 +176,119 @@ func TestFreshInstallE2E_FreshInstallReadOnlyCommandsExitZero(t *testing.T) {
 	}
 }
 
+// TestFreshInstallE2E_BuildProvenancePresentInJSON is the
+// build-attribution conformance battery for the `--json` arc. Every
+// `--json` surface (except `version --json`, which IS the build
+// report) must lead with a `{build: {version, git_commit}}` block so
+// fleet automation aggregating snapshots across machines can
+// attribute each document to a specific binary. Slices 32-40 added
+// the per-command shape; this test consolidates the invariant.
+func TestFreshInstallE2E_BuildProvenancePresentInJSON(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	// Inventory commands that document `build` in their --json
+	// shape. `version --json` is excluded — it IS the build report,
+	// not a wrapper carrying build provenance.
+	cases := [][]string{
+		{"session", "list", "--json"},
+		{"memory", "status", "--json"},
+		{"gateway", "discover", "--json", "--timeout", "50"},
+		{"gateway", "status", "--json"},
+		{"kanban", "list", "--json"},
+		{"kanban", "boards", "list", "--json"},
+		{"auth", "list", "--json"},
+		{"profile", "list", "--json"},
+		{"profile", "show", "--json"},
+		{"checkpoints", "status", "--json"},
+		{"channels", "capabilities", "--json"},
+		{"config", "show", "--json"},
+		{"config", "check", "--json"},
+		{"onboard", "--json"},
+		{"onboard", "--wizard", "--json", "--non-interactive"},
+		{"restore", "--list", "--json"},
+		{"update", "--check", "--json"},
+		{"plugins", "list", "--json"},
+	}
+
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, _, _ := executeRootCommandForTest(cmd, args...)
+			if strings.TrimSpace(stdout) == "" {
+				return
+			}
+			var parsed map[string]any
+			if err := json.Unmarshal([]byte(stdout), &parsed); err != nil {
+				return
+			}
+			build, ok := parsed["build"].(map[string]any)
+			if !ok {
+				t.Fatalf("command %q --json missing `build` block (or wrong type); fleet log pipelines depend on this. Full stdout:\n%s",
+					strings.Join(args, " "), stdout)
+			}
+			version, _ := build["version"].(string)
+			if version == "" {
+				t.Errorf("command %q --json: build.version is empty/missing", strings.Join(args, " "))
+			}
+			gitCommit, _ := build["git_commit"].(string)
+			if gitCommit == "" {
+				t.Errorf("command %q --json: build.git_commit is empty/missing", strings.Join(args, " "))
+			}
+		})
+	}
+}
+
+// TestFreshInstallE2E_JSONIsParseable is the JSON-validity invariant.
+// Every `--json` command must emit a single top-level JSON document
+// when it produces stdout. Catches regressions where an error path
+// or interactive prompt accidentally writes prose to stdout in JSON
+// mode (a real bug class — `gormes setup terminal --non-interactive
+// --json` historically printed the human menu when --json wasn't
+// implemented for that section).
+func TestFreshInstallE2E_JSONIsParseable(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cases := [][]string{
+		{"session", "list", "--json"},
+		{"memory", "status", "--json"},
+		{"gateway", "discover", "--json", "--timeout", "50"},
+		{"gateway", "status", "--json"},
+		{"kanban", "list", "--json"},
+		{"kanban", "boards", "list", "--json"},
+		{"auth", "list", "--json"},
+		{"profile", "list", "--json"},
+		{"profile", "show", "--json"},
+		{"checkpoints", "status", "--json"},
+		{"channels", "capabilities", "--json"},
+		{"config", "show", "--json"},
+		{"config", "check", "--json"},
+		{"config", "get", "hermes.model", "--json"},
+		{"onboard", "--json"},
+		{"onboard", "--wizard", "--json", "--non-interactive"},
+		{"version", "--json"},
+		{"restore", "--list", "--json"},
+		{"update", "--check", "--json"},
+		{"plugins", "list", "--json"},
+	}
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, _, _ := executeRootCommandForTest(cmd, args...)
+			trimmed := strings.TrimSpace(stdout)
+			if trimmed == "" {
+				return
+			}
+			var parsed any
+			if err := json.Unmarshal([]byte(trimmed), &parsed); err != nil {
+				t.Fatalf("command %q --json must emit parseable JSON to stdout; got error %v\nstdout=%s",
+					strings.Join(args, " "), err, stdout)
+			}
+		})
+	}
+}
+
 // freshInstallE2EHome sets up a synthetic GORMES_HOME the way a
 // fresh install looks: empty directory, no DBs, no auth, no
 // gateway state. Returns the root for tests that want to construct
