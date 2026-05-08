@@ -317,3 +317,66 @@ func TestManagerPinsTurnBeforeSubmitReturns(t *testing.T) {
 		t.Fatalf("turn pinned during Submit = (%q, %q), want (%q, %q)", platform, chatID, "telegram", "42")
 	}
 }
+
+func TestHookAgentLifecycle_MultipleHandlersFireInOrder(t *testing.T) {
+	hooks := NewHooks()
+	rec := &hookRecorder{}
+	hooks.Add(HookAgentEnd, rec.record)
+	hooks.Add(HookAgentEnd, rec.record)
+	hooks.Add(HookAgentEnd, rec.record)
+
+	ctx := context.Background()
+	hooks.Fire(ctx, HookEvent{Point: HookAgentEnd, SessionID: "ses-multi"})
+
+	got := rec.snapshot()
+	if len(got) != 3 {
+		t.Fatalf("got %d events, want 3 handlers to fire", len(got))
+	}
+	for i, ev := range got {
+		if ev.Point != HookAgentEnd || ev.SessionID != "ses-multi" {
+			t.Errorf("handler[%d] = {Point:%q SessionID:%q}, want agent:end + ses-multi", i, ev.Point, ev.SessionID)
+		}
+	}
+}
+
+func TestHookAgentLifecycle_StartStepEndFireWithContext(t *testing.T) {
+	hooks := NewHooks()
+	rec := &hookRecorder{}
+	hooks.Add(HookAgentStart, rec.record)
+	hooks.Add(HookAgentStep, rec.record)
+	hooks.Add(HookAgentEnd, rec.record)
+
+	ctx := context.Background()
+
+	hooks.Fire(ctx, HookEvent{
+		Point:     HookAgentStart,
+		Platform:  "telegram",
+		SessionID: "ses-test",
+		Text:      "hello from user",
+	})
+	hooks.Fire(ctx, HookEvent{
+		Point:     HookAgentStep,
+		SessionID: "ses-test",
+		Iteration: 2,
+		ToolNames: []string{"echo", "read"},
+	})
+	hooks.Fire(ctx, HookEvent{
+		Point:     HookAgentEnd,
+		SessionID: "ses-test",
+		Err:       nil,
+	})
+
+	got := rec.snapshot()
+	if len(got) != 3 {
+		t.Fatalf("got %d events, want 3", len(got))
+	}
+	if got[0].Point != HookAgentStart || got[0].SessionID != "ses-test" {
+		t.Errorf("agent:start = {Point:%q SessionID:%q}, want start + ses-test", got[0].Point, got[0].SessionID)
+	}
+	if got[1].Point != HookAgentStep || got[1].Iteration != 2 || len(got[1].ToolNames) != 2 {
+		t.Errorf("agent:step = {Iteration:%d ToolNames:%v}, want iteration 2 + 2 tools", got[1].Iteration, got[1].ToolNames)
+	}
+	if got[2].Point != HookAgentEnd || got[2].SessionID != "ses-test" {
+		t.Errorf("agent:end = {Point:%q SessionID:%q}, want end + ses-test", got[2].Point, got[2].SessionID)
+	}
+}

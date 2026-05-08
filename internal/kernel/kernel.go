@@ -83,7 +83,33 @@ type Config struct {
 	Fallback                hermes.FallbackModelPolicy
 	FallbackClientFactory   FallbackClientFactory
 	MaxEmptyResponseRetries int
+	// AgentLifecycleHook, when non-nil, is called at agent:start (before the
+	// tool loop), agent:step (after each tool batch with iteration count), and
+	// agent:end (on turn exit with any error). The caller owns goroutine-safety.
+	AgentLifecycleHook AgentLifecycleHook
 }
+
+// AgentLifecyclePoint identifies the lifecycle stage.
+type AgentLifecyclePoint string
+
+const (
+	AgentLifecycleStart AgentLifecyclePoint = "agent:start"
+	AgentLifecycleStep  AgentLifecyclePoint = "agent:step"
+	AgentLifecycleEnd   AgentLifecyclePoint = "agent:end"
+)
+
+// AgentLifecycleEvent is passed to AgentLifecycleHook.
+type AgentLifecycleEvent struct {
+	Point     AgentLifecyclePoint
+	SessionID string
+	Iteration int
+	ToolNames []string
+	Err       error
+}
+
+// AgentLifecycleHook is a callback for agent turn lifecycle events.
+// Nil means no lifecycle events are emitted.
+type AgentLifecycleHook func(ctx context.Context, ev AgentLifecycleEvent)
 
 type SkillProvider interface {
 	BuildSkillBlock(ctx context.Context, userMessage string) (string, []string, error)
@@ -310,6 +336,20 @@ func (k *Kernel) Run(ctx context.Context) error {
 func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes.MessageContentPart, sessionContext, cronJobID, model, reasoningOverride string) {
 	prov := newProvenance(k.cfg.Endpoint)
 	defer func() { k.pendingSteers = nil }()
+	if k.cfg.AgentLifecycleHook != nil {
+		sid := k.sessionID
+		defer func() {
+			var turnErr error
+			if k.lastError != "" {
+				turnErr = errors.New(k.lastError)
+			}
+			k.cfg.AgentLifecycleHook(ctx, AgentLifecycleEvent{
+				Point:     AgentLifecycleEnd,
+				SessionID: sid,
+				Err:       turnErr,
+			})
+		}()
+	}
 	turnKey := prov.LocalRunID
 	model = selectTurnModel(k.cfg.Model, model)
 	providerStatus := hermes.ProviderStatusOf(k.client)
@@ -460,6 +500,12 @@ func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes
 
 	start := time.Now()
 	k.tm.StartTurn()
+	if k.cfg.AgentLifecycleHook != nil {
+		k.cfg.AgentLifecycleHook(ctx, AgentLifecycleEvent{
+			Point:     AgentLifecycleStart,
+			SessionID: k.sessionID,
+		})
+	}
 
 toolLoop:
 	for {
@@ -631,6 +677,19 @@ toolLoop:
 		}
 		results := toolOutcome.Results
 		k.applyPendingSteersToToolResults(results)
+
+		if k.cfg.AgentLifecycleHook != nil {
+			names := make([]string, len(finalDelta.ToolCalls))
+			for i, tc := range finalDelta.ToolCalls {
+				names[i] = tc.Name
+			}
+			k.cfg.AgentLifecycleHook(ctx, AgentLifecycleEvent{
+				Point:     AgentLifecycleStep,
+				SessionID: k.sessionID,
+				Iteration: toolIteration,
+				ToolNames: names,
+			})
+		}
 
 		// Append the assistant's tool-requesting message plus one tool-result
 		// message per call. The draft so far is captured in the assistant

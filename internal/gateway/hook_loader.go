@@ -49,6 +49,9 @@ var allHookPoints = []HookPoint{
 	HookBeforeSend,
 	HookAfterSend,
 	HookOnError,
+	HookAgentStart,
+	HookAgentStep,
+	HookAgentEnd,
 }
 
 // LoadHookScripts discovers hook directories under root, validates their

@@ -13,10 +13,13 @@ const (
 	HookBeforeSend    HookPoint = "before_send"
 	HookAfterSend     HookPoint = "after_send"
 	HookOnError       HookPoint = "on_error"
+	HookAgentStart    HookPoint = "agent:start"
+	HookAgentStep     HookPoint = "agent:step"
+	HookAgentEnd      HookPoint = "agent:end"
 )
 
 // HookEvent is the normalized event payload emitted around gateway manager
-// receive/send/error boundaries.
+// receive/send/error boundaries and agent lifecycle points.
 type HookEvent struct {
 	Point    HookPoint
 	Platform string
@@ -30,6 +33,10 @@ type HookEvent struct {
 	Text             string
 	Inbound          *InboundEvent
 	Err              error
+	// --- Agent lifecycle fields (populated for agent:start, agent:step, agent:end) ---
+	SessionID string   `json:"session_id,omitempty"`
+	Iteration int      `json:"iteration,omitempty"`
+	ToolNames []string `json:"tool_names,omitempty"`
 }
 
 type HookFunc func(context.Context, HookEvent)
