@@ -69,28 +69,7 @@ selection.
 - Unblocks: Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start
 - Why now: Unblocks Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start.
 
-## 3. Signal transport/bootstrap layer
-
-- Phase: 7 / 7.A
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Fakeable Signal bridge bootstrap binds the existing Signal Bot seam to a signal-cli HTTP JSON-RPC/SSE client without live signal-cli: config requires SIGNAL_HTTP_URL and SIGNAL_ACCOUNT or explicit equivalents, acquires a platform lock keyed by account, health-checks /api/v1/check before starting, opens an SSE events stream with the account URL-encoded, treats comments as liveness, parses data envelopes into normalized inbound events, reconnects with jitter/backoff and stale-stream health evidence, sends JSON-RPC requests through an injected client, fetches attachments with getAttachment params {account,id}, and routes outbound direct/group sends with typing-stop and timestamp message IDs.
-- Trust class: gateway, operator, system
-- Ready when: Inbound event normalization + session identity and Reply/send contract on shared chassis are complete., Tests can inject fake health/RPC/SSE clients, fake clocks, and fake locks; no live signal-cli daemon, phone number registration, network socket, or attachment download is required., The bootstrap layer only adapts transport lifecycle into the existing Signal Bot contract.
-- Not ready when: The slice starts or installs signal-cli, opens a real HTTP/SSE connection, registers devices, downloads real attachments, or edits non-Signal gateway routing., Attachment fetch uses attachmentId instead of Hermes' getAttachment id parameter, or errors leak full phone/account values., Connect failure paths keep locks, goroutines, HTTP clients, or SSE loops alive.
-- Degraded mode: Missing config, failed health checks, platform-lock conflicts, SSE disconnects, invalid envelopes, RPC failures, attachment decode failures, and send failures return typed evidence such as signal_config_missing, signal_health_failed, signal_lock_busy, signal_sse_reconnect, signal_envelope_invalid, signal_rpc_failed, signal_attachment_unavailable, and signal_send_failed while redacting phone/account identifiers.
-- Fixture: `internal/channels/signal/bootstrap_test.go`
-- Write scope: `internal/channels/signal/bootstrap.go`, `internal/channels/signal/bootstrap_test.go`, `internal/channels/signal/bot.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels/signal -run '^TestSignal(Bootstrap\|SSE\|Reconnect\|Attachment\|Send)' -count=1`, `go test ./internal/channels/signal -count=1`, `go run ./cmd/progress validate`
-- Done signal: Signal bootstrap fixtures prove config/health/lock lifecycle, SSE parsing and reconnects, JSON-RPC attachment fetch shape, outbound send routing, cleanup, and redaction with fake clients only.
-- Acceptance: TestSignalBootstrapConfigAndHealth proves env/explicit config loading, redacted status, required health check, lock acquisition, and cleanup-on-connect-failure., TestSignalSSEListenerAccountEncodingAndLiveness proves /api/v1/events?account=... is URL-encoded, comments update liveness, invalid JSON records evidence, and data envelopes call NormalizeInbound., TestSignalReconnectAndHealthMonitor proves stale SSE and daemon health failures trigger bounded reconnect/backoff using fake clocks without leaking goroutines., TestSignalAttachmentFetchUsesIDParam proves JSON-RPC getAttachment sends params account and id, base64 decodes fake bytes, guesses media class, and records attachment evidence., TestSignalSendDirectAndGroup proves outbound sends stop typing, use recipient UUID/phone or groupId as appropriate, preserve reply metadata, and return timestamp message IDs through the existing Bot seam.
-- Source refs: ../hermes-agent/gateway/platforms/signal.py:SignalAdapter.connect, ../hermes-agent/gateway/platforms/signal.py:_sse_listener, ../hermes-agent/gateway/platforms/signal.py:_health_monitor, ../hermes-agent/gateway/platforms/signal.py:_rpc, ../hermes-agent/gateway/platforms/signal.py:_fetch_attachment, ../hermes-agent/gateway/platforms/signal.py:send, ../hermes-agent/tests/gateway/test_signal.py, internal/channels/signal/bot.go, internal/channels/signal/inbound.go, references/go-agent-os/trpc-agent-go/agent/callbacks.go, references/go-agent-os/trpc-agent-go/model/callbacks.go
-- Unblocks: Signal live transport smoke test, Voice attachment handling for Signal and QQ Bot, Channel health/status readout for paused adapters
-- Why now: Unblocks Signal live transport smoke test, Voice attachment handling for Signal and QQ Bot, Channel health/status readout for paused adapters.
-
-## 4. Matrix shared-chassis bot seam
+## 3. Matrix shared-chassis bot seam
 
 - Phase: 7 / 7.C
 - Owner: `gateway`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Matrix self/bridge sender drop helper, Matrix real client/bootstrap layer, Matrix E2EE device-id crypto-store binding
 - Why now: Unblocks Matrix self/bridge sender drop helper, Matrix real client/bootstrap layer, Matrix E2EE device-id crypto-store binding.
 
-## 5. Mattermost shared-chassis bot seam
+## 4. Mattermost shared-chassis bot seam
 
 - Phase: 7 / 7.C
 - Owner: `gateway`
@@ -132,7 +111,7 @@ selection.
 - Unblocks: Mattermost REST/WS bootstrap layer, Mattermost media upload contract
 - Why now: Unblocks Mattermost REST/WS bootstrap layer, Mattermost media upload contract.
 
-## 6. TD engineering blog scaffolded and live
+## 5. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -154,7 +133,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 7. Behavioral pattern extraction from session logs
+## 6. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -174,7 +153,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Agentic-porting-kit repo scaffold
+## 7. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -195,7 +174,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Built-with-Gormes page scaffold
+## 8. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

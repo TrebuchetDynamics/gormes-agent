@@ -44357,10 +44357,10 @@
             },
             {
               "name": "Signal transport/bootstrap layer",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Fakeable Signal bridge bootstrap binds the existing Signal Bot seam to a signal-cli HTTP JSON-RPC/SSE client without live signal-cli: config requires SIGNAL_HTTP_URL and SIGNAL_ACCOUNT or explicit equivalents, acquires a platform lock keyed by account, health-checks /api/v1/check before starting, opens an SSE events stream with the account URL-encoded, treats comments as liveness, parses data envelopes into normalized inbound events, reconnects with jitter/backoff and stale-stream health evidence, sends JSON-RPC requests through an injected client, fetches attachments with getAttachment params {account,id}, and routes outbound direct/group sends with typing-stop and timestamp message IDs.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [

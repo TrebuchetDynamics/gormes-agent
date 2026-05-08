@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 71/99 subphases shipped · 23 in progress · 5 planned
+**Overall:** 72/99 subphases shipped · 22 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -97,7 +97,7 @@ classification and row-backed implementation queue.
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
 
 ---
@@ -1142,11 +1142,11 @@ classification and row-backed implementation queue.
 
 *Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize*
 
-### 7.A — Signal Adapter 🔨
+### 7.A — Signal Adapter ✅
 
 - [x] Inbound event normalization + session identity
 - [x] Reply/send contract on shared chassis
-- [ ] Signal transport/bootstrap layer
+- [x] Signal transport/bootstrap layer
 - [x] Signal markdown bodyRanges + attachment rate scheduler
 
 ### 7.B — Email + SMS Adapters ✅
