@@ -60,6 +60,51 @@ func newDetailedHealthFixtureServer(t *testing.T, apiKey string) *Server {
 	})
 }
 
+// TestAPIServerDetailedHealth_BuildAttribution proves
+// `/health/detailed` and `/v1/health/detailed` carry the configured
+// BuildInfo at the top of the JSON response so fleet automation
+// running detailed health probes across machines can attribute every
+// response to the binary version that emitted it. Same convention as
+// `/health` (slice 117) and the rest of the API server JSON arc.
+func TestAPIServerDetailedHealth_BuildAttribution(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:   "test-detailed-health",
+			GitCommit: "ba5eba11",
+		},
+	})
+	for _, path := range []string{"/health/detailed", "/v1/health/detailed"} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d; body=%s", path, rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+			} `json:"build"`
+			Provider struct {
+				Status string `json:"status"`
+			} `json:"provider"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s decode: %v\nbody=%s", path, err, rec.Body.String())
+		}
+		if got.Build.Version != "test-detailed-health" {
+			t.Errorf("%s build.version = %q, want test-detailed-health (body=%s)", path, got.Build.Version, rec.Body.String())
+		}
+		if got.Build.GitCommit != "ba5eba11" {
+			t.Errorf("%s build.git_commit = %q, want ba5eba11", path, got.Build.GitCommit)
+		}
+		if got.Provider.Status == "" {
+			t.Errorf("%s provider.status empty — top-level fields lost", path)
+		}
+	}
+}
+
 func TestAPIServerDetailedHealthEndpoint_OK(t *testing.T) {
 	srv := newDetailedHealthFixtureServer(t, "")
 

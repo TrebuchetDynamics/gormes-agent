@@ -66,6 +66,7 @@ type DetailedHealthCronInput struct {
 }
 
 type DetailedHealthSnapshotModel struct {
+	Build         BuildInfo                          `json:"build"`
 	Provider      DetailedHealthProviderSection      `json:"provider"`
 	ResponseStore DetailedHealthResponseStoreSection `json:"response_store"`
 	RunEvents     DetailedHealthRunEventsSection     `json:"run_events"`
