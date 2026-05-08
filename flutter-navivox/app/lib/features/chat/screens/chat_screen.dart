@@ -13,15 +13,43 @@ final chatVoiceCaptureServiceProvider = Provider<VoiceCaptureService?>(
   (_) => null,
 );
 
-class ChatScreen extends ConsumerWidget {
+class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  FakeNavivoxChannel? _subscribed;
+
+  void _onChannelChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _subscribed?.removeListener(_onChannelChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final channel = ref.watch(fakeNavivoxChannelProvider);
+    if (!identical(_subscribed, channel)) {
+      _subscribed?.removeListener(_onChannelChanged);
+      channel.addListener(_onChannelChanged);
+      _subscribed = channel;
+    }
+
     final state = channel.state;
     final server = state.activeServer;
     final voiceService = ref.watch(chatVoiceCaptureServiceProvider);
+    final selectedAgent = state.selectedAgentId == null
+        ? null
+        : state.agents
+            .where((agent) => agent.id == state.selectedAgentId)
+            .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -36,6 +64,19 @@ class ChatScreen extends ConsumerWidget {
               ),
           ],
         ),
+        actions: [
+          if (selectedAgent != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Center(
+                child: Chip(
+                  key: const ValueKey('chat-active-agent'),
+                  avatar: const Icon(Icons.smart_toy, size: 16),
+                  label: Text(selectedAgent.name),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
