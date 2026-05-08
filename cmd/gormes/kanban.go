@@ -135,6 +135,20 @@ func newKanbanListCommand() *cobra.Command {
 					Tasks: tasks,
 				})
 			}
+			if len(tasks) == 0 {
+				// Friendly placeholder so an empty board reads as a known
+				// state, not a silent/hung command. Mirrors `gormes
+				// plugins`'s "No plugins installed." convention. JSON
+				// mode skips this and keeps `tasks: []` for parsers.
+				msg := "No Kanban tasks."
+				if strings.TrimSpace(status) != "" || strings.TrimSpace(assignee) != "" {
+					msg = "No Kanban tasks match the given filters."
+				}
+				if _, err := fmt.Fprintln(cmd.OutOrStdout(), msg); err != nil {
+					return err
+				}
+				return nil
+			}
 			for _, task := range tasks {
 				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s %s %s %s\n", kanbanStatusIcon(task.Status), task.ID, task.Status, task.Title); err != nil {
 					return err
