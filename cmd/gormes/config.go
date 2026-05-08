@@ -225,6 +225,7 @@ func newConfigEnvPathCommand() *cobra.Command {
 // verbatim followed by a newline so callers can `$(gormes config get
 // hermes.endpoint)` the result safely.
 func newConfigGetCommand() *cobra.Command {
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "get <key>",
 		Short: "Read a configuration value (redacted for secret keys)",
@@ -255,7 +256,12 @@ func newConfigGetCommand() *cobra.Command {
 				if value == "" {
 					value = os.Getenv(envName)
 				}
-				fmt.Fprintln(out, redactedSecretStatus(value))
+				redacted := redactedSecretStatus(value)
+				isSet := strings.TrimSpace(value) != ""
+				if asJSON {
+					return emitConfigGetJSON(out, key, redacted, true, isSet)
+				}
+				fmt.Fprintln(out, redacted)
 				return nil
 			}
 			cfg, err := config.Load(nil)
@@ -273,10 +279,18 @@ func newConfigGetCommand() *cobra.Command {
 			default:
 				return fmt.Errorf("gormes config get: unknown key %q (try `gormes config show` for the resolved schema)", key)
 			}
+			isSet := strings.TrimSpace(value) != ""
+			if asJSON {
+				display := value
+				if !isSet {
+					display = "(not set)"
+				}
+				return emitConfigGetJSON(out, key, display, false, isSet)
+			}
 			// Empty non-secret values render as "(not set)" so output
 			// mirrors the secret-key form (and operators don't see a
 			// silent blank line that looks like a hung command).
-			if strings.TrimSpace(value) == "" {
+			if !isSet {
 				fmt.Fprintln(out, "(not set)")
 			} else {
 				fmt.Fprintln(out, value)
@@ -284,7 +298,40 @@ func newConfigGetCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, key, value, secret_redacted, set}` JSON document — non-secret values inline; secret values stay redacted")
 	return cmd
+}
+
+// configGetReportJSON is the wire shape for `gormes config get --json`.
+// Operator scripts that want to scrape one config value programmatically
+// previously had to pull the whole `config show --json` document and
+// jq-traverse to the target key. This single-key shape mirrors the
+// per-key UX of the text surface: secret keys carry the redacted
+// `(set)`/`(not set)` placeholder via `value`, never the raw secret;
+// `secret_redacted` lets fleet automation branch on whether the value
+// was redacted before logging it. `set` is the boolean fleet
+// dashboards alert on for un-configured keys.
+type configGetReportJSON struct {
+	Build          buildProvenanceJSON `json:"build"`
+	Key            string              `json:"key"`
+	Value          string              `json:"value"`
+	SecretRedacted bool                `json:"secret_redacted"`
+	Set            bool                `json:"set"`
+}
+
+func emitConfigGetJSON(out io.Writer, key, value string, secretRedacted, isSet bool) error {
+	body, err := json.MarshalIndent(configGetReportJSON{
+		Build:          newBuildProvenance(),
+		Key:            key,
+		Value:          value,
+		SecretRedacted: secretRedacted,
+		Set:            isSet,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(out, string(body))
+	return err
 }
 
 func newConfigSetCommand() *cobra.Command {
