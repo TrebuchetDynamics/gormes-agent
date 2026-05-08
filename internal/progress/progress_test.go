@@ -636,11 +636,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.C threaded text status = %q, want complete", threadedText.Status)
 	}
 	matrixBot := matrixItems["Matrix shared-chassis bot seam"]
-	if matrixBot.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C matrix bot status = %q, want planned", matrixBot.Status)
+	if matrixBot.Status != StatusComplete {
+		t.Fatalf("Phase 7.C matrix bot status = %q, want complete (shipped MatrixSeam)", matrixBot.Status)
 	}
-	if matrixBot.ContractStatus != ContractStatusDraft || len(matrixBot.WriteScope) == 0 || len(matrixBot.TestCommands) == 0 {
-		t.Fatalf("Phase 7.C matrix bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", matrixBot.ContractStatus, len(matrixBot.WriteScope), len(matrixBot.TestCommands))
+	if matrixBot.ContractStatus != ContractStatusValidated || len(matrixBot.WriteScope) == 0 || len(matrixBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C matrix bot readiness = contract_status %q scope=%d tests=%d, want validated builder-ready row", matrixBot.ContractStatus, len(matrixBot.WriteScope), len(matrixBot.TestCommands))
 	}
 	if !containsString(matrixBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(matrixBot.Contract, "thread roots") {
 		t.Fatalf("Phase 7.C matrix bot refs=%v contract=%q, want threadtext/thread detail", matrixBot.SourceRefs, matrixBot.Contract)
