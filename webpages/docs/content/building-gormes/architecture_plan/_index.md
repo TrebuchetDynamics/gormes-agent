@@ -1176,7 +1176,7 @@ classification and row-backed implementation queue.
 - [x] Mattermost shared-chassis bot seam
 - [x] Matrix real client/bootstrap layer
 - [ ] Matrix E2EE device-id crypto-store binding
-- [ ] Mattermost REST/WS bootstrap layer
+- [x] Mattermost REST/WS bootstrap layer
 
 ### 7.D — Webhook + Trigger Ingress ✅
 

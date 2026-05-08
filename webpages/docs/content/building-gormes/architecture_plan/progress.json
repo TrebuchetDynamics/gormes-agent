@@ -45612,10 +45612,10 @@
             },
             {
               "name": "Mattermost REST/WS bootstrap layer",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Gormes adds a fakeable Mattermost REST/websocket bootstrap boundary after the shared-chassis seam: config resolves MATTERMOST_URL/TOKEN, auth probes users/me, REST helpers sanitize response errors, websocket posted events feed the seam parser, reconnect policy is represented without sleeps, channel/user lookup is injectable, and file upload/edit/send paths are shaped with fake HTTP responses before any live Mattermost transport is enabled.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -45626,12 +45626,12 @@
               "degraded_mode": "Mattermost status reports mattermost_config_missing, mattermost_auth_failed, mattermost_ws_unavailable, mattermost_upload_failed, or mattermost_transport_unavailable without opening real REST or websocket connections in unit tests.",
               "fixture": "internal/channels/mattermost/bootstrap_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter.connect",
-                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._api_get",
-                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._api_post",
-                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._upload_file",
-                "../hermes-agent/gateway/platforms/mattermost.py:MattermostAdapter._handle_ws_event",
-                "../hermes-agent/tests/gateway/test_mattermost.py",
+                "./hermes-agent/gateway/platforms/mattermost.py@242da9db9:MattermostAdapter.connect",
+                "./hermes-agent/gateway/platforms/mattermost.py@242da9db9:MattermostAdapter._api_get",
+                "./hermes-agent/gateway/platforms/mattermost.py@242da9db9:MattermostAdapter._api_post",
+                "./hermes-agent/gateway/platforms/mattermost.py@242da9db9:MattermostAdapter._upload_file",
+                "./hermes-agent/gateway/platforms/mattermost.py@242da9db9:MattermostAdapter._handle_ws_event",
+                "./hermes-agent/tests/gateway/test_mattermost.py@242da9db9",
                 "internal/channels/mattermost/seam.go",
                 "internal/channels/threadtext/contract.go",
                 "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
@@ -45662,12 +45662,13 @@
                 "TestMattermostReconnectPolicyUsesFakeClock proves transient websocket failure records retry evidence without wall-clock sleep.",
                 "TestMattermostUploadEditSendShapesRequests proves file upload, post-with-file, edit, and channel lookup request shapes match Hermes fixtures with fake HTTP only."
               ],
-              "note": "Builder-ready Mattermost transport-boundary row. Hermes Mattermost remains the parity contract; Go donors provide callback, activity, and artifact evidence patterns.",
+              "note": "2026-05-08 parity sweep promoted this to P1/validated because the shared-chassis seam is complete, current Hermes still exposes Mattermost REST/users-me, sanitized REST helpers, websocket posted-event flow, reconnect, and file upload/edit/send behavior, and higher-priority public/docs/release rows are blocked on operator decisions. Complete 2026-05-08: TDD added internal/channels/mattermost/bootstrap.go and bootstrap_test.go with fakeable config/auth, sanitized REST helpers, websocket-to-seam ingress, retry evidence without sleeps, and upload/edit/send request-shape fixtures. Hermes Mattermost remains the parity contract; Go donors provide callback, activity, and artifact evidence patterns.",
               "write_scope": [
                 "internal/channels/mattermost/bootstrap.go",
                 "internal/channels/mattermost/bootstrap_test.go",
                 "internal/channels/mattermost/seam.go",
                 "internal/config/",
+                "internal/progress/progress_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [

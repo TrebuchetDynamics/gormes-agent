@@ -671,8 +671,14 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.C matrix bootstrap refs=%v note=%q, want active Hermes bootstrap evidence", matrixBootstrap.SourceRefs, matrixBootstrap.Note)
 	}
 	mattermostBootstrap := matrixItems["Mattermost REST/WS bootstrap layer"]
-	if mattermostBootstrap.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C mattermost bootstrap status = %q, want planned", mattermostBootstrap.Status)
+	if mattermostBootstrap.Status != StatusComplete {
+		t.Fatalf("Phase 7.C mattermost bootstrap status = %q, want complete", mattermostBootstrap.Status)
+	}
+	if mattermostBootstrap.ContractStatus != ContractStatusValidated || len(mattermostBootstrap.WriteScope) == 0 || len(mattermostBootstrap.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C mattermost bootstrap readiness = contract_status %q scope=%d tests=%d, want validated completed row", mattermostBootstrap.ContractStatus, len(mattermostBootstrap.WriteScope), len(mattermostBootstrap.TestCommands))
+	}
+	if !strings.Contains(mattermostBootstrap.Note, "fakeable config/auth") || !containsString(mattermostBootstrap.SourceRefs, "./hermes-agent/gateway/platforms/mattermost.py@242da9db9:MattermostAdapter.connect") {
+		t.Fatalf("Phase 7.C mattermost bootstrap refs=%v note=%q, want active Hermes bootstrap evidence", mattermostBootstrap.SourceRefs, mattermostBootstrap.Note)
 	}
 
 	longTail := p.Phases["7"].Subphases["7.E"]
