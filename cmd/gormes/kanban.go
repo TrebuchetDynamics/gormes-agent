@@ -186,6 +186,20 @@ func newKanbanShowCommand() *cobra.Command {
 			defer store.Close()
 			task, err := store.GetTask(cmd.Context(), args[0])
 			if err != nil {
+				// In --json mode the not-found path must still
+				// emit a parseable document on stdout — fleet
+				// automation scraping `kanban show ID --json`
+				// can't distinguish a missing task from a crashed
+				// command otherwise. Mirrors `session delete
+				// --json`'s `action: "not_found"` shape.
+				if jsonOut && isKanbanNotFoundErr(err) {
+					_ = writeKanbanLifecycleJSON(cmd, kanbanLifecycleReportJSON{
+						Build:  newBuildProvenance(),
+						Action: "not_found",
+						ID:     args[0],
+						Error:  err.Error(),
+					})
+				}
 				return err
 			}
 			if jsonOut {
@@ -199,6 +213,20 @@ func newKanbanShowCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
 	return cmd
+}
+
+// isKanbanNotFoundErr matches the un-typed `kanban task %q not found`
+// shape returned by internal/kanban/store.go. The error isn't
+// exported as a sentinel; substring matching is brittle but bounded
+// — only one production callsite formats this string, and the test
+// fence above pins the shape so any future refactor that breaks it
+// is loud.
+func isKanbanNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "not found")
 }
 
 func newKanbanCompleteCommand() *cobra.Command {
@@ -215,6 +243,14 @@ func newKanbanCompleteCommand() *cobra.Command {
 			}
 			defer store.Close()
 			if err := store.CompleteTask(cmd.Context(), args[0], kanban.CompleteTaskInput{Result: result}); err != nil {
+				if jsonOut && isKanbanNotFoundErr(err) {
+					_ = writeKanbanLifecycleJSON(cmd, kanbanLifecycleReportJSON{
+						Build:  newBuildProvenance(),
+						Action: "not_found",
+						ID:     args[0],
+						Error:  err.Error(),
+					})
+				}
 				return err
 			}
 			if jsonOut {
@@ -248,6 +284,14 @@ func newKanbanClaimCommand() *cobra.Command {
 			defer store.Close()
 			task, claimed, err := store.ClaimTask(cmd.Context(), args[0], kanban.ClaimTaskInput{Worker: worker})
 			if err != nil {
+				if jsonOut && isKanbanNotFoundErr(err) {
+					_ = writeKanbanLifecycleJSON(cmd, kanbanLifecycleReportJSON{
+						Build:  newBuildProvenance(),
+						Action: "not_found",
+						ID:     args[0],
+						Error:  err.Error(),
+					})
+				}
 				return err
 			}
 			if jsonOut {
@@ -413,6 +457,7 @@ type kanbanLifecycleReportJSON struct {
 	Parent string              `json:"parent,omitempty"`
 	Child  string              `json:"child,omitempty"`
 	Reason string              `json:"reason,omitempty"`
+	Error  string              `json:"error,omitempty"`
 }
 
 func writeKanbanLifecycleJSON(cmd *cobra.Command, report kanbanLifecycleReportJSON) error {

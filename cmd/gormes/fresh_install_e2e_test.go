@@ -289,6 +289,61 @@ func TestFreshInstallE2E_JSONIsParseable(t *testing.T) {
 	}
 }
 
+// TestFreshInstallE2E_NotFoundJSONEmitsStructuredDocument is the
+// "look up X" not-found conformance battery. Every command that
+// resolves an operator-supplied ID (kanban show/claim/complete,
+// session export, mcp login, etc.) must emit a parseable
+// `{build, action: "not_found", id, ...}` document on stdout when
+// `--json` is set and the target doesn't exist. Operators driving
+// fleet automation can't otherwise distinguish "missing target"
+// from "command crashed" — both yield empty stdout + non-zero exit.
+//
+// Each entry: (args without `gormes` prefix, optional pre-init
+// command). Commands that need a pre-init step (kanban needs the
+// store initialized) supply it; otherwise nil.
+func TestFreshInstallE2E_NotFoundJSONEmitsStructuredDocument(t *testing.T) {
+	cases := []struct {
+		name    string
+		preInit []string
+		args    []string
+	}{
+		{name: "kanban_show", preInit: []string{"kanban", "init"}, args: []string{"kanban", "show", "missing-id", "--json"}},
+		{name: "kanban_complete", preInit: []string{"kanban", "init"}, args: []string{"kanban", "complete", "missing-id", "--json"}},
+		{name: "kanban_claim", preInit: []string{"kanban", "init"}, args: []string{"kanban", "claim", "missing-id", "--json"}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			freshInstallE2EHome(t)
+			if tc.preInit != nil {
+				cmd := newRootCommandWithRuntime(rootRuntime{})
+				if _, _, err := executeRootCommandForTest(cmd, tc.preInit...); err != nil {
+					t.Fatalf("pre-init `%s`: %v", strings.Join(tc.preInit, " "), err)
+				}
+			}
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, tc.args...)
+			if err == nil {
+				t.Fatalf("`%s` must error on missing target; stdout=%q stderr=%q",
+					strings.Join(tc.args, " "), stdout, stderr)
+			}
+			if strings.TrimSpace(stdout) == "" {
+				t.Fatalf("`%s` --json must emit JSON on stdout even on not-found; got empty stdout, stderr=%s",
+					strings.Join(tc.args, " "), stderr)
+			}
+			var parsed map[string]any
+			if jsonErr := json.Unmarshal([]byte(stdout), &parsed); jsonErr != nil {
+				t.Fatalf("stdout must be parseable JSON: %v\nstdout=%s", jsonErr, stdout)
+			}
+			action, _ := parsed["action"].(string)
+			if action != "not_found" {
+				t.Errorf("`%s` --json action = %q, want %q",
+					strings.Join(tc.args, " "), action, "not_found")
+			}
+		})
+	}
+}
+
 // freshInstallE2EHome sets up a synthetic GORMES_HOME the way a
 // fresh install looks: empty directory, no DBs, no auth, no
 // gateway state. Returns the root for tests that want to construct
