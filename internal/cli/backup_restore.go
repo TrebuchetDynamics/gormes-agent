@@ -3,8 +3,10 @@ package cli
 import (
 	"archive/zip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +24,16 @@ func ValidateRestoreZip(zipPath string) error {
 	}
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("restore: open zip: %w", err)
+		// Distinguish "operator named a file that doesn't exist" from
+		// "the file exists but is corrupt" so triage from the error
+		// message alone is unambiguous. Without this split, both cases
+		// chained the os.Open "open <path>" wording behind a
+		// "restore: open zip:" prefix — operators saw "open ... open"
+		// and had to decode the layered chain.
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("restore: zip not found: %s", zipPath)
+		}
+		return fmt.Errorf("restore: zip unreadable: %w", err)
 	}
 	defer zr.Close()
 	// Walk entries against a synthetic dest so safeJoinForRestore
@@ -68,7 +79,13 @@ func RestoreFromZip(ctx context.Context, zipPath, destDir string) error {
 	}
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("restore: open zip: %w", err)
+		// Same split as ValidateRestoreZip: clean message for "the
+		// file disappeared" (TOCTOU between validation and open) vs.
+		// the wrapped chain for genuine corruption.
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("restore: zip not found: %s", zipPath)
+		}
+		return fmt.Errorf("restore: zip unreadable: %w", err)
 	}
 	defer zr.Close()
 
@@ -130,7 +147,10 @@ func SummarizeRestoreZipImpact(zipPath, destDir string) (RestoreZipImpact, error
 	}
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return RestoreZipImpact{}, fmt.Errorf("restore: open zip: %w", err)
+		if errors.Is(err, fs.ErrNotExist) {
+			return RestoreZipImpact{}, fmt.Errorf("restore: zip not found: %s", zipPath)
+		}
+		return RestoreZipImpact{}, fmt.Errorf("restore: zip unreadable: %w", err)
 	}
 	defer zr.Close()
 	absDest, err := filepath.Abs(destDir)

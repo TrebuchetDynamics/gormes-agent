@@ -198,6 +198,43 @@ func TestValidateRestoreZip_RejectsCorruptArchive(t *testing.T) {
 	}
 }
 
+// TestValidateRestoreZip_DistinguishesMissingFromCorrupt proves the
+// validator surfaces operator-friendly error wording: a missing file
+// reads as "zip not found: <path>" instead of the double-"open" chain
+// that os.Open + fmt.Errorf("open zip: %w") produces by default. A
+// corrupted file reads as "zip unreadable: ...". Operators triaging
+// `gormes restore --path X` should immediately see WHICH problem they
+// hit without parsing nested error layers.
+func TestValidateRestoreZip_DistinguishesMissingFromCorrupt(t *testing.T) {
+	t.Run("missing file", func(t *testing.T) {
+		err := ValidateRestoreZip(filepath.Join(t.TempDir(), "absent.zip"))
+		if err == nil {
+			t.Fatal("missing file must error")
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "zip not found") {
+			t.Fatalf("err must say `zip not found`; got %q", msg)
+		}
+		if strings.Count(msg, "open") > 0 {
+			t.Fatalf("err must NOT chain doubled-open wording; got %q", msg)
+		}
+	})
+	t.Run("corrupt file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "corrupt.zip")
+		if err := os.WriteFile(path, []byte("not a zip"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		err := ValidateRestoreZip(path)
+		if err == nil {
+			t.Fatal("corrupt file must error")
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "zip unreadable") && !strings.Contains(msg, "not a valid zip") {
+			t.Fatalf("err must explain corruption; got %q", msg)
+		}
+	})
+}
+
 // TestValidateRestoreZip_RejectsPathTraversalEntry proves the validator
 // rejects path-traversal zip entries — the same gate RestoreFromZip
 // applies at extract time. Surfacing it during dry-run lets operators
