@@ -64,6 +64,13 @@ func newGatewayDiscoverCommand() *cobra.Command {
 				Discoverer: newGatewayDiscoverer(time.Duration(timeoutMs) * time.Millisecond),
 			})
 			if jsonOut {
+				// Normalize nil beacon slices to empty slices so
+				// JSON consumers iterate over `[]` instead of
+				// crashing on `null`. Same convention as the
+				// probe path.
+				if result.Beacons == nil {
+					result.Beacons = []tools.GatewayEndpoint{}
+				}
 				return encodeIndentedJSON(cmd.OutOrStdout(), gatewayDiscoverReportJSON{
 					Build:                 newBuildProvenance(),
 					GatewayDiscoverResult: result,
@@ -130,6 +137,13 @@ func newGatewayProbeCommand() *cobra.Command {
 				Runtime:    runtimeSummary,
 			})
 			if jsonOut {
+				// Normalize nil beacon slices to empty slices so
+				// JSON consumers iterate over `[]` instead of
+				// crashing on `null`. Same convention as
+				// emitSessionListJSON / collectSystemSnapshotForJSON.
+				if result.Discovery.Beacons == nil {
+					result.Discovery.Beacons = []tools.GatewayEndpoint{}
+				}
 				if err := encodeIndentedJSON(cmd.OutOrStdout(), gatewayProbeReportJSON{
 					Build:              newBuildProvenance(),
 					GatewayProbeResult: result,
