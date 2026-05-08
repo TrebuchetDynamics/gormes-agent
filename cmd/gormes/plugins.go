@@ -37,6 +37,12 @@ func newPluginsCommandWithManager(manager *plugins.LifecycleManager) *cobra.Comm
 		Use:          "plugins",
 		Short:        "Manage Hermes-compatible plugins",
 		SilenceUsage: true,
+		// NoArgs rejects positional args at the parent level. Without
+		// it, a typo like `gormes plugins listt` silently fell through
+		// to the parent's RunE and printed "No plugins installed." as
+		// if the typo had succeeded; cobra was unable to surface its
+		// typo suggestion because the parent had a RunE.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPluginsList(cmd, manager)
 		},
