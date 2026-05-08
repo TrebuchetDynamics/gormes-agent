@@ -707,6 +707,14 @@ func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID s
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
+	if snap, ok := s.runs.snapshot(runID); ok {
+		preludePayload, _ := json.Marshal(map[string]any{
+			"run_id":       runID,
+			"status":       snap.Status,
+			"events_count": snap.EventsCount,
+		})
+		writeSSEComment(w, "snapshot "+string(preludePayload))
+	}
 	for _, ev := range backlog {
 		writeSSEData(w, ev)
 	}
