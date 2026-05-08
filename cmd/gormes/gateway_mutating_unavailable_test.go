@@ -51,6 +51,49 @@ func TestGatewayMutatingSubcommandsAreUnavailable(t *testing.T) {
 	}
 }
 
+func TestGatewayWindowsScheduledTaskLifecycleCommands(t *testing.T) {
+	for _, tc := range []struct {
+		sub       string
+		wantCalls []string
+	}{
+		{sub: "install", wantCalls: []string{"install", "start"}},
+		{sub: "start", wantCalls: []string{"start"}},
+		{sub: "restart", wantCalls: []string{"restart"}},
+		{sub: "uninstall", wantCalls: []string{"uninstall"}},
+	} {
+		t.Run(tc.sub, func(t *testing.T) {
+			setupGatewayStatusTestEnv(t)
+			restoreGOOS := gatewayRuntimeGOOSForTest(t, "windows")
+			defer restoreGOOS()
+			runner := &fakeGatewayWindowsScheduledTaskRunner{}
+			restoreRunner := gatewayWindowsScheduledTaskRunnerForTest(t, runner)
+			defer restoreRunner()
+
+			stdout, stderr, err := executeGatewayMutatingCommand(t, tc.sub)
+			if err != nil {
+				t.Fatalf("gateway %s: %v\nstdout=%s\nstderr=%s", tc.sub, err, stdout, stderr)
+			}
+			if strings.Join(runner.calls, ",") != strings.Join(tc.wantCalls, ",") {
+				t.Fatalf("calls = %v, want %v", runner.calls, tc.wantCalls)
+			}
+			for _, want := range []string{"Scheduled Task", "gateway " + tc.sub} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("stdout missing %q:\n%s", want, stdout)
+				}
+			}
+			for _, cfg := range runner.configs {
+				if cfg.TaskName == "" || cfg.Command == "" {
+					t.Fatalf("config missing task name or command: %+v", cfg)
+				}
+				if len(cfg.Args) != 1 || cfg.Args[0] != "gateway" {
+					t.Fatalf("config args = %#v, want [gateway]", cfg.Args)
+				}
+			}
+			assertGatewayStopDidNotOpenDurableStores(t)
+		})
+	}
+}
+
 func TestGatewayStopSignalsValidatedLiveRuntime(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	store := &fakeGatewayStopRuntimeStore{
@@ -452,13 +495,13 @@ func TestGatewayStop_JSONEmitsStructuredOutcome(t *testing.T) {
 			Version   string `json:"version"`
 			GitCommit string `json:"git_commit"`
 		} `json:"build"`
-		Action                    string `json:"action"`
-		Live                      bool   `json:"live"`
-		PID                       int    `json:"pid"`
-		Signal                    string `json:"signal"`
-		InitialStatus             string `json:"initial_status"`
-		FinalStatus               string `json:"final_status"`
-		PlannedStopMarkerWritten  bool   `json:"planned_stop_marker_written"`
+		Action                   string `json:"action"`
+		Live                     bool   `json:"live"`
+		PID                      int    `json:"pid"`
+		Signal                   string `json:"signal"`
+		InitialStatus            string `json:"initial_status"`
+		FinalStatus              string `json:"final_status"`
+		PlannedStopMarkerWritten bool   `json:"planned_stop_marker_written"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("gateway stop --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
@@ -800,4 +843,51 @@ func gatewayPlannedStopConsumerForTest(t *testing.T, consume func(context.Contex
 	return func() {
 		consumeGatewayPlannedStopMarkerForSelf = previous
 	}
+}
+
+func gatewayRuntimeGOOSForTest(t *testing.T, goos string) func() {
+	t.Helper()
+	previous := gatewayRuntimeGOOS
+	gatewayRuntimeGOOS = goos
+	return func() {
+		gatewayRuntimeGOOS = previous
+	}
+}
+
+func gatewayWindowsScheduledTaskRunnerForTest(t *testing.T, runner gatewayWindowsScheduledTaskRunner) func() {
+	t.Helper()
+	previous := gatewayWindowsTaskRunner
+	gatewayWindowsTaskRunner = runner
+	return func() {
+		gatewayWindowsTaskRunner = previous
+	}
+}
+
+type fakeGatewayWindowsScheduledTaskRunner struct {
+	calls   []string
+	configs []gatewayWindowsScheduledTaskConfig
+}
+
+func (r *fakeGatewayWindowsScheduledTaskRunner) Install(_ context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
+	r.calls = append(r.calls, "install")
+	r.configs = append(r.configs, cfg)
+	return nil
+}
+
+func (r *fakeGatewayWindowsScheduledTaskRunner) Start(_ context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
+	r.calls = append(r.calls, "start")
+	r.configs = append(r.configs, cfg)
+	return nil
+}
+
+func (r *fakeGatewayWindowsScheduledTaskRunner) Restart(_ context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
+	r.calls = append(r.calls, "restart")
+	r.configs = append(r.configs, cfg)
+	return nil
+}
+
+func (r *fakeGatewayWindowsScheduledTaskRunner) Uninstall(_ context.Context, cfg gatewayWindowsScheduledTaskConfig) error {
+	r.calls = append(r.calls, "uninstall")
+	r.configs = append(r.configs, cfg)
+	return nil
 }

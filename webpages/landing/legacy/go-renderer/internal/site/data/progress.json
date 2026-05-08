@@ -37068,6 +37068,66 @@
               }
             },
             {
+              "name": "Windows gateway Scheduled Task lifecycle commands",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "On Windows, `gormes gateway install`, `start`, `restart`, and `uninstall` use the native Scheduled Task service path instead of the generic unavailable stub: install registers the login task and starts it inline, start/restart delegate to the Scheduled Task runner, and non-Windows platforms keep the existing deterministic unavailable guidance.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Windows lifecycle commands return scheduled_task_unavailable evidence when schtasks cannot be invoked; non-Windows lifecycle commands continue returning the stable `gateway: <subcommand> is not available; use the service_restart helper` message without touching runtime stores.",
+              "fixture": "cmd/gormes/gateway_mutating_unavailable_test.go::TestGatewayWindowsScheduledTaskLifecycleCommands",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/setup.py@a54cae60d:setup_gateway Windows Scheduled Task service offer",
+                "./hermes-agent/hermes_cli/gateway.py@a54cae60d:gateway_setup Windows install/start/restart branches",
+                "./hermes-agent/hermes_cli/gateway_windows.py:install/start/restart/uninstall",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_mutating_unavailable_test.go"
+              ],
+              "ready_when": [
+                "`Gateway mutating-subcommand unavailability stub` is complete and still preserves non-Windows guidance.",
+                "Hermetic tests can fake GOOS and the Scheduled Task runner; no live Windows service manager, credentials, gateway process, or runtime store is required."
+              ],
+              "not_ready_when": [
+                "Tests shell out to schtasks, systemd, launchd, sc.exe, or a live gateway process.",
+                "Linux/macOS behavior stops returning the existing unavailable message.",
+                "The slice changes `gateway status`, `gateway stop`, runtime status stores, channel startup, or setup platform credential collection."
+              ],
+              "blocked_by": [
+                "Gateway mutating-subcommand unavailability stub"
+              ],
+              "acceptance": [
+                "A fake-Windows fixture proves `gormes gateway install` calls the Scheduled Task runner's install then start path exactly once and prints Scheduled Task evidence.",
+                "Fake-Windows fixtures prove `gormes gateway start`, `restart`, and `uninstall` delegate to the matching Scheduled Task runner operation with stable operator output.",
+                "Existing non-Windows fixtures continue proving `start`, `restart`, `install`, and `uninstall` return the deterministic unavailable error and do not open runtime/session/memory stores.",
+                "No live service manager is invoked under tests; the real runner is isolated behind an interface."
+              ],
+              "write_scope": [
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_mutating_unavailable_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestGatewayWindowsScheduledTask|TestGatewayMutating' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway lifecycle command tests prove Windows Scheduled Task install/start/restart/uninstall behavior while preserving non-Windows unavailable guidance and store isolation."
+              ],
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes from 26bac67ef to a54cae60d. The fresh upstream change was Hermes a54cae60d, which makes Windows a supported Scheduled Task gateway service manager in both setup wizards; provider/auth, tools/browser, sessions/memory/Goncho, docs/public, and release/operator surfaces had no higher unblocked source delta. Planned rows were 29 before adding this P1 row. TDD added a fakeable Windows Scheduled Task lifecycle branch for `gormes gateway install/start/restart/uninstall`: install invokes install then start inline, start/restart/uninstall delegate to the runner, errors return scheduled_task_unavailable evidence, and existing non-Windows unavailable fixtures still pass without opening runtime/session/memory stores.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a54cae60d fix(setup): offer gateway service install on Windows",
+                "note": "Current Hermes treats Windows Scheduled Tasks as a supported gateway service manager in both setup wizards; Gormes should preserve that Windows-specific lifecycle path without weakening non-Windows safety stubs."
+              }
+            },
+            {
               "name": "Service RestartSec parser helper",
               "priority": "P2",
               "status": "complete",
