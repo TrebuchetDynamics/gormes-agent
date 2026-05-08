@@ -165,6 +165,61 @@ func TestAPIServerRunStatus_IncludesCreatedAtAndEventCount(t *testing.T) {
 	loop.release(TurnResult{SessionID: started.RunID})
 }
 
+// TestAPIServerHealth_ReportsRunLifecycleCounters proves the
+// `/v1/health` runs telemetry exposes process-lifetime counters
+// (`completed_total`, `failed_total`, `stopped_total`) so fleet
+// monitoring can graph run error rates and stop velocity without
+// scraping every SSE stream. Counters are additive — existing fields
+// (`active`, `orphaned_swept`, `ttl_seconds`) stay intact.
+func TestAPIServerHealth_ReportsRunLifecycleCounters(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	// Submit one run that we will stop, raising stopped_total.
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST status = %d; body=%s", start.Code, start.Body.String())
+	}
+	var started struct {
+		RunID string `json:"run_id"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	loop.waitStarted(t)
+
+	stop := postJSON(t, h, "/v1/runs/"+started.RunID+"/stop", nil, nil)
+	if stop.Code != http.StatusOK {
+		t.Fatalf("stop status = %d; body=%s", stop.Code, stop.Body.String())
+	}
+	loop.release(TurnResult{SessionID: started.RunID})
+
+	rec := getJSON(t, h, "/v1/health", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("health status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Runs struct {
+			Active         int `json:"active"`
+			OrphanedSwept  int `json:"orphaned_swept"`
+			CompletedTotal int `json:"completed_total"`
+			FailedTotal    int `json:"failed_total"`
+			StoppedTotal   int `json:"stopped_total"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Runs.StoppedTotal != 1 {
+		t.Errorf("stopped_total = %d, want 1", got.Runs.StoppedTotal)
+	}
+}
+
 // TestAPIServerRunStop_PublishesRunStoppedEventToBacklog proves
 // `POST /v1/runs/{run_id}/stop` records a typed `run.stopped`
 // lifecycle event in the SSE backlog so subscribers reading the

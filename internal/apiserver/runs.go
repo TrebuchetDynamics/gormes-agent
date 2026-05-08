@@ -12,11 +12,14 @@ import (
 const defaultRunStreamTTL = 5 * time.Minute
 
 type runRegistry struct {
-	mu    sync.Mutex
-	ttl   time.Duration
-	now   func() time.Time
-	runs  map[string]*runRecord
-	swept int
+	mu             sync.Mutex
+	ttl            time.Duration
+	now            func() time.Time
+	runs           map[string]*runRecord
+	swept          int
+	completedTotal int
+	failedTotal    int
+	stoppedTotal   int
 }
 
 type runRecord struct {
@@ -92,6 +95,7 @@ func (r *runRegistry) stop(id string) bool {
 	if !wasTerminal {
 		rec.stopped = true
 		rec.done = true
+		r.stoppedTotal++
 		stoppedEvent := runEvent{Event: "run.stopped", RunID: id, Timestamp: r.now().Unix()}
 		rec.events = append(rec.events, stoppedEvent)
 		subs = append([]chan runEvent(nil), rec.subscribers...)
@@ -145,6 +149,13 @@ func (r *runRegistry) finishWith(id string, failed bool) {
 	if rec == nil {
 		r.mu.Unlock()
 		return
+	}
+	if !rec.done {
+		if failed {
+			r.failedTotal++
+		} else {
+			r.completedTotal++
+		}
 	}
 	rec.done = true
 	if failed {
@@ -248,9 +259,12 @@ func (r *runRegistry) stats() map[string]any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return map[string]any{
-		"active":         len(r.runs),
-		"orphaned_swept": r.swept,
-		"ttl_seconds":    int(r.ttl.Seconds()),
+		"active":          len(r.runs),
+		"orphaned_swept":  r.swept,
+		"ttl_seconds":     int(r.ttl.Seconds()),
+		"completed_total": r.completedTotal,
+		"failed_total":    r.failedTotal,
+		"stopped_total":   r.stoppedTotal,
 	}
 }
 
