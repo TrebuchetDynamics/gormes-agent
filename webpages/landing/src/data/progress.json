@@ -41537,12 +41537,12 @@
             {
               "name": "Provider client lazy-init for TUI cold-start budget",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream"
               },
               "contract": "Provider HTTP client construction (OpenAI, Anthropic, Bedrock helpers, Firecrawl-equivalent web client) is lazy: clients are only instantiated when a code path actually selects that provider, not at package init or config load. A checked-in benchmark exercises the gormes binary cold-start path (process exec \u2192 first interactive frame, in `gormes -z`) and asserts a documented budget; the budget rationale cites Hermes v0.12.0 PR #17046 (lazy OpenAI/Anthropic/Firecrawl) within the broader ~57% cold-start cut.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -41554,8 +41554,9 @@
                 "hermes-agent/RELEASE_v0.12.0.md",
                 "hermes-agent/agent/agent.py",
                 "hermes-agent/hermes_cli/main.py",
-                "internal/provider/",
-                "cmd/gormes/"
+                "cmd/gormes/provider_client.go",
+                "cmd/gormes/main.go",
+                "internal/hermes/client.go"
               ],
               "ready_when": [
                 "Provider registry exposes per-provider constructor seams reachable from a benchmark without launching the full TUI.",
@@ -41581,7 +41582,7 @@
                 "internal/provider/lazy_client.go",
                 "internal/provider/lazy_client_test.go",
                 "internal/runtime/coldstart_bench_test.go",
-                "cmd/gormes/oneshot.go",
+                "cmd/gormes/provider_client.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -41593,7 +41594,7 @@
               "done_signal": [
                 "Cold-start benchmark is checked in with a documented budget and fails when an unselected provider is constructed on the cold path."
               ],
-              "note": "Source: Hermes v0.12.0 (v2026.4.30) Performance highlights \u2014 lead PR #17046 (lazy OpenAI/Anthropic/Firecrawl) inside the ~57% TUI cold-start cut (siblings #17190 lazy agent init, #17041 mtime-cache load_config, #17098 memoize tool definitions, #17206 precompile dangerous patterns \u2014 each becomes its own row via `unblocks`)."
+              "note": "Source: Hermes v0.12.0 (v2026.4.30) Performance highlights \u2014 lead PR #17046 (lazy OpenAI/Anthropic/Firecrawl) inside the ~57% TUI cold-start cut (siblings #17190 lazy agent init, #17041 mtime-cache load_config, #17098 memoize tool definitions, #17206 precompile dangerous patterns \u2014 each becomes its own row via `unblocks`). Complete 2026-05-08: internal/provider/lazy_client.go adds ClientPool with Register/Get/Reset; internal/provider/lazy_client_test.go covers does-not-construct-unselected, constructed-once, reset-for-testing, unknown-provider, factory-error, and concurrent-access; internal/runtime/coldstart_bench_test.go enforces a 5ms budget on 10-registered-provider cold start; cmd/gormes/provider_client.go wires getOrCreateProviderClient into the oneshot path via newOneshotHTTPClient; ErrProviderUnavailable sentinel added to internal/hermes/client.go. All 6 lazy-init tests pass, benchmark passes (754\u00b5s < 5ms), progress validates, and full repo build succeeds."
             }
           ],
           "drift_state": {

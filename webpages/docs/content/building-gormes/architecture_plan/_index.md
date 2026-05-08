@@ -1033,7 +1033,7 @@ classification and row-backed implementation queue.
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
-- [ ] Provider client lazy-init for TUI cold-start budget
+- [x] Provider client lazy-init for TUI cold-start budget
 
 ### 5.R — Code Execution Mode Policy 🔨
 

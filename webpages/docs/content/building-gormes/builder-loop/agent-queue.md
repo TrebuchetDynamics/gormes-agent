@@ -48,28 +48,7 @@ selection.
 - Unblocks: Gemini video transport adapter, video_analyze gateway delivery (multipart preview)
 - Why now: Unblocks Gemini video transport adapter, video_analyze gateway delivery (multipart preview).
 
-## 2. Provider client lazy-init for TUI cold-start budget
-
-- Phase: 5 / 5.Q
-- Owner: `provider`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Provider HTTP client construction (OpenAI, Anthropic, Bedrock helpers, Firecrawl-equivalent web client) is lazy: clients are only instantiated when a code path actually selects that provider, not at package init or config load. A checked-in benchmark exercises the gormes binary cold-start path (process exec → first interactive frame, in `gormes -z`) and asserts a documented budget; the budget rationale cites Hermes v0.12.0 PR #17046 (lazy OpenAI/Anthropic/Firecrawl) within the broader ~57% cold-start cut.
-- Trust class: operator
-- Ready when: Provider registry exposes per-provider constructor seams reachable from a benchmark without launching the full TUI., A `gormes -z <prompt>` non-interactive entry point exists and can be exec'd from a Go benchmark with a fake provider.
-- Not ready when: The slice rewrites unrelated TUI rendering, gateway dispatch, or provider transport., Cold start is asserted only by manual stopwatch timing rather than a checked-in `go test -bench` fixture., Lazy-init introduces a global mutable client cache without a clear lifetime/reset path.
-- Degraded mode: Without lazy provider construction, cold-start cost grows with installed-provider count and runs OAuth/network probes for unselected providers; the benchmark surfaces the regression but does not block startup.
-- Fixture: `internal/runtime/coldstart_bench_test.go`
-- Write scope: `internal/provider/lazy_client.go`, `internal/provider/lazy_client_test.go`, `internal/runtime/coldstart_bench_test.go`, `cmd/gormes/oneshot.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/provider -run LazyInit -count=1`, `go test -bench BenchmarkGormesColdStart -benchtime=5x -run ^$ ./internal/runtime`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Cold-start benchmark is checked in with a documented budget and fails when an unselected provider is constructed on the cold path.
-- Acceptance: BenchmarkGormesColdStart exercises a representative cold path and fails if cold-start exceeds the documented budget on the developer baseline machine., TestProviderClientLazyInit_DoesNotConstructUnselectedProvider proves selecting Anthropic does not construct OpenAI/Bedrock/Firecrawl clients on the cold path., TestProviderClientLazyInit_ConstructedOnce proves the selected provider client is constructed once per process and reused., TestProviderClientLazyInit_ResetForTesting proves a test-only reset path exists so subsequent benchmarks/tests start from a clean state.
-- Source refs: hermes-agent/RELEASE_v0.12.0.md, hermes-agent/agent/agent.py, hermes-agent/hermes_cli/main.py, internal/provider/, cmd/gormes/
-- Unblocks: Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start
-- Why now: Unblocks Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start.
-
-## 3. TD engineering blog scaffolded and live
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -91,7 +70,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 4. Behavioral pattern extraction from session logs
+## 3. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -111,7 +90,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Agentic-porting-kit repo scaffold
+## 4. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -132,7 +111,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Built-with-Gormes page scaffold
+## 5. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
