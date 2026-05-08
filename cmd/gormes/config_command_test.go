@@ -10,6 +10,54 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
+// TestConfigCommand_PathAndEnvPathJSON proves
+// `gormes config path --json` and `gormes config env-path --json`
+// emit a parseable `{build, kind, path}` document so fleet automation
+// inventorying Gormes config locations across machines can ingest each
+// path with binary attribution. Build provenance leads — same
+// convention as the rest of the `--json` arc. The default text output
+// (single-line path) remains unchanged for shell-script consumers
+// already using $(gormes config path) interpolation.
+func TestConfigCommand_PathAndEnvPathJSON(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	for _, tc := range []struct {
+		args     []string
+		wantKind string
+		wantPath string
+	}{
+		{[]string{"config", "path", "--json"}, "config", config.ConfigPath()},
+		{[]string{"config", "env-path", "--json"}, "env", config.EnvPath()},
+	} {
+		t.Run(tc.wantKind, func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeOneshotFlagCommand(cmd, tc.args...)
+			if err != nil {
+				t.Fatalf("%v: %v\nstderr=%s", tc.args, err, stderr)
+			}
+			var got struct {
+				Build struct {
+					Version string `json:"version"`
+				} `json:"build"`
+				Kind string `json:"kind"`
+				Path string `json:"path"`
+			}
+			if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+				t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+			}
+			if got.Build.Version != Version {
+				t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+			}
+			if got.Kind != tc.wantKind {
+				t.Errorf("kind = %q, want %q", got.Kind, tc.wantKind)
+			}
+			if got.Path != tc.wantPath {
+				t.Errorf("path = %q, want %q", got.Path, tc.wantPath)
+			}
+		})
+	}
+}
+
 func TestConfigCommand_PathSubcommandPrintsConfigPath(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	cmd := newRootCommandWithRuntime(rootRuntime{})

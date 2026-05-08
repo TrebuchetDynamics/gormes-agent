@@ -154,26 +154,63 @@ func newConfigCommand() *cobra.Command {
 	return cmd
 }
 
+// configPathReportJSON is the wire shape for `config path --json` and
+// `config env-path --json`. Fleet automation inventorying Gormes config
+// locations across machines parses this to ingest each path with
+// binary attribution. Build provenance leads — same convention as the
+// rest of the `--json` arc. `kind` distinguishes the TOML config
+// (`config`) from the dotenv secrets file (`env`).
+type configPathReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	Kind  string              `json:"kind"`
+	Path  string              `json:"path"`
+}
+
+func writeConfigPathJSON(cmd *cobra.Command, kind, path string) error {
+	body, err := json.MarshalIndent(configPathReportJSON{
+		Build: newBuildProvenance(),
+		Kind:  kind,
+		Path:  path,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
+}
+
 func newConfigPathCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "path",
 		Short: "Print the Gormes TOML config path",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				return writeConfigPathJSON(cmd, "config", config.ConfigPath())
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), config.ConfigPath())
 			return nil
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, kind, path}")
+	return cmd
 }
 
 func newConfigEnvPathCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "env-path",
 		Short: "Print the Gormes dotenv (.env) secrets path",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				return writeConfigPathJSON(cmd, "env", config.EnvPath())
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), config.EnvPath())
 			return nil
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, kind, path}")
+	return cmd
 }
 
 func newConfigSetCommand() *cobra.Command {
