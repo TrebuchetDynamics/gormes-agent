@@ -1048,7 +1048,7 @@ classification and row-backed implementation queue.
 
 - [x] Execution-mode resolver + config precedence
 - [x] Strict-mode CWD + interpreter parity
-- [ ] Project-mode CWD + active venv detection
+- [x] Project-mode CWD + active venv detection
 - [ ] Default mode selection + config cut-over
 
 ### 5.S — Loop Detection ✅

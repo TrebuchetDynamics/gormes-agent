@@ -42183,18 +42183,87 @@
             },
             {
               "name": "Project-mode CWD + active venv detection",
-              "status": "planned",
-              "note": "TDD slice 3 of 4: port upstream `_resolve_python_binary`/`_resolve_cwd` project semantics \u2014 session's working directory for CWD and the active virtualenv/conda python when present, falling back to the resolved system interpreter. Unit tests must drive resolution via injected env (`VIRTUAL_ENV`, `CONDA_PREFIX`), not the real host. Do not widen the 5.K filesystem/network blocking contract \u2014 project mode still flows through the same `sandboxGuardReason` gate.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Gormes adds a small project-mode execute-code sandbox contract parallel to the completed strict-mode contract: shell snippets run from the session working directory resolved from TERMINAL_CWD or the process cwd, active virtualenv/conda Python detection is frozen as a pure resolver for future Python-runtime decisions, and filesystem/network guard blocking plus the 5.K blocked-result envelope remain unchanged. This slice must not wire project mode as the default or expose Python execution.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If TERMINAL_CWD is unset or invalid, project mode falls back to the process cwd and then to the staging tmpdir; if VIRTUAL_ENV/CONDA_PREFIX have no usable Python, the resolver falls back to the supplied system interpreter path without running or exposing Python.",
+              "fixture": "internal/tools/execute_code_project_mode_test.go",
+              "source_refs": [
+                "hermes-agent/tools/code_execution_tool.py@242da9db9:_resolve_child_python",
+                "hermes-agent/tools/code_execution_tool.py@242da9db9:_resolve_child_cwd",
+                "hermes-agent/tests/tools/test_code_execution_modes.py@242da9db9",
+                "hermes-agent/tests/cli/test_cwd_env_respect.py@242da9db9",
+                "internal/tools/execute_code.go",
+                "internal/tools/execute_code_strict_mode.go"
+              ],
+              "ready_when": [
+                "Execution-mode resolver + config precedence is complete.",
+                "Strict-mode CWD + interpreter parity is complete and the 5.K blocked-result envelope is fixture-locked.",
+                "Tests can inject env, cwd, directory, and executable predicates without reading a live operator home or relying on host Python."
+              ],
               "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+                "The slice changes NewExecuteCodeTool defaults, config loading, or default-mode cut-over.",
+                "The slice exposes Python as an execute_code runtime or runs Python to validate candidate interpreters.",
+                "The slice relaxes sandboxGuardReason, changes filesystem/network blocked-result fields, or expands allowed shell commands.",
+                "The slice reads real VIRTUAL_ENV, CONDA_PREFIX, TERMINAL_CWD, or host cwd in tests instead of injected fixture state."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "acceptance": [
+                "TestProjectModeCWDResolver proves TERMINAL_CWD wins when it names an existing directory, invalid TERMINAL_CWD falls back to process cwd, and deleted process cwd falls back to the staging tmpdir.",
+                "TestProjectModePythonResolver proves VIRTUAL_ENV wins over CONDA_PREFIX, CONDA_PREFIX is used when no virtualenv is usable, missing or unusable candidates fall back to the supplied system interpreter, and no subprocess or host Python is required.",
+                "TestProjectModeSandbox_Contract proves shell snippets execute with PWD equal to the resolved project cwd while filesystem/network guard blocking and the blocked-result envelope remain unchanged.",
+                "Existing strict-mode and execute_code tests still pass, proving this slice does not alter default runtime behavior."
+              ],
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 31, so no new row was needed. P1 blog/writeup rows remain operator-gated, and the broad release row remains infra-gated. The highest-priority builder-ready parity weakness was this tools row: an existing planned placeholder immediately after the completed strict-mode slice, source-backed by current Hermes code_execution project-mode cwd and interpreter helpers. TDD added a project-mode sandbox wrapper, pure project cwd resolver, pure venv/conda Python resolver, and hermetic fixtures proving shell PWD follows TERMINAL_CWD while filesystem/network guards and the blocked-result envelope remain unchanged. Python execution and default-mode cut-over remain intentionally unimplemented.",
+              "write_scope": [
+                "internal/tools/execute_code.go",
+                "internal/tools/execute_code_project_mode.go",
+                "internal/tools/execute_code_project_mode_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestProjectMode|TestStrictMode|TestExecuteCode' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "no_test_required": null,
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Project-mode cwd, active virtualenv/conda detection, and unchanged guard/envelope behavior are proven by hermetic internal/tools fixtures without default-mode cut-over."
               ],
-              "priority": "P2"
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_refs": [
+                  "hermes:242da9db9 tools/code_execution_tool.py",
+                  "hermes:242da9db9 tests/tools/test_code_execution_modes.py",
+                  "hermes:242da9db9 tests/cli/test_cwd_env_respect.py"
+                ],
+                "note": "Hermes defines project mode as session cwd plus active venv/conda Python selection. Gormes keeps Python execution disabled, so this slice freezes cwd and interpreter-selection helpers before the separate default-mode cut-over row decides runtime wiring."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/execute_code.go:LocalCodeSandbox workdir hook",
+                  "internal/tools/execute_code_project_mode.go:ProjectModeSandbox",
+                  "internal/tools/execute_code_project_mode.go:ResolveProjectModeCWD",
+                  "internal/tools/execute_code_project_mode.go:ResolveProjectModePython"
+                ],
+                "tests": [
+                  "internal/tools/execute_code_project_mode_test.go:TestProjectModeCWDResolver",
+                  "internal/tools/execute_code_project_mode_test.go:TestProjectModePythonResolver",
+                  "internal/tools/execute_code_project_mode_test.go:TestProjectModeSandbox_Contract"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestProjectMode' -count=1 failed on undefined project-mode helpers.",
+                  "GREEN: go test ./internal/tools -run 'TestProjectMode|TestStrictMode|TestExecuteCode' -count=1 -> ok.",
+                  "GREEN: go test ./internal/tools -count=1 -> ok."
+                ]
+              }
             },
             {
               "name": "Default mode selection + config cut-over",
@@ -42214,8 +42283,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes b816fd4e2 code-execution tests cover mode precedence, local-shell initialization, shared-container task ids, and Modal sandbox edge cases. Gormes keeps the completed 5.K Sandboxed exec block intact; the 2026-05-05 revisit converts only `Execution-mode resolver + config precedence` from an umbrella placeholder into a small pure helper row, leaving strict/project cwd and default cut-over as later planner splits."
+            "last_upstream_check": "2026-05-08T00:00:00Z",
+            "origin_decision": "Hermes 242da9db9 code-execution tests still cover mode precedence, project cwd, active venv/conda interpreter choice, local-shell initialization, shared-container task ids, and Modal sandbox edge cases. Gormes keeps the completed 5.K Sandboxed exec block intact; the 2026-05-08 sweep sharpened `Project-mode CWD + active venv detection` into the next small TDD row, leaving default mode selection + config cut-over as the later runtime wiring split."
           }
         },
         "5.S": {

@@ -250,6 +250,7 @@ func intOrDefault(v, preferred, fallback int) int {
 type LocalCodeSandbox struct {
 	lookPath  func(string) (string, error)
 	languages map[string]runtimeSpec
+	workdir   func(stagingDir string) string
 }
 
 type runtimeSpec struct {
@@ -311,6 +312,11 @@ func (s *LocalCodeSandbox) Execute(ctx context.Context, req CodeExecutionRequest
 	args := append(append([]string(nil), spec.Args...), scriptPath)
 	cmd := exec.CommandContext(runCtx, spec.Binaries[0], args...)
 	cmd.Dir = tempDir
+	if s.workdir != nil {
+		if workdir := strings.TrimSpace(s.workdir(tempDir)); workdir != "" {
+			cmd.Dir = workdir
+		}
+	}
 	cmd.Env = safeSandboxEnv()
 
 	stdout := newLimitedBuffer(req.StdoutLimitBytes)
