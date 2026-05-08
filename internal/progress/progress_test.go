@@ -661,8 +661,14 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.C mattermost bot refs=%v contract=%q, want threadtext/REST-WS detail", mattermostBot.SourceRefs, mattermostBot.Contract)
 	}
 	matrixBootstrap := matrixItems["Matrix real client/bootstrap layer"]
-	if matrixBootstrap.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C matrix bootstrap status = %q, want planned", matrixBootstrap.Status)
+	if matrixBootstrap.Status != StatusComplete {
+		t.Fatalf("Phase 7.C matrix bootstrap status = %q, want complete", matrixBootstrap.Status)
+	}
+	if matrixBootstrap.ContractStatus != ContractStatusValidated || len(matrixBootstrap.WriteScope) == 0 || len(matrixBootstrap.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C matrix bootstrap readiness = contract_status %q scope=%d tests=%d, want validated completed row", matrixBootstrap.ContractStatus, len(matrixBootstrap.WriteScope), len(matrixBootstrap.TestCommands))
+	}
+	if !strings.Contains(matrixBootstrap.Note, "SDK-free Matrix bootstrap boundary") || !containsString(matrixBootstrap.SourceRefs, "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter.connect") {
+		t.Fatalf("Phase 7.C matrix bootstrap refs=%v note=%q, want active Hermes bootstrap evidence", matrixBootstrap.SourceRefs, matrixBootstrap.Note)
 	}
 	mattermostBootstrap := matrixItems["Mattermost REST/WS bootstrap layer"]
 	if mattermostBootstrap.Status != StatusPlanned {

@@ -1029,7 +1029,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI Ink behavioral transcript golden matrix
 - [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
-- [ ] TUI websocket attach transport
+- [x] TUI websocket attach transport
 - [x] OpenAI-compatible chat-completions API server
 - [x] API server multimodal content preservation
 - [x] Responses API store + run event stream
@@ -1174,7 +1174,7 @@ classification and row-backed implementation queue.
 - [x] Matrix shared-chassis bot seam
 - [x] Matrix self/bridge sender drop helper
 - [x] Mattermost shared-chassis bot seam
-- [ ] Matrix real client/bootstrap layer
+- [x] Matrix real client/bootstrap layer
 - [ ] Matrix E2EE device-id crypto-store binding
 - [ ] Mattermost REST/WS bootstrap layer
 

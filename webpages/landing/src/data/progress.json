@@ -41126,7 +41126,7 @@
             {
               "name": "TUI websocket attach transport",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Gormes ports the current Hermes Ink attach-mode contract as a native Go remote-TUI transport: a configured websocket URL connects without spawning a local kernel/provider process, sends JSON-RPC session.create, prompt.submit, session.interrupt, and terminal.resize envelopes, consumes event frames into native RenderFrame updates, optionally mirrors event frames to a sidecar websocket, and redacts query/user-info credentials from attach failure diagnostics.",
               "contract_status": "validated",
               "slice_size": "medium",
@@ -45475,10 +45475,10 @@
             },
             {
               "name": "Matrix real client/bootstrap layer",
-              "status": "planned",
-              "priority": "P2",
+              "status": "complete",
+              "priority": "P1",
               "contract": "Gormes adds a fakeable Matrix client/bootstrap boundary after the shared-chassis seam: config resolves homeserver/access-token or user/password auth, whoami/login learns the bot user_id, initial sync records joined rooms and next_batch, event handlers are registered for room messages/reactions/invites, sync loop restart/auth-stop behavior is represented as a pure runner contract, and media/E2EE hooks remain injectable seams rather than live SDK side effects.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -45489,12 +45489,12 @@
               "degraded_mode": "Matrix status reports matrix_config_missing, matrix_auth_failed, matrix_sync_unavailable, matrix_e2ee_unavailable, or matrix_transport_unavailable without starting a live homeserver connection in unit tests.",
               "fixture": "internal/channels/matrix/bootstrap_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter.connect",
-                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter._sync_loop",
-                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter._on_invite",
-                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter.send",
-                "../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter._upload_and_send",
-                "../hermes-agent/tests/gateway/test_matrix.py",
+                "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter.connect",
+                "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter._sync_loop",
+                "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter._on_invite",
+                "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter.send",
+                "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter._upload_and_send",
+                "./hermes-agent/tests/gateway/test_matrix.py@1997b3baf",
                 "internal/channels/matrix/seam.go",
                 "internal/channels/threadtext/contract.go",
                 "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
@@ -45527,7 +45527,12 @@
                 "TestMatrixBootstrapSyncLoopStopsOnPermanentAuthError proves auth errors stop the fake loop while transient sync errors return retry evidence without sleeping.",
                 "TestMatrixBootstrapMediaAndE2EEHooksAreInjectable proves upload/encryption hooks are interfaces and default to unavailable evidence in tests."
               ],
-              "note": "Builder-ready Matrix bootstrap boundary. Hermes Matrix remains the behavior contract; trpc-agent-go callback ordering, Engram activity evidence, and Axe artifact tracking are donor pattern references only.",
+              "note": "Complete 2026-05-08: the all-topic parity sweep raised this to P1 because Matrix shared-chassis bot seam and Matrix self/bridge sender drop helper are complete, while active Hermes 1997b3baf still defines connect/whoami-or-login, initial sync, handler registration, and permanent-auth-stop behavior in gateway/platforms/matrix.py. TDD added an SDK-free Matrix bootstrap boundary with env/extra config resolution, access-token whoami and password-login identity learning, handler registration before initial sync dispatch, joined-room and next_batch capture, pure StepSync auth-stop/retry evidence, and injectable media/E2EE hooks that default to unavailable evidence.",
+              "evidence": {
+                "implementation": "internal/channels/matrix/bootstrap.go; internal/channels/matrix/bootstrap_test.go; internal/channels/matrix/matrix.go",
+                "tests": "go test ./internal/channels/matrix ./internal/channels/threadtext ./internal/config -run 'TestMatrixBootstrap|TestMatrixSeam|TestMatrix.*SenderFilter' -count=1; go test ./internal/channels/matrix ./internal/channels/threadtext ./internal/config -count=1",
+                "note": "RED failed on missing MatrixIdentity, MatrixSyncData, Bootstrap, MatrixLoginRequest, MatrixEventHandler, and hook types; GREEN passed after adding the fakeable bootstrap contract without importing Matrix SDKs, opening sockets, or reading live credentials."
+              },
               "write_scope": [
                 "internal/channels/matrix/bootstrap.go",
                 "internal/channels/matrix/bootstrap_test.go",
