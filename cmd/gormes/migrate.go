@@ -23,6 +23,16 @@ func newMigrateCommand() *cobra.Command {
 		Use:          "migrate",
 		Short:        "Migrate state from upstream agents into Gormes (dry-run only in this slice)",
 		SilenceUsage: true,
+		// No Args=NoArgs here: the shared parent-command guard needs
+		// the raw args so SuggestionsMinimumDistance=2 can surface
+		// `did you mean "openclaw"?` for typos like `migrate ooenclaw`.
+		// NoArgs would short-circuit before the guard can include that
+		// suggestion, and a command like
+		// `migrate ooenclaw --dry-run --source ...` would degrade to a
+		// flag/arg validation error instead of OpenClaw typo guidance.
+		// Tests:
+		//   TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions
+		//   TestMigrateOpenClawDryRun_RejectsMissingDryRunAndTypo
 	}
 	cmd.SuggestionsMinimumDistance = 2
 	cmd.AddCommand(newMigrateHermesCommand(), newMigrateOpenClawCommand())
@@ -34,6 +44,7 @@ func newClawCommand() *cobra.Command {
 		Use:          "claw",
 		Short:        "Hermes-compatible OpenClaw migration tools",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newClawMigrateCommand())
 	return cmd

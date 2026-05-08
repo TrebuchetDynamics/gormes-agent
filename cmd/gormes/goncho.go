@@ -32,6 +32,7 @@ func newGonchoCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "goncho",
 		Short: "Inspect local Goncho memory diagnostics",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(newGonchoDoctorCommand())
 	return cmd

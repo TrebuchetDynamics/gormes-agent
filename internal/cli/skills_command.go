@@ -36,6 +36,7 @@ func NewSkillsCommand(deps SkillsCommandDeps) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "skills",
 		Short: "Manage skills",
+		Args:  cobra.NoArgs,
 	}
 	root.AddCommand(NewSkillsListCommand(deps))
 	root.AddCommand(NewSkillsInstallCommand(deps))

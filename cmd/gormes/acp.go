@@ -28,6 +28,7 @@ func newACPCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "acp",
 		Short: "Run ACP bridge tools",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(newACPServeCommand())
 	cmd.AddCommand(newACPClientCommand())

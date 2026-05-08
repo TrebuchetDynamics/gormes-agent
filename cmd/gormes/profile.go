@@ -58,6 +58,7 @@ func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
 		Use:          "profile",
 		Short:        "Inspect and switch the active Gormes profile",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newProfileShowCommand(seams))
 	cmd.AddCommand(newProfileSetCommand(seams))
@@ -107,15 +108,17 @@ type profileSetReportJSON struct {
 }
 
 func newProfileInfoCommand(seams profileCommandSeams) *cobra.Command {
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "info <name>",
 		Short:        "Show a profile distribution manifest",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProfileInfoCommand(cmd, seams, args[0])
+			return runProfileInfoCommand(cmd, seams, args[0], asJSON)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, name, root, distribution}` JSON document with the profile root redacted")
 	return cmd
 }
 
@@ -311,7 +314,7 @@ func runProfileListCommand(cmd *cobra.Command, seams profileCommandSeams, asJSON
 	return nil
 }
 
-func runProfileInfoCommand(cmd *cobra.Command, seams profileCommandSeams, rawName string) error {
+func runProfileInfoCommand(cmd *cobra.Command, seams profileCommandSeams, rawName string, asJSON bool) error {
 	name := strings.TrimSpace(rawName)
 	if seams.ValidateProfileName == nil || seams.ResolveProfileRoot == nil || seams.ReadDistributionManifest == nil {
 		return fmt.Errorf("gormes profile info: %w", cli.ErrSelectorHelperUnavailable)
@@ -326,6 +329,9 @@ func runProfileInfoCommand(cmd *cobra.Command, seams profileCommandSeams, rawNam
 	manifest, ok, err := seams.ReadDistributionManifest(root)
 	if err != nil {
 		return fmt.Errorf("gormes profile info %q: %w", name, err)
+	}
+	if asJSON {
+		return emitProfileInfoJSON(cmd, name, redactProfileRootPath(root), manifestPointer(manifest, ok))
 	}
 	if !ok {
 		fmt.Fprintf(cmd.OutOrStdout(), "Profile '%s' is not a distribution (no %s).\n", name, cli.ProfileDistributionManifestFile)
@@ -349,6 +355,27 @@ type profileListEntryJSON struct {
 	Name         string                          `json:"name"`
 	Active       bool                            `json:"active"`
 	Distribution *profileDistributionSummaryJSON `json:"distribution,omitempty"`
+}
+
+type profileInfoReportJSON struct {
+	Build        buildProvenanceJSON              `json:"build"`
+	Name         string                           `json:"name"`
+	Root         string                           `json:"root"`
+	Distribution *cli.ProfileDistributionManifest `json:"distribution,omitempty"`
+}
+
+func emitProfileInfoJSON(cmd *cobra.Command, name, root string, manifest *cli.ProfileDistributionManifest) error {
+	body, err := json.MarshalIndent(profileInfoReportJSON{
+		Build:        newBuildProvenance(),
+		Name:         name,
+		Root:         root,
+		Distribution: manifest,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 type profileDistributionSummaryJSON struct {

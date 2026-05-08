@@ -37,6 +37,7 @@ func newCuratorCommandWithDeps(deps curatorCommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "curator",
 		Short: "Manage Hermes-compatible background skill curation",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(
 		newCuratorStatusCommand(deps),

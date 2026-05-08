@@ -16,6 +16,7 @@ func newKanbanCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kanban",
 		Short: "Manage the durable local multi-agent Kanban board",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(
 		newKanbanInitCommand(),

@@ -19,6 +19,7 @@ func newSecretsCommand() *cobra.Command {
 		Use:          "secrets",
 		Short:        "Apply, audit, configure, and reload SecretRef-backed runtime secrets",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newSecretsApplyCommand())
 	cmd.AddCommand(newSecretsAuditCommand())

@@ -23,6 +23,7 @@ func newMemoryCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "memory",
 		Short: "Inspect persisted memory and extractor state",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(newMemoryStatusCommand())
 	return cmd

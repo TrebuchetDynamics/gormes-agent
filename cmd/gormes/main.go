@@ -225,7 +225,29 @@ Docs: https://docs.gormes.ai`,
 	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
 	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand())
+	installParentUnknownSubcommandGuards(root)
 	return root
+}
+
+func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
+	for _, child := range cmd.Commands() {
+		installParentUnknownSubcommandGuards(child)
+	}
+	if !cmd.HasSubCommands() || cmd.Run != nil || cmd.RunE != nil {
+		return
+	}
+	cmd.SilenceUsage = true
+	cmd.Args = nil
+	cmd.FParseErrWhitelist.UnknownFlags = true
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
+				return fmt.Errorf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
+			}
+			return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+		}
+		return cmd.Help()
+	}
 }
 
 func applyProfileStartupFlag(cmd *cobra.Command) error {

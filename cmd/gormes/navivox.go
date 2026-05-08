@@ -29,6 +29,7 @@ func newNavivoxCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "navivox",
 		Short: "Run the Navivox SSH stdio channel",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(newNavivoxServeCommand(), newNavivoxPairCommand(), newNavivoxSetupHostCommand())
 	return cmd

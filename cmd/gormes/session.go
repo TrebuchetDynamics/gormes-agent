@@ -30,6 +30,7 @@ func newSessionCommand() *cobra.Command {
 		Use:     "session",
 		Aliases: []string{"sessions"},
 		Short:   "Inspect and export persisted sessions",
+		Args:    cobra.NoArgs,
 	}
 	cmd.AddCommand(
 		newSessionListCommand(),

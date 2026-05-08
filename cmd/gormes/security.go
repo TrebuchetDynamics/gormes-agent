@@ -22,6 +22,7 @@ func newSecurityCommand() *cobra.Command {
 		Use:          "security",
 		Short:        "Audit gateway, channel, tool, filesystem, and credential security",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newSecurityAuditCommand())
 	return cmd

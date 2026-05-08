@@ -39,6 +39,7 @@ func newAgentCommand() *cobra.Command {
 		Use:          "agent",
 		Short:        "Manage Gormes agent context templates",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newAgentResetCommand())
 	return cmd
