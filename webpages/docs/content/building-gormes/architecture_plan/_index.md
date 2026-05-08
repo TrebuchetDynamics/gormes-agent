@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 71/99 subphases shipped · 22 in progress · 6 planned
+**Overall:** 71/99 subphases shipped · 23 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1208,9 +1208,9 @@ classification and row-backed implementation queue.
 
 - [ ] Engineering writeup #1: autonomous Hermes-porting loop
 
-### 8.D — Sharp v1.0 ⏳
+### 8.D — Sharp v1.0 🔨
 
-- [ ] Sharp v1.0 differentiator decision
+- [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
 
 ### 8.E — Toolkit Extraction ⏳

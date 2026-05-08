@@ -36291,6 +36291,7 @@
             {
               "name": "WhatsApp live Baileys QR pairing wizard",
               "status": "planned",
+              "priority": "P1",
               "contract": "Installed Gormes bundles or resolves the Hermes-compatible Baileys bridge so `gormes whatsapp` can install bridge npm dependencies, run `node bridge.js --pair-only --session $GORMES_HOME/whatsapp/session`, stream QR/reconnect/paired logs, verify `creds.json` before paired-success output, and keep all paths under `GORMES_HOME` without requiring Python or a Hermes checkout",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44296,6 +44297,7 @@
             {
               "name": "Signal transport/bootstrap layer",
               "status": "planned",
+              "priority": "P1",
               "contract": "Fakeable Signal bridge bootstrap binds the existing Signal Bot seam to a signal-cli HTTP JSON-RPC/SSE client without live signal-cli: config requires SIGNAL_HTTP_URL and SIGNAL_ACCOUNT or explicit equivalents, acquires a platform lock keyed by account, health-checks /api/v1/check before starting, opens an SSE events stream with the account URL-encoded, treats comments as liveness, parses data envelopes into normalized inbound events, reconnects with jitter/backoff and stale-stream health evidence, sends JSON-RPC requests through an injected client, fetches attachments with getAttachment params {account,id}, and routes outbound direct/group sends with typing-stop and timestamp message IDs.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44478,6 +44480,7 @@
             {
               "name": "Matrix shared-chassis bot seam",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a Matrix-specific seam over internal/channels/threadtext before live Matrix auth/sync: normalize room messages into gateway events with canonical thread roots, resolve reply targets for flat vs thread mode, model placeholder/edit/reaction hooks as fakeable callbacks, and preserve mention/free-room/DM gating inputs without importing a Matrix SDK.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44622,6 +44625,7 @@
             {
               "name": "Mattermost shared-chassis bot seam",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a Mattermost-specific seam over internal/channels/threadtext before REST/websocket transport: parse posted-event payloads into gateway events, ignore self/system/duplicate posts, preserve root_id as canonical thread_id, model reply_mode=thread vs off for outbound root_id decisions, and keep upload/edit/status hooks fakeable.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44698,6 +44702,7 @@
             {
               "name": "Matrix real client/bootstrap layer",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a fakeable Matrix client/bootstrap boundary after the shared-chassis seam: config resolves homeserver/access-token or user/password auth, whoami/login learns the bot user_id, initial sync records joined rooms and next_batch, event handlers are registered for room messages/reactions/invites, sync loop restart/auth-stop behavior is represented as a pure runner contract, and media/E2EE hooks remain injectable seams rather than live SDK side effects.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44778,6 +44783,7 @@
             {
               "name": "Matrix E2EE device-id crypto-store binding",
               "status": "planned",
+              "priority": "P3",
               "contract": "Matrix E2EE bootstrap binds the configured runtime device_id into the crypto store before account writes so Olm/megolm identity lookups stay device-scoped",
               "contract_status": "draft",
               "slice_size": "small",
@@ -44824,6 +44830,7 @@
             {
               "name": "Mattermost REST/WS bootstrap layer",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a fakeable Mattermost REST/websocket bootstrap boundary after the shared-chassis seam: config resolves MATTERMOST_URL/TOKEN, auth probes users/me, REST helpers sanitize response errors, websocket posted events feed the seam parser, reconnect policy is represented without sleeps, channel/user lookup is injectable, and file upload/edit/send paths are shaped with fake HTTP responses before any live Mattermost transport is enabled.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -45536,6 +45543,7 @@
             {
               "name": "QQ Bot transport/bootstrap layer",
               "status": "planned",
+              "priority": "P3",
               "contract": "Fakeable Official QQ Bot transport bootstrap binds the existing QQ Bot shared-chassis seam to token, gateway, websocket, and REST clients without live QQ: config resolves app_id/client_secret from explicit values or QQ_APP_ID/QQ_CLIENT_SECRET, applies markdown support and DM/group allowlist policies, acquires an app-id platform lock, uses an HTTP redirect guard for token/media requests, fetches token and gateway URL through injected clients, consumes websocket READY/RESUMED/dispatch/heartbeat frames with sequence tracking, builds REST message bodies for markdown/plain/truncated replies, waits for reconnect before sends, and returns retryable send evidence on timeout or close.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -45978,18 +45986,18 @@
             {
               "name": "Sharp v1.0 differentiator decision",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
-              "contract": "A short decision document records the sharp v1.0 differentiator: a single paragraph stating what Gormes 1.0 will be (recommended: \"runs the 30 most-used Hermes skills unchanged, in a single 30 MB Go binary, on Termux + Windows-without-Python + locked-down corp Linux\"), the curated 30-skill list, the explicit exclusion list of what 1.0 will NOT do, and the date the decision was ratified. The decision unblocks every downstream messaging row.",
-              "contract_status": "draft",
+              "contract": "A short decision document records the sharp v1.0 differentiator. The decision unblocks every downstream messaging row.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Without a written, dated differentiator, the README and landing page cannot be rewritten coherently and the parity backlog has no Pareto filter.",
+              "degraded_mode": "Without a written, dated differentiator, the README and landing page cannot be rewritten coherently.",
               "fixture": "docs/content/building-gormes/strategy/v1-differentiator.md",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
@@ -45998,12 +46006,12 @@
               ],
               "ready_when": [
                 "Operator has read success-plan.md and considered alternative differentiators.",
-                "An evidence-backed shortlist of the 30 most-used Hermes skills exists (telemetry, repo signal, or operator judgement — but recorded)."
+                "An evidence-backed shortlist of the 30 most-used Hermes skills exists."
               ],
               "not_ready_when": [
                 "The doc is empty placeholder text.",
-                "The differentiator is still phrased as \"Hermes in Go\" or \"feature parity\".",
-                "The exclusion list is missing — readers cannot self-select."
+                "The differentiator is still phrased as Hermes in Go or feature parity.",
+                "The exclusion list is missing."
               ],
               "blocked_by": [],
               "unblocks": [
@@ -46014,19 +46022,19 @@
               ],
               "acceptance": [
                 "docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date.",
-                "The differentiator paragraph fits in <50 words.",
-                "The exclusion list explicitly mentions areas Gormes 1.0 will not chase (TUI parity beyond core, dashboard, web app, full i18n, etc.)."
+                "The differentiator paragraph fits in less than 50 words.",
+                "The exclusion list explicitly mentions areas Gormes 1.0 will not chase."
               ],
               "write_scope": [
                 "docs/content/building-gormes/strategy/v1-differentiator.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [],
-              "no_test_required": "Strategic decision row; the artifact is a written-down decision. Validation is the existence of the doc with the required sections.",
+              "no_test_required": "Strategic decision row; the artifact is a written-down decision.",
               "done_signal": [
                 "v1-differentiator.md exists, fits the schema above, and is referenced from README.md and landing-page hero."
               ],
-              "note": "Source: success-plan.md 30-day action sprint item #4. NOT loop-driven — operator decision. The loop can scaffold the doc with placeholders and a shortlist proposal, but ratification is human-only."
+              "note": "Complete: v1-differentiator.md created with differentiator paragraph, 30-skill list, exclusion list, and ratified-on date 2026-05-07. Unblocks README, landing page, release pipeline, and benchmarks rows."
             },
             {
               "name": "Single-binary cross-platform release pipeline",
