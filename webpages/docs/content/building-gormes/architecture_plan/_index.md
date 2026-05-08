@@ -857,6 +857,7 @@ classification and row-backed implementation queue.
 - [x] Cron context_from output chaining
 - [x] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
+- [x] Cron deliver=all routing intent expansion
 - [x] Goncho serialized write queue + relation candidates
 - [x] Blocker Policy Integration
 - [x] OpenClaw SecretRef core resolver

@@ -30275,6 +30275,80 @@
               }
             },
             {
+              "name": "Cron deliver=all routing intent expansion",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' reserved cron delivery routing token `all`: at run/plan time, `deliver=all` expands to every currently known home-channel target from the injected channel directory, composes with `origin`, `local`, explicit targets, and comma-separated lists, and deduplicates by normalized platform/chat/thread without sending live network messages in tests.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If no channel directory with home targets is available, `all` yields channel_directory_missing evidence and does not invent delivery targets, inspect live config, or fall back to local silently.",
+              "fixture": "internal/cron/delivery_plan_test.go::TestCronDeliveryPlan_RoutingIntentAll",
+              "source_refs": [
+                "./hermes-agent/cron/scheduler.py@486b14b42:_expand_routing_tokens",
+                "./hermes-agent/cron/scheduler.py@486b14b42:_resolve_delivery_targets",
+                "./hermes-agent/tests/cron/test_scheduler.py@486b14b42:TestRoutingIntents",
+                "./hermes-agent/tools/cronjob_tools.py@486b14b42:deliver schema description",
+                "internal/cron/delivery_plan.go",
+                "internal/cron/delivery_plan_test.go"
+              ],
+              "ready_when": [
+                "Cron multi-target delivery + media/live-adapter fallback is complete and already owns comma-separated deliver target parsing.",
+                "The slice can use an injected fake channel directory listing home targets; no live Telegram, Discord, Slack, Matrix, or gateway process is required.",
+                "The implementation expands `all` when PlanCronDelivery runs, so jobs pick up channels configured after job creation."
+              ],
+              "not_ready_when": [
+                "The slice stores a create-time snapshot of connected platforms in the cron job.",
+                "The slice sends live adapter messages in unit tests or reads operator env/config directly.",
+                "`all` is treated as a literal platform name or silently falls back to local delivery."
+              ],
+              "acceptance": [
+                "TestCronDeliveryPlan_RoutingIntentAllExpandsHomeTargets proves `deliver=all` expands every fake directory home target with deterministic ordering.",
+                "TestCronDeliveryPlan_RoutingIntentAllComposesAndDedupes proves `origin,all`, explicit targets, and `local` compose while duplicate normalized targets are emitted once.",
+                "TestCronDeliveryPlan_RoutingIntentAllMissingDirectoryReturnsEvidence proves unavailable or empty directories return channel_directory_missing evidence for target `all` without defaulting to local."
+              ],
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 36, so one P1 source-backed row was allowed. Fresh Hermes 486b14b42 added `deliver=all` routing intent after the existing Gormes cron multi-target row was completed at Hermes 755a2804, making that complete row stale for this new atom. Other fresh upstream deltas were already covered or row-backed: Microsoft Graph helpers are complete, Google Workspace auth/write work is mapped, cron no-agent and delivery rows exist, core provider/Goncho/browser/install/release/public surfaces have builder-ready or completed rows. TDD added `DeliveryAllTargetDirectory` and plan-time `all` expansion in internal/cron/delivery_plan.go. The expansion sorts fake directory home targets deterministically, composes with origin/local/explicit targets, deduplicates normalized platform/chat/thread outputs, and returns channel_directory_missing evidence for unavailable or empty directories instead of treating `all` as a literal platform or silently falling back to local.",
+              "write_scope": [
+                "internal/cron/delivery_plan.go",
+                "internal/cron/delivery_plan_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1",
+                "go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Cron delivery-plan fixtures prove `all` expands through an injected directory at plan/run time, composes with existing target forms, deduplicates, and degrades visibly when directory evidence is unavailable."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/cron/delivery_plan.go: DeliveryAllTargetDirectory lists home targets for routing-intent expansion without reading live config.",
+                  "internal/cron/delivery_plan.go: resolveCronDeliveryTargets expands reserved `all`, sorts targets by Normalized(), and preserves existing dedupe across comma-separated parts."
+                ],
+                "tests": [
+                  "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllExpandsHomeTargets",
+                  "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllComposesAndDedupes",
+                  "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_RoutingIntentAllMissingDirectoryReturnsEvidence"
+                ],
+                "verification": [
+                  "RED: go test ./internal/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1 failed because `all` resolved as missing platform evidence.",
+                  "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_RoutingIntentAll' -count=1 passed.",
+                  "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:486b14b42 cron/scheduler.py",
+                "note": "Hermes defines `all` as a routing-intent token resolved at fire time; Gormes adapts it to the native cron delivery target directory seam."
+              }
+            },
+            {
               "name": "Goncho serialized write queue + relation candidates",
               "priority": "P1",
               "status": "complete",
