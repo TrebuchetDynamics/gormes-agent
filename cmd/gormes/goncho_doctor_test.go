@@ -175,6 +175,39 @@ func TestGonchoDoctorCommand_JSONZeroStateIsMachineReadable(t *testing.T) {
 	}
 }
 
+// TestGonchoDoctorCommand_JSONIncludesBuildProvenance proves the
+// `goncho doctor --json` document carries the running binary's build
+// SHA and version. Same contract as update / doctor / status / restore /
+// auth / gateway-status / secrets / profile — captured Goncho health
+// snapshots stay attributable to a specific binary, which matters when
+// operators correlate memory/storage diagnostics with the binary
+// build that produced them.
+func TestGonchoDoctorCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	seedGonchoDoctorZeroStateDB(t)
+
+	stdout, _, err := runGonchoDoctorCommand(t,
+		"goncho", "doctor", "--json", "--peer=user-juan", "--session=telegram:1",
+	)
+	if err != nil {
+		t.Fatalf("goncho doctor --json: %v", err)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
 func TestGonchoDoctorCommand_ExitCodeMapping(t *testing.T) {
 	t.Run("healthy_or_degraded_is_zero", func(t *testing.T) {
 		seedGonchoDoctorZeroStateDB(t)
