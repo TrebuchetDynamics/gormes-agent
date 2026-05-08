@@ -58,13 +58,13 @@ type uninstallOptions struct {
 // `groups` lists what would be / was removed by category, so scripts
 // can branch on missing categories without scraping bracketed prose.
 type uninstallReportJSON struct {
-	Build   buildProvenanceJSON      `json:"build"`
-	Action  string                   `json:"action"`
-	DryRun  bool                     `json:"dry_run"`
-	Total   int                      `json:"total"`
-	Removed int                      `json:"removed,omitempty"`
-	Failed  int                      `json:"failed,omitempty"`
-	Groups  []uninstallGroupJSON     `json:"groups"`
+	Build   buildProvenanceJSON  `json:"build"`
+	Action  string               `json:"action"`
+	DryRun  bool                 `json:"dry_run"`
+	Total   int                  `json:"total"`
+	Removed int                  `json:"removed,omitempty"`
+	Failed  int                  `json:"failed,omitempty"`
+	Groups  []uninstallGroupJSON `json:"groups"`
 }
 
 type uninstallGroupJSON struct {
@@ -178,7 +178,34 @@ func collectArtifacts(home string) []artifactGroup {
 		{Name: "logs", Paths: sortedExisting(config.LogPath(), config.CrashLogDir())},
 		{Name: "cron", Paths: sortedExisting(filepath.Join(home, "CRON.md"))},
 		{Name: "mcp-oauth", Paths: sortedExisting(filepath.Join(home, "mcp_oauth.json"))},
+		{Name: "legacy-xdg", Paths: sortedExisting(legacyXDGGormesDir())},
 	}
+}
+
+// legacyXDGGormesDir returns the pre-Apr-29 runtime-state directory
+// path. Commit 4cc864e80 ("fix(config): use gormes home for runtime
+// state") moved memory.db, sessions/, sessions.db, gateway.pid,
+// gateway_state.json, subagents/, and tools/ from
+// `$XDG_DATA_HOME/gormes/` to `$GORMES_HOME`. Operators upgrading
+// across that change otherwise keep the entire legacy tree forever
+// because uninstall only enumerates the current home.
+func legacyXDGGormesDir() string {
+	xdg := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+	if xdg == "" {
+		home, err := os.UserHomeDir()
+		if err != nil || home == "" {
+			return ""
+		}
+		xdg = filepath.Join(home, ".local", "share")
+	}
+	candidate := filepath.Join(xdg, "gormes")
+	// Don't double-enumerate when an operator has explicitly pointed
+	// GORMES_HOME at the legacy path — that's their current home, and
+	// the existing groups already cover it.
+	if candidate == config.GormesHome() {
+		return ""
+	}
+	return candidate
 }
 
 func sortedExisting(paths ...string) []string {
