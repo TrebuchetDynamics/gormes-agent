@@ -101,8 +101,13 @@ func ResolveBackupPolicy(flags BackupPolicyFlags) BackupDecision {
 
 // excludedDirComponents are path components that exclude the entire subtree
 // from the backup manifest.
+//
+// `backups` is excluded because the writer puts new pre-update zips under
+// `<gormes_home>/backups/`; without this skip, every subsequent backup
+// would include all prior backups, growing geometrically.
 var excludedDirComponents = map[string]struct{}{
 	"checkpoints": {},
+	"backups":     {},
 }
 
 // excludedSuffixes are filename suffixes for transient SQLite sidecars that

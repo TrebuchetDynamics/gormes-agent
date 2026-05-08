@@ -36,6 +36,8 @@ const (
 	UpdateEvidenceStaleDashboardKillFailed  UpdateEvidenceKind = "update_stale_dashboard_kill_failed"
 	UpdateEvidencePreBackupSkipped          UpdateEvidenceKind = "update_pre_backup_skipped"
 	UpdateEvidencePreBackupRequested        UpdateEvidenceKind = "update_pre_backup_requested"
+	UpdateEvidencePreBackupCompleted        UpdateEvidenceKind = "update_pre_backup_completed"
+	UpdateEvidencePreBackupFailed           UpdateEvidenceKind = "update_pre_backup_failed"
 	UpdateEvidenceSkillSyncCompleted        UpdateEvidenceKind = "update_skill_sync_completed"
 	UpdateEvidenceSkillSyncFailed           UpdateEvidenceKind = "update_skill_sync_failed"
 	UpdateEvidenceWebBuildCompleted         UpdateEvidenceKind = "update_web_build_completed"
@@ -55,6 +57,26 @@ type ConfigVersionResult struct {
 	Current int
 	Latest  int
 }
+
+// BackupResult is the outcome of a successful pre-update backup write.
+// Path is operator-readable (e.g., ~/.gormes/backups/pre-update-<ts>.zip).
+// SizeBytes is the byte count of the resulting archive. DurationMs is the
+// total wall time the writer took (used for the "✓ Pre-update backup
+// (4.0MB, 1.84s)" rendering in the structured progress UX).
+type BackupResult struct {
+	Path       string
+	SizeBytes  int64
+	DurationMs int64
+}
+
+// BackupWriter is the seam invoked by RunUpdateLifecycle when policy
+// resolves to Requested AND the seam is non-nil. Returning a non-nil
+// error emits update_pre_backup_failed but never fails the overall
+// update (Hermes' "never raises" contract for backup). A nil seam in
+// UpdateLifecycleOptions falls back to the policy-only behavior:
+// emitting update_pre_backup_requested with a "writer not yet
+// implemented" detail so existing transcripts and tests don't regress.
+type BackupWriter func(ctx context.Context) (BackupResult, error)
 
 // ConfigCheckRunner is the seam invoked by RunUpdateLifecycle after the
 // web build step. It reports the on-disk config version vs. what this
@@ -171,6 +193,12 @@ type UpdateLifecycleOptions struct {
 	// (default false). Wiring this from real config is a follow-up slice;
 	// for now the flag-driven path is the only enabled surface.
 	BackupConfigEnabled bool
+	// BackupWriter is the optional zip-creation seam. When policy resolves
+	// to Requested AND this seam is non-nil, the lifecycle calls it and
+	// emits update_pre_backup_completed (with path/size/duration in the
+	// detail) or update_pre_backup_failed. A nil seam falls back to the
+	// policy-only behavior shipped in 56efc4042.
+	BackupWriter BackupWriter
 	// SkillSync is the optional bundled-skill profile-sync seam. When set,
 	// it runs after a successful pull and emits update_skill_sync_completed
 	// or update_skill_sync_failed evidence. A nil seam disables sync
@@ -353,11 +381,16 @@ func emitWebBuild(ctx context.Context, report *UpdateReport, options UpdateLifec
 // path — neither --backup nor --no-backup nor BackupConfigEnabled — emits
 // NO evidence so the structured progress UX stays quiet on the common case.
 //
-// The actual backup writer (zip creation, size/duration reporting, retention)
-// is a follow-up slice. This row only surfaces the decision via a typed
-// evidence record so downstream slices can wire the writer behind the same
-// requested-evidence trigger.
-func emitPreUpdateBackupPolicy(report *UpdateReport, options UpdateLifecycleOptions) {
+// When policy resolves to Requested:
+//   - BackupWriter wired → invoke it and emit pre_backup_completed (with
+//     path/size/duration) or pre_backup_failed (with error message).
+//   - BackupWriter nil    → fall back to the policy-only behavior shipped
+//     in 56efc4042: emit pre_backup_requested with a deferral note so
+//     existing tests and operator transcripts don't regress.
+//
+// Best-effort: a writer error never sets report.Failed (matches Hermes'
+// "never raises" contract for backup).
+func emitPreUpdateBackupPolicy(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions) {
 	if !options.Backup && !options.NoBackup && !options.BackupConfigEnabled {
 		return
 	}
@@ -366,17 +399,63 @@ func emitPreUpdateBackupPolicy(report *UpdateReport, options UpdateLifecycleOpti
 		NoBackup:      options.NoBackup,
 		ConfigEnabled: options.BackupConfigEnabled,
 	})
-	if decision.Requested {
+	if !decision.Requested {
+		report.add(
+			UpdateEvidencePreBackupSkipped,
+			fmt.Sprintf("%s; ~/.gormes left untouched before update", decision.Reason),
+		)
+		return
+	}
+	if options.BackupWriter == nil {
 		report.add(
 			UpdateEvidencePreBackupRequested,
 			fmt.Sprintf("%s; backup writer not yet implemented (planned next slice)", decision.Reason),
 		)
 		return
 	}
+	res, err := options.BackupWriter(ctx)
+	if err != nil {
+		report.add(UpdateEvidencePreBackupFailed, err.Error())
+		return
+	}
 	report.add(
-		UpdateEvidencePreBackupSkipped,
-		fmt.Sprintf("%s; ~/.gormes left untouched before update", decision.Reason),
+		UpdateEvidencePreBackupCompleted,
+		fmt.Sprintf(
+			"%s (%s, %s)",
+			res.Path,
+			formatBackupSize(res.SizeBytes),
+			formatBackupDuration(res.DurationMs),
+		),
 	)
+}
+
+// formatBackupSize renders a byte count as a human-readable string with
+// the smallest unit that keeps the number under 1024.
+func formatBackupSize(bytes int64) string {
+	const (
+		kb = 1024
+		mb = 1024 * 1024
+		gb = 1024 * 1024 * 1024
+	)
+	switch {
+	case bytes >= gb:
+		return fmt.Sprintf("%.1fGB", float64(bytes)/float64(gb))
+	case bytes >= mb:
+		return fmt.Sprintf("%.1fMB", float64(bytes)/float64(mb))
+	case bytes >= kb:
+		return fmt.Sprintf("%.1fKB", float64(bytes)/float64(kb))
+	default:
+		return fmt.Sprintf("%dB", bytes)
+	}
+}
+
+// formatBackupDuration renders a millisecond count as either "Nms" (under
+// 1s) or "N.NNs" (1s and above).
+func formatBackupDuration(ms int64) string {
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
+	}
+	return fmt.Sprintf("%.2fs", float64(ms)/1000.0)
 }
 
 func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) UpdateReport {
@@ -399,7 +478,7 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 	// neither --backup nor --no-backup is set and config has not opted in,
 	// no evidence is emitted (matches Hermes' silent default — operators
 	// don't need to hear about the skipped backup on every update run).
-	emitPreUpdateBackupPolicy(&report, options)
+	emitPreUpdateBackupPolicy(ctx, &report, options)
 	if options.Git == nil {
 		report.Failed = true
 		report.add(UpdateEvidenceNotManagedCheckout, "no git runner available")

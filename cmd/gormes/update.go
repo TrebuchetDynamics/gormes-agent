@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -35,6 +36,11 @@ type updateCommandSeams struct {
 	// tests; default wraps internal/config.MigrateConfigFile against the
 	// resolved config path.
 	ConfigMigrateFn cli.ConfigMigrateRunner
+	// BackupWriterFor builds a BackupWriter closure for the active gormes
+	// home. Override in tests; default writes a zip of GormesHome (with
+	// IsExcludedFromBackup paths skipped) to
+	// `<home>/backups/pre-update-<UTC>.zip`.
+	BackupWriterFor func() cli.BackupWriter
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -69,6 +75,9 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	if seams.ConfigMigrateFn == nil {
 		seams.ConfigMigrateFn = defaultConfigMigrate
 	}
+	if seams.BackupWriterFor == nil {
+		seams.BackupWriterFor = defaultBackupWriterFor
+	}
 
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -91,6 +100,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 				WebBuild:           seams.WebBuildFor(checkoutDir, skipWeb),
 				ConfigCheck:        seams.ConfigCheckFn,
 				ConfigMigrate:      seams.ConfigMigrateFn,
+				BackupWriter:       seams.BackupWriterFor(),
 				Git:                cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
@@ -202,6 +212,23 @@ func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
 			})
 		}
 		return out, nil
+	}
+}
+
+// defaultBackupWriterFor builds the production BackupWriter. Returns nil
+// when GormesHome is unset (so the lifecycle keeps the policy-only
+// behavior). Otherwise returns a closure that writes a UTC-stamped zip
+// under `<home>/backups/pre-update-<UTC>.zip`, skipping the existing
+// IsExcludedFromBackup paths (checkpoints/, backups/, *.db-{wal,shm,journal}).
+func defaultBackupWriterFor() cli.BackupWriter {
+	home := config.GormesHome()
+	if home == "" {
+		return nil
+	}
+	return func(ctx context.Context) (cli.BackupResult, error) {
+		stamp := time.Now().UTC().Format("20060102T150405Z")
+		dest := filepath.Join(home, "backups", "pre-update-"+stamp+".zip")
+		return cli.WriteBackupZip(ctx, home, dest)
 	}
 }
 
