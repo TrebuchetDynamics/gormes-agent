@@ -46588,12 +46588,12 @@
             {
               "name": "README rewrite to methodology-first positioning",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "README.md leads with the autonomous-porting methodology and the sharp v1.0 differentiator (in <50 words), with Hermes appearing as the parity oracle in paragraph 2 \u2014 not as the lede. Existing operator-facing sections (install, quick start, status) are preserved; only the framing changes. The README explicitly links to success-plan.md and the agentic-porting-kit repo (or a placeholder section if that kit has not yet been extracted).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -46603,21 +46603,21 @@
               "fixture": "README.md",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
+                "docs/content/building-gormes/strategy/v1-differentiator.md",
                 "README.md",
+                "internal/repoctl/readme_test.go",
                 "webpages/landing/"
               ],
               "ready_when": [
-                "Sharp v1.0 differentiator is decided (8.D row 'Sharp v1.0 differentiator decision').",
-                "Operator has reviewed success-plan.md and confirmed the North Star wording."
+                "docs/content/building-gormes/strategy/v1-differentiator.md is ratified and contains the <50-word differentiator paragraph.",
+                "docs/content/building-gormes/strategy/success-plan.md contains the North Star wording and 30-day README action item."
               ],
               "not_ready_when": [
                 "The differentiator is still 'TBD' or undecided.",
                 "Install/quick-start sections are deleted or broken in the rewrite.",
                 "The new README still calls Gormes 'a Go port of Hermes' as the lede."
               ],
-              "blocked_by": [
-                "Sharp v1.0 differentiator decision"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Engineering writeup #1: autonomous Hermes-porting loop",
                 "Landing page (gormes.ai) positioning audit"
@@ -46630,18 +46630,19 @@
               ],
               "write_scope": [
                 "README.md",
+                "internal/repoctl/readme_test.go",
                 "webpages/docs/content/building-gormes/strategy/success-plan.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/repodocs -run README -count=1",
+                "go test ./internal/repoctl -run README -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
                 "README.md leads with methodology, differentiator stated in <50 words, install/quick-start preserved; assertion tests pass."
               ],
-              "note": "Source: success-plan.md 30-day action sprint item #2. Loop-tractable: the methodology language and structure are well-specified; the operator only needs to ratify the differentiator (8.D)."
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 33, below the 90-row cap. The sweep found this P1 docs/public row was highest-priority and now unblocked by the ratified v1 differentiator, but its test command still pointed at removed internal/repodocs. Planner pass corrected the row to internal/repoctl README contract tests, then TDD rewrote README.md to lead with the autonomous-porting methodology, state the 30-skill single-binary differentiator within the first 50 words, preserve install/first-run/status commands, link success-plan.md and v1-differentiator.md, and keep Hermes-Agent as attribution/parity oracle rather than the lede."
             },
             {
               "name": "gormes.ai landing page positioning audit",

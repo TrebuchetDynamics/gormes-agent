@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>AI agents that don't break when your environment does.</strong><br>
-  A single static binary. No Python. No pip. No Docker daemon.
+  <strong>Autonomous-porting methodology, proven in a Go-native agent runtime.</strong><br>
+  The autonomous-porting methodology runs the 30 most-used Hermes skills unchanged in a single 30 MB Go binary on Termux, Windows-without-Python, and locked-down corp Linux.
 </p>
 
 <p align="center">
@@ -21,9 +21,17 @@
 
 `gormes --offline` starts locally with no API key, no network calls, and no Python runtime.
 
-Gormes is a Go-native runtime for AI agents, packaged as a single Go binary. It keeps the TUI, provider turns, local memory, gateways, diagnostics, and setup flows behind one command, so setup is a checklist instead of a Python environment.
+Gormes is TrebuchetDynamics' receipt for an autonomous-porting methodology: a validation-gated loop that carries Hermes-compatible agent behavior into a Go-native runtime users can inspect, install, and run.
 
-Gormes is a Go-native rewrite of Hermes-Agent, with upstream Git history preserved for attribution and Hermes-compatible agent behavior carried forward in Go.
+The v1.0 cut is deliberately sharp: Gormes runs the 30 most-used Hermes skills unchanged in a single 30 MB Go binary on Termux, Windows-without-Python, and locked-down corp Linux. No pip. No venv. No Docker daemon.
+
+Hermes-Agent, with upstream Git history preserved for attribution, remains the parity oracle. The single static binary packaging and local-first Go runtime are the proof that the porting loop works under real operator constraints.
+
+## Methodology
+
+- Strategy: [Gormes Success Plan](docs/content/building-gormes/strategy/success-plan.md)
+- Differentiator: [Gormes v1.0 Differentiator](docs/content/building-gormes/strategy/v1-differentiator.md)
+- Toolkit extraction: `agentic-porting-kit` is tracked as a Phase 8 row; until that public repo exists, the repo-local [Gormes development skills](docs/development-skills/) are the inspectable placeholder.
 
 ## Capability Map
 

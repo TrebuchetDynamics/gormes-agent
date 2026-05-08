@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 78/100 subphases shipped · 17 in progress · 5 planned
+**Overall:** 78/100 subphases shipped · 18 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1214,9 +1214,9 @@ classification and row-backed implementation queue.
 - [ ] TD engineering blog scaffolded and live
 - [ ] TD social presence connected to blog feed
 
-### 8.B — Repository Messaging ⏳
+### 8.B — Repository Messaging 🔨
 
-- [ ] README rewrite to methodology-first positioning
+- [x] README rewrite to methodology-first positioning
 - [ ] gormes.ai landing page positioning audit
 
 ### 8.C — Engineering Writeups ⏳
