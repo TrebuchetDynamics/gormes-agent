@@ -80,7 +80,7 @@ func newProfileShowCommand(seams profileCommandSeams) *cobra.Command {
 }
 
 func newProfileSetCommand(seams profileCommandSeams) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "set <name>",
 		Short:        "Switch the active Gormes profile by name",
 		Args:         cobra.ExactArgs(1),
@@ -89,6 +89,19 @@ func newProfileSetCommand(seams profileCommandSeams) *cobra.Command {
 			return runProfileSetCommand(cmd, seams, args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, active, root}` with the same redacted root path as `profile show`")
+	return cmd
+}
+
+// profileSetReportJSON is the wire shape for `profile set --json`.
+// Fleet automation switching profiles parses this to confirm the
+// active marker landed. Root is redacted (only the trailing segment)
+// — same secrets contract as `profile show`.
+type profileSetReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	Active string              `json:"active"`
+	Root   string              `json:"root"`
 }
 
 func newProfileListCommand(seams profileCommandSeams) *cobra.Command {
@@ -163,6 +176,20 @@ func runProfileSetCommand(cmd *cobra.Command, seams profileCommandSeams, rawName
 	root, err := seams.ResolveProfileRoot(name)
 	if err != nil {
 		return fmt.Errorf("gormes profile set %q: %w: %w", name, errProfileSetPartialFailure, err)
+	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(profileSetReportJSON{
+			Build:  newBuildProvenance(),
+			Action: "set",
+			Active: name,
+			Root:   redactProfileRootPath(root),
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
 	}
 	writeProfileSummary(cmd, name, root)
 	return nil

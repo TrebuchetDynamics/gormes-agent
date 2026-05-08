@@ -199,6 +199,67 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 	})
 }
 
+// TestGormesProfileSet_JSONEmitsStructuredOutcome proves
+// `gormes profile set <name> --json` returns a parseable
+// `{build, action, active, root}` document so fleet automation
+// switching profiles across machines can confirm the active marker
+// landed without scraping the two-line "active profile: ..." prose.
+// The root path is redacted (only the trailing segment) so the JSON
+// matches the same secrets contract as `profile show`.
+func TestGormesProfileSet_JSONEmitsStructuredOutcome(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		resolveProfileRoot: func(name string) (string, error) {
+			return "/home/operator-secret/.config/gormes/profiles/" + name, nil
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "work", "--json")
+	if err != nil {
+		t.Fatalf("profile set --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	// Raw operator-secret path MUST never appear in stdout — same redaction
+	// promise the human surface keeps.
+	if strings.Contains(stdout+stderr, "/home/operator-secret") {
+		t.Fatalf("profile set --json LEAKED raw path:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action string `json:"action"`
+		Active string `json:"active"`
+		Root   string `json:"root"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("profile set --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "set" {
+		t.Errorf("action = %q, want %q", got.Action, "set")
+	}
+	if got.Active != "work" {
+		t.Errorf("active = %q, want %q", got.Active, "work")
+	}
+	if got.Root == "" {
+		t.Errorf("root must be populated (redacted form)")
+	}
+	// The root MUST be the redacted form (containing only the last segment).
+	if !strings.Contains(got.Root, "work") {
+		t.Errorf("root = %q, want redacted path including last segment", got.Root)
+	}
+
+	// Side effect: the validator and writer must still have been called.
+	if len(fake.validateProfileNameCalls) == 0 {
+		t.Errorf("validator must be called for --json path too")
+	}
+	if len(fake.writeActiveProfileCalls) != 1 || fake.writeActiveProfileCalls[0] != "work" {
+		t.Errorf("writeActiveProfile calls = %v, want exactly one with 'work'", fake.writeActiveProfileCalls)
+	}
+}
+
 func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T) {
 	fake := &profileCommandFakeSeams{
 		activeProfileName: "work",

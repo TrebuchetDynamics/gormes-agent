@@ -472,6 +472,163 @@ func TestCuratorCommand_RollbackListJSONEmitsBackupArray(t *testing.T) {
 	}
 }
 
+// TestCuratorCommand_RunJSON proves `gormes curator run --json`
+// returns a parseable
+// `{build, dry_run, summary, auto_counts: {checked, marked_stale,
+// archived, reactivated}, before_names, after_names, last_report_path,
+// backup_id}` document so fleet automation triggering scheduled
+// curator passes can audit per-machine activity without scraping
+// the multi-line "auto: checked=N stale=M..." prose.
+func TestCuratorCommand_RunJSON(t *testing.T) {
+	root := setupCuratorCommandHome(t)
+	writeCuratorCommandSkill(t, root, "alpha")
+	if err := skills.MarkAgentCreated(root, "alpha"); err != nil {
+		t.Fatalf("MarkAgentCreated alpha: %v", err)
+	}
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "run", "--dry-run", "--json")
+	if err != nil {
+		t.Fatalf("curator run --dry-run --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		DryRun     bool `json:"dry_run"`
+		AutoCounts struct {
+			Checked     int `json:"checked"`
+			MarkedStale int `json:"marked_stale"`
+			Archived    int `json:"archived"`
+			Reactivated int `json:"reactivated"`
+		} `json:"auto_counts"`
+		BeforeNames    []string `json:"before_names"`
+		LastReportPath string   `json:"last_report_path,omitempty"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("curator run --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if !got.DryRun {
+		t.Errorf("dry_run must be true in dry-run mode")
+	}
+}
+
+// TestCuratorCommand_RestoreJSON proves
+// `gormes curator restore <skill> --json` returns
+// `{build, action: "restored", skill}` for fleet automation
+// re-activating archived skills across machines.
+func TestCuratorCommand_RestoreJSON(t *testing.T) {
+	root := setupCuratorCommandHome(t)
+
+	// Seed an archived skill.
+	archivedDir := filepath.Join(root, "active", ".archive", "archived-alpha")
+	if err := os.MkdirAll(archivedDir, 0o755); err != nil {
+		t.Fatalf("mkdir archive: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(archivedDir, "SKILL.md"), []byte("---\nname: archived-alpha\ndescription: archived\n---\n# archived\n"), 0o600); err != nil {
+		t.Fatalf("write archived skill: %v", err)
+	}
+	if err := skills.MarkAgentCreated(root, "archived-alpha"); err != nil {
+		t.Fatalf("MarkAgentCreated: %v", err)
+	}
+	if err := skills.SetSkillState(root, "archived-alpha", skills.SkillStateArchived); err != nil {
+		t.Fatalf("SetSkillState: %v", err)
+	}
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "restore", "archived-alpha", "--json")
+	if err != nil {
+		t.Fatalf("curator restore --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action string `json:"action"`
+		Skill  string `json:"skill"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("curator restore --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "restored" {
+		t.Errorf("action = %q, want %q", got.Action, "restored")
+	}
+	if got.Skill != "archived-alpha" {
+		t.Errorf("skill = %q, want archived-alpha", got.Skill)
+	}
+	// Verify on disk.
+	if _, err := os.Stat(filepath.Join(root, "active", "archived-alpha", "SKILL.md")); err != nil {
+		t.Errorf("archived-alpha not actually restored: %v", err)
+	}
+}
+
+// TestCuratorCommand_PinUnpinJSON proves `curator pin <skill> --json`
+// and `curator unpin <skill> --json` return parseable
+// `{build, action, skill, pinned}` documents so fleet automation
+// reconciling pin lists across machines can confirm the state flip
+// landed without scraping prose.
+func TestCuratorCommand_PinUnpinJSON(t *testing.T) {
+	root := setupCuratorCommandHome(t)
+	writeCuratorCommandSkill(t, root, "alpha")
+	if err := skills.MarkAgentCreated(root, "alpha"); err != nil {
+		t.Fatalf("MarkAgentCreated alpha: %v", err)
+	}
+
+	// pin --json
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "pin", "alpha", "--json")
+	if err != nil {
+		t.Fatalf("curator pin --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var pinned struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action string `json:"action"`
+		Skill  string `json:"skill"`
+		Pinned bool   `json:"pinned"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &pinned); jsonErr != nil {
+		t.Fatalf("curator pin --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if pinned.Build.Version != Version {
+		t.Errorf("pinned.build.version = %q, want %q", pinned.Build.Version, Version)
+	}
+	if pinned.Action != "pinned" {
+		t.Errorf("pinned.action = %q, want %q", pinned.Action, "pinned")
+	}
+	if pinned.Skill != "alpha" {
+		t.Errorf("pinned.skill = %q, want alpha", pinned.Skill)
+	}
+	if !pinned.Pinned {
+		t.Errorf("pinned.pinned must be true after pin")
+	}
+
+	// unpin --json
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "unpin", "alpha", "--json")
+	if err != nil {
+		t.Fatalf("curator unpin --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var unpinned struct {
+		Action string `json:"action"`
+		Pinned bool   `json:"pinned"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &unpinned); jsonErr != nil {
+		t.Fatalf("curator unpin --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if unpinned.Action != "unpinned" {
+		t.Errorf("unpinned.action = %q, want %q", unpinned.Action, "unpinned")
+	}
+	if unpinned.Pinned {
+		t.Errorf("unpinned.pinned must be false after unpin")
+	}
+}
+
 // TestCuratorCommand_PauseResumeJSON proves `curator pause --json`
 // and `curator resume --json` return parseable
 // `{build, action, paused}` documents so fleet kill-switch
