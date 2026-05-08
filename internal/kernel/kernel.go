@@ -19,6 +19,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -87,6 +88,11 @@ type Config struct {
 	// tool loop), agent:step (after each tool batch with iteration count), and
 	// agent:end (on turn exit with any error). The caller owns goroutine-safety.
 	AgentLifecycleHook AgentLifecycleHook
+	// TransformLLMOutput, when non-nil, runs after the tool-calling loop
+	// completes but before the assistant response is committed to history.
+	// Hooks receive the raw LLM output and may reshape, redact, or filter it.
+	// First non-empty string result wins; errors are logged and original preserved.
+	TransformLLMOutput plugins.TransformLLMOutputRunner
 }
 
 // AgentLifecyclePoint identifies the lifecycle stage.
@@ -759,6 +765,14 @@ toolLoop:
 		k.emitFrame("cancelled")
 	} else if k.draft != "" {
 		finalContent := k.draft
+		if k.cfg.TransformLLMOutput != nil {
+			finalContent = k.cfg.TransformLLMOutput.Run(ctx, plugins.TransformLLMOutputInput{
+				ResponseText: finalContent,
+				SessionID:    k.sessionID,
+				Model:        k.activeModel,
+				Platform:     platformFromChatKey(k.cfg.ChatKey),
+			})
+		}
 		k.history = append(k.history, hermes.Message{Role: "assistant", Content: finalContent})
 		k.draft = ""
 		// Phase 3.A: finalize in the memory store. Fire-and-forget — the worker
@@ -1241,6 +1255,17 @@ func (k *Kernel) skipMemorySync(turnKey, reason string) {
 	if err := skipper.SkipMemorySync(skipCtx, turnKey, reason); err != nil {
 		k.log.Warn("kernel: skip memory sync failed", "err", err)
 	}
+}
+
+func platformFromChatKey(chatKey string) string {
+	if chatKey == "" {
+		return ""
+	}
+	idx := strings.IndexByte(chatKey, ':')
+	if idx < 0 {
+		return ""
+	}
+	return chatKey[:idx]
 }
 
 // truncate returns s clamped to n runes with an ellipsis suffix. Safe on
