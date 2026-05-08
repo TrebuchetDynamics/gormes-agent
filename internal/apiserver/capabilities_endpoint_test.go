@@ -45,6 +45,35 @@ func TestAPIServerCapabilities_BuildAttribution(t *testing.T) {
 	}
 }
 
+// TestAPIServer_BuildHeadersOnEveryResponse proves every apiserver
+// response carries `X-Gormes-Build-Version` and `X-Gormes-Build-Commit`
+// headers so fleet log aggregation can attribute responses to a binary
+// version without JSON parsing. Same source of truth as the JSON
+// build envelopes — driven by Config.BuildInfo. Set unconditionally
+// in middleware so the OpenAI-compatible /v1/models endpoint (which
+// keeps its body OpenAI-spec) still gets attribution.
+func TestAPIServer_BuildHeadersOnEveryResponse(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:   "test-headers-attr",
+			GitCommit: "1337c0de",
+		},
+	})
+	for _, path := range []string{"/health", "/v1/health", "/v1/capabilities"} {
+		rec := getJSON(t, srv.Handler(), path, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d", path, rec.Code)
+		}
+		if got := rec.Header().Get("X-Gormes-Build-Version"); got != "test-headers-attr" {
+			t.Errorf("%s X-Gormes-Build-Version = %q, want test-headers-attr", path, got)
+		}
+		if got := rec.Header().Get("X-Gormes-Build-Commit"); got != "1337c0de" {
+			t.Errorf("%s X-Gormes-Build-Commit = %q, want 1337c0de", path, got)
+		}
+	}
+}
+
 // TestAPIServerHealth_BuildAttribution proves `/health` and
 // `/v1/health` carry BuildInfo so fleet health-monitoring across
 // machines can attribute each probe to the binary version.
@@ -76,6 +105,48 @@ func TestAPIServerHealth_BuildAttribution(t *testing.T) {
 		if got.Status != "ok" {
 			t.Errorf("%s status = %q, want ok (still addressable)", path, got.Status)
 		}
+	}
+}
+
+// TestAPIServerRuns_BuildAttribution proves `POST /v1/runs` carries the
+// configured BuildInfo at the top of the start envelope so fleet
+// automation triggering runs across machines can attribute each run to
+// the binary version that minted it. Same convention as the dashboard
+// JSON arc — additive to the Hermes-compat contract because clients
+// ignore unknown fields.
+func TestAPIServerRuns_BuildAttribution(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:   "test-runs-attr",
+			GitCommit: "ba5eba11",
+		},
+		Loop:          &fakeTurnLoop{result: TurnResult{Content: "ok", SessionID: "sess-attr"}},
+		ResponseStore: NewResponseStore(10),
+	})
+	rec := postJSON(t, srv.Handler(), "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		RunID  string `json:"run_id"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Build.Version != "test-runs-attr" {
+		t.Errorf("build.version = %q, want test-runs-attr (body=%s)", got.Build.Version, rec.Body.String())
+	}
+	if got.Build.GitCommit != "ba5eba11" {
+		t.Errorf("build.git_commit = %q, want ba5eba11", got.Build.GitCommit)
+	}
+	if got.RunID == "" || got.Status != "started" {
+		t.Errorf("run start envelope = %+v, want run_id populated and status=started", got)
 	}
 }
 

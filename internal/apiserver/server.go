@@ -296,7 +296,25 @@ func weakAPIKeyPlaceholder(value string) bool {
 
 // Handler returns an http.Handler suitable for httptest or http.Server.
 func (s *Server) Handler() http.Handler {
-	return securityHeaders(s.hostGuard(s.mux))
+	return s.buildHeaders(securityHeaders(s.hostGuard(s.mux)))
+}
+
+// buildHeaders sets `X-Gormes-Build-Version` and `X-Gormes-Build-Commit`
+// on every apiserver response so fleet log aggregation can attribute
+// responses to a binary version without parsing JSON. Same source of
+// truth (Config.BuildInfo) as the JSON `build` envelopes; OpenAI-spec
+// endpoints (e.g. /v1/models) that intentionally keep their body
+// untouched still get attribution via these headers.
+func (s *Server) buildHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if v := s.buildInfo.Version; v != "" {
+			w.Header().Set("X-Gormes-Build-Version", v)
+		}
+		if c := s.buildInfo.GitCommit; c != "" {
+			w.Header().Set("X-Gormes-Build-Commit", c)
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) hostGuard(next http.Handler) http.Handler {

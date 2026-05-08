@@ -47,6 +47,7 @@ func NewSkillsCommand(deps SkillsCommandDeps) *cobra.Command {
 // HTTPS SKILL.md URLs; other source adapters are out of scope for this row.
 func NewSkillsInstallCommand(deps SkillsCommandDeps) *cobra.Command {
 	var nameOverride, categoryOverride string
+	var asJSON bool
 
 	cmd := &cobra.Command{
 		Use:   "install <url>",
@@ -68,6 +69,9 @@ func NewSkillsInstallCommand(deps SkillsCommandDeps) *cobra.Command {
 			ev := skills.PerformURLInstall(cmd.Context(), policy, req)
 			switch ev.Code {
 			case "url_skill_installed":
+				if asJSON {
+					return writeSkillsInstallJSON(cmd, ev, deps.BuildProvenance)
+				}
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "installed %s\n", ev.InstalledPath)
 				return nil
 			default:
@@ -80,7 +84,34 @@ func NewSkillsInstallCommand(deps SkillsCommandDeps) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&nameOverride, "name", "", "explicit skill name override (required for non-interactive URL installs without a safe resolved name)")
 	cmd.Flags().StringVar(&categoryOverride, "category", "", "optional category bucket under the active store")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, action, name, installed_path}")
 	return cmd
+}
+
+// skillsInstallReportJSON is the wire shape for `skills install --json`.
+// Fleet automation rolling out skills across machines parses this to
+// confirm where each install landed without scraping prose. The
+// installed path is the reachable file the URL install wrote.
+type skillsInstallReportJSON struct {
+	Build         any    `json:"build,omitempty"`
+	Action        string `json:"action"`
+	InstalledPath string `json:"installed_path"`
+}
+
+func writeSkillsInstallJSON(cmd *cobra.Command, ev skills.URLInstallEvidence, buildProv func() any) error {
+	report := skillsInstallReportJSON{
+		Action:        "installed",
+		InstalledPath: ev.InstalledPath,
+	}
+	if buildProv != nil {
+		report.Build = buildProv()
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func NewSkillsListCommand(deps SkillsCommandDeps) *cobra.Command {

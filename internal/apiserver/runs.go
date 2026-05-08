@@ -193,7 +193,7 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 	s.runs.sweepOrphans()
 	s.runs.create(runID)
 	go s.runAsyncTurn(runID, turnReq)
-	writeJSON(w, http.StatusAccepted, map[string]any{"run_id": runID, "status": "started"})
+	writeJSON(w, http.StatusAccepted, map[string]any{"build": s.buildInfo, "run_id": runID, "status": "started"})
 }
 
 func (s *Server) runAsyncTurn(runID string, turnReq TurnRequest) {

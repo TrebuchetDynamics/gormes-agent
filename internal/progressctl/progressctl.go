@@ -16,6 +16,29 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/progress"
 )
 
+type validateReport struct {
+	OK        bool       `json:"ok"`
+	Phases    int        `json:"phases"`
+	Subphases countsJSON `json:"subphases"`
+	Items     countsJSON `json:"items"`
+}
+
+type countsJSON struct {
+	Total      int `json:"total"`
+	Complete   int `json:"complete"`
+	InProgress int `json:"in_progress"`
+	Planned    int `json:"planned"`
+}
+
+func toCountsJSON(c progress.Counts) countsJSON {
+	return countsJSON{
+		Total:      c.Total,
+		Complete:   c.Complete,
+		InProgress: c.InProgress,
+		Planned:    c.Planned,
+	}
+}
+
 // Validate parses progress.json under root, runs progress.Validate, and emits
 // a single line summarizing the phase count. format may be "text" (default)
 // or "json".
@@ -25,10 +48,13 @@ func Validate(stdout io.Writer, root, format string) error {
 		return err
 	}
 	if format == "json" {
-		return json.NewEncoder(stdout).Encode(struct {
-			OK     bool `json:"ok"`
-			Phases int  `json:"phases"`
-		}{OK: true, Phases: len(p.Phases)})
+		stats := p.Stats()
+		return json.NewEncoder(stdout).Encode(validateReport{
+			OK:        true,
+			Phases:    len(p.Phases),
+			Subphases: toCountsJSON(stats.Subphases),
+			Items:     toCountsJSON(stats.Items),
+		})
 	}
 	_, err = fmt.Fprintf(stdout, "progress: validated %d phases\n", len(p.Phases))
 	return err
