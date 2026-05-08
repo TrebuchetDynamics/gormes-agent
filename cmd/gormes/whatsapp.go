@@ -187,7 +187,7 @@ func renderWhatsAppPairingPreflight(out io.Writer, plan whatsappPairingPlan) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Security: the session directory is a login credential; keep it private and mode 0700.")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "BLOCKER: live QR pairing is not bundled in this Go binary yet.")
+	fmt.Fprintln(out, "Run without --plan to start the live QR pairing wizard.")
 }
 
 func renderWhatsAppPairingWizardIntro(cmd *cobra.Command, out io.Writer, plan *whatsappPairingPlan) error {

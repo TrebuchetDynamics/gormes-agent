@@ -38,7 +38,7 @@ func TestWhatsAppTopLevelCommandRendersPairingPreflight(t *testing.T) {
 		"WHATSAPP_MODE=bot",
 		"WHATSAPP_ALLOWED_USERS=528112345678,528187654321",
 		"node scripts/whatsapp-bridge/bridge.js --port 3000 --session " + filepath.Join(home, "whatsapp", "session") + " --mode bot",
-		"BLOCKER: live QR pairing is not bundled in this Go binary yet.",
+		"Run without --plan to start the live QR pairing wizard.",
 		"gormes gateway status",
 	} {
 		if !strings.Contains(stdout, want) {
