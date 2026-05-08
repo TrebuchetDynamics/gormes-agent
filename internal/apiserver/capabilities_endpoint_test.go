@@ -1074,6 +1074,42 @@ func TestAPIServerRuns_BuildAttribution(t *testing.T) {
 	}
 }
 
+// TestAPIServerCapabilities_AdvertisesRunsListFilters proves the
+// `/v1/capabilities` features map advertises `runs_list` plus
+// supported query-param filters, so SDKs and dashboards that wire
+// up listing UI can discover available filters from a single read
+// rather than guessing or hard-coding strings. Same convention as
+// the rest of the capabilities advertisement — additive feature
+// flags ignored by older clients.
+func TestAPIServerCapabilities_AdvertisesRunsListFilters(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", Loop: &fakeTurnLoop{}})
+	rec := getJSON(t, srv.Handler(), "/v1/capabilities", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var got struct {
+		Features struct {
+			RunsList         bool     `json:"runs_list"`
+			RunsListFilters  []string `json:"runs_list_filters"`
+		} `json:"features"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if !got.Features.RunsList {
+		t.Errorf("features.runs_list = false, want true")
+	}
+	wantFilters := map[string]bool{"status": false, "since": false, "limit": false, "order": false}
+	for _, f := range got.Features.RunsListFilters {
+		wantFilters[f] = true
+	}
+	for f, present := range wantFilters {
+		if !present {
+			t.Errorf("features.runs_list_filters missing %q (got %v)", f, got.Features.RunsListFilters)
+		}
+	}
+}
+
 func TestAPIServerCapabilitiesEndpoint_AdvertisesHermesCompatibleContract(t *testing.T) {
 	srv := NewServer(Config{ModelName: "gormes-agent", Loop: &fakeTurnLoop{}})
 

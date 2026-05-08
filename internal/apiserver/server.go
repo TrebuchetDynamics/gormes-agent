@@ -511,6 +511,8 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 			"run_status":                 true,
 			"run_events_sse":             true,
 			"run_stop":                   true,
+			"runs_list":                  true,
+			"runs_list_filters":          []string{"status", "since", "limit", "order"},
 			"tool_progress_events":       true,
 			"session_continuity_header":  "X-Hermes-Session-Id",
 			"cors":                       false,
