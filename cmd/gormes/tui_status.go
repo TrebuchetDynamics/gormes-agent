@@ -39,7 +39,7 @@ func doctorTUIStatus() doctor.CheckResult {
 			{
 				Name:   "remote",
 				Status: doctor.StatusPass,
-				Note:   "remote streaming via --remote <url> consumes native Gormes turn events over SSE; without --remote the local Bubble Tea path remains the runtime",
+				Note:   "remote streaming via --remote <url> consumes native Gormes turn events over SSE or websocket attach via GORMES_TUI_GATEWAY_URL/HERMES_TUI_GATEWAY_URL; without a remote URL the local Bubble Tea path remains the runtime",
 			},
 		},
 	}

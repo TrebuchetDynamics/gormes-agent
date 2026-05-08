@@ -19719,7 +19719,7 @@
           "items": [
             {
               "name": "61-tool registry port",
-              "status": "planned",
+              "status": "complete",
               "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
@@ -41121,6 +41121,88 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:edc78e25 tui_gateway/server.py",
                 "note": "Hermes defines the remote TUI event contract; Gormes owns the native Go transport and Bubble Tea adaptation."
+              }
+            },
+            {
+              "name": "TUI websocket attach transport",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes ports the current Hermes Ink attach-mode contract as a native Go remote-TUI transport: a configured websocket URL connects without spawning a local kernel/provider process, sends JSON-RPC session.create, prompt.submit, session.interrupt, and terminal.resize envelopes, consumes event frames into native RenderFrame updates, optionally mirrors event frames to a sidecar websocket, and redacts query/user-info credentials from attach failure diagnostics.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unavailable websocket attach URLs return remote streaming unavailable evidence with redacted URLs while local Bubble Tea and existing --remote SSE mode continue to work.",
+              "fixture": "internal/tuigateway/websocket_attach_test.go; cmd/gormes/remote_tui_test.go",
+              "source_refs": [
+                "./hermes-agent/ui-tui/src/gatewayClient.ts@1997b3baf:startAttachedGateway",
+                "./hermes-agent/ui-tui/src/gatewayClient.ts@1997b3baf:requestOverWebSocket",
+                "./hermes-agent/ui-tui/src/gatewayClient.ts@1997b3baf:redactUrl",
+                "./hermes-agent/ui-tui/src/__tests__/gatewayClient.test.ts@1997b3baf",
+                "./hermes-agent/tui_gateway/ws.py@1997b3baf:handle_ws",
+                "internal/tuigateway/sse_stream.go",
+                "internal/tuigateway/gateway_mux.go",
+                "cmd/gormes/remote_tui.go"
+              ],
+              "ready_when": [
+                "SSE streaming to Bubble Tea TUI is complete, so the native remote-TUI client already owns frame delivery and submit/cancel/resize callbacks.",
+                "The slice can use httptest plus gorilla/websocket fakes; no live Hermes Python gateway, provider, terminal, browser, or operator credential is required.",
+                "This row adapts the Hermes attach behavior to Gormes' native RenderFrame transport instead of importing the React/Ink client or Python tui_gateway runtime."
+              ],
+              "not_ready_when": [
+                "The slice replaces existing SSE --remote behavior, starts the local kernel/provider in attach mode, or imports Hermes Python/Node runtime code.",
+                "Attach failure logs include raw query tokens, channel parameters, embedded user-info credentials, provider API keys, or home-directory paths.",
+                "The implementation changes unrelated TUI rendering, slash dispatch, API server auth, gateway channel adapters, or provider routing."
+              ],
+              "blocked_by": [
+                "SSE streaming to Bubble Tea TUI"
+              ],
+              "acceptance": [
+                "TestDialWebSocketAttach_CreatesSessionAndConsumesFrames proves a ws:// remote sends session.create, receives a session id, decodes event frame payloads into kernel.RenderFrame values, and never uses the SSE /events endpoint.",
+                "TestWebSocketAttach_SubmitCancelResize proves Submit, Cancel, and Resize send prompt.submit, session.interrupt, and terminal.resize JSON-RPC envelopes with the active session id.",
+                "TestWebSocketAttach_MirrorsEventFramesToSidecar proves configured sidecar websocket URLs receive raw event frames and sidecar failures do not kill the main attach connection.",
+                "TestRedactRemoteURL proves query strings and user-info credentials are scrubbed from valid and malformed websocket URLs.",
+                "TestRemoteTUI_EnvGatewayURLSelectsWebSocketAttach proves HERMES_TUI_GATEWAY_URL or GORMES_TUI_GATEWAY_URL can select websocket attach mode without --remote and without local provider startup."
+              ],
+              "write_scope": [
+                "internal/tuigateway/sse_stream.go",
+                "internal/tuigateway/websocket_attach_test.go",
+                "internal/tuigateway/gateway_mux.go",
+                "internal/tuigateway/gateway_mux_test.go",
+                "cmd/gormes/remote_tui.go",
+                "cmd/gormes/remote_tui_test.go",
+                "cmd/gormes/tui_status.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tuigateway -run 'TestDialWebSocketAttach|TestWebSocketAttach|TestRedactRemoteURL|TestGatewayMuxWebSocket' -count=1",
+                "go test ./cmd/gormes -run 'TestRemoteTUI_.*WebSocket|TestRemoteTUI_EnvGatewayURLSelectsWebSocketAttach|TestRemoteTUI_DoctorTUIStatusReportsRemoteDegradedMode' -count=1",
+                "go test ./internal/tuigateway ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Websocket attach fixtures prove session creation, frame/event delivery, submit/cancel/resize RPCs, sidecar mirroring, redacted diagnostics, env URL startup selection, and unchanged SSE/local degraded behavior."
+              ],
+              "note": "Complete 2026-05-08: the all-topic parity sweep refreshed Hermes to 1997b3baf and found one new active upstream delta: ui-tui GatewayClient can attach to an existing websocket gateway through HERMES_TUI_GATEWAY_URL with optional sidecar mirroring and URL redaction. TDD added native websocket attach support to RemoteClient, including session.create, prompt.submit, session.interrupt, terminal.resize, event-frame decoding into kernel.RenderFrame, best-effort sidecar mirroring, and RedactRemoteURL query/user-info scrubbing. GatewayMux now exposes GET /api/ws with Hermes-style JSON-RPC envelopes over the native KernelHandle, and cmd/gormes can select attach mode from GORMES_TUI_GATEWAY_URL or HERMES_TUI_GATEWAY_URL without --remote or local provider startup. Existing SSE --remote and local Bubble Tea startup remain intact.",
+              "evidence": {
+                "implementation": "internal/tuigateway/sse_stream.go; internal/tuigateway/gateway_mux.go; cmd/gormes/remote_tui.go; cmd/gormes/main.go; cmd/gormes/tui_status.go",
+                "tests": "go test ./internal/tuigateway -run 'TestDialWebSocketAttach|TestWebSocketAttach|TestRedactRemoteURL|TestGatewayMuxWebSocket' -count=1; go test ./cmd/gormes -run 'TestRemoteTUI_.*WebSocket|TestRemoteTUI_EnvGatewayURLSelectsWebSocketAttach|TestRemoteTUI_DoctorTUIStatusReportsRemoteDegradedMode' -count=1; go test ./internal/tuigateway ./cmd/gormes -count=1",
+                "note": "RED failed on missing DialWebSocketAttach, WithSidecarURL, RedactRemoteURL, websocketRequest/websocketMessage, and GatewayMux /api/ws support; GREEN passed after adding native websocket attach transport and env startup selection."
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-08T19:35:00Z",
+                "last_success": "2026-05-08T19:35:00Z"
+              },
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:1997b3baf ui-tui/src/gatewayClient.ts + ui-tui/src/__tests__/gatewayClient.test.ts",
+                "note": "Hermes defines the attach-mode operator contract; Gormes adapts it to the native Go remote-TUI RenderFrame transport while preserving redaction and no-local-spawn behavior."
               }
             },
             {

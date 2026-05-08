@@ -12,15 +12,16 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
+	"github.com/gorilla/websocket"
 )
 
 // fakeKernelHandle implements KernelHandle for the GatewayMux tests. It
 // records every PlatformEvent it receives via Submit and exposes a render
 // channel writers can push frames onto so the SSE stream test sees them.
 type fakeKernelHandle struct {
-	mu      sync.Mutex
-	events  []kernel.PlatformEvent
-	frames  chan kernel.RenderFrame
+	mu        sync.Mutex
+	events    []kernel.PlatformEvent
+	frames    chan kernel.RenderFrame
 	submitErr error
 }
 
@@ -296,4 +297,96 @@ func TestGatewayMux_RejectsNonJSONBody(t *testing.T) {
 	if got := handle.Events(); len(got) != 0 {
 		t.Errorf("kernel events on parse error = %d; want 0", len(got))
 	}
+}
+
+func TestGatewayMuxWebSocket_SessionSubmitAndFrameEvent(t *testing.T) {
+	t.Parallel()
+
+	handle := newFakeKernelHandle()
+	mux := NewGatewayMux(handle)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	conn, _, err := websocket.DefaultDialer.Dial(websocketURL(server.URL, "/api/ws"), nil)
+	if err != nil {
+		t.Fatalf("dial websocket: %v", err)
+	}
+	defer conn.Close()
+
+	if msg := readWebSocketMessage(t, conn); msg.Method != "event" {
+		t.Fatalf("first websocket message = %+v; want ready event", msg)
+	}
+
+	if err := conn.WriteJSON(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      "r1",
+		"method":  "session.create",
+		"params":  map[string]any{"cols": 80},
+	}); err != nil {
+		t.Fatalf("write session.create: %v", err)
+	}
+	createResp := readWebSocketMessage(t, conn)
+	if createResp.ID != "r1" || createResp.Result == nil {
+		t.Fatalf("session.create response = %+v; want id r1 result", createResp)
+	}
+	var createResult struct {
+		SessionID string `json:"session_id"`
+	}
+	if err := json.Unmarshal(createResp.Result, &createResult); err != nil {
+		t.Fatalf("decode create result: %v", err)
+	}
+	if createResult.SessionID == "" {
+		t.Fatal("session_id is empty")
+	}
+
+	frame := kernel.RenderFrame{Phase: kernel.PhaseStreaming, Seq: 44, DraftText: "ws frame"}
+	handle.frames <- frame
+	event := readWebSocketMessage(t, conn)
+	if event.Method != "event" {
+		t.Fatalf("frame message = %+v; want event", event)
+	}
+	var params struct {
+		Type    string          `json:"type"`
+		Payload json.RawMessage `json:"payload"`
+	}
+	if err := json.Unmarshal(event.Params, &params); err != nil {
+		t.Fatalf("decode event params: %v", err)
+	}
+	if params.Type != "frame" {
+		t.Fatalf("event type = %q; want frame", params.Type)
+	}
+	var gotFrame kernel.RenderFrame
+	if err := json.Unmarshal(params.Payload, &gotFrame); err != nil {
+		t.Fatalf("decode frame payload: %v", err)
+	}
+	if gotFrame.Seq != 44 || gotFrame.DraftText != "ws frame" {
+		t.Fatalf("frame = %+v; want seq 44", gotFrame)
+	}
+
+	if err := conn.WriteJSON(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      "r2",
+		"method":  "prompt.submit",
+		"params":  map[string]any{"session_id": createResult.SessionID, "text": "hello"},
+	}); err != nil {
+		t.Fatalf("write prompt.submit: %v", err)
+	}
+	submitResp := readWebSocketMessage(t, conn)
+	if submitResp.ID != "r2" {
+		t.Fatalf("submit response = %+v; want id r2", submitResp)
+	}
+	events := handle.Events()
+	if len(events) != 1 || events[0].Kind != kernel.PlatformEventSubmit || events[0].Text != "hello" {
+		t.Fatalf("kernel events = %+v; want one submit hello", events)
+	}
+}
+
+func readWebSocketMessage(t *testing.T, conn *websocket.Conn) websocketMessage {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var msg websocketMessage
+	if err := conn.ReadJSON(&msg); err != nil {
+		t.Fatalf("read websocket message: %v", err)
+	}
+	return msg
 }

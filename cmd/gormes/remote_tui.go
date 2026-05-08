@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,13 +35,31 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 	rootCtx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	dialCtx, dialCancel := context.WithTimeout(rootCtx, 5*time.Second)
-	client, err := tuigateway.DialSSE(dialCtx, invocation.RemoteURL)
-	dialCancel()
-	if err != nil {
+	type dialResult struct {
+		client *tuigateway.RemoteClient
+		err    error
+	}
+	dialDone := make(chan dialResult, 1)
+	go func() {
+		client, err := dialRemoteTUI(rootCtx, invocation.RemoteURL)
+		dialDone <- dialResult{client: client, err: err}
+	}()
+	var client *tuigateway.RemoteClient
+	select {
+	case result := <-dialDone:
+		if result.err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(),
+				"remote streaming unavailable at %s: %v\n\nLocal Bubble Tea mode still works: re-run gormes without --remote.\n",
+				tuigateway.RedactRemoteURL(invocation.RemoteURL), result.err,
+			)
+			return result.err
+		}
+		client = result.client
+	case <-time.After(5 * time.Second):
+		err := fmt.Errorf("remote streaming startup timed out")
 		fmt.Fprintf(cmd.ErrOrStderr(),
 			"remote streaming unavailable at %s: %v\n\nLocal Bubble Tea mode still works: re-run gormes without --remote.\n",
-			invocation.RemoteURL, err,
+			tuigateway.RedactRemoteURL(invocation.RemoteURL), err,
 		)
 		return err
 	}
@@ -80,7 +99,40 @@ func runRemoteTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, runti
 		}
 	}()
 
-	_, err = prog.Run()
+	_, err := prog.Run()
 	close(programDone)
 	return err
+}
+
+func dialRemoteTUI(ctx context.Context, remoteURL string) (*tuigateway.RemoteClient, error) {
+	if isWebSocketRemoteURL(remoteURL) {
+		return tuigateway.DialWebSocketAttach(ctx, remoteURL, tuigateway.WithSidecarURL(resolveRemoteTUISidecarURL()))
+	}
+	return tuigateway.DialSSE(ctx, remoteURL)
+}
+
+func resolveRemoteTUIURL(flagValue string) string {
+	if raw := strings.TrimSpace(flagValue); raw != "" {
+		return raw
+	}
+	for _, key := range []string{"GORMES_TUI_GATEWAY_URL", "HERMES_TUI_GATEWAY_URL"} {
+		if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
+			return raw
+		}
+	}
+	return ""
+}
+
+func resolveRemoteTUISidecarURL() string {
+	for _, key := range []string{"GORMES_TUI_SIDECAR_URL", "HERMES_TUI_SIDECAR_URL"} {
+		if raw := strings.TrimSpace(os.Getenv(key)); raw != "" {
+			return raw
+		}
+	}
+	return ""
+}
+
+func isWebSocketRemoteURL(raw string) bool {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	return strings.HasPrefix(raw, "ws://") || strings.HasPrefix(raw, "wss://")
 }

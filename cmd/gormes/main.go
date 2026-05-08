@@ -368,7 +368,7 @@ func resolveTUIInvocation(cmd *cobra.Command) (tuiInvocation, error) {
 	providerFlag := commandStringFlag(cmd, "provider")
 	endpointFlag := commandStringFlag(cmd, "endpoint")
 	apiKeyFlag := commandStringFlag(cmd, "api-key")
-	remoteFlag := commandStringFlag(cmd, "remote")
+	remoteFlag := resolveRemoteTUIURL(commandStringFlag(cmd, "remote"))
 
 	cfg, err := config.Load(nil)
 	if err != nil {
