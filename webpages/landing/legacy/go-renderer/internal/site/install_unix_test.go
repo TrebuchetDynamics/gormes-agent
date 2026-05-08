@@ -267,7 +267,7 @@ printf '`+version+`\n'
 
 func linkBasicUnixTools(t *testing.T, bin string) {
 	t.Helper()
-	for _, name := range []string{"cat", "chmod", "cp", "dirname", "ln", "mkdir", "mv", "rm", "sed", "sha256sum", "sleep", "uname"} {
+	for _, name := range []string{"awk", "cat", "chmod", "cp", "dirname", "head", "ln", "mkdir", "mv", "rm", "sed", "sha256sum", "sleep", "uname"} {
 		realPath, err := exec.LookPath(name)
 		if err != nil {
 			t.Fatalf("look up %s: %v", name, err)
@@ -394,6 +394,11 @@ if [ -n "$out" ]; then
       printf 'fake go tarball\n' > "$out"
       ;;
   esac
+elif [ "$url" = "https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest" ]; then
+  if [ -z "${GORMES_FAKE_RELEASE_TAG:-}" ]; then
+    exit 22
+  fi
+  printf '{"tag_name":"%s"}\n' "$GORMES_FAKE_RELEASE_TAG"
 fi
 `)
 	writeExecutable(t, filepath.Join(bin, "wget"), `#!/bin/sh
@@ -434,6 +439,11 @@ if [ -n "$out" ]; then
       printf 'fake go tarball\n' > "$out"
       ;;
   esac
+elif [ "$url" = "https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest" ]; then
+  if [ -z "${GORMES_FAKE_RELEASE_TAG:-}" ]; then
+    exit 22
+  fi
+  printf '{"tag_name":"%s"}\n' "$GORMES_FAKE_RELEASE_TAG"
 fi
 `)
 	writeExecutable(t, filepath.Join(bin, "tar"), `#!/bin/sh
@@ -769,7 +779,55 @@ func TestInstallSH_SkipSetupFlagAvoidsWizardEvenWithTerminal(t *testing.T) {
 	}
 }
 
-func TestInstallSH_DefaultInstallUsesManagedSourceCheckout(t *testing.T) {
+func TestInstallSH_DefaultInstallFetchesReleaseBinary(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	fakebin, logPath, releaseTemplate := writeFakeReleaseToolchain(t, root)
+	archiveHash := fmt.Sprintf("%x", sha256.Sum256([]byte("fake release archive\n")))
+
+	out, err := runInstallScript(t,
+		"HOME="+home,
+		"PATH="+fakebin,
+		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_FAKE_RELEASE_TAG=v9.9.9",
+		"GORMES_FAKE_RELEASE_BIN_TEMPLATE="+releaseTemplate,
+		"GORMES_FAKE_RELEASE_ARCHIVE_SHA="+archiveHash,
+		"TMPDIR="+filepath.Join(root, "tmp"),
+		"UNAME=Linux",
+	)
+	if err != nil {
+		t.Fatalf("install.sh failed: %v\n%s\nlog:\n%s", err, out, readTextFile(t, logPath))
+	}
+
+	managed := filepath.Join(home, ".gormes", "bin", "gormes")
+	body, err := os.ReadFile(managed)
+	if err != nil {
+		t.Fatalf("read managed binary: %v", err)
+	}
+	if !strings.Contains(string(body), "release-gormes") {
+		t.Fatalf("managed binary was not fetched from release:\n%s", body)
+	}
+	log := readTextFile(t, logPath)
+	for _, want := range []string{
+		"api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest",
+		"releases/download/v9.9.9/gormes-9.9.9-linux-amd64.tar.gz",
+		"release-gormes version",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("toolchain log missing %q\n%s", want, log)
+		}
+	}
+	for _, reject := range []string{"git clone --branch main", "go build -o"} {
+		if strings.Contains(log, reject) {
+			t.Fatalf("binary-fetch default should not use source-build path %q\n%s", reject, log)
+		}
+	}
+	if !strings.Contains(out, "source: GitHub Releases") {
+		t.Fatalf("summary did not name GitHub Releases source:\n%s", out)
+	}
+}
+
+func TestInstallSH_FromSourceInstallUsesManagedSourceCheckout(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
@@ -778,6 +836,7 @@ func TestInstallSH_DefaultInstallUsesManagedSourceCheckout(t *testing.T) {
 		"HOME="+home,
 		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_FROM_SOURCE=1",
 		"UNAME=Linux",
 	)
 	if err != nil {
@@ -803,7 +862,7 @@ func TestInstallSH_DefaultInstallUsesManagedSourceCheckout(t *testing.T) {
 	log := readTextFile(t, logPath)
 	for _, want := range []string{
 		"git clone --branch main",
-		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
+		"-o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
@@ -819,7 +878,7 @@ func TestInstallSH_DefaultInstallUsesManagedSourceCheckout(t *testing.T) {
 	}
 }
 
-func TestInstallSH_DefaultInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
+func TestInstallSH_FromSourceInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
@@ -829,6 +888,7 @@ func TestInstallSH_DefaultInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
 		"HOME="+home,
 		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_FROM_SOURCE=1",
 		"TMPDIR="+filepath.Join(root, "tmp"),
 	)
 	if err != nil {
@@ -853,7 +913,7 @@ func TestInstallSH_DefaultInstallDoesNotProbeReleaseEndpoints(t *testing.T) {
 	log := string(logBody)
 	for _, want := range []string{
 		"git clone --branch main",
-		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
+		"-o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
@@ -964,6 +1024,7 @@ func TestInstallSH_RerunUpdatesPersistentManagedCheckout(t *testing.T) {
 		"HOME="+home,
 		"PATH="+fakebin,
 		"GORMES_FAKE_LOG="+logPath,
+		"GORMES_INSTALL_FROM_SOURCE=1",
 		"TMPDIR="+filepath.Join(root, "tmp"),
 	)
 	if err != nil {
@@ -980,7 +1041,7 @@ func TestInstallSH_RerunUpdatesPersistentManagedCheckout(t *testing.T) {
 		"git fetch origin",
 		"git checkout main",
 		"git pull --ff-only origin main",
-		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
+		"-o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("managed checkout rerun missing %q:\n%s", want, log)
@@ -1237,7 +1298,7 @@ func TestInstallSH_LocalBuildUsesCurrentCheckoutWithoutGitUpdate(t *testing.T) {
 	if strings.Contains(log, "git clone") || strings.Contains(log, "git fetch") || strings.Contains(log, "git pull") {
 		t.Fatalf("--local touched remote git checkout:\n%s", log)
 	}
-	if !strings.Contains(log, "go build -o "+filepath.Join(home, ".gormes", "bin", "gormes")+" ./cmd/gormes") {
+	if !strings.Contains(log, "-o "+filepath.Join(home, ".gormes", "bin", "gormes")+" ./cmd/gormes") {
 		t.Fatalf("--local did not build gormes:\n%s", log)
 	}
 	if !strings.Contains(out, "source: "+local) {
@@ -1395,7 +1456,7 @@ func TestInstallSH_TermuxInstallsMissingGitAndGo(t *testing.T) {
 	for _, want := range []string{
 		"pkg install -y git golang",
 		"git clone --branch main",
-		"go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
+		"-o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
@@ -1438,7 +1499,7 @@ func TestInstallSH_InstallsManagedGoWhenGoIsMissing(t *testing.T) {
 	for _, want := range []string{
 		"curl -fsSL",
 		"tar -C " + filepath.Join(home, ".gormes"),
-		"managed-go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
+		"-o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)
@@ -1482,7 +1543,7 @@ func TestInstallSH_ReplacesTooOldGoWithManagedGo(t *testing.T) {
 	for _, want := range []string{
 		"old-go env GOVERSION",
 		"curl -fsSL",
-		"managed-go build -o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
+		"-o " + filepath.Join(home, ".gormes", "bin", "gormes") + " ./cmd/gormes",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("toolchain log missing %q\n%s", want, log)

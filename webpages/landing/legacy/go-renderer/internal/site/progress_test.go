@@ -55,8 +55,8 @@ func TestLoadEmbeddedProgress_RendersRoadmap(t *testing.T) {
 	}
 
 	phases := buildRoadmapPhases(p)
-	if len(phases) != 7 {
-		t.Fatalf("len(buildRoadmapPhases(loadEmbeddedProgress())) = %d, want 7", len(phases))
+	if len(phases) != len(p.Phases) {
+		t.Fatalf("len(buildRoadmapPhases(loadEmbeddedProgress())) = %d, want %d", len(phases), len(p.Phases))
 	}
 
 	stats := p.Stats()

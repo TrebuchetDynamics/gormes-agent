@@ -150,9 +150,10 @@ func TestExportDir_WritesStaticSite(t *testing.T) {
 		}
 	}
 
-	// Roadmap renders all 7 phases — structural, not copy-specific.
-	if n := strings.Count(text, `class="roadmap-phase"`); n != 7 {
-		t.Errorf("dist/index.html roadmap phase count = %d, want 7", n)
+	// Roadmap renders every embedded progress phase.
+	wantPhaseCount := len(buildRoadmapPhases(loadEmbeddedProgress()))
+	if n := strings.Count(text, `class="roadmap-phase"`); n != wantPhaseCount {
+		t.Errorf("dist/index.html roadmap phase count = %d, want %d", n, wantPhaseCount)
 	}
 
 	// The progress tracker follows "N/M shipped" — shape, not numbers.
