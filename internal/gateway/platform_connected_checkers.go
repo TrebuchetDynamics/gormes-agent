@@ -24,20 +24,21 @@ var genericTokenConnectedPlatforms = map[string]struct{}{
 }
 
 var platformConnectedCheckers = map[string]platformConnectedChecker{
-	"weixin":         extraAll("account_id", "token"),
-	"signal":         extraAny("http_url"),
-	"email":          extraAny("address"),
-	"sms":            extraAny("twilio_account_sid", "account_sid"),
-	"api_server":     enabledOnly,
-	"webhook":        enabledOnly,
-	"whatsapp":       enabledOnly,
-	"feishu":         extraAny("app_id"),
-	"wecom":          extraAny("bot_id"),
-	"wecom_callback": extraAny("corp_id"),
-	"bluebubbles":    extraAll("server_url", "password"),
-	"qqbot":          extraAll("app_id", "client_secret"),
-	"yuanbao":        extraAll("app_id", "app_secret"),
-	"dingtalk":       extraAll("client_id", "client_secret"),
+	"weixin":          extraAll("account_id", "token"),
+	"signal":          extraAny("http_url"),
+	"email":           extraAny("address"),
+	"sms":             extraAny("twilio_account_sid", "account_sid"),
+	"api_server":      enabledOnly,
+	"webhook":         enabledOnly,
+	"msgraph_webhook": extraAny("client_state"),
+	"whatsapp":        enabledOnly,
+	"feishu":          extraAny("app_id"),
+	"wecom":           extraAny("bot_id"),
+	"wecom_callback":  extraAny("corp_id"),
+	"bluebubbles":     extraAll("server_url", "password"),
+	"qqbot":           extraAll("app_id", "client_secret"),
+	"yuanbao":         extraAll("app_id", "app_secret"),
+	"dingtalk":        extraAll("client_id", "client_secret"),
 }
 
 func PlatformLooksConfigured(cfg PlatformConnectionConfig) (bool, bool) {

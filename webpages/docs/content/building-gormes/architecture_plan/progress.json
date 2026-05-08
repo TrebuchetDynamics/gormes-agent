@@ -6925,6 +6925,7 @@
                 "../hermes-agent/gateway/platforms/dingtalk.py",
                 "../hermes-agent/gateway/platforms/api_server.py",
                 "../hermes-agent/gateway/platforms/webhook.py",
+                "hermes-agent/gateway/platforms/msgraph_webhook.py@474d1e812",
                 "../hermes-agent/gateway/platforms/feishu.py",
                 "../hermes-agent/gateway/platforms/wecom.py",
                 "../hermes-agent/gateway/platforms/wecom_callback.py",
@@ -6956,13 +6957,13 @@
                 "Mattermost shared-chassis adapter"
               ],
               "acceptance": [
-                "TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao.",
+                "TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, msgraph_webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao.",
                 "Each manifest row records source file, current Gormes package or row-backed target, inbound/outbound/media/commands/toolset/config/pairing status, live-credential requirement, backlog owner, and delivery status.",
                 "The manifest distinguishes external channels from non-channel runtime surfaces such as local, api_server, webhook, and wecom_callback instead of dropping them.",
                 "The subsystem inventory and command-surface parity matrix now point at internal/gateway/platform_manifest.go as the drift-checked source-backed inventory.",
                 "No test starts a real channel SDK, websocket, webhook listener, browser, QR flow, or HTTP client."
               ],
-              "note": "Complete: internal/gateway now owns a source-backed Hermes gateway platform manifest with drift fixtures for every current Platform enum value and connector file. The manifest keeps channel, runtime, webhook, and local surfaces visible with per-capability status, backlog owners, live-credential flags, and no live SDK or credential access.",
+              "note": "Complete: internal/gateway now owns a source-backed Hermes gateway platform manifest with drift fixtures for every current Platform enum value and connector file. The manifest keeps channel, runtime, webhook, and local surfaces visible with per-capability status, backlog owners, live-credential flags, and no live SDK or credential access. Refreshed 2026-05-08 for Hermes 474d1e812: the test now resolves the nested ./hermes-agent checkout and the manifest includes msgraph_webhook as row-backed webhook ingress.",
               "write_scope": [
                 "internal/gateway/platform_manifest.go",
                 "internal/gateway/platform_manifest_test.go",
@@ -6982,6 +6983,70 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:gateway/config.py Platform enum and gateway/platforms connectors",
                 "note": "Hermes defines platform IDs and operator behavior; Gormes owns the Go registry and implementation order."
+              }
+            },
+            {
+              "name": "MSGraph webhook platform manifest drift closeout",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes refreshes the gateway platform manifest drift harness so the in-repo Hermes submodule is checked, then classifies Hermes' new `msgraph_webhook` platform as a row-backed webhook surface with redacted connected-state detection before any live listener implementation begins.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Until a future runtime adapter row ships, `msgraph_webhook` remains visible as row-backed/not configured rather than disappearing from platform drift checks or being advertised as a working listener.",
+              "fixture": "internal/gateway/platform_manifest_test.go::TestHermesGatewayPlatformManifestCoversUpstream",
+              "source_refs": [
+                "hermes-agent/gateway/config.py@474d1e812:Platform.MSGRAPH_WEBHOOK",
+                "hermes-agent/gateway/config.py@474d1e812:_apply_env_overrides MSGRAPH_WEBHOOK_*",
+                "hermes-agent/gateway/platforms/msgraph_webhook.py@474d1e812:MSGraphWebhookAdapter",
+                "hermes-agent/tests/gateway/test_msgraph_webhook.py@474d1e812",
+                "hermes-agent/website/docs/user-guide/messaging/msgraph-webhook.md@474d1e812",
+                "internal/gateway/platform_manifest.go",
+                "internal/gateway/platform_manifest_test.go",
+                "internal/gateway/platform_connected_checkers.go"
+              ],
+              "ready_when": [
+                "The in-repo hermes-agent submodule is refreshed to upstream main and contains `Platform.MSGRAPH_WEBHOOK` plus `gateway/platforms/msgraph_webhook.py`.",
+                "The builder can compare static upstream source files without opening a webhook listener, contacting Microsoft Graph, or reading real operator credentials.",
+                "The existing complete Hermes gateway platform registry manifest row remains the source-backed parent inventory."
+              ],
+              "not_ready_when": [
+                "The slice implements the live aiohttp-compatible listener, starts sockets, registers Microsoft Graph subscriptions, or handles real Graph notifications.",
+                "The drift harness keeps skipping even though `./hermes-agent/gateway/config.py` exists in this repository.",
+                "The manifest marks `msgraph_webhook` implemented before validation handshake, clientState, CIDR, dedupe, scheduler, and config/env override behavior have adapter-level fixtures."
+              ],
+              "acceptance": [
+                "The platform manifest test discovers the current checkout's `./hermes-agent` before falling back to sibling workspaces, so fresh upstream platform additions fail locally instead of skipping.",
+                "HermesGatewayPlatformManifest includes `msgraph_webhook` with kind `webhook`, status `row_backed`, source refs to `gateway/platforms/msgraph_webhook.py`, and row-backed inbound/outbound/config/delivery evidence.",
+                "Connected-state fixtures cover `msgraph_webhook` without live credentials, treating an enabled platform with a `client_state` extra as configured and a missing secret as not configured.",
+                "No test starts a webhook listener, opens a network socket, contacts Microsoft Graph, reads real MSGRAPH_* values, or mutates operator config."
+              ],
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 36, so adding one P1 source-backed row was allowed. Fresh Hermes 474d1e812 added `msgraph_webhook`; existing Gormes rows cover Microsoft Graph auth/client helpers and broad gateway/channel coverage, but the completed platform manifest row was stale because its drift test skipped in the nested Gormes checkout and did not classify the new platform. TDD fixed the manifest source-root lookup to prefer the current repo's nested ./hermes-agent, added `msgraph_webhook` as a row-backed webhook platform, and added connected-state fixtures that require enabled + client_state without reading real MSGRAPH_* values or opening a listener.",
+              "write_scope": [
+                "internal/gateway/platform_manifest.go",
+                "internal/gateway/platform_manifest_test.go",
+                "internal/gateway/platform_connected_checkers.go",
+                "internal/gateway/platform_connected_checkers_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestHermesGatewayPlatformManifest|TestPlatformConnectedCheckers' -count=1",
+                "go test ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway manifest drift fixtures prove the nested Hermes checkout is active and `msgraph_webhook` is visible as a row-backed webhook platform with connected-state evidence but no live listener."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:474d1e812 gateway/platforms/msgraph_webhook.py",
+                "note": "Hermes owns the new platform ID and webhook contract; Gormes first preserves drift visibility and operator status before a later adapter row ports the listener."
               }
             },
             {

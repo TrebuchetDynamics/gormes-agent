@@ -34,6 +34,7 @@ func TestPlatformConnectedCheckersReturnTrueForSyntheticConfig(t *testing.T) {
 		{ID: "sms", Enabled: true, Extra: map[string]string{"twilio_account_sid": "ACtest"}},
 		{ID: "api_server", Enabled: true},
 		{ID: "webhook", Enabled: true},
+		{ID: "msgraph_webhook", Enabled: true, Extra: map[string]string{"client_state": "shared-secret"}},
 		{ID: "whatsapp", Enabled: true},
 		{ID: "feishu", Enabled: true, Extra: map[string]string{"app_id": "app"}},
 		{ID: "wecom", Enabled: true, Extra: map[string]string{"bot_id": "bot"}},
@@ -54,5 +55,30 @@ func TestPlatformConnectedCheckersReturnTrueForSyntheticConfig(t *testing.T) {
 				t.Fatalf("PlatformLooksConfigured(%+v) = false, want true", tc)
 			}
 		})
+	}
+}
+
+func TestPlatformConnectedCheckersRequireMSGraphWebhookClientState(t *testing.T) {
+	configured, ok := PlatformLooksConfigured(PlatformConnectionConfig{
+		ID:      "msgraph_webhook",
+		Enabled: true,
+	})
+	if !ok {
+		t.Fatal("msgraph_webhook checker missing")
+	}
+	if configured {
+		t.Fatal("msgraph_webhook without client_state should not look configured")
+	}
+
+	configured, ok = PlatformLooksConfigured(PlatformConnectionConfig{
+		ID:      "msgraph_webhook",
+		Enabled: true,
+		Extra:   map[string]string{"client_state": "shared-secret"},
+	})
+	if !ok {
+		t.Fatal("msgraph_webhook checker missing with client_state")
+	}
+	if !configured {
+		t.Fatal("msgraph_webhook with client_state should look configured")
 	}
 }
