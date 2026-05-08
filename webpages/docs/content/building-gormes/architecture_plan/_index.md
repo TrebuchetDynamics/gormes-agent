@@ -774,6 +774,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
 - [x] Hermes plugin CLI lifecycle parity
+- [x] Teams pipeline plugin CLI metadata + disabled runtime inventory
 - [x] Goncho Honcho plugin session config + async write compatibility
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture

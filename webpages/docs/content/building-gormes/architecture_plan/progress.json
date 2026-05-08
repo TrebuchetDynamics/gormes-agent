@@ -25661,6 +25661,74 @@
               }
             },
             {
+              "name": "Teams pipeline plugin CLI metadata + disabled runtime inventory",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes records Hermes' new `teams_pipeline` first-party plugin as inert metadata: the manifest loads as a disabled bundled plugin, `ctx.register_cli_command(name=\"teams-pipeline\")` is exposed as a disabled `cli_command` capability, the Teams/Graph runtime is reported unavailable until explicit runtime rows exist, and metadata discovery never imports plugin Python, builds Graph clients, reads live MSGRAPH/TEAMS credentials, or sends Teams delivery.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Operators can see that the Teams pipeline plugin and its `teams-pipeline` CLI surface exist, but every capability carries teams_pipeline_runtime_unavailable / graph_credentials_required / teams_delivery_target_required evidence instead of pretending Graph subscriptions, meeting transcript fetch, Notion sync, or Teams summary delivery work in Go.",
+              "fixture": "internal/plugins/teams_pipeline_plugin_test.go",
+              "source_refs": [
+                "./hermes-agent/plugins/teams_pipeline/plugin.yaml@968082707",
+                "./hermes-agent/plugins/teams_pipeline/__init__.py@968082707:register_cli_command",
+                "./hermes-agent/plugins/teams_pipeline/runtime.py@968082707:build_pipeline_runtime_config,bind_gateway_runtime",
+                "./hermes-agent/tests/hermes_cli/test_teams_pipeline_plugin_cli.py@968082707",
+                "./hermes-agent/tests/gateway/test_teams_pipeline_runtime_wiring.py@968082707",
+                "./hermes-agent/tests/plugins/test_teams_pipeline_plugin.py@968082707",
+                "internal/plugins/loader.go",
+                "internal/plugins/types.go"
+              ],
+              "ready_when": [
+                "Plugin SDK and Hermes plugin CLI lifecycle parity are complete, so metadata-only plugin rows and operator CLI inventory can be represented without executing plugin code.",
+                "The completed Microsoft Teams adapter plugin seam provides channel metadata, but this row does not add live Bot Framework, Graph, Notion, transcript, subscription, or scheduler runtime.",
+                "Tests use synthetic plugin files under t.TempDir and do not read MSGRAPH_CLIENT_ID, TEAMS_GRAPH_ACCESS_TOKEN, TEAMS_DELIVERY_MODE, or live plugin roots."
+              ],
+              "not_ready_when": [
+                "The slice registers a real `gormes teams-pipeline` command, calls Microsoft Graph, builds subscriptions, fetches transcripts, writes Notion pages, or sends Teams summaries.",
+                "Metadata discovery imports Python modules, executes `register(ctx)`, or requires the Teams platform adapter to be configured.",
+                "The plugin is treated as loaded/enabled by default or its runtime errors are hidden from status evidence."
+              ],
+              "unblocks": [
+                "Teams pipeline durable store and list/show CLI",
+                "Teams pipeline Graph subscription maintenance CLI",
+                "Teams pipeline gateway notification scheduler binding"
+              ],
+              "acceptance": [
+                "TestTeamsPipelinePluginMetadata_LoadsManifest proves the upstream manifest name, version, author, kind, platforms, and disabled state round-trip without runtime execution.",
+                "TestTeamsPipelinePluginMetadata_CLICommandCapability proves `register_cli_command(name=\"teams-pipeline\")` becomes a disabled `cli_command` capability with execution_disabled and teams_pipeline_runtime_unavailable evidence.",
+                "TestTeamsPipelinePluginMetadata_RuntimeEvidence proves plugin status records Graph credential, Teams delivery target, and runtime-unavailable evidence without reading live env vars or Graph config.",
+                "TestTeamsPipelinePluginMetadata_NoToolInventory proves this plugin adds no model-visible tools and does not widen default toolsets."
+              ],
+              "write_scope": [
+                "internal/plugins/types.go",
+                "internal/plugins/loader.go",
+                "internal/plugins/teams_pipeline_plugin.go",
+                "internal/plugins/teams_pipeline_plugin_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/plugins -run '^TestTeamsPipelinePluginMetadata' -count=1",
+                "go test ./internal/plugins -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Teams pipeline plugin metadata fixtures prove manifest and CLI command inventory are visible but disabled, with runtime/Graph/Teams delivery evidence and no plugin runtime execution."
+              ],
+              "note": "2026-05-08 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes 968082707 and progress.json. Planned rows were 38, so one new source-backed row is allowed. CLI/TUI, provider/auth, Goncho, install/runtime, browser, docs, and release rows are either complete, blocked/draft, umbrella-only, or lower-risk for this cycle; the fresh upstream drift is Teams pipeline plugin runtime/operator CLI work in 07bbd9333..968082707. The completed Teams channel seam and plugin lifecycle rows make the first safe slice metadata-only: expose the plugin and its operator CLI command as disabled inventory before any Graph subscription, transcript, Notion, or Teams delivery runtime. Complete: TDD added generic plugin `cli_command` capability parsing from `ctx.register_cli_command(...)` and a Teams pipeline metadata loader with runtime-unavailable, Graph-credential, and Teams-delivery-target evidence. Fixtures prove the upstream manifest, `teams-pipeline` operator CLI inventory, disabled runtime state, and no model-visible tools without importing Python, reading live MSGRAPH/TEAMS env, building Graph clients, fetching transcripts, writing Notion, or sending Teams summaries.",
+              "evidence": [
+                "RED: go test ./internal/plugins -run '^TestTeamsPipelinePluginMetadata' -count=1 failed on missing TeamsPipelinePluginYAML, LoadTeamsPipeline, CapabilityCLICommand, and Teams pipeline evidence constants.",
+                "GREEN: internal/plugins now parses register_cli_command metadata as disabled cli_command capabilities and LoadTeamsPipeline augments the teams_pipeline plugin with teams_pipeline_runtime_unavailable, graph_credentials_required, and teams_delivery_target_required evidence.",
+                "VALIDATION: go test ./internal/plugins -run '^TestTeamsPipelinePluginMetadata' -count=1 PASS; go test ./internal/plugins -count=1 PASS; go run ./cmd/progress validate PASS; git diff --check PASS."
+              ]
+            },
+            {
               "name": "Goncho Honcho plugin session config + async write compatibility",
               "priority": "P1",
               "status": "complete",
