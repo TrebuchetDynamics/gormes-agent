@@ -392,6 +392,7 @@ type GatewayCfg struct {
 }
 
 type DisplayCfg struct {
+	Language            string                        `toml:"language" yaml:"language"`
 	ToolProgress        string                        `toml:"tool_progress" yaml:"tool_progress"`
 	ToolProgressCommand bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
 	Platforms           map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
