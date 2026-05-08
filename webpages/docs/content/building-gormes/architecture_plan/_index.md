@@ -1196,7 +1196,7 @@ classification and row-backed implementation queue.
 - [x] Yuanbao gateway runtime + toolset registration
 - [x] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
-- [ ] Google Chat shared-chassis platform adapter seam
+- [x] Google Chat shared-chassis platform adapter seam
 
 ## Phase 8 — Reputation & Publication 🔨
 

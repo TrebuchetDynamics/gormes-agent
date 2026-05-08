@@ -45887,66 +45887,64 @@
             {
               "name": "Google Chat shared-chassis platform adapter seam",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
-                "origin_type": "upstream"
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:839cdd1b0 plugins/platforms/google_chat/adapter.py",
+                "note": "Hermes exposes Google Chat as a bundled platform plugin; Gormes mirrors the first fakeable channel seam before live Pub/Sub/Chat REST/OAuth binding."
               },
-              "contract": "Gormes registers a Google Chat platform adapter on the shared bot chassis (parallel to the Microsoft Teams adapter plugin seam at 7.E), exposes a minimal in-bound message envelope normalizer and a delivery seam, and passes the gateway-platform compliance fixture. Real Workspace transport wiring is a follow-up row. Mirrors Hermes v0.13.0 PRs #21306, #21331.",
-              "contract_status": "draft",
+              "contract": "Gormes exposes a Google Chat platform adapter seam parallel to the completed Microsoft Teams channel seam: plugin metadata, a minimal Pub/Sub/CloudEvents message normalizer, and a fakeable delivery boundary live in `internal/channels/googlechat`. Real Pub/Sub, Chat REST, OAuth, and attachment transport wiring remain follow-up rows.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
                 "operator",
                 "gateway"
               ],
-              "degraded_mode": "Without the seam, Google Chat events have no in-Gormes route; with the seam but no transport, dispatch returns transport_not_configured evidence instead of dropping events silently.",
-              "fixture": "internal/gateway/googlechat/adapter_test.go",
+              "degraded_mode": "Without the seam, Google Chat events have no in-Gormes route; with the seam but no transport, dispatch returns googlechat_transport_not_configured evidence instead of dropping events silently.",
+              "fixture": "internal/channels/googlechat/runtime_test.go",
               "source_refs": [
-                "hermes-agent/RELEASE_v0.13.0.md",
-                "hermes-agent/gateway/google_chat/",
-                "hermes-agent/website/docs/user-guide/messaging/google_chat.md",
-                "internal/gateway/"
+                "hermes-agent/plugins/platforms/google_chat/adapter.py@839cdd1b0:GoogleChatAdapter,register,_extract_message_payload,_dispatch_message,send_message",
+                "hermes-agent/plugins/platforms/google_chat/plugin.yaml@839cdd1b0:requires_env/optional_env",
+                "hermes-agent/tests/gateway/test_google_chat.py@839cdd1b0:platform registration, env loading, envelope extraction, delivery, allowed users",
+                "internal/channels/teams/runtime.go",
+                "internal/gateway/channel.go"
               ],
               "ready_when": [
-                "7.E `Microsoft Teams adapter plugin seam` is complete and provides a reference shape for shared-chassis adapter rows.",
-                "Shared bot chassis exposes adapter-registration and event-normalizer seams reachable from tests.",
-                "A fake Google Chat event payload fixture exists derived from upstream test fixtures."
+                "The Microsoft Teams adapter plugin seam is complete and provides a reference shape for shared-chassis adapter rows.",
+                "gateway.InboundEvent and gateway.Channel are available as the channel-neutral seam.",
+                "A fake Google Chat event payload fixture is derived from current Hermes google_chat plugin tests."
               ],
               "not_ready_when": [
-                "The slice ships a real Google Workspace transport (Pub/Sub or HTTPS event) in this row.",
+                "The slice ships a real Google Workspace transport, Pub/Sub subscriber, Chat REST client, OAuth helper, or attachment downloader in this row.",
                 "Adapter registration silently overrides the existing Teams adapter or otherwise mutates other adapters' state.",
-                "Event normalizer collapses Google Chat thread IDs into Slack-shaped IDs without distinct fixture coverage."
+                "Event normalizer collapses Google Chat space/thread/message IDs into Slack-shaped IDs without distinct fixture coverage."
               ],
-              "blocked_by": [
-                "Microsoft Teams adapter plugin seam"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Google Chat Workspace transport binding",
                 "Google Chat approval keyboard parity"
               ],
               "acceptance": [
-                "TestGoogleChatAdapter_RegisterOnSharedChassis proves the adapter registers under the platform key 'google_chat' and is discoverable via the shared chassis registry.",
-                "TestGoogleChatAdapter_NormalizeInboundEvent proves a captured upstream-shaped event JSON is normalized into the Gormes inbound envelope (channel, thread, sender, text, attachments).",
-                "TestGoogleChatAdapter_DeliveryWithoutTransport proves the delivery seam returns transport_not_configured evidence rather than dropping the message.",
-                "TestGoogleChatAdapter_FollowsTeamsSeamPattern proves the adapter shape matches the Teams seam reference (registration call, event-normalizer signature, delivery seam signature)."
+                "TestGoogleChatPluginMetadataMatchesHermesPlugin proves the platform key, label, required env vars, allowed-user env vars, and install hint match the Hermes plugin metadata.",
+                "TestGoogleChatNormalizePubSubMessage proves an upstream-shaped Pub/Sub/CloudEvents payload normalizes into a Gormes inbound envelope with platform, space, thread, sender, text, and message ID preserved.",
+                "TestGoogleChatDeliveryWithoutTransport proves the delivery seam returns googlechat_transport_not_configured evidence rather than dropping the message.",
+                "TestGoogleChatFollowsTeamsSeamPattern proves the adapter shape matches the Teams seam reference: metadata function, event normalizer, gateway.Channel implementation, and fake-client delivery seam."
               ],
               "write_scope": [
-                "internal/gateway/googlechat/adapter.go",
-                "internal/gateway/googlechat/normalize.go",
-                "internal/gateway/googlechat/adapter_test.go",
-                "internal/gateway/registry.go",
+                "internal/channels/googlechat/runtime.go",
+                "internal/channels/googlechat/runtime_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/gateway/googlechat -count=1",
-                "go test ./internal/gateway -count=1",
+                "go test ./internal/channels/googlechat -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "Google Chat adapter is registered on the shared chassis, the inbound event normalizer round-trips an upstream-shaped fixture, and the delivery seam emits transport_not_configured evidence when no transport is wired."
+                "Google Chat channel seam exposes Hermes-compatible plugin metadata, the inbound event normalizer round-trips an upstream-shaped fixture, and the delivery seam emits googlechat_transport_not_configured evidence when no transport is wired."
               ],
-              "note": "Source: Hermes v0.13.0 (v2026.5.7) PRs #21306 (Google Chat 20th platform) and #21331 (generic platform-plugin hooks surface, IRC and Teams migrated). First slice mirrors the Teams adapter plugin seam pattern; transport binding is a separate row."
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 40, so no new P3/P4 rows were added. The sweep refreshed stale Google Chat refs from removed `hermes-agent/gateway/google_chat/` to current bundled plugin sources at Hermes 839cdd1b0 and selected this source-backed, unblocked P2 channel seam after P1 docs/release rows remained operator- or release-infra-gated. TDD added `internal/channels/googlechat` with Hermes-compatible plugin metadata, a Pub/Sub/CloudEvents envelope normalizer into `gateway.InboundEvent`, gateway.Channel + ThreadSender implementation over a fakeable client seam, and googlechat_transport_not_configured degraded evidence when no transport is wired. Live Pub/Sub, Chat REST, OAuth, attachment download, setup wizard, and config/gateway registration remain separate rows."
             }
           ],
           "drift_state": {
@@ -46199,8 +46197,8 @@
               "fixture": "webpages/blog/posts/autonomous-hermes-porting-loop.md",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
-                "scripts/codexu-gormes-builder-cron.sh",
-                "scripts/codexu-gormes-builder-loop.sh",
+                "scripts/gormes-builder-cron.sh",
+                "scripts/gormes-builder-loop.sh",
                 "docs/content/building-gormes/architecture_plan/progress.json",
                 "webpages/docs/development-skills/gormes-builder/SKILL.md"
               ],
@@ -46439,8 +46437,8 @@
               "fixture": "internal/loopcost/cost_test.go",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
-                "scripts/codexu-gormes-builder-loop.sh",
-                "scripts/codexu-gormes-builder-cron.sh"
+                "scripts/gormes-builder-loop.sh",
+                "scripts/gormes-builder-cron.sh"
               ],
               "ready_when": [
                 "The runner script captures opencode JSONL output to a per-run file (already true: $LOG_DIR/$RUN_ID.opencode.jsonl).",
@@ -46464,8 +46462,8 @@
               "write_scope": [
                 "internal/loopcost/cost.go",
                 "internal/loopcost/cost_test.go",
-                "scripts/codexu-gormes-builder-loop.sh",
-                "scripts/codexu-gormes-builder-cron.sh",
+                "scripts/gormes-builder-loop.sh",
+                "scripts/gormes-builder-cron.sh",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
