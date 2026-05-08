@@ -42,6 +42,11 @@ JSON payload returned as a role=tool result.
 - Phase 5.K added guarded, shell-only `execute_code` snippets with
   timeout/output caps, pre-exec filesystem/network blocking, and Python runtime
   hardline blocking at the terminal boundary.
+- Phase 5.R added config-driven `execute_code` mode selection. Gormes defaults
+  to `strict`, which runs shell snippets from a guarded temp directory.
+  `project` is an explicit opt-in via `[code_execution].mode = "project"` and
+  runs from the session working directory while preserving the same
+  filesystem/network guard and blocked-result envelope.
 - Phase 5.L now exposes the first Hermes-style local task tools by default:
   `read_file`, `search_files`, `write_file`, `patch`, and a foreground-only
   guarded `terminal`.
@@ -65,7 +70,7 @@ registration. See [Phase 2](../../architecture_plan/phase-2-gateway/) and
 
 | Family | Current state | Remaining parity |
 |---|---|---|
-| `execute_code` | Guarded local shell snippets with caps and blocking policy; Python runtimes are not exposed | project/strict modes, helper parity without a Python child runtime, broader sandbox backends |
+| `execute_code` | Guarded local shell snippets with caps and blocking policy; `strict` is the default and `project` is config opt-in; Python runtimes are not exposed | helper parity without a Python child runtime, broader sandbox backends |
 | `read_file` | Workspace-rooted text read, line-numbered pagination, duplicate-read status suppression, symlink escape denial | full Hermes file-state integration and checkpoint restore linkage |
 | `search_files` | Workspace-rooted content and file-name search | ripgrep-level output modes, backend cwd tracking, large-result artifact storage |
 | `write_file` / `patch` | Workspace-rooted full writes and replace-mode patch with read-status guardrails | fuzzy matching strategies, V4A multi-file patch mode, syntax/lint hooks, rollback |

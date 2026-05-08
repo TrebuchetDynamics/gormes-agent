@@ -59,6 +59,52 @@ func TestLoad_BuiltinDefaults(t *testing.T) {
 	if !cfg.TUI.MouseTracking {
 		t.Error("default TUI mouse tracking = false, want true")
 	}
+	if cfg.CodeExecution.Mode != "strict" {
+		t.Errorf("default CodeExecution.Mode = %q, want strict", cfg.CodeExecution.Mode)
+	}
+}
+
+func TestLoad_CodeExecutionModeConfig(t *testing.T) {
+	t.Run("toml config", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+		t.Setenv("GORMES_CODE_EXECUTION_MODE", "strict")
+		dir := filepath.Join(cfgHome, "gormes")
+		_ = os.MkdirAll(dir, 0o755)
+		_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[code_execution]
+mode = "project"
+`), 0o644)
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.CodeExecution.Mode != "project" {
+			t.Fatalf("CodeExecution.Mode = %q, want project from config.toml", cfg.CodeExecution.Mode)
+		}
+	})
+
+	t.Run("yaml fallback", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+		dir := filepath.Join(cfgHome, "gormes")
+		_ = os.MkdirAll(dir, 0o755)
+		_ = os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(`
+code_execution:
+  mode: project
+`), 0o644)
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.CodeExecution.Mode != "project" {
+			t.Fatalf("CodeExecution.Mode = %q, want project from config.yaml", cfg.CodeExecution.Mode)
+		}
+	})
 }
 
 func TestLoad_TUIMouseTrackingDefaultsOnWhenTUISectionOmitsIt(t *testing.T) {

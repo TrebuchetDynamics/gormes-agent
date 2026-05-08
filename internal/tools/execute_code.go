@@ -29,6 +29,16 @@ const (
 	ExecuteCodeModeStrict  ExecuteCodeMode = "strict"
 )
 
+const DefaultExecuteCodeMode = ExecuteCodeModeStrict
+
+type ExecuteCodeToolConfig struct {
+	ConfigSet      bool
+	ConfigValue    any
+	DefaultMode    ExecuteCodeMode
+	StrictSandbox  CodeSandbox
+	ProjectSandbox CodeSandbox
+}
+
 type ExecuteCodeModeResolverInput struct {
 	ConfigSet   bool
 	ConfigValue any
@@ -141,14 +151,31 @@ type CodeSandbox interface {
 // ExecuteCodeTool ports the upstream execute_code surface to Go.
 type ExecuteCodeTool struct {
 	Sandbox          CodeSandbox
+	Mode             ExecuteCodeMode
+	ModeEvidence     []ExecuteCodeModeEvidence
 	DefaultTimeout   time.Duration
 	DefaultStdoutCap int
 	DefaultStderrCap int
 }
 
-func NewExecuteCodeTool() *ExecuteCodeTool {
+func NewExecuteCodeTool(configs ...ExecuteCodeToolConfig) *ExecuteCodeTool {
+	cfg := ExecuteCodeToolConfig{}
+	if len(configs) > 0 {
+		cfg = configs[0]
+	}
+	defaultMode := cfg.DefaultMode
+	if strings.TrimSpace(string(defaultMode)) == "" {
+		defaultMode = DefaultExecuteCodeMode
+	}
+	resolution := ResolveExecuteCodeMode(ExecuteCodeModeResolverInput{
+		ConfigSet:   cfg.ConfigSet,
+		ConfigValue: cfg.ConfigValue,
+		Default:     defaultMode,
+	})
 	return &ExecuteCodeTool{
-		Sandbox:          NewLocalCodeSandbox(),
+		Sandbox:          sandboxForExecuteCodeMode(resolution.Mode, cfg),
+		Mode:             resolution.Mode,
+		ModeEvidence:     append([]ExecuteCodeModeEvidence(nil), resolution.Evidence...),
 		DefaultTimeout:   defaultExecuteCodeTimeout,
 		DefaultStdoutCap: defaultExecuteCodeStdoutLimit,
 		DefaultStderrCap: defaultExecuteCodeStderrLimit,
@@ -157,12 +184,32 @@ func NewExecuteCodeTool() *ExecuteCodeTool {
 
 func (*ExecuteCodeTool) Name() string { return "execute_code" }
 
-func (*ExecuteCodeTool) Description() string {
-	return "Run a short POSIX shell snippet in a guarded local sandbox with output caps, timeout handling, and filesystem/network guards."
+func (t *ExecuteCodeTool) Description() string {
+	switch t.Mode {
+	case ExecuteCodeModeProject:
+		return "Run a short POSIX shell snippet from the session working directory with output caps, timeout handling, and filesystem/network guards."
+	default:
+		return "Run a short POSIX shell snippet in a guarded temp directory with output caps, timeout handling, and filesystem/network guards."
+	}
 }
 
 func (*ExecuteCodeTool) Schema() json.RawMessage {
 	return json.RawMessage(`{"type":"object","properties":{"language":{"type":"string","enum":["sh","shell"],"description":"optional runtime to use (defaults to sh)"},"code":{"type":"string","description":"POSIX shell snippet to execute"},"timeout_ms":{"type":"integer","description":"optional per-run timeout in milliseconds"},"stdout_limit_bytes":{"type":"integer","description":"optional stdout capture cap in bytes"},"stderr_limit_bytes":{"type":"integer","description":"optional stderr capture cap in bytes"}},"required":["code"]}`)
+}
+
+func sandboxForExecuteCodeMode(mode ExecuteCodeMode, cfg ExecuteCodeToolConfig) CodeSandbox {
+	switch mode {
+	case ExecuteCodeModeProject:
+		if cfg.ProjectSandbox != nil {
+			return cfg.ProjectSandbox
+		}
+		return NewProjectModeSandbox()
+	default:
+		if cfg.StrictSandbox != nil {
+			return cfg.StrictSandbox
+		}
+		return NewStrictModeSandbox()
+	}
 }
 
 func (t *ExecuteCodeTool) Timeout() time.Duration {
@@ -209,7 +256,7 @@ func (t *ExecuteCodeTool) Execute(ctx context.Context, args json.RawMessage) (js
 
 	sandbox := t.Sandbox
 	if sandbox == nil {
-		sandbox = NewLocalCodeSandbox()
+		sandbox = sandboxForExecuteCodeMode(t.Mode, ExecuteCodeToolConfig{})
 	}
 	result, err := sandbox.Execute(ctx, req)
 	if err != nil {

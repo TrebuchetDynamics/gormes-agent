@@ -42653,18 +42653,95 @@
             },
             {
               "name": "Default mode selection + config cut-over",
-              "status": "planned",
-              "note": "TDD slice 4 of 4: pick and document Gormes' default mode (recommend `strict` given the self-hosted security-first posture, with `project` opt-in via config). Wire the resolver into `NewExecuteCodeTool` so callers get the right mode without per-call arguments, add a regression test that the 5.K `Sandboxed exec` blocked-result envelope is byte-identical across modes, and update the rationale in `docs/content/building-gormes/core-systems/tool-execution.md` so operators understand the trade-off before flipping the default.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Gormes cuts execute_code over to config-driven project/strict mode selection without exposing Python execution: [code_execution].mode in config.toml (or code_execution.mode in config.yaml fallback) selects project or strict via the existing resolver, the built-in default is Gormes-owned strict for the current shell-only sandbox, project mode remains opt-in, invalid config falls back to strict with redacted evidence, and the 5.K blocked-result envelope stays byte-identical across modes.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Invalid or empty code_execution.mode values select strict mode with execute_code_mode_invalid evidence; no tool execution, cwd selection, interpreter probing, or live config mutation is needed to report the degraded state.",
+              "fixture": "internal/tools/execute_code_mode_cutover_test.go; internal/config/config_test.go; cmd/gormes/registry_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/code_execution_tool.py@a54cae60d:_get_execution_mode",
+                "./hermes-agent/tools/code_execution_tool.py@a54cae60d:build_execute_code_schema",
+                "./hermes-agent/tools/code_execution_tool.py@a54cae60d:_resolve_child_cwd",
+                "./hermes-agent/tests/tools/test_code_execution_modes.py@a54cae60d:TestGetExecutionMode",
+                "./hermes-agent/tests/tools/test_code_execution_modes.py@a54cae60d:TestModeAwareSchema",
+                "internal/tools/execute_code.go:ResolveExecuteCodeMode",
+                "internal/tools/execute_code_strict_mode.go:StrictModeBlockedEnvelopeShape",
+                "internal/tools/execute_code_project_mode.go:NewProjectModeSandbox",
+                "cmd/gormes/registry.go:buildDefaultRegistry",
+                "docs/content/building-gormes/core-systems/tool-execution.md"
+              ],
+              "ready_when": [
+                "Execution-mode resolver + config precedence is complete.",
+                "Strict-mode CWD + interpreter parity is complete and the 5.K blocked-result envelope is fixture-locked.",
+                "Project-mode CWD + active venv detection is complete.",
+                "Tests can inject config values, cwd hooks, and fake shell lookup without reading live operator homes or running Python."
+              ],
               "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+                "The slice exposes Python execution, changes the hardline Python-runtime block, adds an env-var override, or starts a container/cloud sandbox.",
+                "The slice changes filesystem/network guard wording or removes status/error/filesystem_access/network_access from blocked results.",
+                "The slice treats Hermes' project default as mandatory instead of recording Gormes' strict-by-default divergence for the current shell-only implementation."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "acceptance": [
+                "TestLoad_CodeExecutionModeConfig proves [code_execution].mode loads from config.toml and code_execution.mode loads from config.yaml fallback, with no env override.",
+                "TestExecuteCodeToolModeCutoverDefaultStrict proves NewExecuteCodeTool defaults to strict and reports strict mode evidence without changing the blocked-result envelope.",
+                "TestExecuteCodeToolModeCutoverProjectOptIn proves a project config selects ProjectModeSandbox and executes from TERMINAL_CWD through injected hooks.",
+                "TestExecuteCodeToolModeCutoverInvalidConfigFallsBackStrict proves invalid config records execute_code_mode_invalid evidence and keeps strict sandbox behavior.",
+                "TestBuildDefaultRegistryPassesExecuteCodeMode proves buildDefaultRegistry threads config.CodeExecution.Mode into the registered execute_code tool.",
+                "tool-execution.md explains strict is the Gormes default while project remains an opt-in parity mode."
+              ],
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "internal/tools/execute_code.go",
+                "internal/tools/execute_code_mode_cutover_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/core-systems/tool-execution.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run TestLoad_CodeExecutionModeConfig -count=1",
+                "go test ./internal/tools -run 'TestExecuteCodeToolModeCutover|TestStrictMode|TestProjectMode|TestExecuteCodeModeResolver' -count=1",
+                "go test ./cmd/gormes -run TestBuildDefaultRegistryPassesExecuteCodeMode -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Execute-code mode selection is config-driven in the default registry, strict is the current safe default, project mode remains opt-in and tested, invalid config is redacted, and docs record the Gormes-owned default-mode divergence."
               ],
-              "priority": "P2"
+              "evidence": {
+                "implementation": [
+                  "internal/config/config.go:CodeExecutionCfg",
+                  "internal/tools/execute_code.go:ExecuteCodeToolConfig",
+                  "internal/tools/execute_code.go:NewExecuteCodeTool",
+                  "cmd/gormes/registry.go:buildDefaultRegistry",
+                  "docs/content/building-gormes/core-systems/tool-execution.md"
+                ],
+                "tests": [
+                  "internal/config/config_test.go:TestLoad_CodeExecutionModeConfig",
+                  "internal/tools/execute_code_mode_cutover_test.go:TestExecuteCodeToolModeCutoverDefaultStrict",
+                  "internal/tools/execute_code_mode_cutover_test.go:TestExecuteCodeToolModeCutoverProjectOptIn",
+                  "internal/tools/execute_code_mode_cutover_test.go:TestExecuteCodeToolModeCutoverInvalidConfigFallsBackStrict",
+                  "cmd/gormes/registry_test.go:TestBuildDefaultRegistryPassesExecuteCodeMode"
+                ],
+                "verification": [
+                  "RED: go test ./internal/config -run TestLoad_CodeExecutionModeConfig -count=1 failed on missing Config.CodeExecution.",
+                  "RED: go test ./internal/tools -run 'TestExecuteCodeToolModeCutover|TestStrictMode|TestProjectMode|TestExecuteCodeModeResolver' -count=1 failed on missing ExecuteCodeToolConfig and Mode fields.",
+                  "RED: go test ./cmd/gormes -run TestBuildDefaultRegistryPassesExecuteCodeMode -count=1 failed on missing registry config wiring.",
+                  "GREEN: go test ./internal/config -run TestLoad_CodeExecutionModeConfig -count=1 -> ok.",
+                  "GREEN: go test ./internal/tools -run 'TestExecuteCodeToolModeCutover|TestStrictMode|TestProjectMode|TestExecuteCodeModeResolver' -count=1 -> ok.",
+                  "GREEN: go test ./cmd/gormes -run TestBuildDefaultRegistryPassesExecuteCodeMode -count=1 -> ok.",
+                  "GREEN: go test ./internal/config ./internal/tools ./cmd/gormes -count=1 -> ok."
+                ]
+              },
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a54cae60d and progress.json. Planned rows were 31, so no new row was needed. P1 docs/release rows remain operator- or infra-gated; most P2 rows are umbrella-only or blocked. This row was selected as the highest-priority builder-ready parity slice because its resolver, strict-mode, and project-mode prerequisite rows were complete, and current Hermes test_code_execution_modes.py still makes code_execution.mode the active project/strict contract. TDD added [code_execution].mode config loading, strict-by-default ExecuteCodeTool mode selection, project-mode opt-in through the default registry, invalid-mode redacted evidence, and docs for the Gormes-owned strict default. Python execution, env-var mode overrides, cloud/container backends, and filesystem/network guard changes remain out of scope."
             }
           ],
           "drift_state": {

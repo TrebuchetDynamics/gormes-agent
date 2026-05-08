@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 79/100 subphases shipped · 17 in progress · 4 planned
+**Overall:** 80/100 subphases shipped · 16 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 13/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 14/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -1048,12 +1048,12 @@ classification and row-backed implementation queue.
 - [x] API server legacy jobs routes + default toolset
 - [x] Provider client lazy-init for TUI cold-start budget
 
-### 5.R — Code Execution Mode Policy 🔨
+### 5.R — Code Execution Mode Policy ✅
 
 - [x] Execution-mode resolver + config precedence
 - [x] Strict-mode CWD + interpreter parity
 - [x] Project-mode CWD + active venv detection
-- [ ] Default mode selection + config cut-over
+- [x] Default mode selection + config cut-over
 
 ### 5.S — Loop Detection ✅
 
