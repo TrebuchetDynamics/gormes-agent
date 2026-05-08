@@ -44,13 +44,23 @@ Gormes runtime; `fixture-backed` means covered by local tests or fake clients;
 
 ## Quick Install
 
+**Linux, macOS, WSL2:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
 ```
 
-Works on Linux, macOS, and WSL2. The installer clones a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Pass `GORMES_SKIP_SETUP=1` to defer that wizard.
+**Windows (native PowerShell):**
 
-> **Windows:** Native Windows is not supported. Please install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) and run the command above.
+```powershell
+irm https://gormes.ai/install.ps1 | iex
+```
+
+Both installers clone a managed checkout, build the `gormes` command from source, verify `gormes version`, run `gormes doctor --offline`, then start `gormes setup` when a terminal is available. Pass `GORMES_SKIP_SETUP=1` to defer that wizard.
+
+> **Inspect first:** download `install.sh` (or `install.ps1`) from the URL above, read it, then run it. Both scripts are user-scoped — no root or admin install paths.
+
+> Prefer Linux on Windows? [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) plus the bash command above also works.
 
 After installation:
 

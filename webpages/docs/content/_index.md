@@ -15,11 +15,11 @@ Gormes runs AI agents from one Go-native runtime.
 
 No Python runtime. No virtualenv repair. No backend service just to open the UI.
 
-Choose source build or `install.sh`, prove the machine offline, then add provider and gateway credentials.
+Choose source build, `install.sh` (Linux/macOS/WSL2), or `install.ps1` (native Windows), prove the machine offline, then add provider and gateway credentials.
 
 ## Get started
 
-Use one of the two promoted install paths.
+Use one of the three promoted install paths.
 
 Build from source:
 
@@ -32,7 +32,7 @@ gormes doctor --offline
 gormes --offline
 ```
 
-Or inspect and run `install.sh`:
+Or inspect and run `install.sh` on Linux/macOS/WSL2:
 
 ```bash
 curl -fsSLO https://gormes.ai/install.sh
@@ -41,7 +41,16 @@ sh install.sh
 gormes doctor --offline
 ```
 
-After either path, add only what you need:
+Or inspect and run `install.ps1` on native Windows:
+
+```powershell
+irm https://gormes.ai/install.ps1 -OutFile install.ps1
+Get-Content .\install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+gormes doctor --offline
+```
+
+After any path, add only what you need:
 
 ```bash
 gormes setup provider
@@ -59,7 +68,7 @@ What makes it different?
 
 - **Go-native runtime:** native TUI, doctor, onboard/setup, provider turns, tools, memory, dashboard, logs, audits, and configured gateways from one binary.
 - **Offline proof path:** `gormes --offline` and `gormes doctor --offline` work before credentials, network calls, or token spend.
-- **Two install paths:** source build for maximum inspection, or source-backed `install.sh` for a managed checkout that publishes the `gormes` command.
+- **Three install paths:** source build for maximum inspection, source-backed `install.sh` (Linux/macOS/WSL2), or `install.ps1` (native Windows) for a managed checkout that publishes the `gormes` command.
 - **Local SQLite memory ("Goncho"):** sessions and durable context stay local.
 - **Roadmap honesty:** Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity, and release hardening stay visible as active work instead of shipped promises.
 

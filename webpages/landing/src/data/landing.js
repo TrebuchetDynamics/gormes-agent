@@ -94,9 +94,9 @@ export const page = {
     label: 'Read how the loop works ->',
     href: 'https://docs.gormes.ai/building-gormes/architecture_plan/',
   },
-  installHeadline: 'Two install paths. One gormes command.',
+  installHeadline: 'Three install paths. One gormes command.',
   installIntro:
-    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install that publishes the stable gormes command. Both paths keep the first proof offline. No runtime Node or npm is needed to open the native UI.',
+    'Build from source when you want maximum inspection. Use install.sh on Linux/macOS/WSL2 or install.ps1 on native Windows when you want a source-backed managed install that publishes the stable gormes command. All paths keep the first proof offline. No runtime Node or npm is needed to open the native UI.',
   installSteps: [
     {
       label: 'METHOD 1 · BUILD FROM SOURCE',
@@ -104,13 +104,18 @@ export const page = {
         'git clone https://github.com/TrebuchetDynamics/gormes-agent.git\ncd gormes-agent\nmake build\nexport PATH="$PWD/bin:$PATH"\ngormes doctor --offline\ngormes --offline',
     },
     {
-      label: 'METHOD 2 · INSTALL.SH',
+      label: 'METHOD 2 · INSTALL.SH (LINUX, MACOS, WSL2)',
       command:
         'curl -fsSLO https://gormes.ai/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
     },
+    {
+      label: 'METHOD 3 · INSTALL.PS1 (NATIVE WINDOWS)',
+      command:
+        'irm https://gormes.ai/install.ps1 -OutFile install.ps1\nGet-Content .\\install.ps1\npowershell -ExecutionPolicy Bypass -File .\\install.ps1\ngormes doctor --offline',
+    },
   ],
   installFootnote:
-    'Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.',
+    'All paths end at the same gormes command. install.sh and install.ps1 also run gormes setup when a terminal is available.',
   installFootnoteLink: {
     label: 'Read the install docs ->',
     href: 'https://docs.gormes.ai/using-gormes/install/',
@@ -146,10 +151,10 @@ export const page = {
   ],
   trustHeadline: 'Trust posture',
   trustItems: [
-    'Source build and inspectable install.sh are the two promoted scout-release paths.',
+    'Source build, inspectable install.sh (Linux/macOS/WSL2), and install.ps1 (native Windows) are the three promoted scout-release paths.',
     'Offline doctor runs before provider credentials or token spend.',
     'Secrets stay local under the Gormes home, not in the landing workflow.',
-    'install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.',
+    'install.sh and install.ps1 clone or update a managed source checkout, build gormes, verify the command, and can hand off to setup.',
     'Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.',
     'Every autonomous-loop commit passes a validation gate (go test, progress validate, git diff --check) before landing.',
     binaryMeasureLabel,

@@ -209,12 +209,13 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	text := string(body)
 	for _, want := range []string{
 		"Gormes runs AI agents from one Go-native runtime.",
-		"Choose source build or",
+		"Choose source build,",
 		"install.sh",
+		"install.ps1",
 		"What is Gormes?",
 		"Go-native runtime",
 		"Offline proof path",
-		"Two install paths",
+		"Three install paths",
 		"What you can do today",
 		"Support labels",
 		"Runtime-ready",

@@ -55,8 +55,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Developers and operators who want local, inspectable agent infrastructure')).toBeVisible();
   await expect(page.getByText('Teams that require signed enterprise releases, full Hermes parity, voice/TTS, or broad channel parity today.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Trust posture' })).toBeVisible();
-  await expect(page.getByText('Source build and inspectable install.sh are the two promoted scout-release paths.')).toBeVisible();
-  await expect(page.getByText('install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.')).toBeVisible();
+  await expect(page.getByText('Source build, inspectable install.sh (Linux/macOS/WSL2), and install.ps1 (native Windows) are the three promoted scout-release paths.')).toBeVisible();
+  await expect(page.getByText('install.sh and install.ps1 clone or update a managed source checkout, build gormes, verify the command, and can hand off to setup.')).toBeVisible();
   await expect(page.getByText(`Current measured Linux build: ~${landingBenchmarks.binary.size_mb} MB (${landingBenchmarks.binary.last_measured})`)).toBeVisible();
   await expect(page.getByText('Progress and benchmark data sync from repo sources during every landing build.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'What works today' })).toBeVisible();
@@ -91,12 +91,13 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Release checksums, signing, and package-manager lanes')).toBeVisible();
   await expect(page.getByText('Next milestone')).toBeVisible();
   await expect(page.getByText('Production-stable Go-native runtime with signed releases and broader Hermes parity')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Two install paths. One gormes command.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Three install paths. One gormes command.' })).toBeVisible();
   await expect(page.getByText('Build from source when you want maximum inspection.')).toBeVisible();
-  await expect(page.getByText('Use install.sh when you want a source-backed managed install that publishes the stable gormes command.')).toBeVisible();
+  await expect(page.getByText('Use install.sh on Linux/macOS/WSL2 or install.ps1 on native Windows when you want a source-backed managed install that publishes the stable gormes command.')).toBeVisible();
   const installCommands = page.locator('#install pre code');
   const sourceBuildCommand = installCommands.nth(0);
   const installScriptCommand = installCommands.nth(1);
+  const installPS1Command = installCommands.nth(2);
   await expect(sourceBuildCommand).toContainText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git');
   await expect(sourceBuildCommand).toContainText('cd gormes-agent');
   await expect(sourceBuildCommand).toContainText('make build');
@@ -107,6 +108,9 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(installScriptCommand).toContainText('less install.sh');
   await expect(installScriptCommand).toContainText('sh install.sh');
   await expect(installScriptCommand).toContainText('gormes doctor --offline');
+  await expect(installPS1Command).toContainText('https://gormes.ai/install.ps1');
+  await expect(installPS1Command).toContainText('powershell -ExecutionPolicy Bypass -File');
+  await expect(installPS1Command).toContainText('gormes doctor --offline');
   await expect(page.getByRole('heading', { name: 'After offline proof' })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes setup provider', { exact: true })).toBeVisible();
   await expect(page.locator('#install').getByText('gormes --oneshot "hello"', { exact: true })).toBeVisible();
@@ -114,7 +118,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('#install').getByText('./bin/gormes goncho doctor --json', { exact: true })).toHaveCount(0);
   await expect(page.locator('#install').getByText('./bin/gormes')).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);
-  await expect(page.getByText('Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.')).toBeVisible();
+  await expect(page.getByText('All paths end at the same gormes command. install.sh and install.ps1 also run gormes setup when a terminal is available.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Single Binary Runtime' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Offline Proof', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Built-In Doctor' })).toBeVisible();
@@ -137,8 +141,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
-  // Copy buttons require a tiny inline clipboard script — bounded to the two install methods.
-  await expect(page.locator('button.copy-btn')).toHaveCount(2);
+  // Copy buttons require a tiny inline clipboard script — bounded to the three install methods.
+  await expect(page.locator('button.copy-btn')).toHaveCount(3);
 });
 
 // Long-term bulletproof: the page must stay readable as content
@@ -179,10 +183,10 @@ for (const vp of MOBILE_VIEWPORTS) {
     expect(pageOverflow, `page body overflows at ${vp.width}px`).toBeFalsy();
 
     // Copy buttons stay visible + tappable on every supported viewport.
-    // Two install methods: source build and install.sh.
+    // Three install methods: source build, install.sh, and install.ps1.
     const copyButtons = page.locator('button.copy-btn');
-    await expect(copyButtons).toHaveCount(2);
-    for (let i = 0; i < 2; i++) {
+    await expect(copyButtons).toHaveCount(3);
+    for (let i = 0; i < 3; i++) {
       const btn = copyButtons.nth(i);
       await expect(btn).toBeVisible();
       const box = await btn.boundingBox();

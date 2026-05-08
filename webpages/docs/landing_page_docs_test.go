@@ -117,7 +117,7 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 		"Go-native runtime",
 		"## What is Gormes?",
 		"Offline proof path",
-		"Two install paths",
+		"Three install paths",
 		"## Support labels",
 		"Runtime-ready",
 		"## Trust posture",
