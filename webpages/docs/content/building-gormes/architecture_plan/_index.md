@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 72/99 subphases shipped · 22 in progress · 5 planned
+**Overall:** 74/99 subphases shipped · 20 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 9/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -880,16 +880,16 @@ classification and row-backed implementation queue.
 - [x] Navivox host setup apply with transient sudo
 - [x] Gateway auto-resume on restart
 
-### 5.O — Hermes CLI Parity 🔨
+### 5.O — Hermes CLI Parity ✅
 
-- [ ] 49-file CLI tree port
+- [x] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
 - [x] Hermes CLI nested parser inventory refresh
 - [x] Hermes auth command-tree manifest refresh
 - [x] Hermes auth credential-pool command surface
 - [x] Hermes auth OAuth provider adapters
 - [x] Hermes auth Spotify service-provider subcommand
-- [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
+- [x] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
 - [x] CLI deterministic tip selector
 - [x] CLI OpenClaw residue detection and hint text
@@ -906,7 +906,7 @@ classification and row-backed implementation queue.
 - [x] Gateway /reasoning command parser
 - [x] Gateway /reasoning apply + dispatch
 - [x] Busy command guard for compression and long CLI actions
-- [ ] Config, profile, auth, and setup command surfaces
+- [x] Config, profile, auth, and setup command surfaces
 - [x] Gormes agent template reset command
 - [x] Gormes auth bare interactive credential-pool readout
 - [x] Gormes auth status per-provider aggregator
@@ -946,14 +946,14 @@ classification and row-backed implementation queue.
 - [x] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
 - [x] Effective toolset picker dedupes bundled plugin keys
-- [ ] Gateway, platform, webhook, and cron management CLI
+- [x] Gateway, platform, webhook, and cron management CLI
 - [x] WhatsApp top-level pairing wizard shell
 - [x] WhatsApp live Baileys QR pairing wizard
 - [x] Gateway management CLI read-model closeout
 - [x] Gateway mutating-subcommand unavailability stub
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
-- [ ] Diagnostics, backup, logs, and status CLI
+- [x] Diagnostics, backup, logs, and status CLI
 - [x] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
 - [x] Self-update command lifecycle safety
@@ -1055,10 +1055,10 @@ classification and row-backed implementation queue.
 - [x] Transactional tool execution with snapshot/rollback
 - [x] Sandbox isolation depth selection
 
-### 5.V — Unified Event Bus 🔨
+### 5.V — Unified Event Bus ✅
 
 - [x] Event bus core: pub/sub interface + in-process implementation
-- [ ] Gateway channel adapters publish to event bus
+- [x] Gateway channel adapters publish to event bus
 - [x] Gateway outbound sends publish message-sent events
 - [x] Weixin gateway event-bus adapter
 - [x] WeCom gateway event-bus adapter
@@ -1157,7 +1157,7 @@ classification and row-backed implementation queue.
 ### 7.C — Matrix + Mattermost Adapters 🔨
 
 - [x] Threaded text adapter contract suite
-- [ ] Matrix shared-chassis bot seam
+- [x] Matrix shared-chassis bot seam
 - [ ] Matrix self/bridge sender drop helper
 - [ ] Mattermost shared-chassis bot seam
 - [ ] Matrix real client/bootstrap layer

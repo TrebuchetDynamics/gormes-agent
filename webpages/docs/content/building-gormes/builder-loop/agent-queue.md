@@ -69,28 +69,7 @@ selection.
 - Unblocks: Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start
 - Why now: Unblocks Config loader mtime cache for cold start, Tool definitions memoization for cold start, Dangerous-pattern precompilation for cold start.
 
-## 3. Matrix shared-chassis bot seam
-
-- Phase: 7 / 7.C
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Gormes adds a Matrix-specific seam over internal/channels/threadtext before live Matrix auth/sync: normalize room messages into gateway events with canonical thread roots, resolve reply targets for flat vs thread mode, model placeholder/edit/reaction hooks as fakeable callbacks, and preserve mention/free-room/DM gating inputs without importing a Matrix SDK.
-- Trust class: gateway, operator
-- Ready when: Threaded text adapter contract suite is complete., The slice can create internal/channels/matrix with pure structs and fake hook callbacks., Matrix self/bridge sender drop helper remains blocked until this seam exists, so the seam should expose a narrow place for sender filters to attach.
-- Not ready when: The slice logs in, syncs rooms, joins invites, handles E2EE, uploads media, starts network clients, or imports a Matrix SDK., Thread roots are derived from reply message IDs when an explicit Matrix thread root is present., Placeholder/edit/reaction hooks mutate gateway state directly instead of flowing through fakeable before/after callbacks.
-- Degraded mode: Matrix status reports matrix_transport_unavailable while seam fixtures still prove routing, thread, and hook contracts; no live homeserver is required.
-- Fixture: `internal/channels/matrix/seam_test.go`
-- Write scope: `internal/channels/matrix/seam.go`, `internal/channels/matrix/seam_test.go`, `internal/channels/threadtext/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/channels/matrix ./internal/channels/threadtext -run 'TestMatrixSeam\|TestThreadText' -count=1`, `go run ./cmd/progress validate`
-- Done signal: Matrix seam fixtures prove inbound normalization, reply-target modes, mention/free-room inputs, processing hooks, and unchanged threadtext behavior with no Matrix SDK or homeserver.
-- Acceptance: TestMatrixSeamNormalizeInboundThreadRoot proves Matrix room ID, sender, message ID, thread root, reply-to, display name, and text normalize through threadtext without losing canonical thread ID., TestMatrixSeamResolveReplyTargetModes proves flat mode omits thread metadata and thread mode starts from root messages only when configured., TestMatrixSeamMentionAndFreeRoomInputs proves DM/free-room/require-mention decisions are represented as pure inputs without inspecting env at send time., TestMatrixSeamProcessingHooks proves start/complete/failure/cancel callbacks are ordered and fakeable, with cancellation suppressing terminal reactions., Existing internal/channels/threadtext tests remain green.
-- Source refs: ../hermes-agent/gateway/platforms/matrix.py:MatrixAdapter, ../hermes-agent/gateway/platforms/matrix.py:send, ../hermes-agent/gateway/platforms/matrix.py:_handle_text_message, ../hermes-agent/gateway/platforms/matrix.py:on_processing_start, ../hermes-agent/gateway/platforms/matrix.py:on_processing_complete, ../hermes-agent/tests/gateway/test_matrix.py:test_send_reaction, ../hermes-agent/tests/gateway/test_matrix.py:test_on_processing_start_sends_eyes, ../hermes-agent/tests/gateway/test_matrix.py:test_thread, internal/channels/threadtext/contract.go, internal/channels/threadtext/contract_test.go, references/go-agent-os/trpc-agent-go/agent/callbacks.go, references/go-agent-os/trpc-agent-go/model/callbacks.go
-- Unblocks: Matrix self/bridge sender drop helper, Matrix real client/bootstrap layer, Matrix E2EE device-id crypto-store binding
-- Why now: Unblocks Matrix self/bridge sender drop helper, Matrix real client/bootstrap layer, Matrix E2EE device-id crypto-store binding.
-
-## 4. Mattermost shared-chassis bot seam
+## 3. Mattermost shared-chassis bot seam
 
 - Phase: 7 / 7.C
 - Owner: `gateway`
@@ -111,7 +90,7 @@ selection.
 - Unblocks: Mattermost REST/WS bootstrap layer, Mattermost media upload contract
 - Why now: Unblocks Mattermost REST/WS bootstrap layer, Mattermost media upload contract.
 
-## 5. TD engineering blog scaffolded and live
+## 4. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -133,7 +112,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 6. Behavioral pattern extraction from session logs
+## 5. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -153,7 +132,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Agentic-porting-kit repo scaffold
+## 6. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -174,7 +153,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Built-with-Gormes page scaffold
+## 7. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
