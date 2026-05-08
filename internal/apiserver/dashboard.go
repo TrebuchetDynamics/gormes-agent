@@ -162,6 +162,7 @@ func (s *Server) handleDashboardStatus(w http.ResponseWriter, r *http.Request) {
 	extensions := dashboardExtensionsFromInventory(s.pluginInventory)
 
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":           s.buildInfo,
 		"active_sessions": activeSessions,
 		"version":         "gormes-agent",
 		"platform":        "gormes-agent",
@@ -539,11 +540,26 @@ func clonePluginCapabilityStatus(in pluginmeta.CapabilityStatus) pluginmeta.Capa
 }
 
 // DashboardKanbanResponse is the read-only kanban board shape consumed by the
-// authenticated dashboard /api/kanban endpoint.
+// authenticated dashboard /api/kanban endpoint. `Build` carries the
+// configured BuildInfo so fleet automation aggregating Kanban dashboard
+// state across machines can attribute each response to the binary
+// version that emitted it — same convention as /api/status (slice 110)
+// and the rest of the JSON arc.
 type DashboardKanbanResponse struct {
-	Lanes      []DashboardKanbanLane `json:"lanes"`
+	Build      BuildInfo                       `json:"build"`
+	Lanes      []DashboardKanbanLane           `json:"lanes"`
 	Dispatcher DashboardKanbanDispatcherStatus `json:"dispatcher"`
-	TotalTasks int `json:"total_tasks"`
+	TotalTasks int                             `json:"total_tasks"`
+}
+
+// dashboardKanbanTaskResponse wraps a single kanban.Task with build
+// attribution for the per-task dashboard endpoint. The Task fields
+// stay top-level via struct embedding so callers parsing the bare
+// kanban.Task shape continue to work — Go's JSON decoder ignores the
+// unknown `build` field by default.
+type dashboardKanbanTaskResponse struct {
+	Build BuildInfo `json:"build"`
+	kanban.Task
 }
 
 type DashboardKanbanLane struct {
@@ -577,6 +593,7 @@ func (s *Server) handleDashboardKanban(w http.ResponseWriter, r *http.Request) {
 	}
 	lanes := buildKanbanLanes(tasks)
 	writeJSON(w, http.StatusOK, DashboardKanbanResponse{
+		Build: s.buildInfo,
 		Lanes: lanes,
 		Dispatcher: DashboardKanbanDispatcherStatus{
 			Available: false,
@@ -612,6 +629,7 @@ func (s *Server) handleDashboardKanbanTasks(w http.ResponseWriter, r *http.Reque
 		tasks = []kanban.Task{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build": s.buildInfo,
 		"tasks": tasks,
 		"total": len(tasks),
 	})
@@ -642,7 +660,10 @@ func (s *Server) handleDashboardKanbanTaskByID(w http.ResponseWriter, r *http.Re
 			writeOpenAIError(w, http.StatusNotFound, "Task not found: "+taskID, "invalid_request_error", "", "kanban_task_not_found")
 			return
 		}
-		writeJSON(w, http.StatusOK, task)
+		writeJSON(w, http.StatusOK, dashboardKanbanTaskResponse{
+			Build: s.buildInfo,
+			Task:  task,
+		})
 	default:
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 	}

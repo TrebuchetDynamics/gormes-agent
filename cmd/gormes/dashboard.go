@@ -25,6 +25,12 @@ func newDashboardCommand() *cobra.Command {
 			cfg := apiserver.Config{
 				APIKey:             os.Getenv("GORMES_DASHBOARD_API_KEY"),
 				DashboardBoundHost: "127.0.0.1",
+				BuildInfo: apiserver.BuildInfo{
+					Version:   Version,
+					GitCommit: GitCommit,
+					GitDirty:  parseGitDirty(GitDirty),
+					GoVersion: runtime.Version(),
+				},
 			}
 			if cfg.APIKey == "" {
 				cfg.APIKey = "gormes-dashboard-dev"

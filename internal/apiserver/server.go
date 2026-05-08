@@ -70,6 +70,26 @@ type Config struct {
 	// interface. When nil, the kanban dashboard panel is disabled and
 	// endpoints respond with code "kanban_store_unavailable".
 	KanbanStore KanbanStore
+	// BuildInfo carries the binary attribution (semver version, git
+	// commit, dirty flag, Go toolchain) the dashboard /api/status
+	// endpoint surfaces under `build`. Fleet automation querying
+	// dashboards across machines uses this to attribute responses to a
+	// specific binary. Zero-value is safe — fields default to empty
+	// strings and false.
+	BuildInfo BuildInfo
+}
+
+// BuildInfo is the binary attribution payload surfaced by the
+// dashboard /api/status endpoint. cmd/gormes/dashboard.go injects the
+// values from cmd/gormes' Version/Commit/Dirty/GoVersion at server
+// construction time. Same semantic as the CLI's `--json` build
+// envelope — a single source of truth for which binary produced a
+// given response.
+type BuildInfo struct {
+	Version   string `json:"version"`
+	GitCommit string `json:"git_commit"`
+	GitDirty  bool   `json:"git_dirty"`
+	GoVersion string `json:"go_version"`
 }
 
 // KanbanStore is the read-only kanban surface consumed by the dashboard.
@@ -112,6 +132,7 @@ type Server struct {
 	cronTrigger            CronTriggerHandler
 	cronAuditor            CronAdminAuditor
 	kanbanStore            KanbanStore
+	buildInfo              BuildInfo
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -230,6 +251,7 @@ func NewServer(cfg Config) *Server {
 		cronTrigger:           cfg.CronTrigger,
 		cronAuditor:           cfg.CronAdminAuditor,
 		kanbanStore:           cfg.KanbanStore,
+		buildInfo:             cfg.BuildInfo,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
 		logStore:              NewLogStore(200),

@@ -213,6 +213,52 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 	}
 }
 
+// TestDashboardStatus_BuildAttribution proves the dashboard /api/status
+// response carries the configured build version/git commit/dirty
+// flag/Go version so fleet automation querying dashboards across
+// machines can attribute each status response to the binary version
+// that emitted it. Same convention as the rest of the `--json` arc.
+// The configured BuildInfo (zero-value defaults to safe placeholders)
+// must round-trip through `build` at the top of the JSON document.
+func TestDashboardStatus_BuildAttribution(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:    "test-version-1.2.3",
+			GitCommit:  "deadbeef",
+			GitDirty:   true,
+			GoVersion:  "go1.23.0-test",
+		},
+	})
+	status := getJSON(t, srv.Handler(), "/api/status", nil)
+	if status.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want 200; body=%s", status.Code, status.Body.String())
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+			GitDirty  bool   `json:"git_dirty"`
+			GoVersion string `json:"go_version"`
+		} `json:"build"`
+	}
+	if err := json.Unmarshal(status.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if got.Build.Version != "test-version-1.2.3" {
+		t.Errorf("build.version = %q, want test-version-1.2.3", got.Build.Version)
+	}
+	if got.Build.GitCommit != "deadbeef" {
+		t.Errorf("build.git_commit = %q, want deadbeef", got.Build.GitCommit)
+	}
+	if !got.Build.GitDirty {
+		t.Errorf("build.git_dirty = false, want true")
+	}
+	if got.Build.GoVersion != "go1.23.0-test" {
+		t.Errorf("build.go_version = %q, want go1.23.0-test", got.Build.GoVersion)
+	}
+}
+
 func TestDashboardStatus_DegradesMissingNativeAndOptionalPanels(t *testing.T) {
 	srv := NewServer(Config{ModelName: "gormes-agent"})
 	status := getJSON(t, srv.Handler(), "/api/status", nil)

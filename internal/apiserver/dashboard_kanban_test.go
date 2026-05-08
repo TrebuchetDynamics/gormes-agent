@@ -142,6 +142,56 @@ func TestDashboardKanban_PanelInStatus(t *testing.T) {
 	})
 }
 
+// TestDashboardKanban_BuildAttribution proves the dashboard kanban
+// endpoints (`/api/kanban`, `/api/kanban/tasks`, `/api/kanban/tasks/{id}`)
+// each carry the configured BuildInfo at the top of the JSON response
+// so fleet automation aggregating Kanban dashboard state across
+// machines can attribute each response to the binary version that
+// emitted it. Same convention as `/api/status` (slice 110) and the
+// rest of the `--json` arc. Existing top-level fields stay
+// addressable through struct embedding for the typed responses.
+func TestDashboardKanban_BuildAttribution(t *testing.T) {
+	store := &fakeKanbanStore{
+		tasks: []kanban.Task{
+			{ID: "t1", Title: "task one", Status: kanban.StatusTriage},
+		},
+	}
+	srv := NewServer(Config{
+		DashboardSessionToken: "fixture-token",
+		KanbanStore:           store,
+		BuildInfo: BuildInfo{
+			Version:   "test-version-9.9.9",
+			GitCommit: "feedface",
+			GitDirty:  false,
+			GoVersion: "go1.23.0-test",
+		},
+	})
+	h := srv.Handler()
+	auth := map[string]string{"X-Hermes-Session-Token": "fixture-token"}
+
+	for _, path := range []string{"/api/kanban", "/api/kanban/tasks", "/api/kanban/tasks/t1"} {
+		rec := getJSON(t, h, path, auth)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d; body=%s", path, rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+			} `json:"build"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s: decode: %v\nbody=%s", path, err, rec.Body.String())
+		}
+		if got.Build.Version != "test-version-9.9.9" {
+			t.Errorf("%s: build.version = %q, want test-version-9.9.9 (body=%s)", path, got.Build.Version, rec.Body.String())
+		}
+		if got.Build.GitCommit != "feedface" {
+			t.Errorf("%s: build.git_commit = %q, want feedface", path, got.Build.GitCommit)
+		}
+	}
+}
+
 func TestDashboardKanban_OverviewLaneSummary(t *testing.T) {
 	store := &fakeKanbanStore{
 		tasks: []kanban.Task{
