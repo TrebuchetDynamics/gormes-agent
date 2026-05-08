@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,6 +92,101 @@ func TestPluginsCommandListInstallUpdateRemove(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "removed demo-plugin") {
 		t.Fatalf("remove output = %q", stdout)
+	}
+}
+
+// TestPluginsCommandList_JSONEmitsStructuredArray proves
+// `gormes plugins list --json` returns a parseable
+// `{build, plugins: [{name, version, status, source, path, description}]}`
+// document so fleet automation can audit plugin state across machines
+// without scraping tab-separated columns.
+func TestPluginsCommandList_JSONEmitsStructuredArray(t *testing.T) {
+	root := t.TempDir()
+	source := writeCommandPluginFixture(t, "audit-plugin", map[string]string{
+		"plugin.yaml": "name: audit-plugin\nversion: 7.7.7\ndescription: For audit tests\n",
+	})
+	if err := os.Mkdir(filepath.Join(source, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager := plugins.NewLifecycleManager(plugins.LifecycleOptions{
+		UserRoot: filepath.Join(root, "plugins"),
+		Config:   filepath.Join(root, "config.toml"),
+		Runner:   &commandPluginRunner{cloneSource: source, pullOutput: "Already up to date."},
+	})
+
+	stdout, _, err := executePluginsCommandForTest(newPluginsCommandWithManager(manager), "install", "owner/audit-plugin", "--enable")
+	if err != nil {
+		t.Fatalf("install: %v stdout=%s", err, stdout)
+	}
+
+	stdout, stderr, err := executePluginsCommandForTest(newPluginsCommandWithManager(manager), "list", "--json")
+	if err != nil {
+		t.Fatalf("plugins list --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Plugins []struct {
+			Name        string `json:"name"`
+			Version     string `json:"version"`
+			Status      string `json:"status"`
+			Source      string `json:"source"`
+			Path        string `json:"path"`
+			Description string `json:"description"`
+		} `json:"plugins"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("plugins list --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if len(got.Plugins) != 1 {
+		t.Fatalf("plugins len = %d, want 1; got %+v", len(got.Plugins), got.Plugins)
+	}
+	p := got.Plugins[0]
+	if p.Name != "audit-plugin" {
+		t.Errorf("name = %q, want audit-plugin", p.Name)
+	}
+	if p.Version != "7.7.7" {
+		t.Errorf("version = %q, want 7.7.7", p.Version)
+	}
+	if p.Status != "enabled" {
+		t.Errorf("status = %q, want enabled", p.Status)
+	}
+	if p.Path == "" {
+		t.Errorf("path must be populated")
+	}
+}
+
+// TestPluginsCommandList_JSONEmptyEmitsArray proves the empty-state
+// JSON is `{build, plugins: []}` rather than null. Operator scripts
+// iterating the array on every host need a stable empty-list shape.
+func TestPluginsCommandList_JSONEmptyEmitsArray(t *testing.T) {
+	root := t.TempDir()
+	manager := plugins.NewLifecycleManager(plugins.LifecycleOptions{
+		UserRoot: filepath.Join(root, "plugins"),
+		Config:   filepath.Join(root, "config.toml"),
+		Runner:   &commandPluginRunner{},
+	})
+	stdout, _, err := executePluginsCommandForTest(newPluginsCommandWithManager(manager), "list", "--json")
+	if err != nil {
+		t.Fatalf("plugins list --json (empty): %v", err)
+	}
+	var got struct {
+		Plugins []struct{} `json:"plugins"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Plugins == nil {
+		t.Errorf("plugins must be a JSON array (possibly empty), not null")
+	}
+	if !strings.Contains(stdout, "\"plugins\": []") {
+		t.Errorf("empty plugins must marshal as `[]`, not null:\n%s", stdout)
 	}
 }
 

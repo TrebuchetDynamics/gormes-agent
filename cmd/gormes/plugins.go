@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -77,7 +78,7 @@ func newPluginsInstallCommand(manager *plugins.LifecycleManager) *cobra.Command 
 }
 
 func newPluginsListCommand(manager *plugins.LifecycleManager) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "list",
 		Aliases:      []string{"ls"},
 		Short:        "List installed plugins",
@@ -86,6 +87,8 @@ func newPluginsListCommand(manager *plugins.LifecycleManager) *cobra.Command {
 			return runPluginsList(cmd, manager)
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, plugins: [{name, version, status, source, path, description}]}`")
+	return cmd
 }
 
 func newPluginsUpdateCommand(manager *plugins.LifecycleManager) *cobra.Command {
@@ -158,6 +161,29 @@ func runPluginsList(cmd *cobra.Command, manager *plugins.LifecycleManager) error
 	if err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		report := pluginsListReportJSON{
+			Build:   newBuildProvenance(),
+			Plugins: make([]pluginsListEntryJSON, len(entries)),
+		}
+		for i, entry := range entries {
+			report.Plugins[i] = pluginsListEntryJSON{
+				Name:        entry.Name,
+				Version:     entry.Version,
+				Status:      string(entry.Status),
+				Source:      string(entry.Source),
+				Path:        entry.Path,
+				Description: entry.Description,
+			}
+		}
+		body, marshalErr := json.MarshalIndent(report, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
 	if len(entries) == 0 {
 		fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
 		fmt.Fprintln(cmd.OutOrStdout(), "Install with: gormes plugins install owner/repo")
@@ -171,6 +197,24 @@ func runPluginsList(cmd *cobra.Command, manager *plugins.LifecycleManager) error
 		fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", entry.Name, entry.Status, version, entry.Source)
 	}
 	return nil
+}
+
+// pluginsListReportJSON is the wire shape for `plugins list --json`.
+// Fleet automation auditing plugin state across machines parses this
+// to identify drift, missing plugins, or unexpected versions. Build
+// provenance leads — same convention as the rest of the `--json` arc.
+type pluginsListReportJSON struct {
+	Build   buildProvenanceJSON    `json:"build"`
+	Plugins []pluginsListEntryJSON `json:"plugins"`
+}
+
+type pluginsListEntryJSON struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Status      string `json:"status"`
+	Source      string `json:"source"`
+	Path        string `json:"path"`
+	Description string `json:"description"`
 }
 
 type pluginDotEnv struct {
