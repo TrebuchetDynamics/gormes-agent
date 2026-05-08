@@ -14,11 +14,6 @@ import (
 
 const defaultGatewayStopTimeout = 10 * time.Second
 
-func init() {
-	gatewayStopCmd.Flags().Duration("timeout", defaultGatewayStopTimeout, "maximum time to wait for the gateway process to exit")
-	gatewayCmd.AddCommand(gatewayStopCmd)
-}
-
 type gatewayStopRuntimeStore interface {
 	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
 }
@@ -40,11 +35,15 @@ var (
 	gatewayStopPollInterval = 50 * time.Millisecond
 )
 
-var gatewayStopCmd = &cobra.Command{
-	Use:          "stop",
-	Short:        "Stop the live Gormes gateway recorded in runtime status",
-	SilenceUsage: true,
-	RunE:         runGatewayStop,
+func newGatewayStopCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "stop",
+		Short:        "Stop the live Gormes gateway recorded in runtime status",
+		SilenceUsage: true,
+		RunE:         runGatewayStop,
+	}
+	cmd.Flags().Duration("timeout", defaultGatewayStopTimeout, "maximum time to wait for the gateway process to exit")
+	return cmd
 }
 
 func runGatewayStop(cmd *cobra.Command, _ []string) error {

@@ -23,10 +23,6 @@ const (
 	defaultGatewayProbeTimeoutMs    = 1500
 )
 
-func init() {
-	gatewayCmd.AddCommand(newGatewayDiscoverCommand(), newGatewayProbeCommand(), newGatewayUsageCostCommand())
-}
-
 var (
 	newGatewayDiscoverer = func(timeout time.Duration) tools.GatewayDiscoverer {
 		return tools.NewShellGatewayDiscoverer(timeout)

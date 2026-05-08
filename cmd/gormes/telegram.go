@@ -25,16 +25,19 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
-// telegramCmd runs Gormes as a Telegram bot — the adapter previously
-// shipped as the standalone cmd/gormes-telegram binary (Phase 2.B.1
-// through 3.A). Unified into cmd/gormes under the < 100 MB binary
-// ceiling; see the unification commit's message for rationale.
-var telegramCmd = &cobra.Command{
-	Use:          "telegram",
-	Short:        "Run Gormes as a Telegram bot adapter",
-	Long:         "Long-polls Telegram for DMs from the allowlisted chat, drives the same kernel + tool loop as the TUI, and persists turns to the SQLite memory store.",
-	SilenceUsage: true,
-	RunE:         runTelegram,
+// newTelegramCommand returns a fresh telegram bot adapter command.
+// The adapter previously shipped as the standalone cmd/gormes-telegram
+// binary (Phase 2.B.1 through 3.A). Unified into cmd/gormes under the
+// < 100 MB binary ceiling. Constructor pattern keeps each
+// newRootCommand() instance independent.
+func newTelegramCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:          "telegram",
+		Short:        "Run Gormes as a Telegram bot adapter",
+		Long:         "Long-polls Telegram for DMs from the allowlisted chat, drives the same kernel + tool loop as the TUI, and persists turns to the SQLite memory store.",
+		SilenceUsage: true,
+		RunE:         runTelegram,
+	}
 }
 
 func runTelegram(cmd *cobra.Command, _ []string) error {

@@ -13,10 +13,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-func init() {
-	gatewayCmd.AddCommand(gatewayStatusCmd)
-}
-
 type gatewayStatusRuntimeStore interface {
 	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
 }
@@ -25,14 +21,14 @@ var newGatewayStatusRuntimeStore = func(path string) gatewayStatusRuntimeStore {
 	return gateway.NewRuntimeStatusStore(path)
 }
 
-var gatewayStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Inspect configured gateway channels and persisted runtime state",
-	RunE:  runGatewayStatus,
-}
-
-func init() {
-	gatewayStatusCmd.Flags().Bool("json", false, "print gateway status as JSON")
+func newGatewayStatusCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "status",
+		Short: "Inspect configured gateway channels and persisted runtime state",
+		RunE:  runGatewayStatus,
+	}
+	cmd.Flags().Bool("json", false, "print gateway status as JSON")
+	return cmd
 }
 
 func runGatewayStatus(cmd *cobra.Command, _ []string) error {

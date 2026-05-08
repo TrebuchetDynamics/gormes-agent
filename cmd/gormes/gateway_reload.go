@@ -12,10 +12,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-func init() {
-	gatewayCmd.AddCommand(gatewayReloadCmd)
-}
-
 type gatewayReloadRuntimeStore interface {
 	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
 }
@@ -36,11 +32,13 @@ var (
 	}
 )
 
-var gatewayReloadCmd = &cobra.Command{
-	Use:          "reload",
-	Short:        "Reload live Gormes gateway config without restarting",
-	SilenceUsage: true,
-	RunE:         runGatewayReload,
+func newGatewayReloadCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:          "reload",
+		Short:        "Reload live Gormes gateway config without restarting",
+		SilenceUsage: true,
+		RunE:         runGatewayReload,
+	}
 }
 
 func runGatewayReload(cmd *cobra.Command, _ []string) error {

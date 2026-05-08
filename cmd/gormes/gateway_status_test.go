@@ -14,6 +14,30 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
+// TestGatewayCommand_ConstructorReturnsIndependentInstances proves
+// each newGatewayCommand() returns a fresh tree. With 6 real
+// subcommands plus 4 mutating-unavailable placeholders, the parent
+// must own 10 children per call.
+func TestGatewayCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
+	a := newGatewayCommand()
+	b := newGatewayCommand()
+	if a == b {
+		t.Fatal("newGatewayCommand must return distinct instances")
+	}
+	want := 10
+	if got := len(a.Commands()); got != want {
+		t.Fatalf("gateway tree must have %d subcommands; got %d", want, got)
+	}
+	if got := len(b.Commands()); got != want {
+		t.Fatalf("gateway tree must have %d subcommands; got %d", want, got)
+	}
+	for i := range a.Commands() {
+		if a.Commands()[i] == b.Commands()[i] {
+			t.Fatalf("subcommand[%d] %q shared between constructor calls", i, a.Commands()[i].Use)
+		}
+	}
+}
+
 func TestGatewayStatusCommand_NoChannelsSucceedsWithoutOpeningRuntimeClients(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 
@@ -354,9 +378,9 @@ func writeGatewayStatusConfig(t *testing.T, data []byte) {
 
 func executeGatewayStatusCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	if err := gatewayStatusCmd.Flags().Set("json", "false"); err != nil {
-		t.Fatalf("reset gateway status json flag: %v", err)
-	}
+	// Each newRootCommand() builds a fresh gateway tree via
+	// newGatewayCommand(), so the JSON flag's default state is
+	// natural — no explicit reset needed.
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCommand()
 	cmd.SetOut(&stdout)

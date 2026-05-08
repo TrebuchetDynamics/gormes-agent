@@ -32,12 +32,30 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
 )
 
-var gatewayCmd = &cobra.Command{
-	Use:          "gateway",
-	Short:        "Run Gormes as a multi-channel messaging gateway",
-	Long:         "Runs every configured channel through one gateway.Manager that drives the same kernel + tool loop as the TUI.",
-	SilenceUsage: true,
-	RunE:         runGateway,
+// newGatewayCommand returns a fresh gateway command tree (parent +
+// run/stop/reload/status/discover/probe/usage-cost subcommands plus
+// 4 mutating-unavailable placeholders). Constructor pattern eliminates
+// shared package-level FlagSet state across the multi-file tree.
+func newGatewayCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "gateway",
+		Short:        "Run Gormes as a multi-channel messaging gateway",
+		Long:         "Runs every configured channel through one gateway.Manager that drives the same kernel + tool loop as the TUI.",
+		SilenceUsage: true,
+		RunE:         runGateway,
+	}
+	cmd.AddCommand(
+		newGatewayStopCommand(),
+		newGatewayReloadCommand(),
+		newGatewayStatusCommand(),
+		newGatewayDiscoverCommand(),
+		newGatewayProbeCommand(),
+		newGatewayUsageCostCommand(),
+	)
+	for _, name := range gatewayMutatingUnavailableSubcommands {
+		cmd.AddCommand(newGatewayMutatingUnavailableCommand(name))
+	}
+	return cmd
 }
 
 // gatewayMutatingUnavailableExitCode is the stable non-zero exit code surfaced
@@ -51,12 +69,6 @@ var gatewayMutatingUnavailableSubcommands = []string{
 	"restart",
 	"install",
 	"uninstall",
-}
-
-func init() {
-	for _, name := range gatewayMutatingUnavailableSubcommands {
-		gatewayCmd.AddCommand(newGatewayMutatingUnavailableCommand(name))
-	}
 }
 
 func newGatewayMutatingUnavailableCommand(name string) *cobra.Command {
