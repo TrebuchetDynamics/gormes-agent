@@ -47,7 +47,28 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/commands.py@54e78cadb:CommandDef('kanban'), ../hermes-agent/hermes_cli/kanban.py@54e78cadb:run_slash, ../hermes-agent/gateway/run.py@54e78cadb:_handle_kanban_command, ../hermes-agent/plugins/kanban/dashboard@54e78cadb, ../hermes-agent/hermes_cli/kanban_specify.py@24d48ffb8:specify triage fleshing, ../hermes-agent/hermes_cli/kanban_diagnostics.py@7d66d30d7:tooltips + docs link
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 2. TD engineering blog scaffolded and live
+## 2. Nous OAuth device code + refresh token + agent key provisioning
+
+- Phase: 5 / 5.O
+- Owner: `provider`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Gormes ports Hermes' Nous OAuth device code login, refresh token rotation, and agent key minting pipeline. The credential_pool.go already holds the persistence schema (NousOAuthCredentials struct, SaveNousOAuthCredentials), but no actual OAuth handshake or token refresh logic exists. This row adds: (1) browser-based device code login flow matching Hermes' _nous_device_code_login, (2) refresh token rotation via X-Nous-Refresh-Token header matching _refresh_access_token, (3) short-lived (24h) agent API key minting from portal matching _mint_agent_key, and (4) runtime credential resolution orchestrating refresh→mint with retry on stale access tokens matching resolve_nous_runtime_credentials.
+- Trust class: system
+- Ready when: Credential pool persistence schema (NousOAuthCredentials + SaveNousOAuthCredentials) is present and validated., Hermes auth.py upstream contract is read and device-code/refresh/mint flow is understood.
+- Not ready when: The row is skipped before the credential_pool.go schema and the Hermes upstream auth.py contract are reconciled., OAuth device code flow is implemented without redacted fixture coverage matching test_auth_nous_provider.py patterns.
+- Degraded mode: When the Nous OAuth endpoint is unreachable or the refresh token is invalid, operators see a classified OAuth error (device_code_expired, refresh_token_revoked, agent_key_minting_failed) and are guided to re-run auth add nous.
+- Fixture: `internal/hermes/nous_oauth_test.go`
+- Write scope: `internal/hermes/nous_oauth.go`, `internal/hermes/nous_oauth_test.go`, `internal/config/credential_pool.go`, `cmd/gormes/auth.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/hermes -run TestNousOAuth -count=1`, `go test ./internal/config -run TestNousOAuthCredentialPool -count=1`, `go run ./cmd/progress validate`
+- Done signal: Nous OAuth device code login, refresh token rotation, and agent key minting are fixture-backed with redacted test data matching Hermes test_auth_nous_provider.py patterns, and the credential pool round-trips persisted credentials.
+- Acceptance: Device code login fixture proves the browser-based OAuth flow produces a valid access token and refresh token stored via SaveNousOAuthCredentials., Refresh token rotation fixture proves expired access tokens are refreshed via X-Nous-Refresh-Token header and the new token pair is persisted., Agent key minting fixture proves a short-lived agent API key is obtained from the portal after successful refresh., Runtime credential resolution fixture proves resolve flow orchestrates refresh→mint→retry for stale access tokens., Error classification fixture proves device_code_expired, refresh_token_revoked, and agent_key_minting_failed states produce actionable operator guidance.
+- Source refs: ../hermes-agent/hermes_cli/auth.py:_nous_device_code_login, ../hermes-agent/hermes_cli/auth.py:_refresh_access_token, ../hermes-agent/hermes_cli/auth.py:_mint_agent_key, ../hermes-agent/hermes_cli/auth.py:resolve_nous_runtime_credentials, ../hermes-agent/hermes_cli/auth.py:persist_nous_credentials, ../hermes-agent/hermes_cli/auth.py:_shared_nous_store, ../hermes-agent/tests/hermes_cli/test_auth_nous_provider.py, internal/config/credential_pool.go:NousOAuthCredentials, internal/config/credential_pool.go:SaveNousOAuthCredentials, internal/hermes/provider_registry_manifest.go:nous ProviderOwned entry
+- Unblocks: gormes auth add nous CLI command, Nous provider runtime credential resolution, Cross-profile Nous token sync (shared auth store)
+- Why now: Unblocks gormes auth add nous CLI command, Nous provider runtime credential resolution, Cross-profile Nous token sync (shared auth store).
+
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -69,7 +90,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Hermes Kanban multi-board, workspace, and run-history parity
+## 4. Hermes Kanban multi-board, workspace, and run-history parity
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -89,7 +110,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py@54e78cadb:boards/workspace/log/runs/gc commands, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:board registry and workspace helpers, ../hermes-agent/tests/hermes_cli/test_kanban_db.py@54e78cadb:tenant/board/workspace tests, ../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:context/tenant/json tests
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Behavioral pattern extraction from session logs
+## 5. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -109,7 +130,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Agentic-porting-kit repo scaffold
+## 6. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -130,7 +151,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Built-with-Gormes page scaffold
+## 7. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`
