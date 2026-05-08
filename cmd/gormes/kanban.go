@@ -131,6 +131,14 @@ func newKanbanListCommand() *cobra.Command {
 				return err
 			}
 			if jsonOut {
+				// Normalize a nil slice to an empty slice so the JSON
+				// surface emits `"tasks": []` rather than
+				// `"tasks": null` — fleet automation iterating without
+				// nil-checks then crashes on null. Same convention as
+				// emitSessionListJSON / collectSystemSnapshotForJSON.
+				if tasks == nil {
+					tasks = []kanban.Task{}
+				}
 				return writeKanbanJSON(cmd, kanbanListReportJSON{
 					Build: newBuildProvenance(),
 					Tasks: tasks,
@@ -503,6 +511,14 @@ func newKanbanBoardListCommand() *cobra.Command {
 			}
 			cur, _ := reg.Current()
 			if jsonOut {
+				// Normalize a nil slice to an empty slice so the JSON
+				// surface emits `"boards": []` rather than
+				// `"boards": null`. Same convention as
+				// emitSessionListJSON / collectSystemSnapshotForJSON:
+				// consumers can iterate without nil-checks.
+				if boards == nil {
+					boards = []kanban.Board{}
+				}
 				return writeKanbanJSON(cmd, map[string]any{
 					"build":   newBuildProvenance(),
 					"current": cur.Name,

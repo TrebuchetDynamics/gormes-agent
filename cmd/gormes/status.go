@@ -15,12 +15,25 @@ import (
 // as update --json / doctor --json. The `system` block + `audit_path`
 // mirror the system-events line the text surface prints
 // via renderSystemStatusLine, so JSON consumers can ingest the same
-// information without scraping prose.
+// information without scraping prose. The `progress` block surfaces
+// progress.Load failures as structured unavailable evidence (the
+// text surface already renders this gracefully — JSON now matches).
 type statusReportJSON struct {
 	Build     buildProvenanceJSON           `json:"build"`
+	Progress  *statusProgressJSON           `json:"progress,omitempty"`
 	Blockers  []cli.StatusBlocker           `json:"blockers"`
 	System    toolspkg.SystemEventsSnapshot `json:"system"`
 	AuditPath string                        `json:"audit_path"`
+}
+
+// statusProgressJSON carries the parity equivalent of the text
+// surface's `blockers: unavailable status=progress_unavailable
+// reason=...` line. Operators on a freshly-imaged host (no
+// progress.json yet) get a structured degraded snapshot rather than
+// a non-zero exit + raw filesystem error.
+type statusProgressJSON struct {
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
 }
 
 func newStatusCommand() *cobra.Command {
@@ -33,8 +46,18 @@ func newStatusCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if asJSON {
 				blockers, err := cli.CollectStatusBlockers(cli.StatusReportOptions{ProgressPath: progressPath})
+				var progressUnavailable *statusProgressJSON
 				if err != nil {
-					return err
+					// Match the text surface's degraded path: a missing or
+					// unreadable progress.json is operator state, not a CLI
+					// failure. Surface it as structured unavailable evidence
+					// and keep an empty blockers array so consumers can
+					// iterate without branching on err.
+					progressUnavailable = &statusProgressJSON{
+						Status: "progress_unavailable",
+						Reason: err.Error(),
+					}
+					blockers = nil
 				}
 				if blockers == nil {
 					blockers = []cli.StatusBlocker{}
@@ -42,6 +65,7 @@ func newStatusCommand() *cobra.Command {
 				system := collectSystemSnapshotForJSON(cmd)
 				body, err := json.MarshalIndent(statusReportJSON{
 					Build:     newBuildProvenance(),
+					Progress:  progressUnavailable,
 					Blockers:  blockers,
 					System:    system,
 					AuditPath: config.ToolAuditLogPath(),
