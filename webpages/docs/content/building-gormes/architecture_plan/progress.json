@@ -18788,8 +18788,8 @@
               "degraded_mode": "Docs validation reports hermes_docs_source_missing, hermes_docs_mirror_missing, hermes_docs_mirror_extra, hermes_docs_docusaurus_syntax, or hermes_docs_link_unresolved evidence instead of silently skipping when Hermes is checked out under `./hermes-agent`; high-risk upstream skill docs remain excluded by the public-docs safety gate.",
               "fixture": "webpages/docs/docs_test.go::TestMirroredDocsCoverage",
               "source_refs": [
-                "./hermes-agent/website/docs@b816fd4e2",
-                "./hermes-agent/docs@b816fd4e2",
+                "./hermes-agent/website/docs@242da9db9",
+                "./hermes-agent/docs@242da9db9",
                 "webpages/docs/docs_test.go:selectedSourceDocsRoot",
                 "webpages/docs/docs_test.go:isExcludedUpstreamMirrorSource",
                 "webpages/docs/content/upstream-hermes/"
@@ -18810,13 +18810,13 @@
               ],
               "acceptance": [
                 "TestMirroredDocsCoverage discovers active upstream docs from `./hermes-agent/website/docs` first, then falls back to `../hermes-agent/website/docs`, `references/hermes-agent/website/docs`, and the legacy `../../../website/docs` path only when needed.",
-                "The mirror includes active upstream operator docs that are currently absent from Gormes, including `developer-guide/browser-supervisor.md`, `user-guide/configuring-models.md`, `user-guide/features/curator.md`, `user-guide/features/goals.md`, `user-guide/features/kanban.md`, `user-guide/features/kanban-tutorial.md`, `user-guide/features/spotify.md`, `reference/model-catalog.md`, `guides/azure-foundry.md`, `guides/cron-script-only.md`, `guides/github-pr-review-agent.md`, `guides/minimax-oauth.md`, `guides/webhook-github-pr-review.md`, `user-guide/messaging/teams.md`, and `user-guide/messaging/yuanbao.md`.",
+                "The mirror includes active upstream operator docs that are currently absent from Gormes, including `developer-guide/browser-supervisor.md`, `user-guide/configuring-models.md`, `user-guide/features/curator.md`, `user-guide/features/goals.md`, `user-guide/features/kanban.md`, `user-guide/features/kanban-tutorial.md`, `user-guide/features/spotify.md`, `reference/model-catalog.md`, `guides/azure-foundry.md`, `guides/cron-script-only.md`, `guides/github-pr-review-agent.md`, `guides/minimax-oauth.md`, `guides/webhook-github-pr-review.md`, `guides/operate-teams-meeting-pipeline.md`, `user-guide/messaging/teams.md`, `user-guide/messaging/teams-meetings.md`, and `user-guide/messaging/yuanbao.md`.",
                 "Generated category pages map upstream `_category_.json` files to Gormes `_index.md` pages, and copied Markdown passes the existing portability hazard and internal-link tests.",
                 "The failure message lists the first missing/extra paths plus the selected upstream source root, so future Hermes docs additions are immediately actionable.",
                 "`go test ./webpages/docs -run TestMirroredDocsCoverage -count=1` fails before the mirror refresh and passes after the mirror refresh without network access.",
                 "The mirror preserves the existing public-docs safety gate by excluding upstream godmode/red-team skill pages and scrubbing high-risk catalog rows while still failing on ordinary missing upstream docs."
               ],
-              "note": "Completed 2026-05-06: TestMirroredDocsCoverage now uses the active nested Hermes checkout and the mirror has been refreshed under upstream-hermes/. Existing Gormes public-docs safety policy excludes high-risk upstream godmode/red-team skill docs and catalog rows; all other active Hermes website Markdown/MDX/category docs are covered by the mirror test.",
+              "note": "Completed 2026-05-06: TestMirroredDocsCoverage now uses the active nested Hermes checkout and the mirror has been refreshed under upstream-hermes/. Existing Gormes public-docs safety policy excludes high-risk upstream godmode/red-team skill docs and catalog rows; all other active Hermes website Markdown/MDX/category docs are covered by the mirror test. Refreshed 2026-05-08 against Hermes 242da9db9 after upstream split the Microsoft Teams meeting setup and operator runbook into `user-guide/messaging/teams-meetings.md` and `guides/operate-teams-meeting-pipeline.md`; the row remains the source-backed docs mirror drift gate rather than a new runtime Teams pipeline row.",
               "write_scope": [
                 "webpages/docs/docs_test.go",
                 "webpages/docs/content/upstream-hermes/",
@@ -18833,17 +18833,18 @@
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:b816fd4e2 website/docs/**",
+                "upstream_ref": "hermes:242da9db9 website/docs/**",
                 "note": "Hermes owns the operator documentation contract; Gormes mirrors it under `upstream-hermes/` while keeping Gormes-native docs separate."
               },
               "completed_at": "2026-05-06T00:39:52Z",
               "evidence": {
                 "implementation": [
                   "webpages/docs/docs_test.go:selectedSourceDocsRoot discovers ./hermes-agent/website/docs before sibling/reference/legacy fallbacks.",
-                  "webpages/docs/docs_test.go:TestMirroredDocsCoverage now reports selected source root plus first missing/extra mirrored paths.",
-                  "webpages/docs/docs_test.go strips inline code spans before link resolution so code examples like `[link](url)` are not treated as docs links.",
-                  "webpages/docs/content/upstream-hermes mirrors the active Hermes website docs inventory with Docusaurus category files mapped to _index.md pages.",
-                  "The mirror sanitizer removed Docusaurus admonition fences, root-relative non-image markdown links, MDX imports/components, stale dashboard-plugins.md, and high-risk godmode catalog/page entries."
+	                  "webpages/docs/docs_test.go:TestMirroredDocsCoverage now reports selected source root plus first missing/extra mirrored paths.",
+	                  "webpages/docs/docs_test.go strips inline code spans before link resolution so code examples like `[link](url)` are not treated as docs links.",
+	                  "webpages/docs/content/upstream-hermes mirrors the active Hermes website docs inventory with Docusaurus category files mapped to _index.md pages.",
+	                  "The mirror sanitizer removed Docusaurus admonition fences, root-relative non-image markdown links, MDX imports/components, stale dashboard-plugins.md, and high-risk godmode catalog/page entries.",
+	                  "2026-05-08 refresh added the upstream Teams meeting setup and operator runbook mirror pages from Hermes 242da9db9 with Starlight-safe relative links and warning markdown."
                 ],
                 "tests": [
                   "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1",
@@ -18852,12 +18853,15 @@
                 ],
                 "verification": [
                   "go test ./webpages/docs -run TestMirroredDocsCoverage -count=1 -> failed before mirror refresh: missing 167 active upstream-Hermes pages and stale dashboard-plugins.md extra.",
-                  "go test ./webpages/docs -run 'TestMirroredDocsCoverage|TestPublicDocsExcludeHighRiskUpstreamSkill|TestDocsContentAvoidsPortabilityHazards|TestDocsInternalLinksResolve|TestDocsContentRendersViaGoldmark' -count=1 -> pass",
-                  "go test ./webpages/docs -count=1 -> pass",
-                  "go run ./cmd/progress validate -> pass",
-                  "git diff --check -> pass",
-                  "go test ./... -count=1 -> pass"
-                ]
+	                  "go test ./webpages/docs -run 'TestMirroredDocsCoverage|TestPublicDocsExcludeHighRiskUpstreamSkill|TestDocsContentAvoidsPortabilityHazards|TestDocsInternalLinksResolve|TestDocsContentRendersViaGoldmark' -count=1 -> pass",
+	                  "go test ./webpages/docs -count=1 -> pass",
+	                  "go run ./cmd/progress validate -> pass",
+	                  "git diff --check -> pass",
+	                  "go test ./... -count=1 -> pass",
+	                  "2026-05-08 RED: go test ./webpages/docs -run TestMirroredDocsCoverage -count=1 failed against Hermes 242da9db9 with missing upstream-hermes/guides/operate-teams-meeting-pipeline.md and upstream-hermes/user-guide/messaging/teams-meetings.md.",
+	                  "2026-05-08 GREEN: go test ./webpages/docs -run TestMirroredDocsCoverage -count=1 passed after adding both mirror pages.",
+	                  "2026-05-08 verification: go test ./webpages/docs -count=1 passed after relative-link cleanup."
+	                ]
               }
             },
             {
