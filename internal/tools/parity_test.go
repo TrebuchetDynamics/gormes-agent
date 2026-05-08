@@ -12,7 +12,7 @@ func TestUpstreamToolParityManifestCapturesRegistryInventory(t *testing.T) {
 		t.Fatalf("LoadUpstreamToolParityManifest: %v", err)
 	}
 
-	if got, want := len(manifest.Tools), 56; got != want {
+	if got, want := len(manifest.Tools), 64; got != want {
 		t.Fatalf("tool rows = %d, want %d", got, want)
 	}
 	if got, want := manifest.Source.Registry, "tools/registry.py"; got != want {
@@ -30,6 +30,8 @@ func TestUpstreamToolParityManifestCapturesRegistryInventory(t *testing.T) {
 		"discord_admin",
 		"execute_code",
 		"image_generate",
+		"kanban_show",
+		"kanban_link",
 		"mixture_of_agents",
 		"rl_start_training",
 		"text_to_speech",
@@ -84,6 +86,14 @@ func TestUpstreamToolParityManifestCapturesRegistryInventory(t *testing.T) {
 	assertContains(t, executeCode.ResultEnvelope.SuccessFields, "status")
 	assertContains(t, executeCode.ResultEnvelope.SuccessFields, "output")
 
+	computerUse := mustTool(t, manifest, "computer_use")
+	if computerUse.ResultEnvelope.Encoding != "json-string-or-multimodal-content" {
+		t.Fatalf("computer_use result envelope encoding = %q, want json-string-or-multimodal-content", computerUse.ResultEnvelope.Encoding)
+	}
+	if !computerUse.HasProviderPath("cua-driver") {
+		t.Fatalf("computer_use should capture the cua-driver provider path")
+	}
+
 	cli, ok := manifest.Toolset("hermes-cli")
 	if !ok {
 		t.Fatal("missing hermes-cli toolset parity row")
@@ -125,7 +135,7 @@ func TestToolParityDoctorReportsDisabledDependenciesSchemaDriftAndProviderPaths(
 	assertIssue(t, report, ToolParityIssueUnavailableProviderPath, "browser_cdp")
 }
 
-func TestToolParityDoctorReportsB35D692FManifestDrift(t *testing.T) {
+func TestToolParityDoctorReportsManifestDrift(t *testing.T) {
 	manifest, err := LoadUpstreamToolParityManifest()
 	if err != nil {
 		t.Fatalf("LoadUpstreamToolParityManifest: %v", err)

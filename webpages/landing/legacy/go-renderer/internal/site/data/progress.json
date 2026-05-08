@@ -19786,10 +19786,10 @@
                 "last_success": "2026-04-25T05:56:06Z"
               }
             },
-            {
-              "name": "Tool parity manifest refresh for Hermes b35d692f",
-              "priority": "P1",
-              "status": "complete",
+    {
+      "name": "Tool parity manifest refresh for Hermes b35d692f",
+      "priority": "P1",
+      "status": "complete",
               "contract": "Embedded upstream tool parity fixtures reflect Hermes b35d692f tool names, toolsets, schemas, and platform restrictions before handler rows rely on them",
               "contract_status": "validated",
               "slice_size": "small",
@@ -19849,16 +19849,99 @@
                 "last_attempt": "2026-04-25T13:09:35Z",
                 "last_success": "2026-04-25T13:09:35Z"
               },
-              "provenance": {
-                "origin_type": "upstream",
-                "upstream_ref": "hermes:b35d692f toolsets.py",
-                "note": "This row is descriptor-only upstream drift; no Gormes runtime handler should change in the manifest refresh."
-              }
-            },
-            {
-              "name": "Microsoft Graph auth/client helper parity",
-              "priority": "P2",
-              "status": "complete",
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:b35d692f toolsets.py",
+        "note": "This row is descriptor-only upstream drift; no Gormes runtime handler should change in the manifest refresh."
+      }
+    },
+    {
+      "name": "Tool parity manifest refresh for Hermes ea86714 computer_use",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Refresh the embedded upstream tool parity manifest from Hermes b35d692f to Hermes ea86714cc for descriptor-only drift: add the new `computer_use` toolset/tool schema, capture its macOS/cua-driver degraded dependency metadata, and reconcile the already-shipped Kanban worker tool descriptors so the manifest no longer hides active upstream core tools.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Tool parity doctor reports stale_source_commit, missing computer_use, missing kanban_* descriptors, or missing cua-driver provider-path evidence before any runtime handler or toolset claim can proceed.",
+      "fixture": "internal/tools/parity_ea86714_test.go; internal/tools/testdata/upstream_tool_parity_manifest.json",
+      "source_refs": [
+        "./hermes-agent/tools/computer_use_tool.py@ea86714cc:registry.register",
+        "./hermes-agent/tools/computer_use/schema.py@ea86714cc:COMPUTER_USE_SCHEMA",
+        "./hermes-agent/tools/computer_use/tool.py@ea86714cc:handle_computer_use/check_computer_use_requirements",
+        "./hermes-agent/tools/kanban_tools.py@ea86714cc:registry.register",
+        "./hermes-agent/toolsets.py@ea86714cc:_HERMES_CORE_TOOLS/TOOLSETS",
+        "./hermes-agent/hermes_cli/tools_config.py@ea86714cc:CONFIGURABLE_TOOLSETS/TOOL_CATEGORIES",
+        "./hermes-agent/tests/tools/test_computer_use.py@ea86714cc",
+        "./hermes-agent/tests/tools/test_kanban_tools.py@ea86714cc"
+      ],
+      "ready_when": [
+        "The in-repo hermes-agent submodule is refreshed to ea86714cc.",
+        "Tool registry inventory + schema parity harness and the b35d692f manifest refresh are validated.",
+        "Gormes Kanban worker tools are already implemented, so this row only reconciles descriptor inventory and does not port Kanban runtime behavior."
+      ],
+      "not_ready_when": [
+        "The slice implements a live computer_use handler, starts cua-driver, performs desktop automation, opens a browser, or reads a live operator profile.",
+        "The manifest source commit is updated without adding tests for computer_use schema/actions and Kanban hidden-until-worker metadata.",
+        "The row claims full current Hermes registry parity while omitting source-backed active tool descriptors discovered in the same sweep."
+      ],
+      "blocked_by": [
+        "Tool registry inventory + schema parity harness",
+        "Tool parity manifest refresh for Hermes b35d692f",
+        "Hermes Kanban worker tools and prompt gating"
+      ],
+      "unblocks": [
+        "Computer-use tool unavailable-backend descriptor row",
+        "Computer-use cua-driver backend bridge",
+        "61-tool registry port"
+      ],
+      "acceptance": [
+        "TestToolParityManifestHermesEA86714ComputerUse proves source.commit starts with ea86714cc and input_files include computer_use schema/tool, kanban_tools, and current toolsets config sources.",
+        "The manifest contains a computer_use tool row with the upstream action enum including capture, click, set_value, wait, list_apps, and focus_app; the row records a cua-driver provider path and macOS/cua-driver unavailable degraded status.",
+        "The computer_use toolset row exists and hermes-cli/hermes-gateway resolved tools include computer_use while platform-scoped Discord/Feishu tools remain absent from generic CLI toolsets.",
+        "The manifest contains kanban_show, kanban_complete, kanban_block, kanban_heartbeat, kanban_comment, kanban_create, and kanban_link rows with HERMES_KANBAN_TASK gated degraded metadata, and the kanban toolset row resolves all seven tools.",
+        "No runtime handler, gateway registration, or desktop automation code changes in this descriptor-only slice."
+      ],
+      "write_scope": [
+        "internal/tools/testdata/upstream_tool_parity_manifest.json",
+        "internal/tools/parity_test.go",
+        "internal/tools/parity_b35d692f_test.go",
+        "internal/tools/parity_ea86714_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestToolParityManifestHermesEA86714|TestUpstreamToolParityManifestCapturesRegistryInventory|TestToolParityDoctorReportsManifestDrift' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Embedded tool parity manifest records Hermes ea86714cc computer_use and Kanban descriptors with focused tests and no runtime handler changes."
+      ],
+      "evidence": {
+        "completed_at": "2026-05-08T00:00:00Z",
+        "test_commands": [
+          "go test ./internal/tools -run 'TestToolParityManifestHermesEA86714|TestUpstreamToolParityManifestCapturesRegistryInventory|TestToolParityDoctorReportsManifestDrift' -count=1"
+        ],
+        "source_commit": "ea86714cc0e0b3461a8f69b778116d8bbd3dc61c",
+        "manifest_tool_rows": 64,
+        "implemented_scope": "Descriptor-only manifest refresh: computer_use and Kanban tool/toolset rows plus regression tests; no live computer_use handler or desktop automation path was added."
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:ea86714cc tools/computer_use_tool.py tools/computer_use/schema.py tools/kanban_tools.py toolsets.py",
+        "note": "Added by the 2026-05-08 bounded all-topic parity sweep after the in-repo Hermes submodule advanced from 474d1e812 to ea86714cc. This is a descriptor-only stale-manifest closure; live computer_use automation remains a future row."
+      }
+    },
+    {
+      "name": "Microsoft Graph auth/client helper parity",
+      "priority": "P2",
+      "status": "complete",
               "contract": "Port Hermes' Microsoft Graph app-only auth and reusable REST client helpers into a fake-transport Go helper package before any Graph-backed model tool or skill script depends on them. The slice covers env credential normalization, cached token fetch, retry-after handling, pagination, streaming downloads, and redacted degraded errors without requiring live Azure credentials.",
               "contract_status": "validated",
               "slice_size": "medium",

@@ -663,6 +663,7 @@ classification and row-backed implementation queue.
 - [ ] 61-tool registry port
 - [x] Tool registry inventory + schema parity harness
 - [x] Tool parity manifest refresh for Hermes b35d692f
+- [x] Tool parity manifest refresh for Hermes ea86714 computer_use
 - [x] Microsoft Graph auth/client helper parity
 - [x] Discord tool split + platform-scoped toolsets
 - [x] Discord tool limit coercion helper
