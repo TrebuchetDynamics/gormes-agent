@@ -116,7 +116,6 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 			return runResolvedOneshotWithClient(cmd, invocation, newClient, configureKernel)
 		}
 	}
-	resetGonchoDoctorFlags()
 	root := &cobra.Command{
 		Use:   "gormes",
 		Short: "Go-native Hermes-compatible agent runtime",
@@ -213,7 +212,7 @@ Docs: https://docs.gormes.ai`,
 		flag.NoOptDefVal = "last"
 	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(newDoctorCommand(), newVersionCommand(), telegramCmd, gatewayCmd, newChannelsCommand(), newWhatsAppCommand(), sessionCmd, newMemoryCommand(), gonchoCmd, newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(newDoctorCommand(), newVersionCommand(), telegramCmd, gatewayCmd, newChannelsCommand(), newWhatsAppCommand(), sessionCmd, newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand())
 	return root
 }
 

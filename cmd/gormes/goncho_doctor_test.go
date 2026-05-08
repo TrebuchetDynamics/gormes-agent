@@ -15,6 +15,20 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
+// TestGonchoCommand_ConstructorReturnsIndependentInstances proves
+// each newGonchoCommand() call returns a fresh tree (parent + doctor
+// subcommand) with no shared FlagSet state.
+func TestGonchoCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
+	a := newGonchoCommand()
+	b := newGonchoCommand()
+	if a == b {
+		t.Fatal("newGonchoCommand must return distinct instances; got same pointer")
+	}
+	if a.Commands()[0] == b.Commands()[0] {
+		t.Fatal("subcommand instances must also be distinct between constructor calls")
+	}
+}
+
 func TestGonchoDoctorCommand_TextZeroStateReportsOperatorLadder(t *testing.T) {
 	seedGonchoDoctorZeroStateDB(t)
 
