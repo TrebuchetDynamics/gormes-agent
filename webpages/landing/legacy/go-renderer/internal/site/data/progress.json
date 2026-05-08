@@ -19791,6 +19791,71 @@
               }
             },
             {
+              "name": "Microsoft Graph auth/client helper parity",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Port Hermes' Microsoft Graph app-only auth and reusable REST client helpers into a fake-transport Go helper package before any Graph-backed model tool or skill script depends on them. The slice covers env credential normalization, cached token fetch, retry-after handling, pagination, streaming downloads, and redacted degraded errors without requiring live Azure credentials.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Graph-backed tools or skills must report msgraph_not_configured, msgraph_token_unavailable, or msgraph_request_unavailable evidence instead of advertising live Microsoft Graph access when tenant/client/secret or the network path is unavailable.",
+              "fixture": "internal/tools/msgraph_client_test.go",
+              "source_refs": [
+                "hermes-agent/tools/microsoft_graph_auth.py@cf648a9b",
+                "hermes-agent/tools/microsoft_graph_client.py@cf648a9b",
+                "hermes-agent/tests/tools/test_microsoft_graph_auth.py@cf648a9b",
+                "hermes-agent/tests/tools/test_microsoft_graph_client.py@cf648a9b",
+                "hermes-agent/website/docs/guides/microsoft-graph-app-registration.md@cf648a9b",
+                "hermes-agent/website/docs/reference/environment-variables.md@cf648a9b"
+              ],
+              "ready_when": [
+                "The implementation uses injected HTTP/fake transport fixtures and never requires live Azure credentials.",
+                "The helper remains a library boundary; no model-visible Graph tool descriptor is registered by this row."
+              ],
+              "not_ready_when": [
+                "The slice attempts to implement Drive, Outlook, Teams, or calendar operations instead of the shared auth/client helper.",
+                "Tests read real MSGRAPH_* environment variables or contact login.microsoftonline.com / graph.microsoft.com.",
+                "Token or request errors include client secrets, bearer tokens, or home-directory paths."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Microsoft Graph tool descriptor rows",
+                "Office/Teams skill script parity rows"
+              ],
+              "acceptance": [
+                "GraphCredentials-style env parsing reports the missing required keys MSGRAPH_TENANT_ID, MSGRAPH_CLIENT_ID, and MSGRAPH_CLIENT_SECRET while allowing optional non-required inspection.",
+                "A fake token endpoint proves cached token reuse, concurrent fetch coalescing, forced refresh, invalid token payload handling, and HTTP error detail extraction.",
+                "A fake Graph endpoint proves bearer header injection, 429 Retry-After retry, transient 5xx retry, pagination via @odata.nextLink, and retry-budget exhaustion.",
+                "download-to-file writes via streamed chunks to a temporary .part file, atomically replaces the destination on success, and removes partial output on failure.",
+                "Focused tests run without network or real credentials and degraded errors are redacted."
+              ],
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. The queue had 38 planned rows, so adding one source-backed P2 row was allowed. Fresh Hermes cf648a9b added Microsoft Graph auth/client helpers, tests, and operator docs; existing Gormes rows cover broad tool registry, browser, provider auth, gateway, Goncho, install, README/public, and release lanes but had no row for this new Graph helper surface. TDD added fakeable Go helpers in internal/tools/msgraph_auth.go and internal/tools/msgraph_client.go. Tests prove missing-key diagnostics, default scope/token URL normalization, cached token reuse, forced refresh, concurrent fetch coalescing, secret redaction, bearer injection, Retry-After handling, pagination via @odata.nextLink, streamed download chunks with atomic .part replacement, partial cleanup on retry exhaustion, and invalid-JSON degraded evidence without live Azure credentials or network calls.",
+              "write_scope": [
+                "internal/tools/msgraph_auth.go",
+                "internal/tools/msgraph_auth_test.go",
+                "internal/tools/msgraph_client.go",
+                "internal/tools/msgraph_client_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestMicrosoftGraph|TestMSGraph' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "MSGraph helper tests prove fake-transport auth/client parity with Hermes cf648a9b and no live Azure dependency."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:cf648a9b tools/microsoft_graph_auth.py tools/microsoft_graph_client.py",
+                "note": "Fresh upstream helper surface discovered by the 2026-05-08 parity sweep; this row intentionally stops before registering model-visible Microsoft Graph tools."
+              }
+            },
+            {
               "name": "Discord tool split + platform-scoped toolsets",
               "status": "complete",
               "contract": "Gormes exposes Discord read/participate and Discord admin capabilities as separate descriptors/toolsets with platform-scoped availability",
