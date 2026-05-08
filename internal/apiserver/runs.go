@@ -698,6 +698,7 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID string) {
 	keep := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("keep")), "true")
+	backlogOnly := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("backlog_only")), "true")
 	backlog, ch, exists, done := s.runs.subscribe(runID)
 	if !exists {
 		writeOpenAIError(w, http.StatusNotFound, "Run not found: "+runID, "invalid_request_error", "", "run_not_found")
@@ -708,11 +709,19 @@ func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID s
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 	if snap, ok := s.runs.snapshot(runID); ok {
-		preludePayload, _ := json.Marshal(map[string]any{
+		prelude := map[string]any{
 			"run_id":       runID,
 			"status":       snap.Status,
 			"events_count": snap.EventsCount,
-		})
+			"created_at":   snap.CreatedAt,
+		}
+		if snap.SessionID != "" {
+			prelude["session_id"] = snap.SessionID
+		}
+		if snap.LastEventAt > 0 {
+			prelude["last_event_at"] = snap.LastEventAt
+		}
+		preludePayload, _ := json.Marshal(prelude)
 		writeSSEComment(w, "snapshot "+string(preludePayload))
 	}
 	for _, ev := range backlog {
@@ -725,6 +734,11 @@ func (s *Server) streamRunEvents(w http.ResponseWriter, r *http.Request, runID s
 		if !keep {
 			s.runs.remove(runID)
 		}
+		return
+	}
+	if backlogOnly {
+		writeSSEComment(w, "stream closed")
+		flush(w)
 		return
 	}
 	for {

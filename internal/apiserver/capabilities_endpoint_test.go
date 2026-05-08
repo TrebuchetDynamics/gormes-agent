@@ -517,6 +517,114 @@ func TestAPIServerRunEvents_EmitsSnapshotPreludeComment(t *testing.T) {
 	loop.release(TurnResult{SessionID: started.RunID})
 }
 
+// TestAPIServerRunEvents_PreludeIncludesTimestamps proves the SSE
+// prelude carries `created_at` and `last_event_at` so reconnecting
+// consumers can compute lag (now - last_event_at) and run age
+// (now - created_at) before any backlog event arrives.
+func TestAPIServerRunEvents_PreludeIncludesTimestamps(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	now := time.Unix(1_700_015_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID+"/events?backlog_only=true", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"created_at":1700015000`) {
+		t.Errorf("SSE prelude missing created_at:\n%s", body)
+	}
+	if !strings.Contains(body, `"last_event_at":1700015000`) {
+		t.Errorf("SSE prelude missing last_event_at:\n%s", body)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunEvents_PreludeIncludesSessionID proves the SSE
+// prelude comment carries `session_id` when one is set, so consumers
+// can route or filter at stream open without a round-trip to the
+// status endpoint.
+func TestAPIServerRunEvents_PreludeIncludesSessionID(t *testing.T) {
+	loop := &fakeTurnLoop{result: TurnResult{Content: "ok", SessionID: "sess-prelude"}}
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping", "session_id": "sess-prelude-123"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID+"/events", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"session_id":"sess-prelude-123"`) {
+		t.Errorf("SSE prelude missing session_id:\n%s", body)
+	}
+}
+
+// TestAPIServerRunEvents_BacklogOnlyClosesAfterDrain proves
+// `GET /v1/runs/{run_id}/events?backlog_only=true` writes the
+// existing backlog then closes the stream — even for in-progress
+// runs that would otherwise keep the connection open. Operators
+// reading historical events without holding a live connection use
+// this for snapshot inspection.
+func TestAPIServerRunEvents_BacklogOnlyClosesAfterDrain(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	// Run is still in_progress (loop blocked). Without backlog_only this
+	// would block. With backlog_only, drain then close.
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID+"/events?backlog_only=true", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"event":"run.started"`) {
+		t.Errorf("backlog drain missing run.started:\n%s", body)
+	}
+	if !strings.Contains(body, ": stream closed") {
+		t.Errorf("backlog_only stream did not close cleanly:\n%s", body)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
 // TestAPIServerRunEvents_KeepFlagPreservesRunForStatusQuery proves
 // that `GET /v1/runs/{run_id}/events?keep=true` does NOT remove the
 // run from the registry after the SSE stream closes, so callers can
@@ -1779,6 +1887,36 @@ func TestAPIServerRuns_BuildAttribution(t *testing.T) {
 	}
 	if got.RunID == "" || got.Status != "started" {
 		t.Errorf("run start envelope = %+v, want run_id populated and status=started", got)
+	}
+}
+
+// TestAPIServerCapabilities_AdvertisesRunEventsParams proves
+// `/v1/capabilities` features advertise the supported query params
+// for `GET /v1/runs/{run_id}/events`. SDKs discover whether to
+// request backlog-only or keep-after-drain semantics from a single
+// capability read.
+func TestAPIServerCapabilities_AdvertisesRunEventsParams(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", Loop: &fakeTurnLoop{}})
+	rec := getJSON(t, srv.Handler(), "/v1/capabilities", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var got struct {
+		Features struct {
+			RunEventsParams []string `json:"run_events_params"`
+		} `json:"features"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	want := map[string]bool{"backlog_only": false, "keep": false}
+	for _, p := range got.Features.RunEventsParams {
+		want[p] = true
+	}
+	for p, present := range want {
+		if !present {
+			t.Errorf("features.run_events_params missing %q (got %v)", p, got.Features.RunEventsParams)
+		}
 	}
 }
 

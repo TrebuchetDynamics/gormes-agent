@@ -525,6 +525,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 			"run_stop":                   true,
 			"runs_list":                  true,
 			"runs_list_filters":          []string{"status", "since", "limit", "order", "session_id", "session_id_prefix"},
+			"run_events_params":          []string{"backlog_only", "keep"},
 			"run_events_backlog_cap":     runEventsBacklogCap,
 			"run_lifecycle_events": []string{
 				"run.started",
