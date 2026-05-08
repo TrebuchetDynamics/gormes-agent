@@ -438,7 +438,51 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 	cmd.Flags().BoolVar(&list, "list", false, "List available snapshots and exit")
 	cmd.Flags().StringVar(&backupID, "id", "", "Snapshot id to restore; defaults to newest")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `--list` returns `{build, backups: [{id, reason, created_at}]}`; rollback returns `{build, action, restored_backup_id, pre_rollback_backup_id}`")
 	return cmd
+}
+
+// curatorRollbackReportJSON is the wire shape for `curator rollback --json`
+// (apply mode). Operator scripts capture `pre_rollback_backup_id` to undo
+// the rollback if needed — that's the safety snapshot the rollback
+// implicitly takes before mutating the live tree.
+type curatorRollbackReportJSON struct {
+	Build               buildProvenanceJSON `json:"build"`
+	Action              string              `json:"action"`
+	RestoredBackupID    string              `json:"restored_backup_id"`
+	PreRollbackBackupID string              `json:"pre_rollback_backup_id"`
+}
+
+// curatorBackupListJSON is the wire shape for `curator rollback --list --json`.
+type curatorBackupListJSON struct {
+	Build   buildProvenanceJSON          `json:"build"`
+	Backups []curatorBackupListEntryJSON `json:"backups"`
+}
+
+type curatorBackupListEntryJSON struct {
+	ID        string `json:"id"`
+	Reason    string `json:"reason"`
+	CreatedAt string `json:"created_at"`
+}
+
+func writeCuratorBackupListJSON(out interface{ Write(p []byte) (int, error) }, rows []curatorBackupRow) error {
+	report := curatorBackupListJSON{
+		Build:   newBuildProvenance(),
+		Backups: make([]curatorBackupListEntryJSON, len(rows)),
+	}
+	for i, r := range rows {
+		report.Backups[i] = curatorBackupListEntryJSON{
+			ID:        r.ID,
+			Reason:    r.Reason,
+			CreatedAt: r.CreatedAt,
+		}
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
 }
 
 func newCuratorRestoreCommand(deps curatorCommandDeps) *cobra.Command {
