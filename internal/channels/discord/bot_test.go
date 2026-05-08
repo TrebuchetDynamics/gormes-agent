@@ -270,10 +270,13 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 
 	// Generous timeouts for the polling waits below: in isolation each
 	// transition takes <10ms, but under parallel `go test ./...` load
-	// the scheduler can delay goroutine wake-ups by 100ms+, causing
-	// flakes. Bumping to 2s / 4s removes the flake without slowing the
-	// happy path (the polls return as soon as the condition holds).
-	waitForDiscord(t, 2*time.Second, func() bool {
+	// the scheduler can delay goroutine wake-ups by hundreds of ms (one
+	// observed flake hit the previous 4s ceiling exactly). The second
+	// wait now spans the manager's CoalesceMs (10) + scheduler-stalled
+	// goroutine wake plus the discord send round-trip, so 8s covers the
+	// extreme case without slowing the happy path (polls return as soon
+	// as the condition holds).
+	waitForDiscord(t, 4*time.Second, func() bool {
 		return len(k.submitsSnapshot()) == 1
 	})
 
@@ -283,7 +286,7 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 		History: []hermes.Message{{Role: "assistant", Content: "done"}},
 	}
 
-	waitForDiscord(t, 4*time.Second, func() bool {
+	waitForDiscord(t, 8*time.Second, func() bool {
 		sent := ms.complexSnapshot()
 		if len(sent) == 0 || sent[0].Data == nil {
 			return false

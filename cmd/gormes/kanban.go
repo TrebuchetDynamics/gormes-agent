@@ -149,6 +149,7 @@ func newKanbanShowCommand() *cobra.Command {
 
 func newKanbanCompleteCommand() *cobra.Command {
 	var result string
+	var jsonOut bool
 	cmd := &cobra.Command{
 		Use:   "complete <task-id>",
 		Short: "Mark a Kanban task done",
@@ -162,11 +163,19 @@ func newKanbanCompleteCommand() *cobra.Command {
 			if err := store.CompleteTask(cmd.Context(), args[0], kanban.CompleteTaskInput{Result: result}); err != nil {
 				return err
 			}
+			if jsonOut {
+				return writeKanbanLifecycleJSON(cmd, kanbanLifecycleReportJSON{
+					Build:  newBuildProvenance(),
+					Action: "completed",
+					ID:     args[0],
+				})
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Completed %s\n", args[0])
 			return err
 		},
 	}
 	cmd.Flags().StringVar(&result, "result", "", "completion summary")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
 	return cmd
 }
 
@@ -207,7 +216,8 @@ func newKanbanClaimCommand() *cobra.Command {
 }
 
 func newKanbanBlockCommand() *cobra.Command {
-	return &cobra.Command{
+	var jsonOut bool
+	cmd := &cobra.Command{
 		Use:   "block <task-id> [reason]",
 		Short: "Block a Kanban task with a reason",
 		Args:  cobra.RangeArgs(1, 2),
@@ -224,14 +234,25 @@ func newKanbanBlockCommand() *cobra.Command {
 			if err := store.BlockTask(cmd.Context(), args[0], kanban.BlockTaskInput{Reason: reason}); err != nil {
 				return err
 			}
+			if jsonOut {
+				return writeKanbanLifecycleJSON(cmd, kanbanLifecycleReportJSON{
+					Build:  newBuildProvenance(),
+					Action: "blocked",
+					ID:     args[0],
+					Reason: reason,
+				})
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Blocked %s\n", args[0])
 			return err
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
 }
 
 func newKanbanUnblockCommand() *cobra.Command {
-	return &cobra.Command{
+	var jsonOut bool
+	cmd := &cobra.Command{
 		Use:   "unblock <task-id>",
 		Short: "Unblock a Kanban task",
 		Args:  cobra.ExactArgs(1),
@@ -244,14 +265,24 @@ func newKanbanUnblockCommand() *cobra.Command {
 			if err := store.UnblockTask(cmd.Context(), args[0]); err != nil {
 				return err
 			}
+			if jsonOut {
+				return writeKanbanLifecycleJSON(cmd, kanbanLifecycleReportJSON{
+					Build:  newBuildProvenance(),
+					Action: "unblocked",
+					ID:     args[0],
+				})
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Unblocked %s\n", args[0])
 			return err
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
 }
 
 func newKanbanLinkCommand() *cobra.Command {
-	return &cobra.Command{
+	var jsonOut bool
+	cmd := &cobra.Command{
 		Use:   "link <parent-id> <child-id>",
 		Short: "Add a dependency link",
 		Args:  cobra.ExactArgs(2),
@@ -264,10 +295,42 @@ func newKanbanLinkCommand() *cobra.Command {
 			if err := store.LinkTasks(cmd.Context(), args[0], args[1]); err != nil {
 				return err
 			}
+			if jsonOut {
+				return writeKanbanLifecycleJSON(cmd, kanbanLifecycleReportJSON{
+					Build:  newBuildProvenance(),
+					Action: "linked",
+					Parent: args[0],
+					Child:  args[1],
+				})
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Linked %s -> %s\n", args[0], args[1])
 			return err
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+// kanbanLifecycleReportJSON is the wire shape for `kanban
+// {complete,block,unblock,link} ... --json`. Fleet automation orchestrating
+// task state across machines parses this to observe outcomes without
+// scraping prose. Build provenance leads — same convention as the rest of
+// the `--json` arc. `action` discriminates the verb; `id` is the affected
+// task for unary verbs; `parent`/`child` carry the link arguments;
+// `reason` is included on `block`.
+type kanbanLifecycleReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	ID     string              `json:"id,omitempty"`
+	Parent string              `json:"parent,omitempty"`
+	Child  string              `json:"child,omitempty"`
+	Reason string              `json:"reason,omitempty"`
+}
+
+func writeKanbanLifecycleJSON(cmd *cobra.Command, report kanbanLifecycleReportJSON) error {
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(report)
 }
 
 func openKanbanStore(ctx context.Context) (*kanban.Store, error) {

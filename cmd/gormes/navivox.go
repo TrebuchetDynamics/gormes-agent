@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -66,6 +67,28 @@ type navivoxPairOptions struct {
 	DeviceName string
 	Command    string
 	PrintQR    bool
+	JSONOut    bool
+}
+
+// navivoxPairReportJSON is the wire shape for `gormes navivox pair
+// --json`. Fleet automation provisioning Navivox pairing across machines
+// parses this to ingest the descriptor without scraping the multi-line
+// "Host: / Port: / Pairing code:" prose. Build provenance leads — same
+// convention as the rest of the `--json` arc. The pairing code is the
+// data being conveyed (a one-time gateway-issued credential bounded by
+// `expires_at`); long-lived secrets like SSH keys remain excluded.
+type navivoxPairReportJSON struct {
+	Build      buildProvenanceJSON `json:"build"`
+	Host       string              `json:"host"`
+	HostSource string              `json:"host_source,omitempty"`
+	Port       int                 `json:"port"`
+	User       string              `json:"user"`
+	Command    string              `json:"command"`
+	Protocol   uint32              `json:"protocol"`
+	Code       string              `json:"code"`
+	Device     string              `json:"device"`
+	ExpiresAt  string              `json:"expires_at,omitempty"`
+	URI        string              `json:"uri"`
 }
 
 func newNavivoxPairCommand() *cobra.Command {
@@ -112,6 +135,9 @@ func newNavivoxPairCommand() *cobra.Command {
 				Device:    opts.DeviceName,
 				ExpiresAt: result.ExpiresAt,
 			})
+			if opts.JSONOut {
+				return writeNavivoxPairJSON(cmd, opts, source, result, uri)
+			}
 			renderNavivoxPairing(cmd, opts, source, result, uri)
 			return nil
 		},
@@ -122,7 +148,34 @@ func newNavivoxPairCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.DeviceName, "device-name", "", "Navivox device name to pair; defaults to a generated local label")
 	cmd.Flags().StringVar(&opts.Command, "command", opts.Command, "remote command the Navivox app should run over SSH")
 	cmd.Flags().BoolVar(&opts.PrintQR, "qr", true, "print a terminal QR code")
+	cmd.Flags().BoolVar(&opts.JSONOut, "json", false, "emit the pairing descriptor as machine-readable JSON")
 	return cmd
+}
+
+func writeNavivoxPairJSON(cmd *cobra.Command, opts navivoxPairOptions, hostSource string, result gateway.PairingCodeResult, uri string) error {
+	expires := ""
+	if !result.ExpiresAt.IsZero() {
+		expires = result.ExpiresAt.UTC().Format(time.RFC3339)
+	}
+	report := navivoxPairReportJSON{
+		Build:      newBuildProvenance(),
+		Host:       opts.Host,
+		HostSource: hostSource,
+		Port:       opts.Port,
+		User:       opts.User,
+		Command:    opts.Command,
+		Protocol:   navivox.ProtocolVersion,
+		Code:       result.Code,
+		Device:     opts.DeviceName,
+		ExpiresAt:  expires,
+		URI:        uri,
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 type navivoxPairingDescriptor struct {

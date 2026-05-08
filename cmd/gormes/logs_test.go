@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,6 +70,115 @@ func TestLogsCommand_HTTPClientHasBoundedTimeout(t *testing.T) {
 	// point of the bound.
 	if logsHTTPClient.Timeout > 30*time.Second {
 		t.Fatalf("logsHTTPClient.Timeout = %s, want <= 30s for operator responsiveness", logsHTTPClient.Timeout)
+	}
+}
+
+// TestLogsCommand_JSONEmitsStructuredEntries proves
+// `gormes logs --json` returns
+// `{build, source: "gateway", entries: [{time, level, message}]}`
+// when a live gateway responds, so fleet log-aggregation pipelines
+// can ingest entries without re-parsing the bracketed
+// "[time] level: message" prose. Build provenance leads — same
+// convention as the rest of the `--json` arc.
+func TestLogsCommand_JSONEmitsStructuredEntries(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"entries": [
+				{"time": "2026-05-08T07:00:00Z", "level": "info", "message": "gateway started"},
+				{"time": "2026-05-08T07:00:01Z", "level": "warn", "message": "stale lock"}
+			]
+		}`))
+	}))
+	defer srv.Close()
+
+	prev := logsHTTPClient
+	t.Cleanup(func() { logsHTTPClient = prev })
+	logsHTTPClient = srv.Client()
+	prevURL := logsEndpointURL
+	t.Cleanup(func() { logsEndpointURL = prevURL })
+	logsEndpointURL = srv.URL + "/api/logs"
+
+	cmd := newLogsCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("logs --json: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Source  string `json:"source"`
+		Entries []struct {
+			Time    string `json:"time"`
+			Level   string `json:"level"`
+			Message string `json:"message"`
+		} `json:"entries"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("logs --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Source != "gateway" {
+		t.Errorf("source = %q, want %q (live gateway response)", got.Source, "gateway")
+	}
+	if len(got.Entries) != 2 {
+		t.Fatalf("entries len = %d, want 2; got %+v", len(got.Entries), got.Entries)
+	}
+	if got.Entries[0].Message != "gateway started" {
+		t.Errorf("entries[0].message = %q, want %q", got.Entries[0].Message, "gateway started")
+	}
+}
+
+// TestLogsCommand_JSONFileFallbackEmitsSourceFile proves the file-
+// fallback path also emits parseable JSON with `source: "file"` so
+// fleet pipelines get a stable shape regardless of whether a gateway
+// is running.
+func TestLogsCommand_JSONFileFallbackEmitsSourceFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	body := "[2026-05-08T07:00:00Z] info: gateway started\n[2026-05-08T07:00:01Z] warn: stale lock\n"
+	if err := os.WriteFile(filepath.Join(home, "gormes.log"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Force HTTP fetch to fail so we hit the file-fallback path.
+	prev := logsHTTPClient
+	t.Cleanup(func() { logsHTTPClient = prev })
+	logsHTTPClient = &http.Client{Timeout: 10 * time.Millisecond}
+	prevURL := logsEndpointURL
+	t.Cleanup(func() { logsEndpointURL = prevURL })
+	logsEndpointURL = "http://127.0.0.1:1/dead-endpoint"
+
+	cmd := newLogsCommand()
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("logs --json (file fallback): %v\nstdout=%s", err, stdout.String())
+	}
+
+	var got struct {
+		Source  string `json:"source"`
+		Path    string `json:"path"`
+		Content string `json:"content"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("logs --json (file fallback) must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Source != "file" {
+		t.Errorf("source = %q, want %q", got.Source, "file")
+	}
+	if got.Path == "" {
+		t.Errorf("path must be populated in file-fallback JSON")
+	}
+	if !strings.Contains(got.Content, "gateway started") {
+		t.Errorf("content missing seeded body:\n%s", got.Content)
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -145,6 +146,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	var reset bool
 	var reconfigure bool
 	var quick bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "setup [section]",
 		Short:        "Guided interactive setup — provider, model, and more",
@@ -156,6 +158,19 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 				breadcrumb, err := seams.ResetConfig()
 				if err != nil {
 					return err
+				}
+				if asJSON {
+					body, marshalErr := json.MarshalIndent(setupResetReportJSON{
+						Build:          newBuildProvenance(),
+						Action:         "reset",
+						ConfigPath:     config.ConfigPath(),
+						BreadcrumbPath: breadcrumb,
+					}, "", "  ")
+					if marshalErr != nil {
+						return marshalErr
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), string(body))
+					return nil
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), "Configuration reset to defaults.")
 				if breadcrumb != "" {
@@ -196,7 +211,19 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&reset, "reset", false, "DESTRUCTIVE: overwrite config.toml back to defaults, then re-run the setup wizard")
 	cmd.Flags().BoolVar(&reconfigure, "reconfigure", false, "re-run the setup wizard against the current config (non-destructive; existing values are kept where the operator skips a step)")
 	cmd.Flags().BoolVar(&quick, "quick", false, "configure missing setup items only")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON for `--reset`: `{build, action: 'reset', config_path, breadcrumb_path}`")
 	return cmd
+}
+
+// setupResetReportJSON is the wire shape for `setup --reset --json`.
+// Fleet automation running reset across machines parses this to record
+// where each operator's prior config was preserved (`breadcrumb_path`)
+// — the recovery handle scripts capture for rollback.
+type setupResetReportJSON struct {
+	Build          buildProvenanceJSON `json:"build"`
+	Action         string              `json:"action"`
+	ConfigPath     string              `json:"config_path"`
+	BreadcrumbPath string              `json:"breadcrumb_path"`
 }
 
 func defaultSetupCommandSeams() setupCommandSeams {

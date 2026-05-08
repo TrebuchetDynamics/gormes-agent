@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -121,5 +122,66 @@ model = "hermes-agent"
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q\nstdout=%s\nstderr=%s", want, stdout, stderr)
 		}
+	}
+}
+
+// TestUsageCommand_JSONEmitsStructuredSnapshot proves
+// `gormes usage --json` returns a parseable
+// `{build, provider, account_id, plan, source, fetched_at,
+// windows: [...], details, unavailable}` document so fleet automation
+// tracking provider quota across machines can plot dashboards
+// without scraping the multi-line "Provider: X / Session: Y%..." prose.
+func TestUsageCommand_JSONEmitsStructuredSnapshot(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"plan_type":"pro",
+			"rate_limit":{
+				"primary_window":{"used_percent":25},
+				"secondary_window":{"used_percent":50}
+			}
+		}`))
+	}))
+	defer server.Close()
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "`+server.URL+`"
+api_key = "fixture-token"
+model = "gpt-5.5"
+`))
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "usage", "--json")
+	if err != nil {
+		t.Fatalf("usage --json: %v\nstderr=%s", err, stderr)
+	}
+	// Raw API key MUST never leak into stdout.
+	if strings.Contains(stdout+stderr, "fixture-token") {
+		t.Fatalf("usage --json LEAKED the api key:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Provider string `json:"provider"`
+		Plan     string `json:"plan,omitempty"`
+		Windows  []struct {
+			Label       string   `json:"label"`
+			UsedPercent *float64 `json:"used_percent,omitempty"`
+		} `json:"windows"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("usage --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Provider != "openai-codex" {
+		t.Errorf("provider = %q, want openai-codex", got.Provider)
+	}
+	if len(got.Windows) < 2 {
+		t.Errorf("windows len = %d, want >=2", len(got.Windows))
 	}
 }

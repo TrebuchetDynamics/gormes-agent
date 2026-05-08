@@ -326,6 +326,62 @@ func TestGormesAuthStatusAndLogout(t *testing.T) {
 	}
 }
 
+// TestGormesAuthAddJSONEmitsStructuredOutcome proves
+// `gormes auth add <provider> --type api-key --api-key X --json`
+// returns `{build, action, provider, id, label, redacted}` so fleet
+// credential-provisioning automation can record the assigned id +
+// label per machine without scraping `auth_api_key_saved` prose.
+// The raw API key MUST never appear in stdout.
+func TestGormesAuthAddJSONEmitsStructuredOutcome(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", "openrouter",
+		"--type", "api-key",
+		"--label", "primary",
+		"--api-key", "sk-or-must-not-leak-Z9",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("auth add --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "sk-or-must-not-leak-Z9") {
+		t.Fatalf("auth add --json LEAKED the raw API key:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action   string `json:"action"`
+		Provider string `json:"provider"`
+		ID       string `json:"id"`
+		Label    string `json:"label"`
+		Redacted bool   `json:"redacted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("auth add --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "added" {
+		t.Errorf("action = %q, want %q", got.Action, "added")
+	}
+	if got.Provider != "openrouter" {
+		t.Errorf("provider = %q, want openrouter", got.Provider)
+	}
+	if got.ID == "" {
+		t.Errorf("id must be populated (auto-assigned credential id)")
+	}
+	if got.Label != "primary" {
+		t.Errorf("label = %q, want primary", got.Label)
+	}
+	if !got.Redacted {
+		t.Errorf("redacted must always be true")
+	}
+}
+
 // TestGormesAuthRemoveJSONEmitsStructuredOutcome proves
 // `gormes auth remove <provider> <target> --json` returns
 // `{build, action, provider, removed: {id, label}, redacted}` so

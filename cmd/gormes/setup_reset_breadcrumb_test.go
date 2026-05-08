@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,6 +125,82 @@ func TestSetupReset_PrintsBreadcrumbPathToOperator(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "config.toml.before-reset.") {
 		t.Fatalf("stdout must include the breadcrumb path so the operator can roll back; got:\n%s", stdout)
+	}
+}
+
+// TestSetupReset_JSONEmitsStructuredOutcome proves
+// `gormes setup --reset --json` returns
+// `{build, action: "reset", config_path, breadcrumb_path}` so fleet
+// automation running `setup --reset` across machines can audit where
+// each operator's prior config was preserved without scraping the
+// "Prior config preserved at X — restore with cp X Y" prose. The
+// breadcrumb_path is the recovery handle scripts capture.
+func TestSetupReset_JSONEmitsStructuredOutcome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_API_KEY", "")
+	if err := os.MkdirAll(filepath.Dir(config.ConfigPath()), 0o700); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(config.ConfigPath(), []byte("[hermes]\nprovider = 'openai'\nmodel = 'fleet-snapshot'\n"), 0o600); err != nil {
+		t.Fatalf("write prior config: %v", err)
+	}
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "--reset", "--non-interactive", "--json")
+	if err != nil {
+		t.Fatalf("setup --reset --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action         string `json:"action"`
+		ConfigPath     string `json:"config_path"`
+		BreadcrumbPath string `json:"breadcrumb_path"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("setup --reset --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "reset" {
+		t.Errorf("action = %q, want %q", got.Action, "reset")
+	}
+	if got.ConfigPath != config.ConfigPath() {
+		t.Errorf("config_path = %q, want %q", got.ConfigPath, config.ConfigPath())
+	}
+	if got.BreadcrumbPath == "" {
+		t.Errorf("breadcrumb_path must be populated when prior config existed")
+	}
+	// Breadcrumb file MUST be on disk.
+	if _, statErr := os.Stat(got.BreadcrumbPath); statErr != nil {
+		t.Errorf("breadcrumb_path missing on disk: %v", statErr)
+	}
+}
+
+// TestSetupReset_JSONFreshInstallEmptyBreadcrumb proves the JSON
+// path keeps `breadcrumb_path: ""` (empty string, not absent) on a
+// fresh install. Fleet scripts iterating across hosts get a stable
+// shape regardless of whether the host had prior config.
+func TestSetupReset_JSONFreshInstallEmptyBreadcrumb(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_API_KEY", "")
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, _, err := runSetupTestCommand(t, fake.seams(), "--reset", "--non-interactive", "--json")
+	if err != nil {
+		t.Fatalf("setup --reset --json (fresh): %v", err)
+	}
+	var got struct {
+		BreadcrumbPath string `json:"breadcrumb_path"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.BreadcrumbPath != "" {
+		t.Errorf("fresh-install breadcrumb_path = %q, want empty string", got.BreadcrumbPath)
 	}
 }
 

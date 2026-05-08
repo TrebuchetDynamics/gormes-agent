@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -132,6 +133,86 @@ mcp_servers:
 	}
 	if strings.Contains(stdout+stderr, "noninteractive_required") || strings.Contains(stdout+stderr, "mcp_login_saved") {
 		t.Fatalf("default MCP login used Hermes server config:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+// TestMCPLoginCommand_JSONEmitsStructuredOutcome proves
+// `gormes mcp login <name> --json` returns
+// `{build, server, evidence, message?, available?}` so fleet automation
+// orchestrating MCP token refresh across machines can reason about
+// every typed evidence value (saved/server_unknown/auth_not_oauth/...)
+// without scraping `evidence=...` prose. Raw access/refresh tokens
+// MUST never appear in stdout.
+func TestMCPLoginCommand_JSONEmitsStructuredOutcome(t *testing.T) {
+	store := tools.NewMCPOAuthStore()
+	flow := &commandMCPLoginFlow{session: &tools.MCPSession{AccessToken: "plain-access-token", RefreshToken: "plain-refresh-token"}}
+	cmd := newMCPCommandWithRuntime(mcpLoginRuntime{
+		loadConfig: func() (tools.MCPConfigResolution, error) { return commandMCPResolution(), nil },
+		store:      store,
+		flow:       flow,
+	})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "login", "oauth", "--json")
+	if err != nil {
+		t.Fatalf("Execute mcp login --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-access-token") || strings.Contains(stdout+stderr, "plain-refresh-token") {
+		t.Fatalf("mcp login --json LEAKED token:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Server   string `json:"server"`
+		Evidence string `json:"evidence"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("mcp login --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Server != "oauth" {
+		t.Errorf("server = %q, want oauth", got.Server)
+	}
+	if got.Evidence != "mcp_login_saved" {
+		t.Errorf("evidence = %q, want %q", got.Evidence, "mcp_login_saved")
+	}
+}
+
+// TestMCPLoginCommand_JSONUnknownServerEmitsAvailableArray proves
+// the unknown-server path returns an `available` array so fleet
+// automation hitting "did you mean?" cases can programmatically
+// select an alternate server name.
+func TestMCPLoginCommand_JSONUnknownServerEmitsAvailableArray(t *testing.T) {
+	cmd := newMCPCommandWithRuntime(mcpLoginRuntime{
+		loadConfig: func() (tools.MCPConfigResolution, error) { return commandMCPResolution(), nil },
+		store:      tools.NewMCPOAuthStore(),
+	})
+	stdout, _, err := executeOneshotFlagCommand(cmd, "login", "missing", "--json")
+	if err == nil || exitCodeFromError(err) != 2 {
+		t.Fatalf("err=%v exit=%d stdout=%s, want exit 2", err, exitCodeFromError(err), stdout)
+	}
+	var got struct {
+		Server    string   `json:"server"`
+		Evidence  string   `json:"evidence"`
+		Available []string `json:"available"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("mcp login --json (unknown server) must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Evidence != "mcp_server_unknown" {
+		t.Errorf("evidence = %q, want %q", got.Evidence, "mcp_server_unknown")
+	}
+	wantAvailable := map[string]bool{"oauth": false, "stdio": false}
+	for _, name := range got.Available {
+		if _, ok := wantAvailable[name]; ok {
+			wantAvailable[name] = true
+		}
+	}
+	for name, saw := range wantAvailable {
+		if !saw {
+			t.Errorf("available array missing %q; got %+v", name, got.Available)
+		}
 	}
 }
 

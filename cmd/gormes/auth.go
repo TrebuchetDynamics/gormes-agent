@@ -90,6 +90,7 @@ func newAuthAddCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "disable OAuth TLS verification")
 	cmd.Flags().StringVar(&caBundle, "ca-bundle", "", "OAuth CA bundle")
 	cmd.Flags().StringVar(&emergencyImportFromCodexCLI, "emergency-import-from-codex-cli", "", "explicitly import Codex CLI auth.json after accepting the refresh-token race envelope")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'added', provider, id, label, redacted}` (api-key path only)")
 	return cmd
 }
 
@@ -410,8 +411,37 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(authAddReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "added",
+			Provider: provider,
+			ID:       id,
+			Label:    label,
+			Redacted: true,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_api_key_saved provider=%s id=%s label=%s redacted=true\n", provider, id, label)
 	return nil
+}
+
+// authAddReportJSON is the wire shape for `auth add --json` (api-key
+// path). Fleet credential-provisioning automation parses this to record
+// the assigned credential id + label per machine. Raw API key values
+// MUST never appear here — `redacted: true` is the contract.
+type authAddReportJSON struct {
+	Build    buildProvenanceJSON `json:"build"`
+	Action   string              `json:"action"`
+	Provider string              `json:"provider"`
+	ID       string              `json:"id"`
+	Label    string              `json:"label"`
+	Redacted bool                `json:"redacted"`
 }
 
 func runAuthAddAnthropicOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {

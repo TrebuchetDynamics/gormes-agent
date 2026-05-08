@@ -190,6 +190,123 @@ func TestPluginsCommandList_JSONEmptyEmitsArray(t *testing.T) {
 	}
 }
 
+// TestPluginsCommand_InstallJSONEmitsStructuredOutcome proves
+// `gormes plugins install <id> --json` returns
+// `{build, action: "installed", name, path, enabled}` so fleet
+// automation provisioning plugins across machines can record the
+// resulting on-disk path AND the enable state in one parseable
+// document. Without this, scripts have to scrape "installed X\n
+// enabled Y" two-line prose.
+func TestPluginsCommand_InstallJSONEmitsStructuredOutcome(t *testing.T) {
+	root := t.TempDir()
+	source := writeCommandPluginFixture(t, "install-json-plugin", map[string]string{
+		"plugin.yaml": "name: install-json-plugin\nversion: 9.9.9\ndescription: Install JSON test\n",
+	})
+	if err := os.Mkdir(filepath.Join(source, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager := plugins.NewLifecycleManager(plugins.LifecycleOptions{
+		UserRoot: filepath.Join(root, "plugins"),
+		Config:   filepath.Join(root, "config.toml"),
+		Runner:   &commandPluginRunner{cloneSource: source},
+	})
+
+	stdout, stderr, err := executePluginsCommandForTest(newPluginsCommandWithManager(manager), "install", "owner/install-json-plugin", "--enable", "--json")
+	if err != nil {
+		t.Fatalf("plugins install --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action  string `json:"action"`
+		Name    string `json:"name"`
+		Path    string `json:"path"`
+		Enabled bool   `json:"enabled"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("plugins install --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "installed" {
+		t.Errorf("action = %q, want %q", got.Action, "installed")
+	}
+	if got.Name != "install-json-plugin" {
+		t.Errorf("name = %q, want install-json-plugin", got.Name)
+	}
+	if !got.Enabled {
+		t.Errorf("enabled must be true when --enable was passed")
+	}
+	if got.Path == "" {
+		t.Errorf("path must be populated")
+	}
+}
+
+// TestPluginsCommand_LifecycleJSONShapeIsConsistent proves
+// `gormes plugins enable/disable/update/remove --json` all return a
+// `{build, action, name}` document with the same shape so fleet
+// automation reconciling plugin state across machines can write one
+// JSON parser path. `action` is the only field that varies between
+// the four lifecycle verbs.
+func TestPluginsCommand_LifecycleJSONShapeIsConsistent(t *testing.T) {
+	root := t.TempDir()
+	source := writeCommandPluginFixture(t, "lifecycle-plugin", map[string]string{
+		"plugin.yaml": "name: lifecycle-plugin\nversion: 1.0.0\ndescription: Lifecycle JSON tests\n",
+	})
+	if err := os.Mkdir(filepath.Join(source, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager := plugins.NewLifecycleManager(plugins.LifecycleOptions{
+		UserRoot: filepath.Join(root, "plugins"),
+		Config:   filepath.Join(root, "config.toml"),
+		Runner:   &commandPluginRunner{cloneSource: source, pullOutput: "Already up to date."},
+	})
+
+	if _, _, err := executePluginsCommandForTest(newPluginsCommandWithManager(manager), "install", "owner/lifecycle-plugin"); err != nil {
+		t.Fatalf("install: %v", err)
+	}
+
+	verbs := []struct {
+		args   []string
+		action string
+	}{
+		{[]string{"enable", "lifecycle-plugin", "--json"}, "enabled"},
+		{[]string{"disable", "lifecycle-plugin", "--json"}, "disabled"},
+		{[]string{"update", "lifecycle-plugin", "--json"}, "updated"},
+		{[]string{"remove", "lifecycle-plugin", "--json"}, "removed"},
+	}
+	for _, tt := range verbs {
+		t.Run(tt.action, func(t *testing.T) {
+			stdout, stderr, err := executePluginsCommandForTest(newPluginsCommandWithManager(manager), tt.args...)
+			if err != nil {
+				t.Fatalf("plugins %v: %v\nstdout=%s\nstderr=%s", tt.args, err, stdout, stderr)
+			}
+			var got struct {
+				Build struct {
+					Version string `json:"version"`
+				} `json:"build"`
+				Action string `json:"action"`
+				Name   string `json:"name"`
+			}
+			if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+				t.Fatalf("plugins %v --json must be valid JSON: %v\nstdout=%s", tt.args, jsonErr, stdout)
+			}
+			if got.Build.Version != Version {
+				t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+			}
+			if got.Action != tt.action {
+				t.Errorf("action = %q, want %q", got.Action, tt.action)
+			}
+			if got.Name != "lifecycle-plugin" {
+				t.Errorf("name = %q, want lifecycle-plugin", got.Name)
+			}
+		})
+	}
+}
+
 func TestPluginsCommandIdentifierSafety(t *testing.T) {
 	root := t.TempDir()
 	badSource := writeCommandPluginFixture(t, "bad-plugin", map[string]string{
