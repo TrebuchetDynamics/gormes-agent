@@ -145,7 +145,7 @@ so the recovery path is visible inline.
 					return err
 				}
 			} else {
-				printUpdateReport(cmd, report)
+				printUpdateReport(cmd, report, checkOnly)
 			}
 			if report.Failed {
 				message := "gormes update failed"
@@ -219,13 +219,23 @@ func updateReportHasEvidence(report cli.UpdateReport, kind cli.UpdateEvidenceKin
 	return false
 }
 
-func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport) {
+func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport, checkOnly bool) {
 	out := cmd.OutOrStdout()
 	branch := report.Branch
 	if branch == "" {
 		branch = "main"
 	}
-	fmt.Fprintln(out, cli.Bold(out, "⚕ Updating Gormes Agent..."))
+	// `--check` is a readiness probe; the banner and summary must say
+	// "Checking" and "Update check complete" so operators don't read
+	// "Updating..." and "Update complete!" as evidence that an update
+	// actually happened (it didn't).
+	bannerText := "⚕ Updating Gormes Agent..."
+	successText := "✓ Update complete!"
+	if checkOnly {
+		bannerText = "⚕ Checking Gormes Agent..."
+		successText = "✓ Update check complete"
+	}
+	fmt.Fprintln(out, cli.Bold(out, bannerText))
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "update branch:"), branch)
 	if report.PreviousBranch != "" {
@@ -245,7 +255,7 @@ func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport) {
 	if report.Failed {
 		fmt.Fprintln(out, cli.Bold(out, "✗ Update failed"))
 	} else {
-		fmt.Fprintln(out, cli.Green(out, cli.Bold(out, "✓ Update complete!")))
+		fmt.Fprintln(out, cli.Green(out, cli.Bold(out, successText)))
 	}
 	if report.OperatorRecovery != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), report.OperatorRecovery)
