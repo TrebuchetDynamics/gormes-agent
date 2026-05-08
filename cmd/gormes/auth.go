@@ -134,15 +134,18 @@ func newAuthResetCommand() *cobra.Command {
 }
 
 func newAuthStatusCommand() *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:          "status <provider>",
 		Short:        "Show redacted provider auth status",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAuthStatusCommand(cmd, args[0])
+			return runAuthStatusCommand(cmd, args[0], asJSON)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable JSON document with the same redacted fields (suitable for credential-health monitoring)")
+	return cmd
 }
 
 func newAuthLogoutCommand() *cobra.Command {
@@ -711,9 +714,51 @@ func runAuthResetCommand(cmd *cobra.Command, providerInput string) error {
 	return nil
 }
 
-func runAuthStatusCommand(cmd *cobra.Command, providerInput string) error {
+func runAuthStatusCommand(cmd *cobra.Command, providerInput string, asJSON bool) error {
+	if asJSON {
+		status, err := cli.ResolveAuthStatus(context.Background(), providerInput, cli.AuthStatusOptions{})
+		if err != nil {
+			return err
+		}
+		body, err := json.MarshalIndent(authStatusToJSON(status), "", "  ")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
 	_, err := cli.RenderAuthStatus(context.Background(), cmd.OutOrStdout(), providerInput, cli.AuthStatusOptions{})
 	return err
+}
+
+// authStatusReportJSON is the cmd-side JSON shape for ProviderAuthStatus.
+// internal/cli's struct is intentionally tag-free; mirroring it here
+// keeps presentation concerns out of the package and makes the wire
+// shape explicit.
+type authStatusReportJSON struct {
+	Provider      string                              `json:"provider"`
+	AuthType      string                              `json:"auth_type"`
+	Status        string                              `json:"status"`
+	Reason        string                              `json:"reason,omitempty"`
+	Authenticated bool                                `json:"authenticated"`
+	Redacted      bool                                `json:"redacted"`
+	Credentials   []config.RedactedCredentialStatus   `json:"credentials"`
+}
+
+func authStatusToJSON(status cli.ProviderAuthStatus) authStatusReportJSON {
+	creds := status.Credentials
+	if creds == nil {
+		creds = []config.RedactedCredentialStatus{}
+	}
+	return authStatusReportJSON{
+		Provider:      status.Provider,
+		AuthType:      status.AuthType,
+		Status:        status.Status,
+		Reason:        status.Reason,
+		Authenticated: status.Authenticated,
+		Redacted:      status.Redacted,
+		Credentials:   creds,
+	}
 }
 
 func runAuthLogoutCommand(cmd *cobra.Command, providerInput string) error {
