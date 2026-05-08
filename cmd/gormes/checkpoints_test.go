@@ -297,6 +297,113 @@ func TestCheckpointsCLI_Prune_DryRunPreviewsWithoutDeleting(t *testing.T) {
 	}
 }
 
+// TestCheckpointsCLI_Prune_JSONEmitsStructuredOutcome proves
+// `gormes checkpoints prune --json` returns a parseable
+// `{build, dry_run, retention_days, max_total_size_mb, keep_orphans,
+// scanned, deleted_orphan, deleted_stale, errors, bytes_freed}` shape
+// for operator scripts and dashboards. Without machine-readable output,
+// scripts have to scrape "Deleted orphan:  N" column text. Dry-run
+// applies via `--dry-run` and is reflected in `dry_run: true`.
+func TestCheckpointsCLI_Prune_JSONEmitsStructuredOutcome(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	root := checkpointTestRoot(tmp)
+	os.MkdirAll(root, 0o755)
+
+	now := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	orphanWorkdir := filepath.Join(tmp, "deleted-project")
+	seedCheckpointShadow(t, root, "orphan-shadow", orphanWorkdir, now.Add(-2*time.Hour))
+
+	cmd := newCheckpointsCommand()
+	cmd.SetArgs([]string{"prune", "--json", "--retention-days", "5", "--max-size-mb", "500"})
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("checkpoints prune --json: %v", err)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		DryRun         bool  `json:"dry_run"`
+		RetentionDays  int   `json:"retention_days"`
+		MaxTotalSizeMB int   `json:"max_total_size_mb"`
+		KeepOrphans    bool  `json:"keep_orphans"`
+		Scanned        int   `json:"scanned"`
+		DeletedOrphan  int   `json:"deleted_orphan"`
+		DeletedStale   int   `json:"deleted_stale"`
+		Errors         int   `json:"errors"`
+		BytesFreed     int64 `json:"bytes_freed"`
+	}
+	if jsonErr := json.Unmarshal(out.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("prune --json must be valid JSON: %v\nstdout=%s", jsonErr, out.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Errorf("got.build.git_commit must be non-empty")
+	}
+	if got.DryRun {
+		t.Errorf("apply mode must report dry_run=false")
+	}
+	if got.RetentionDays != 5 {
+		t.Errorf("retention_days = %d, want 5", got.RetentionDays)
+	}
+	if got.MaxTotalSizeMB != 500 {
+		t.Errorf("max_total_size_mb = %d, want 500", got.MaxTotalSizeMB)
+	}
+	if got.DeletedOrphan != 1 {
+		t.Errorf("deleted_orphan = %d, want 1", got.DeletedOrphan)
+	}
+	if _, err := os.Stat(filepath.Join(root, "orphan-shadow")); !os.IsNotExist(err) {
+		t.Errorf("orphan-shadow should be gone after apply mode; got err=%v", err)
+	}
+}
+
+// TestCheckpointsCLI_Prune_DryRunJSONIsReadableFromScripts proves
+// `--dry-run --json` reports `dry_run: true` AND keeps the shadow
+// directories on disk. Operator scripts gating on prune size before
+// pulling the trigger need both signals.
+func TestCheckpointsCLI_Prune_DryRunJSONIsReadableFromScripts(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	root := checkpointTestRoot(tmp)
+	os.MkdirAll(root, 0o755)
+
+	now := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	staleWorkdir := filepath.Join(tmp, "stale")
+	os.MkdirAll(staleWorkdir, 0o755)
+	seedCheckpointShadow(t, root, "stale-shadow", staleWorkdir, now.Add(-10*24*time.Hour))
+
+	cmd := newCheckpointsCommand()
+	cmd.SetArgs([]string{"prune", "--dry-run", "--json", "--retention-days", "5"})
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("checkpoints prune --dry-run --json: %v", err)
+	}
+
+	var got struct {
+		DryRun       bool `json:"dry_run"`
+		DeletedStale int  `json:"deleted_stale"`
+	}
+	if jsonErr := json.Unmarshal(out.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("prune --dry-run --json must be valid JSON: %v\nstdout=%s", jsonErr, out.String())
+	}
+	if !got.DryRun {
+		t.Errorf("dry-run mode must report dry_run=true; got=%+v", got)
+	}
+	if got.DeletedStale != 1 {
+		t.Errorf("deleted_stale = %d, want 1 (count still reflects what WOULD have been pruned)", got.DeletedStale)
+	}
+	if _, err := os.Stat(filepath.Join(root, "stale-shadow")); err != nil {
+		t.Errorf("stale-shadow must remain on disk in dry-run; got err=%v", err)
+	}
+}
+
 func TestCheckpointsCLI_Prune_KeepOrphansFlag(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
@@ -378,6 +485,172 @@ func TestCheckpointsCLI_Clear_WithForceFlag(t *testing.T) {
 	}
 	if _, err := os.Stat(root); !os.IsNotExist(err) {
 		t.Errorf("root still exists after clear -f: %v", err)
+	}
+}
+
+// TestCheckpointsCLI_Clear_JSONEmitsStructuredOutcome proves
+// `gormes checkpoints clear -f --json` returns
+// `{build, root, action, deleted, bytes_freed, projects_before,
+// legacy_before}` so operator scripts performing scheduled GC can
+// audit/log what was destroyed without scraping prose. Because clear
+// is total destruction, the pre-state (projects/legacy counts before
+// the wipe) is captured BEFORE delete and embedded in the JSON.
+func TestCheckpointsCLI_Clear_JSONEmitsStructuredOutcome(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	root := checkpointTestRoot(tmp)
+	os.MkdirAll(root, 0o755)
+
+	now := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	wd := filepath.Join(tmp, "live")
+	os.MkdirAll(wd, 0o755)
+	seedCheckpointShadow(t, root, "live", wd, now)
+	seedLegacyArchive(t, root, "legacy-1")
+
+	cmd := newCheckpointsCommand()
+	cmd.SetArgs([]string{"clear", "-f", "--json"})
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("checkpoints clear -f --json: %v", err)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Root           string `json:"root"`
+		Action         string `json:"action"`
+		Deleted        bool   `json:"deleted"`
+		BytesFreed     int64  `json:"bytes_freed"`
+		ProjectsBefore int    `json:"projects_before"`
+		LegacyBefore   int    `json:"legacy_before"`
+	}
+	if jsonErr := json.Unmarshal(out.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("clear --json must be valid JSON: %v\nstdout=%s", jsonErr, out.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "cleared" {
+		t.Errorf("action = %q, want %q", got.Action, "cleared")
+	}
+	if !got.Deleted {
+		t.Errorf("deleted must be true after clear")
+	}
+	if got.ProjectsBefore != 1 {
+		t.Errorf("projects_before = %d, want 1 (the live shadow seeded into root)", got.ProjectsBefore)
+	}
+	if got.LegacyBefore != 1 {
+		t.Errorf("legacy_before = %d, want 1 (the legacy-1 archive)", got.LegacyBefore)
+	}
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Errorf("clear must remove the root; stat err=%v", err)
+	}
+}
+
+// TestCheckpointsCLI_ClearLegacy_JSONEmitsStructuredOutcome proves
+// `gormes checkpoints clear-legacy -f --json` returns
+// `{build, root, action, archives_before: [...], deleted, bytes_freed}`
+// for operator scripts cleaning up post-migration v1 shadow repos.
+// `archives_before` lists the names+sizes of what was destroyed —
+// captured BEFORE delete so the JSON consumer learns exactly which
+// archives are gone.
+func TestCheckpointsCLI_ClearLegacy_JSONEmitsStructuredOutcome(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	root := checkpointTestRoot(tmp)
+	os.MkdirAll(root, 0o755)
+	seedLegacyArchive(t, root, "legacy-1")
+	seedLegacyArchive(t, root, "legacy-2")
+
+	cmd := newCheckpointsCommand()
+	cmd.SetArgs([]string{"clear-legacy", "-f", "--json"})
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("checkpoints clear-legacy -f --json: %v", err)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Root            string `json:"root"`
+		Action          string `json:"action"`
+		ArchivesBefore  []struct {
+			Name      string `json:"name"`
+			SizeBytes int64  `json:"size_bytes"`
+		} `json:"archives_before"`
+		Deleted    int   `json:"deleted"`
+		BytesFreed int64 `json:"bytes_freed"`
+	}
+	if jsonErr := json.Unmarshal(out.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("clear-legacy --json must be valid JSON: %v\nstdout=%s", jsonErr, out.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "cleared" {
+		t.Errorf("action = %q, want %q", got.Action, "cleared")
+	}
+	if got.Deleted != 2 {
+		t.Errorf("deleted = %d, want 2 (the two seeded legacy archives)", got.Deleted)
+	}
+	if len(got.ArchivesBefore) != 2 {
+		t.Errorf("archives_before len = %d, want 2", len(got.ArchivesBefore))
+	}
+	for _, e := range []string{"legacy-1", "legacy-2"} {
+		var saw bool
+		for _, a := range got.ArchivesBefore {
+			if a.Name == e {
+				saw = true
+				break
+			}
+		}
+		if !saw {
+			t.Errorf("archives_before missing %q; got %+v", e, got.ArchivesBefore)
+		}
+	}
+	for _, name := range []string{"legacy-1", "legacy-2"} {
+		if _, err := os.Stat(filepath.Join(root, name)); !os.IsNotExist(err) {
+			t.Errorf("%s should be gone after clear-legacy; stat err=%v", name, err)
+		}
+	}
+}
+
+// TestCheckpointsCLI_ClearLegacy_JSONNoopWhenEmpty proves that when
+// no legacy archives exist, `clear-legacy --json` emits a
+// `{action: "noop"}` shape rather than scraping "No legacy archives
+// to clear." Operators on fresh installs need a stable JSON contract.
+func TestCheckpointsCLI_ClearLegacy_JSONNoopWhenEmpty(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	root := checkpointTestRoot(tmp)
+	os.MkdirAll(root, 0o755)
+
+	cmd := newCheckpointsCommand()
+	cmd.SetArgs([]string{"clear-legacy", "-f", "--json"})
+	out := &bytes.Buffer{}
+	cmd.SetOut(out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("checkpoints clear-legacy -f --json (empty): %v", err)
+	}
+
+	var got struct {
+		Action  string `json:"action"`
+		Deleted int    `json:"deleted"`
+	}
+	if jsonErr := json.Unmarshal(out.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("clear-legacy --json (empty) must be valid JSON: %v\nstdout=%s", jsonErr, out.String())
+	}
+	if got.Action != "noop" {
+		t.Errorf("action = %q, want %q", got.Action, "noop")
+	}
+	if got.Deleted != 0 {
+		t.Errorf("deleted = %d, want 0", got.Deleted)
 	}
 }
 

@@ -190,7 +190,27 @@ func newCheckpointsPruneCommand() *cobra.Command {
 	cmd.Flags().Int("max-size-mb", 500, "after orphan/stale prune, drop oldest commits per project until total size <= this")
 	cmd.Flags().Bool("keep-orphans", false, "skip deleting projects whose workdir no longer exists")
 	cmd.Flags().Bool("dry-run", false, "preview which orphan/stale shadows would be deleted without touching disk")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, dry_run, retention_days, max_total_size_mb, keep_orphans, scanned, deleted_orphan, deleted_stale, errors, bytes_freed}`")
 	return cmd
+}
+
+// checkpointsPruneJSON is the wire shape for `checkpoints prune --json`.
+// Operator scripts gating destructive prunes (CI/CD jobs, scheduled GC,
+// dashboard alerts) parse this to reason about what was — or, in
+// dry-run mode, what WOULD be — pruned. `dry_run: true` makes the
+// preview shape distinguishable from the apply shape. Build provenance
+// leads, same convention as restore/update/doctor `--json`.
+type checkpointsPruneJSON struct {
+	Build          buildProvenanceJSON `json:"build"`
+	DryRun         bool                `json:"dry_run"`
+	RetentionDays  int                 `json:"retention_days"`
+	MaxTotalSizeMB int                 `json:"max_total_size_mb"`
+	KeepOrphans    bool                `json:"keep_orphans"`
+	Scanned        int                 `json:"scanned"`
+	DeletedOrphan  int                 `json:"deleted_orphan"`
+	DeletedStale   int                 `json:"deleted_stale"`
+	Errors         int                 `json:"errors"`
+	BytesFreed     int64               `json:"bytes_freed"`
 }
 
 func runCheckpointsPrune(cmd *cobra.Command, _ []string) error {
@@ -199,6 +219,29 @@ func runCheckpointsPrune(cmd *cobra.Command, _ []string) error {
 	maxSizeMB, _ := cmd.Flags().GetInt("max-size-mb")
 	keepOrphans, _ := cmd.Flags().GetBool("keep-orphans")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	asJSON, _ := cmd.Flags().GetBool("json")
+
+	result := tools.PruneCheckpointsDryRun(tools.DefaultCheckpointRoot(), retentionDays, keepOrphans, maxSizeMB, dryRun, time.Now)
+
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(checkpointsPruneJSON{
+			Build:          newBuildProvenance(),
+			DryRun:         dryRun,
+			RetentionDays:  retentionDays,
+			MaxTotalSizeMB: maxSizeMB,
+			KeepOrphans:    keepOrphans,
+			Scanned:        result.Scanned,
+			DeletedOrphan:  result.DeletedOrphan,
+			DeletedStale:   result.DeletedStale,
+			Errors:         result.Errors,
+			BytesFreed:     result.BytesFreed,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
+	}
 
 	if dryRun {
 		fmt.Fprintln(out, "DRY RUN — previewing checkpoint store prune (no files deleted)…")
@@ -210,7 +253,6 @@ func runCheckpointsPrune(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintf(out, "  max_total_size_mb: %d\n", maxSizeMB)
 	fmt.Fprintln(out)
 
-	result := tools.PruneCheckpointsDryRun(tools.DefaultCheckpointRoot(), retentionDays, keepOrphans, maxSizeMB, dryRun, time.Now)
 	fmt.Fprintf(out, "Scanned:         %d\n", result.Scanned)
 	fmt.Fprintf(out, "Deleted orphan:  %d\n", result.DeletedOrphan)
 	fmt.Fprintf(out, "Deleted stale:   %d\n", result.DeletedStale)
@@ -230,28 +272,59 @@ func newCheckpointsClearCommand() *cobra.Command {
 		RunE:  runCheckpointsClear,
 	}
 	cmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, root, action, deleted, bytes_freed, projects_before, legacy_before}`")
 	return cmd
+}
+
+// checkpointsClearJSON is the wire shape for `checkpoints clear --json`.
+// Operator scripts performing scheduled GC parse this to audit what
+// was destroyed (root path, totals before delete, bytes reclaimed).
+// Pre-state is captured BEFORE the delete so JSON callers learn what
+// the operator just lost.
+type checkpointsClearJSON struct {
+	Build          buildProvenanceJSON `json:"build"`
+	Root           string              `json:"root"`
+	Action         string              `json:"action"`
+	Deleted        bool                `json:"deleted"`
+	BytesFreed     int64               `json:"bytes_freed"`
+	ProjectsBefore int                 `json:"projects_before"`
+	LegacyBefore   int                 `json:"legacy_before"`
 }
 
 func runCheckpointsClear(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
 	force, _ := cmd.Flags().GetBool("force")
+	asJSON, _ := cmd.Flags().GetBool("json")
 	root := tools.DefaultCheckpointRoot()
 
 	status, _ := tools.StoreStatus(root)
 	if status.TotalSizeBytes == 0 {
 		if !statCheckpointRoot(root) {
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(checkpointsClearJSON{
+					Build:  newBuildProvenance(),
+					Root:   root,
+					Action: "noop",
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				fmt.Fprintln(out, string(body))
+				return nil
+			}
 			fmt.Fprintln(out, "Nothing to clear — checkpoint base does not exist.")
 			return nil
 		}
 	}
 
-	fmt.Fprintf(out, "This will delete the ENTIRE checkpoint base at %s\n", status.Root)
-	fmt.Fprintf(out, "  size:        %s\n", formatBytes(status.TotalSizeBytes))
-	fmt.Fprintf(out, "  projects:    %d\n", status.ProjectCount)
-	fmt.Fprintf(out, "  legacy dirs: %d\n", len(status.LegacyArchives))
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "All /rollback history for every working directory will be lost.")
+	if !asJSON {
+		fmt.Fprintf(out, "This will delete the ENTIRE checkpoint base at %s\n", status.Root)
+		fmt.Fprintf(out, "  size:        %s\n", formatBytes(status.TotalSizeBytes))
+		fmt.Fprintf(out, "  projects:    %d\n", status.ProjectCount)
+		fmt.Fprintf(out, "  legacy dirs: %d\n", len(status.LegacyArchives))
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "All /rollback history for every working directory will be lost.")
+	}
 
 	if !force {
 		if !confirm(out, cmd.InOrStdin(), "Proceed?") {
@@ -261,6 +334,26 @@ func runCheckpointsClear(cmd *cobra.Command, _ []string) error {
 	}
 
 	result := tools.ClearAll(root)
+	if asJSON {
+		action := "cleared"
+		if !result.Deleted {
+			action = "failed"
+		}
+		body, marshalErr := json.MarshalIndent(checkpointsClearJSON{
+			Build:          newBuildProvenance(),
+			Root:           status.Root,
+			Action:         action,
+			Deleted:        result.Deleted,
+			BytesFreed:     result.BytesFreed,
+			ProjectsBefore: status.ProjectCount,
+			LegacyBefore:   len(status.LegacyArchives),
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
+	}
 	if result.Deleted {
 		fmt.Fprintf(out, "Cleared. Reclaimed %s.\n", formatBytes(result.BytesFreed))
 		return nil
@@ -276,33 +369,63 @@ func newCheckpointsClearLegacyCommand() *cobra.Command {
 		RunE:  runCheckpointsClearLegacy,
 	}
 	cmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, root, action, archives_before: [...], deleted, bytes_freed}`")
 	return cmd
+}
+
+// checkpointsClearLegacyJSON is the wire shape for `checkpoints clear-legacy --json`.
+// `archives_before` captures the names+sizes that were destroyed —
+// computed BEFORE delete so JSON consumers can audit/log exactly which
+// legacy directories are gone.
+type checkpointsClearLegacyJSON struct {
+	Build          buildProvenanceJSON       `json:"build"`
+	Root           string                    `json:"root"`
+	Action         string                    `json:"action"`
+	ArchivesBefore []checkpointsLegacyJSON   `json:"archives_before"`
+	Deleted        int                       `json:"deleted"`
+	BytesFreed     int64                     `json:"bytes_freed"`
 }
 
 func runCheckpointsClearLegacy(cmd *cobra.Command, _ []string) error {
 	out := cmd.OutOrStdout()
 	force, _ := cmd.Flags().GetBool("force")
+	asJSON, _ := cmd.Flags().GetBool("json")
 	root := tools.DefaultCheckpointRoot()
 
 	status, _ := tools.StoreStatus(root)
 	legacy := status.LegacyArchives
 	if len(legacy) == 0 {
+		if asJSON {
+			body, marshalErr := json.MarshalIndent(checkpointsClearLegacyJSON{
+				Build:          newBuildProvenance(),
+				Root:           root,
+				Action:         "noop",
+				ArchivesBefore: []checkpointsLegacyJSON{},
+			}, "", "  ")
+			if marshalErr != nil {
+				return marshalErr
+			}
+			fmt.Fprintln(out, string(body))
+			return nil
+		}
 		fmt.Fprintln(out, "No legacy archives to clear.")
 		return nil
 	}
 
-	var total int64
-	for _, a := range legacy {
-		total += a.SizeBytes
+	if !asJSON {
+		var total int64
+		for _, a := range legacy {
+			total += a.SizeBytes
+		}
+		fmt.Fprintf(out, "Found %d legacy archive(s), total %s:\n", len(legacy), formatBytes(total))
+		for _, a := range legacy {
+			fmt.Fprintf(out, "  %-40s  %10s\n", a.Name, formatBytes(a.SizeBytes))
+		}
+		fmt.Fprintln(out)
+		fmt.Fprintln(out, "Legacy archives hold pre-v2 per-project shadow repos, moved aside")
+		fmt.Fprintln(out, "during the single-store migration. Delete when you're confident")
+		fmt.Fprintln(out, "you don't need the old /rollback history.")
 	}
-	fmt.Fprintf(out, "Found %d legacy archive(s), total %s:\n", len(legacy), formatBytes(total))
-	for _, a := range legacy {
-		fmt.Fprintf(out, "  %-40s  %10s\n", a.Name, formatBytes(a.SizeBytes))
-	}
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Legacy archives hold pre-v2 per-project shadow repos, moved aside")
-	fmt.Fprintln(out, "during the single-store migration. Delete when you're confident")
-	fmt.Fprintln(out, "you don't need the old /rollback history.")
 
 	if !force {
 		if !confirm(out, cmd.InOrStdin(), "Delete all legacy archives?") {
@@ -312,7 +435,30 @@ func runCheckpointsClearLegacy(cmd *cobra.Command, _ []string) error {
 	}
 
 	result := tools.ClearLegacy(root)
-	fmt.Fprintf(out, "Deleted %d archive(s), reclaimed %s.\n", countLegacyDeleted(status, root), formatBytes(result.BytesFreed))
+	deleted := countLegacyDeleted(status, root)
+	if asJSON {
+		archives := make([]checkpointsLegacyJSON, len(legacy))
+		for i, a := range legacy {
+			archives[i] = checkpointsLegacyJSON{
+				Name:      a.Name,
+				SizeBytes: a.SizeBytes,
+			}
+		}
+		body, marshalErr := json.MarshalIndent(checkpointsClearLegacyJSON{
+			Build:          newBuildProvenance(),
+			Root:           status.Root,
+			Action:         "cleared",
+			ArchivesBefore: archives,
+			Deleted:        deleted,
+			BytesFreed:     result.BytesFreed,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(out, string(body))
+		return nil
+	}
+	fmt.Fprintf(out, "Deleted %d archive(s), reclaimed %s.\n", deleted, formatBytes(result.BytesFreed))
 	return nil
 }
 
