@@ -54,6 +54,7 @@ func newGonchoDoctorCommand() *cobra.Command {
 }
 
 type gonchoDoctorReport struct {
+	Build                  buildProvenanceJSON              `json:"build"`
 	Service                string                           `json:"service"`
 	Status                 string                           `json:"status"`
 	ExitCode               int                              `json:"exit_code"`
@@ -223,6 +224,7 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 	}
 	if !schema.Current || !requiredSchemaTablesPresent(schema.Tables) {
 		report := gonchoDoctorReport{
+			Build:    newBuildProvenance(),
 			Service:  "goncho",
 			Status:   "runtime_storage_error",
 			ExitCode: 2,
@@ -306,6 +308,7 @@ func buildGonchoDoctorReport(ctx context.Context, cfg config.Config, db *sql.DB,
 	}
 
 	report := gonchoDoctorReport{
+		Build:               newBuildProvenance(),
 		Service:             "goncho",
 		Status:              status,
 		ExitCode:            exitCode,
