@@ -267,3 +267,4 @@ const (
 // responds 404 — which is the case for non-Hermes OpenAI-compatible servers
 // (LM Studio, Open WebUI) that don't implement /v1/runs.
 var ErrRunEventsNotSupported = errors.New("hermes: /v1/runs not supported by this server")
+var ErrProviderUnavailable = errors.New("hermes: provider unavailable")

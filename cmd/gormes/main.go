@@ -494,7 +494,7 @@ type oneshotClientFactory func(context.Context, config.Config, oneshotInvocation
 type oneshotKernelConfigurer func(*kernel.Config)
 
 func newOneshotHTTPClient(_ context.Context, cfg config.Config, invocation oneshotInvocation) (hermes.Client, error) {
-	return newProviderHTTPClient(cfg, invocation.Inference.Provider)
+	return getOrCreateProviderClient(cfg, invocation.Inference.Provider)
 }
 
 func runResolvedOneshot(cmd *cobra.Command, invocation oneshotInvocation) error {

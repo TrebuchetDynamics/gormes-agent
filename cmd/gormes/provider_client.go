@@ -6,7 +6,30 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/provider"
 )
+
+// providerPool caches constructed provider clients so the oneshot cold-start
+// path only constructs the selected provider. Gateway and doctor paths also
+// benefit from reuse, but the pool's primary design goal is avoiding eager
+// construction of unselected providers during `gormes -z`.
+var providerPool = provider.NewClientPool()
+
+// getOrCreateProviderClient returns a hermes.Client for the given provider,
+// constructing it on first access via newProviderHTTPClient. Subsequent
+// calls for the same provider return the cached instance.
+func getOrCreateProviderClient(cfg config.Config, providerName string) (hermes.Client, error) {
+	providerPool.Register(providerName, func() (hermes.Client, error) {
+		return newProviderHTTPClient(cfg, providerName)
+	})
+	return providerPool.Get(providerName)
+}
+
+// resetProviderPoolForTesting clears all cached clients. Only exported for
+// test use; must not be called from production code paths.
+func resetProviderPoolForTesting() {
+	providerPool.Reset()
+}
 
 func newProviderHTTPClient(cfg config.Config, provider string) (hermes.Client, error) {
 	endpoint, apiKey, err := resolveProviderHTTPClientCredentials(cfg, provider)
