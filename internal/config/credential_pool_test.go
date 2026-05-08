@@ -232,3 +232,60 @@ func entryByID(entries []PooledCredential, id string) *PooledCredential {
 	}
 	return nil
 }
+
+func TestNousOAuthCredentialPoolRoundTrip(t *testing.T) {
+	hermesHome := t.TempDir()
+	creds := NousOAuthCredentials{
+		Label:              "default",
+		PortalBaseURL:      "https://portal.nousresearch.com",
+		InferenceBaseURL:   "https://inference.nousresearch.com",
+		ClientID:           "test-client-id",
+		Scope:              "openid profile",
+		TokenType:          "Bearer",
+		AccessToken:        "test-access-token",
+		RefreshToken:       "test-refresh-token",
+		ObtainedAt:         "2026-05-08T00:00:00Z",
+		ExpiresAt:          "2026-05-09T00:00:00Z",
+		ExpiresIn:          86400,
+		AgentKey:           "test-agent-key",
+		AgentKeyID:         "key-001",
+		AgentKeyExpiresAt:  "2026-05-08T06:00:00Z",
+		AgentKeyExpiresIn:  21600,
+		AgentKeyObtainedAt: "2026-05-08T00:00:00Z",
+	}
+	saved, err := SaveNousOAuthCredentials(CredentialPoolOptions{HermesHome: hermesHome}, creds)
+	if err != nil {
+		t.Fatalf("SaveNousOAuthCredentials: %v", err)
+	}
+	if saved.AccessToken != creds.AccessToken {
+		t.Errorf("saved.AccessToken = %q, want %q", saved.AccessToken, creds.AccessToken)
+	}
+
+	loaded, err := LoadNousOAuthCredentials(CredentialPoolOptions{HermesHome: hermesHome})
+	if err != nil {
+		t.Fatalf("LoadNousOAuthCredentials: %v", err)
+	}
+	if loaded.AccessToken != creds.AccessToken {
+		t.Errorf("loaded.AccessToken = %q, want %q", loaded.AccessToken, creds.AccessToken)
+	}
+	if loaded.RefreshToken != creds.RefreshToken {
+		t.Errorf("loaded.RefreshToken = %q, want %q", loaded.RefreshToken, creds.RefreshToken)
+	}
+	if loaded.AgentKey != creds.AgentKey {
+		t.Errorf("loaded.AgentKey = %q, want %q", loaded.AgentKey, creds.AgentKey)
+	}
+	if loaded.PortalBaseURL != creds.PortalBaseURL {
+		t.Errorf("loaded.PortalBaseURL = %q, want %q", loaded.PortalBaseURL, creds.PortalBaseURL)
+	}
+	if loaded.InferenceBaseURL != creds.InferenceBaseURL {
+		t.Errorf("loaded.InferenceBaseURL = %q, want %q", loaded.InferenceBaseURL, creds.InferenceBaseURL)
+	}
+}
+
+func TestNousOAuthLoadMissingStore(t *testing.T) {
+	hermesHome := t.TempDir()
+	_, err := LoadNousOAuthCredentials(CredentialPoolOptions{HermesHome: hermesHome})
+	if err == nil {
+		t.Fatal("expected error for missing auth store")
+	}
+}

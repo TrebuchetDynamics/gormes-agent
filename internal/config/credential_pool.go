@@ -791,3 +791,66 @@ func sanitizedEvidenceText(input string) string {
 	}
 	return trimmed
 }
+
+// LoadNousOAuthCredentials reads the persisted Nous OAuth device-code
+// credentials from the credential pool auth store and returns a
+// NousOAuthCredentials struct suitable for runtime credential resolution.
+// It returns an error when the auth store is absent, the Nous provider
+// has no device-code entry, or the stored entry is missing required fields.
+func LoadNousOAuthCredentials(opts CredentialPoolOptions) (NousOAuthCredentials, error) {
+	home, err := credentialPoolHermesHome(opts.HermesHome)
+	if err != nil {
+		return NousOAuthCredentials{}, err
+	}
+	store, err := readCredentialPoolAuthStore(home)
+	if err != nil {
+		return NousOAuthCredentials{}, fmt.Errorf("load nous oauth: read auth store: %w", err)
+	}
+	entries := store.CredentialPool[NousOAuthProvider]
+	if len(entries) == 0 {
+		return NousOAuthCredentials{}, fmt.Errorf("load nous oauth: no credential pool entries for provider %q", NousOAuthProvider)
+	}
+	var entry PooledCredential
+	found := false
+	for _, e := range entries {
+		if strings.TrimSpace(e.Source) == NousOAuthDeviceCodeSource {
+			entry = e
+			found = true
+			break
+		}
+	}
+	if !found {
+		return NousOAuthCredentials{}, fmt.Errorf("load nous oauth: no device_code entry for provider %q", NousOAuthProvider)
+	}
+	if entry.AccessToken == "" {
+		return NousOAuthCredentials{}, fmt.Errorf("load nous oauth: stored entry has empty access token")
+	}
+	creds := NousOAuthCredentials{
+		Label:              entry.Label,
+		InferenceBaseURL:   entry.InferenceBaseURL,
+		PortalBaseURL:      entry.PortalBaseURL,
+		AccessToken:        entry.AccessToken,
+		RefreshToken:       entry.RefreshToken,
+		ExpiresAt:          entry.ExpiresAt,
+		AgentKey:           entry.AgentKey,
+		AgentKeyID:         entry.AgentKeyID,
+		AgentKeyExpiresAt:  entry.AgentKeyExpiresAt,
+		AgentKeyObtainedAt: entry.AgentKeyObtainedAt,
+		TokenType:          "Bearer",
+	}
+	if state, ok := store.Providers[NousOAuthProvider]; ok {
+		if v, ok := state["portal_base_url"].(string); ok && creds.PortalBaseURL == "" {
+			creds.PortalBaseURL = v
+		}
+		if v, ok := state["inference_base_url"].(string); ok && creds.InferenceBaseURL == "" {
+			creds.InferenceBaseURL = v
+		}
+		if v, ok := state["client_id"].(string); ok {
+			creds.ClientID = v
+		}
+		if v, ok := state["scope"].(string); ok {
+			creds.Scope = v
+		}
+	}
+	return creds, nil
+}
