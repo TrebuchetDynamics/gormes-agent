@@ -704,6 +704,13 @@ func ListDirectorySessions(ctx context.Context, db *sql.DB, filter DirectoryFilt
 	}
 	rows, err := db.QueryContext(ctx, `SELECT session_id, role, content, ts_unix, COALESCE(chat_id, ''), COALESCE(meta_json, '') FROM turns ORDER BY session_id, ts_unix, id`)
 	if err != nil {
+		// Fresh-install path: the `turns` table is created lazily on
+		// the first turn write, so a brand-new memory.db has no table
+		// yet. Treat that as the empty state (caller renders "No
+		// sessions found.") instead of surfacing a raw SQL error.
+		if strings.Contains(err.Error(), "no such table: turns") {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("session: list directory turns: %w", err)
 	}
 	defer rows.Close()
