@@ -37791,26 +37791,30 @@
             },
             {
               "name": "Agent lifecycle hooks (agent:start, agent:step, agent:end)",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
-              "contract": "Gormes gateway hook system fires agent:start, agent:step, and agent:end HookPoints around kernel turn processing, mirroring Hermes' gateway/hooks.py agent lifecycle event types. agent:start fires when the kernel begins processing a message; agent:step fires after each tool-calling turn iteration; agent:end fires when the kernel completes processing. Hook errors during agent lifecycle events are logged but do not abort the turn.",
-              "contract_status": "draft",
+              "contract": "Gormes gateway hook system fires agent:start, agent:step, and agent:end HookPoints around kernel turn processing, mirroring Hermes' gateway/hooks.py agent lifecycle event types at lines 9-17 (event definitions) and lines 35-210 (HookRegistry class with emit/emit_collect, wildcard matching, async/sync handler support, and error isolation). agent:start fires when the kernel begins processing a message (Hermes dispatch: gateway/run.py lines 6734-6741, context keys: platform, user_id, session_id, message); agent:step fires after each tool-calling turn iteration (Hermes dispatch: gateway/run.py lines 13585-13614 via step_callback bridge, context keys: platform, user_id, session_id, iteration, tool_names); agent:end fires when the kernel completes processing (Hermes dispatch: gateway/run.py lines 6876-6880, context keys: platform, user_id, session_id, message, response). Hook errors during agent lifecycle events are logged but do not abort the turn, matching Hermes' try/except-per-handler pattern at hooks.py lines 174-181.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
                 "system"
               ],
               "source_refs": [
-                "./hermes-agent/gateway/hooks.py:agent:start, agent:step, agent:end event types",
-                "./hermes-agent/gateway/run.py:GatewayRunner._run_agent integration",
-                "internal/gateway/hooks.go:HookPoint, Hooks",
-                "internal/kernel/kernel.go:Run, processTurn",
-                "internal/kernel/toolexec.go:executeToolBatch"
+                "./hermes-agent/gateway/hooks.py:9-17 (event type list), 35-210 (HookRegistry class, emit/emit_collect, wildcard matching, error isolation)",
+                "./hermes-agent/gateway/run.py:1240-1241 (HookRegistry instantiation), 6734-6741 (agent:start dispatch), 6876-6880 (agent:end dispatch), 13585-13614 (agent:step via step_callback bridge)",
+                "./hermes-agent/tests/gateway/test_hooks.py (318 lines, comprehensive hook registry tests)",
+                "internal/gateway/hooks.go:HookPoint, Hooks struct, constants, Fire method",
+                "internal/gateway/hook_loader.go:allHookPoints, expandHookEvents",
+                "internal/kernel/kernel.go:100-126 (Kernel struct), 304-310 (runTurn signature), 464 (toolLoop label), 604-606 (tool loop exit), 626 (executeToolCallsInterruptible)",
+                "internal/kernel/toolexec.go:executeToolCalls, executeToolCallsInterruptible"
               ],
               "ready_when": [
-                "HookPoint constants for HookAgentStart, HookAgentStep, HookAgentEnd are added to internal/gateway/hooks.go.",
-                "Kernel fires HookAgentStart before entering the tool loop, HookAgentStep after each iteration, HookAgentEnd on exit.",
-                "Tests prove hook callbacks receive HookEvent with agent_name, session_id, platform context."
+                "HookPoint constants for HookAgentStart, HookAgentStep, HookAgentEnd are added to internal/gateway/hooks.go alongside existing HookBeforeReceive et al.",
+                "Kernel.Run fires HookAgentStart in runTurn after turn admission and before the toolLoop (kernel.go ~line 464).",
+                "Kernel.runTurn fires HookAgentStep after each executeToolCallsInterruptible outcome (kernel.go ~line 626), carrying iteration index and tool result summary in HookEvent.",
+                "Kernel.runTurn fires HookAgentEnd in the finalisation block (kernel.go ~line 662), on every exit path (normal end, error, cancelled, iteration limit).",
+                "Tests prove registry callbacks receive HookEvent with agent_name, session_id, platform context."
               ],
               "not_ready_when": [
                 "Hook errors abort the turn instead of being logged.",
@@ -37840,7 +37844,25 @@
               "done_signal": [
                 "go test ./internal/gateway ./internal/kernel -count=1 passes with agent lifecycle hook coverage.",
                 "go run ./cmd/progress validate passes."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/hooks.go: HookAgentStart, HookAgentStep, HookAgentEnd constants; SessionID/Iteration/ToolNames fields on HookEvent",
+                  "internal/gateway/hook_loader.go: agent lifecycle points added to allHookPoints",
+                  "internal/kernel/kernel.go: AgentLifecycleHook callback on Config, AgentLifecyclePoint/Event types, agent:start fire before toolLoop, agent:step fire after executeToolCallsInterruptible, agent:end deferred fire on all exit paths"
+                ],
+                "tests": [
+                  "internal/kernel/agent_lifecycle_test.go: TestAgentLifecycleHook_StartEndFiresOnSimpleTurn, TestAgentLifecycleHook_StepFiresOnToolTurn, TestAgentLifecycleHook_EndFiresOnStreamError, TestAgentLifecycleHook_NilHookNoPanic",
+                  "internal/gateway/hooks_test.go: TestHookAgentLifecycle_StartStepEndFireWithContext, TestHookAgentLifecycle_MultipleHandlersFireInOrder"
+                ],
+                "verification": [
+                  "go test ./internal/kernel -run 'TestAgentLifecycle' -count=1 -> PASS",
+                  "go test ./internal/gateway -run 'HookAgent' -count=1 -> PASS",
+                  "go run ./cmd/progress validate -> 8 phases validated",
+                  "git diff --check -> clean"
+                ]
+              },
+              "last_updated": "2026-05-07T19:30:00Z"
             }
           ],
           "drift_state": {

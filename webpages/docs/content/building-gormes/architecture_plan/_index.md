@@ -970,7 +970,7 @@ classification and row-backed implementation queue.
 - [x] Logs Command
 - [x] Gateway planned stop marker + WSL systemd PATH parity
 - [x] Gateway stale-code self-check uses git HEAD SHA
-- [ ] Agent lifecycle hooks (agent:start, agent:step, agent:end)
+- [x] Agent lifecycle hooks (agent:start, agent:step, agent:end)
 
 ### 5.P — Docker / Packaging 🔨
 
