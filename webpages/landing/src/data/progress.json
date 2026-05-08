@@ -28857,7 +28857,7 @@
                 "Dashboard route fixtures prove tasks, lanes, filters, runs, and dispatcher nudge endpoints require authentication and stream bounded updates.",
                 "Status fixtures prove dispatcher state is operator-visible without reading live Hermes config."
               ],
-              "note": "Gateway /kanban slash command implemented 2026-05-08. Kanban dashboard API routes landed 2026-05-08: GET /api/kanban (lane summary), GET /api/kanban/tasks (with ?status=&assignee= filters), GET /api/kanban/tasks/{id} (single task), kanban panel in /api/status. DashboardPage.tsx shows live kanban board. TUI wiring remains for follow-up slices. Build provenance (version, git_commit, git_dirty, go_version) added to dashboard status and kanban responses 2026-05-08 for fleet-automation attribution. Fixture paths corrected 2026-05-08: removed phantom internal/gateway/kanban_command_test.go, internal/tui/kanban_slash_test.go, internal/dashboard/ (dir does not exist); pointed at real test files internal/apiserver/dashboard_kanban_test.go and internal/kanbantools/kanban_tools_test.go. 2026-05-08 all-topic parity sweep split native TUI `/kanban` dispatch into child row `Native TUI /kanban slash command binding over gormes kanban`; child is now complete. Gateway slash-command tests remain for follow-up slices.",
+              "note": "Gateway /kanban slash command implemented 2026-05-08. Kanban dashboard API routes landed 2026-05-08: GET /api/kanban (lane summary), GET /api/kanban/tasks (with ?status=&assignee= filters), GET /api/kanban/tasks/{id} (single task), kanban panel in /api/status. DashboardPage.tsx shows live kanban board. TUI wiring remains for follow-up slices. Build provenance (version, git_commit, git_dirty, go_version) added to dashboard status and kanban responses 2026-05-08 for fleet-automation attribution. Fixture paths corrected 2026-05-08: removed phantom internal/gateway/kanban_command_test.go, internal/tui/kanban_slash_test.go, internal/dashboard/ (dir does not exist); pointed at real test files internal/apiserver/dashboard_kanban_test.go and internal/kanbantools/kanban_tools_test.go. 2026-05-08 all-topic parity sweep split native TUI `/kanban` dispatch into child row `Native TUI /kanban slash command binding over gormes kanban`; child is now complete. 2026-05-08 follow-up sweep split gateway `/kanban` shared-runner parity into child row `Gateway /kanban shared command-runner binding` so the parent no longer asks builders to finish gateway, TUI, and dashboard in one slice.",
               "write_scope": [
                 "internal/cli/",
                 "internal/gateway/",
@@ -28884,7 +28884,7 @@
                 "implementation": [
                   "internal/gateway/event.go: EventKanban constant + String()",
                   "internal/gateway/commands.go: kanban CommandRegistry entry changed from EventUnknown/Unavailable to EventKanban/Immediate, added to ParseInboundText passthrough list",
-                  "internal/gateway/kanban_command.go: handleKanbanCommand with create/list/show/complete/claim/block/unblock/link/init subcommands",
+                  "internal/gateway/kanban_command.go: handleKanbanCommand delegates /kanban through an injected shared command runner, bounds output, and surfaces runner errors as kanban evidence",
                   "internal/gateway/manager.go: EventKanban wired in handleInbound, handleSlashSubmitCommand, and dispatchCommandEvent",
                   "internal/cli/command_registry.go: kanban Ported=true, ActiveTurnPolicyBypass",
                   "internal/cli/command_registry_policy_test.go: TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands updated for landed handler",
@@ -29000,6 +29000,95 @@
                   "RED: go test ./cmd/gormes -run TestTUIKanbanSlash -count=1 failed on missing runTUIKanbanSlashCommand and tui.KanbanSlashFunc.",
                   "GREEN: go test ./internal/tui -run 'TestKanbanSlash|TestHermesSlashDispatchBehavior' -count=1 passed.",
                   "GREEN: go test ./cmd/gormes -run TestTUIKanbanSlash -count=1 passed."
+                ]
+              }
+            },
+            {
+              "name": "Gateway /kanban shared command-runner binding",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gateway `/kanban ...` messages are consumed as operator commands and delegated through an injected Kanban slash runner backed by the same `gormes kanban` Cobra command tree used by the CLI/TUI. The gateway sends the runner output as a native reply, surfaces runner failures as bounded `kanban error` evidence, preserves active-turn bypass so the slash text never reaches the model, and truncates long output with Gormes-branded terminal guidance.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the runner is unavailable or returns an error, the gateway consumes `/kanban` and sends redacted `kanban error` evidence instead of falling back to hand-coded mutation logic or submitting slash text to the active model turn.",
+              "fixture": "internal/gateway/kanban_command_test.go; cmd/gormes/gateway_kanban_slash_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/run.py@a54cae60d:_handle_kanban_command",
+                "./hermes-agent/hermes_cli/kanban.py@a54cae60d:run_slash",
+                "cmd/gormes/kanban.go:runTUIKanbanSlashCommand",
+                "cmd/gormes/gateway.go:gatewayManagerConfig",
+                "internal/gateway/kanban_command.go"
+              ],
+              "ready_when": [
+                "Hermes Kanban durable board core is complete.",
+                "Native TUI /kanban slash command binding over gormes kanban is complete and exposes a command-runner pattern over the Cobra tree.",
+                "Gateway CommandRegistry already classifies `/kanban` as immediate active-turn bypass."
+              ],
+              "not_ready_when": [
+                "The implementation duplicates Kanban store mutation logic in internal/gateway instead of delegating through the runner seam.",
+                "The slice implements notifier subscriptions, multi-board commands, dashboard writes, dispatcher nudges, or live channel transport changes.",
+                "A failing `/kanban` invocation leaks raw slash text, database paths, provider errors, or home-directory values to the model or channel."
+              ],
+              "blocked_by": [
+                "Native TUI /kanban slash command binding over gormes kanban"
+              ],
+              "unblocks": [
+                "Hermes Kanban specify triage parity"
+              ],
+              "acceptance": [
+                "Gateway fixtures prove `/kanban list` calls the injected runner with the full slash input and sends the runner output as a reply to the triggering message.",
+                "Active-turn fixtures prove `/kanban` remains immediate/busy-available and never submits slash text to the kernel.",
+                "Failure fixtures prove runner errors are sent as `kanban error: ...` evidence and no fallback hand-coded command path runs.",
+                "Long-output fixtures prove gateway replies are capped near Hermes' channel limit and point users at `gormes kanban ...`, not Hermes.",
+                "cmd/gormes gateway config fixtures prove production gateway wiring injects the native Cobra runner."
+              ],
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/kanban_command.go",
+                "internal/gateway/kanban_command_test.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_kanban_slash_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestKanbanCommand|TestActiveTurnCommandBypass' -count=1",
+                "go test ./cmd/gormes -run TestGatewayKanbanSlash -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway `/kanban` is fixture-proven over the shared command runner, active-turn bypass holds, long output is bounded, and production gateway config injects the native runner."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a54cae60d gateway/run.py:_handle_kanban_command + hermes_cli/kanban.py:run_slash",
+                "note": "Hermes preserves identical CLI and gateway `/kanban` formatting by routing through run_slash; Gormes adapts that to the existing Go Cobra runner seam used by the native TUI."
+              },
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 31 before this row, below the 90-row cap, so adding one source-backed P2 child was allowed. P1 docs/release rows were operator- or release-infra-gated; the in-progress Kanban parent was too broad and current Gormes gateway code still duplicated `/kanban` command logic instead of delegating through the shared command runner. TDD added gateway.KanbanSlashRunner, rewired handleKanbanCommand to consume slash input through that runner, bounded long replies with Gormes-branded terminal guidance, surfaced runner failures as redacted kanban error evidence, and injected the native Cobra runner from cmd/gormes gateway config.",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/manager.go: ManagerConfig.KanbanSlashRunner carries the gateway /kanban command-runner seam.",
+                  "internal/gateway/kanban_command.go: handleKanbanCommand calls the injected runner with the full slash input, sends output as a reply, emits kanban error evidence on failure, and bounds long output with `gormes kanban ...` guidance.",
+                  "cmd/gormes/gateway.go: gatewayManagerConfig injects runTUIKanbanSlashCommand so gateway, TUI, and CLI share the Cobra-backed command implementation."
+                ],
+                "tests": [
+                  "internal/gateway/kanban_command_test.go:TestKanbanCommandUsesInjectedRunnerAndReplies",
+                  "internal/gateway/kanban_command_test.go:TestKanbanCommandRunnerErrorIsEvidence",
+                  "internal/gateway/kanban_command_test.go:TestKanbanCommandLongOutputIsBoundedAndGormesBranded",
+                  "internal/gateway/kanban_command_test.go:TestKanbanCommandBypassesActiveTurnWithoutModelLeak",
+                  "cmd/gormes/gateway_kanban_slash_test.go:TestGatewayKanbanSlashProductionConfigInjectsRunner"
+                ],
+                "verification": [
+                  "RED: go test ./internal/gateway -run 'TestKanbanCommand|TestActiveTurnCommandBypass' -count=1 failed because ManagerConfig had no KanbanSlashRunner field.",
+                  "RED: go test ./cmd/gormes -run TestGatewayKanbanSlash -count=1 failed because gatewayManagerConfig did not expose or inject a KanbanSlashRunner.",
+                  "GREEN: go test ./internal/gateway -run 'TestKanbanCommand|TestActiveTurnCommandBypass' -count=1 passed.",
+                  "GREEN: go test ./cmd/gormes -run TestGatewayKanbanSlash -count=1 passed."
                 ]
               }
             },

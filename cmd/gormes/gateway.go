@@ -542,6 +542,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		Hooks:                      hooks,
 		RuntimeStatus:              runtimeStatus,
 		Restart:                    restart,
+		KanbanSlashRunner:          runTUIKanbanSlashCommand,
 		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
 		ContextFilesCWD:            gatewayContextFilesCWD(cfg),
 		LiveTurnNow:                func() time.Time { return time.Now() },

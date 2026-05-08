@@ -55,14 +55,18 @@ type activeTurnSnapshot struct {
 	LastUserText string
 }
 
+// KanbanSlashRunner executes a full /kanban command and returns channel-safe
+// command output.
+type KanbanSlashRunner func(context.Context, string) (string, error)
+
 // ManagerConfig drives the shared gateway manager.
 type ManagerConfig struct {
-	AllowedChats    map[string]string
-	AllowedUsers    map[string]map[string]bool
+	AllowedChats          map[string]string
+	AllowedUsers          map[string]map[string]bool
 	AllowedChatWhitelists map[string]WhitelistConfig
-	AllowDiscovery  map[string]bool
-	CoalesceMs      int
-	FreshFinalAfter time.Duration
+	AllowDiscovery        map[string]bool
+	CoalesceMs            int
+	FreshFinalAfter       time.Duration
 	// ToolProgressMode mirrors Hermes gateway display.tool_progress for
 	// editable channel progress messages. Empty and unknown values default to all.
 	ToolProgressMode string
@@ -172,6 +176,10 @@ type ManagerConfig struct {
 	// KanbanDispatcher owns the gateway-managed Kanban worker dispatcher loop.
 	// Nil preserves the legacy gateway behavior with no dispatcher activity.
 	KanbanDispatcher KanbanDispatcherConfig
+	// KanbanSlashRunner handles gateway /kanban through the same command
+	// implementation used by the local CLI/TUI. Nil consumes /kanban with
+	// unavailable evidence instead of submitting it to the model.
+	KanbanSlashRunner KanbanSlashRunner
 	// ReloadConfig returns a freshly loaded manager config for reloadable
 	// runtime fields. Errors keep the last-good manager config active.
 	ReloadConfig func(context.Context) (ManagerConfig, error)
