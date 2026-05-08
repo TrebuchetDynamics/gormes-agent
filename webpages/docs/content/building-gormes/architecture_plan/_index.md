@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 69/99 subphases shipped · 24 in progress · 6 planned
+**Overall:** 71/99 subphases shipped · 23 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 5/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -698,7 +698,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web extract safety policy and summarizer
 - [x] Go-native Hermes web_crawl tool adapter
 - [x] Go-native Hermes web managed gateway status and live smoke closure
-- [ ] Brave Search + DDGS web search provider parity
+- [x] Brave Search + DDGS web search provider parity
 - [x] Browser artifact and console render contract
 - [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
@@ -741,7 +741,7 @@ classification and row-backed implementation queue.
 - [x] Bundled Airtable productivity skill contract
 - [x] Bundled TouchDesigner MCP skill catalog contract
 
-### 5.G — MCP Integration 🔨
+### 5.G — MCP Integration ✅
 
 - [x] MCP client
 - [x] Goncho MCP tool catalog
@@ -755,7 +755,7 @@ classification and row-backed implementation queue.
 - [x] MCP circuit breaker cooldown + reconnect reset
 - [x] MCP stdio orphan cleanup after cron ticks
 - [x] Gormes-native MCP host runtime boundary
-- [ ] MCP channels_list tool
+- [x] MCP channels_list tool
 
 ### 5.H — ACP Integration ✅
 
@@ -800,6 +800,7 @@ classification and row-backed implementation queue.
 - [x] Security Audit Command
 - [x] Email allowlist pre-dispatch loop guard
 - [x] Auth state TOCTOU close + redaction default-on parity
+- [x] Gateway allowed_chats/channels/rooms whitelist parity
 
 ### 5.K — Code Execution ✅
 
@@ -1047,11 +1048,11 @@ classification and row-backed implementation queue.
 
 - [x] go-browser-harness doctor subcommand
 
-### 5.U — Fault-Tolerant Sandbox Execution 🔨
+### 5.U — Fault-Tolerant Sandbox Execution ✅
 
 - [x] Pre-execution command classification
 - [x] Transactional tool execution with snapshot/rollback
-- [ ] Sandbox isolation depth selection
+- [x] Sandbox isolation depth selection
 
 ### 5.V — Unified Event Bus 🔨
 
@@ -1207,9 +1208,9 @@ classification and row-backed implementation queue.
 
 - [ ] Engineering writeup #1: autonomous Hermes-porting loop
 
-### 8.D — Sharp v1.0 ⏳
+### 8.D — Sharp v1.0 🔨
 
-- [ ] Sharp v1.0 differentiator decision
+- [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
 
 ### 8.E — Toolkit Extraction ⏳

@@ -13,7 +13,7 @@ import (
 // notes, release.json, and the GitHub release title. The git tag remains
 // v<Version> until the release workflow learns to extract version from this
 // file independently of the tag string.
-var Version = "0.1.06"
+var Version = "0.1.07"
 
 var versionCmd = &cobra.Command{
 	Use:   "version",

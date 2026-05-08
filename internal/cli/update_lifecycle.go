@@ -34,7 +34,92 @@ const (
 	UpdateEvidenceStaleDashboardDetected    UpdateEvidenceKind = "update_stale_dashboard_detected"
 	UpdateEvidenceStaleDashboardKilled      UpdateEvidenceKind = "update_stale_dashboard_killed"
 	UpdateEvidenceStaleDashboardKillFailed  UpdateEvidenceKind = "update_stale_dashboard_kill_failed"
+	UpdateEvidencePreBackupSkipped          UpdateEvidenceKind = "update_pre_backup_skipped"
+	UpdateEvidencePreBackupRequested        UpdateEvidenceKind = "update_pre_backup_requested"
+	UpdateEvidenceSkillSyncCompleted        UpdateEvidenceKind = "update_skill_sync_completed"
+	UpdateEvidenceSkillSyncFailed           UpdateEvidenceKind = "update_skill_sync_failed"
+	UpdateEvidenceWebBuildCompleted         UpdateEvidenceKind = "update_web_build_completed"
+	UpdateEvidenceWebBuildSkipped           UpdateEvidenceKind = "update_web_build_skipped"
+	UpdateEvidenceWebBuildUnavailable       UpdateEvidenceKind = "update_web_build_unavailable"
+	UpdateEvidenceWebBuildFailed            UpdateEvidenceKind = "update_web_build_failed"
+	UpdateEvidenceConfigMigrateNeeded       UpdateEvidenceKind = "update_config_migrate_needed"
+	UpdateEvidenceConfigMigrateCompleted    UpdateEvidenceKind = "update_config_migrate_completed"
+	UpdateEvidenceConfigMigrateFailed       UpdateEvidenceKind = "update_config_migrate_failed"
 )
+
+// ConfigVersionResult is the abstract per-update return from a
+// ConfigCheckRunner. It is decoupled from internal/config so the lifecycle
+// package stays import-free; callers in cmd/gormes/update.go adapt
+// internal/config.CheckReport into this shape.
+type ConfigVersionResult struct {
+	Current int
+	Latest  int
+}
+
+// ConfigCheckRunner is the seam invoked by RunUpdateLifecycle after the
+// web build step. It reports the on-disk config version vs. what this
+// binary writes. Returning a non-nil error emits update_config_migrate_failed
+// but never fails the overall update.
+type ConfigCheckRunner func(ctx context.Context) (ConfigVersionResult, error)
+
+// ConfigMigrateRunner is the seam invoked by RunUpdateLifecycle when the
+// operator passed --yes (or equivalent) AND the check reports an outdated
+// version. Returning a non-nil error emits update_config_migrate_failed
+// but never fails the overall update.
+type ConfigMigrateRunner func(ctx context.Context) error
+
+// WebBuildResult classifies the outcome of an optional web UI build step.
+// Exactly one of Skipped, Unavailable, or "completed" (neither flag set,
+// no error from the runner) describes the run.
+//
+// Use Skipped for policy choices (--skip-web, no package.json).
+// Use Unavailable for environment limitations (npm not on PATH).
+// Use Detail for the success line ("web UI built in 1.2s").
+// Use the error return for non-zero exit from npm install / npm run build.
+type WebBuildResult struct {
+	Skipped     bool
+	Unavailable bool
+	Reason      string
+	Detail      string
+}
+
+// WebBuildRunner is the seam invoked by RunUpdateLifecycle after skill
+// sync. Returning a non-nil error marks the build as failed but never
+// fails the overall update (Hermes' soft-failure contract — only `hermes
+// web` treats a build failure as fatal). A nil seam in
+// UpdateLifecycleOptions disables the build entirely (silent default).
+type WebBuildRunner func(ctx context.Context) (WebBuildResult, error)
+
+// SkillSyncResult is the abstract per-update report returned by a
+// SkillSyncRunner. It is decoupled from internal/skills so the lifecycle
+// package stays import-free; callers in cmd/gormes/update.go adapt the
+// internal/skills.BundledSkillProfileSyncReport into this shape.
+type SkillSyncResult struct {
+	Profiles []SkillSyncProfileResult
+}
+
+// SkillSyncProfileResult mirrors internal/skills.SkillProfileSyncSummary
+// without importing it. Counts:
+//
+//	Added     — number of bundled skills newly written into this profile
+//	Unchanged — bundled skills already present and identical
+//	Conflicts — local skill differs from bundled (kept; never overwritten)
+//	Failed    — write or read failures encountered for this profile
+type SkillSyncProfileResult struct {
+	Profile         string
+	Added           int
+	Unchanged       int
+	Conflicts       int
+	Failed          int
+	AddedSkillNames []string
+}
+
+// SkillSyncRunner is the seam invoked by RunUpdateLifecycle after a
+// successful pull. Returning a non-nil error marks the sync as failed but
+// never fails the overall update (Hermes' best-effort `try/except: pass`
+// contract). A nil seam in UpdateLifecycleOptions disables sync entirely
+// and emits no evidence (silent default).
+type SkillSyncRunner func(ctx context.Context) (SkillSyncResult, error)
 
 type UpdateEvidence struct {
 	Kind   UpdateEvidenceKind
@@ -76,6 +161,37 @@ type UpdateLifecycleOptions struct {
 	GatewayRestartPoll     *ServiceRestartPollReport
 	StaleDashboardPIDs     []int
 	KillStaleDashboardFunc func(int) error
+	// Backup mirrors the --backup CLI flag: opt-in to a single-run
+	// pre-update backup. Resolved through ResolveBackupPolicy along with
+	// NoBackup; --no-backup wins when both are set.
+	Backup bool
+	// NoBackup mirrors the --no-backup CLI flag and beats Backup.
+	NoBackup bool
+	// BackupConfigEnabled mirrors updates.pre_update_backup from config
+	// (default false). Wiring this from real config is a follow-up slice;
+	// for now the flag-driven path is the only enabled surface.
+	BackupConfigEnabled bool
+	// SkillSync is the optional bundled-skill profile-sync seam. When set,
+	// it runs after a successful pull and emits update_skill_sync_completed
+	// or update_skill_sync_failed evidence. A nil seam disables sync
+	// entirely (silent default — emits no skill_sync_* evidence).
+	SkillSync SkillSyncRunner
+	// WebBuild is the optional web UI rebuild seam. When set, it runs
+	// after skill sync and emits update_web_build_{completed,skipped,
+	// unavailable,failed} evidence. Best-effort: errors are reported but
+	// do not fail the update. A nil seam disables the step entirely
+	// (silent default — emits no web_build_* evidence).
+	WebBuild WebBuildRunner
+	// ConfigCheck is the optional config-version check seam. When set, it
+	// runs after the web build and reports current vs. latest schema
+	// versions. ConfigMigrate is invoked only when the operator passed
+	// Yes=true AND the check reports an outdated config; otherwise the
+	// lifecycle emits update_config_migrate_needed advisory evidence.
+	ConfigCheck ConfigCheckRunner
+	// ConfigMigrate is the optional auto-apply seam. Only invoked when
+	// Yes=true and ConfigCheck reports an outdated version. Errors emit
+	// update_config_migrate_failed but never fail the update.
+	ConfigMigrate ConfigMigrateRunner
 }
 
 type UpdateGitRunner interface {
@@ -110,6 +226,159 @@ func (r RealUpdateGitRunner) RunGit(ctx context.Context, cwd string, args ...str
 	return result
 }
 
+// emitSkillSync invokes the optional bundled-skill profile-sync seam after
+// a successful pull and emits one evidence record per profile (success
+// path) or one failure record (error path). A nil seam emits no evidence
+// at all (silent default — most operators don't have a multi-profile
+// setup and don't need to hear about a no-op on every update).
+//
+// Best-effort contract: a non-nil error from the seam never fails the
+// overall update — it only logs `update_skill_sync_failed` evidence so
+// operators can see what went wrong. This matches Hermes' upstream
+// `try/except: pass` pattern for skill sync.
+func emitSkillSync(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions) {
+	if options.SkillSync == nil {
+		return
+	}
+	result, err := options.SkillSync(ctx)
+	if err != nil {
+		report.add(UpdateEvidenceSkillSyncFailed, err.Error())
+		return
+	}
+	for _, p := range result.Profiles {
+		report.add(UpdateEvidenceSkillSyncCompleted, formatSkillSyncSummary(p))
+	}
+}
+
+// formatSkillSyncSummary renders the count line in Hermes-parity shape:
+//
+//	`<profile>: +N new, K unchanged[, M user-modified][, F failed]`
+//
+// Zero-count buckets except `Added`+`Unchanged` are omitted to keep the
+// transcript short on the common case (most updates touch nothing).
+func formatSkillSyncSummary(p SkillSyncProfileResult) string {
+	parts := []string{
+		fmt.Sprintf("%s: +%d new", p.Profile, p.Added),
+		fmt.Sprintf("%d unchanged", p.Unchanged),
+	}
+	if p.Conflicts > 0 {
+		parts = append(parts, fmt.Sprintf("%d user-modified (kept)", p.Conflicts))
+	}
+	if p.Failed > 0 {
+		parts = append(parts, fmt.Sprintf("%d failed", p.Failed))
+	}
+	return strings.Join(parts, ", ")
+}
+
+// emitConfigMigrate inspects the on-disk config schema version through
+// the ConfigCheck seam and either auto-applies a migration (when
+// options.Yes is true and ConfigMigrate is non-nil) or emits an advisory
+// `update_config_migrate_needed` record pointing the operator at the
+// `gormes config migrate` command.
+//
+// Branch summary:
+//
+//	ConfigCheck nil                          → silent default (no evidence)
+//	ConfigCheck err                          → update_config_migrate_failed
+//	current >= latest                        → silent default (no nag)
+//	current < latest, not Yes                → update_config_migrate_needed
+//	current < latest, Yes, ConfigMigrate nil → update_config_migrate_needed
+//	current < latest, Yes, migrate err       → update_config_migrate_failed
+//	current < latest, Yes, migrate ok        → update_config_migrate_completed
+//
+// Best-effort: a non-nil error from either seam never fails the overall
+// update.
+func emitConfigMigrate(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions) {
+	if options.ConfigCheck == nil {
+		return
+	}
+	res, err := options.ConfigCheck(ctx)
+	if err != nil {
+		report.add(UpdateEvidenceConfigMigrateFailed, err.Error())
+		return
+	}
+	if res.Current >= res.Latest {
+		return
+	}
+	if !options.Yes || options.ConfigMigrate == nil {
+		report.add(
+			UpdateEvidenceConfigMigrateNeeded,
+			fmt.Sprintf("config schema v%d → v%d available; run `gormes config migrate` or rerun with --yes", res.Current, res.Latest),
+		)
+		return
+	}
+	if err := options.ConfigMigrate(ctx); err != nil {
+		report.add(UpdateEvidenceConfigMigrateFailed, err.Error())
+		return
+	}
+	report.add(
+		UpdateEvidenceConfigMigrateCompleted,
+		fmt.Sprintf("config schema migrated v%d → v%d", res.Current, res.Latest),
+	)
+}
+
+// emitWebBuild invokes the optional web UI rebuild seam after skill sync
+// and maps the result to one of four typed evidence kinds:
+//
+//	completed   — successful rebuild (Detail used as evidence detail)
+//	skipped     — operator policy or no package.json (Reason used)
+//	unavailable — required toolchain missing (Reason used)
+//	failed      — non-zero exit from the build (error message used)
+//
+// Best-effort contract: a non-nil error never fails the overall update.
+// A nil seam disables the step and emits no evidence (silent default for
+// non-managed checkouts and runtimes without a web/ tree).
+func emitWebBuild(ctx context.Context, report *UpdateReport, options UpdateLifecycleOptions) {
+	if options.WebBuild == nil {
+		return
+	}
+	res, err := options.WebBuild(ctx)
+	if err != nil {
+		report.add(UpdateEvidenceWebBuildFailed, err.Error())
+		return
+	}
+	switch {
+	case res.Unavailable:
+		report.add(UpdateEvidenceWebBuildUnavailable, res.Reason)
+	case res.Skipped:
+		report.add(UpdateEvidenceWebBuildSkipped, res.Reason)
+	default:
+		report.add(UpdateEvidenceWebBuildCompleted, res.Detail)
+	}
+}
+
+// emitPreUpdateBackupPolicy resolves the operator-visible pre-update backup
+// policy and appends a typed evidence record to report when the operator
+// explicitly opted in or out (or when config has it enabled). The default
+// path — neither --backup nor --no-backup nor BackupConfigEnabled — emits
+// NO evidence so the structured progress UX stays quiet on the common case.
+//
+// The actual backup writer (zip creation, size/duration reporting, retention)
+// is a follow-up slice. This row only surfaces the decision via a typed
+// evidence record so downstream slices can wire the writer behind the same
+// requested-evidence trigger.
+func emitPreUpdateBackupPolicy(report *UpdateReport, options UpdateLifecycleOptions) {
+	if !options.Backup && !options.NoBackup && !options.BackupConfigEnabled {
+		return
+	}
+	decision := ResolveBackupPolicy(BackupPolicyFlags{
+		Backup:        options.Backup,
+		NoBackup:      options.NoBackup,
+		ConfigEnabled: options.BackupConfigEnabled,
+	})
+	if decision.Requested {
+		report.add(
+			UpdateEvidencePreBackupRequested,
+			fmt.Sprintf("%s; backup writer not yet implemented (planned next slice)", decision.Reason),
+		)
+		return
+	}
+	report.add(
+		UpdateEvidencePreBackupSkipped,
+		fmt.Sprintf("%s; ~/.gormes left untouched before update", decision.Reason),
+	)
+}
+
 func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) UpdateReport {
 	branch := strings.TrimSpace(options.Branch)
 	if branch == "" {
@@ -125,6 +394,12 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 		report.add(UpdateEvidenceCheck, fmt.Sprintf("checked update readiness for %s", branch))
 		return report
 	}
+	// Resolve pre-update backup policy BEFORE any git mutation. A backup
+	// taken after the pull is useless for rollback. Silent default: when
+	// neither --backup nor --no-backup is set and config has not opted in,
+	// no evidence is emitted (matches Hermes' silent default — operators
+	// don't need to hear about the skipped backup on every update run).
+	emitPreUpdateBackupPolicy(&report, options)
 	if options.Git == nil {
 		report.Failed = true
 		report.add(UpdateEvidenceNotManagedCheckout, "no git runner available")
@@ -219,6 +494,25 @@ func RunUpdateLifecycle(ctx context.Context, options UpdateLifecycleOptions) Upd
 		}
 		report.add(UpdateEvidenceAutostashRestored, stashRef)
 	}
+
+	// Skill sync runs AFTER pull but BEFORE gateway restart so the gateway
+	// can pick up newly-bundled skills on its restart cycle. Best-effort:
+	// errors emit update_skill_sync_failed but never set report.Failed
+	// (matches Hermes' `try/except: pass` for skill sync).
+	emitSkillSync(ctx, &report, options)
+
+	// Web UI rebuild runs after skill sync. Best-effort: build failures
+	// emit update_web_build_failed but never set report.Failed
+	// (matches Hermes' soft-failure contract — only `hermes web` treats
+	// a build failure as fatal). Silent default when seam is nil.
+	emitWebBuild(ctx, &report, options)
+
+	// Config schema migration check runs after web build. When --yes is
+	// set, the migration auto-applies; otherwise the lifecycle emits an
+	// advisory `needed` evidence pointing the operator at
+	// `gormes config migrate`. Silent default for already-current configs
+	// and nil seams.
+	emitConfigMigrate(ctx, &report, options)
 
 	if options.GatewayRestartPoll != nil && strings.TrimSpace(options.RestartGateway) != "never" {
 		report.append(EvaluateUpdateGatewayRestart(*options.GatewayRestartPoll))

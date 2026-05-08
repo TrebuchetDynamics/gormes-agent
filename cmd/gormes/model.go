@@ -116,14 +116,22 @@ func defaultModelProviderEntries() ([]cli.ProviderMenuEntry, error) {
 }
 
 func promptProviderChoice(in *os.File, out *os.File, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
+	cli.ClearScreen(out)
+	cli.PrintHeader(out, "Choose a provider")
 	for i, entry := range entries {
-		marker := " "
+		num := fmt.Sprintf("%2d)", i+1)
+		var marker, line string
 		if i == defaultIndex {
-			marker = "*"
+			marker = cli.Yellow(out, "*")
+			line = cli.BrightCyan(out, num) + " " + cli.Bold(out, entry.Label)
+		} else {
+			marker = " "
+			line = cli.Dim(out, num) + " " + entry.Label
 		}
-		fmt.Fprintf(out, "%s %d) %s\n", marker, i+1, entry.Label)
+		fmt.Fprintf(out, "%s %s\n", marker, line)
 	}
-	fmt.Fprintf(out, "Select provider [%d] (or q to cancel): ", defaultIndex+1)
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "%s ", cli.Bold(out, fmt.Sprintf("Select provider [%d] (or q to cancel):", defaultIndex+1)))
 	reader := bufio.NewReader(in)
 	line, err := reader.ReadString('\n')
 	if err != nil && strings.TrimSpace(line) == "" {

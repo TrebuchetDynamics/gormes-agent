@@ -18,6 +18,7 @@ type MCPServer struct {
 	stdout        *os.File
 	tools         map[string]ToolDef
 	sessionStore  SessionLister
+	channelDir    ChannelDirectoryProvider
 	db            interface{ QueryContext(ctx context.Context, query string, args ...any) (interface{ Close(); Next() bool }, error) }
 	toolsMeta     map[string]ToolMeta
 }
@@ -492,4 +493,5 @@ func (s *MCPServer) RegisterDefaultTools() {
 	s.RegisterTool("messages_get", "Get a specific message", toolInputSchema("messages_get"), s.messagesGetHandler)
 	s.RegisterTool("tools_list", "List all available tools", toolInputSchema("tools_list"), s.toolsListHandler)
 	s.RegisterTool("sessions_list", "List all sessions", toolInputSchema("sessions_list"), s.sessionsListHandler)
+	s.RegisterTool("channels_list", "List all channels across messaging platforms", toolInputSchema("channels_list"), s.channelsListHandler)
 }

@@ -331,5 +331,9 @@ func telegramManagerConfig(cfg config.Config, smap session.Map) gateway.ManagerC
 	allowDiscovery := map[string]bool{
 		"telegram": cfg.Telegram.FirstRunDiscovery,
 	}
-	return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, smap, nil, nil, nil, gateway.RestartConfig{})
+	allowedWhitelists := map[string]gateway.WhitelistConfig{}
+	if wl := gateway.ParseWhitelistConfig(cfg.Telegram.AllowedChatIDs()); wl.Enabled {
+		allowedWhitelists["telegram"] = wl
+	}
+	return gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, nil, nil, nil, gateway.RestartConfig{})
 }

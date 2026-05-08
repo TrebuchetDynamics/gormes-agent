@@ -8,6 +8,89 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.1.07] - 2026-05-07
+
+Date alias: `v2026.5.7` (same operating day as v0.1.06).
+
+### Added — Install Path
+- **`install.sh` defaults to release-binary fetch** (~7x faster fresh installs):
+  resolves the latest GitHub release tag, downloads
+  `gormes-<v>-<os>-<arch>.tar.gz` + `.sha256`, verifies, extracts, and
+  publishes — all in ~2 seconds vs. ~2-5 min for the previous source-build
+  default. `--from-source` / `GORMES_INSTALL_FROM_SOURCE=1` opt-out, plus
+  graceful fallback on any binary-fetch failure (network, missing asset,
+  hash mismatch). Plan emitter exposes the decision via
+  `install_method: binary-fetch|source-build (<reason>)`.
+
+### Added — Setup Wizard UX
+- **Prettified setup wizard** — Hermes-style framed headers, screen
+  clearing between sections, color/bold for active selection. New
+  `internal/cli/wizard_ui.go` helpers (`ClearScreen`, `Bold`, `Dim`,
+  `Cyan`, `BrightCyan`, `Yellow`, `Green`, `PrintHeader`,
+  `PrintSectionDivider`) are TTY-gated: piped output and `NO_COLOR=1`
+  strip all escapes; `GORMES_NO_CLEAR_SCREEN=1` keeps colors but
+  preserves scrollback.
+- 47-provider list now leads with framed `Choose a provider` header,
+  yellow `*` for default, bright-cyan number + bold label for default,
+  dim numbers + auth-type tag for the rest.
+
+### Added — `gormes update` Hermes Parity (5 of 6 audit-batch rows)
+- **Structured progress UX**: `⚕ Updating Gormes Agent...` banner +
+  per-evidence outcome glyphs (`✓ ✗ ⚠ ℹ ◆`) + `✓ Update complete!` /
+  `✗ Update failed` summary. Existing UpdateEvidenceKind strings stay in
+  every line for parser compatibility.
+- **Pre-update backup policy**: `--backup` / `--no-backup` flags +
+  silent-default + `update_pre_backup_skipped` /
+  `update_pre_backup_requested` evidence. Backup writer is a follow-up
+  slice; this surface ships the policy decision.
+- **Bundled-skill profile sync**: calls the existing
+  `internal/skills.SyncBundledSkillsToProfiles` after pull, renders
+  `default: +N new, K unchanged, M user-modified (kept)` counts.
+  Best-effort — failures emit `update_skill_sync_failed` but never fail
+  the update.
+- **Web UI rebuild step**: runs `npm install` + `npm run build` in
+  `<checkout>/web` when `package.json` exists. `--skip-web` flag for
+  opt-out. 4 typed outcomes:
+  `update_web_build_{completed,skipped,unavailable,failed}`. Soft-failure
+  contract — never fails the update.
+- **Config schema migration prompt**: checks on-disk schema version
+  after web build. With `--yes` auto-applies via
+  `internal/config.MigrateConfigFile`; without `--yes` emits advisory
+  `⚠ update_config_migrate_needed` pointing the operator at
+  `gormes config migrate`.
+
+### Added — Install Isolation
+- **`iso-shellrc-leak` closed**: `install.sh`'s
+  `ensure_path_in_shell_config()` now early-returns when
+  `sandbox_bin_dir_set()`. Plan: `edit_shell_rc_files: skipped|yes`.
+- **`iso-systemd-hijack` closed (P0)**:
+  `install.sh`'s `print_service_instructions()` early-returns when the
+  sandbox bin dir is set, leaving the production
+  `~/.config/systemd/user/gormes-gateway.service` and macOS launchd plist
+  untouched. Plan: `install_system_service: skipped|yes`.
+
+### Added — CI / Release Hygiene
+- **Repaired red `Deploy gormes.ai` workflow** on main: post-build
+  verification asserts updated to match the methodology-first landing
+  rewrite from v0.1.06. New positive asserts lock in the pivot
+  (`HOW IT IS BUILT`, `Validated rows shipped`); negative asserts catch
+  regressions to the old hero text.
+
+### Added — Loop Infrastructure
+- **Loop $/iteration cost metric** via
+  `scripts/codexu-gormes-builder-loop.sh --cost-report`. New
+  `internal/loopcost` package parses opencode JSONL and computes 7-day
+  + 30-day spend rollups.
+
+### Changed — Hermes Submodule
+- `hermes-agent` submodule bumped to upstream `main` (current sha
+  pinned by parity sweep).
+
+### Notes
+- 6 of 6 `gormes update` parity rows were planned by the audit batch;
+  5 ship in v0.1.07. The deferred row #4 (goncho profile sync) waits on
+  `internal/goncho` gaining a profile-sync surface.
+
 ## [0.1.06] - 2026-05-07
 
 Date alias: `v2026.5.7` (adopting the Hermes-style `vYYYY.M.D` taxonomy in

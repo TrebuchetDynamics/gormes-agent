@@ -61,11 +61,14 @@ class _ApprovalBannerState extends State<ApprovalBanner> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Text(pending.prompt),
-            if (pending.risk != null)
+            if (_riskLabel(pending.risk) != null)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text('Risk: ${pending.risk}',
-                    style: Theme.of(context).textTheme.labelSmall),
+                padding: const EdgeInsets.only(top: 6),
+                child: _RiskBadge(
+                  key: const ValueKey('approval-risk-badge'),
+                  risk: pending.risk!,
+                  label: _riskLabel(pending.risk)!,
+                ),
               ),
             const SizedBox(height: 8),
             Row(
@@ -85,6 +88,39 @@ class _ApprovalBannerState extends State<ApprovalBanner> {
           ],
         ),
       ),
+    );
+  }
+}
+
+String? _riskLabel(String? risk) {
+  switch (risk?.toLowerCase()) {
+    case 'high':
+      return 'High risk';
+    case 'medium':
+      return 'Medium risk';
+    case 'low':
+      return 'Low risk';
+    default:
+      return null;
+  }
+}
+
+class _RiskBadge extends StatelessWidget {
+  const _RiskBadge({required this.risk, required this.label, super.key});
+
+  final String risk;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final isHigh = risk.toLowerCase() == 'high';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isHigh) const Icon(Icons.warning, size: 16),
+        if (isHigh) const SizedBox(width: 4),
+        Text(label, style: Theme.of(context).textTheme.labelMedium),
+      ],
     );
   }
 }

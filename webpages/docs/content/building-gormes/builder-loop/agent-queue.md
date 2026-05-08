@@ -27,29 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Sharp v1.0 differentiator decision
-
-- Phase: 8 / 8.D
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P0`
-- Contract: A short decision document records the sharp v1.0 differentiator: a single paragraph stating what Gormes 1.0 will be (recommended: "runs the 30 most-used Hermes skills unchanged, in a single 30 MB Go binary, on Termux + Windows-without-Python + locked-down corp Linux"), the curated 30-skill list, the explicit exclusion list of what 1.0 will NOT do, and the date the decision was ratified. The decision unblocks every downstream messaging row.
-- Trust class: operator
-- Ready when: Operator has read success-plan.md and considered alternative differentiators., An evidence-backed shortlist of the 30 most-used Hermes skills exists (telemetry, repo signal, or operator judgement — but recorded).
-- Not ready when: The doc is empty placeholder text., The differentiator is still phrased as "Hermes in Go" or "feature parity"., The exclusion list is missing — readers cannot self-select.
-- Degraded mode: Without a written, dated differentiator, the README and landing page cannot be rewritten coherently and the parity backlog has no Pareto filter.
-- Fixture: `docs/content/building-gormes/strategy/v1-differentiator.md`
-- Write scope: `docs/content/building-gormes/strategy/v1-differentiator.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: -
-- No test required: Strategic decision row; the artifact is a written-down decision. Validation is the existence of the doc with the required sections.
-- Done signal: v1-differentiator.md exists, fits the schema above, and is referenced from README.md and landing-page hero.
-- Acceptance: docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date., The differentiator paragraph fits in <50 words., The exclusion list explicitly mentions areas Gormes 1.0 will not chase (TUI parity beyond core, dashboard, web app, full i18n, etc.).
-- Source refs: docs/content/building-gormes/strategy/success-plan.md, hermes-agent/skills/, internal/skills/
-- Unblocks: README rewrite to methodology-first positioning, gormes.ai landing page positioning audit, Single-binary cross-platform release pipeline, Benchmarks page at gormes.ai/benchmarks
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. TD engineering blog scaffolded and live
+## 1. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -71,27 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Sandbox isolation depth selection
-
-- Phase: 5 / 5.U
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Operator can select sandbox isolation depth: process-level (fast, weaker isolation), container-level (Docker/gVisor, balanced), or VM-level (Firecracker, strongest isolation). Default is process-level with transactional rollback.
-- Trust class: operator
-- Ready when: Transactional executor exists (5.U row 2)
-- Not ready when: No sandbox backend available
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/tools/isolation_depth.go`, `internal/tools/isolation_depth_test.go`
-- Test commands: `go test ./internal/tools -run TestIsolationDepth -count=1`
-- Done signal: Isolation depth tests prove all three levels selectable and process-level works without Docker
-- Acceptance: Process-level isolation is the default and requires zero setup, Docker/gVisor isolation selectable via config, Firecracker VM isolation selectable via config, Isolation depth is per-session configurable, Deeper isolation correctly fails if backend not available
-- Source refs: docs/content/papers/safety-and-deployment.md, OpenSandbox (github.com/alibaba/OpenSandbox), internal/tools/sandbox.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Behavioral pattern extraction from session logs
+## 2. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -111,7 +69,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Agentic-porting-kit repo scaffold
+## 3. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -132,7 +90,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Built-with-Gormes page scaffold
+## 4. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

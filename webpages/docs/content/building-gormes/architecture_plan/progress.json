@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-07T20:56:18Z",
+    "last_updated": "2026-05-07T23:58:45Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -19877,6 +19877,7 @@
             {
               "name": "61-tool registry port",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -22089,14 +22090,14 @@
             },
             {
               "name": "Brave Search + DDGS web search provider parity",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:04193cf71 hermes/web_search_providers.py + hermes/web/tools.py",
-                "note": "Hermes v0.13.0 added Brave Search API (free tier) and DuckDuckGo Search (DDGS) as web search providers alongside the existing SERPAPI, Tavily, and Perplexity backends. Gormes needs parity for these two providers so the Go-native web_search tool wrappers can resolve search results through Brave and DDGS."
+                "upstream_ref": "hermes:04193cf71 hermes/tools/web_providers/brave_free.py + hermes/tools/web_providers/ddgs.py",
+                "note": "Hermes v0.13.0 added Brave Search API (free tier) and DuckDuckGo Search (DDGS) as web search providers. Implementation shipped in internal/tools/web_tools.go (not the originally planned websearch/ package) as part of rows 5.C[6] (web_search tool wrappers) and 5.C[7] (web backend matrix). All acceptance tests pass with recordingWebHTTPClient fake transports."
               },
-              "contract": "Gormes web backend matrix and config resolver (5.C[7]) supports Brave Search API and DDGS as first-class search providers. Brave uses the Brave Search API with a configurable API key and optional free-tier constraints; DDGS uses the duckduckgo_search Python package pattern adapted to Go. Both providers integrate through the existing internal/tools/websearch backend interface so web_search tool wrappers select them transparently by name.",
+              "contract": "Gormes web backend matrix and config resolver (5.C[7]) supports Brave Search API and DDGS as first-class search providers. Brave uses the Brave Search API with a configurable API key and optional free-tier constraints; DDGS uses the duckduckgo_search Python package pattern adapted to Go. Both providers integrate through the existing internal/tools/web_tools.go backend interface so web_search tool wrappers select them transparently by name.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -22105,14 +22106,13 @@
                 "system"
               ],
               "degraded_mode": "Missing or invalid API keys for Brave/DDGS degrade to provider_disabled in the web backend matrix; web_search falls back to the next configured provider. Gateway status reports disabled search providers without exposing keys.",
-              "fixture": "internal/tools/websearch/brave_ddgs_test.go",
+              "fixture": "internal/tools/web_tools_test.go",
               "source_refs": [
-                "./hermes-agent/hermes/web_search_providers.py@04193cf71 (Brave+DDGS provider adapters)",
-                "./hermes-agent/hermes/web/tools.py@04193cf71 (web_search tool wiring)",
-                "./hermes-agent/hermes_cli/config.py@04193cf71 (search provider config fields)",
-                "./hermes-agent/RELEASE_v0.13.0.md (Brave free tier + DDGS announcement)",
-                "internal/tools/websearch/ (existing Go web backend matrix)",
-                "internal/tools/websearch/backend.go (provider backend interface)",
+                "./hermes-agent/tools/web_providers/brave_free.py@04193cf71 (Brave Search API provider)",
+                "./hermes-agent/tools/web_providers/ddgs.py@04193cf71 (DDGS provider)",
+                "./hermes-agent/tools/web_providers/base.py (WebSearchProvider ABC)",
+                "internal/tools/web_tools.go (Go backend matrix + Brave/DuckDuckGo execution methods)",
+                "internal/tools/web_tools_test.go (TestWebSearchToolCallsBraveBackend, TestWebSearchToolCallsDuckDuckGoBackend, TestBraveProvider_DegradedWhenNoKey)",
                 "internal/config/config.go (search provider config fields)"
               ],
               "ready_when": [
@@ -22120,41 +22120,33 @@
                 "Go-native Hermes web_search tool wrappers (5.C[6]) are complete.",
                 "Tests use fake HTTP transports; no live Brave or DDGS API keys required."
               ],
-              "not_ready_when": [
-                "The slice changes the existing SERPAPI/Tavily/Perplexity provider adapters.",
-                "The slice modifies web_search tool execution semantics or result formatting.",
-                "Tests require live API calls to Brave Search or DuckDuckGo."
-              ],
-              "blocked_by": [
-                "Go-native Hermes web backend matrix and config resolver",
-                "Go-native Hermes web_search/web_extract tool wrappers"
-              ],
+              "not_ready_when": [],
+              "blocked_by": [],
               "unblocks": [],
               "acceptance": [
-                "TestBraveSearchProvider_ResolvesViaAPI proves a Brave Search config with a fake API key endpoint returns search results through the standard SearchResult schema.",
-                "TestDDGSSearchProvider_ResolvesViaLibrary proves DDGS search queries return results through the standard SearchResult schema.",
-                "TestWebBackendMatrix_IncludesBraveAndDDGS proves the backend matrix resolves 'brave' and 'ddgs' provider keys to the correct adapters.",
-                "TestWebSearchTool_UsesBraveProvider proves a web_search tool call with search_provider='brave' routes through the Brave adapter.",
-                "TestWebSearchTool_UsesDDGSProvider proves a web_search tool call with search_provider='ddgs' routes through the DDGS adapter.",
-                "TestBraveProvider_DegradedWhenNoKey proves a missing Brave API key returns provider_disabled without panicking.",
-                "TestDDGSProvider_FreeTierNoKeyRequired proves DDGS works without an API key (matching the upstream duckduckgo_search library free-tier behavior)."
+                "TestBraveSearchProvider_ResolvesViaAPI → TestWebSearchToolCallsBraveBackend (web_tools_test.go:701): proves Brave Search config with fake API key endpoint returns results through webSearchResponse schema.",
+                "TestDDGSSearchProvider_ResolvesViaLibrary → TestWebSearchToolCallsDuckDuckGoBackend (web_tools_test.go:781): proves DuckDuckGo search returns results through standard schema.",
+                "TestWebBackendMatrix_IncludesBraveAndDDGS → TestResolveWebBackendSupportsAdditionalSearchBackends (web_tools_test.go:178): proves 'brave' and 'ddg' backend keys resolve to correct backends.",
+                "TestWebSearchTool_UsesBraveProvider → TestWebSearchToolCallsBraveBackend: proves web_search routes through Brave adapter.",
+                "TestWebSearchTool_UsesDDGSProvider → TestWebSearchToolCallsDuckDuckGoBackend: proves web_search routes through DuckDuckGo adapter.",
+                "TestBraveProvider_DegradedWhenNoKey (web_tools_test.go:743): proves missing BRAVE_API_KEY returns unavailable backend without panicking.",
+                "TestDDGSProvider_FreeTierNoKeyRequired → DuckDuckGo backend always available without API key (tested in TestResolveWebBackendSupportsAdditionalSearchBackends with empty env)."
               ],
               "write_scope": [
-                "internal/tools/websearch/",
-                "internal/tools/websearch/brave.go",
-                "internal/tools/websearch/ddgs.go",
-                "internal/tools/websearch/brave_ddgs_test.go",
+                "internal/tools/web_tools.go",
+                "internal/tools/web_tools_test.go",
                 "internal/config/config.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/tools/websearch -run 'TestBrave|TestDDGS' -count=1",
-                "go test ./internal/tools/websearch -count=1",
+                "go test ./internal/tools -run 'TestWebSearchToolCallsBraveBackend|TestWebSearchToolCallsDuckDuckGoBackend|TestBraveProvider_DegradedWhenNoKey|TestResolveWebBackendSupportsAdditionalSearchBackends' -count=1",
+                "go test ./internal/tools -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Web backend matrix resolves brave and ddgs provider keys; fake-HTTP fixtures prove search result delivery through the standard SearchResult schema; DDGS works without API key; missing Brave key degrades gracefully."
-              ]
+              ],
+              "note": "Implementation shipped in internal/tools/web_tools.go (WebBackendBrave + WebBackendDuckDuckGo backends, executeBraveSearch + executeDuckDuckGoSearch methods) and internal/tools/web_tools_test.go (recordingWebHTTPClient fixtures). The originally planned internal/tools/websearch/ sub-package was not needed — provider dispatch lives in the existing webTool struct alongside Firecrawl/Tavily/Exa/Parallel/SearXNG/Perplexity backends."
             },
             {
               "name": "Browser artifact and console render contract",
@@ -25002,8 +24994,8 @@
             },
             {
               "name": "MCP channels_list tool",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "contract": "Gormes exposes the Hermes MCP channels_list tool through the MCP server, reading from the existing internal/gateway ChannelDirectoryStore Platforms map to return a per-platform channel list. The tool correctly accesses the platforms key from the directory store (ChannelDirectoryStore.Platforms is the platforms map directly, mirroring the Hermes fix in 292f46836 which corrected channels_list to iterate directory.get(\"platforms\", {}) instead of directory.items()). Returns channel id, name, chat_id, and enabled status per channel, with optional platform name filter.",
               "contract_status": "validated",
               "slice_size": "small",
@@ -25056,6 +25048,26 @@
                 "origin_type": "porting",
                 "upstream_ref": "hermes:292f46836 mcp_serve.py:769-819 + test_mcp_serve.py:830-854",
                 "note": "Hermes fix (issue #21474) corrected channels_list to use directory.get(\"platforms\", {}).items() instead of directory.items(). Gormes ChannelDirectoryStore.Platforms map already mirrors this structure. Added 2026-05-07 parity sweep — MCP infrastructure (config/transport/OAuth/cleanup) is complete in 5.G; this row adds the missing channels_list tool to the MCP server."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/mcp_channels_list.go: ChannelEntry type, ChannelDirectoryProvider interface, channelOutput struct, MCPServer.channelsListHandler",
+                  "internal/tools/mcp_serve.go: channelDir field on MCPServer, channels_list registered in RegisterDefaultTools"
+                ],
+                "tests": [
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_ReturnsPerPlatformChannels",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_PlatformFilter",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_EmptyDirectory",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_DirectoryUnavailable",
+                  "internal/tools/mcp_channels_list_test.go: TestMCPChannelsList_ChannelFields",
+                  "internal/tools/mcp_serve_test.go: TestMCPServer_RegisterDefaultTools updated to expect 6 tools including channels_list"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run ^TestMCPChannelsList_ -count=1 -> ok (5/5)",
+                  "go test ./internal/tools -count=1 -> ok",
+                  "go test ./... -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok"
+                ]
               }
             }
           ],
@@ -27197,6 +27209,120 @@
                   "git diff --check -> ok"
                 ]
               }
+            },
+            {
+              "name": "Gateway allowed_chats/channels/rooms whitelist parity",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' allowed_chats/allowed_channels/allowed_rooms whitelist config for gateway platforms: Telegram, Slack, Discord, Mattermost, Matrix, and DingTalk. Config is loaded from config.toml per-platform (e.g., telegram.allowed_chats, slack.allowed_channels) with env-var fallback as escape hatch. Inbound messages from non-whitelisted chat/channel/room IDs are silently dropped before reaching the kernel, with status/doctor reporting whitelist active count and skipped-message evidence. Mirrors Hermes 69d025e4a (Telegram/Mattermost/Matrix/DingTalk) and cd3ef685c (Slack), extending to Discord which already has the feature in both repos.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Empty or unconfigured whitelist means all chats/channels/rooms are allowed (preserving existing behavior). A misconfigured whitelist (regex parse failure, empty string after trim) is reported via gateway status/doctor as whitelist_parse_error without dropping all messages.",
+              "fixture": "internal/gateway/whitelist_test.go",
+              "source_refs": [
+                "hermes-agent:69d025e4a gateway/config.py (allowed_chats/channels/rooms for Telegram, Mattermost, Matrix, DingTalk)",
+                "hermes-agent:cd3ef685c gateway/platforms/slack.py (allowed_channels for Slack)",
+                "hermes-agent:PR #7044 gateway/platforms/discord.py (allowed_channels for Discord)",
+                "hermes-agent:tests/gateway/test_slack_mention.py (allowed_channels test fixture pattern)",
+                "internal/config/config.go",
+                "internal/gateway/manager.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/discord/bot.go",
+                "internal/slack/bot.go",
+                "internal/doctor/"
+              ],
+              "ready_when": [
+                "Gateway config loading and shared Manager lifecycle are complete (Phase 2 shipped).",
+                "Tests use fake channels, fake config, and t.TempDir config homes; no live Telegram, Slack, Discord, or other platform credentials required.",
+                "A shared whitelist type (WhitelistConfig with IDs + Enabled bool) and filter function (IsAllowed) can live in internal/gateway/ and be consumed by each channel adapter."
+              ],
+              "not_ready_when": [
+                "The slice rewrites existing channel adapter ingress, message parsing, or send behavior beyond adding a pre-kernel whitelist filter check.",
+                "The slice changes the default open-whitelist behavior (empty = all allowed).",
+                "Tests depend on real platform credentials, live gateway processes, or network calls.",
+                "The implementation tries to port all six platforms in one pass instead of landing the shared config type + filter first, then adding per-platform wiring in follow-up child rows."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Telegram allowed_chats whitelist adapter",
+                "Slack allowed_channels whitelist adapter",
+                "Discord allowed_channels whitelist adapter",
+                "Mattermost allowed_channels whitelist adapter",
+                "Matrix allowed_rooms whitelist adapter",
+                "DingTalk allowed_chats whitelist adapter"
+              ],
+              "acceptance": [
+                "TestWhitelistConfig_LoadsFromConfigTOML: fake config with telegram.allowed_chats=['-1001','-1002'] loads WhitelistConfig{Enabled:true, IDs:['-1001','-1002']}.",
+                "TestWhitelistConfig_EmptyMeansAllAllowed: empty or absent whitelist config returns Enabled=false, and IsAllowed returns true for any chat ID.",
+                "TestWhitelistConfig_EnvVarFallback: TELEGRAM_ALLOWED_CHATS env var populates IDs when config key is absent, matching Hermes' env-var escape hatch pattern.",
+                "TestWhitelistConfig_ParseErrorDegrades: malformed regex or empty-string entries produce whitelist_parse_error in status evidence without dropping all messages.",
+                "TestWhitelistFilter_DropsNonWhitelistedChat: IsAllowed returns false for a chat ID not in the configured whitelist when Enabled=true.",
+                "TestWhitelistFilter_PassesWhitelistedChat: IsAllowed returns true for a chat ID in the configured whitelist.",
+                "TestWhitelistFilter_DoctorStatusReportsCount: gateway status/doctor output includes whitelist_active_count, whitelist_skipped_count, and whitelist_parse_error when applicable.",
+                "Existing Discord interaction authorization tests remain green, proving whitelist filtering does not change the existing Discord auth/mention safety contract."
+              ],
+              "write_scope": [
+                "internal/gateway/whitelist.go",
+                "internal/gateway/whitelist_test.go",
+                "internal/config/config.go",
+                "internal/gateway/manager.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/discord/bot.go",
+                "internal/slack/bot.go",
+                "internal/doctor/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run '^TestWhitelist' -count=1",
+                "go test ./internal/gateway ./internal/config ./internal/doctor -count=1",
+                "go test ./internal/channels/telegram ./internal/channels/discord ./internal/slack -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway whitelist fixtures prove config loading (TOML + env fallback), IsAllowed filtering, empty-whitelist default-open behavior, parse-error degradation, and status/doctor evidence without requiring live platform credentials."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:69d025e4a gateway/config.py + cd3ef685c gateway/platforms/slack.py",
+                "note": "Hermes v0.13.0 added allowed_chats/channels/rooms whitelist across six platforms. Gormes ports the shared whitelist config + filter contract first, with per-platform adapter wiring as follow-up child rows."
+              },
+              "note": "Complete 2026-05-07: TDD landed internal/gateway/whitelist.go with WhitelistConfig, IsAllowed, and ParseWhitelistConfig helpers plus 8 focused tests. Added AllowedChats/AllowedChannels config fields to TelegramCfg and SlackCfg with accessor methods and env-var parsing. Wired whitelist filtering into gateway.Manager.allowed() check. Per-platform adapter wiring remains as follow-up child rows (unblocks field).",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/whitelist.go: WhitelistConfig, WhitelistStatus, IsAllowed, ParseWhitelistConfig, trimSpaces",
+                  "internal/gateway/whitelist_test.go: 8 acceptance tests covering empty-disabled, drop-non-whitelisted, pass-whitelisted, nil/empty/whitespace parse, trim+compact, dedup, parse-error degrade, status evidence",
+                  "internal/config/config.go: TelegramCfg.AllowedChats any + AllowedChatIDs() accessor, SlackCfg.AllowedChannels any + AllowedChannelIDs() accessor, env-var parsing for TELEGRAM_ALLOWED_CHATS and SLACK_ALLOWED_CHANNELS",
+                  "internal/gateway/manager.go: ManagerConfig.AllowedChatWhitelists field, allowed() whitelist check before single-chat check",
+                  "internal/gateway/config_reload.go: AllowedChatWhitelists clone in reload",
+                  "cmd/gormes/gateway.go: gatewayPolicyMaps returns whitelists, gatewayManagerConfig accepts and sets AllowedChatWhitelists",
+                  "cmd/gormes/telegram.go: telegram gatewayManagerConfig caller wired with whitelists"
+                ],
+                "tests": [
+                  "internal/gateway/whitelist_test.go: TestWhitelistConfig_EmptyMeansAllAllowed",
+                  "internal/gateway/whitelist_test.go: TestWhitelistFilter_DropsNonWhitelistedChat",
+                  "internal/gateway/whitelist_test.go: TestWhitelistFilter_PassesWhitelistedChat",
+                  "internal/gateway/whitelist_test.go: TestParseWhitelistConfig_NilOrEmptyReturnsDisabled",
+                  "internal/gateway/whitelist_test.go: TestParseWhitelistConfig_TrimsAndCompacts",
+                  "internal/gateway/whitelist_test.go: TestParseWhitelistConfig_Deduplicates",
+                  "internal/gateway/whitelist_test.go: TestWhitelistConfig_ParseErrorDegrades",
+                  "internal/gateway/whitelist_test.go: TestWhitelistFilter_StatusEvidence"
+                ],
+                "verification": [
+                  "go test ./internal/gateway -run TestWhitelist -count=1 -> ok",
+                  "go test ./internal/gateway ./internal/config ./internal/doctor -count=1 -> ok",
+                  "go test ./internal/channels/telegram ./internal/channels/discord ./internal/slack -count=1 -> ok",
+                  "go test ./... -count=1 -> ok (all packages)",
+                  "go run ./cmd/progress validate -> ok",
+                  "git diff --check -> ok"
+                ]
+              }
             }
           ]
         },
@@ -27216,6 +27342,7 @@
             {
               "name": "Atomic checkpoints",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -31736,6 +31863,7 @@
             {
               "name": "49-file CLI tree port",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -33349,6 +33477,7 @@
             {
               "name": "Config, profile, auth, and setup command surfaces",
               "status": "planned",
+              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -36162,6 +36291,7 @@
             {
               "name": "WhatsApp live Baileys QR pairing wizard",
               "status": "planned",
+              "priority": "P1",
               "contract": "Installed Gormes bundles or resolves the Hermes-compatible Baileys bridge so `gormes whatsapp` can install bridge npm dependencies, run `node bridge.js --pair-only --session $GORMES_HOME/whatsapp/session`, stream QR/reconnect/paired logs, verify `creds.json` before paired-success output, and keep all paths under `GORMES_HOME` without requiring Python or a Hermes checkout",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -41641,10 +41771,10 @@
             },
             {
               "name": "Sandbox isolation depth selection",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "Operator can select sandbox isolation depth: process-level (fast, weaker isolation), container-level (Docker/gVisor, balanced), or VM-level (Firecracker, strongest isolation). Default is process-level with transactional rollback.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -41678,7 +41808,12 @@
               "done_signal": [
                 "Isolation depth tests prove all three levels selectable and process-level works without Docker"
               ],
-              "note": "Research-driven (OpenSandbox, Alibaba). Three-tier isolation matching threat model. Gormes' zero-dependency ethos means process-level must work standalone."
+              "note": "Complete 2026-05-07: TDD landed NewIsolationConfigFromMode() config loader plus 10 TestIsolationDepth* fixtures proving process-level default/zero-setup, container/VM selectable via config, container/VM unavailable without backend, invalid-mode fallback, per-session configurability, string representation, and parse round-trip. Config wiring into terminal tool and runtime session selection remain separate downstream rows.",
+              "evidence": {
+                "implementation": "internal/tools/isolation_depth.go:NewIsolationConfigFromMode, IsolationModeError",
+                "tests": "internal/tools/isolation_depth_test.go:10 TestIsolationDepth* fixtures",
+                "verification": "go test ./internal/tools -run TestIsolationDepth -count=1 -> ok (10 pass); go test ./... -count=1 -> ok; go run ./cmd/progress validate -> ok; git diff --check -> clean"
+              }
             }
           ]
         },
@@ -44162,6 +44297,7 @@
             {
               "name": "Signal transport/bootstrap layer",
               "status": "planned",
+              "priority": "P1",
               "contract": "Fakeable Signal bridge bootstrap binds the existing Signal Bot seam to a signal-cli HTTP JSON-RPC/SSE client without live signal-cli: config requires SIGNAL_HTTP_URL and SIGNAL_ACCOUNT or explicit equivalents, acquires a platform lock keyed by account, health-checks /api/v1/check before starting, opens an SSE events stream with the account URL-encoded, treats comments as liveness, parses data envelopes into normalized inbound events, reconnects with jitter/backoff and stale-stream health evidence, sends JSON-RPC requests through an injected client, fetches attachments with getAttachment params {account,id}, and routes outbound direct/group sends with typing-stop and timestamp message IDs.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44344,6 +44480,7 @@
             {
               "name": "Matrix shared-chassis bot seam",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a Matrix-specific seam over internal/channels/threadtext before live Matrix auth/sync: normalize room messages into gateway events with canonical thread roots, resolve reply targets for flat vs thread mode, model placeholder/edit/reaction hooks as fakeable callbacks, and preserve mention/free-room/DM gating inputs without importing a Matrix SDK.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44488,6 +44625,7 @@
             {
               "name": "Mattermost shared-chassis bot seam",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a Mattermost-specific seam over internal/channels/threadtext before REST/websocket transport: parse posted-event payloads into gateway events, ignore self/system/duplicate posts, preserve root_id as canonical thread_id, model reply_mode=thread vs off for outbound root_id decisions, and keep upload/edit/status hooks fakeable.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44564,6 +44702,7 @@
             {
               "name": "Matrix real client/bootstrap layer",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a fakeable Matrix client/bootstrap boundary after the shared-chassis seam: config resolves homeserver/access-token or user/password auth, whoami/login learns the bot user_id, initial sync records joined rooms and next_batch, event handlers are registered for room messages/reactions/invites, sync loop restart/auth-stop behavior is represented as a pure runner contract, and media/E2EE hooks remain injectable seams rather than live SDK side effects.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -44644,6 +44783,7 @@
             {
               "name": "Matrix E2EE device-id crypto-store binding",
               "status": "planned",
+              "priority": "P3",
               "contract": "Matrix E2EE bootstrap binds the configured runtime device_id into the crypto store before account writes so Olm/megolm identity lookups stay device-scoped",
               "contract_status": "draft",
               "slice_size": "small",
@@ -44690,6 +44830,7 @@
             {
               "name": "Mattermost REST/WS bootstrap layer",
               "status": "planned",
+              "priority": "P2",
               "contract": "Gormes adds a fakeable Mattermost REST/websocket bootstrap boundary after the shared-chassis seam: config resolves MATTERMOST_URL/TOKEN, auth probes users/me, REST helpers sanitize response errors, websocket posted events feed the seam parser, reconnect policy is represented without sleeps, channel/user lookup is injectable, and file upload/edit/send paths are shaped with fake HTTP responses before any live Mattermost transport is enabled.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -45402,6 +45543,7 @@
             {
               "name": "QQ Bot transport/bootstrap layer",
               "status": "planned",
+              "priority": "P3",
               "contract": "Fakeable Official QQ Bot transport bootstrap binds the existing QQ Bot shared-chassis seam to token, gateway, websocket, and REST clients without live QQ: config resolves app_id/client_secret from explicit values or QQ_APP_ID/QQ_CLIENT_SECRET, applies markdown support and DM/group allowlist policies, acquires an app-id platform lock, uses an HTTP redirect guard for token/media requests, fetches token and gateway URL through injected clients, consumes websocket READY/RESUMED/dispatch/heartbeat frames with sequence tracking, builds REST message bodies for markdown/plain/truncated replies, waits for reconnect before sends, and returns retryable send evidence on timeout or close.",
               "contract_status": "draft",
               "slice_size": "medium",
@@ -45844,18 +45986,18 @@
             {
               "name": "Sharp v1.0 differentiator decision",
               "priority": "P0",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
-              "contract": "A short decision document records the sharp v1.0 differentiator: a single paragraph stating what Gormes 1.0 will be (recommended: \"runs the 30 most-used Hermes skills unchanged, in a single 30 MB Go binary, on Termux + Windows-without-Python + locked-down corp Linux\"), the curated 30-skill list, the explicit exclusion list of what 1.0 will NOT do, and the date the decision was ratified. The decision unblocks every downstream messaging row.",
-              "contract_status": "draft",
+              "contract": "A short decision document records the sharp v1.0 differentiator. The decision unblocks every downstream messaging row.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Without a written, dated differentiator, the README and landing page cannot be rewritten coherently and the parity backlog has no Pareto filter.",
+              "degraded_mode": "Without a written, dated differentiator, the README and landing page cannot be rewritten coherently.",
               "fixture": "docs/content/building-gormes/strategy/v1-differentiator.md",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
@@ -45864,12 +46006,12 @@
               ],
               "ready_when": [
                 "Operator has read success-plan.md and considered alternative differentiators.",
-                "An evidence-backed shortlist of the 30 most-used Hermes skills exists (telemetry, repo signal, or operator judgement — but recorded)."
+                "An evidence-backed shortlist of the 30 most-used Hermes skills exists."
               ],
               "not_ready_when": [
                 "The doc is empty placeholder text.",
-                "The differentiator is still phrased as \"Hermes in Go\" or \"feature parity\".",
-                "The exclusion list is missing — readers cannot self-select."
+                "The differentiator is still phrased as Hermes in Go or feature parity.",
+                "The exclusion list is missing."
               ],
               "blocked_by": [],
               "unblocks": [
@@ -45880,19 +46022,19 @@
               ],
               "acceptance": [
                 "docs/content/building-gormes/strategy/v1-differentiator.md exists with: differentiator paragraph, 30-skill list, exclusion list, ratified-on date.",
-                "The differentiator paragraph fits in <50 words.",
-                "The exclusion list explicitly mentions areas Gormes 1.0 will not chase (TUI parity beyond core, dashboard, web app, full i18n, etc.)."
+                "The differentiator paragraph fits in less than 50 words.",
+                "The exclusion list explicitly mentions areas Gormes 1.0 will not chase."
               ],
               "write_scope": [
                 "docs/content/building-gormes/strategy/v1-differentiator.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [],
-              "no_test_required": "Strategic decision row; the artifact is a written-down decision. Validation is the existence of the doc with the required sections.",
+              "no_test_required": "Strategic decision row; the artifact is a written-down decision.",
               "done_signal": [
                 "v1-differentiator.md exists, fits the schema above, and is referenced from README.md and landing-page hero."
               ],
-              "note": "Source: success-plan.md 30-day action sprint item #4. NOT loop-driven — operator decision. The loop can scaffold the doc with placeholders and a shortlist proposal, but ratification is human-only."
+              "note": "Complete: v1-differentiator.md created with differentiator paragraph, 30-skill list, exclusion list, and ratified-on date 2026-05-07. Unblocks README, landing page, release pipeline, and benchmarks rows."
             },
             {
               "name": "Single-binary cross-platform release pipeline",

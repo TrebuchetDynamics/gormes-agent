@@ -29,6 +29,8 @@ set -eu
 
 REPO_URL_SSH="${GORMES_REPO_URL_SSH:-git@github.com:TrebuchetDynamics/gormes-agent.git}"
 REPO_URL_HTTPS="${GORMES_REPO_URL_HTTPS:-https://github.com/TrebuchetDynamics/gormes-agent.git}"
+RELEASES_API_URL="${GORMES_RELEASES_API_URL:-https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest}"
+RELEASES_DOWNLOAD_BASE="${GORMES_RELEASES_DOWNLOAD_BASE:-https://github.com/TrebuchetDynamics/gormes-agent/releases/download}"
 BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.25.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
@@ -38,6 +40,9 @@ DRY_RUN=0
 UNINSTALL=0
 UNINSTALL_ARGS=""
 LOCAL_SOURCE_DIR=""
+FROM_SOURCE="${GORMES_INSTALL_FROM_SOURCE:-0}"
+INSTALL_METHOD=""
+INSTALL_METHOD_DETAIL=""
 INSTALL_LOCK_DIR=""
 OLD_BUILD_TAG=""
 BUILD_TAG=""
@@ -129,6 +134,7 @@ Gormes Unix installer
 
 Usage:
   install.sh [--branch NAME] [--home DIR] [--dir DIR] [--bin-dir DIR]
+  install.sh --from-source             # build from source instead of fetching release binary
   install.sh --local [--bin-dir DIR]
   install.sh --dry-run
   install.sh --uninstall [gormes uninstall flags]
@@ -140,6 +146,10 @@ Options:
   --bin-dir DIR  Published command directory
                    default (non-root): $HOME/.local/bin
                    default (root Linux): /usr/local/bin
+  --from-source  Build gormes from source instead of downloading the pre-built
+                 release binary from GitHub Releases. Slower but works for
+                 unsupported platforms or pre-release branches.
+                 (Env: GORMES_INSTALL_FROM_SOURCE=1)
   --local        Build from the current checkout instead of the managed
                  installer checkout
   --dry-run      Print the resolved plan without cloning, building, publishing,
@@ -517,6 +527,10 @@ parse_args() {
         LOCAL_SOURCE_DIR=$(pwd)
         shift
         ;;
+      --from-source)
+        FROM_SOURCE=1
+        shift
+        ;;
       --dry-run)
         DRY_RUN=1
         shift
@@ -889,6 +903,189 @@ new_tmp_dir() {
   printf '%s\n' "$dir"
 }
 
+# release_platform_arch maps the host platform to a published release-asset
+# arch slug. Returns empty for unsupported platforms — caller MUST treat empty
+# as "no published binary; fall back to source build".
+#
+# Supported asset slugs match the v0.1.06+ release matrix:
+#   linux-amd64, linux-arm64, darwin-amd64, darwin-arm64,
+#   windows-amd64, windows-arm64
+release_platform_arch() {
+  rpa_pn=$(platform_name)
+  rpa_m=$(uname -m 2>/dev/null || printf 'unknown\n')
+  case "$rpa_pn" in
+    Linux)
+      case "$rpa_m" in
+        x86_64|amd64) printf 'linux-amd64\n' ;;
+        aarch64|arm64) printf 'linux-arm64\n' ;;
+        *) printf '\n' ;;
+      esac
+      ;;
+    Darwin)
+      case "$rpa_m" in
+        x86_64|amd64) printf 'darwin-amd64\n' ;;
+        arm64) printf 'darwin-arm64\n' ;;
+        *) printf '\n' ;;
+      esac
+      ;;
+    *) printf '\n' ;;
+  esac
+}
+
+# decide_install_method picks between binary-fetch (download a pre-built
+# release artifact from GitHub Releases) and source-build (clone + go build).
+# Sets globals INSTALL_METHOD and INSTALL_METHOD_DETAIL exactly once per run.
+# Idempotent: re-running with the same args is a no-op.
+#
+# Decision rules (first match wins):
+#   1. --local    -> source-build (operator wants their working tree).
+#   2. --from-source / GORMES_INSTALL_FROM_SOURCE=1 -> source-build.
+#   3. Branch is non-default (not "main") -> source-build (release binaries
+#      are only published from main).
+#   4. Host arch has no published asset -> source-build (with reason).
+#   5. Otherwise -> binary-fetch (the new fast path).
+decide_install_method() {
+  if [ -n "$INSTALL_METHOD" ]; then
+    return 0
+  fi
+  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+    INSTALL_METHOD="source-build"
+    INSTALL_METHOD_DETAIL="--local: build from current checkout (${LOCAL_SOURCE_DIR})"
+    return 0
+  fi
+  if [ "${FROM_SOURCE:-0}" -eq 1 ]; then
+    INSTALL_METHOD="source-build"
+    INSTALL_METHOD_DETAIL="--from-source flag set (build from cloned source instead of downloading release binary)"
+    return 0
+  fi
+  if [ "$BRANCH" != "main" ]; then
+    INSTALL_METHOD="source-build"
+    INSTALL_METHOD_DETAIL="--branch ${BRANCH}: release binaries are only published from main"
+    return 0
+  fi
+  dim_arch=$(release_platform_arch)
+  if [ -z "$dim_arch" ]; then
+    INSTALL_METHOD="source-build"
+    INSTALL_METHOD_DETAIL="platform $(platform_name)/$(uname -m 2>/dev/null || printf unknown) has no published release asset"
+    return 0
+  fi
+  INSTALL_METHOD="binary-fetch"
+  INSTALL_METHOD_DETAIL="${dim_arch} from latest release (no Go toolchain or git clone needed)"
+}
+
+# fetch_release_binary downloads the latest release asset for the host
+# platform, verifies its SHA-256 against the published .sha256 sidecar, and
+# extracts the gormes binary into managed_bin_dir.
+#
+# Returns non-zero on any failure (network, missing asset, hash mismatch);
+# caller is expected to fall back to source-build on failure.
+fetch_release_binary() {
+  frb_arch=$(release_platform_arch)
+  if [ -z "$frb_arch" ]; then
+    log "fetch_release_binary: no asset for platform $(platform_name)/$(uname -m); aborting"
+    return 1
+  fi
+
+  # Resolve the latest release tag from GitHub API. Use a strict fail-on-empty
+  # parse so a malformed response triggers the source-build fallback.
+  log_info "Resolving latest release tag from ${RELEASES_API_URL}"
+  frb_api_body=""
+  if has curl; then
+    frb_api_body=$(curl -fsSL --retry 3 --retry-delay 1 --retry-connrefused \
+      -H 'Accept: application/vnd.github+json' "$RELEASES_API_URL" 2>/dev/null) || frb_api_body=""
+  elif has wget; then
+    frb_api_body=$(wget -q --tries=3 --timeout=20 --header='Accept: application/vnd.github+json' \
+      -O - "$RELEASES_API_URL" 2>/dev/null) || frb_api_body=""
+  fi
+  if [ -z "$frb_api_body" ]; then
+    log "fetch_release_binary: could not reach GitHub API; aborting"
+    return 1
+  fi
+  frb_tag=$(printf '%s\n' "$frb_api_body" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+  if [ -z "$frb_tag" ]; then
+    log "fetch_release_binary: could not parse tag_name from GitHub API response; aborting"
+    return 1
+  fi
+  frb_ver="${frb_tag#v}"
+  frb_asset="gormes-${frb_ver}-${frb_arch}.tar.gz"
+  frb_url="${RELEASES_DOWNLOAD_BASE}/${frb_tag}/${frb_asset}"
+  frb_sha_url="${frb_url}.sha256"
+
+  frb_tmp=$(new_tmp_dir)
+  log_info "Downloading ${frb_asset} (${frb_tag})"
+  if has curl; then
+    curl -fsSL --retry 3 --retry-delay 1 --retry-connrefused \
+      -o "${frb_tmp}/${frb_asset}" "$frb_url" || {
+        log "fetch_release_binary: download failed for ${frb_url}"
+        return 1
+      }
+    curl -fsSL --retry 3 --retry-delay 1 --retry-connrefused \
+      -o "${frb_tmp}/${frb_asset}.sha256" "$frb_sha_url" || {
+        log "fetch_release_binary: download failed for ${frb_sha_url}"
+        return 1
+      }
+  elif has wget; then
+    wget -q --tries=3 --timeout=20 -O "${frb_tmp}/${frb_asset}" "$frb_url" || {
+      log "fetch_release_binary: download failed for ${frb_url}"
+      return 1
+    }
+    wget -q --tries=3 --timeout=20 -O "${frb_tmp}/${frb_asset}.sha256" "$frb_sha_url" || {
+      log "fetch_release_binary: download failed for ${frb_sha_url}"
+      return 1
+    }
+  else
+    log "fetch_release_binary: neither curl nor wget available; aborting"
+    return 1
+  fi
+
+  log_info "Verifying SHA-256 checksum"
+  frb_expected=$(awk '{print $1}' "${frb_tmp}/${frb_asset}.sha256" 2>/dev/null)
+  if [ -z "$frb_expected" ]; then
+    log "fetch_release_binary: empty .sha256 file; aborting"
+    return 1
+  fi
+  if has sha256sum; then
+    frb_actual=$(sha256sum "${frb_tmp}/${frb_asset}" | awk '{print $1}')
+  elif has shasum; then
+    frb_actual=$(shasum -a 256 "${frb_tmp}/${frb_asset}" | awk '{print $1}')
+  else
+    log "fetch_release_binary: no SHA-256 utility (need sha256sum or shasum); aborting"
+    return 1
+  fi
+  if [ "$frb_expected" != "$frb_actual" ]; then
+    log "fetch_release_binary: SHA-256 mismatch (expected ${frb_expected}, got ${frb_actual}); aborting"
+    return 1
+  fi
+  log_success "SHA-256 verified"
+
+  log_info "Extracting ${frb_asset}"
+  tar -xzf "${frb_tmp}/${frb_asset}" -C "$frb_tmp" || {
+    log "fetch_release_binary: tar extract failed; aborting"
+    return 1
+  }
+  # The release archive contains a top-level dir named after the asset slug,
+  # e.g. gormes-0.1.06-linux-amd64/gormes. Look there first; fall back to a
+  # flat layout for forward compatibility.
+  frb_extracted_bin="${frb_tmp}/gormes-${frb_ver}-${frb_arch}/gormes"
+  if [ ! -f "$frb_extracted_bin" ] && [ -f "${frb_tmp}/gormes" ]; then
+    frb_extracted_bin="${frb_tmp}/gormes"
+  fi
+  if [ ! -f "$frb_extracted_bin" ]; then
+    log "fetch_release_binary: extracted archive does not contain a gormes binary; aborting"
+    return 1
+  fi
+
+  frb_bin_target="$(managed_bin_dir)/gormes"
+  mkdir -p "$(parent_dir "$frb_bin_target")"
+  mv -f "$frb_extracted_bin" "$frb_bin_target" || {
+    log "fetch_release_binary: could not install binary at ${frb_bin_target}"
+    return 1
+  }
+  chmod +x "$frb_bin_target"
+  log_success "Installed gormes ${frb_ver} from release ${frb_tag} (${frb_arch})"
+  return 0
+}
+
 clone_checkout() {
   checkout_dir="${SOURCE_ROOT_DIR:-$(managed_checkout_dir)}"
   mkdir -p "$(parent_dir "$checkout_dir")"
@@ -1078,6 +1275,20 @@ ensure_path_in_shell_config() {
   PATH_CONFIG_FILES=""
   if path_contains_dir "$epsc_bin_dir"; then
     PATH_CONFIG_RESULT="already_on_path"
+    return 0
+  fi
+
+  # iso-shellrc-leak: when the operator declared a sandbox bin dir
+  # (GORMES_BIN_DIR / GORMES_PREFIX), do NOT mutate ~/.bashrc, ~/.profile,
+  # ~/.zshrc, or fish config. The sandbox path will be reaped on the next
+  # /tmp cleanup; persistent rc lines pointing at it become dangling cruft
+  # the operator has to sed out by hand. Make the sandbox bin dir visible
+  # to downstream steps in this same install run only.
+  if sandbox_bin_dir_set; then
+    PATH_CONFIG_RESULT="sandbox_skipped"
+    PATH="${epsc_bin_dir}:${PATH}"
+    export PATH
+    log "skipping shell rc PATH edits (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary — ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
     return 0
   fi
 
@@ -1554,6 +1765,10 @@ print_summary() {
 }
 
 print_service_instructions() {
+  if sandbox_bin_dir_set; then
+    log "skipping system service install (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary — ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
+    return 0
+  fi
   if has systemctl && systemctl --user >/dev/null 2>&1; then
     install_systemd_user_service
   elif [ "$(platform_name)" = "Darwin" ] && has launchctl; then
@@ -1650,8 +1865,12 @@ PLISTUNIT
 }
 
 print_install_plan_body() {
+  decide_install_method
   log "  branch: ${BRANCH}"
-  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+  log "  install_method: ${INSTALL_METHOD} (${INSTALL_METHOD_DETAIL})"
+  if [ "$INSTALL_METHOD" = "binary-fetch" ]; then
+    log "  source: github releases (no git clone, no Go toolchain)"
+  elif [ -n "$LOCAL_SOURCE_DIR" ]; then
     log "  source: ${LOCAL_SOURCE_DIR}"
   else
     log "  source: managed git checkout of ${BRANCH}"
@@ -1662,8 +1881,12 @@ print_install_plan_body() {
   log "  published_binary: $(pick_bin_dir)/gormes"
   if sandbox_bin_dir_set; then
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
+    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
@@ -1689,16 +1912,24 @@ yes_no() {
 }
 
 print_verbose_plan() {
+  decide_install_method
   active_bin=$(active_command_path)
   [ -n "$active_bin" ] || active_bin="<none>"
   log "resolved install plan"
   log "  verbose: true"
   log "  platform: $(platform_name)"
+  log "  arch: $(uname -m 2>/dev/null || printf unknown)"
   log "  termux: $(yes_no is_termux)"
   log "  root_linux_install: $(yes_no is_root_linux_install)"
   log "  effective_uid: $(effective_uid)"
   log "  branch: ${BRANCH}"
-  if [ -n "$LOCAL_SOURCE_DIR" ]; then
+  log "  install_method: ${INSTALL_METHOD}"
+  log "  install_method_reason: ${INSTALL_METHOD_DETAIL}"
+  if [ "$INSTALL_METHOD" = "binary-fetch" ]; then
+    log "  source_mode: github-releases"
+    log "  release_arch: $(release_platform_arch)"
+    log "  release_api: ${RELEASES_API_URL}"
+  elif [ -n "$LOCAL_SOURCE_DIR" ]; then
     log "  source_mode: local"
     log "  source: ${LOCAL_SOURCE_DIR}"
   else
@@ -1711,8 +1942,12 @@ print_verbose_plan() {
   log "  active_command: ${active_bin}"
   if sandbox_bin_dir_set; then
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
+    log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
+    log "  install_system_service: skipped (sandbox bin dir set; ~/.config/systemd/user/ and ~/Library/LaunchAgents/ left untouched)"
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
+    log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
+    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
@@ -1747,11 +1982,14 @@ release_install_lock() {
 }
 
 prepare_gormes_binary() {
-  if [ -n "$LOCAL_SOURCE_DIR" ]; then
-    ensure_source_prerequisites
-    ensure_checkout
-    build_gormes
-    return
+  decide_install_method
+  if [ "$INSTALL_METHOD" = "binary-fetch" ]; then
+    if fetch_release_binary; then
+      return
+    fi
+    log "binary-fetch failed; falling back to source build"
+    INSTALL_METHOD="source-build"
+    INSTALL_METHOD_DETAIL="binary-fetch failed at runtime; fallback to source build"
   fi
 
   ensure_source_prerequisites

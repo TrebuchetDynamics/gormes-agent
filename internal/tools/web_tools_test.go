@@ -740,6 +740,23 @@ func TestWebSearchToolCallsBraveBackend(t *testing.T) {
 	}
 }
 
+func TestBraveProvider_DegradedWhenNoKey(t *testing.T) {
+	// Missing BRAVE_API_KEY must return an unavailable backend — no panic, no nil deref.
+	resolution := ResolveWebBackendWithConfig(map[string]string{}, WebBackendConfig{Backend: "brave"})
+	if resolution.Available {
+		t.Fatalf("resolution = %+v, want unavailable when BRAVE_API_KEY is not set", resolution)
+	}
+	if resolution.Backend != WebBackendBrave {
+		t.Fatalf("backend = %s, want WebBackendBrave", resolution.Backend)
+	}
+	if resolution.Evidence != WebEvidenceProviderUnavailable {
+		t.Fatalf("evidence = %s, want WebEvidenceProviderUnavailable", resolution.Evidence)
+	}
+	if resolution.Source != "unavailable" {
+		t.Fatalf("source = %s, want unavailable", resolution.Source)
+	}
+}
+
 func TestWebSearchToolCallsSearXNGBackend(t *testing.T) {
 	client := &recordingWebHTTPClient{responses: []recordedWebResponse{{
 		status: http.StatusOK,
