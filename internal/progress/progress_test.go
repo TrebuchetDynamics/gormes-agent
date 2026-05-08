@@ -422,8 +422,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if signal.Priority != "P2" {
 		t.Fatalf("Phase 7.A priority = %q, want P2", signal.Priority)
 	}
-	if got := signal.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 7.A = %q, want in_progress", got)
+	if got := signal.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 7.A = %q, want complete", got)
 	}
 	signalItems := itemsByName(signal.Items)
 	identity := signalItems["Inbound event normalization + session identity"]
@@ -441,10 +441,10 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.A reply/send note = %q, want signal.Bot/native group IDs detail", replySend.Note)
 	}
 	transport := signalItems["Signal transport/bootstrap layer"]
-	if transport.Status != StatusPlanned {
-		t.Fatalf("Phase 7.A transport/bootstrap status = %q, want planned", transport.Status)
+	if transport.Status != StatusComplete {
+		t.Fatalf("Phase 7.A transport/bootstrap status = %q, want complete", transport.Status)
 	}
-	if !strings.Contains(transport.Note, "signal-cli") || !strings.Contains(transport.Note, "bridge client lifecycle") {
+	if !strings.Contains(transport.Note, "signal-cli") || !strings.Contains(transport.Note, "bridge") {
 		t.Fatalf("Phase 7.A transport/bootstrap note = %q, want signal-cli/bridge detail", transport.Note)
 	}
 
