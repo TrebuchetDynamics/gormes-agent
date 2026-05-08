@@ -16,55 +16,60 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
-var memoryCmd = &cobra.Command{
-	Use:   "memory",
-	Short: "Inspect persisted memory and extractor state",
+// newMemoryCommand returns a fresh memory command tree (parent +
+// status subcommand). Constructor pattern avoids cross-test
+// FlagSet/state contamination on a shared package-level var.
+func newMemoryCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "memory",
+		Short: "Inspect persisted memory and extractor state",
+	}
+	cmd.AddCommand(newMemoryStatusCommand())
+	return cmd
 }
 
-func init() {
-	memoryCmd.AddCommand(memoryStatusCmd)
-}
-
-var memoryStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show extractor queue depth and dead letters",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		path := config.MemoryDBPath()
-		if _, err := os.Stat(path); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("memory database not found at %s", path)
+func newMemoryStatusCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "status",
+		Short: "Show extractor queue depth and dead letters",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			path := config.MemoryDBPath()
+			if _, err := os.Stat(path); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("memory database not found at %s", path)
+				}
+				return err
 			}
-			return err
-		}
 
-		db, err := sql.Open("sqlite3", path)
-		if err != nil {
-			return fmt.Errorf("open memory db: %w", err)
-		}
-		defer db.Close()
+			db, err := sql.Open("sqlite3", path)
+			if err != nil {
+				return fmt.Errorf("open memory db: %w", err)
+			}
+			defer db.Close()
 
-		status, err := memory.ReadExtractorStatus(context.Background(), db, 0)
-		if err != nil {
+			status, err := memory.ReadExtractorStatus(context.Background(), db, 0)
+			if err != nil {
+				return err
+			}
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return err
+			}
+			gonchoCfg := cfg.Goncho.RuntimeConfig()
+			queueStatus, err := goncho.ReadQueueStatus(context.Background(), db, goncho.QueueStatusConfig{
+				DreamEnabled:     gonchoCfg.DreamEnabled,
+				WorkspaceID:      gonchoCfg.WorkspaceID,
+				ObserverPeerID:   gonchoCfg.ObserverPeerID,
+				DreamIdleTimeout: gonchoCfg.DreamIdleTimeout,
+			})
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(status, queueStatus))
 			return err
-		}
-		cfg, err := config.Load(nil)
-		if err != nil {
-			return err
-		}
-		gonchoCfg := cfg.Goncho.RuntimeConfig()
-		queueStatus, err := goncho.ReadQueueStatus(context.Background(), db, goncho.QueueStatusConfig{
-			DreamEnabled:     gonchoCfg.DreamEnabled,
-			WorkspaceID:      gonchoCfg.WorkspaceID,
-			ObserverPeerID:   gonchoCfg.ObserverPeerID,
-			DreamIdleTimeout: gonchoCfg.DreamIdleTimeout,
-		})
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(status, queueStatus))
-		return err
-	},
+		},
+	}
 }
 
 func formatMemoryStatus(status memory.ExtractorStatus, queueStatus goncho.QueueStatus) string {
