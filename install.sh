@@ -193,6 +193,14 @@ platform_name() {
   uname -s
 }
 
+machine_name() {
+  if [ -n "${GORMES_INSTALL_TEST_UNAME_M:-}" ]; then
+    printf '%s\n' "$GORMES_INSTALL_TEST_UNAME_M"
+    return
+  fi
+  uname -m
+}
+
 detect_os() {
   case "$(platform_name)" in
     Linux*)
@@ -932,19 +940,26 @@ new_tmp_dir() {
 # arch slug. Returns empty for unsupported platforms — caller MUST treat empty
 # as "no published binary; fall back to source build".
 #
-# Supported asset slugs match the v0.1.06+ release matrix:
+# Supported asset slugs match the release matrix:
 #   linux-amd64, linux-arm64, darwin-amd64, darwin-arm64,
-#   windows-amd64, windows-arm64
+#   windows-amd64, windows-arm64, android-arm64
 release_platform_arch() {
   rpa_pn=$(platform_name)
-  rpa_m=$(uname -m 2>/dev/null || printf 'unknown\n')
+  rpa_m=$(machine_name 2>/dev/null || printf 'unknown\n')
   case "$rpa_pn" in
     Linux)
-      case "$rpa_m" in
-        x86_64|amd64) printf 'linux-amd64\n' ;;
-        aarch64|arm64) printf 'linux-arm64\n' ;;
-        *) printf '\n' ;;
-      esac
+      if is_termux; then
+        case "$rpa_m" in
+          aarch64|arm64) printf 'android-arm64\n' ;;
+          *) printf '\n' ;;
+        esac
+      else
+        case "$rpa_m" in
+          x86_64|amd64) printf 'linux-amd64\n' ;;
+          aarch64|arm64) printf 'linux-arm64\n' ;;
+          *) printf '\n' ;;
+        esac
+      fi
       ;;
     Darwin)
       case "$rpa_m" in
@@ -991,7 +1006,7 @@ decide_install_method() {
   dim_arch=$(release_platform_arch)
   if [ -z "$dim_arch" ]; then
     INSTALL_METHOD="source-build"
-    INSTALL_METHOD_DETAIL="platform $(platform_name)/$(uname -m 2>/dev/null || printf unknown) has no published release asset"
+    INSTALL_METHOD_DETAIL="platform $(platform_name)/$(machine_name 2>/dev/null || printf unknown) has no published release asset"
     return 0
   fi
   INSTALL_METHOD="binary-fetch"
@@ -1007,7 +1022,7 @@ decide_install_method() {
 fetch_release_binary() {
   frb_arch=$(release_platform_arch)
   if [ -z "$frb_arch" ]; then
-    log "fetch_release_binary: no asset for platform $(platform_name)/$(uname -m); aborting"
+    log "fetch_release_binary: no asset for platform $(platform_name)/$(machine_name); aborting"
     return 1
   fi
 
@@ -1979,7 +1994,7 @@ print_verbose_plan() {
   log "resolved install plan"
   log "  verbose: true"
   log "  platform: $(platform_name)"
-  log "  arch: $(uname -m 2>/dev/null || printf unknown)"
+  log "  arch: $(machine_name 2>/dev/null || printf unknown)"
   log "  termux: $(yes_no is_termux)"
   log "  root_linux_install: $(yes_no is_root_linux_install)"
   log "  effective_uid: $(effective_uid)"

@@ -1227,6 +1227,7 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
+- [x] Termux android/arm64 release artifact and installer selector
 
 ### 8.E — Toolkit Extraction ⏳
 

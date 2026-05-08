@@ -24,6 +24,7 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"linux",
 		"darwin",
 		"windows",
+		"android",
 		"amd64",
 		"arm64",
 		"CGO_ENABLED=0",
@@ -66,6 +67,7 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"darwin-arm64",
 		"windows-amd64",
 		"windows-arm64",
+		"android-arm64",
 	} {
 		parts := strings.Split(target, "-")
 		if !strings.Contains(workflow, "goos: "+parts[0]) ||

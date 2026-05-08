@@ -46843,7 +46843,7 @@
               ],
               "ready_when": [
                 "Sharp v1.0 differentiator (8.D row 1) is decided.",
-                "go build ./cmd/gormes succeeds on all six target GOOS/GOARCH combinations from a Linux runner."
+                "go build ./cmd/gormes succeeds on all seven target GOOS/GOARCH combinations from CI or a Linux runner where cross-compilation is supported."
               ],
               "not_ready_when": [
                 "Binary size exceeds 30 MB for any target without an explicit operator-approved exception.",
@@ -46856,7 +46856,7 @@
               "acceptance": [
                 "TestReleasePipelineMatrix confirms a build for each target produces a single binary \u226430 MB.",
                 "TestReleaseBinaryHasVersionMetadata confirms `gormes version` reports the tag, commit, and build date for each platform.",
-                "On a tag push, GitHub Actions produces six release artifacts attached to the release.",
+                "On a tag push, GitHub Actions produces seven release artifacts attached to the release.",
                 "install.sh selects the correct binary for the platform and verifies its SHA before exec."
               ],
               "write_scope": [
@@ -46873,9 +46873,83 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "A test tag push produces all six release artifacts; install.sh fetches and verifies each on a matching host."
+                "A test tag push produces all seven release artifacts; install.sh fetches and verifies each on a matching host."
               ],
-              "note": "Source: success-plan.md Q3 v1.0 milestone."
+              "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed."
+            },
+            {
+              "name": "Termux android/arm64 release artifact and installer selector",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The release pipeline and installer treat Termux android/arm64 as a first-class prebuilt binary target: GitHub Actions builds GOOS=android/GOARCH=arm64 with the same static-archive, SHA-256, SBOM, and provenance path as the other release targets, and install.sh maps Termux arm64/aarch64 hosts to the android-arm64 asset while leaving non-Termux Linux arm64 on linux-arm64.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported Termux architectures fall back to source-build with an explicit no-published-asset reason; non-Termux Linux hosts continue selecting linux-* assets.",
+              "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowContract and internal/installtest/install_method_test.go::TestInstall_DryRunTermuxArm64_PrefersAndroidReleaseAsset",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md:single-binary platform claim",
+                ".github/workflows/release.yml:build matrix include",
+                "install.sh:release_platform_arch",
+                "internal/installtest/install_method_test.go:supportedHostForBinaryFetch",
+                "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowContract"
+              ],
+              "ready_when": [
+                "Sharp v1.0 differentiator decision is complete.",
+                "CGO-disabled cross-compilation for GOOS=android GOARCH=arm64 succeeds for ./cmd/gormes from the current tree."
+              ],
+              "not_ready_when": [
+                "The slice requires live GitHub release publishing, Android device testing, or a real Termux install.",
+                "install.sh maps ordinary Linux arm64 hosts to android-arm64.",
+                "The workflow adds Android without SHA-256, SBOM, artifact upload, or provenance coverage."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleaseWorkflowContract fails before the workflow includes android-arm64 and passes after the release matrix covers GOOS=android GOARCH=arm64.",
+                "TestInstall_DryRunTermuxArm64_PrefersAndroidReleaseAsset proves a synthetic Termux arm64 dry-run chooses binary-fetch with release_arch android-arm64.",
+                "TestInstall_DryRunLinuxArm64_StillUsesLinuxReleaseAsset proves non-Termux Linux arm64 keeps release_arch linux-arm64.",
+                "A local CGO-disabled android/arm64 build of ./cmd/gormes succeeds without changing runtime code."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "install.sh",
+                "internal/installtest/install_method_test.go",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run TestReleaseWorkflowContract -count=1",
+                "go test ./internal/installtest -run 'TestInstall_DryRun(TermuxArm64_PrefersAndroidReleaseAsset|LinuxArm64_StillUsesLinuxReleaseAsset)' -count=1",
+                "timeout 5m env CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -trimpath -o /tmp/gormes-android-arm64 ./cmd/gormes",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release workflow, release workflow test, install.sh dry-run selector tests, and local android/arm64 cross-build all prove Termux android-arm64 artifact coverage."
+              ],
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 33, below the 90-row cap. This P1 release/operator gap was selected because the sharp v1.0 single-binary promise named Termux android/arm64 while the workflow and installer selector covered only linux/darwin/windows release slugs. TDD added android-arm64 to the release workflow matrix, pinned it in the release workflow contract test, and made install.sh map synthetic and real Termux arm64/aarch64 hosts to android-arm64 while keeping non-Termux Linux arm64 on linux-arm64.",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/release.yml: build matrix includes GOOS=android GOARCH=arm64 on ubuntu-latest.",
+                  "install.sh: machine_name helper and release_platform_arch Termux branch map arm64/aarch64 Termux hosts to android-arm64.",
+                  "internal/installtest/install_method_test.go: Termux and non-Termux arm64 dry-run fixtures pin installer selector behavior.",
+                  "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowContract requires android-arm64 in the release matrix."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run TestReleaseWorkflowContract -count=1 failed on missing android/android-arm64 workflow coverage.",
+                  "RED: go test ./internal/installtest -run 'TestInstall_DryRun(TermuxArm64_PrefersAndroidReleaseAsset|LinuxArm64_StillUsesLinuxReleaseAsset)' -count=1 failed because Termux/Linux arm64 fixtures resolved through the host linux-amd64 slug.",
+                  "GREEN: go test ./webpages/docs/install -run TestReleaseWorkflowContract -count=1 passed.",
+                  "GREEN: go test ./internal/installtest -run 'TestInstall_DryRun(TermuxArm64_PrefersAndroidReleaseAsset|LinuxArm64_StillUsesLinuxReleaseAsset)' -count=1 passed.",
+                  "GREEN: timeout 5m env CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -trimpath -o /tmp/gormes-android-arm64 ./cmd/gormes passed."
+                ]
+              }
             }
           ]
         },

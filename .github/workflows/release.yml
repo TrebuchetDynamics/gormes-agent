@@ -92,6 +92,9 @@ jobs:
           - goos: windows
             goarch: arm64
             os: ubuntu-latest
+          - goos: android
+            goarch: arm64
+            os: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
