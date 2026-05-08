@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -30,12 +32,53 @@ var VersionDateAlias = "v2026.5.7"
 // through `gormes version --json`.
 var GitCommit = "unknown"
 
+// GitDirty marks whether the source tree had uncommitted changes when
+// the binary was built. Stored as a string so the value is settable
+// via ldflags; parsed to bool for JSON output. Accepts "true"/"1" as
+// dirty, anything else (including the default empty/false) as clean.
+// Release CI is expected to inject the actual flag — dev/source
+// builds default to clean.
+var GitDirty = "false"
+
 // versionReportJSON is the wire shape for `gormes version --json`.
 // Field order matches the rest of the --json arc: identity fields lead.
 type versionReportJSON struct {
 	Version   string `json:"version"`
 	DateAlias string `json:"date_alias"`
 	GitCommit string `json:"git_commit"`
+	GitDirty  bool   `json:"git_dirty"`
+	GoVersion string `json:"go_version"`
+	OS        string `json:"os"`
+	Arch      string `json:"arch"`
+}
+
+// buildProvenanceJSON is the `{version, git_commit}` block prepended to
+// every `--json` document that reports captured runtime/operator state
+// (update, doctor, status, restore, auth-status, secrets, gateway-status).
+// Same wire shape across commands keeps fleet automation parsing one
+// type. `version --json` carries a richer surface (`versionReportJSON`)
+// because that command IS the binary-identity contract; everything else
+// just needs the minimum to attribute a snapshot to a binary.
+type buildProvenanceJSON struct {
+	Version   string `json:"version"`
+	GitCommit string `json:"git_commit"`
+}
+
+// newBuildProvenance returns the build-provenance block populated from
+// the package-level Version + GitCommit ldflags-injected values.
+func newBuildProvenance() buildProvenanceJSON {
+	return buildProvenanceJSON{Version: Version, GitCommit: GitCommit}
+}
+
+// parseGitDirty interprets the build-time GitDirty string as a bool.
+// "true" (case-insensitive) and "1" mean dirty; everything else is
+// clean. Robust to ldflags injection variants.
+func parseGitDirty(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "1", "yes", "y":
+		return true
+	}
+	return false
 }
 
 // newVersionCommand returns a fresh `gormes version` cobra.Command.
@@ -55,6 +98,10 @@ func newVersionCommand() *cobra.Command {
 					Version:   Version,
 					DateAlias: VersionDateAlias,
 					GitCommit: GitCommit,
+					GitDirty:  parseGitDirty(GitDirty),
+					GoVersion: runtime.Version(),
+					OS:        runtime.GOOS,
+					Arch:      runtime.GOARCH,
 				}, "", "  ")
 				if err != nil {
 					return err
@@ -62,7 +109,11 @@ func newVersionCommand() *cobra.Command {
 				fmt.Fprintln(out, string(body))
 				return nil
 			}
-			fmt.Fprintln(out, "gormes", Version)
+			if parseGitDirty(GitDirty) {
+				fmt.Fprintln(out, "gormes", Version, "(dirty)")
+			} else {
+				fmt.Fprintln(out, "gormes", Version)
+			}
 			return nil
 		},
 	}

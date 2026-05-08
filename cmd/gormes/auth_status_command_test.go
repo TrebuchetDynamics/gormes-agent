@@ -86,6 +86,39 @@ func TestAuthStatusCommand_JSONEmitsRedactedReport(t *testing.T) {
 	}
 }
 
+// TestAuthStatusCommand_JSONIncludesBuildProvenance proves
+// `gormes auth status <provider> --json` carries the running binary's
+// build version + SHA. Same contract as update/doctor/status/restore —
+// captured credential-health snapshots stay attributable to a specific
+// binary.
+func TestAuthStatusCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, config.CodexOAuthProvider, []config.PooledCredential{
+		{ID: "codex-device-1", Label: "codex", AuthType: config.CredentialAuthOAuth, Source: config.CodexOAuthSourceDeviceCode, AccessToken: "plain-codex-access", RefreshToken: "plain-codex-refresh"},
+	})
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "status", config.CodexOAuthProvider, "--json")
+	if err != nil {
+		t.Fatalf("auth status --json: %v\nstdout=%s stderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
 func TestAuthStatusCommandRejectsUnknownProvider(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	cmd := newRootCommandWithRuntime(rootRuntime{})

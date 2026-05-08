@@ -10,6 +10,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// statusReportJSON is the wire shape for `gormes status --json`.
+// Build provenance leads, then the blockers array — same convention
+// as update --json / doctor --json.
+type statusReportJSON struct {
+	Build    buildProvenanceJSON `json:"build"`
+	Blockers []cli.StatusBlocker `json:"blockers"`
+}
+
 func newStatusCommand() *cobra.Command {
 	var progressPath string
 	var asJSON bool
@@ -26,7 +34,10 @@ func newStatusCommand() *cobra.Command {
 				if blockers == nil {
 					blockers = []cli.StatusBlocker{}
 				}
-				body, err := json.MarshalIndent(map[string]any{"blockers": blockers}, "", "  ")
+				body, err := json.MarshalIndent(statusReportJSON{
+					Build:    newBuildProvenance(),
+					Blockers: blockers,
+				}, "", "  ")
 				if err != nil {
 					return err
 				}

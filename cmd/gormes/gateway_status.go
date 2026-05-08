@@ -76,6 +76,7 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 }
 
 type gatewayStatusJSON struct {
+	Build      buildProvenanceJSON              `json:"build"`
 	Runtime    gateway.RuntimeStatus            `json:"runtime"`
 	Channels   []gateway.StatusChannel          `json:"channels"`
 	Pairing    gateway.PairingStatus            `json:"pairing"`
@@ -86,6 +87,7 @@ type gatewayStatusJSON struct {
 
 func renderGatewayStatusJSON(cmd *cobra.Command, cfg config.Config, pairing gateway.PairingStatus, runtime gateway.RuntimeStatus, validation gateway.RuntimeProcessValidation, missing bool) error {
 	payload := gatewayStatusJSON{
+		Build:      newBuildProvenance(),
 		Runtime:    runtime,
 		Channels:   configuredGatewayStatusChannels(cfg),
 		Pairing:    pairing,

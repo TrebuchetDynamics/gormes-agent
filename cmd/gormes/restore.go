@@ -78,14 +78,39 @@ func newRestoreCommandWithSeams(seams restoreCommandSeams) *cobra.Command {
 						formatRestoreAge(time.Since(info.ModTime())),
 					)
 				}
-				fmt.Fprintf(out,
-					" into %s\nRe-run with --yes to actually restore (existing files will be overwritten).\n",
-					home,
-				)
+				fmt.Fprintf(out, " into %s\n", home)
+				if impact, impactErr := cli.SummarizeRestoreZipImpact(resolvedPath, home); impactErr == nil {
+					fmt.Fprintf(out,
+						"would overwrite %d existing file(s), create %d new\n",
+						impact.Overwrite, impact.Create,
+					)
+				}
+				fmt.Fprintln(out, "Re-run with --yes to actually restore (existing files will be overwritten).")
 				return nil
 			}
+			// Capture pre-extract impact so JSON consumers see how
+			// many files overwrote vs. landed new. Computed BEFORE
+			// extraction (after which every entry would look like an
+			// overwrite, defeating the signal).
+			impact, _ := cli.SummarizeRestoreZipImpact(resolvedPath, home)
 			if err := cli.RestoreFromZip(cmd.Context(), resolvedPath, home); err != nil {
 				return err
+			}
+			if asJSON {
+				body, err := json.MarshalIndent(restoreOutcomeJSON{
+					Build:     newBuildProvenance(),
+					Action:    "restored",
+					Path:      resolvedPath,
+					Dest:      home,
+					FileCount: impact.Overwrite + impact.Create,
+					Overwrote: impact.Overwrite,
+					Created:   impact.Create,
+				}, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Fprintln(out, string(body))
+				return nil
 			}
 			fmt.Fprintf(out, "restored %s into %s\n", filepath.Base(resolvedPath), home)
 			return nil
@@ -95,8 +120,31 @@ func newRestoreCommandWithSeams(seams restoreCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&latest, "latest", false, "restore the newest pre-update backup (resolved by mtime)")
 	cmd.Flags().StringVar(&path, "path", "", "path to a pre-update-*.zip to restore (overwrites files in GORMES_HOME)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm the destructive restore (without --yes the command runs as a dry-run preview)")
-	cmd.Flags().BoolVar(&asJSON, "json", false, "emit `--list` output as a JSON array of {path, size_bytes, mod_time} records (machine-readable; suitable for scripting)")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `--list` returns `{build, backups: [...]}`; `--yes` returns `{build, action, path, dest, file_count, overwrote, created}`")
 	return cmd
+}
+
+// restoreListReportJSON is the wire shape for `restore --list --json`.
+// Build provenance leads, then the backups array — same convention as
+// update --json / doctor --json / status --json.
+type restoreListReportJSON struct {
+	Build   buildProvenanceJSON `json:"build"`
+	Backups []backupListingJSON `json:"backups"`
+}
+
+// restoreOutcomeJSON is the wire shape for `restore --path X --yes --json`.
+// Operator scripts driving Gormes restore in automation parse this to
+// verify what landed: which zip was extracted, into which dest root,
+// how many files moved, and how many were net-new vs. overwrites.
+// Build provenance leads — same convention as the rest of the --json arc.
+type restoreOutcomeJSON struct {
+	Build     buildProvenanceJSON `json:"build"`
+	Action    string              `json:"action"`
+	Path      string              `json:"path"`
+	Dest      string              `json:"dest"`
+	FileCount int                 `json:"file_count"`
+	Overwrote int                 `json:"overwrote"`
+	Created   int                 `json:"created"`
 }
 
 type backupListingJSON struct {
@@ -135,7 +183,10 @@ func runRestoreList(cmd *cobra.Command, seams restoreCommandSeams, asJSON bool) 
 				ModTime:   e.ModTime,
 			}
 		}
-		body, marshalErr := json.MarshalIndent(records, "", "  ")
+		body, marshalErr := json.MarshalIndent(restoreListReportJSON{
+			Build:   newBuildProvenance(),
+			Backups: records,
+		}, "", "  ")
 		if marshalErr != nil {
 			return marshalErr
 		}

@@ -48,6 +48,114 @@ func TestVersionCommand_HumanFormat(t *testing.T) {
 	}
 }
 
+// TestVersionCommand_HumanFormatMarksDirtyBuild proves the human
+// `gormes version` line appends a `(dirty)` marker when the binary was
+// built from a source tree with uncommitted changes. Operators in a
+// terminal need an at-a-glance signal that they're not running a clean
+// release — a dirty marker matches `git describe --dirty` convention
+// and avoids forcing operators to run `version --json` to see the bit.
+func TestVersionCommand_HumanFormatMarksDirtyBuild(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := GitDirty
+	GitDirty = "true"
+	t.Cleanup(func() { GitDirty = prev })
+
+	root := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeRootCommandForTest(root, "version")
+	if err != nil {
+		t.Fatalf("version: %v", err)
+	}
+	got := strings.TrimSpace(stdout)
+	want := "gormes " + Version + " (dirty)"
+	if got != want {
+		t.Fatalf("dirty version output = %q, want %q", got, want)
+	}
+}
+
+// TestVersionCommand_JSONIncludesPlatformFields proves --json
+// surfaces the binary's target os/arch (sourced from runtime.GOOS /
+// runtime.GOARCH). Fleet inventory matching gormes deployments
+// against the 6-platform release matrix uses this — same
+// {linux,darwin,windows} × {amd64,arm64} grid as the release
+// workflow.
+func TestVersionCommand_JSONIncludesPlatformFields(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	root := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeRootCommandForTest(root, "version", "--json")
+	if err != nil {
+		t.Fatalf("version --json: %v", err)
+	}
+	var got struct {
+		OS   string `json:"os"`
+		Arch string `json:"arch"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.OS == "" {
+		t.Fatalf("`os` must be non-empty (matches runtime.GOOS); got %q", stdout)
+	}
+	if got.Arch == "" {
+		t.Fatalf("`arch` must be non-empty (matches runtime.GOARCH); got %q", stdout)
+	}
+}
+
+// TestVersionCommand_JSONIncludesGoVersionField proves --json
+// surfaces the Go runtime version the binary was compiled with. Fleet
+// auditors checking for stale toolchain versions (e.g. CVEs in
+// older Go releases) need this programmatically. Sourced from
+// runtime.Version() so no ldflags injection is required.
+func TestVersionCommand_JSONIncludesGoVersionField(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	root := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeRootCommandForTest(root, "version", "--json")
+	if err != nil {
+		t.Fatalf("version --json: %v", err)
+	}
+	var got struct {
+		GoVersion string `json:"go_version"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if !strings.HasPrefix(got.GoVersion, "go1.") {
+		t.Fatalf("go_version must look like `go1.X.Y` (matches runtime.Version() format); got %q", got.GoVersion)
+	}
+}
+
+// TestVersionCommand_JSONIncludesGitDirtyField proves --json carries
+// a git_dirty boolean. Defaults to false in dev/source builds; CI is
+// expected to inject the actual dirty-tree flag via ldflags so fleet
+// auditors can distinguish reproducible release builds from
+// hand-tweaked or unreleased binaries.
+func TestVersionCommand_JSONIncludesGitDirtyField(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	root := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeRootCommandForTest(root, "version", "--json")
+	if err != nil {
+		t.Fatalf("version --json: %v", err)
+	}
+	var raw map[string]any
+	if jsonErr := json.Unmarshal([]byte(stdout), &raw); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	val, ok := raw["git_dirty"]
+	if !ok {
+		t.Fatalf("JSON must include `git_dirty` boolean; got keys=%v", versionMapKeys(raw))
+	}
+	if _, ok := val.(bool); !ok {
+		t.Fatalf("`git_dirty` must be a bool; got %T %v", val, val)
+	}
+}
+
+func versionMapKeys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
 // TestVersionCommand_JSONIncludesGitCommitField proves --json carries
 // a git_commit field. Defaults to "unknown" in dev/source builds; CI
 // release builds are expected to inject the build-time SHA via ldflags

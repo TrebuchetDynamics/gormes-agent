@@ -58,6 +58,37 @@ func TestRootStatusCommandShowsProgressBlockers(t *testing.T) {
 	}
 }
 
+// TestRootStatusCommand_JSONIncludesBuildProvenance proves
+// `gormes status --json` carries the running binary's build SHA and
+// version. Same contract as update/doctor — captured status
+// snapshots stay attributable to a specific binary.
+func TestRootStatusCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	path := writeRootStatusProgressFixture(t, `{
+  "meta": {"version": "2.0", "links": {"github_readme": "", "landing_page": "", "docs_site": "", "source_code": ""}},
+  "phases": {}
+}`)
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeRootCommandForTest(cmd, "status", "--progress", path, "--json")
+	if err != nil {
+		t.Fatalf("status --json: %v", err)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
 // TestRootStatusCommand_JSONEmitsStructuredBlockers proves
 // `gormes status --json` returns a parseable {"blockers": [...]}
 // document with phase, subphase, row, and the BlockerRecord fields.

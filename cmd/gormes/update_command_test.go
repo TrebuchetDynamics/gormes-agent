@@ -79,6 +79,42 @@ func TestUpdateCommandUsesInjectedLifecycle(t *testing.T) {
 	}
 }
 
+// TestUpdateCommand_JSONIncludesBuildProvenance proves
+// `gormes update --json` carries the running binary's build SHA and
+// version so an operator inspecting a captured update report can
+// correlate which gormes binary actually ran the lifecycle. Surfacing
+// only the lifecycle outcome (`failed`, evidence) without the
+// originating binary identity makes drift hard to attribute.
+func TestUpdateCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(_ context.Context, _ cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+
+	stdout, _, err := executeRootCommandForTest(command, "--check", "--json")
+	if err != nil {
+		t.Fatalf("update --check --json: %v", err)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q (matches package-level Version)", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty (`unknown` is acceptable for dev builds)")
+	}
+}
+
 // TestUpdateCommand_JSONEmitsReport proves `gormes update --json`
 // replaces the human-readable print path with a machine-readable JSON
 // document containing branch, evidence array, failed flag, and any

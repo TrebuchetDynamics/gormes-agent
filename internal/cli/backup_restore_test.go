@@ -236,6 +236,96 @@ func TestRestoreFromZip_RejectsMissingSource(t *testing.T) {
 	}
 }
 
+// TestSummarizeRestoreZipImpact_ClassifiesEntries proves the dry-run
+// helper classifies every zip entry as either an overwrite (target
+// path already exists in destDir) or a create (target is net-new).
+// The dry-run preview surfaces these counts so operators see the
+// blast radius before committing to --yes.
+func TestSummarizeRestoreZipImpact_ClassifiesEntries(t *testing.T) {
+	srcDir := t.TempDir()
+	mustWrite(t, filepath.Join(srcDir, "config.toml"), "[hermes]\nmodel = \"x\"\n")
+	mustWrite(t, filepath.Join(srcDir, "skills/agent.md"), "skill body\n")
+	mustWrite(t, filepath.Join(srcDir, "memory/USER.md"), "user memory\n")
+
+	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
+	if _, err := WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+		t.Fatalf("WriteBackupZip: %v", err)
+	}
+
+	dst := t.TempDir()
+	// Dest already has config.toml AND skills/agent.md — those overlap
+	// the zip and count as overwrites. memory/USER.md is net-new.
+	mustWrite(t, filepath.Join(dst, "config.toml"), "stale")
+	mustWrite(t, filepath.Join(dst, "skills/agent.md"), "stale")
+
+	impact, err := SummarizeRestoreZipImpact(zipPath, dst)
+	if err != nil {
+		t.Fatalf("SummarizeRestoreZipImpact: %v", err)
+	}
+	if impact.Overwrite != 2 {
+		t.Fatalf("Overwrite = %d, want 2", impact.Overwrite)
+	}
+	if impact.Create != 1 {
+		t.Fatalf("Create = %d, want 1", impact.Create)
+	}
+}
+
+// TestSummarizeRestoreZipImpact_RejectsPathTraversal proves the helper
+// rejects malicious zip entries with the same gate RestoreFromZip
+// applies at extract time. A dry-run preview must NOT report counts
+// for a zip that would fail the destructive extract — operators would
+// see encouraging numbers and re-run with --yes only to hit the
+// rejection.
+func TestSummarizeRestoreZipImpact_RejectsPathTraversal(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "evil.zip")
+	f, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zw := zip.NewWriter(f)
+	w, err := zw.Create("../escape.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("pwned")); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	_, err = SummarizeRestoreZipImpact(zipPath, t.TempDir())
+	if err == nil {
+		t.Fatal("path-traversal entry must be rejected by impact summarizer")
+	}
+}
+
+// TestWriteBackupZip_PopulatesFileCount proves the writer reports the
+// number of regular files actually archived. Surfaced in update
+// evidence so operators spot suspiciously thin backups (e.g., a 4MB
+// zip containing 3 files vs 200) before relying on it for rollback.
+func TestWriteBackupZip_PopulatesFileCount(t *testing.T) {
+	srcDir := t.TempDir()
+	for _, name := range []string{
+		"config.toml",
+		"skills/agent.md",
+		"memory/USER.md",
+		"sessions/2026/05/notes.md",
+	} {
+		mustWrite(t, filepath.Join(srcDir, name), "body-"+name)
+	}
+
+	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
+	res, err := WriteBackupZip(context.Background(), srcDir, zipPath)
+	if err != nil {
+		t.Fatalf("WriteBackupZip: %v", err)
+	}
+	if res.FileCount != 4 {
+		t.Fatalf("FileCount = %d, want 4 regular files", res.FileCount)
+	}
+}
+
 func mustWrite(t *testing.T, path, body string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

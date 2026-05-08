@@ -66,10 +66,15 @@ type ConfigVersionResult struct {
 // (4.0MB, 1.84s)" rendering in the structured progress UX).
 // PrunedCount and PrunedBytes report how many older backups the writer
 // also removed in the same call (zero when no retention pruning ran).
+// FileCount is the number of regular files archived — surfaced in
+// evidence so operators can spot a suspiciously small backup
+// (e.g., a 4MB zip containing 3 files vs 200) before relying on it for
+// rollback.
 type BackupResult struct {
 	Path        string
 	SizeBytes   int64
 	DurationMs  int64
+	FileCount   int
 	PrunedCount int
 	PrunedBytes int64
 }
@@ -424,10 +429,12 @@ func emitPreUpdateBackupPolicy(ctx context.Context, report *UpdateReport, option
 		return
 	}
 	detail := fmt.Sprintf(
-		"%s (%s, %s)",
+		"%s (%s, %s, %d file%s)",
 		res.Path,
 		formatBackupSize(res.SizeBytes),
 		formatBackupDuration(res.DurationMs),
+		res.FileCount,
+		pluralBackupSuffix(res.FileCount),
 	)
 	if res.PrunedCount > 0 {
 		detail += fmt.Sprintf("; pruned %d older (%s freed)", res.PrunedCount, formatBackupSize(res.PrunedBytes))
@@ -463,6 +470,15 @@ func appendRollbackHintIfApplicable(report *UpdateReport) {
 		UpdateEvidenceRollbackHint,
 		"to roll back to the pre-update state, run: gormes restore --latest --yes",
 	)
+}
+
+// pluralBackupSuffix returns "s" when count != 1 so the human evidence
+// detail reads naturally: "1 file" / "42 files".
+func pluralBackupSuffix(count int) string {
+	if count == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // formatBackupSize renders a byte count as a human-readable string with

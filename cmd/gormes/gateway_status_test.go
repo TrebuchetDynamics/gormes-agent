@@ -173,6 +173,37 @@ func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) 
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
 }
 
+// TestGatewayStatusCommand_JSONIncludesBuildProvenance proves
+// `gormes gateway status --json` carries the running binary's build
+// version + SHA. Same contract as
+// update --json / doctor --json / status --json / restore --list --json /
+// auth status --json / secrets ... --json — captured gateway snapshots
+// stay attributable to a specific binary, which matters when operators
+// correlate gateway behavior with the binary build that produced it.
+func TestGatewayStatusCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+
+	stdout, _, err := executeGatewayStatusCommand(t, "--json")
+	if err != nil {
+		t.Fatalf("gateway status --json: %v", err)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
 func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	restoreRuntimeStore := gatewayStatusRuntimeStoreForTest(t, fakeGatewayStatusRuntimeStore{

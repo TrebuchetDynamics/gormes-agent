@@ -100,6 +100,82 @@ func TestRestoreCommand_PathYesExtractsZipIntoGormesHome(t *testing.T) {
 	}
 }
 
+// TestRestoreCommand_PathYesJSONEmitsStructuredOutcome proves the
+// `--yes --json` path emits a parseable outcome document with build
+// provenance, the resolved zip path, the dest root, and the count of
+// files actually restored. Operator scripts that drive `gormes restore`
+// in automation need a structured outcome to verify what landed —
+// scraping the human "restored X into Y" line is fragile.
+func TestRestoreCommand_PathYesJSONEmitsStructuredOutcome(t *testing.T) {
+	srcDir := t.TempDir()
+	for _, name := range []string{"config.toml", "secrets.json", "skills/agent.md"} {
+		full := filepath.Join(srcDir, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("body-"+name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
+	if _, err := cli.WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+		t.Fatalf("WriteBackupZip: %v", err)
+	}
+
+	// Dest already has config.toml — that one will overwrite.
+	gormesHome := t.TempDir()
+	if err := os.WriteFile(filepath.Join(gormesHome, "config.toml"), []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRestoreCommandWithSeams(restoreCommandSeams{
+		BackupsDir: func() string { return filepath.Dir(zipPath) },
+		HomeDir:    func() string { return gormesHome },
+	})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "--path", zipPath, "--yes", "--json")
+	if err != nil {
+		t.Fatalf("restore --path --yes --json: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action    string `json:"action"`
+		Path      string `json:"path"`
+		Dest      string `json:"dest"`
+		FileCount int    `json:"file_count"`
+		Overwrote int    `json:"overwrote"`
+		Created   int    `json:"created"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Action != "restored" {
+		t.Fatalf("got.Action = %q, want %q", got.Action, "restored")
+	}
+	if got.Path != zipPath {
+		t.Fatalf("got.Path = %q, want %q", got.Path, zipPath)
+	}
+	if got.Dest != gormesHome {
+		t.Fatalf("got.Dest = %q, want %q", got.Dest, gormesHome)
+	}
+	if got.FileCount != 3 {
+		t.Fatalf("got.FileCount = %d, want 3 (config.toml + secrets.json + skills/agent.md)", got.FileCount)
+	}
+	if got.Overwrote != 1 || got.Created != 2 {
+		t.Fatalf("got.Overwrote/Created = %d/%d, want 1/2", got.Overwrote, got.Created)
+	}
+	// JSON mode must not interleave the human "restored X into Y" row,
+	// which would make stdout unparseable.
+	if strings.Contains(stdout, "restored "+filepath.Base(zipPath)) {
+		t.Fatalf("--json must not emit the human row; got:\n%s", stdout)
+	}
+}
+
 // TestRestoreCommand_PathWithoutYesIsDryRun proves that without --yes,
 // the destructive extract is gated. Operators get a confirmation
 // preview, but no files are written. This matches Hermes' "destructive
@@ -136,11 +212,40 @@ func TestRestoreCommand_PathWithoutYesIsDryRun(t *testing.T) {
 	}
 }
 
+// TestRestoreCommand_ListJSONIncludesBuildProvenance proves
+// `gormes restore --list --json` carries the running binary's build
+// version + SHA. Same contract as update/doctor/status — captured
+// inventory snapshots stay attributable to a specific binary.
+func TestRestoreCommand_ListJSONIncludesBuildProvenance(t *testing.T) {
+	cmd := newRestoreCommandWithSeams(restoreCommandSeams{
+		BackupsDir: func() string { return filepath.Join(t.TempDir(), "does-not-exist") },
+	})
+	stdout, _, err := executeRootCommandForTest(cmd, "--list", "--json")
+	if err != nil {
+		t.Fatalf("restore --list --json: %v", err)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
 // TestRestoreCommand_ListJSONEmitsArray proves `--list --json` emits a
-// JSON array of `{path, size_bytes, mod_time}` records sorted
-// newest-first. This is the machine-readable surface scripts and
-// monitoring use to inventory or reason about backups without parsing
-// the human-readable column output.
+// `{build, backups: [...]}` document with `{path, size_bytes, mod_time}`
+// records sorted newest-first. This is the machine-readable surface
+// scripts and monitoring use to inventory or reason about backups without
+// parsing the human-readable column output.
 func TestRestoreCommand_ListJSONEmitsArray(t *testing.T) {
 	backupsDir := t.TempDir()
 	now := time.Now()
@@ -166,29 +271,32 @@ func TestRestoreCommand_ListJSONEmitsArray(t *testing.T) {
 		t.Fatalf("restore --list --json: %v", err)
 	}
 
-	var got []struct {
-		Path      string    `json:"path"`
-		SizeBytes int64     `json:"size_bytes"`
-		ModTime   time.Time `json:"mod_time"`
+	var got struct {
+		Backups []struct {
+			Path      string    `json:"path"`
+			SizeBytes int64     `json:"size_bytes"`
+			ModTime   time.Time `json:"mod_time"`
+		} `json:"backups"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
 	}
-	if len(got) != 2 {
-		t.Fatalf("got %d entries, want 2", len(got))
+	if len(got.Backups) != 2 {
+		t.Fatalf("got %d entries, want 2", len(got.Backups))
 	}
 	// Newest first: 20260502 before 20260501.
-	if filepath.Base(got[0].Path) != "pre-update-20260502T000000Z.zip" {
-		t.Fatalf("got[0].Path = %q, want newest first", got[0].Path)
+	if filepath.Base(got.Backups[0].Path) != "pre-update-20260502T000000Z.zip" {
+		t.Fatalf("got.Backups[0].Path = %q, want newest first", got.Backups[0].Path)
 	}
-	if got[0].SizeBytes <= 0 {
-		t.Fatalf("got[0].SizeBytes = %d, want > 0", got[0].SizeBytes)
+	if got.Backups[0].SizeBytes <= 0 {
+		t.Fatalf("got.Backups[0].SizeBytes = %d, want > 0", got.Backups[0].SizeBytes)
 	}
 }
 
 // TestRestoreCommand_ListJSONEmptyDirEmitsEmptyArray proves the JSON
 // surface stays parseable when no backups exist — a scripting consumer
-// gets `[]`, not a free-form "no backups found" message.
+// gets `{"build": {...}, "backups": []}`, not a free-form
+// "no backups found" message.
 func TestRestoreCommand_ListJSONEmptyDirEmitsEmptyArray(t *testing.T) {
 	cmd := newRestoreCommandWithSeams(restoreCommandSeams{
 		BackupsDir: func() string { return filepath.Join(t.TempDir(), "does-not-exist") },
@@ -197,12 +305,17 @@ func TestRestoreCommand_ListJSONEmptyDirEmitsEmptyArray(t *testing.T) {
 	if err != nil {
 		t.Fatalf("restore --list --json on empty dir: %v", err)
 	}
-	var got []any
+	var got struct {
+		Backups []any `json:"backups"`
+	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("empty-dir stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
 	}
-	if len(got) != 0 {
-		t.Fatalf("empty-dir array must have len=0; got %d", len(got))
+	if got.Backups == nil {
+		t.Fatalf("backups must be `[]`, not omitted/null; got %q", stdout)
+	}
+	if len(got.Backups) != 0 {
+		t.Fatalf("empty-dir backups must have len=0; got %d", len(got.Backups))
 	}
 }
 
@@ -269,6 +382,56 @@ func TestRestoreCommand_DryRunShowsSizeAndAge(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "h ago") {
 		t.Fatalf("dry-run must show age (e.g. `3h ago`); got:\n%s", stdout)
+	}
+}
+
+// TestRestoreCommand_DryRunShowsBlastRadius proves the dry-run preview
+// classifies the zip's entries against the destination root: how many
+// existing files will be overwritten, how many new files will be
+// created. A "would extract X into Y" line is the WHAT and WHERE; the
+// blast radius is the HOW MUCH — the missing operator-confidence
+// signal before committing to --yes. Without it, operators only learn
+// the impact AFTER running the destructive op.
+func TestRestoreCommand_DryRunShowsBlastRadius(t *testing.T) {
+	// Source directory with three files; one will overlap the dest root.
+	srcDir := t.TempDir()
+	for _, name := range []string{"config.toml", "secrets.json", "skills/agent.md"} {
+		full := filepath.Join(srcDir, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("body-"+name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	zipPath := filepath.Join(t.TempDir(), "pre-update-x.zip")
+	if _, err := cli.WriteBackupZip(context.Background(), srcDir, zipPath); err != nil {
+		t.Fatalf("WriteBackupZip: %v", err)
+	}
+
+	// Dest already has config.toml — that counts as overwrite. The other
+	// two zip entries are net-new on the dest tree.
+	destHome := t.TempDir()
+	if err := os.WriteFile(filepath.Join(destHome, "config.toml"), []byte("existing"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRestoreCommandWithSeams(restoreCommandSeams{
+		BackupsDir: func() string { return filepath.Dir(zipPath) },
+		HomeDir:    func() string { return destHome },
+	})
+	stdout, _, err := executeRootCommandForTest(cmd, "--path", zipPath)
+	if err != nil {
+		t.Fatalf("dry-run: %v", err)
+	}
+	for _, want := range []string{
+		"would overwrite 1",
+		"create 2",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("dry-run must show blast-radius %q; got:\n%s", want, stdout)
+		}
 	}
 }
 

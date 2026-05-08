@@ -58,12 +58,14 @@ func (r *doctorReporter) Add(c doctor.CheckResult) {
 }
 
 // doctorReportJSON is the wire shape for `gormes doctor --json`.
-// Field order matters for consumer rendering — summary fields lead,
-// per-check array follows. Mirrors the convention update --json /
-// status --json / restore --list --json use.
+// Field order matters for consumer rendering — build provenance and
+// summary fields lead, per-check array follows. Mirrors the
+// convention update --json / status --json / restore --list --json
+// use.
 type doctorReportJSON struct {
-	Failed bool                  `json:"failed"`
-	Checks []doctor.CheckResult  `json:"checks"`
+	Build  buildProvenanceJSON  `json:"build"`
+	Failed bool                 `json:"failed"`
+	Checks []doctor.CheckResult `json:"checks"`
 }
 
 func (r *doctorReporter) Finalize() error {
@@ -75,6 +77,7 @@ func (r *doctorReporter) Finalize() error {
 		checks = []doctor.CheckResult{}
 	}
 	body, err := json.MarshalIndent(doctorReportJSON{
+		Build:  newBuildProvenance(),
 		Failed: r.failed,
 		Checks: checks,
 	}, "", "  ")
@@ -105,6 +108,8 @@ func buildDoctorCmd() *cobra.Command {
 				fmt.Fprintf(errOut, "doctor: emit json: %v\n", err)
 			}
 		}()
+
+		reporter.Add(doctorBuildIdentityStatus())
 
 		cfg, err := config.Load(nil)
 		if err != nil {
@@ -206,6 +211,42 @@ func buildDoctorCmd() *cobra.Command {
 		}
 		return nil
 		},
+	}
+}
+
+// doctorBuildIdentityStatus reports the running binary's identity as
+// the first doctor check. PASS when the binary was built from a clean
+// source tree (the default release CI invariant); WARN when the
+// `-X main.GitDirty=true` ldflag was injected, signalling the binary
+// includes uncommitted local changes. Operators reading doctor output
+// must know they are NOT running a clean release artifact, otherwise
+// stale or unreviewed local work silently rides into production.
+//
+// When GitCommit is the literal default "unknown" (no ldflags injection
+// happened, e.g., `go run` or `go build` without the Makefile/CI flags),
+// the summary labels the binary as a "source build" rather than showing
+// a bare `commit=unknown` — the sentinel value is accurate but cryptic.
+func doctorBuildIdentityStatus() doctor.CheckResult {
+	dirty := parseGitDirty(GitDirty)
+	short := GitCommit
+	if len(short) > 12 {
+		short = short[:12]
+	}
+	commitLabel := "commit=" + short
+	if short == "unknown" {
+		commitLabel = "source build (no commit metadata)"
+	}
+	if dirty {
+		return doctor.CheckResult{
+			Name:    "build identity",
+			Status:  doctor.StatusWarn,
+			Summary: fmt.Sprintf("dirty build: version=%s %s — uncommitted source at build time", Version, commitLabel),
+		}
+	}
+	return doctor.CheckResult{
+		Name:    "build identity",
+		Status:  doctor.StatusPass,
+		Summary: fmt.Sprintf("version=%s %s", Version, commitLabel),
 	}
 }
 

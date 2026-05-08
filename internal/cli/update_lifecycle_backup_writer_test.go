@@ -137,6 +137,29 @@ func TestUpdateLifecycle_BackupCompletedDetailIncludesPruneInfoWhenPositive(t *t
 	}
 }
 
+// TestUpdateLifecycle_BackupCompletedDetailIncludesFileCount proves the
+// completed-backup evidence detail surfaces how many files the writer
+// archived. Size + duration alone don't tell an operator if the backup
+// is suspicious — a 4MB backup that only contains 3 files is a warning
+// sign vs a 4MB backup of 200 files. The file count is the missing
+// blast-radius signal in the post-update transcript.
+func TestUpdateLifecycle_BackupCompletedDetailIncludesFileCount(t *testing.T) {
+	writer := &fakeBackupWriter{result: BackupResult{
+		Path:       "/tmp/x.zip",
+		SizeBytes:  2048,
+		DurationMs: 100,
+		FileCount:  42,
+	}}
+	report := runCleanLifecycle(t, UpdateLifecycleOptions{
+		Backup:       true,
+		BackupWriter: writer.Write,
+	})
+	detail := findFirstEvidenceDetail(report, UpdateEvidencePreBackupCompleted, "/tmp/x.zip")
+	if !strings.Contains(detail, "42 file") {
+		t.Fatalf("detail must include the FileCount; got %q", detail)
+	}
+}
+
 // TestUpdateLifecycle_BackupCompletedDetailOmitsPruneSuffixWhenZero
 // proves the no-prune common case omits the prune-suffix entirely.
 // Operators on their first --backup run shouldn't see "pruned 0 older"

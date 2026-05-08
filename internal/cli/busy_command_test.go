@@ -131,6 +131,34 @@ func TestBusyCommandGuardRunRejectsNestedRun(t *testing.T) {
 	}
 }
 
+// TestBusyCommandGuardRunRejectsNestedRun_NamesActiveCommand proves the
+// nested-rejection error names the command that already holds the
+// guard. A bare "busy command already active" error doesn't tell the
+// operator (or a dev reading a structured log) WHICH long-running
+// command is running — the guard is shared across /compress, /reload-mcp,
+// /skills sync, and friends, and the active one matters for
+// triage. errors.Is(err, ErrBusyCommandActive) must still work for
+// existing callers that branch on the sentinel.
+func TestBusyCommandGuardRunRejectsNestedRun_NamesActiveCommand(t *testing.T) {
+	g := NewBusyCommandGuard()
+	var nestedErr error
+	err := g.Run("compress", "Compressing context...", func() error {
+		nestedErr = g.Run("skills", "Loading skills...", func() error {
+			return nil
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("outer Run returned %v, want nil", err)
+	}
+	if !errors.Is(nestedErr, ErrBusyCommandActive) {
+		t.Fatalf("errors.Is must still match the sentinel; got %v", nestedErr)
+	}
+	if !strings.Contains(nestedErr.Error(), "compress") {
+		t.Fatalf("nested error must name the active command; got %q", nestedErr.Error())
+	}
+}
+
 // TestBusyCommandGuardEvaluateInputIdleAcceptsAnything asserts that, while
 // idle, the guard never rejects input. Acceptance/rejection of slash text is
 // the slash dispatcher's job; the guard must not interfere when no long-running

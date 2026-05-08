@@ -131,12 +131,18 @@ jobs:
             exe="gormes.exe"
           fi
           mkdir -p "dist/${target}"
-          # Resolve build-time SHA for `gormes version --json git_commit`.
-          # Falls back to "unknown" on shallow clones or detached states
-          # so the build never fails because of a metadata lookup.
+          # Resolve build-time provenance for `gormes version --json`.
+          # SHA falls back to "unknown" on shallow clones or detached
+          # states; dirty falls back to "false". The build never fails
+          # because of a metadata lookup.
           GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+          if git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null; then
+            GIT_DIRTY=false
+          else
+            GIT_DIRTY=true
+          fi
           CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
-            go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT}" \
+            go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY}" \
               -o "dist/${target}/${exe}" ./cmd/gormes
           tar -C dist -czf "dist/${target}.tar.gz" "${target}"
           sha256sum "dist/${target}.tar.gz" > "dist/${target}.tar.gz.sha256"

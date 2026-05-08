@@ -157,6 +157,7 @@ func WriteBackupZip(ctx context.Context, sourceDir, destPath string) (BackupResu
 		return BackupResult{}, fmt.Errorf("backup: open tmp dest: %w", err)
 	}
 	zw := zip.NewWriter(out)
+	var fileCount int
 	walkErr := filepath.WalkDir(sourceDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -198,6 +199,7 @@ func WriteBackupZip(ctx context.Context, sourceDir, destPath string) (BackupResu
 		if _, copyErr := io.Copy(w, f); copyErr != nil {
 			return copyErr
 		}
+		fileCount++
 		return nil
 	})
 	if closeErr := zw.Close(); walkErr == nil && closeErr != nil {
@@ -225,5 +227,6 @@ func WriteBackupZip(ctx context.Context, sourceDir, destPath string) (BackupResu
 		Path:       destPath,
 		SizeBytes:  info.Size(),
 		DurationMs: time.Since(start).Milliseconds(),
+		FileCount:  fileCount,
 	}, nil
 }

@@ -174,12 +174,13 @@ so the recovery path is visible inline.
 // tags. Defined in cmd/gormes so internal/cli stays free of presentation
 // concerns.
 type updateReportJSON struct {
-	Branch           string                  `json:"branch"`
-	PreviousBranch   string                  `json:"previous_branch,omitempty"`
-	Failed           bool                    `json:"failed"`
-	Evidence         []updateEvidenceJSON    `json:"evidence"`
-	OperatorRecovery string                  `json:"operator_recovery,omitempty"`
-	DashboardPIDs    []int                   `json:"dashboard_pids,omitempty"`
+	Build            buildProvenanceJSON  `json:"build"`
+	Branch           string               `json:"branch"`
+	PreviousBranch   string               `json:"previous_branch,omitempty"`
+	Failed           bool                 `json:"failed"`
+	Evidence         []updateEvidenceJSON `json:"evidence"`
+	OperatorRecovery string               `json:"operator_recovery,omitempty"`
+	DashboardPIDs    []int                `json:"dashboard_pids,omitempty"`
 }
 
 type updateEvidenceJSON struct {
@@ -190,6 +191,7 @@ type updateEvidenceJSON struct {
 func printUpdateReportJSON(cmd *cobra.Command, report cli.UpdateReport) error {
 	out := cmd.OutOrStdout()
 	shaped := updateReportJSON{
+		Build:            newBuildProvenance(),
 		Branch:           report.Branch,
 		PreviousBranch:   report.PreviousBranch,
 		Failed:           report.Failed,

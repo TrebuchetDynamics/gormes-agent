@@ -734,15 +734,17 @@ func runAuthStatusCommand(cmd *cobra.Command, providerInput string, asJSON bool)
 // authStatusReportJSON is the cmd-side JSON shape for ProviderAuthStatus.
 // internal/cli's struct is intentionally tag-free; mirroring it here
 // keeps presentation concerns out of the package and makes the wire
-// shape explicit.
+// shape explicit. Build provenance leads — same convention as
+// update --json / doctor --json / status --json / restore --list --json.
 type authStatusReportJSON struct {
-	Provider      string                              `json:"provider"`
-	AuthType      string                              `json:"auth_type"`
-	Status        string                              `json:"status"`
-	Reason        string                              `json:"reason,omitempty"`
-	Authenticated bool                                `json:"authenticated"`
-	Redacted      bool                                `json:"redacted"`
-	Credentials   []config.RedactedCredentialStatus   `json:"credentials"`
+	Build         buildProvenanceJSON               `json:"build"`
+	Provider      string                            `json:"provider"`
+	AuthType      string                            `json:"auth_type"`
+	Status        string                            `json:"status"`
+	Reason        string                            `json:"reason,omitempty"`
+	Authenticated bool                              `json:"authenticated"`
+	Redacted      bool                              `json:"redacted"`
+	Credentials   []config.RedactedCredentialStatus `json:"credentials"`
 }
 
 func authStatusToJSON(status cli.ProviderAuthStatus) authStatusReportJSON {
@@ -751,6 +753,7 @@ func authStatusToJSON(status cli.ProviderAuthStatus) authStatusReportJSON {
 		creds = []config.RedactedCredentialStatus{}
 	}
 	return authStatusReportJSON{
+		Build:         newBuildProvenance(),
 		Provider:      status.Provider,
 		AuthType:      status.AuthType,
 		Status:        status.Status,

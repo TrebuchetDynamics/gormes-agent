@@ -104,6 +104,57 @@ func RestoreFromZip(ctx context.Context, zipPath, destDir string) error {
 	return nil
 }
 
+// RestoreZipImpact summarizes how a zip restore will affect the
+// destination tree without writing anything. The dry-run preview uses
+// this so operators see the blast radius (overwrite vs. create counts)
+// before committing to --yes.
+type RestoreZipImpact struct {
+	Overwrite int
+	Create    int
+}
+
+// SummarizeRestoreZipImpact walks the zip at zipPath against the on-disk
+// destDir and classifies each file entry as either an overwrite (the
+// resolved on-disk target already exists) or a create (it does not).
+// Directory entries are not counted — they're scaffolding, not files
+// the operator cares about.
+//
+// Returns a typed error when the archive is unreadable or contains a
+// path-traversal entry, so the dry-run still fails fast on unsafe zips.
+func SummarizeRestoreZipImpact(zipPath, destDir string) (RestoreZipImpact, error) {
+	if strings.TrimSpace(zipPath) == "" {
+		return RestoreZipImpact{}, fmt.Errorf("restore: zip path is empty")
+	}
+	if strings.TrimSpace(destDir) == "" {
+		return RestoreZipImpact{}, fmt.Errorf("restore: dest dir is empty")
+	}
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return RestoreZipImpact{}, fmt.Errorf("restore: open zip: %w", err)
+	}
+	defer zr.Close()
+	absDest, err := filepath.Abs(destDir)
+	if err != nil {
+		return RestoreZipImpact{}, fmt.Errorf("restore: resolve dest: %w", err)
+	}
+	var impact RestoreZipImpact
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		target, err := safeJoinForRestore(absDest, f.Name)
+		if err != nil {
+			return RestoreZipImpact{}, err
+		}
+		if _, statErr := os.Stat(target); statErr == nil {
+			impact.Overwrite++
+		} else {
+			impact.Create++
+		}
+	}
+	return impact, nil
+}
+
 // safeJoinForRestore rejects zip entry names whose Clean+Join target
 // escapes destDir. Returns the absolute on-disk target on success.
 func safeJoinForRestore(absDest, name string) (string, error) {

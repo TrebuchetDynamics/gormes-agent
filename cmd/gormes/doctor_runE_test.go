@@ -33,6 +33,38 @@ func TestDoctorCommand_OfflineRoutedThroughCobra(t *testing.T) {
 	}
 }
 
+// TestDoctorCommand_JSONIncludesBuildProvenance proves
+// `gormes doctor --json` carries the running binary's build SHA and
+// version. Same contract as `update --json`'s `build` block — fleet
+// health snapshots stay attributable to a specific binary even when
+// captured and shipped off-host.
+func TestDoctorCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
+	_ = cmd.Execute()
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
 // TestDoctorCommand_JSONFieldOrderPutsFailedBeforeChecks proves the
 // JSON output uses a stable field order with summary fields (`failed`)
 // before the per-check array. This matches `update --json`'s
@@ -105,6 +137,153 @@ func TestDoctorCommand_JSONReportsFailedFieldFromWorstCheck(t *testing.T) {
 	}
 	if gotFailed != wantFailed {
 		t.Fatalf("got.failed = %t, want %t (any FAIL status implies failed=true)", gotFailed, wantFailed)
+	}
+}
+
+// TestDoctorCommand_SourceBuildIdentitySummary proves that when the
+// binary was built without ldflags-injected provenance (the default
+// `go run` / `go build` path leaves GitCommit at the literal sentinel
+// "unknown"), the doctor summary labels it as a "source build". A bare
+// `commit=unknown` summary is technically accurate but cryptic — it
+// looks like a malformed value. The explicit label tells operators
+// "this binary wasn't built by the release pipeline" without forcing
+// them to know what `unknown` means in this codebase.
+func TestDoctorCommand_SourceBuildIdentitySummary(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prevDirty := GitDirty
+	prevCommit := GitCommit
+	GitDirty = "false"
+	GitCommit = "unknown"
+	t.Cleanup(func() {
+		GitDirty = prevDirty
+		GitCommit = prevCommit
+	})
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
+	_ = cmd.Execute()
+
+	var got struct {
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	}
+	for _, c := range got.Checks {
+		if c.Name != "build identity" {
+			continue
+		}
+		if c.Status != "PASS" {
+			t.Fatalf("source build identity status = %q, want PASS", c.Status)
+		}
+		if !strings.Contains(c.Summary, "source build") {
+			t.Fatalf("summary must label sentinel-commit builds as `source build`; got %q", c.Summary)
+		}
+		if strings.Contains(c.Summary, "commit=unknown") {
+			t.Fatalf("summary must NOT show bare `commit=unknown`; replaced with `source build` label; got %q", c.Summary)
+		}
+		return
+	}
+	t.Fatalf("doctor must emit `build identity` check; got checks=%+v", got.Checks)
+}
+
+// TestDoctorCommand_DirtyBuildEmitsBuildIdentityWarning proves that when
+// the binary was built from a dirty source tree (`-X main.GitDirty=true`
+// at build time), `gormes doctor` surfaces an explicit warn-status
+// "build identity" check. Operators reading doctor output should know
+// they are NOT running a clean release artifact — otherwise stale or
+// uncommitted local changes silently ride along into production with no
+// signal to the operator.
+func TestDoctorCommand_DirtyBuildEmitsBuildIdentityWarning(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := GitDirty
+	GitDirty = "true"
+	t.Cleanup(func() { GitDirty = prev })
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
+	_ = cmd.Execute()
+
+	var got struct {
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	}
+	var found bool
+	for _, c := range got.Checks {
+		if c.Name == "build identity" {
+			found = true
+			if c.Status != "WARN" {
+				t.Fatalf("build identity status = %q, want WARN for dirty build", c.Status)
+			}
+			if !strings.Contains(c.Summary, "dirty") {
+				t.Fatalf("build identity summary should mention 'dirty'; got %q", c.Summary)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("doctor must emit `build identity` check on dirty builds; got checks=%+v", got.Checks)
+	}
+}
+
+// TestDoctorCommand_CleanBuildEmitsBuildIdentityPass proves that on a
+// clean build (the default), `gormes doctor` reports a PASS-status
+// "build identity" check naming the version + short SHA. The check
+// must be present in BOTH dirty and clean states so consumers always
+// see binary identity in the snapshot — not only when something is
+// wrong.
+func TestDoctorCommand_CleanBuildEmitsBuildIdentityPass(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := GitDirty
+	GitDirty = "false"
+	t.Cleanup(func() { GitDirty = prev })
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
+	_ = cmd.Execute()
+
+	var got struct {
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	}
+	var found bool
+	for _, c := range got.Checks {
+		if c.Name == "build identity" {
+			found = true
+			if c.Status != "PASS" {
+				t.Fatalf("build identity status = %q, want PASS for clean build", c.Status)
+			}
+			if !strings.Contains(c.Summary, Version) {
+				t.Fatalf("build identity summary must name version %q; got %q", Version, c.Summary)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("doctor must emit `build identity` check on clean builds; got checks=%+v", got.Checks)
 	}
 }
 

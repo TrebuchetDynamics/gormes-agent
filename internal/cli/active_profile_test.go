@@ -37,6 +37,32 @@ func TestWriteActiveProfile_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestReadActiveProfile_TrimsTrailingWhitespace proves the reader is
+// forgiving of a stray trailing newline (or other ASCII whitespace).
+// Operators edit the active profile file by hand, redirect output of
+// echo/cat into it, or sync it via tools that append a newline; without
+// trimming, the returned name fails ValidateProfileName regex with a
+// confusing "invalid characters" error even though the visible name
+// looks correct.
+func TestReadActiveProfile_TrimsTrailingWhitespace(t *testing.T) {
+	for _, body := range []string{"coder\n", "coder\r\n", "coder\t", "coder ", "  coder  \n"} {
+		t.Run(body, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "active_profile")
+			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := ReadActiveProfile(path)
+			if err != nil {
+				t.Fatalf("ReadActiveProfile err = %v, want nil", err)
+			}
+			if got != "coder" {
+				t.Fatalf("ReadActiveProfile of %q = %q, want trimmed %q", body, got, "coder")
+			}
+		})
+	}
+}
+
 func TestWriteActiveProfile_RejectsInvalidName(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "active_profile")
