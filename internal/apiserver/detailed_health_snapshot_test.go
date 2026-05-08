@@ -6,6 +6,54 @@ import (
 	"testing"
 )
 
+// TestDetailedHealthSnapshot_RunEventsOldestActiveAge proves the
+// run events section also surfaces `oldest_active_age_seconds` so
+// fleet alerting reading /health/detailed can detect stalled runs
+// without a separate /v1/health round-trip.
+func TestDetailedHealthSnapshot_RunEventsOldestActiveAge(t *testing.T) {
+	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
+		RunEvents: DetailedHealthRunEventsInput{
+			Available:              true,
+			Active:                 1,
+			OldestActiveAgeSeconds: 600,
+		},
+	})
+	if got := snapshot.RunEvents.OldestActiveAgeSeconds; got != 600 {
+		t.Errorf("oldest_active_age_seconds = %d, want 600", got)
+	}
+	raw, err := json.Marshal(snapshot.RunEvents)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"oldest_active_age_seconds":600`) {
+		t.Errorf("run_events JSON missing oldest_active_age_seconds: %s", raw)
+	}
+}
+
+// TestDetailedHealthSnapshot_RunEventsPeakActive proves the run
+// events section also surfaces `peak_active` — the high-water mark
+// of concurrent runs across process lifetime — so capacity planners
+// can read it from /health/detailed alongside the lifetime counters.
+func TestDetailedHealthSnapshot_RunEventsPeakActive(t *testing.T) {
+	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
+		RunEvents: DetailedHealthRunEventsInput{
+			Available:  true,
+			Active:     2,
+			PeakActive: 9,
+		},
+	})
+	if got := snapshot.RunEvents.PeakActive; got != 9 {
+		t.Errorf("peak_active = %d, want 9", got)
+	}
+	raw, err := json.Marshal(snapshot.RunEvents)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"peak_active":9`) {
+		t.Errorf("run_events JSON missing peak_active: %s", raw)
+	}
+}
+
 // TestDetailedHealthSnapshot_RunEventsRequestTotal proves the run
 // events section also surfaces `request_total` — the count of every
 // run submitted to the registry — so /health/detailed can compute

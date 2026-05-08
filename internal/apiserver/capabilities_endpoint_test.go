@@ -219,6 +219,94 @@ func TestAPIServerDetailedHealth_AutoPopulatesRunEventsFromRegistry(t *testing.T
 	}
 }
 
+// TestAPIServerHealth_ReportsOldestActiveAgeSeconds proves
+// `/v1/health` runs telemetry exposes `oldest_active_age_seconds` —
+// the age (in seconds) of the longest-running active (non-terminal)
+// run. Operators alerting on stalled runs at the fleet level can
+// trigger when the oldest active run exceeds an SLA without polling
+// every individual run snapshot.
+func TestAPIServerHealth_ReportsOldestActiveAgeSeconds(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	now := time.Unix(1_700_012_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	// Submit run at t=12000.
+	if rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil); rec.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", rec.Code)
+	}
+	loop.waitStarted(t)
+
+	// Advance clock by 90s.
+	now = time.Unix(1_700_012_090, 0)
+
+	rec := getJSON(t, h, "/v1/health", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("health = %d", rec.Code)
+	}
+	var got struct {
+		Runs struct {
+			OldestActiveAgeSeconds int64 `json:"oldest_active_age_seconds"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Runs.OldestActiveAgeSeconds != 90 {
+		t.Errorf("oldest_active_age_seconds = %d, want 90", got.Runs.OldestActiveAgeSeconds)
+	}
+}
+
+// TestAPIServerHealth_ReportsPeakActiveRunsCounter proves
+// `/v1/health` runs telemetry exposes `peak_active` — the high-water
+// mark of active concurrent runs across process lifetime — so
+// operators sizing API capacity can detect whether their fleet ever
+// hits the practical concurrency ceiling without scraping live
+// metrics over time.
+func TestAPIServerHealth_ReportsPeakActiveRunsCounter(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	h := srv.Handler()
+
+	// Submit 3 runs (all in_progress because loop blocks).
+	for i := 0; i < 3; i++ {
+		if rec := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil); rec.Code != http.StatusAccepted {
+			t.Fatalf("POST %d = %d", i, rec.Code)
+		}
+	}
+
+	rec := getJSON(t, h, "/v1/health", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("health = %d", rec.Code)
+	}
+	var got struct {
+		Runs struct {
+			Active     int `json:"active"`
+			PeakActive int `json:"peak_active"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Runs.Active != 3 {
+		t.Errorf("active = %d, want 3", got.Runs.Active)
+	}
+	if got.Runs.PeakActive != 3 {
+		t.Errorf("peak_active = %d, want 3 (high-water mark)", got.Runs.PeakActive)
+	}
+}
+
 // TestAPIServerHealth_ReportsRequestTotalRunsCounter proves the
 // `/v1/health` runs telemetry exposes a `request_total` counter
 // incremented every time a run is submitted via POST /v1/runs.
@@ -700,6 +788,55 @@ func TestAPIServerRunStatus_IncludesSessionID(t *testing.T) {
 	}
 	if got.SessionID != "sess-abc-123" {
 		t.Errorf("session_id = %q, want sess-abc-123", got.SessionID)
+	}
+
+	loop.release(TurnResult{SessionID: started.RunID})
+}
+
+// TestAPIServerRunStatus_IncludesIdleSecondsForActiveRuns proves
+// non-terminal runs carry `idle_seconds` (server clock - last
+// event timestamp). Operators detecting stalled runs see it
+// directly without subtracting two unix timestamps in their
+// dashboard renderer. Terminal runs omit the field — duration
+// already covers their lifetime.
+func TestAPIServerRunStatus_IncludesIdleSecondsForActiveRuns(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+	})
+	now := time.Unix(1_700_014_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	start := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping"}, nil)
+	if start.Code != http.StatusAccepted {
+		t.Fatalf("POST = %d", start.Code)
+	}
+	var started struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(start.Body.Bytes(), &started)
+	loop.waitStarted(t)
+
+	// run.started published at t=14000. Advance 25s.
+	now = time.Unix(1_700_014_025, 0)
+
+	rec := getJSON(t, h, "/v1/runs/"+started.RunID, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Status      string `json:"status"`
+		IdleSeconds int64  `json:"idle_seconds"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Status != "in_progress" {
+		t.Fatalf("status = %q, want in_progress", got.Status)
+	}
+	if got.IdleSeconds != 25 {
+		t.Errorf("idle_seconds = %d, want 25", got.IdleSeconds)
 	}
 
 	loop.release(TurnResult{SessionID: started.RunID})
@@ -1190,6 +1327,64 @@ func TestAPIServerRunsList_RejectsUnknownStatusFilter(t *testing.T) {
 	}
 }
 
+// TestAPIServerRunsList_FiltersBySessionIDPrefix proves
+// `GET /v1/runs?session_id_prefix=tg-` returns runs whose session_id
+// starts with the prefix. Channel-scoped dashboards (e.g. all
+// Telegram-prefixed sessions) need prefix-filter without enumerating
+// every session_id explicitly.
+func TestAPIServerRunsList_FiltersBySessionIDPrefix(t *testing.T) {
+	loop := newBlockingRunLoop()
+	srv := NewServer(Config{
+		ModelName:     "gormes-agent",
+		Loop:          loop,
+		ResponseStore: NewResponseStore(10),
+		RunTTL:        time.Hour,
+	})
+	now := time.Unix(1_700_013_000, 0)
+	srv.now = func() time.Time { return now }
+	h := srv.Handler()
+
+	// Run in tg- session.
+	r1 := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping", "session_id": "tg-12345"}, nil)
+	if r1.Code != http.StatusAccepted {
+		t.Fatalf("POST 1 = %d", r1.Code)
+	}
+	loop.waitStarted(t)
+	var s1 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r1.Body.Bytes(), &s1)
+
+	// Run in slack- session.
+	now = time.Unix(1_700_013_010, 0)
+	r2 := postJSON(t, h, "/v1/runs", map[string]any{"input": "ping", "session_id": "slack-C123"}, nil)
+	if r2.Code != http.StatusAccepted {
+		t.Fatalf("POST 2 = %d", r2.Code)
+	}
+	var s2 struct{ RunID string `json:"run_id"` }
+	json.Unmarshal(r2.Body.Bytes(), &s2)
+
+	rec := getJSON(t, h, "/v1/runs?session_id_prefix=tg-", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Total int `json:"total"`
+		Runs  []struct {
+			SessionID string `json:"session_id"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Total != 1 {
+		t.Fatalf("total = %d, want 1", got.Total)
+	}
+	if got.Runs[0].SessionID != "tg-12345" {
+		t.Errorf("got %+v, want session tg-12345", got.Runs)
+	}
+
+	loop.release(TurnResult{SessionID: s1.RunID})
+}
+
 // TestAPIServerRunsList_FiltersBySessionID proves
 // `GET /v1/runs?session_id=...` returns only runs matching the
 // session_id. Dashboards rendering "all runs in this session" need
@@ -1467,6 +1662,33 @@ func TestAPIServerRuns_BuildAttribution(t *testing.T) {
 	}
 	if got.RunID == "" || got.Status != "started" {
 		t.Errorf("run start envelope = %+v, want run_id populated and status=started", got)
+	}
+}
+
+// TestAPIServerCapabilities_AdvertisesRunEventsBacklogCap proves
+// `/v1/capabilities` features advertise `run_events_backlog_cap` so
+// SDKs subscribing to /v1/runs/{id}/events know how many events they
+// might miss if they connect after the run has emitted more than the
+// cap. Operators sizing dashboards know the worst-case backlog size.
+func TestAPIServerCapabilities_AdvertisesRunEventsBacklogCap(t *testing.T) {
+	srv := NewServer(Config{ModelName: "gormes-agent", Loop: &fakeTurnLoop{}})
+	rec := getJSON(t, srv.Handler(), "/v1/capabilities", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var got struct {
+		Features struct {
+			RunEventsBacklogCap int `json:"run_events_backlog_cap"`
+		} `json:"features"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+	}
+	if got.Features.RunEventsBacklogCap != runEventsBacklogCap {
+		t.Errorf("run_events_backlog_cap = %d, want %d", got.Features.RunEventsBacklogCap, runEventsBacklogCap)
+	}
+	if got.Features.RunEventsBacklogCap <= 0 {
+		t.Errorf("run_events_backlog_cap must be positive, got %d", got.Features.RunEventsBacklogCap)
 	}
 }
 

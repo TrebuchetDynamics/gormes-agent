@@ -39,14 +39,16 @@ type DetailedHealthResponseStoreInput struct {
 }
 
 type DetailedHealthRunEventsInput struct {
-	Available      bool
-	Active         int
-	OrphanedSwept  int
-	TTLSeconds     int
-	RequestTotal   int
-	CompletedTotal int
-	FailedTotal    int
-	StoppedTotal   int
+	Available              bool
+	Active                 int
+	PeakActive             int
+	OrphanedSwept          int
+	TTLSeconds             int
+	RequestTotal           int
+	CompletedTotal         int
+	FailedTotal            int
+	StoppedTotal           int
+	OldestActiveAgeSeconds int64
 }
 
 type DetailedHealthGatewayInput struct {
@@ -100,16 +102,18 @@ type DetailedHealthResponseStoreSection struct {
 }
 
 type DetailedHealthRunEventsSection struct {
-	Status         string                   `json:"status"`
-	Available      bool                     `json:"available"`
-	Active         int                      `json:"active"`
-	OrphanedSwept  int                      `json:"orphaned_swept"`
-	TTLSeconds     int                      `json:"ttl_seconds"`
-	RequestTotal   int                      `json:"request_total"`
-	CompletedTotal int                      `json:"completed_total"`
-	FailedTotal    int                      `json:"failed_total"`
-	StoppedTotal   int                      `json:"stopped_total"`
-	Evidence       []DetailedHealthEvidence `json:"evidence"`
+	Status                 string                   `json:"status"`
+	Available              bool                     `json:"available"`
+	Active                 int                      `json:"active"`
+	PeakActive             int                      `json:"peak_active"`
+	OrphanedSwept          int                      `json:"orphaned_swept"`
+	TTLSeconds             int                      `json:"ttl_seconds"`
+	RequestTotal           int                      `json:"request_total"`
+	CompletedTotal         int                      `json:"completed_total"`
+	FailedTotal            int                      `json:"failed_total"`
+	StoppedTotal           int                      `json:"stopped_total"`
+	OldestActiveAgeSeconds int64                    `json:"oldest_active_age_seconds"`
+	Evidence               []DetailedHealthEvidence `json:"evidence"`
 }
 
 type DetailedHealthGatewaySection struct {
@@ -180,16 +184,18 @@ func detailedHealthResponseStore(input DetailedHealthResponseStoreInput) Detaile
 
 func detailedHealthRunEvents(input DetailedHealthRunEventsInput) DetailedHealthRunEventsSection {
 	section := DetailedHealthRunEventsSection{
-		Status:         detailedHealthStatusReady,
-		Available:      input.Available,
-		Active:         input.Active,
-		OrphanedSwept:  input.OrphanedSwept,
-		TTLSeconds:     input.TTLSeconds,
-		RequestTotal:   input.RequestTotal,
-		CompletedTotal: input.CompletedTotal,
-		FailedTotal:    input.FailedTotal,
-		StoppedTotal:   input.StoppedTotal,
-		Evidence:       []DetailedHealthEvidence{},
+		Status:                 detailedHealthStatusReady,
+		Available:              input.Available,
+		Active:                 input.Active,
+		PeakActive:             input.PeakActive,
+		OrphanedSwept:          input.OrphanedSwept,
+		TTLSeconds:             input.TTLSeconds,
+		RequestTotal:           input.RequestTotal,
+		CompletedTotal:         input.CompletedTotal,
+		FailedTotal:            input.FailedTotal,
+		StoppedTotal:           input.StoppedTotal,
+		OldestActiveAgeSeconds: input.OldestActiveAgeSeconds,
+		Evidence:               []DetailedHealthEvidence{},
 	}
 	if !input.Available {
 		section.Status = detailedHealthStatusDegraded

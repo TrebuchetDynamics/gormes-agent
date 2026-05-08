@@ -441,20 +441,32 @@ func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) runEventsHealthInput() DetailedHealthRunEventsInput {
 	stats := s.runs.stats()
 	return DetailedHealthRunEventsInput{
-		Available:      true,
-		Active:         intFromAny(stats["active"]),
-		OrphanedSwept:  intFromAny(stats["orphaned_swept"]),
-		TTLSeconds:     intFromAny(stats["ttl_seconds"]),
-		RequestTotal:   intFromAny(stats["request_total"]),
-		CompletedTotal: intFromAny(stats["completed_total"]),
-		FailedTotal:    intFromAny(stats["failed_total"]),
-		StoppedTotal:   intFromAny(stats["stopped_total"]),
+		Available:              true,
+		Active:                 intFromAny(stats["active"]),
+		PeakActive:             intFromAny(stats["peak_active"]),
+		OrphanedSwept:          intFromAny(stats["orphaned_swept"]),
+		TTLSeconds:             intFromAny(stats["ttl_seconds"]),
+		RequestTotal:           intFromAny(stats["request_total"]),
+		CompletedTotal:         intFromAny(stats["completed_total"]),
+		FailedTotal:            intFromAny(stats["failed_total"]),
+		StoppedTotal:           intFromAny(stats["stopped_total"]),
+		OldestActiveAgeSeconds: int64FromAny(stats["oldest_active_age_seconds"]),
 	}
 }
 
 func intFromAny(v any) int {
 	if i, ok := v.(int); ok {
 		return i
+	}
+	return 0
+}
+
+func int64FromAny(v any) int64 {
+	switch t := v.(type) {
+	case int64:
+		return t
+	case int:
+		return int64(t)
 	}
 	return 0
 }
@@ -512,7 +524,8 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 			"run_events_sse":             true,
 			"run_stop":                   true,
 			"runs_list":                  true,
-			"runs_list_filters":          []string{"status", "since", "limit", "order", "session_id"},
+			"runs_list_filters":          []string{"status", "since", "limit", "order", "session_id", "session_id_prefix"},
+			"run_events_backlog_cap":     runEventsBacklogCap,
 			"run_lifecycle_events": []string{
 				"run.started",
 				"message.delta",

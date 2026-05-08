@@ -30,6 +30,7 @@ type runRegistry struct {
 	completedTotal int
 	failedTotal    int
 	stoppedTotal   int
+	peakActive     int
 }
 
 type runRecord struct {
@@ -92,6 +93,9 @@ func (r *runRegistry) createWithSession(id, sessionID string, cancel context.Can
 	defer r.mu.Unlock()
 	r.runs[id] = &runRecord{id: id, sessionID: sessionID, createdAt: r.now(), cancel: cancel}
 	r.requestTotal++
+	if active := len(r.runs); active > r.peakActive {
+		r.peakActive = active
+	}
 }
 
 // stop cancels the in-flight context for the run and marks it stopped.
@@ -328,14 +332,27 @@ func (r *runRegistry) sweepOrphans() int {
 func (r *runRegistry) stats() map[string]any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	now := r.now()
+	var oldestAge int64
+	for _, rec := range r.runs {
+		if rec.done {
+			continue
+		}
+		age := int64(now.Sub(rec.createdAt).Seconds())
+		if age > oldestAge {
+			oldestAge = age
+		}
+	}
 	return map[string]any{
-		"active":          len(r.runs),
-		"orphaned_swept":  r.swept,
-		"ttl_seconds":     int(r.ttl.Seconds()),
-		"request_total":   r.requestTotal,
-		"completed_total": r.completedTotal,
-		"failed_total":    r.failedTotal,
-		"stopped_total":   r.stoppedTotal,
+		"active":                    len(r.runs),
+		"peak_active":               r.peakActive,
+		"orphaned_swept":            r.swept,
+		"ttl_seconds":               int(r.ttl.Seconds()),
+		"request_total":             r.requestTotal,
+		"completed_total":           r.completedTotal,
+		"failed_total":              r.failedTotal,
+		"stopped_total":             r.stoppedTotal,
+		"oldest_active_age_seconds": oldestAge,
 	}
 }
 
@@ -451,6 +468,7 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 	sessionFilter := strings.TrimSpace(r.URL.Query().Get("session_id"))
+	sessionPrefix := strings.TrimSpace(r.URL.Query().Get("session_id_prefix"))
 	order := strings.TrimSpace(r.URL.Query().Get("order"))
 	if order != "" && order != "asc" && order != "desc" {
 		writeOpenAIError(w, http.StatusBadRequest,
@@ -485,6 +503,9 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		if sessionFilter != "" && snap.SessionID != sessionFilter {
 			continue
 		}
+		if sessionPrefix != "" && !strings.HasPrefix(snap.SessionID, sessionPrefix) {
+			continue
+		}
 		total++
 		if limit > 0 && len(entries) >= limit {
 			continue
@@ -503,6 +524,11 @@ func (s *Server) handleListRuns(w http.ResponseWriter, r *http.Request) {
 		}
 		if snap.LastEventAt > 0 {
 			entry["last_event_at"] = snap.LastEventAt
+		}
+		if snap.LastEventAt > 0 && snap.TerminatedAt == 0 {
+			if idle := s.now().Unix() - snap.LastEventAt; idle >= 0 {
+				entry["idle_seconds"] = idle
+			}
 		}
 		if snap.TerminatedAt > 0 {
 			entry["terminated_at"] = snap.TerminatedAt
@@ -640,6 +666,11 @@ func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	if snap.LastEventAt > 0 {
 		body["last_event_at"] = snap.LastEventAt
+	}
+	if snap.LastEventAt > 0 && snap.TerminatedAt == 0 {
+		if idle := s.now().Unix() - snap.LastEventAt; idle >= 0 {
+			body["idle_seconds"] = idle
+		}
 	}
 	if snap.TerminatedAt > 0 {
 		body["terminated_at"] = snap.TerminatedAt
