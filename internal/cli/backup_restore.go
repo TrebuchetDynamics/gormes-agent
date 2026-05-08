@@ -60,6 +60,12 @@ func RestoreFromZip(ctx context.Context, zipPath, destDir string) error {
 	if strings.TrimSpace(destDir) == "" {
 		return fmt.Errorf("restore: dest dir is empty")
 	}
+	// Pre-validate the whole archive: openable + every entry passes
+	// the path-traversal guard. A malicious entry late in the zip
+	// must not let earlier safe entries land on disk.
+	if err := ValidateRestoreZip(zipPath); err != nil {
+		return err
+	}
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return fmt.Errorf("restore: open zip: %w", err)
