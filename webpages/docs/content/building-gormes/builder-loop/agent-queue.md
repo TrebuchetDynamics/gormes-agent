@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Native video_analyze tool contract
-
-- Phase: 5 / 5.D
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Gormes exposes a `video_analyze` tool that accepts a local video path or URL and a prompt, routes the call to a vision-capable multimodal provider (Gemini today, others as the registry grows), and returns analysis text plus optional structured metadata. Routing is gated by the existing Image input mode router/provider-vision-capability check; non-vision providers return a typed unsupported_video error rather than a fake reply. Mirrors Hermes v0.13.0 PR #19301.
-- Trust class: operator, child-agent
-- Ready when: Image input mode router (5.D `Image input mode router + native content parts`) is complete and reusable for video parts., Provider registry exposes a vision-capability check seam reachable from tests., A fake multimodal provider exists in tests and can echo back attached media metadata.
-- Not ready when: The slice ships a real Gemini transport in this row (use the existing provider abstraction; transport-specific work is its own row)., Video uploads to providers without vision capability are attempted with a silent fallback., Local file path validation collapses into the same code path as URL fetching without explicit fixture coverage.
-- Degraded mode: When no vision-capable provider is configured, the tool returns unsupported_video evidence with the configured providers listed; it never uploads the video file or attempts a non-vision text fallback.
-- Fixture: `internal/tools/video_analyze_test.go`
-- Write scope: `internal/tools/video_analyze.go`, `internal/tools/video_analyze_test.go`, `internal/tools/registry.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools -run VideoAnalyze -count=1`, `go test ./internal/provider -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: video_analyze tool descriptor is registered, fixture-proven against a fake vision provider, and rejects unsupported providers and unsafe inputs with typed evidence.
-- Acceptance: TestVideoAnalyze_RoutesToVisionCapableProvider routes a fake mp4 path to the fake vision provider and returns the echoed prompt+metadata., TestVideoAnalyze_NonVisionProviderUnsupportedError proves a non-vision provider returns the typed unsupported_video error with configured-providers context., TestVideoAnalyze_LocalPathSanitization proves directory-traversal and absolute-path inputs are bounded by the workspace root and rejected with workspace_root_violation evidence., TestVideoAnalyze_URLSchemeAllowlist proves only http/https URL schemes pass to a fake fetcher; file/ftp/data are rejected.
-- Source refs: hermes-agent/RELEASE_v0.13.0.md, hermes-agent/tools/video_analyze.py, hermes-agent/tools/image_input.py, internal/tools/, internal/provider/
-- Unblocks: Gemini video transport adapter, video_analyze gateway delivery (multipart preview)
-- Why now: Unblocks Gemini video transport adapter, video_analyze gateway delivery (multipart preview).
-
-## 2. TD engineering blog scaffolded and live
+## 1. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -70,7 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Behavioral pattern extraction from session logs
+## 2. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -90,7 +69,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Agentic-porting-kit repo scaffold
+## 3. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -111,7 +90,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Built-with-Gormes page scaffold
+## 4. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

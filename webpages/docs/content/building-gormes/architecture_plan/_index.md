@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 74/99 subphases shipped · 20 in progress · 5 planned
+**Overall:** 75/99 subphases shipped · 19 in progress · 5 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 9/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 10/22 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
@@ -706,14 +706,14 @@ classification and row-backed implementation queue.
 - [x] Go browser harness binary repo + integration lane (placeholder)
 - [x] Browser session inactivity cleanup thread
 
-### 5.D — Vision + Image Generation 🔨
+### 5.D — Vision + Image Generation ✅
 
 - [x] Multimodal in/out
 - [x] Image input mode router + native content parts
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch
-- [ ] Native video_analyze tool contract
+- [x] Native video_analyze tool contract
 
 ### 5.E — TTS / Voice / Transcription 🔨
 
