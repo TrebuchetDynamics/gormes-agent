@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 )
 
@@ -64,6 +65,17 @@ type Config struct {
 	// CronAdminAuditor receives a redacted audit event for each mutation. It
 	// is optional; when nil the endpoints continue to work but emit no audit.
 	CronAdminAuditor CronAdminAuditor
+	// KanbanStore is the read facade for the kanban task board used by the
+	// authenticated dashboard kanban endpoints. *kanban.Store satisfies this
+	// interface. When nil, the kanban dashboard panel is disabled and
+	// endpoints respond with code "kanban_store_unavailable".
+	KanbanStore KanbanStore
+}
+
+// KanbanStore is the read-only kanban surface consumed by the dashboard.
+type KanbanStore interface {
+	ListTasks(ctx context.Context, filter kanban.ListFilter) ([]kanban.Task, error)
+	GetTask(ctx context.Context, id string) (kanban.Task, error)
 }
 
 // ChatTransportStatus describes the dashboard's embedded chat transports
@@ -99,6 +111,7 @@ type Server struct {
 	cronMutator            CronJobMutator
 	cronTrigger            CronTriggerHandler
 	cronAuditor            CronAdminAuditor
+	kanbanStore            KanbanStore
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -216,6 +229,7 @@ func NewServer(cfg Config) *Server {
 		cronMutator:           cfg.CronJobMutator,
 		cronTrigger:           cfg.CronTrigger,
 		cronAuditor:           cfg.CronAdminAuditor,
+		kanbanStore:           cfg.KanbanStore,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
 		logStore:              NewLogStore(200),
@@ -327,6 +341,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/dashboard/plugins", s.handleDashboardPlugins)
 	s.mux.HandleFunc("/api/sessions", s.handleDashboardSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
+	s.mux.HandleFunc("/api/kanban", s.handleDashboardKanban)
+	s.mux.HandleFunc("/api/kanban/tasks", s.handleDashboardKanbanTasks)
+	s.mux.HandleFunc("/api/kanban/tasks/", s.handleDashboardKanbanTaskByID)
 	s.mux.HandleFunc("/api/logs", s.handleDashboardLogs)
 	s.mux.Handle("/static/", staticHandler())
 	s.mux.HandleFunc("/dashboard", s.handleWebDashboard)
