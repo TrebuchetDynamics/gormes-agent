@@ -63,6 +63,13 @@ func newRestoreCommandWithSeams(seams restoreCommandSeams) *cobra.Command {
 				return fmt.Errorf("restore: GORMES_HOME is unset; cannot resolve restore root")
 			}
 			if !yes {
+				// Validate the zip is openable + free of path-traversal
+				// entries BEFORE printing "would extract". Otherwise a
+				// corrupt or malicious zip would mislead the operator
+				// into running --yes only to fail mid-extract.
+				if validateErr := cli.ValidateRestoreZip(resolvedPath); validateErr != nil {
+					return validateErr
+				}
 				fmt.Fprintf(out, "DRY RUN — would extract %s", resolvedPath)
 				if info, statErr := os.Stat(resolvedPath); statErr == nil {
 					fmt.Fprintf(out,

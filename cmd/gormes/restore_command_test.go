@@ -206,6 +206,32 @@ func TestRestoreCommand_ListJSONEmptyDirEmitsEmptyArray(t *testing.T) {
 	}
 }
 
+// TestRestoreCommand_DryRunRejectsCorruptZip proves the dry-run
+// validates the zip is openable. A corrupt or non-zip file must NOT
+// cause the dry-run to print "would extract" — operators should see
+// the failure before they commit to --yes.
+func TestRestoreCommand_DryRunRejectsCorruptZip(t *testing.T) {
+	zipPath := filepath.Join(t.TempDir(), "corrupt.zip")
+	if err := os.WriteFile(zipPath, []byte("not a zip"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRestoreCommandWithSeams(restoreCommandSeams{
+		BackupsDir: func() string { return filepath.Dir(zipPath) },
+		HomeDir:    func() string { return t.TempDir() },
+	})
+	stdout, _, err := executeRootCommandForTest(cmd, "--path", zipPath)
+	if err == nil {
+		t.Fatalf("dry-run on corrupt zip must error; stdout=%s", stdout)
+	}
+	if !strings.Contains(err.Error(), "zip") && !strings.Contains(err.Error(), "restore") {
+		t.Fatalf("err = %q, want it to name the rejection reason", err)
+	}
+	if strings.Contains(stdout, "DRY RUN — would extract") {
+		t.Fatalf("dry-run on corrupt zip must NOT print would-extract; got:\n%s", stdout)
+	}
+}
+
 // TestRestoreCommand_DryRunShowsSizeAndAge proves the dry-run preview
 // surfaces the same size + age columns operators see in `--list`. A
 // blind "would extract /path" line is not enough confidence for a

@@ -10,6 +10,32 @@ import (
 	"strings"
 )
 
+// ValidateRestoreZip opens the zip at zipPath and walks its entries
+// without writing anything to disk. Returns a typed error when the
+// archive is unreadable or contains a path-traversal entry that
+// RestoreFromZip would reject at extract time. Used by the dry-run
+// preview so operators see corruption/traversal up-front instead of
+// after committing to --yes.
+func ValidateRestoreZip(zipPath string) error {
+	if strings.TrimSpace(zipPath) == "" {
+		return fmt.Errorf("restore: zip path is empty")
+	}
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("restore: open zip: %w", err)
+	}
+	defer zr.Close()
+	// Walk entries against a synthetic dest so safeJoinForRestore
+	// applies the same path-traversal rule it uses at extract time.
+	const sentinel = "/dry-run-validation-target"
+	for _, f := range zr.File {
+		if _, err := safeJoinForRestore(sentinel, f.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // RestoreFromZip extracts every entry of the zip at zipPath into
 // destDir, overwriting existing files. This is the rollback path
 // consumed by `gormes restore --path`.
