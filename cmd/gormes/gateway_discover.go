@@ -64,7 +64,10 @@ func newGatewayDiscoverCommand() *cobra.Command {
 				Discoverer: newGatewayDiscoverer(time.Duration(timeoutMs) * time.Millisecond),
 			})
 			if jsonOut {
-				return encodeIndentedJSON(cmd.OutOrStdout(), result)
+				return encodeIndentedJSON(cmd.OutOrStdout(), gatewayDiscoverReportJSON{
+					Build:                 newBuildProvenance(),
+					GatewayDiscoverResult: result,
+				})
 			}
 			renderGatewayDiscoverText(cmd.OutOrStdout(), result)
 			return nil
@@ -127,7 +130,10 @@ func newGatewayProbeCommand() *cobra.Command {
 				Runtime:    runtimeSummary,
 			})
 			if jsonOut {
-				if err := encodeIndentedJSON(cmd.OutOrStdout(), result); err != nil {
+				if err := encodeIndentedJSON(cmd.OutOrStdout(), gatewayProbeReportJSON{
+					Build:              newBuildProvenance(),
+					GatewayProbeResult: result,
+				}); err != nil {
 					return err
 				}
 			} else {
@@ -205,7 +211,10 @@ func newGatewayUsageCostCommand() *cobra.Command {
 				})
 			}
 			if jsonOut {
-				return encodeIndentedJSON(cmd.OutOrStdout(), result)
+				return encodeIndentedJSON(cmd.OutOrStdout(), gatewayUsageCostReportJSON{
+					Build:                  newBuildProvenance(),
+					GatewayUsageCostResult: result,
+				})
 			}
 			renderGatewayUsageCostText(cmd.OutOrStdout(), result)
 			return nil
@@ -376,4 +385,27 @@ func encodeIndentedJSON(w io.Writer, value any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(value)
+}
+
+// gatewayDiscoverReportJSON, gatewayProbeReportJSON, and
+// gatewayUsageCostReportJSON wrap the internal/tools result types with
+// build provenance so fleet log/inventory pipelines can attribute each
+// JSON document to the binary version that emitted it. Existing
+// top-level fields (ok/count/beacons/etc.) remain addressable through
+// struct embedding — JSON unmarshal in callers parsing the old shape
+// continues to work because Go's JSON decoder ignores the unknown
+// `build` field by default.
+type gatewayDiscoverReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	tools.GatewayDiscoverResult
+}
+
+type gatewayProbeReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	tools.GatewayProbeResult
+}
+
+type gatewayUsageCostReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	tools.GatewayUsageCostResult
 }

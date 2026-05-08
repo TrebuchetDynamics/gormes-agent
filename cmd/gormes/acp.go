@@ -13,6 +13,17 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
+// acpClientReportJSON wraps acp.ClientResult with build provenance so
+// fleet automation bridging ACP sessions across machines can attribute
+// each connect/degraded outcome to the binary version that emitted it.
+// Existing ClientResult fields stay top-level via struct embedding —
+// callers parsing the old shape continue to work because Go's JSON
+// decoder ignores the unknown `build` field by default.
+type acpClientReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	acp.ClientResult
+}
+
 func newACPCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "acp",
@@ -102,7 +113,11 @@ func runACPClientCommand(cmd *cobra.Command, opts acp.ClientOptions, jsonOut boo
 	}
 
 	if jsonOut {
-		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
+		envelope := acpClientReportJSON{
+			Build:        newBuildProvenance(),
+			ClientResult: result,
+		}
+		if err := json.NewEncoder(cmd.OutOrStdout()).Encode(envelope); err != nil {
 			return err
 		}
 	} else {

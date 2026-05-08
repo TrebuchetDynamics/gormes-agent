@@ -13,6 +13,61 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
 
+// TestACPClientCommand_JSONIncludesBuildProvenance proves
+// `gormes acp client --json` emits a top-level `build` envelope so
+// fleet automation bridging ACP sessions across machines can attribute
+// each connect/degraded result to the binary version that emitted it.
+// Existing top-level ClientResult fields (ok/session_key/etc.) remain
+// addressable through struct embedding — additive change.
+func TestACPClientCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	ctx := t.Context()
+	smap, err := session.OpenBolt(config.SessionDBPath())
+	if err != nil {
+		t.Fatalf("OpenBolt: %v", err)
+	}
+	if err := smap.Put(ctx, "agent:main:main", "sess-main"); err != nil {
+		t.Fatalf("Put session: %v", err)
+	}
+	if err := smap.Close(); err != nil {
+		t.Fatalf("Close session map: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runTUI: func(*cobra.Command, []string) error {
+			t.Fatal("runTUI was called")
+			return nil
+		},
+	})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"acp", "client",
+		"--session", "agent:main:main",
+		"--require-existing",
+		"--provenance", "meta+receipt",
+		"--cwd", "/repo",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("acp client --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		OK         bool   `json:"ok"`
+		SessionKey string `json:"session_key"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("decode: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if !got.OK || got.SessionKey != "agent:main:main" {
+		t.Errorf("ok=%v key=%q, want true/agent:main:main", got.OK, got.SessionKey)
+	}
+}
+
 func TestACPClientCommandConnectsWithSessionAndJSON(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	ctx := t.Context()
