@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/spf13/cobra"
 
@@ -468,6 +470,101 @@ func writeKanbanLifecycleJSON(cmd *cobra.Command, report kanbanLifecycleReportJS
 
 func openKanbanStore(ctx context.Context) (*kanban.Store, error) {
 	return kanban.Open(ctx, config.KanbanDBPath())
+}
+
+func runTUIKanbanSlashCommand(ctx context.Context, input string) (string, error) {
+	args, err := parseTUIKanbanSlashArgs(input)
+	if err != nil {
+		return "", err
+	}
+
+	cmd := newKanbanCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetContext(ctx)
+	cmd.SetArgs(args)
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
+	err = cmd.Execute()
+	output := strings.TrimSpace(strings.Join(nonEmptyStrings(stdout.String(), stderr.String()), "\n"))
+	return output, err
+}
+
+func parseTUIKanbanSlashArgs(input string) ([]string, error) {
+	fields, err := splitTUIKanbanSlashFields(input)
+	if err != nil {
+		return nil, err
+	}
+	if len(fields) == 0 {
+		return nil, fmt.Errorf("empty kanban command")
+	}
+	name := strings.ToLower(strings.TrimPrefix(fields[0], "/"))
+	if name != "kanban" {
+		return nil, fmt.Errorf("expected /kanban command, got %q", fields[0])
+	}
+	return fields[1:], nil
+}
+
+func splitTUIKanbanSlashFields(input string) ([]string, error) {
+	var fields []string
+	var b strings.Builder
+	var quote rune
+	escaped := false
+	flush := func() {
+		if b.Len() == 0 {
+			return
+		}
+		fields = append(fields, b.String())
+		b.Reset()
+	}
+
+	for _, r := range strings.TrimSpace(input) {
+		if escaped {
+			b.WriteRune(r)
+			escaped = false
+			continue
+		}
+		if r == '\\' && quote != '\'' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+			} else {
+				b.WriteRune(r)
+			}
+			continue
+		}
+		switch {
+		case r == '\'' || r == '"':
+			quote = r
+		case unicode.IsSpace(r):
+			flush()
+		default:
+			b.WriteRune(r)
+		}
+	}
+	if escaped {
+		b.WriteRune('\\')
+	}
+	if quote != 0 {
+		return nil, fmt.Errorf("unterminated quote in /kanban command")
+	}
+	flush()
+	return fields, nil
+}
+
+func nonEmptyStrings(values ...string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func writeKanbanJSON(cmd *cobra.Command, v any) error {

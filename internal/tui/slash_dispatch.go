@@ -138,6 +138,7 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("branch", branchSlashHandler)
 	r.Register("copy", copySlashHandler)
 	r.Register("browser", browserSlashHandler, WithBusyAvailable())
+	r.Register("kanban", kanbanSlashHandler, WithBusyAvailable())
 	return r
 }
 

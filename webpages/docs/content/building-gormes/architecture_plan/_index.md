@@ -833,6 +833,7 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban production worker process binding
 - [x] Hermes Kanban worker tools and prompt gating
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
+- [x] Native TUI /kanban slash command binding over gormes kanban
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 - [x] Kanban worker heartbeat, reclaim, and zombie detection

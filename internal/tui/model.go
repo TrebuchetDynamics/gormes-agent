@@ -52,6 +52,10 @@ type Options struct {
 	// nil keeps copy unavailable; production callers may wire OSC52 or a
 	// platform clipboard helper outside the TUI model.
 	ClipboardWrite func(string) error
+	// KanbanSlash is the injected local command runner invoked by /kanban.
+	// nil keeps /kanban consumed with unavailable evidence; cmd/gormes wires
+	// this to the same Cobra command tree as `gormes kanban`.
+	KanbanSlash KanbanSlashFunc
 	// OfflineSmoke keeps plain-text submits inside the TUI. It is used by
 	// `gormes --offline` so the demo path proves the native UI without
 	// contacting a provider or enqueueing a kernel turn.
@@ -109,6 +113,7 @@ type Model struct {
 	sessionBranch  SessionBranchFunc
 	sessionExport  SessionExportFunc
 	clipboardWrite func(string) error
+	kanbanSlash    KanbanSlashFunc
 
 	slashRegistry *SlashRegistry
 
@@ -153,6 +158,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		busyGuard:      opts.BusyGuard,
 		sessionExport:  opts.SessionExport,
 		clipboardWrite: opts.ClipboardWrite,
+		kanbanSlash:    opts.KanbanSlash,
 		offlineSmoke:   opts.OfflineSmoke,
 		slashRegistry:  NewDefaultSlashRegistry(),
 	}
