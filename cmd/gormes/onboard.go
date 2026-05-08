@@ -89,6 +89,9 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 				return err
 			}
 			if asJSON {
+				if wizard {
+					return writeOnboardWizardPlanJSON(cmd, cfg, nonInteractive || !seams.IsTTY())
+				}
 				return writeOnboardStatusJSON(cmd, cfg)
 			}
 			if wizard {
@@ -239,6 +242,57 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "GORMES_SKILLS_ROOT is set; runtime skill tools and `gormes skills` will use that override.")
 	}
+}
+
+// onboardWizardPlanJSON is the wire shape for `gormes onboard
+// --wizard --json`. Without this path the same snapshot shape that
+// `--json` returns is emitted regardless of `--wizard` — operators
+// driving fleet provisioning from JSON had to scrape the numbered
+// step rows the human surface prints. The structured plan mirrors
+// the text ladder field-for-field so consumers can render the same
+// step ordering, status, next-command, and skip-warning copy.
+type onboardWizardPlanJSON struct {
+	Build buildProvenanceJSON     `json:"build"`
+	Mode  string                  `json:"mode"`
+	Steps []onboardWizardStepJSON `json:"steps"`
+}
+
+type onboardWizardStepJSON struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	Detail      string `json:"detail"`
+	NextCommand string `json:"next_command"`
+	SkipWarning string `json:"skip_warning"`
+}
+
+func writeOnboardWizardPlanJSON(cmd *cobra.Command, cfg config.Config, nonInteractive bool) error {
+	plan := buildOnboardPlanFromConfig(cfg)
+	mode := "interactive"
+	if nonInteractive {
+		mode = "non-interactive"
+	}
+	report := onboardWizardPlanJSON{
+		Build: newBuildProvenance(),
+		Mode:  mode,
+		Steps: make([]onboardWizardStepJSON, 0, len(plan.Steps)),
+	}
+	for _, step := range plan.Steps {
+		report.Steps = append(report.Steps, onboardWizardStepJSON{
+			ID:          step.ID,
+			Title:       step.Title,
+			Status:      step.Status,
+			Detail:      step.Detail,
+			NextCommand: step.NextCommand,
+			SkipWarning: step.SkipWarning,
+		})
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func printOnboardWizardPlan(cmd *cobra.Command, cfg config.Config, nonInteractive bool) {
