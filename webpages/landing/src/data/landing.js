@@ -16,9 +16,9 @@ const codeBaseLabel = goFiles && goLines && testCount
   : '';
 
 export const page = {
-  title: 'Gormes — Hermes-Compatible AI Agent Runtime in One Go Binary',
+  title: 'Gormes — Autonomous Porting Methodology in One Go Binary',
   description:
-    'Run Hermes-style AI agent skills, providers, memory, and gateways from one Go binary. No Python runtime. Built by an autonomous engineering loop that ports upstream Hermes daily under TDD discipline.',
+    "Gormes is TrebuchetDynamics' autonomous-porting receipt: the 30 most-used Hermes skills running unchanged in a single 30 MB Go binary for Termux, Windows without Python, and locked-down Linux.",
   nav: [
     { label: 'How it is built', href: '#methodology' },
     { label: 'Install', href: '#install' },
@@ -26,14 +26,14 @@ export const page = {
     { label: 'Roadmap', href: '#roadmap' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  heroKicker: 'OPEN SOURCE · MIT LICENSE · AUTONOMOUSLY PORTED FROM HERMES',
-  heroHeadline: 'AI agent runtime in one Go binary.',
+  heroKicker: 'OPEN SOURCE · MIT LICENSE · AUTONOMOUS PORTING RECEIPT',
+  heroHeadline: 'Autonomous porting you can run.',
   heroLines: [
-    'Drop-in compatible with the Hermes agent ecosystem — skills, providers, memory, and gateways — without a Python runtime, virtualenv, or backend service.',
-    "Built by TrebuchetDynamics' autonomous engineering loop, which ports upstream Hermes daily under TDD discipline.",
-    'Choose source build or install.sh, prove the machine offline, then add provider and gateway credentials.',
+    "Gormes is TrebuchetDynamics' receipt for a validation-gated loop that ports Python agent systems to Go.",
+    'The v1.0 cut runs the 30 most-used Hermes skills unchanged in one 30 MB Go binary on Termux, Windows without Python, and locked-down Linux.',
+    'Hermes compatibility is the proof, not the pitch: build or install, prove the machine offline, then add provider and gateway credentials.',
   ],
-  heroFilterStamp: 'Scout release.',
+  heroFilterStamp: 'Scout release, honest limits.',
   heroFilterLine:
     'Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now. Release signing, voice/TTS, and full Hermes parity are still hardening.',
   primaryCta: { label: 'Choose an install path', href: '#install' },
@@ -42,8 +42,10 @@ export const page = {
     href: '#methodology',
   },
   proofStrip: [
+    '30 Hermes skills unchanged',
+    '30 MB target',
+    'Termux + Windows + locked-down Linux',
     'Source build recommended',
-    'install.sh available',
     releaseLabel,
     'Static Go binary',
     'MIT License',

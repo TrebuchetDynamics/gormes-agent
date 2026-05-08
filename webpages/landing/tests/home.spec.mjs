@@ -25,13 +25,17 @@ test('homepage renders the redesigned landing', async ({ page }) => {
 
   await page.goto('/');
 
-  await expect(page).toHaveTitle('Gormes — Hermes-Compatible AI Agent Runtime in One Go Binary');
+  await expect(page).toHaveTitle('Gormes — Autonomous Porting Methodology in One Go Binary');
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    'content',
+    "Gormes is TrebuchetDynamics' autonomous-porting receipt: the 30 most-used Hermes skills running unchanged in a single 30 MB Go binary for Termux, Windows without Python, and locked-down Linux.",
+  );
   await expect(page.locator('html[data-site-runtime="astro-tailwind"]')).toHaveCount(1);
-  await expect(page.getByRole('heading', { name: 'AI agent runtime in one Go binary.' })).toBeVisible();
-  await expect(page.getByText('Drop-in compatible with the Hermes agent ecosystem — skills, providers, memory, and gateways — without a Python runtime, virtualenv, or backend service.')).toBeVisible();
-  await expect(page.getByText("Built by TrebuchetDynamics' autonomous engineering loop, which ports upstream Hermes daily under TDD discipline.")).toBeVisible();
-  await expect(page.getByText('Choose source build or install.sh, prove the machine offline, then add provider and gateway credentials.')).toBeVisible();
-  await expect(page.getByText('Scout release.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Autonomous porting you can run.' })).toBeVisible();
+  await expect(page.getByText("Gormes is TrebuchetDynamics' receipt for a validation-gated loop that ports Python agent systems to Go.")).toBeVisible();
+  await expect(page.getByText('The v1.0 cut runs the 30 most-used Hermes skills unchanged in one 30 MB Go binary on Termux, Windows without Python, and locked-down Linux.')).toBeVisible();
+  await expect(page.getByText('Hermes compatibility is the proof, not the pitch: build or install, prove the machine offline, then add provider and gateway credentials.')).toBeVisible();
+  await expect(page.getByText('Scout release, honest limits.')).toBeVisible();
   await expect(page.getByText('Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now.')).toBeVisible();
   await expect(page.getByText('Release signing, voice/TTS, and full Hermes parity are still hardening.')).toBeVisible();
   await expect(page.locator('.topnav a')).toHaveText(['How it is built', 'Install', 'Trust', 'Roadmap', 'GitHub']);
@@ -161,7 +165,7 @@ for (const vp of MOBILE_VIEWPORTS) {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'AI agent runtime in one Go binary.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Autonomous porting you can run.' })).toBeVisible();
     await expect(page.getByText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git')).toBeVisible();
 
     const heroLayout = await page.evaluate(() => {

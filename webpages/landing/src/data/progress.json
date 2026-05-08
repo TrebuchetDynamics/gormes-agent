@@ -46646,13 +46646,13 @@
             },
             {
               "name": "gormes.ai landing page positioning audit",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
-              "contract": "The gormes.ai landing page hero matches the success-plan.md North Star: methodology + sharp differentiator first; Hermes-parity is supporting evidence, not the headline. The page links to the engineering blog and the agentic-porting-kit repo (or a placeholder).",
-              "contract_status": "draft",
+              "contract": "The gormes.ai landing page hero matches the success-plan.md North Star and README: autonomous-porting methodology + the ratified 30-skill single-binary differentiator appear before Hermes compatibility. Hermes parity stays as supporting evidence. Until the separate TD engineering blog row publishes a real URL, the landing page must not add a dead blog link; it should instead preserve docs, GitHub, install, roadmap, and TrebuchetDynamics links.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -46662,28 +46662,34 @@
               "fixture": "webpages/landing/src/",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
-                "webpages/landing/",
-                "README.md"
+                "docs/content/building-gormes/strategy/v1-differentiator.md",
+                "README.md",
+                "webpages/landing/src/data/landing.js",
+                "webpages/landing/src/pages/index.astro",
+                "webpages/landing/tests/home.spec.mjs"
               ],
               "ready_when": [
-                "README rewrite (8.B row 1) has landed on `development`.",
-                "Sharp v1.0 differentiator (8.D) is decided."
+                "README rewrite to methodology-first positioning is complete.",
+                "Sharp v1.0 differentiator decision is complete.",
+                "Landing-page Playwright tests can assert the hero/metadata copy without requiring live blog DNS."
               ],
               "not_ready_when": [
                 "The hero copy contradicts the README hero copy.",
-                "The page removes existing operator-facing CTAs (install, docs, github) without replacement."
+                "The page removes existing operator-facing CTAs (install, docs, github) without replacement.",
+                "The slice adds a TD blog link before the TD engineering blog row records a public URL."
               ],
               "blocked_by": [
                 "README rewrite to methodology-first positioning",
                 "Sharp v1.0 differentiator decision"
               ],
               "acceptance": [
-                "Landing page hero text references the methodology and differentiator before mentioning Hermes parity.",
-                "A link to the TD engineering blog is present in the page footer or nav.",
-                "Existing landing-page tests continue to pass after the copy changes."
+                "Landing page title, description, hero headline, and first hero paragraph lead with the autonomous-porting methodology and 30-skill single-binary differentiator before mentioning Hermes compatibility.",
+                "Install, docs, roadmap, GitHub, and TrebuchetDynamics links remain visible; no dead TD blog link is introduced while the TD engineering blog row is still planned.",
+                "Landing-page Playwright tests pin the new positioning and continue to pass after the copy changes."
               ],
               "write_scope": [
                 "webpages/landing/src/",
+                "webpages/landing/tests/home.spec.mjs",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -46692,9 +46698,20 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Hero copy matches the North Star; landing-page e2e tests green."
+                "Hero and metadata copy match the North Star and v1 differentiator; landing-page e2e tests green."
               ],
-              "note": "Source: success-plan.md Q1 \u2014 repository messaging alignment."
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 32, below the 90-row cap, so adding one row was allowed but unnecessary: existing runtime rows already cover the main Hermes parity surfaces, while the landing page still led with generic Hermes-compatible runtime copy after the README and v1 differentiator were updated. Planner pass promoted this existing docs/public row to P1, refreshed source refs, and deferred the old TD-blog-link acceptance to the separate `TD engineering blog scaffolded and live` row so builders do not create dead links. TDD then rewrote landing metadata, hero headline, hero paragraphs, scout-release stamp, and proof strip so methodology + 30-skill single-binary differentiator appear before Hermes compatibility.",
+              "evidence": {
+                "implementation": [
+                  "webpages/landing/src/data/landing.js now titles the page as autonomous-porting methodology, describes Gormes as the TrebuchetDynamics receipt, and leads the hero with the validation-gated Python-to-Go porting loop.",
+                  "The second hero paragraph states the ratified v1 differentiator: 30 most-used Hermes skills unchanged in one 30 MB Go binary on Termux, Windows without Python, and locked-down Linux.",
+                  "The proof strip now foregrounds the 30-skill and platform differentiator while preserving install, release, license, offline-doctor, and autonomous-loop trust signals."
+                ],
+                "verification": [
+                  "RED: timeout 20m sh -c 'cd webpages/landing && npm run test:e2e -- --grep \"homepage renders\"' failed because the page title still said Hermes-Compatible AI Agent Runtime.",
+                  "GREEN: timeout 20m sh -c 'cd webpages/landing && npm run test:e2e -- --grep \"homepage renders\"' passed after the landing data update."
+                ]
+              }
             }
           ]
         },
