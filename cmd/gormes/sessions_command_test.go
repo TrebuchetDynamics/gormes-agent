@@ -232,6 +232,133 @@ type sessionCommandSeed struct {
 	ts      int64
 }
 
+// TestSessionDelete_JSONEmitsStructuredOutcome proves
+// `gormes session delete <id> --yes --json` returns
+// `{build, action, requested_id, resolved_id, deleted}` so fleet
+// automation tearing down sessions can audit which sessions actually
+// vanished per machine. `requested_id` echoes the user input
+// (possibly a prefix); `resolved_id` is the full id that was deleted.
+func TestSessionDelete_JSONEmitsStructuredOutcome(t *testing.T) {
+	seedSessionsCommandDB(t, []sessionCommandSeed{
+		{id: "20260315_092437_c9a6ff", role: "user", content: "target", ts: 100},
+	})
+
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "delete", "20260315_092437", "--yes", "--json")
+	if err != nil {
+		t.Fatalf("session delete --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action      string `json:"action"`
+		RequestedID string `json:"requested_id"`
+		ResolvedID  string `json:"resolved_id"`
+		Deleted     bool   `json:"deleted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("session delete --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "deleted" {
+		t.Errorf("action = %q, want %q", got.Action, "deleted")
+	}
+	if got.RequestedID != "20260315_092437" {
+		t.Errorf("requested_id = %q, want %q", got.RequestedID, "20260315_092437")
+	}
+	if got.ResolvedID != "20260315_092437_c9a6ff" {
+		t.Errorf("resolved_id = %q, want full id %q", got.ResolvedID, "20260315_092437_c9a6ff")
+	}
+	if !got.Deleted {
+		t.Errorf("deleted must be true on successful delete")
+	}
+	assertSessionCommandTurnCount(t, "20260315_092437_c9a6ff", 0)
+}
+
+// TestSessionDelete_JSONNotFoundEmitsParseable proves the
+// not-found path also returns a JSON document (with deleted=false,
+// action="not_found") rather than fall back to prose. Fleet scripts
+// iterating across hosts need a stable parseable signal whether the
+// session existed or not.
+func TestSessionDelete_JSONNotFoundEmitsParseable(t *testing.T) {
+	seedSessionsCommandDB(t, []sessionCommandSeed{
+		{id: "exists", role: "user", content: "x", ts: 100},
+	})
+
+	stdout, _, err := runSessionsCommand(t, nil, "session", "delete", "does-not-exist", "--yes", "--json")
+	if err != nil {
+		t.Fatalf("session delete --json (missing): %v\nstdout=%s", err, stdout)
+	}
+
+	var got struct {
+		Action      string `json:"action"`
+		RequestedID string `json:"requested_id"`
+		Deleted     bool   `json:"deleted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("session delete --json (missing) must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Action != "not_found" {
+		t.Errorf("action = %q, want %q", got.Action, "not_found")
+	}
+	if got.Deleted {
+		t.Errorf("deleted must be false when session not found")
+	}
+}
+
+// TestSessionPrune_JSONEmitsStructuredOutcome proves
+// `gormes session prune --older-than N --yes --json` returns a
+// parseable `{build, action, older_than_days, source, pruned}`
+// document so fleet automation running scheduled session GC can
+// audit how many sessions vanished per machine without scraping
+// "Pruned N session(s)." prose.
+func TestSessionPrune_JSONEmitsStructuredOutcome(t *testing.T) {
+	// Seed an old session (ts=1) and a fresh one. Setting --older-than=1
+	// means anything older than 1 day from now is pruned — both seeds
+	// have ts=1 epoch so they are both well past the cutoff.
+	seedSessionsCommandDB(t, []sessionCommandSeed{
+		{id: "old-session-1", role: "user", content: "old1", ts: 1},
+		{id: "old-session-2", role: "user", content: "old2", ts: 1},
+	})
+
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "prune", "--older-than=1", "--yes", "--json")
+	if err != nil {
+		t.Fatalf("session prune --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action        string `json:"action"`
+		OlderThanDays int    `json:"older_than_days"`
+		Source        string `json:"source"`
+		Pruned        int    `json:"pruned"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("session prune --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "pruned" {
+		t.Errorf("action = %q, want %q", got.Action, "pruned")
+	}
+	if got.OlderThanDays != 1 {
+		t.Errorf("older_than_days = %d, want 1", got.OlderThanDays)
+	}
+	if got.Pruned != 2 {
+		t.Errorf("pruned = %d, want 2 (both old sessions)", got.Pruned)
+	}
+	assertSessionCommandTurnCount(t, "old-session-1", 0)
+	assertSessionCommandTurnCount(t, "old-session-2", 0)
+}
+
 func seedSessionsCommandDB(t *testing.T, seeds []sessionCommandSeed) {
 	t.Helper()
 	dataHome := t.TempDir()

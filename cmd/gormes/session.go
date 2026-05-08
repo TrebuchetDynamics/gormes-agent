@@ -186,13 +186,29 @@ func newSessionDeleteCommand() *cobra.Command {
 				return err
 			}
 			defer db.Close()
+			asJSON, _ := cmd.Flags().GetBool("json")
 			resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
 			if err != nil {
 				if errors.Is(err, sessionpkg.ErrSessionNotFound) {
+					if asJSON {
+						return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
+							Build:       newBuildProvenance(),
+							Action:      "not_found",
+							RequestedID: args[0],
+						})
+					}
 					fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
 					return nil
 				}
 				if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
+					if asJSON {
+						return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
+							Build:       newBuildProvenance(),
+							Action:      "ambiguous",
+							RequestedID: args[0],
+							Error:       err.Error(),
+						})
+					}
 					fmt.Fprintf(cmd.OutOrStdout(), "sessions_delete_ambiguous: %s\n", err.Error())
 					return nil
 				}
@@ -211,15 +227,55 @@ func newSessionDeleteCommand() *cobra.Command {
 				return err
 			}
 			if !deleted {
+				if asJSON {
+					return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
+						Build:       newBuildProvenance(),
+						Action:      "not_found",
+						RequestedID: args[0],
+						ResolvedID:  resolved,
+					})
+				}
 				fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
 				return nil
+			}
+			if asJSON {
+				return writeSessionDeleteJSON(cmd.OutOrStdout(), sessionDeleteReportJSON{
+					Build:       newBuildProvenance(),
+					Action:      "deleted",
+					RequestedID: args[0],
+					ResolvedID:  resolved,
+					Deleted:     true,
+				})
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Deleted session '%s'.\n", resolved)
 			return nil
 		},
 	}
 	cmd.Flags().Bool("yes", false, "delete without prompting")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'deleted'|'not_found'|'ambiguous', requested_id, resolved_id, deleted, error?}`")
 	return cmd
+}
+
+// sessionDeleteReportJSON is the wire shape for `session delete --json`.
+// Operator scripts iterating across hosts parse this to learn whether
+// the session actually existed (`deleted: true`), wasn't there
+// (`action: "not_found"`), or matched multiple ids (`action: "ambiguous"`).
+type sessionDeleteReportJSON struct {
+	Build       buildProvenanceJSON `json:"build"`
+	Action      string              `json:"action"`
+	RequestedID string              `json:"requested_id"`
+	ResolvedID  string              `json:"resolved_id,omitempty"`
+	Deleted     bool                `json:"deleted"`
+	Error       string              `json:"error,omitempty"`
+}
+
+func writeSessionDeleteJSON(out interface{ Write(p []byte) (int, error) }, report sessionDeleteReportJSON) error {
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
 }
 
 func newSessionPruneCommand() *cobra.Command {
@@ -238,6 +294,7 @@ func newSessionPruneCommand() *cobra.Command {
 			if !cmd.Flags().Changed("yes") {
 				yes = false
 			}
+			asJSON, _ := cmd.Flags().GetBool("json")
 			if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete sessions older than %d days? [y/N] ", days)) {
 				fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
 				return nil
@@ -247,6 +304,20 @@ func newSessionPruneCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(sessionPruneReportJSON{
+					Build:         newBuildProvenance(),
+					Action:        "pruned",
+					OlderThanDays: days,
+					Source:        source,
+					Pruned:        count,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return nil
+			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Pruned %d session(s).\n", count)
 			return nil
 		},
@@ -254,7 +325,20 @@ func newSessionPruneCommand() *cobra.Command {
 	cmd.Flags().Int("older-than", 90, "delete sessions older than N days")
 	cmd.Flags().String("source", "", "only prune sessions from this source")
 	cmd.Flags().Bool("yes", false, "prune without prompting")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, older_than_days, source, pruned}`")
 	return cmd
+}
+
+// sessionPruneReportJSON is the wire shape for `session prune --json`.
+// Fleet automation running scheduled session GC parses this to audit
+// how many sessions vanished per machine. Source filter is echoed so
+// dashboards can correlate with the policy that drove the prune.
+type sessionPruneReportJSON struct {
+	Build         buildProvenanceJSON `json:"build"`
+	Action        string              `json:"action"`
+	OlderThanDays int                 `json:"older_than_days"`
+	Source        string              `json:"source"`
+	Pruned        int                 `json:"pruned"`
 }
 
 func newSessionBrowseCommand() *cobra.Command {
