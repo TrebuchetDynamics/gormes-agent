@@ -252,45 +252,64 @@ func newCuratorRunCommand(deps curatorCommandDeps) *cobra.Command {
 }
 
 func newCuratorPauseCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "pause",
 		Short: "Pause curator runs until resumed",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			root := resolveCuratorSkillsRoot(deps)
-			curator := newCuratorForCommand(root, deps)
-			state, err := curator.LoadState()
-			if err != nil {
-				return err
-			}
-			state.Paused = true
-			if err := curator.SaveState(state); err != nil {
-				return err
-			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "curator: paused")
-			return err
+			return runCuratorPauseFlip(cmd, deps, true, "paused")
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'paused', paused: true}`")
+	return cmd
 }
 
 func newCuratorResumeCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "resume",
 		Short: "Resume curator runs",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			root := resolveCuratorSkillsRoot(deps)
-			curator := newCuratorForCommand(root, deps)
-			state, err := curator.LoadState()
-			if err != nil {
-				return err
-			}
-			state.Paused = false
-			if err := curator.SaveState(state); err != nil {
-				return err
-			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "curator: resumed")
-			return err
+			return runCuratorPauseFlip(cmd, deps, false, "resumed")
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'resumed', paused: false}`")
+	return cmd
+}
+
+func runCuratorPauseFlip(cmd *cobra.Command, deps curatorCommandDeps, pausedAfter bool, action string) error {
+	root := resolveCuratorSkillsRoot(deps)
+	curator := newCuratorForCommand(root, deps)
+	state, err := curator.LoadState()
+	if err != nil {
+		return err
+	}
+	state.Paused = pausedAfter
+	if err := curator.SaveState(state); err != nil {
+		return err
+	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(curatorPauseFlipReportJSON{
+			Build:  newBuildProvenance(),
+			Action: action,
+			Paused: pausedAfter,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "curator: %s\n", action)
+	return err
+}
+
+// curatorPauseFlipReportJSON is the wire shape for `curator pause --json`
+// and `curator resume --json`. Fleet kill-switch automation parses this
+// to confirm the curator state flip landed.
+type curatorPauseFlipReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	Paused bool                `json:"paused"`
 }
 
 func newCuratorPinCommand(deps curatorCommandDeps) *cobra.Command {

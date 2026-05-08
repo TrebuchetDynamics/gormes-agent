@@ -326,6 +326,140 @@ func TestGormesAuthStatusAndLogout(t *testing.T) {
 	}
 }
 
+// TestGormesAuthRemoveJSONEmitsStructuredOutcome proves
+// `gormes auth remove <provider> <target> --json` returns
+// `{build, action, provider, removed: {id, label}, redacted}` so
+// fleet credential-rotation automation can audit which credential
+// was actually removed without scraping `auth_credential_removed`
+// `key=value` lines. The raw access token MUST never appear.
+func TestGormesAuthRemoveJSONEmitsStructuredOutcome(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
+		{ID: "cred-a", Label: "alpha", AuthType: config.CredentialAuthAPIKey, Source: "manual", AccessToken: "plain-token-X"},
+	})
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "remove", "openrouter", "cred-a", "--json")
+	if err != nil {
+		t.Fatalf("auth remove --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-token-X") {
+		t.Fatalf("auth remove --json LEAKED secret:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action   string `json:"action"`
+		Provider string `json:"provider"`
+		Removed  struct {
+			ID    string `json:"id"`
+			Label string `json:"label"`
+		} `json:"removed"`
+		Redacted bool `json:"redacted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("auth remove --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "removed" {
+		t.Errorf("action = %q, want %q", got.Action, "removed")
+	}
+	if got.Provider != "openrouter" {
+		t.Errorf("provider = %q, want openrouter", got.Provider)
+	}
+	if got.Removed.ID != "cred-a" || got.Removed.Label != "alpha" {
+		t.Errorf("removed = %+v, want {ID: cred-a, Label: alpha}", got.Removed)
+	}
+	if !got.Redacted {
+		t.Errorf("redacted must be true (we never returned the raw token)")
+	}
+}
+
+// TestGormesAuthResetJSONEmitsStructuredOutcome proves the reset
+// command emits `{build, action, provider, count, redacted}` for
+// fleet automation clearing exhaustion across machines.
+func TestGormesAuthResetJSONEmitsStructuredOutcome(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
+		{ID: "cred-a", Label: "alpha", AuthType: config.CredentialAuthAPIKey, Source: "manual", AccessToken: "plain-A", LastStatus: config.CredentialStatusExhausted},
+		{ID: "cred-b", Label: "beta", AuthType: config.CredentialAuthAPIKey, Source: "manual", AccessToken: "plain-B", LastStatus: config.CredentialStatusOK},
+	})
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "reset", "openrouter", "--json")
+	if err != nil {
+		t.Fatalf("auth reset --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-") {
+		t.Fatalf("auth reset --json LEAKED secret:\nstdout=%s", stdout)
+	}
+	var got struct {
+		Action   string `json:"action"`
+		Provider string `json:"provider"`
+		Count    int    `json:"count"`
+		Redacted bool   `json:"redacted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("auth reset --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Action != "reset" {
+		t.Errorf("action = %q, want %q", got.Action, "reset")
+	}
+	if got.Count != 2 {
+		t.Errorf("count = %d, want 2", got.Count)
+	}
+}
+
+// TestGormesAuthLogoutJSONEmitsStructuredOutcome proves logout
+// emits `{build, action: "logged_out"|"absent", provider, redacted}`.
+// The "absent" path runs when the credential pool is already empty —
+// fleet scripts iterating across hosts need a stable parseable signal.
+func TestGormesAuthLogoutJSONEmitsStructuredOutcome(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{
+		{ID: "cred-a", Label: "alpha", AuthType: config.CredentialAuthAPIKey, Source: "manual", AccessToken: "plain-X"},
+	})
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "logout", "openrouter", "--json")
+	if err != nil {
+		t.Fatalf("auth logout --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-X") {
+		t.Fatalf("auth logout --json LEAKED secret:\nstdout=%s", stdout)
+	}
+	var got struct {
+		Action   string `json:"action"`
+		Provider string `json:"provider"`
+		Redacted bool   `json:"redacted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("auth logout --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Action != "logged_out" {
+		t.Errorf("action = %q, want %q", got.Action, "logged_out")
+	}
+
+	// Second logout — pool now empty; action must be "absent".
+	cmd = newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err = executeOneshotFlagCommand(cmd, "auth", "logout", "openrouter", "--json")
+	if err != nil {
+		t.Fatalf("auth logout --json (already empty): %v\nstdout=%s", err, stdout)
+	}
+	var got2 struct {
+		Action string `json:"action"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got2); jsonErr != nil {
+		t.Fatalf("must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got2.Action != "absent" {
+		t.Errorf("action = %q, want %q", got2.Action, "absent")
+	}
+}
+
 func TestGormesAuthBareReadoutListsCredentialPools(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seedAuthCommandCredentials(t, "openrouter", []config.PooledCredential{

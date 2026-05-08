@@ -391,6 +391,144 @@ func TestGatewayReloadNoLiveRuntimeIsIdempotent(t *testing.T) {
 	assertGatewayStopDidNotOpenDurableStores(t)
 }
 
+// TestGatewayStop_JSONEmitsStructuredOutcome proves
+// `gormes gateway stop --json --timeout=100ms` returns a parseable
+// `{build, action: "stopped"|"noop", live, pid, signal: "SIGINT",
+// initial_status, final_status, planned_stop_marker_written}` document
+// so fleet automation orchestrating gateway lifecycle (deploy/restart
+// cycles) can confirm the SIGINT landed on the right pid AND that the
+// process actually exited within the timeout. `final_status` reflects
+// the post-shutdown validation state (typically `stale_pid`).
+func TestGatewayStop_JSONEmitsStructuredOutcome(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayStopRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          5555,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status: gateway.RuntimeProcessValidationLive,
+					Live:   true,
+					PID:    5555,
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          5555,
+					GatewayState: gateway.GatewayStateStopped,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:  gateway.RuntimeProcessValidationStalePID,
+					Live:    false,
+					PID:     5555,
+					Message: "process is not running",
+				},
+			},
+		},
+	}
+	restoreStore := gatewayStopRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayStopSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "stop", "--timeout=100ms", "--json")
+	if err != nil {
+		t.Fatalf("gateway stop --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 1 || signals[0].pid != 5555 || signals[0].signal != os.Interrupt {
+		t.Fatalf("signals = %+v, want one interrupt for pid 5555", signals)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action                    string `json:"action"`
+		Live                      bool   `json:"live"`
+		PID                       int    `json:"pid"`
+		Signal                    string `json:"signal"`
+		InitialStatus             string `json:"initial_status"`
+		FinalStatus               string `json:"final_status"`
+		PlannedStopMarkerWritten  bool   `json:"planned_stop_marker_written"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("gateway stop --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "stopped" {
+		t.Errorf("action = %q, want %q", got.Action, "stopped")
+	}
+	if got.PID != 5555 {
+		t.Errorf("pid = %d, want 5555", got.PID)
+	}
+	if got.Signal != "SIGINT" {
+		t.Errorf("signal = %q, want %q", got.Signal, "SIGINT")
+	}
+	if got.FinalStatus == "" {
+		t.Errorf("final_status must be populated")
+	}
+}
+
+// TestGatewayStop_JSONNoopWhenNoLiveRuntime proves the JSON
+// idempotent path when no gateway is running. Fleet automation
+// can branch on `action: "noop"` and `live: false` instead of
+// scraping "no live gateway runtime" prose.
+func TestGatewayStop_JSONNoopWhenNoLiveRuntime(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	store := &fakeGatewayStopRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{
+			{
+				Missing: true,
+				Validation: gateway.RuntimeProcessValidation{
+					Status:  gateway.RuntimeProcessValidationMissingState,
+					Live:    false,
+					Message: "runtime status is missing",
+				},
+			},
+		},
+	}
+	restoreStore := gatewayStopRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayStopSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+
+	stdout, _, err := executeGatewayMutatingCommand(t, "stop", "--json")
+	if err != nil {
+		t.Fatalf("gateway stop --json (no runtime): %v\nstdout=%s", err, stdout)
+	}
+	if len(signals) != 0 {
+		t.Fatalf("signals = %+v, want none for missing runtime", signals)
+	}
+	var got struct {
+		Action string `json:"action"`
+		Live   bool   `json:"live"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("gateway stop --json (no runtime) must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Action != "noop" {
+		t.Errorf("action = %q, want %q", got.Action, "noop")
+	}
+	if got.Live {
+		t.Errorf("live must be false when no runtime")
+	}
+}
+
 // TestGatewayReload_JSONEmitsStructuredOutcome proves
 // `gormes gateway reload --json` returns a parseable
 // `{build, action, live, pid, signal, status}` document so fleet

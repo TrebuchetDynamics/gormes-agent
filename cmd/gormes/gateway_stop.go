@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -11,6 +12,23 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
+
+// gatewayStopReportJSON is the wire shape for `gateway stop --json`.
+// Fleet automation orchestrating gateway lifecycle parses this to
+// confirm the SIGINT landed on the right pid AND that the process
+// actually exited within the timeout. `final_status` reflects the
+// post-shutdown validation state (typically `stale_pid`).
+type gatewayStopReportJSON struct {
+	Build                    buildProvenanceJSON `json:"build"`
+	Action                   string              `json:"action"`
+	Live                     bool                `json:"live"`
+	PID                      int                 `json:"pid,omitempty"`
+	Signal                   string              `json:"signal,omitempty"`
+	InitialStatus            string              `json:"initial_status,omitempty"`
+	FinalStatus              string              `json:"final_status,omitempty"`
+	Message                  string              `json:"message,omitempty"`
+	PlannedStopMarkerWritten bool                `json:"planned_stop_marker_written"`
+}
 
 const defaultGatewayStopTimeout = 10 * time.Second
 
@@ -43,6 +61,7 @@ func newGatewayStopCommand() *cobra.Command {
 		RunE:         runGatewayStop,
 	}
 	cmd.Flags().Duration("timeout", defaultGatewayStopTimeout, "maximum time to wait for the gateway process to exit")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'stopped'|'noop', live, pid, signal: 'SIGINT', initial_status, final_status, planned_stop_marker_written}`")
 	return cmd
 }
 
@@ -59,6 +78,7 @@ func runGatewayStop(cmd *cobra.Command, _ []string) error {
 	if timeout < 0 {
 		return fmt.Errorf("gateway stop: timeout must be non-negative")
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
 
 	store := newGatewayStopRuntimeStore(config.GatewayRuntimeStatusPath())
 	snapshot, err := store.ReadValidatedRuntimeStatusSnapshot(ctx)
@@ -68,6 +88,16 @@ func runGatewayStop(cmd *cobra.Command, _ []string) error {
 	pid := gatewayStopPID(snapshot)
 	validation := snapshot.Validation
 	if !validation.Live {
+		if asJSON {
+			return writeGatewayStopJSON(cmd.OutOrStdout(), gatewayStopReportJSON{
+				Build:         newBuildProvenance(),
+				Action:        "noop",
+				Live:          false,
+				PID:           pid,
+				InitialStatus: string(validation.Status),
+				Message:       validation.Message,
+			})
+		}
 		fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: no live gateway runtime (status=%s", validation.Status)
 		if pid > 0 {
 			fmt.Fprintf(cmd.OutOrStdout(), " pid=%d", pid)
@@ -86,22 +116,41 @@ func runGatewayStop(cmd *cobra.Command, _ []string) error {
 	}
 
 	markerStore := gateway.NewPlannedStopStore(gateway.DefaultPlannedStopMarkerPath(config.GatewayRuntimeStatusPath()))
+	var plannedStopMarkerWritten bool
 	if err := markerStore.Write(ctx, gateway.PlannedStopMarker{
 		TargetPID:       pid,
 		TargetStartTime: gatewayStopStartTime(snapshot),
 		Generation:      snapshot.Status.Generation,
 		Reason:          "gateway stop",
 	}); err != nil {
-		fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: planned_stop_marker_unavailable pid=%d error=%q\n", pid, err.Error())
+		if !asJSON {
+			fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: planned_stop_marker_unavailable pid=%d error=%q\n", pid, err.Error())
+		}
 	} else {
-		fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: planned_stop_marker_written pid=%d\n", pid)
+		plannedStopMarkerWritten = true
+		if !asJSON {
+			fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: planned_stop_marker_written pid=%d\n", pid)
+		}
 	}
 
 	if err := signalGatewayStopProcess(pid, os.Interrupt); err != nil {
 		return fmt.Errorf("gateway stop: signal pid %d: %w", pid, err)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: sent interrupt to pid=%d\n", pid)
+	if !asJSON {
+		fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: sent interrupt to pid=%d\n", pid)
+	}
 	if timeout == 0 {
+		if asJSON {
+			return writeGatewayStopJSON(cmd.OutOrStdout(), gatewayStopReportJSON{
+				Build:                    newBuildProvenance(),
+				Action:                   "stopped",
+				Live:                     true,
+				PID:                      pid,
+				Signal:                   "SIGINT",
+				InitialStatus:            string(validation.Status),
+				PlannedStopMarkerWritten: plannedStopMarkerWritten,
+			})
+		}
 		return nil
 	}
 
@@ -111,11 +160,33 @@ func runGatewayStop(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	if asJSON {
+		return writeGatewayStopJSON(cmd.OutOrStdout(), gatewayStopReportJSON{
+			Build:                    newBuildProvenance(),
+			Action:                   "stopped",
+			Live:                     true,
+			PID:                      pid,
+			Signal:                   "SIGINT",
+			InitialStatus:            string(validation.Status),
+			FinalStatus:              string(finalValidation.Status),
+			Message:                  finalValidation.Message,
+			PlannedStopMarkerWritten: plannedStopMarkerWritten,
+		})
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "gateway stop: stopped (status=%s", finalValidation.Status)
 	if finalValidation.Message != "" {
 		fmt.Fprintf(cmd.OutOrStdout(), " message=%q", finalValidation.Message)
 	}
 	fmt.Fprintln(cmd.OutOrStdout(), ")")
+	return nil
+}
+
+func writeGatewayStopJSON(out interface{ Write(p []byte) (int, error) }, report gatewayStopReportJSON) error {
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
 	return nil
 }
 

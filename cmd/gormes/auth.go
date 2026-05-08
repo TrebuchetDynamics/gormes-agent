@@ -113,7 +113,7 @@ func newAuthListCommand() *cobra.Command {
 }
 
 func newAuthRemoveCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "remove <provider> <target>",
 		Short:        "Remove a provider credential by index, id, or label",
 		Args:         cobra.ExactArgs(2),
@@ -122,10 +122,12 @@ func newAuthRemoveCommand() *cobra.Command {
 			return runAuthRemoveCommand(cmd, args[0], args[1])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, provider, removed: {id, label}, redacted}`")
+	return cmd
 }
 
 func newAuthResetCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "reset <provider>",
 		Short:        "Reset provider credential cooldown/exhaustion state",
 		Args:         cobra.ExactArgs(1),
@@ -134,6 +136,8 @@ func newAuthResetCommand() *cobra.Command {
 			return runAuthResetCommand(cmd, args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, provider, count, redacted}`")
+	return cmd
 }
 
 func newAuthStatusCommand() *cobra.Command {
@@ -152,7 +156,7 @@ func newAuthStatusCommand() *cobra.Command {
 }
 
 func newAuthLogoutCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "logout <provider>",
 		Short:        "Clear provider credentials",
 		Args:         cobra.ExactArgs(1),
@@ -161,6 +165,27 @@ func newAuthLogoutCommand() *cobra.Command {
 			return runAuthLogoutCommand(cmd, args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'logged_out'|'absent', provider, redacted}`")
+	return cmd
+}
+
+// authLifecycleReportJSON is the wire shape for `auth remove --json`,
+// `auth reset --json`, and `auth logout --json`. Fleet credential
+// rotation/cleanup automation parses this to confirm what changed
+// per machine. Raw secrets are NEVER present — `redacted: true` is
+// always emitted as a guarantee.
+type authLifecycleReportJSON struct {
+	Build    buildProvenanceJSON `json:"build"`
+	Action   string              `json:"action"`
+	Provider string              `json:"provider"`
+	Count    int                 `json:"count,omitempty"`
+	Removed  *authRemovedJSON    `json:"removed,omitempty"`
+	Redacted bool                `json:"redacted"`
+}
+
+type authRemovedJSON struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
 }
 
 type authAddOptions struct {
@@ -755,6 +780,16 @@ func runAuthRemoveCommand(cmd *cobra.Command, providerInput, target string) erro
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "removed",
+			Provider: provider,
+			Removed:  &authRemovedJSON{ID: removed.ID, Label: removed.Label},
+			Redacted: true,
+		})
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_credential_removed provider=%s id=%s label=%s redacted=true\n", provider, removed.ID, removed.Label)
 	return nil
 }
@@ -775,7 +810,26 @@ func runAuthResetCommand(cmd *cobra.Command, providerInput string) error {
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "reset",
+			Provider: provider,
+			Count:    len(entries),
+			Redacted: true,
+		})
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_status_reset provider=%s count=%d redacted=true\n", provider, len(entries))
+	return nil
+}
+
+func writeAuthLifecycleJSON(out interface{ Write(p []byte) (int, error) }, report authLifecycleReportJSON) error {
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
 	return nil
 }
 
@@ -835,12 +889,29 @@ func runAuthLogoutCommand(cmd *cobra.Command, providerInput string) error {
 	if err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
 	if len(entries) == 0 {
+		if asJSON {
+			return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+				Build:    newBuildProvenance(),
+				Action:   "absent",
+				Provider: provider,
+				Redacted: true,
+			})
+		}
 		fmt.Fprintf(cmd.OutOrStdout(), "auth_state_absent provider=%s redacted=true\n", provider)
 		return nil
 	}
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, nil); err != nil {
 		return err
+	}
+	if asJSON {
+		return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "logged_out",
+			Provider: provider,
+			Redacted: true,
+		})
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_logged_out provider=%s redacted=true\n", provider)
 	return nil

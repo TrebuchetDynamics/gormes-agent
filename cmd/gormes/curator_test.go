@@ -472,6 +472,63 @@ func TestCuratorCommand_RollbackListJSONEmitsBackupArray(t *testing.T) {
 	}
 }
 
+// TestCuratorCommand_PauseResumeJSON proves `curator pause --json`
+// and `curator resume --json` return parseable
+// `{build, action, paused}` documents so fleet kill-switch
+// automation pausing curator across machines can confirm the state
+// flip landed without scraping prose.
+func TestCuratorCommand_PauseResumeJSON(t *testing.T) {
+	root := setupCuratorCommandHome(t)
+	writeCuratorCommandSkill(t, root, "alpha")
+	if err := skills.MarkAgentCreated(root, "alpha"); err != nil {
+		t.Fatalf("MarkAgentCreated alpha: %v", err)
+	}
+
+	// pause --json
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "pause", "--json")
+	if err != nil {
+		t.Fatalf("curator pause --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var paused struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action string `json:"action"`
+		Paused bool   `json:"paused"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &paused); jsonErr != nil {
+		t.Fatalf("curator pause --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if paused.Build.Version != Version {
+		t.Errorf("paused.build.version = %q, want %q", paused.Build.Version, Version)
+	}
+	if paused.Action != "paused" {
+		t.Errorf("paused.action = %q, want %q", paused.Action, "paused")
+	}
+	if !paused.Paused {
+		t.Errorf("paused.paused must be true after pause")
+	}
+
+	// resume --json
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "resume", "--json")
+	if err != nil {
+		t.Fatalf("curator resume --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var resumed struct {
+		Action string `json:"action"`
+		Paused bool   `json:"paused"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &resumed); jsonErr != nil {
+		t.Fatalf("curator resume --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if resumed.Action != "resumed" {
+		t.Errorf("resumed.action = %q, want %q", resumed.Action, "resumed")
+	}
+	if resumed.Paused {
+		t.Errorf("resumed.paused must be false after resume")
+	}
+}
+
 func TestRootCommandIncludesCuratorCommand(t *testing.T) {
 	root := newRootCommandWithRuntime(rootRuntime{})
 	cmd, _, err := root.Find([]string{"curator", "status"})
