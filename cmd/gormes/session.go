@@ -21,182 +21,206 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tui"
 )
 
-var sessionCmd = &cobra.Command{
-	Use:     "session",
-	Aliases: []string{"sessions"},
-	Short:   "Inspect and export persisted sessions",
+// newSessionCommand returns a fresh session command tree (parent +
+// list/export/delete/prune/browse subcommands). Constructor pattern
+// avoids cross-test FlagSet contamination on shared package-level vars.
+func newSessionCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "session",
+		Aliases: []string{"sessions"},
+		Short:   "Inspect and export persisted sessions",
+	}
+	cmd.AddCommand(
+		newSessionListCommand(),
+		newSessionExportCommand(),
+		newSessionDeleteCommand(),
+		newSessionPruneCommand(),
+		newSessionBrowseCommand(),
+	)
+	return cmd
 }
 
-func init() {
-	sessionExportCmd.Flags().String("format", "markdown", "export format")
-	sessionDeleteCmd.Flags().Bool("yes", false, "delete without prompting")
-	sessionPruneCmd.Flags().Int("older-than", 90, "delete sessions older than N days")
-	sessionPruneCmd.Flags().String("source", "", "only prune sessions from this source")
-	sessionPruneCmd.Flags().Bool("yes", false, "prune without prompting")
-	sessionListCmd.Flags().String("source", "", "only list sessions from this source")
-	sessionListCmd.Flags().Int("limit", 20, "max sessions to list")
-	sessionBrowseCmd.Flags().String("source", "", "only browse sessions from this source")
-	sessionBrowseCmd.Flags().Int("limit", 500, "max sessions to load")
-	sessionBrowseCmd.Flags().Bool("no-curses", false, "use the numbered fallback picker")
-	sessionCmd.AddCommand(sessionListCmd, sessionExportCmd, sessionDeleteCmd, sessionPruneCmd, sessionBrowseCmd)
-}
-
-var sessionListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List recent sessions",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		db, err := openSessionDirectoryDB()
-		if err != nil {
-			return err
-		}
-		defer db.Close()
-		source, _ := cmd.Flags().GetString("source")
-		limit, _ := cmd.Flags().GetInt("limit")
-		sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
-		if err != nil {
-			return err
-		}
-		if len(sessions) == 0 {
-			fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
+func newSessionListCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List recent sessions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			db, err := openSessionDirectoryDB()
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			source, _ := cmd.Flags().GetString("source")
+			limit, _ := cmd.Flags().GetInt("limit")
+			sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
+			if err != nil {
+				return err
+			}
+			if len(sessions) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
+				return nil
+			}
+			renderSessionDirectoryList(cmd.OutOrStdout(), sessions)
 			return nil
-		}
-		renderSessionDirectoryList(cmd.OutOrStdout(), sessions)
-		return nil
-	},
+		},
+	}
+	cmd.Flags().String("source", "", "only list sessions from this source")
+	cmd.Flags().Int("limit", 20, "max sessions to list")
+	return cmd
 }
 
-var sessionExportCmd = &cobra.Command{
-	Use:   "export <session-id>",
-	Short: "Export a persisted session transcript",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		format, _ := cmd.Flags().GetString("format")
-		if format != "markdown" {
-			return fmt.Errorf("unsupported export format %q", format)
-		}
-
-		path := config.MemoryDBPath()
-		if _, err := os.Stat(path); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("memory database not found at %s", path)
+func newSessionExportCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "export <session-id>",
+		Short: "Export a persisted session transcript",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, _ := cmd.Flags().GetString("format")
+			if format != "markdown" {
+				return fmt.Errorf("unsupported export format %q", format)
 			}
-			return err
-		}
 
-		db, err := sql.Open("sqlite3", path)
-		if err != nil {
-			return fmt.Errorf("open transcript db: %w", err)
-		}
-		defer db.Close()
-
-		out, err := transcript.ExportMarkdown(context.Background(), db, args[0])
-		if err != nil {
-			if errors.Is(err, transcript.ErrSessionNotFound) {
-				return fmt.Errorf("session %q not found", args[0])
+			path := config.MemoryDBPath()
+			if _, err := os.Stat(path); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("memory database not found at %s", path)
+				}
+				return err
 			}
-			return err
-		}
 
-		_, err = fmt.Fprint(cmd.OutOrStdout(), out)
-		return err
-	},
+			db, err := sql.Open("sqlite3", path)
+			if err != nil {
+				return fmt.Errorf("open transcript db: %w", err)
+			}
+			defer db.Close()
+
+			out, err := transcript.ExportMarkdown(context.Background(), db, args[0])
+			if err != nil {
+				if errors.Is(err, transcript.ErrSessionNotFound) {
+					return fmt.Errorf("session %q not found", args[0])
+				}
+				return err
+			}
+
+			_, err = fmt.Fprint(cmd.OutOrStdout(), out)
+			return err
+		},
+	}
+	cmd.Flags().String("format", "markdown", "export format")
+	return cmd
 }
 
-var sessionDeleteCmd = &cobra.Command{
-	Use:   "delete <session-id-or-prefix>",
-	Short: "Delete a persisted session",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		db, err := openSessionDirectoryDB()
-		if err != nil {
-			return err
-		}
-		defer db.Close()
-		resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
-		if err != nil {
-			if errors.Is(err, sessionpkg.ErrSessionNotFound) {
+func newSessionDeleteCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete <session-id-or-prefix>",
+		Short: "Delete a persisted session",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			db, err := openSessionDirectoryDB()
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			resolved, err := sessionpkg.ResolveSessionIDPrefix(context.Background(), db, args[0])
+			if err != nil {
+				if errors.Is(err, sessionpkg.ErrSessionNotFound) {
+					fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
+					return nil
+				}
+				if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
+					fmt.Fprintf(cmd.OutOrStdout(), "sessions_delete_ambiguous: %s\n", err.Error())
+					return nil
+				}
+				return err
+			}
+			yes, _ := cmd.Flags().GetBool("yes")
+			if !cmd.Flags().Changed("yes") {
+				yes = false
+			}
+			if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete session '%s' and all its messages? [y/N] ", resolved)) {
+				fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+				return nil
+			}
+			deleted, err := sessionpkg.DeleteDirectorySession(context.Background(), db, resolved)
+			if err != nil {
+				return err
+			}
+			if !deleted {
 				fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
 				return nil
 			}
-			if errors.Is(err, sessionpkg.ErrSessionPrefixAmbiguous) {
-				fmt.Fprintf(cmd.OutOrStdout(), "sessions_delete_ambiguous: %s\n", err.Error())
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted session '%s'.\n", resolved)
+			return nil
+		},
+	}
+	cmd.Flags().Bool("yes", false, "delete without prompting")
+	return cmd
+}
+
+func newSessionPruneCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "prune",
+		Short: "Delete old persisted sessions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			db, err := openSessionDirectoryDB()
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			days, _ := cmd.Flags().GetInt("older-than")
+			source, _ := cmd.Flags().GetString("source")
+			yes, _ := cmd.Flags().GetBool("yes")
+			if !cmd.Flags().Changed("yes") {
+				yes = false
+			}
+			if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete sessions older than %d days? [y/N] ", days)) {
+				fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
 				return nil
 			}
-			return err
-		}
-		yes, _ := cmd.Flags().GetBool("yes")
-		if !cmd.Flags().Changed("yes") {
-			yes = false
-		}
-		if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete session '%s' and all its messages? [y/N] ", resolved)) {
-			fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+			cutoff := time.Now().AddDate(0, 0, -days).Unix()
+			count, err := sessionpkg.PruneDirectorySessions(context.Background(), db, cutoff, source)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Pruned %d session(s).\n", count)
 			return nil
-		}
-		deleted, err := sessionpkg.DeleteDirectorySession(context.Background(), db, resolved)
-		if err != nil {
-			return err
-		}
-		if !deleted {
-			fmt.Fprintf(cmd.OutOrStdout(), "Session '%s' not found.\n", args[0])
-			return nil
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Deleted session '%s'.\n", resolved)
-		return nil
-	},
+		},
+	}
+	cmd.Flags().Int("older-than", 90, "delete sessions older than N days")
+	cmd.Flags().String("source", "", "only prune sessions from this source")
+	cmd.Flags().Bool("yes", false, "prune without prompting")
+	return cmd
 }
 
-var sessionPruneCmd = &cobra.Command{
-	Use:   "prune",
-	Short: "Delete old persisted sessions",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		db, err := openSessionDirectoryDB()
-		if err != nil {
-			return err
-		}
-		defer db.Close()
-		days, _ := cmd.Flags().GetInt("older-than")
-		source, _ := cmd.Flags().GetString("source")
-		yes, _ := cmd.Flags().GetBool("yes")
-		if !cmd.Flags().Changed("yes") {
-			yes = false
-		}
-		if !yes && !confirmSessionAction(cmd, fmt.Sprintf("Delete sessions older than %d days? [y/N] ", days)) {
-			fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+func newSessionBrowseCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "browse",
+		Short: "Browse and resume persisted sessions",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			db, err := openSessionDirectoryDB()
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			source, _ := cmd.Flags().GetString("source")
+			limit, _ := cmd.Flags().GetInt("limit")
+			sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
+			if err != nil {
+				return err
+			}
+			selected := sessionBrowseFallback(cmd.OutOrStdout(), cmd.InOrStdin(), sessions)
+			if selected == "" {
+				fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+				return nil
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Resuming session: %s\n", selected)
 			return nil
-		}
-		cutoff := time.Now().AddDate(0, 0, -days).Unix()
-		count, err := sessionpkg.PruneDirectorySessions(context.Background(), db, cutoff, source)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Pruned %d session(s).\n", count)
-		return nil
-	},
-}
-
-var sessionBrowseCmd = &cobra.Command{
-	Use:   "browse",
-	Short: "Browse and resume persisted sessions",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		db, err := openSessionDirectoryDB()
-		if err != nil {
-			return err
-		}
-		defer db.Close()
-		source, _ := cmd.Flags().GetString("source")
-		limit, _ := cmd.Flags().GetInt("limit")
-		sessions, err := sessionpkg.ListDirectorySessions(context.Background(), db, sessionpkg.DirectoryFilter{Source: source, Limit: limit})
-		if err != nil {
-			return err
-		}
-		selected := sessionBrowseFallback(cmd.OutOrStdout(), cmd.InOrStdin(), sessions)
-		if selected == "" {
-			fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
-			return nil
-		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Resuming session: %s\n", selected)
-		return nil
-	},
+		},
+	}
+	cmd.Flags().String("source", "", "only browse sessions from this source")
+	cmd.Flags().Int("limit", 500, "max sessions to load")
+	cmd.Flags().Bool("no-curses", false, "use the numbered fallback picker")
+	return cmd
 }
 
 func openSessionDirectoryDB() (*sql.DB, error) {

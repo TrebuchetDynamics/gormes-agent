@@ -9,7 +9,6 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
-	"github.com/spf13/pflag"
 )
 
 func TestSessionsDeletePrefixResolution(t *testing.T) {
@@ -142,7 +141,9 @@ func seedSessionsCommandDB(t *testing.T, seeds []sessionCommandSeed) {
 
 func runSessionsCommand(t *testing.T, in *strings.Reader, args ...string) (string, string, error) {
 	t.Helper()
-	resetSessionsCommandFlagState(t)
+	// Each newRootCommand() builds a fresh session command tree via
+	// newSessionCommand(), so flag state is naturally isolated — no
+	// explicit per-flag reset needed.
 	cmd := newRootCommand()
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
@@ -155,41 +156,22 @@ func runSessionsCommand(t *testing.T, in *strings.Reader, args ...string) (strin
 	return stdout.String(), stderr.String(), err
 }
 
-func resetSessionsCommandFlagState(t *testing.T) {
-	t.Helper()
-	for _, item := range []struct {
-		cmd  string
-		name string
-	}{
-		{"delete", "yes"},
-		{"prune", "yes"},
-		{"prune", "older-than"},
-		{"prune", "source"},
-		{"list", "source"},
-		{"list", "limit"},
-		{"browse", "source"},
-		{"browse", "limit"},
-		{"browse", "no-curses"},
-	} {
-		var c interface{ Flags() *pflag.FlagSet }
-		switch item.cmd {
-		case "delete":
-			c = sessionDeleteCmd
-		case "prune":
-			c = sessionPruneCmd
-		case "list":
-			c = sessionListCmd
-		case "browse":
-			c = sessionBrowseCmd
+// TestSessionCommand_ConstructorReturnsIndependentInstances proves
+// each newSessionCommand() returns a fresh tree. No more
+// resetSessionsCommandFlagState workaround needed.
+func TestSessionCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
+	a := newSessionCommand()
+	b := newSessionCommand()
+	if a == b {
+		t.Fatal("newSessionCommand must return distinct instances")
+	}
+	if len(a.Commands()) != 5 || len(b.Commands()) != 5 {
+		t.Fatalf("session tree must have 5 subcommands; got len(a)=%d len(b)=%d", len(a.Commands()), len(b.Commands()))
+	}
+	for i := range a.Commands() {
+		if a.Commands()[i] == b.Commands()[i] {
+			t.Fatalf("subcommand[%d] %q shared between constructor calls", i, a.Commands()[i].Use)
 		}
-		flag := c.Flags().Lookup(item.name)
-		if flag == nil {
-			t.Fatalf("%s flag %q missing", item.cmd, item.name)
-		}
-		if err := flag.Value.Set(flag.DefValue); err != nil {
-			t.Fatalf("reset %s flag %s: %v", item.cmd, item.name, err)
-		}
-		flag.Changed = false
 	}
 }
 

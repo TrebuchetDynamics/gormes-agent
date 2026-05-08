@@ -24,42 +24,33 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-var gonchoCmd = &cobra.Command{
-	Use:   "goncho",
-	Short: "Inspect local Goncho memory diagnostics",
-}
-
-var gonchoDoctorCmd = &cobra.Command{
-	Use:   "doctor",
-	Short: "Diagnose local Goncho memory topology, queues, and degraded modes",
-	Args:  cobra.NoArgs,
-	RunE:  runGonchoDoctor,
-}
-
-func init() {
-	gonchoDoctorCmd.Flags().Bool("json", false, "emit machine-readable JSON")
-	gonchoDoctorCmd.Flags().String("peer", "operator:diagnostic", "peer id for the context dry-run")
-	gonchoDoctorCmd.Flags().String("session", "", "optional session key for the context dry-run")
-	gonchoDoctorCmd.Flags().String("scope", "", "optional recall scope for the context dry-run, for example user")
-	gonchoDoctorCmd.Flags().StringSlice("sources", nil, "optional source allowlist for user-scoped context dry-run")
-	gonchoDoctorCmd.Flags().Bool("require-provider", false, "treat provider/auth readiness as required for this diagnostic")
-	gonchoCmd.AddCommand(gonchoDoctorCmd)
-}
-
-func resetGonchoDoctorFlags() {
-	flags := gonchoDoctorCmd.Flags()
-	for _, name := range []string{"json", "peer", "session", "scope", "sources", "require-provider"} {
-		flag := flags.Lookup(name)
-		if flag == nil {
-			continue
-		}
-		if name == "sources" {
-			_ = flag.Value.Set("")
-		} else {
-			_ = flag.Value.Set(flag.DefValue)
-		}
-		flag.Changed = false
+// newGonchoCommand returns a fresh goncho command tree (parent +
+// doctor subcommand). Constructor pattern eliminates the
+// `resetGonchoDoctorFlags` workaround the package-level var version
+// needed for cross-test FlagSet isolation.
+func newGonchoCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "goncho",
+		Short: "Inspect local Goncho memory diagnostics",
 	}
+	cmd.AddCommand(newGonchoDoctorCommand())
+	return cmd
+}
+
+func newGonchoDoctorCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "doctor",
+		Short: "Diagnose local Goncho memory topology, queues, and degraded modes",
+		Args:  cobra.NoArgs,
+		RunE:  runGonchoDoctor,
+	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON")
+	cmd.Flags().String("peer", "operator:diagnostic", "peer id for the context dry-run")
+	cmd.Flags().String("session", "", "optional session key for the context dry-run")
+	cmd.Flags().String("scope", "", "optional recall scope for the context dry-run, for example user")
+	cmd.Flags().StringSlice("sources", nil, "optional source allowlist for user-scoped context dry-run")
+	cmd.Flags().Bool("require-provider", false, "treat provider/auth readiness as required for this diagnostic")
+	return cmd
 }
 
 type gonchoDoctorReport struct {
