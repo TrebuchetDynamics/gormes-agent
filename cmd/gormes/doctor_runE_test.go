@@ -33,6 +33,61 @@ func TestDoctorCommand_OfflineRoutedThroughCobra(t *testing.T) {
 	}
 }
 
+// TestDoctorCommand_JSONReportsFailedFieldFromWorstCheck proves the
+// JSON document carries a top-level "failed" boolean derived from the
+// worst-status check encountered. Monitoring consumers branch on this
+// field rather than scanning every entry — same contract as
+// `gormes update --json` and friends.
+func TestDoctorCommand_JSONReportsFailedFieldFromWorstCheck(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"doctor", "--offline", "--json"})
+	_ = cmd.Execute()
+
+	// Parse as a generic map first to assert the `failed` key is
+	// PRESENT (zero-value false would otherwise let a missing field
+	// silently pass through json.Unmarshal into a struct).
+	var raw map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &raw); err != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), err)
+	}
+	gotFailedRaw, hasFailed := raw["failed"]
+	if !hasFailed {
+		t.Fatalf("JSON must include top-level `failed` boolean; got keys=%v", mapKeys(raw))
+	}
+	gotFailed, ok := gotFailedRaw.(bool)
+	if !ok {
+		t.Fatalf("`failed` must be a bool; got %T %v", gotFailedRaw, gotFailedRaw)
+	}
+
+	// Recompute expected from collected check statuses so the test
+	// stays correct across host-environment variation.
+	checksRaw, _ := raw["checks"].([]any)
+	wantFailed := false
+	for _, entry := range checksRaw {
+		m, _ := entry.(map[string]any)
+		if status, _ := m["status"].(string); status == "FAIL" {
+			wantFailed = true
+			break
+		}
+	}
+	if gotFailed != wantFailed {
+		t.Fatalf("got.failed = %t, want %t (any FAIL status implies failed=true)", gotFailed, wantFailed)
+	}
+}
+
+func mapKeys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
 // TestDoctorCommand_OfflineJSONEmitsCheckArray proves
 // `gormes doctor --offline --json` emits a parseable
 // `{"checks": [...]}` document where each entry has the same fields
