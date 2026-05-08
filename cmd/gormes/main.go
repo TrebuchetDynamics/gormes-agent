@@ -117,8 +117,15 @@ func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
 		}
 	}
 	root := &cobra.Command{
-		Use:   "gormes",
-		Short: "Go-native Hermes-compatible agent runtime",
+		Use: "gormes",
+		// Version wires cobra's built-in `--version` handler. Setting
+		// it also makes `gormes --version` print the version line and
+		// exit. Operators running `gormes --version` (the
+		// near-universal CLI convention) used to get "unknown flag"
+		// since the version was only exposed via the `gormes version`
+		// subcommand.
+		Version: Version,
+		Short:   "Go-native Hermes-compatible agent runtime",
 		Long: `Gormes runs AI agents as a single static Go binary: no Python, no Docker, no Hermes process.
 
 Getting started:
@@ -198,6 +205,11 @@ Docs: https://docs.gormes.ai`,
 			return runRootCommand(cmd, args, runtime)
 		},
 	}
+	// Pre-register --version with a -V shorthand. Cobra's
+	// InitDefaultVersionFlag respects an already-registered flag, so
+	// this lets us add the conventional shorthand without losing
+	// cobra's auto-wired version-print behavior.
+	root.Flags().BoolP("version", "V", false, "version for gormes")
 	root.PersistentFlags().StringP("profile", "p", "", "profile name for this invocation")
 	root.PersistentFlags().StringArray("skills", nil, "runtime skill allowlist for this invocation; repeat or comma-separate")
 	root.Flags().StringP("oneshot", "z", "", "one-shot mode: send a single prompt and resolve model/provider selection without starting the TUI")
@@ -212,7 +224,7 @@ Docs: https://docs.gormes.ai`,
 		flag.NoOptDefVal = "last"
 	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand())
+	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand())
 	return root
 }
 
