@@ -242,6 +242,7 @@ func newNavivoxSetupHostCommand() *cobra.Command {
 	var plan bool
 	var apply bool
 	var yes bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "setup-host",
 		Short:        "Show how to prepare this host for Navivox SSH pairing",
@@ -250,6 +251,9 @@ func newNavivoxSetupHostCommand() *cobra.Command {
 			if apply {
 				return runNavivoxSetupHostApply(cmd, navivoxHostSetupOptions{Yes: yes})
 			}
+			if asJSON {
+				return writeNavivoxSetupHostPlanJSON(cmd)
+			}
 			renderNavivoxSetupHostPlan(cmd)
 			return nil
 		},
@@ -257,7 +261,57 @@ func newNavivoxSetupHostCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&plan, "plan", false, "render the setup plan without changing the host")
 	cmd.Flags().BoolVar(&apply, "apply", false, "apply the host setup steps after confirmation")
 	cmd.Flags().BoolVar(&yes, "yes", false, "confirm setup-host --apply without an interactive confirmation prompt")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "with --plan, emit machine-readable JSON: {build, recommended, ssh_service, pair_command}")
 	return cmd
+}
+
+// navivoxSetupHostPlanReportJSON is the wire shape for
+// `gormes navivox setup-host --plan --json`. Fleet automation
+// provisioning Navivox SSH hosts across machines parses this to
+// inventory the recommended path and per-distro SSH install
+// commands without scraping the multi-line preflight prose.
+type navivoxSetupHostPlanReportJSON struct {
+	Build       buildProvenanceJSON                 `json:"build"`
+	Recommended navivoxSetupHostRecommendedJSON     `json:"recommended"`
+	SSHService  map[string][]string                 `json:"ssh_service"`
+	SudoNote    string                              `json:"sudo_note"`
+	PairCommand string                              `json:"pair_command"`
+}
+
+type navivoxSetupHostRecommendedJSON struct {
+	Path           string `json:"path"`
+	InstallCommand string `json:"install_command"`
+	JoinCommand    string `json:"join_command"`
+}
+
+func writeNavivoxSetupHostPlanJSON(cmd *cobra.Command) error {
+	report := navivoxSetupHostPlanReportJSON{
+		Build: newBuildProvenance(),
+		Recommended: navivoxSetupHostRecommendedJSON{
+			Path:           "tailscale",
+			InstallCommand: "curl -fsSL https://tailscale.com/install.sh | sh",
+			JoinCommand:    "sudo tailscale up --ssh",
+		},
+		SSHService: map[string][]string{
+			"debian": {
+				"sudo apt-get update",
+				"sudo apt-get install -y openssh-server",
+				"sudo systemctl enable --now ssh",
+			},
+			"fedora": {
+				"sudo dnf install -y openssh-server",
+				"sudo systemctl enable --now sshd",
+			},
+		},
+		SudoNote:    "sudo password is prompt-only and never stored in Gormes config; setup-host --apply asks once, previews exact steps, then discards it.",
+		PairCommand: "gormes navivox pair",
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func renderNavivoxSetupHostPlan(cmd *cobra.Command) {

@@ -2,11 +2,59 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+// TestNavivoxSetupHostPlan_JSONEmitsStructuredPlan proves
+// `gormes navivox setup-host --plan --json` emits a parseable
+// `{build, recommended_path, ssh_service: {debian, fedora}, sudo_note,
+// after_setup}` document so fleet automation provisioning Navivox SSH
+// hosts across machines can ingest the plan with binary attribution.
+// Build provenance leads — same convention as the rest of the
+// `--json` arc. The default text output remains unchanged.
+func TestNavivoxSetupHostPlan_JSONEmitsStructuredPlan(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "navivox", "setup-host", "--plan", "--json")
+	if err != nil {
+		t.Fatalf("navivox setup-host --plan --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Recommended struct {
+			Path           string   `json:"path"`
+			InstallCommand string   `json:"install_command"`
+			JoinCommand    string   `json:"join_command"`
+		} `json:"recommended"`
+		SSHService map[string][]string `json:"ssh_service"`
+		PairCommand string              `json:"pair_command"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Recommended.Path != "tailscale" {
+		t.Errorf("recommended.path = %q, want tailscale", got.Recommended.Path)
+	}
+	if got.PairCommand != "gormes navivox pair" {
+		t.Errorf("pair_command = %q, want %q", got.PairCommand, "gormes navivox pair")
+	}
+	if _, ok := got.SSHService["debian"]; !ok {
+		t.Errorf("ssh_service missing debian key: %+v", got.SSHService)
+	}
+	if _, ok := got.SSHService["fedora"]; !ok {
+		t.Errorf("ssh_service missing fedora key: %+v", got.SSHService)
+	}
+}
 
 func TestNavivoxSetupHostApplyDebianUsesTransientSudoAndClearUX(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
