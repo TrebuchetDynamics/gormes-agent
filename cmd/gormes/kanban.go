@@ -27,6 +27,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanBlockCommand(),
 		newKanbanUnblockCommand(),
 		newKanbanLinkCommand(),
+		newKanbanBoardsCommand(),
 	)
 	return cmd
 }
@@ -453,4 +454,163 @@ func kanbanStatusIcon(status kanban.Status) string {
 	default:
 		return "?"
 	}
+}
+
+func newBoardRegistry() *kanban.BoardRegistry {
+	return kanban.NewBoardRegistry(config.KanbanHome())
+}
+
+func newKanbanBoardsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "boards",
+		Short: "Manage named Kanban boards",
+	}
+	cmd.AddCommand(
+		newKanbanBoardListCommand(),
+		newKanbanBoardCreateCommand(),
+		newKanbanBoardSwitchCommand(),
+		newKanbanBoardRenameCommand(),
+		newKanbanBoardRemoveCommand(),
+	)
+	return cmd
+}
+
+func newKanbanBoardListCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List all Kanban boards",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			reg := newBoardRegistry()
+			boards, err := reg.List()
+			if err != nil {
+				return err
+			}
+			cur, _ := reg.Current()
+			if jsonOut {
+				return writeKanbanJSON(cmd, map[string]any{
+					"build":   newBuildProvenance(),
+					"current": cur.Name,
+					"boards":  boards,
+				})
+			}
+			for _, b := range boards {
+				marker := "  "
+				if b.Name == cur.Name {
+					marker = "* "
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "%s%s\n", marker, b.Name)
+			}
+			if len(boards) == 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "(no boards — using default)")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanBoardCreateCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create a new Kanban board",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			reg := newBoardRegistry()
+			if err := reg.Create(args[0]); err != nil {
+				return err
+			}
+			if jsonOut {
+				return writeKanbanJSON(cmd, map[string]any{
+					"build": newBuildProvenance(),
+					"board": args[0],
+				})
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Created board %q\n", args[0])
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanBoardSwitchCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "switch <name>",
+		Short: "Switch to a different Kanban board",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			reg := newBoardRegistry()
+			if err := reg.Switch(args[0]); err != nil {
+				return err
+			}
+			if jsonOut {
+				return writeKanbanJSON(cmd, map[string]any{
+					"build": newBuildProvenance(),
+					"board": args[0],
+				})
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Switched to board %q\n", args[0])
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanBoardRenameCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "rename <old-name> <new-name>",
+		Short: "Rename a Kanban board",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			reg := newBoardRegistry()
+			if err := reg.Rename(args[0], args[1]); err != nil {
+				return err
+			}
+			if jsonOut {
+				return writeKanbanJSON(cmd, map[string]any{
+					"build":   newBuildProvenance(),
+					"oldName": args[0],
+					"newName": args[1],
+				})
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Renamed board %q to %q\n", args[0], args[1])
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanBoardRemoveCommand() *cobra.Command {
+	var jsonOut bool
+	var force bool
+	cmd := &cobra.Command{
+		Use:   "remove <name>",
+		Short: "Remove a Kanban board and its database",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			reg := newBoardRegistry()
+			if err := reg.Remove(args[0]); err != nil {
+				return err
+			}
+			_ = force
+			if jsonOut {
+				return writeKanbanJSON(cmd, map[string]any{
+					"build": newBuildProvenance(),
+					"board": args[0],
+				})
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Removed board %q\n", args[0])
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	cmd.Flags().BoolVar(&force, "force", false, "skip confirmation")
+	return cmd
 }

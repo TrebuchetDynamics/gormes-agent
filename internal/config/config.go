@@ -1408,6 +1408,16 @@ func KanbanDBPath() string {
 	return filepath.Join(GormesHome(), "kanban.db")
 }
 
+// KanbanHome returns the root directory for the Kanban board registry.
+// Named board databases live under <KanbanHome>/kanban/boards/<slug>/kanban.db
+// while the legacy default board lives at <KanbanHome>/kanban.db.
+func KanbanHome() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_HOME")); v != "" {
+		return v
+	}
+	return GormesHome()
+}
+
 // CronMirrorPath returns the resolved CRON.md path — either
 // cfg.Cron.MirrorPath (explicit override) or the Gormes home default.
 func (c Config) CronMirrorPath() string {
