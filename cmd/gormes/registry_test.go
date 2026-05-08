@@ -40,6 +40,9 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	if _, ok := reg.Get("image_generate"); !ok {
 		t.Fatal("image_generate not registered")
 	}
+	if _, ok := reg.Get("video_analyze"); !ok {
+		t.Fatal("video_analyze not registered")
+	}
 	for _, name := range []string{"read_file", "search_files", "write_file", "patch", "terminal"} {
 		if _, ok := reg.Get(name); !ok {
 			t.Fatalf("%s not registered", name)

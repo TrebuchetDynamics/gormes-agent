@@ -10,3 +10,7 @@ import (
 func registerImageGenerationTool(reg *tools.Registry, _ config.Config) {
 	reg.MustRegister(tools.NewImageGenTool(nil))
 }
+
+func registerVideoAnalyzeTool(reg *tools.Registry, _ config.Config) {
+	reg.MustRegister(tools.NewVideoAnalyzeTool(tools.VideoAnalyzeConfig{}))
+}
