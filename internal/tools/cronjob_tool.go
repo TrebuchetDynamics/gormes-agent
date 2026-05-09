@@ -1071,18 +1071,28 @@ type cronjobPromptFinding struct {
 	id      string
 }
 
+const cronjobSecretVarPattern = `\$\{?\w*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)\w*\}?`
+
 var cronjobPromptFindings = []cronjobPromptFinding{
 	{pattern: regexp.MustCompile(`(?is)ignore\s+(?:\w+\s+)*(?:previous|all|above|prior)\s+(?:\w+\s+)*instructions`), id: "prompt_injection"},
 	{pattern: regexp.MustCompile(`(?is)do\s+not\s+tell\s+the\s+user`), id: "deception_hide"},
 	{pattern: regexp.MustCompile(`(?is)system\s+prompt\s+override`), id: "sys_prompt_override"},
 	{pattern: regexp.MustCompile(`(?is)disregard\s+(your|all|any)\s+(instructions|rules|guidelines)`), id: "disregard_rules"},
-	{pattern: regexp.MustCompile(`(?is)curl\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`), id: "exfil_curl"},
-	{pattern: regexp.MustCompile(`(?is)wget\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`), id: "exfil_wget"},
 	{pattern: regexp.MustCompile(`(?is)cat\s+[^\n]*(\.env|credentials|\.netrc|\.pgpass)`), id: "read_secrets"},
 	{pattern: regexp.MustCompile(`(?is)authorized_keys`), id: "ssh_backdoor"},
 	{pattern: regexp.MustCompile(`(?is)/etc/sudoers|visudo`), id: "sudoers_mod"},
 	{pattern: regexp.MustCompile(`(?is)rm\s+-rf\s+/`), id: "destructive_root_rm"},
 }
+
+var cronjobExfilCommandFindings = []cronjobPromptFinding{
+	{pattern: regexp.MustCompile("(?is)curl\\s+[^\\n]*https?://[^\\s\"'`]*" + cronjobSecretVarPattern), id: "exfil_curl"},
+	{pattern: regexp.MustCompile("(?is)wget\\s+[^\\n]*https?://[^\\s\"'`]*" + cronjobSecretVarPattern), id: "exfil_wget"},
+	{pattern: regexp.MustCompile(`(?is)curl\s+[^\n]*(?:--data(?:-raw|-binary|-urlencode)?|-d|--form|-F)\s+[^\n]*` + cronjobSecretVarPattern), id: "exfil_curl_data"},
+	{pattern: regexp.MustCompile(`(?is)wget\s+[^\n]*--post-(?:data|file)=[^\n]*` + cronjobSecretVarPattern), id: "exfil_wget_post"},
+	{pattern: regexp.MustCompile(`(?is)curl\s+[^\n]*(?:-H|--header)\s+["']Authorization:\s*(?:Bearer|token)\s+` + cronjobSecretVarPattern + `["']`), id: "exfil_curl_auth_header"},
+}
+
+var cronjobGitHubAuthHeaderAllowlist = regexp.MustCompile(`(?is)curl\s+[^\n]*(?:-H|--header)\s+["']Authorization:\s*token\s+` + cronjobSecretVarPattern + `["']\s+["']?https://api\.github\.com(?:/|\b)`)
 
 var cronjobInvisibleChars = map[rune]struct{}{
 	'\u200b': {},
@@ -1098,13 +1108,20 @@ var cronjobInvisibleChars = map[rune]struct{}{
 }
 
 func scanCronjobPrompt(prompt string) (string, bool) {
-	for _, r := range prompt {
+	promptToScan := cronjobGitHubAuthHeaderAllowlist.ReplaceAllString(prompt, "curl https://api.github.com/user")
+
+	for _, r := range promptToScan {
 		if _, ok := cronjobInvisibleChars[r]; ok {
 			return fmt.Sprintf("blocked prompt: prompt contains invisible unicode U+%04X", r), true
 		}
 	}
 	for _, finding := range cronjobPromptFindings {
-		if finding.pattern.FindString(prompt) != "" {
+		if finding.pattern.FindString(promptToScan) != "" {
+			return fmt.Sprintf("blocked prompt: prompt matches threat pattern %q", finding.id), true
+		}
+	}
+	for _, finding := range cronjobExfilCommandFindings {
+		if finding.pattern.FindString(promptToScan) != "" {
 			return fmt.Sprintf("blocked prompt: prompt matches threat pattern %q", finding.id), true
 		}
 	}
