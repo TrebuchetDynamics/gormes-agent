@@ -39651,6 +39651,75 @@
               }
             },
             {
+              "name": "Nix flake package and NixOS module contract",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes ports Hermes' Nix/flake packaging surface into a Go-native fixture: packaging/nix/flake.nix exposes a static buildGoModule package for linux/darwin systems, a dev shell and formatter, and a minimal nixosModules.default service contract for gormes gateway/doctor operation without Python, uv2nix, Node, or hosted Honcho service dependencies.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If live Nix is unavailable, fixture tests still catch stale Hermes Python flake inputs, invalid manual GOOS/GOARCH mappings, missing service options, or hidden hosted-Honcho dependencies before operators rely on the package.",
+              "fixture": "webpages/docs/install/nix_flake_test.go::TestNixFlakeContract",
+              "source_refs": [
+                "./hermes-agent/flake.nix@a7e7921db:packages/checks/devShell/nixosModules imports",
+                "./hermes-agent/nix/nixosModules.nix@a7e7921db:services.hermes-agent enable/settings/environmentFiles/stateDir/container split",
+                "packaging/nix/flake.nix",
+                "webpages/docs/install/homebrew_formula_test.go::homebrew_does_not_drag_in_nix_or_flake_inputs",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
+              ],
+              "ready_when": [
+                "Static Go binary release and offline doctor command are stable enough for packaging fixtures.",
+                "packaging/nix/flake.nix already exists and can be corrected without running live Nix.",
+                "Homebrew row explicitly keeps Nix/flake work separate and row-backed."
+              ],
+              "not_ready_when": [
+                "The slice invokes live nix build, mutates binary cache settings, or requires network access in tests.",
+                "The flake reintroduces Hermes Python packaging inputs such as pyproject-nix, uv2nix, Python virtualenv setup, npm/node runtime dependencies, or hosted Honcho compose/Postgres/Redis dependencies.",
+                "The slice changes release workflow, Homebrew, OCI, or installer behavior in the same pass."
+              ],
+              "acceptance": [
+                "Nix fixture tests prove packaging/nix/flake.nix exposes packages.default/gormes for x86_64-linux, aarch64-linux, x86_64-darwin, and aarch64-darwin.",
+                "The package uses pkgs.buildGoModule with subPackages [ \"cmd/gormes\" ], env.CGO_ENABLED = \"0\", ldflags for Version/GitCommit/GitDirty/BuildDate, and no manual GOOS/GOARCH mapping from pkgs.hostPlatform.system/arch.",
+                "The flake exposes formatter and devShells.default with Go tooling without Python/uv2nix/Node runtime dependencies.",
+                "nixosModules.default defines services.gormes-agent enable/package/settings/environment/environmentFiles/stateDir/extraArgs options and a systemd service that runs gormes gateway with GORMES_HOME state.",
+                "The row records Gormes-owned divergence from Hermes' Python-heavy Nix stack and Honcho hosted compose dependencies."
+              ],
+              "write_scope": [
+                "packaging/nix/flake.nix",
+                "webpages/docs/install/nix_flake_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run TestNixFlakeContract -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Nix flake fixture tests prove Go-native package, formatter, dev shell, NixOS service module, and explicit exclusion of Hermes Python/hosted-Honcho dependencies without live Nix."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:a7e7921db flake.nix + nix/nixosModules.nix",
+                "note": "Hermes provides the flake/module donor surface; Gormes owns the static Go binary package and a local systemd service contract instead of Python uv2nix or hosted Honcho stack dependencies."
+              },
+              "note": "Complete 2026-05-09: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 23, below the 90-row cap, so adding one P1 source-backed row was allowed. Runtime parity gaps were already row-backed or completed in the current progress map, while Docker/Homebrew/release/installer packaging rows explicitly left Nix as separate row-backed work. TDD added fixture coverage for packaging/nix/flake.nix, removed the invalid manual GOOS/GOARCH mapping shape, kept Hermes Python/uv2nix/Node and hosted-Honcho stack dependencies out, and exposed a minimal services.gormes-agent NixOS module over the Go-native package.",
+              "evidence": {
+                "implementation": [
+                  "packaging/nix/flake.nix: systems/forAllSystems package matrix for linux/darwin amd64/arm64, pkgs.buildGoModule package with subPackages [ \"cmd/gormes\" ], env.CGO_ENABLED = \"0\", version/git/build-date ldflags, formatter, and Go-only dev shell.",
+                  "packaging/nix/flake.nix: nixosModules.default defines services.gormes-agent enable/package/settings/environment/environmentFiles/stateDir/extraArgs options and a systemd service running gormes gateway with GORMES_HOME state.",
+                  "webpages/docs/install/nix_flake_test.go: TestNixFlakeContract pins the package, dev shell, formatter, service module, and forbidden Hermes Python/hosted-Honcho dependency fragments without invoking live Nix."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run TestNixFlakeContract -count=1 failed on missing NixOS module/package fragments and forbidden GOOS/GOARCH hostPlatform mapping.",
+                  "GREEN: go test ./webpages/docs/install -run TestNixFlakeContract -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Unix installer (install.sh) source-backed update flow",
               "status": "complete",
               "contract": "The Unix installer mirrors Hermes' source-backed user install experience for Gormes: curl-pipe runs clone or update a managed checkout, build the Go binary, publish the command, verify it, and rerun as an update flow without Python/Node runtime installs.",

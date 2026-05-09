@@ -998,6 +998,7 @@ classification and row-backed implementation queue.
 
 - [x] OCI image
 - [x] Homebrew
+- [x] Nix flake package and NixOS module contract
 - [x] Unix installer (install.sh) source-backed update flow
 - [x] Unix installer root/FHS layout policy
 - [x] Windows installer (install.ps1 + install.cmd) parity
