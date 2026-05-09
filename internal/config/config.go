@@ -84,6 +84,7 @@ type TelegramCfg struct {
 	BotUsername            string     `toml:"bot_username" yaml:"bot_username"`
 	CoalesceMs             int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
 	FreshFinalAfterSeconds float64    `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
+	Notifications          string     `toml:"notifications" yaml:"notifications"`
 	FirstRunDiscovery      bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
@@ -645,6 +646,7 @@ func defaults() Config {
 		Telegram: TelegramCfg{
 			CoalesceMs:             1000,
 			FreshFinalAfterSeconds: 60.0,
+			Notifications:          "important",
 			FirstRunDiscovery:      true,
 			MemoryQueueCap:         1024,
 			ExtractorBatchSize:     5,
@@ -869,6 +871,15 @@ func normalizeHermesToolProgressMode(raw interface{}) (string, bool) {
 	}
 }
 
+func normalizeTelegramNotifications(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "all":
+		return "all"
+	default:
+		return "important"
+	}
+}
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -957,6 +968,9 @@ func loadEnv(cfg *Config) error {
 			return err
 		}
 		cfg.Telegram.GuestMode = parsed
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_NOTIFICATIONS"), os.Getenv("HERMES_TELEGRAM_NOTIFICATIONS"), os.Getenv("TELEGRAM_NOTIFICATIONS")); v != "" {
+		cfg.Telegram.Notifications = v
 	}
 	if v := os.Getenv("GORMES_DISCORD_TOKEN"); v != "" {
 		cfg.Discord.Token = v
@@ -1322,6 +1336,7 @@ func validateConfig(cfg *Config) error {
 	if cfg.Voice.RecordKey == "" {
 		cfg.Voice.RecordKey = "ctrl+b"
 	}
+	cfg.Telegram.Notifications = normalizeTelegramNotifications(cfg.Telegram.Notifications)
 	if strings.TrimSpace(cfg.Runtime.TerminalBackend) == "" {
 		cfg.Runtime.TerminalBackend = cfg.Terminal.Backend
 	}

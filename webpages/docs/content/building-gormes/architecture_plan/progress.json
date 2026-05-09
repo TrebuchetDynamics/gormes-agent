@@ -980,6 +980,61 @@
             {
               "name": "Edit coalescing",
               "status": "complete"
+            },
+            {
+              "name": "Telegram important notification default",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Port Hermes' current Telegram notification-mode contract into the Go channel: intermediate placeholder/progress sends are silent by default via Telegram disable_notification, ordinary final sends and approval prompts still notify, and operators can opt back into legacy all-notifications behavior through Gormes-native config/env plus the Hermes env alias.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Without the silent-default contract, long Telegram agent runs can trigger push notifications for placeholder/progress chatter while final answers and approval prompts are indistinguishable from intermediate noise.",
+              "fixture": "internal/channels/telegram/thread_send_test.go + internal/channels/telegram/approval_buttons_test.go + internal/config/config_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/telegram.py@fef1a4124:TelegramAdapter._notification_kwargs default important mode",
+                "./hermes-agent/gateway/platforms/telegram.py@448c11f16:default notifications to important",
+                "internal/channels/telegram/bot.go:SendPlaceholder/SendThreadPlaceholder/SendReplyPlaceholder/SendThreadReplyPlaceholder",
+                "internal/config/config.go:TelegramCfg"
+              ],
+              "ready_when": [
+                "Telegram placeholders, thread placeholders, and approval prompts are already split across typed channel methods.",
+                "Config loading has existing Telegram TOML and env override seams."
+              ],
+              "not_ready_when": [
+                "The implementation silences ordinary final Send/SendReply/SendThread responses or approval prompts.",
+                "The implementation requires live Telegram credentials, real Bot API calls, or user-private config files."
+              ],
+              "acceptance": [
+                "Default Telegram placeholder sends set disable_notification=true for direct, reply, thread, and thread-reply placeholders.",
+                "Default ordinary Telegram Send/SendReply/SendThread responses omit disable_notification so final answers and command replies can notify.",
+                "notifications=all through [telegram] config, GORMES_TELEGRAM_NOTIFICATIONS, or HERMES_TELEGRAM_NOTIFICATIONS opts out of silent placeholders.",
+                "Telegram approval prompts continue to omit disable_notification."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/thread_send_test.go",
+                "internal/channels/telegram/approval_buttons_test.go",
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'Notification|Approval' -count=1",
+                "go test ./internal/config -run 'Telegram.*Notification|TelegramDefaults|TelegramEnv' -count=1",
+                "go test ./cmd/gormes -run 'Telegram|Gateway' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Telegram fake-client fixtures prove silent placeholders by default, opt-in all-notification mode, final-send notification preservation, and approval prompt notification preservation."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes to fef1a4124. Planned rows were 15, below the 90-row cap, so adding one source-backed P1 row was allowed. Recent provider/auth, ACP, Kanban, terminal cwd, and release/public deltas were complete or row-backed. This row targeted the remaining small gateway/channel drift from Hermes 448c11f16: Telegram intermediate messages default to silent push notifications while final answers, slash confirmations, and approval prompts still notify. RED: `go test ./internal/channels/telegram -run 'Notification|Approval' -count=1` and `go test ./internal/config -run 'Telegram.*Notification|TelegramDefaults|TelegramEnv' -count=1` failed on missing Notifications fields/behavior. GREEN: Config now defaults [telegram].notifications to important, accepts notifications=all plus GORMES_TELEGRAM_NOTIFICATIONS/HERMES_TELEGRAM_NOTIFICATIONS aliases, gateway/telegram command wiring passes the setting into the channel, and Telegram placeholders set disable_notification=true by default while ordinary sends and approval prompts continue to notify."
             }
           ]
         },

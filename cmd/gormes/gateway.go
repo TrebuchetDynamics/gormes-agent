@@ -448,6 +448,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				RequireMention:    cfg.Telegram.RequireMention,
 				GuestMode:         cfg.Telegram.GuestMode,
 				BotUsername:       cfg.Telegram.BotUsername,
+				Notifications:     cfg.Telegram.Notifications,
 				AudioTranscriber:  resolveTelegramAudioTranscriber(),
 				DynamicCommands:   gatewayTelegramDynamicCommands(context.Background(), cfg),
 				TokenLockDir:      config.GatewayLockDir(),

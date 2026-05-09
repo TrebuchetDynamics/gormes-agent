@@ -152,6 +152,7 @@ classification and row-backed implementation queue.
 - [x] Telegram adapter
 - [x] Long-poll ingress
 - [x] Edit coalescing
+- [x] Telegram important notification default
 
 ### 2.B.2 — Gateway Chassis + Discord ✅
 

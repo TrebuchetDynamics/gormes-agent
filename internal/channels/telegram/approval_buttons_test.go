@@ -69,6 +69,9 @@ func TestTelegramApprovalButtons_SendInlineKeyboardPrompt(t *testing.T) {
 	if msg.ParseMode != tgbotapi.ModeHTML {
 		t.Fatalf("ParseMode = %q, want HTML", msg.ParseMode)
 	}
+	if msg.DisableNotification {
+		t.Fatal("approval prompt DisableNotification = true, want approval prompts to notify")
+	}
 	if !strings.Contains(msg.Text, "Command Approval Required") ||
 		!strings.Contains(msg.Text, "rm -rf /important") ||
 		!strings.Contains(msg.Text, "dangerous deletion") {
