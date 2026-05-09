@@ -30797,7 +30797,7 @@
                 "Remaining child rows, if any, must be one behavior each and cite exact Hermes Kanban functions/tests plus Gormes write scope.",
                 "The parent remains non-selectable until every child row is complete and progress evidence can close the broad surface honestly."
               ],
-              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py. 2026-05-09 refresh against Hermes f6d45e5df and Honcho e659b6b found recent upstream deltas for Telegram edit safety, profile clone-all exclusions, Feishu update prompts, Google Chat sender_type filtering, provider argument coercion, browser async-loop handling, release metadata, and public surfaces already complete or row-backed. Planned rows are 14, below the 90-row cap. The remaining unimplemented source-backed Kanban operator atom is `kanban stats`: Hermes exposes per-status, per-assignee, and oldest-ready-age board summaries through hermes_cli/kanban.py:_cmd_stats and hermes_cli/kanban_db.py:board_stats; the new child row `Kanban stats command and board summary` owns that small CLI/store slice before watch/tail/notification work.",
+              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py. 2026-05-09 refresh against Hermes f6d45e5df and Honcho e659b6b found recent upstream deltas for Telegram edit safety, profile clone-all exclusions, Feishu update prompts, Google Chat sender_type filtering, provider argument coercion, browser async-loop handling, release metadata, and public surfaces already complete or row-backed. Planned rows are 14, below the 90-row cap. The remaining unimplemented source-backed Kanban operator atom is `kanban stats`: Hermes exposes per-status, per-assignee, and oldest-ready-age board summaries through hermes_cli/kanban.py:_cmd_stats and hermes_cli/kanban_db.py:board_stats; the new child row `Kanban stats command and board summary` owns that small CLI/store slice before watch/tail/notification work. 2026-05-09 refresh against Hermes 0cafe7d50 and Honcho e659b6b found recent gateway slash-confirm, Telegram Markdown safety, Google Chat relay, profile clone-all, Feishu prompt-card, update-check, and Kanban stats/GC deltas complete or row-backed. Planned rows are 14, below the 90-row cap, so one source-backed P2 row is allowed: `Kanban notify subscription store and CLI` owns notify-subscribe/list/unsubscribe persistence and read/write commands without implementing dispatcher delivery, watch, or tail.",
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
@@ -30809,6 +30809,105 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py + hermes_cli/kanban_db.py",
                 "note": "Hermes supplies the expanded Kanban operator contract; Gormes ports it through Gormes-owned, child-row slices rather than one broad row."
+              }
+            },
+            {
+              "name": "Kanban notify subscription store and CLI",
+              "priority": "P2",
+              "status": "complete",
+              "completed_at": "2026-05-09T17:26:54Z",
+              "contract": "Gormes ports Hermes Kanban notification subscription persistence and operator commands: the native Kanban store records gateway subscriptions by task/platform/chat/thread with a last_event_id cursor, exposes unseen event lookup plus explicit cursor advancement, and `gormes kanban notify-subscribe`, `notify-list`, and `notify-unsubscribe` provide text and JSON operator evidence over the selected Gormes board.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unknown task IDs, missing required platform/chat values, absent subscriptions, and missing board state return bounded CLI/store errors without starting gateway dispatchers, sending notifications, reading Hermes env/home paths, following watch loops, or mutating task status.",
+              "fixture": "internal/kanban/notify_test.go; cmd/gormes/kanban_notify_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@0cafe7d50:_cmd_notify_subscribe",
+                "./hermes-agent/hermes_cli/kanban.py@0cafe7d50:_cmd_notify_list",
+                "./hermes-agent/hermes_cli/kanban.py@0cafe7d50:_cmd_notify_unsubscribe",
+                "./hermes-agent/hermes_cli/kanban_db.py@0cafe7d50:add_notify_sub",
+                "./hermes-agent/hermes_cli/kanban_db.py@0cafe7d50:list_notify_subs",
+                "./hermes-agent/hermes_cli/kanban_db.py@0cafe7d50:remove_notify_sub",
+                "./hermes-agent/hermes_cli/kanban_db.py@0cafe7d50:unseen_events_for_sub",
+                "./hermes-agent/hermes_cli/kanban_db.py@0cafe7d50:advance_notify_cursor",
+                "internal/kanban/store.go:task_events schema",
+                "cmd/gormes/kanban.go:newKanbanCommand"
+              ],
+              "ready_when": [
+                "Kanban current-board task command routing and global --board override are complete, so notify commands can use the selected Gormes board store without live Hermes state.",
+                "Kanban task_events are already persisted with monotonic IDs, giving notification cursors a native event source.",
+                "The slice can use temp SQLite stores and Cobra command fixtures only; no gateway loop, notifier delivery, worker subprocess, watch/tail command, provider, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice implements Telegram/Slack/Google Chat delivery, gateway dispatcher polling, kanban watch, kanban tail, or worker log streaming.",
+                "The implementation reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live state.",
+                "Subscription creation mutates task status, advances cursors implicitly, or emits duplicate rows for the same task/platform/chat/thread.",
+                "JSON output omits build attribution or emits null arrays for empty subscription lists."
+              ],
+              "blocked_by": [
+                "Kanban current-board task command routing",
+                "Kanban global --board task command override"
+              ],
+              "unblocks": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "Store fixtures prove AddNotifySubscription is idempotent for task/platform/chat/thread, records optional user_id, initializes last_event_id to 0, and ListNotifySubscriptions can filter by task or list all subscriptions.",
+                "Store fixtures prove UnseenEventsForSubscription returns events with IDs above the stored cursor, supports kind filters, and AdvanceNotifyCursor suppresses previously seen events without deleting task_events.",
+                "CLI fixtures prove `gormes kanban notify-subscribe <task-id> --platform P --chat-id C --thread-id T` writes one subscription and reports Hermes-shaped text.",
+                "CLI fixtures prove `gormes kanban notify-list [task-id] --json` emits {build, subscriptions: []} with non-null arrays and cursor evidence.",
+                "CLI fixtures prove `gormes kanban notify-unsubscribe` removes the exact task/platform/chat/thread subscription and returns a non-zero bounded error for absent subscriptions."
+              ],
+              "write_scope": [
+                "internal/kanban/store.go",
+                "internal/kanban/notify_test.go",
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_notify_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run TestNotifySubscription -count=1",
+                "go test ./cmd/gormes -run TestKanbanNotify -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban notify fixtures prove native subscription persistence, explicit event cursors, and subscribe/list/unsubscribe CLI evidence without gateway delivery, live watch/tail behavior, or Hermes state reads."
+              ],
+              "note": "Complete 2026-05-09: TDD ported Hermes Kanban notify subscription persistence and operator commands into native Gormes state. The implementation records task/platform/chat/thread subscriptions with optional user_id and last_event_id cursor, exposes explicit unseen-event and cursor-advance store helpers, and adds notify-subscribe/list/unsubscribe CLI surfaces with build-attributed list JSON. It intentionally stops before gateway delivery, dispatcher polling, watch, tail, worker-log streaming, or live Hermes env/home compatibility.",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/store.go adds kanban_notify_subs schema, NotifySubscription types, idempotent Add/List/Remove APIs, UnseenEventsForSubscription, and AdvanceNotifyCursor over existing task_events.",
+                  "cmd/gormes/kanban.go registers `notify-subscribe`, `notify-list`, and `notify-unsubscribe`, including Hermes-shaped text output and `{build, subscriptions: []}` JSON list output.",
+                  "The CLI uses openKanbanStore, so current-board routing, --board overrides, and explicit GORMES_KANBAN_DB pins remain on existing Gormes-owned board resolution."
+                ],
+                "tests": [
+                  "internal/kanban/notify_test.go:TestNotifySubscriptionAddListRemove",
+                  "internal/kanban/notify_test.go:TestNotifySubscriptionEventsAndCursor",
+                  "cmd/gormes/kanban_notify_test.go:TestKanbanNotifySubscribeListUnsubscribe",
+                  "cmd/gormes/kanban_notify_test.go:TestKanbanNotifyListJSONEmitsEmptyArray"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/kanban -run TestNotifySubscription -count=1 failed while NotifySubscriptionInput and store notify APIs were undefined.",
+                  "RED: go test ./cmd/gormes -run TestKanbanNotify -count=1 failed while kanban.NotifySubscription and notify CLI commands were undefined.",
+                  "GREEN: go test ./internal/kanban -run TestNotifySubscription -count=1 passed after adding the native subscription schema and cursor helpers.",
+                  "GREEN: go test ./cmd/gormes -run TestKanbanNotify -count=1 passed after wiring the three notify CLI commands and list JSON shape."
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run TestNotifySubscription -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanNotify -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:0cafe7d50 hermes_cli/kanban.py notify-subscribe/list/unsubscribe + hermes_cli/kanban_db.py notification subscription/cursor helpers",
+                "note": "Hermes defines the subscription and cursor contract used by gateway adapters; Gormes adopts the durable store and CLI surface through Gormes-owned Kanban state while excluding live Hermes env/home compatibility."
               }
             },
             {

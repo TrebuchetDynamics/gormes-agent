@@ -46,6 +46,9 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanRunsCommand(),
 		newKanbanStatsCommand(),
 		newKanbanGCCommand(),
+		newKanbanNotifySubscribeCommand(),
+		newKanbanNotifyListCommand(),
+		newKanbanNotifyUnsubscribeCommand(),
 		newKanbanSpecifyCommand(),
 		newKanbanCompleteCommand(),
 		newKanbanClaimCommand(),
@@ -356,6 +359,111 @@ func newKanbanGCCommand() *cobra.Command {
 	return cmd
 }
 
+func newKanbanNotifySubscribeCommand() *cobra.Command {
+	var input kanban.NotifySubscriptionInput
+	cmd := &cobra.Command{
+		Use:   "notify-subscribe <task-id>",
+		Short: "Subscribe a gateway source to Kanban task events",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			sub, err := store.AddNotifySubscription(cmd.Context(), args[0], input)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Subscribed %s to %s\n", formatKanbanNotifyTarget(sub.Platform, sub.ChatID, sub.ThreadID), sub.TaskID)
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&input.Platform, "platform", "", "gateway platform for the subscription")
+	cmd.Flags().StringVar(&input.ChatID, "chat-id", "", "gateway chat id for the subscription")
+	cmd.Flags().StringVar(&input.ThreadID, "thread-id", "", "gateway thread id for the subscription")
+	cmd.Flags().StringVar(&input.UserID, "user-id", "", "gateway user id for the subscription")
+	_ = cmd.MarkFlagRequired("platform")
+	_ = cmd.MarkFlagRequired("chat-id")
+	return cmd
+}
+
+func newKanbanNotifyListCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "notify-list [task-id]",
+		Short: "List Kanban notification subscriptions",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			taskID := ""
+			if len(args) == 1 {
+				taskID = args[0]
+			}
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			subscriptions, err := store.ListNotifySubscriptions(cmd.Context(), taskID)
+			if err != nil {
+				return err
+			}
+			if subscriptions == nil {
+				subscriptions = []kanban.NotifySubscription{}
+			}
+			if jsonOut {
+				return writeKanbanJSON(cmd, kanbanNotifyListReportJSON{
+					Build:         newBuildProvenance(),
+					Subscriptions: subscriptions,
+				})
+			}
+			if len(subscriptions) == 0 {
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), "(no subscriptions)")
+				return err
+			}
+			for _, sub := range subscriptions {
+				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  %-10s  %s  (since event %d)\n", sub.TaskID, formatKanbanNotifyTarget(sub.Platform, sub.ChatID, sub.ThreadID), sub.LastEventID); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanNotifyUnsubscribeCommand() *cobra.Command {
+	var input kanban.NotifySubscriptionInput
+	cmd := &cobra.Command{
+		Use:   "notify-unsubscribe <task-id>",
+		Short: "Remove a Kanban notification subscription",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			removed, err := store.RemoveNotifySubscription(cmd.Context(), args[0], input)
+			if err != nil {
+				return err
+			}
+			if !removed {
+				return fmt.Errorf("no such subscription for %s", args[0])
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Unsubscribed from %s\n", args[0])
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&input.Platform, "platform", "", "gateway platform for the subscription")
+	cmd.Flags().StringVar(&input.ChatID, "chat-id", "", "gateway chat id for the subscription")
+	cmd.Flags().StringVar(&input.ThreadID, "thread-id", "", "gateway thread id for the subscription")
+	_ = cmd.MarkFlagRequired("platform")
+	_ = cmd.MarkFlagRequired("chat-id")
+	return cmd
+}
+
 func newKanbanSpecifyCommand() *cobra.Command {
 	var author string
 	var jsonOut bool
@@ -650,6 +758,11 @@ type kanbanGCReportJSON struct {
 	LogsDeleted        int                 `json:"logs_deleted"`
 }
 
+type kanbanNotifyListReportJSON struct {
+	Build         buildProvenanceJSON         `json:"build"`
+	Subscriptions []kanban.NotifySubscription `json:"subscriptions"`
+}
+
 // kanbanTaskReportJSON wraps a single kanban.Task with build
 // provenance for `kanban create --json` and `kanban show --json`.
 // Fleet automation orchestrating Kanban state across machines parses
@@ -778,6 +891,14 @@ func writeKanbanStatsText(cmd *cobra.Command, stats kanban.BoardStats) error {
 		}
 	}
 	return nil
+}
+
+func formatKanbanNotifyTarget(platform, chatID, threadID string) string {
+	target := strings.TrimSpace(platform) + ":" + strings.TrimSpace(chatID)
+	if threadID = strings.TrimSpace(threadID); threadID != "" {
+		target += ":" + threadID
+	}
+	return target
 }
 
 func formatKanbanRunStarted(start time.Time) string {
