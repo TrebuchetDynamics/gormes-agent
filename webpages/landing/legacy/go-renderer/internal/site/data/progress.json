@@ -29929,6 +29929,92 @@
               }
             },
             {
+              "name": "Kanban boards list/show task-count read model",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports the read-only Hermes `kanban boards list/show/current` operator view over the native board registry: board lists include the implicit default board, the selected Gormes current-board marker, per-status task counts, total task counts, JSON build provenance, and Hermes-compatible aliases (`ls`, `current`) without reading HERMES_KANBAN_* live env or ~/.hermes state.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing board databases show empty counts without creating databases, and missing named boards return visible not-found evidence instead of silently creating a board or falling back to default.",
+              "fixture": "cmd/gormes/kanban_boards_test.go; cmd/gormes/kanban_boards_list_json_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:_cmd_boards_list",
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:_cmd_boards_show",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:list_boards",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:get_current_board",
+                "internal/kanban/board.go:BoardRegistry",
+                "cmd/gormes/kanban.go:newKanbanBoardsCommand"
+              ],
+              "ready_when": [
+                "Kanban current-board task command routing is complete.",
+                "The native BoardRegistry create/list/switch/rename/remove behavior is fixture-backed under temp GORMES_HOME roots.",
+                "The slice can count tasks by opening existing board databases only; no dispatcher, worker subprocess, gateway, Hermes home, or live provider is required."
+              ],
+              "not_ready_when": [
+                "The implementation reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live board state.",
+                "The slice implements board metadata editing, `--board` task flags, worker workspace/log routing, dispatcher board fan-out, notifications, watch/tail, or GC behavior.",
+                "The list/show commands create missing board databases merely to display counts."
+              ],
+              "blocked_by": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "A CLI fixture proves `gormes kanban boards ls --json` includes the implicit default board, the switched current board, build provenance, per-status counts, and total counts.",
+                "A CLI fixture proves `gormes kanban boards current --json` reports the selected board and counts through the same read model as `show`.",
+                "A CLI fixture proves `gormes kanban boards show default` works even when no default database exists and does not create one just to report empty counts.",
+                "A missing-board fixture returns a bounded not-found error without mutating the board registry."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 22, below the 90-row cap, so adding one P2 source-backed child row was allowed. P1 publication/release rows remain operator- or infra-blocked, the existing Kanban parent has stale broad test selectors, and current Hermes a7e7921db exposes board list/show/current task-count read models that Gormes had not yet fixture-locked. TDD added boards `ls` and `current` aliases, `boards show [name]`, default-board visibility, per-status/total counts, JSON build provenance, missing-board degradation, and updated the stale fresh-install fixture so `boards list --json` expects the implicit default board instead of an empty list.",
+              "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_boards_test.go",
+                "cmd/gormes/kanban_boards_list_json_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run TestKanbanBoards -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban board list/show fixtures prove default-board visibility, current-board marker, per-status counts, JSON build provenance, aliases, and missing-board degradation without live Hermes state."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py boards list/show/current + hermes_cli/kanban_db.py list_boards/get_current_board",
+                "note": "Hermes defines the operator read model; Gormes adapts it through the native board registry while deliberately excluding live HERMES_KANBAN_* env compatibility outside migration/import paths."
+              },
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/kanban.go: newKanbanBoardListCommand now supports `ls`, includes the implicit default board, marks the current Gormes board, and emits {build,current,boards} JSON with per-status counts and totals.",
+                  "cmd/gormes/kanban.go: newKanbanBoardShowCommand adds `boards show [name]` plus the `current` alias over the same read model, with missing named boards returning bounded not-found evidence.",
+                  "cmd/gormes/kanban.go: countKanbanBoardTasks opens only existing board databases, so showing an empty default board does not create kanban.db.",
+                  "cmd/gormes/kanban.go: board command aliases now include create/new, switch/use, and remove/rm/delete alongside list/ls and show/current."
+                ],
+                "tests": [
+                  "cmd/gormes/kanban_boards_test.go:TestKanbanBoardsListJSONIncludesDefaultCurrentCountsAndAliases",
+                  "cmd/gormes/kanban_boards_test.go:TestKanbanBoardsCurrentAndShowReportCountsWithoutCreatingDefaultDB",
+                  "cmd/gormes/kanban_boards_test.go:TestKanbanBoardsShowMissingBoardFailsWithoutMutation",
+                  "cmd/gormes/kanban_boards_list_json_test.go:TestKanbanBoardsList_JSONEmitsDefaultNotNull"
+                ],
+                "red_green": [
+                  "RED: go test ./cmd/gormes -run TestKanbanBoards -count=1 failed because `ls`, `current`, and `show` were unknown `kanban boards` subcommands.",
+                  "GREEN: go test ./cmd/gormes -run TestKanbanBoards -count=1 passed after adding the read model and updating the stale fresh-install expectation to the implicit default board."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run TestKanbanBoards -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanCommand -count=1 -> ok"
+                ]
+              }
+            },
+            {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
               "status": "complete",

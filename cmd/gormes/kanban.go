@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -877,48 +878,61 @@ func newKanbanBoardsCommand() *cobra.Command {
 		newKanbanBoardListCommand(),
 		newKanbanBoardCreateCommand(),
 		newKanbanBoardSwitchCommand(),
+		newKanbanBoardShowCommand(),
 		newKanbanBoardRenameCommand(),
 		newKanbanBoardRemoveCommand(),
 	)
 	return cmd
 }
 
+type kanbanBoardListReportJSON struct {
+	Build   buildProvenanceJSON      `json:"build"`
+	Current string                   `json:"current"`
+	Boards  []kanbanBoardSummaryJSON `json:"boards"`
+}
+
+type kanbanBoardShowReportJSON struct {
+	Build   buildProvenanceJSON    `json:"build"`
+	Current string                 `json:"current"`
+	Board   kanbanBoardSummaryJSON `json:"board"`
+}
+
+type kanbanBoardSummaryJSON struct {
+	Name    string         `json:"name"`
+	Path    string         `json:"path"`
+	Current bool           `json:"current"`
+	Counts  map[string]int `json:"counts"`
+	Total   int            `json:"total"`
+}
+
 func newKanbanBoardListCommand() *cobra.Command {
 	var jsonOut bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List all Kanban boards",
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List all Kanban boards",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			reg := newBoardRegistry()
-			boards, err := reg.List()
+			boards, current, err := kanbanBoardSummaries(cmd.Context(), reg)
 			if err != nil {
 				return err
 			}
-			cur, _ := reg.Current()
 			if jsonOut {
-				// Normalize a nil slice to an empty slice so the JSON
-				// surface emits `"boards": []` rather than
-				// `"boards": null`. Same convention as
-				// emitSessionListJSON / collectSystemSnapshotForJSON:
-				// consumers can iterate without nil-checks.
 				if boards == nil {
-					boards = []kanban.Board{}
+					boards = []kanbanBoardSummaryJSON{}
 				}
-				return writeKanbanJSON(cmd, map[string]any{
-					"build":   newBuildProvenance(),
-					"current": cur.Name,
-					"boards":  boards,
+				return writeKanbanJSON(cmd, kanbanBoardListReportJSON{
+					Build:   newBuildProvenance(),
+					Current: current,
+					Boards:  boards,
 				})
 			}
 			for _, b := range boards {
 				marker := "  "
-				if b.Name == cur.Name {
+				if b.Current {
 					marker = "* "
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "%s%s\n", marker, b.Name)
-			}
-			if len(boards) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "(no boards — using default)")
+				fmt.Fprintf(cmd.OutOrStdout(), "%s%-24s %4d %s\n", marker, b.Name, b.Total, formatKanbanBoardCounts(b.Counts))
 			}
 			return nil
 		},
@@ -930,9 +944,10 @@ func newKanbanBoardListCommand() *cobra.Command {
 func newKanbanBoardCreateCommand() *cobra.Command {
 	var jsonOut bool
 	cmd := &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create a new Kanban board",
-		Args:  cobra.ExactArgs(1),
+		Use:     "create <name>",
+		Aliases: []string{"new"},
+		Short:   "Create a new Kanban board",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reg := newBoardRegistry()
 			if err := reg.Create(args[0]); err != nil {
@@ -955,9 +970,10 @@ func newKanbanBoardCreateCommand() *cobra.Command {
 func newKanbanBoardSwitchCommand() *cobra.Command {
 	var jsonOut bool
 	cmd := &cobra.Command{
-		Use:   "switch <name>",
-		Short: "Switch to a different Kanban board",
-		Args:  cobra.ExactArgs(1),
+		Use:     "switch <name>",
+		Aliases: []string{"use"},
+		Short:   "Switch to a different Kanban board",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reg := newBoardRegistry()
 			if err := reg.Switch(args[0]); err != nil {
@@ -971,6 +987,51 @@ func newKanbanBoardSwitchCommand() *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Switched to board %q\n", args[0])
 			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanBoardShowCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:     "show [name]",
+		Aliases: []string{"current"},
+		Short:   "Show one Kanban board",
+		Args:    cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			reg := newBoardRegistry()
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
+			}
+			board, current, err := kanbanBoardSummary(cmd.Context(), reg, name)
+			if err != nil {
+				return err
+			}
+			if jsonOut {
+				return writeKanbanJSON(cmd, kanbanBoardShowReportJSON{
+					Build:   newBuildProvenance(),
+					Current: current,
+					Board:   board,
+				})
+			}
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Board: %s\n", board.Name); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Current: %t\n", board.Current); err != nil {
+				return err
+			}
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "DB path: %s\n", board.Path); err != nil {
+				return err
+			}
+			counts := formatKanbanBoardCounts(board.Counts)
+			if counts == "" {
+				counts = "(empty)"
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Tasks: %d total %s\n", board.Total, counts)
+			return err
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
@@ -1007,9 +1068,10 @@ func newKanbanBoardRemoveCommand() *cobra.Command {
 	var jsonOut bool
 	var force bool
 	cmd := &cobra.Command{
-		Use:   "remove <name>",
-		Short: "Remove a Kanban board and its database",
-		Args:  cobra.ExactArgs(1),
+		Use:     "remove <name>",
+		Aliases: []string{"rm", "delete"},
+		Short:   "Remove a Kanban board and its database",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reg := newBoardRegistry()
 			if err := reg.Remove(args[0]); err != nil {
@@ -1029,4 +1091,123 @@ func newKanbanBoardRemoveCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
 	cmd.Flags().BoolVar(&force, "force", false, "skip confirmation")
 	return cmd
+}
+
+func kanbanBoardSummaries(ctx context.Context, reg *kanban.BoardRegistry) ([]kanbanBoardSummaryJSON, string, error) {
+	current, err := reg.Current()
+	if err != nil {
+		return nil, "", err
+	}
+	boards := []kanban.Board{{Name: "default", Path: reg.BoardPath("default")}}
+	named, err := reg.List()
+	if err != nil {
+		return nil, "", err
+	}
+	boards = append(boards, named...)
+
+	summaries := make([]kanbanBoardSummaryJSON, 0, len(boards))
+	for _, board := range boards {
+		counts, total, err := countKanbanBoardTasks(ctx, board.Path)
+		if err != nil {
+			return nil, "", fmt.Errorf("count board %q: %w", board.Name, err)
+		}
+		summaries = append(summaries, kanbanBoardSummaryJSON{
+			Name:    board.Name,
+			Path:    board.Path,
+			Current: board.Name == current.Name,
+			Counts:  counts,
+			Total:   total,
+		})
+	}
+	return summaries, current.Name, nil
+}
+
+func kanbanBoardSummary(ctx context.Context, reg *kanban.BoardRegistry, rawName string) (kanbanBoardSummaryJSON, string, error) {
+	current, err := reg.Current()
+	if err != nil {
+		return kanbanBoardSummaryJSON{}, "", err
+	}
+	name := kanban.NormalizeBoardSlug(rawName)
+	if name == "" {
+		name = current.Name
+	}
+	if name != "default" {
+		if err := kanban.ValidateBoardSlug(name); err != nil {
+			return kanbanBoardSummaryJSON{}, "", err
+		}
+		if _, err := os.Stat(filepath.Dir(reg.BoardPath(name))); os.IsNotExist(err) {
+			return kanbanBoardSummaryJSON{}, "", fmt.Errorf("board %q does not exist", name)
+		} else if err != nil {
+			return kanbanBoardSummaryJSON{}, "", fmt.Errorf("inspect board %q: %w", name, err)
+		}
+	}
+	path := reg.BoardPath(name)
+	counts, total, err := countKanbanBoardTasks(ctx, path)
+	if err != nil {
+		return kanbanBoardSummaryJSON{}, "", fmt.Errorf("count board %q: %w", name, err)
+	}
+	return kanbanBoardSummaryJSON{
+		Name:    name,
+		Path:    path,
+		Current: name == current.Name,
+		Counts:  counts,
+		Total:   total,
+	}, current.Name, nil
+}
+
+func countKanbanBoardTasks(ctx context.Context, dbPath string) (map[string]int, int, error) {
+	counts := map[string]int{}
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return counts, 0, nil
+	} else if err != nil {
+		return nil, 0, err
+	}
+	store, err := kanban.Open(ctx, dbPath)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer store.Close()
+	tasks, err := store.ListTasks(ctx, kanban.ListFilter{})
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, task := range tasks {
+		counts[string(task.Status)]++
+	}
+	return counts, len(tasks), nil
+}
+
+func formatKanbanBoardCounts(counts map[string]int) string {
+	if len(counts) == 0 {
+		return ""
+	}
+	ordered := []string{
+		string(kanban.StatusTriage),
+		string(kanban.StatusTodo),
+		string(kanban.StatusReady),
+		string(kanban.StatusRunning),
+		string(kanban.StatusBlocked),
+		string(kanban.StatusDone),
+		string(kanban.StatusArchived),
+	}
+	seen := map[string]bool{}
+	var parts []string
+	for _, status := range ordered {
+		if n := counts[status]; n > 0 {
+			parts = append(parts, fmt.Sprintf("%s=%d", status, n))
+			seen[status] = true
+		}
+	}
+	var rest []string
+	for status, n := range counts {
+		if !seen[status] && n > 0 {
+			rest = append(rest, fmt.Sprintf("%s=%d", status, n))
+		}
+	}
+	sort.Strings(rest)
+	parts = append(parts, rest...)
+	if len(parts) == 0 {
+		return ""
+	}
+	return "(" + strings.Join(parts, ", ") + ")"
 }

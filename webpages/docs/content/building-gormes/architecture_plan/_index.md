@@ -845,6 +845,7 @@ classification and row-backed implementation queue.
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 - [x] Kanban current-board task command routing
 - [x] Kanban task run history command
+- [x] Kanban boards list/show task-count read model
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
 - [x] Hermes Kanban specify triage parity
 
