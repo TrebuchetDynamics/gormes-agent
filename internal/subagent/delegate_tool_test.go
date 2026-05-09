@@ -91,6 +91,101 @@ func TestDelegateToolExecuteHappyPath(t *testing.T) {
 	}
 }
 
+func TestDelegateToolBatchModeAcceptsJSONStringTasks(t *testing.T) {
+	mgr, _, cancel := newStubManager(t, 0)
+	defer cancel()
+	defer mgr.Close()
+
+	tool := NewDelegateTool(mgr, nil)
+	raw, err := json.Marshal(map[string]string{
+		"tasks": `[{"goal":"Research topic A"},{"goal":"Research topic B","context":"channels only","toolsets":"echo"}]`,
+	})
+	if err != nil {
+		t.Fatalf("marshal args: %v", err)
+	}
+	out, err := tool.Execute(context.Background(), raw)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	var got struct {
+		Results []struct {
+			Status     string `json:"status"`
+			Summary    string `json:"summary"`
+			ExitReason string `json:"exit_reason"`
+		} `json:"results"`
+		TotalDurationMS int64 `json:"total_duration_ms"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("output JSON: %v", err)
+	}
+	if len(got.Results) != 2 {
+		t.Fatalf("results len = %d, want 2", len(got.Results))
+	}
+	if got.Results[0].Summary != "Research topic A" || got.Results[1].Summary != "Research topic B" {
+		t.Fatalf("summaries = %#v, want input order", got.Results)
+	}
+	for i, result := range got.Results {
+		if result.Status != "completed" {
+			t.Fatalf("results[%d].status = %q, want completed", i, result.Status)
+		}
+		if result.ExitReason != "stub_runner_no_llm_yet" {
+			t.Fatalf("results[%d].exit_reason = %q, want stub_runner_no_llm_yet", i, result.ExitReason)
+		}
+	}
+}
+
+func TestDelegateToolBatchModeAcceptsNativeTaskArray(t *testing.T) {
+	mgr, _, cancel := newStubManager(t, 0)
+	defer cancel()
+	defer mgr.Close()
+
+	tool := NewDelegateTool(mgr, nil)
+	out, err := tool.Execute(context.Background(), json.RawMessage(`{"tasks":[{"goal":"alpha"},{"goal":"bravo","max_iterations":3}]}`))
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	var got struct {
+		Results []struct {
+			Summary string `json:"summary"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("output JSON: %v", err)
+	}
+	if len(got.Results) != 2 {
+		t.Fatalf("results len = %d, want 2", len(got.Results))
+	}
+	if got.Results[0].Summary != "alpha" || got.Results[1].Summary != "bravo" {
+		t.Fatalf("summaries = %#v, want input order", got.Results)
+	}
+}
+
+func TestDelegateToolBatchModeRejectsNonObjectTasks(t *testing.T) {
+	mgr, _, cancel := newStubManager(t, 0)
+	defer cancel()
+	defer mgr.Close()
+
+	tool := NewDelegateTool(mgr, nil)
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"tasks":["not a task object"]}`))
+	if err == nil || !strings.Contains(err.Error(), "Task 0 must be an object") {
+		t.Fatalf("err = %v, want Task 0 must be an object", err)
+	}
+}
+
+func TestDelegateToolBatchModeRejectsMalformedJSONStringTasks(t *testing.T) {
+	mgr, _, cancel := newStubManager(t, 0)
+	defer cancel()
+	defer mgr.Close()
+
+	tool := NewDelegateTool(mgr, nil)
+	_, err := tool.Execute(context.Background(), json.RawMessage(`{"tasks":"[{\"goal\":\"bad}"}`))
+	if err == nil || !strings.Contains(err.Error(), "could not be parsed as JSON") {
+		t.Fatalf("err = %v, want JSON parse guidance", err)
+	}
+}
+
 func TestDelegateToolUsesManagerDefaultTimeout(t *testing.T) {
 	parentCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()

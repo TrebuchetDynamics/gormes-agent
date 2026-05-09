@@ -24015,7 +24015,7 @@
             },
             {
               "name": "TTS synthesis + voice-mode state",
-              "status": "planned",
+              "status": "complete",
               "note": "Umbrella only after the provider/config split. Provider matrix, MiniMax raw-audio drift, media delivery, and record-key binding are tracked by concrete rows; future splits should focus on voice-mode state, microphone capture/playback, and any remaining NeuTTS sample-cache behavior.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -27123,6 +27123,64 @@
                 "upstream_ref": "hermes:e19854d8 agent/shell_hooks.py",
                 "note": "Hermes supplies the consent parsing regression; Gormes applies it to the native gateway hook registry before exposing auto-accept wiring."
               }
+            },
+            {
+              "name": "delegate_task batch JSON-string task recovery",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Gormes' public delegate_task tool wrapper accepts Hermes-compatible batch task payloads: native `tasks` arrays and JSON-string-encoded task arrays both fan out through the existing bounded SpawnBatch runtime, malformed JSON strings fail with clear guidance, and non-object task entries are rejected before any child is spawned.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent"
+              ],
+              "degraded_mode": "Until this lands, the Go batch runtime exists but model/tool-call payloads using Hermes' `tasks` batch shape fail at the public delegate_task wrapper or force the model to collapse parallel work into one goal.",
+              "fixture": "internal/subagent/delegate_tool_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/delegate_tool.py@0f1d41a88:_recover_tasks_from_json_string",
+                "./hermes-agent/tools/delegate_tool.py@0f1d41a88:delegate_task",
+                "./hermes-agent/tests/tools/test_delegate.py@0f1d41a88:test_batch_mode_accepts_json_string_tasks",
+                "./hermes-agent/tests/tools/test_delegate.py@0f1d41a88:test_batch_mode_rejects_non_object_tasks",
+                "./hermes-agent/tests/tools/test_delegate.py@0f1d41a88:test_batch_mode_rejects_malformed_json_string_tasks",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Delegate/subagents",
+                "internal/subagent/batch.go",
+                "internal/subagent/delegate_tool.go"
+              ],
+              "ready_when": [
+                "Phase 2.E.0 SpawnBatch runtime exists and preserves ordered bounded child results.",
+                "Phase 2.E.1 delegate_task wrapper already spawns single child runs through SubagentManager."
+              ],
+              "not_ready_when": [
+                "The implementation changes runner internals, durable job semantics, or child-agent trust policy instead of only adapting public delegate_task argument normalization and result formatting."
+              ],
+              "acceptance": [
+                "`tasks` as a JSON string containing an array of task objects returns a `results` array in input order and uses SpawnBatch rather than the single-goal path.",
+                "`tasks` arrays containing non-object entries return a clear `Task N must be an object` error without spawning children.",
+                "Malformed JSON-string `tasks` returns a clear parse error and does not spawn children.",
+                "Existing single-goal delegate_task behavior and candidate-drafting behavior remain unchanged."
+              ],
+              "note": "Planned by the 2026-05-09 all-topic weakness sweep after refreshing Hermes from 2a7047c2e to 0f1d41a88 with 52 planned/porting rows counted. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh upstream source deltas were WebUI prompt hints, model_tools JSON-array diagnostics, delegate_task JSON-string task recovery, and release author mapping; sessions/memory/Goncho, install/runtime, browser automation, and public docs had no higher unblocked source delta than existing rows. This row revisits the completed subagent batch runtime because Gormes has SpawnBatch but its public delegate_task wrapper lacked the newly upstream-tested Hermes batch payload recovery and validation behavior. Complete: TDD added delegate_task `tasks` support for native arrays and JSON-string arrays, clear malformed-string and non-object task errors, bounded SpawnBatch fan-out with ordered `results`, and schema anyOf support while preserving single-goal behavior and candidate drafting.",
+              "write_scope": [
+                "internal/subagent/delegate_tool.go",
+                "internal/subagent/delegate_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/subagent -run 'TestDelegateToolBatch|TestDelegateToolMetadata|TestDelegateToolExecuteHappyPath' -count=1",
+                "go test ./internal/subagent -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "delegate_task wrapper tests prove Hermes-compatible batch JSON-string recovery and invalid-task rejection while existing single-goal delegate behavior stays green."
+              ],
+              "evidence": [
+                "RED: go test ./internal/subagent -run 'TestDelegateToolBatch|TestDelegateToolMetadata|TestDelegateToolExecuteHappyPath' -count=1 failed because DelegateTool ignored `tasks` and returned `delegate_task: goal is required`.",
+                "GREEN: internal/subagent/delegate_tool.go now parses JSON-string and native-array `tasks`, rejects malformed/non-object task payloads before spawning, dispatches valid batches through SubagentManager.SpawnBatch, and returns ordered result envelopes with total_duration_ms.",
+                "Validation: go test ./internal/subagent -run 'TestDelegateToolBatch|TestDelegateToolMetadata|TestDelegateToolExecuteHappyPath' -count=1 PASS; go test ./internal/subagent -count=1 PASS."
+              ]
             },
             {
               "name": "Subagent dangerous-command non-interactive approval policy",
