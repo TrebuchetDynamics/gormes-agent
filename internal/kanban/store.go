@@ -72,6 +72,7 @@ type CreateTaskInput struct {
 	WorkspaceKind WorkspaceKind
 	WorkspacePath string
 	CreatedBy     string
+	Triage        bool
 }
 
 type ListFilter struct {
@@ -219,7 +220,9 @@ func (s *Store) CreateTask(ctx context.Context, input CreateTaskInput) (Task, er
 		return Task{}, err
 	}
 	status := StatusReady
-	if !parentsDone {
+	if input.Triage {
+		status = StatusTriage
+	} else if !parentsDone {
 		status = StatusTodo
 	}
 	if _, err := tx.ExecContext(ctx, `

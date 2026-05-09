@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 )
 
@@ -53,6 +55,63 @@ func TestKanbanCommandCreateWithParentPromotesAfterComplete(t *testing.T) {
 	got := runKanbanJSONTask(t, "show", child.ID, "--json")
 	if got.Status != kanban.StatusReady {
 		t.Fatalf("child after complete status = %q, want %q", got.Status, kanban.StatusReady)
+	}
+}
+
+func TestKanbanSpecifyCommandUsesAuxiliarySpecifier(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+	restore := stubKanbanTriageSpecifier(&recordingCommandTriageSpecifier{
+		response: `{"title":"Specify release task","body":"**Goal** - make it shippable\n**Acceptance criteria** - focused tests pass"}`,
+	})
+	defer restore()
+
+	triage := runKanbanJSONTask(t, "create", "rough release task", "--body", "needs concrete acceptance", "--triage", "--json")
+	if triage.Status != kanban.StatusTriage {
+		t.Fatalf("triage status = %q, want %q", triage.Status, kanban.StatusTriage)
+	}
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "specify", triage.ID, "--author", "triage-bot", "--json")
+	if err != nil {
+		t.Fatalf("kanban specify --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action  string                `json:"action"`
+		Outcome kanban.SpecifyOutcome `json:"outcome"`
+		Task    kanban.Task           `json:"task"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("specify JSON decode: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "specified" || !got.Outcome.OK {
+		t.Fatalf("report = %+v, want successful specified action", got)
+	}
+	if got.Task.Status != kanban.StatusReady || got.Task.Title != "Specify release task" || !strings.Contains(got.Task.Body, "**Goal**") {
+		t.Fatalf("specified task = %+v, want ready title/body from specifier", got.Task)
+	}
+}
+
+func TestKanbanSpecifyCommandUnavailableIsTypedEvidence(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+	restore := stubKanbanTriageSpecifier(nil)
+	defer restore()
+
+	triage := runKanbanJSONTask(t, "create", "rough task", "--triage", "--json")
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "specify", triage.ID)
+	if err == nil {
+		t.Fatalf("kanban specify without specifier error = nil\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stderr, "auxiliary client unavailable") {
+		t.Fatalf("stderr = %q, want typed unavailable evidence", stderr)
+	}
+	got := runKanbanJSONTask(t, "show", triage.ID, "--json")
+	if got.Status != kanban.StatusTriage {
+		t.Fatalf("unavailable specify mutated task status = %q, want triage", got.Status)
 	}
 }
 
@@ -338,4 +397,24 @@ func containsKanbanString(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+type recordingCommandTriageSpecifier struct {
+	response string
+	request  kanban.TriageSpecRequest
+}
+
+func (s *recordingCommandTriageSpecifier) CompleteTriageSpec(_ context.Context, req kanban.TriageSpecRequest) (string, error) {
+	s.request = req
+	return s.response, nil
+}
+
+func stubKanbanTriageSpecifier(specifier kanban.TriageSpecifier) func() {
+	previous := newKanbanTriageSpecifier
+	newKanbanTriageSpecifier = func(config.Config) (kanban.TriageSpecifier, error) {
+		return specifier, nil
+	}
+	return func() {
+		newKanbanTriageSpecifier = previous
+	}
 }

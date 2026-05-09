@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-08T15:03:06Z",
+    "last_updated": "2026-05-09T00:37:03Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -29546,10 +29546,10 @@
             },
             {
               "name": "Hermes Kanban specify triage parity",
-              "priority": "P2",
-              "status": "planned",
-              "contract": "Gormes ports Hermes' specify triage feature: a /kanban specify <task-id> slash command that calls an auxiliary LLM over the existing provider router to flesh out a terse triage task into a detailed specification with acceptance criteria, then stores the fleshed spec back on the Kanban task. The fleshing reuses the existing auxiliary LLM seam, not a new model integration.",
-              "contract_status": "draft",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' specify triage feature: gormes kanban create --triage can park rough ideas in triage, and gormes kanban specify <task-id> plus /kanban specify <task-id> call a fakeable auxiliary LLM over the existing provider client seam to flesh out the task into a detailed specification with acceptance criteria, store the fleshed spec back on the Kanban task, and promote it through normal todo/ready parent gating. The fleshing reuses existing provider client plumbing, not a new model integration.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -29557,39 +29557,44 @@
                 "gateway"
               ],
               "degraded_mode": "When the auxiliary LLM is unavailable or returns unparseable output, /kanban specify returns a degraded result with the raw error redacted and does not modify the task.",
-              "fixture": "internal/kanban/specify_test.go",
+              "fixture": "internal/kanban/specify_test.go; cmd/gormes/kanban_command_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/kanban_specify.py@24d48ffb8",
-                "../hermes-agent/hermes_cli/kanban.py@24d48ffb8:specify subcommand"
+                "hermes-agent/hermes_cli/kanban_specify.py@524cbabd8:specify_task",
+                "hermes-agent/hermes_cli/kanban_db.py@524cbabd8:specify_triage_task",
+                "hermes-agent/hermes_cli/kanban.py@524cbabd8:--triage create flag + specify subcommand"
               ],
               "ready_when": [
                 "Hermes Kanban durable board core is complete.",
-                "Hermes Kanban slash/gateway/dashboard surfaces row has landed the base /kanban command handler.",
-                "The auxiliary LLM call can reuse the existing internal/provider router and fakeable provider seams."
+                "Base /kanban command handlers have landed in CLI, gateway, and native TUI child slices.",
+                "The auxiliary LLM call can reuse hermes.Client/OpenStream and fakeable provider seams."
               ],
               "not_ready_when": [
                 "The slice adds a new provider integration or model catalog entry.",
-                "The slice changes Kanban board persistence or task schema beyond adding a spec_body field.",
+                "The slice changes Kanban board persistence beyond using the existing title/body/status/comment/event fields.",
                 "The specify command is wired before the base /kanban handler lands."
               ],
-              "blocked_by": [
-                "Hermes Kanban slash/gateway/dashboard surfaces"
-              ],
+              "blocked_by": [],
               "unblocks": [],
               "acceptance": [
-                "/kanban specify <id> calls the auxiliary LLM with the task title and description, stores the fleshed spec, and returns a formatted result.",
-                "Specify handles unparseable LLM output gracefully with degraded evidence.",
-                "Specify respects the existing active-turn policy and does not leak raw task content to the channel."
+                "gormes kanban create --triage creates a triage task without promoting it to ready.",
+                "gormes kanban specify <id> and /kanban specify <id> call the auxiliary LLM with the task title/body, store the fleshed spec, record audit evidence, and return a formatted result.",
+                "Specify handles unparseable non-empty LLM output by storing it as the body, matching Hermes fallback behavior.",
+                "Specify handles missing auxiliary LLM, empty output, unknown task ids, and non-triage tasks with typed degraded evidence and no raw provider error leakage."
               ],
               "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_command_test.go",
                 "internal/kanban/specify.go",
                 "internal/kanban/specify_test.go",
+                "internal/kanban/store.go",
+                "internal/gateway/kanban_command_test.go",
                 "internal/gateway/kanban_command.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "go test ./internal/kanban -run TestSpecify -count=1",
-                "go test ./internal/gateway -run TestKanbanSlash -count=1",
+                "go test ./cmd/gormes -run TestKanbanSpecify -count=1",
+                "go test ./internal/gateway -run TestKanbanCommand -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
@@ -29597,8 +29602,20 @@
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:24d48ffb8 hermes_cli/kanban_specify.py",
-                "note": "Hermes 24d48ffb8 added specify -- auxiliary LLM fleshes out triage tasks into detailed specs. Gormes kanban core is shipping; this row tracks specify as a small follow-up slice gated behind the slash handler landing."
+                "upstream_ref": "hermes:524cbabd8 hermes_cli/kanban_specify.py + hermes_cli/kanban_db.py + hermes_cli/kanban.py",
+                "note": "Hermes current HEAD keeps specify as a bounded auxiliary-LLM triage fleshing command with --triage create input, JSON/fallback parsing, audit comments, specified events, and todo/ready promotion through normal parent gating. 2026-05-09 all-topic parity sweep raised this row to P1 because base /kanban CLI/gateway/TUI slices are landed and the stale 24d48ffb refs/test scope were preventing a builder-ready closure."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/store.go: CreateTaskInput.Triage preserves rough ideas in StatusTriage without promoting them to ready.",
+                  "internal/kanban/specify.go: SpecifyTriageTask calls a fakeable TriageSpecifier, parses Hermes-style JSON/fenced JSON, falls back to raw non-empty text as body, records specified events/audit comments, and promotes through existing readiness recomputation.",
+                  "cmd/gormes/kanban.go: kanban create --triage and kanban specify <task-id> --json are wired into the shared Cobra command tree used by CLI, gateway /kanban, and native TUI /kanban runners."
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run TestSpecify -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanSpecify -count=1 -> ok",
+                  "go test ./internal/gateway -run TestKanbanCommand -count=1 -> ok"
+                ]
               }
             }
           ]

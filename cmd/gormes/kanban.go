@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/spf13/cobra"
@@ -25,6 +26,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanCreateCommand(),
 		newKanbanListCommand(),
 		newKanbanShowCommand(),
+		newKanbanSpecifyCommand(),
 		newKanbanCompleteCommand(),
 		newKanbanClaimCommand(),
 		newKanbanBlockCommand(),
@@ -76,6 +78,7 @@ func newKanbanCreateCommand() *cobra.Command {
 	var input kanban.CreateTaskInput
 	var workspaceKind string
 	var jsonOut bool
+	var triage bool
 	cmd := &cobra.Command{
 		Use:   "create <title>",
 		Short: "Create a durable Kanban task",
@@ -83,6 +86,7 @@ func newKanbanCreateCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input.Title = args[0]
 			input.WorkspaceKind = kanban.WorkspaceKind(workspaceKind)
+			input.Triage = triage
 			store, err := openKanbanStore(cmd.Context())
 			if err != nil {
 				return err
@@ -108,6 +112,7 @@ func newKanbanCreateCommand() *cobra.Command {
 	cmd.Flags().IntVar(&input.Priority, "priority", 0, "task priority")
 	cmd.Flags().StringVar(&workspaceKind, "workspace-kind", string(kanban.WorkspaceScratch), "workspace kind: scratch, worktree, or dir")
 	cmd.Flags().StringVar(&input.WorkspacePath, "workspace-path", "", "workspace path for dir/worktree tasks")
+	cmd.Flags().BoolVar(&triage, "triage", false, "park the task in triage for later specification")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
 	return cmd
 }
@@ -213,6 +218,64 @@ func newKanbanShowCommand() *cobra.Command {
 			return writeKanbanTaskText(cmd, task)
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanSpecifyCommand() *cobra.Command {
+	var author string
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "specify <task-id>",
+		Short: "Flesh out a triage Kanban task with the configured model",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return err
+			}
+			specifier, err := newKanbanTriageSpecifier(cfg)
+			if err != nil {
+				return err
+			}
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+
+			outcome, err := kanban.SpecifyTriageTask(cmd.Context(), store, args[0], specifier, kanban.SpecifyOptions{Author: author})
+			if err != nil {
+				return err
+			}
+			task, taskErr := store.GetTask(cmd.Context(), args[0])
+			if jsonOut {
+				report := kanbanSpecifyReportJSON{
+					Build:   newBuildProvenance(),
+					Action:  "specified",
+					Outcome: outcome,
+				}
+				if taskErr == nil {
+					report.Task = task
+				}
+				if err := writeKanbanJSON(cmd, report); err != nil {
+					return err
+				}
+			}
+			if !outcome.OK {
+				return fmt.Errorf("kanban specify %s: %s", outcome.TaskID, outcome.Reason)
+			}
+			if !jsonOut {
+				titleSuffix := ""
+				if outcome.NewTitle != "" {
+					titleSuffix = fmt.Sprintf(" - retitled: %q", outcome.NewTitle)
+				}
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "Specified %s -> %s%s\n", outcome.TaskID, outcome.Status, titleSuffix)
+			}
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&author, "author", "", "author name recorded on the audit comment")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
 	return cmd
 }
@@ -445,6 +508,13 @@ type kanbanTaskReportJSON struct {
 	kanban.Task
 }
 
+type kanbanSpecifyReportJSON struct {
+	Build   buildProvenanceJSON   `json:"build"`
+	Action  string                `json:"action"`
+	Outcome kanban.SpecifyOutcome `json:"outcome"`
+	Task    kanban.Task           `json:"task,omitempty"`
+}
+
 // kanbanLifecycleReportJSON is the wire shape for `kanban
 // {complete,block,unblock,link} ... --json`. Fleet automation orchestrating
 // task state across machines parses this to observe outcomes without
@@ -470,6 +540,28 @@ func writeKanbanLifecycleJSON(cmd *cobra.Command, report kanbanLifecycleReportJS
 
 func openKanbanStore(ctx context.Context) (*kanban.Store, error) {
 	return kanban.Open(ctx, config.KanbanDBPath())
+}
+
+var newKanbanTriageSpecifier = func(cfg config.Config) (kanban.TriageSpecifier, error) {
+	providerName := strings.TrimSpace(cfg.Hermes.Provider)
+	if providerName == "" && strings.TrimSpace(cfg.Hermes.Endpoint) == "" {
+		return nil, nil
+	}
+	client, err := getOrCreateProviderClient(cfg, providerName)
+	if err != nil {
+		return nil, err
+	}
+	model := strings.TrimSpace(cfg.Hermes.Model)
+	if model == "" {
+		model = "hermes-agent"
+	}
+	return kanban.HermesTriageSpecifier{
+		Client:      client,
+		Model:       model,
+		MaxTokens:   1500,
+		Temperature: 0.3,
+		Timeout:     120 * time.Second,
+	}, nil
 }
 
 func runTUIKanbanSlashCommand(ctx context.Context, input string) (string, error) {

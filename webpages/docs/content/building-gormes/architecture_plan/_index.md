@@ -841,7 +841,7 @@ classification and row-backed implementation queue.
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
-- [ ] Hermes Kanban specify triage parity
+- [x] Hermes Kanban specify triage parity
 
 ### 5.N — Misc Operator Tools ✅
 
