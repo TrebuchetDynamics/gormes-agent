@@ -37017,7 +37017,7 @@
             {
               "name": "Top-level logout configured-provider fallback",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:f6d45e5df hermes_cli/main.py:logout_parser + hermes_cli/auth.py:logout_command",
