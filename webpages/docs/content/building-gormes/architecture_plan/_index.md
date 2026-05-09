@@ -601,6 +601,7 @@ classification and row-backed implementation queue.
 - [x] Multi-account auth
 - [x] Credential non-ASCII sanitizer + one-shot warning
 - [x] Google OAuth flow + refresh seam
+- [x] MiniMax OAuth provider registry and default auth routing
 - [x] GitHub Copilot token exchange + Responses mode selector
 
 ### 4.H — Rate / Retry / Caching ✅

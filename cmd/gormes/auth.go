@@ -745,10 +745,10 @@ func runAuthListCommand(cmd *cobra.Command, providerInput string, asJSON bool) e
 // secrets. Credentials carry exactly the fields the human row already
 // prints, with secrets pre-redacted upstream by RedactedStatus.
 type authListReportJSON struct {
-	Build       buildProvenanceJSON       `json:"build"`
-	Provider    string                    `json:"provider"`
-	Redacted    bool                      `json:"redacted"`
-	Credentials []authListCredentialJSON  `json:"credentials"`
+	Build       buildProvenanceJSON      `json:"build"`
+	Provider    string                   `json:"provider"`
+	Redacted    bool                     `json:"redacted"`
+	Credentials []authListCredentialJSON `json:"credentials"`
 }
 
 type authListCredentialJSON struct {
@@ -976,6 +976,8 @@ func normalizeAuthProvider(provider string) string {
 	switch normalized {
 	case "or", "open-router":
 		return "openrouter"
+	case "minimax-global", "minimax-portal", "minimax-oauth":
+		return "minimax-oauth"
 	default:
 		return normalized
 	}
@@ -997,7 +999,7 @@ func normalizeAuthType(authType, provider string) string {
 
 func authProviderDefaultsToOAuth(provider string) bool {
 	switch provider {
-	case "anthropic", "nous", config.CodexOAuthProvider, "qwen-oauth", "google-gemini-cli":
+	case "anthropic", "nous", config.CodexOAuthProvider, "qwen-oauth", "google-gemini-cli", "minimax-oauth":
 		return true
 	default:
 		return false

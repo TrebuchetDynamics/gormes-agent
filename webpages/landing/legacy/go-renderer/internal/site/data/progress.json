@@ -17565,6 +17565,79 @@
               }
             },
             {
+              "name": "MiniMax OAuth provider registry and default auth routing",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes classifies Hermes' `minimax-oauth` provider across the native provider manifest and CLI auth routing before any live MiniMax OAuth browser flow is ported: `minimax-oauth` and its aliases resolve as an Anthropic Messages OAuth provider, model picker/provider inventory can display it, and `gormes auth add minimax-oauth` defaults to the OAuth path with row-backed unavailable evidence instead of misclassifying it as an API-key provider.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Until the MiniMax OAuth PKCE flow is ported, auth add returns redacted provider-oauth-planned evidence; no browser, token endpoint, provider network, or live credential store is touched.",
+              "fixture": "internal/hermes/provider_registry_manifest_test.go; cmd/gormes/auth_oauth_command_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/providers.py@f6d45e5df:HERMES_OVERLAYS minimax-oauth",
+                "./hermes-agent/hermes_cli/models.py@f6d45e5df:CANONICAL_PROVIDERS minimax-oauth and aliases",
+                "./hermes-agent/hermes_cli/auth.py@f6d45e5df:PROVIDER_REGISTRY minimax-oauth, resolve_minimax_oauth_runtime_credentials",
+                "./hermes-agent/hermes_cli/auth_commands.py@f6d45e5df:_OAUTH_CAPABLE_PROVIDERS minimax-oauth",
+                "./hermes-agent/tests/test_minimax_oauth.py@f6d45e5df:test_provider_registry_contains_minimax_oauth",
+                "internal/hermes/provider_registry_manifest.go",
+                "cmd/gormes/auth.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials"
+              ],
+              "ready_when": [
+                "Hermes provider registry and alias manifest is complete, so this row only refreshes one missing current upstream provider identity.",
+                "Gormes auth add already has a generic row-backed OAuth unavailable path for providers whose dedicated OAuth adapter is not yet implemented.",
+                "Tests can use provider manifest lookups and Cobra auth command fixtures only; no browser, MiniMax account, token endpoint, auth.json, or live provider network is required."
+              ],
+              "not_ready_when": [
+                "The slice tries to implement MiniMax OAuth PKCE, token polling, refresh, account-status, model flow, or live Anthropic-compatible request credentials.",
+                "The slice stores or prints real MiniMax access tokens, refresh tokens, group IDs, portal URLs from operator config, or reads ~/.hermes/~/.gormes auth state outside temp fixtures.",
+                "MiniMax API-key and MiniMax China API-key providers are collapsed into the OAuth provider or their existing base URLs/env vars change."
+              ],
+              "acceptance": [
+                "TestHermesProviderRegistryManifestRecordsRequiredMetadata proves minimax-oauth resolves with transport anthropic_messages, auth_type oauth_minimax, models.dev ID minimax, global inference base URL, and row_backed implementation status.",
+                "TestHermesProviderRegistryManifestCoversUpstream proves minimax-oauth, minimax-portal, minimax-global, and minimax_oauth resolve to the canonical minimax-oauth entry.",
+                "TestGormesAuthAddMiniMaxOAuthDefaultsToOAuthPlannedEvidence proves `gormes auth add minimax-oauth` does not ask for an API key, returns redacted row-backed OAuth guidance, and leaves the credential pool empty."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f6d45e5df and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned row count was 13, so adding one P1 source-backed row was allowed. Existing gateway, browser, docs/public, install/runtime, release, TUI, and Goncho surfaces remain complete, blocked, or row-backed; the smallest fresh current-upstream gap was MiniMax OAuth provider visibility. TDD refreshed the provider registry manifest with minimax-oauth, minimax-portal/minimax-global/minimax_oauth aliases, models.dev mapping, anthropic_messages transport, oauth_minimax auth type, and row-backed implementation status. CLI auth routing now defaults minimax-oauth and minimax-portal to the redacted OAuth-planned path instead of asking for an API key, leaving the PKCE browser flow, refresh, status, and runtime credential binding for a later source-backed auth adapter row.",
+              "write_scope": [
+                "internal/hermes/provider_registry_manifest.go",
+                "internal/hermes/provider_registry_manifest_test.go",
+                "cmd/gormes/auth.go",
+                "cmd/gormes/auth_oauth_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestHermesProviderRegistryManifest' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesAuthAddMiniMaxOAuthDefaultsToOAuthPlannedEvidence$' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Provider manifest and auth command fixtures prove minimax-oauth/aliases are classified, model/auth inventory can expose the provider, auth add defaults to redacted OAuth-planned evidence, and no live MiniMax OAuth or credential store is touched."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f6d45e5df hermes_cli/providers.py + hermes_cli/auth.py + tests/test_minimax_oauth.py",
+                "note": "Hermes added MiniMax OAuth as a first-class provider/auth surface. Gormes' provider manifest and auth defaults must classify it before a later row ports the full PKCE browser flow."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/provider_registry_manifest.go: HermesProviderRegistryManifest now includes minimax-oauth with aliases minimax-portal, minimax-global, and minimax_oauth, models.dev ID minimax, anthropic_messages transport, oauth_minimax auth type, and row_backed status.",
+                  "cmd/gormes/auth.go: normalizeAuthProvider canonicalizes MiniMax OAuth aliases and authProviderDefaultsToOAuth routes minimax-oauth through the existing row-backed OAuth-unavailable path."
+                ],
+                "verification": [
+                  "RED: go test ./internal/hermes -run 'TestHermesProviderRegistryManifest' -count=1 failed because minimax-oauth was not classified.",
+                  "RED: go test ./cmd/gormes -run '^TestGormesAuthAddMiniMaxOAuthDefaultsToOAuthPlannedEvidence$' -count=1 failed because minimax-oauth defaulted to auth_api_key_missing.",
+                  "GREEN: go test ./internal/hermes -run 'TestHermesProviderRegistryManifest' -count=1 passed.",
+                  "GREEN: go test ./cmd/gormes -run '^TestGormesAuthAddMiniMaxOAuthDefaultsToOAuthPlannedEvidence$' -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "GitHub Copilot token exchange + Responses mode selector",
               "priority": "P0",
               "status": "complete",
