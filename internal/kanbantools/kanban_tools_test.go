@@ -114,6 +114,76 @@ func TestKanbanToolsWorkerLifecycleStoresStructuredHandoff(t *testing.T) {
 	}
 }
 
+func TestKanbanToolsCommentIgnoresCallerSuppliedAuthor(t *testing.T) {
+	ctx := context.Background()
+	store, task := newClaimedKanbanTask(t, "worker-profile")
+	defer store.Close()
+
+	toolset := NewTools(Config{DBPath: store.DBPath(), TaskID: task.ID, Profile: "worker-profile"})
+	comment := executeKanbanTool(t, toolset, "kanban_comment", `{"body":"handoff note","author":"hermes-system"}`)
+	if comment["ok"] != true {
+		t.Fatalf("kanban_comment = %v, want ok", comment)
+	}
+
+	comments, err := store.ListComments(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("ListComments: %v", err)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("comments = %+v, want one", comments)
+	}
+	if comments[0].Author != "worker-profile" {
+		t.Fatalf("comment author = %q, want worker-profile", comments[0].Author)
+	}
+}
+
+func TestKanbanToolsCommentSchemaOmitsAuthorOverride(t *testing.T) {
+	store, task := newClaimedKanbanTask(t, "worker-profile")
+	defer store.Close()
+
+	toolset := NewTools(Config{DBPath: store.DBPath(), TaskID: task.ID, Profile: "worker-profile"})
+	commentTool := findKanbanTool(t, toolset, "kanban_comment")
+	var schema struct {
+		Properties map[string]any `json:"properties"`
+	}
+	if err := json.Unmarshal(commentTool.Schema(), &schema); err != nil {
+		t.Fatalf("comment schema JSON: %v", err)
+	}
+	if _, ok := schema.Properties["author"]; ok {
+		t.Fatalf("kanban_comment schema exposes author override: %s", commentTool.Schema())
+	}
+}
+
+func TestKanbanToolsWorkerCanCommentOnForeignTask(t *testing.T) {
+	ctx := context.Background()
+	store, own := newClaimedKanbanTask(t, "worker-profile")
+	defer store.Close()
+	foreign, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "foreign task", Assignee: "peer"})
+	if err != nil {
+		t.Fatalf("CreateTask(foreign): %v", err)
+	}
+
+	toolset := NewTools(Config{DBPath: store.DBPath(), TaskID: own.ID, Profile: "worker-profile"})
+	comment := executeKanbanTool(t, toolset, "kanban_comment", `{"task_id":"`+foreign.ID+`","body":"handoff: see prior findings","author":"hermes-system"}`)
+	if comment["ok"] != true {
+		t.Fatalf("cross-task kanban_comment = %v, want ok", comment)
+	}
+
+	comments, err := store.ListComments(ctx, foreign.ID)
+	if err != nil {
+		t.Fatalf("ListComments(foreign): %v", err)
+	}
+	if len(comments) != 1 {
+		t.Fatalf("foreign comments = %+v, want one", comments)
+	}
+	if comments[0].Author != "worker-profile" {
+		t.Fatalf("foreign comment author = %q, want worker-profile", comments[0].Author)
+	}
+	if !strings.HasPrefix(comments[0].Body, "handoff:") {
+		t.Fatalf("foreign comment body = %q, want handoff prefix", comments[0].Body)
+	}
+}
+
 func TestKanbanToolsDenyForeignTaskMutationForWorkers(t *testing.T) {
 	ctx := context.Background()
 	store, own := newClaimedKanbanTask(t, "worker-profile")
@@ -134,7 +204,6 @@ func TestKanbanToolsDenyForeignTaskMutationForWorkers(t *testing.T) {
 		{"kanban_complete", `{"task_id":"` + foreign.ID + `","summary":"hijack"}`},
 		{"kanban_block", `{"task_id":"` + foreign.ID + `","reason":"hijack"}`},
 		{"kanban_heartbeat", `{"task_id":"` + foreign.ID + `"}`},
-		{"kanban_comment", `{"task_id":"` + foreign.ID + `","body":"hijack"}`},
 	} {
 		out := executeKanbanTool(t, toolset, tc.name, tc.args)
 		if out["ok"] == true || out["evidence"] != "kanban_task_ownership_denied" {
@@ -156,6 +225,17 @@ func TestKanbanToolsDenyForeignTaskMutationForWorkers(t *testing.T) {
 	if len(comments) != 0 {
 		t.Fatalf("foreign comments = %+v, want none", comments)
 	}
+}
+
+func findKanbanTool(t *testing.T, toolset []tools.Tool, name string) tools.Tool {
+	t.Helper()
+	for _, candidate := range toolset {
+		if candidate.Name() == name {
+			return candidate
+		}
+	}
+	t.Fatalf("tool %s not found", name)
+	return nil
 }
 
 func assertKanbanToolNames(t *testing.T, toolset []tools.Tool) {

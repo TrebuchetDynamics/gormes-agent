@@ -29489,7 +29489,7 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Outside a Kanban worker context the tools are hidden or return kanban_context_missing; attempts to complete/block/comment a foreign task return kanban_task_ownership_denied without mutating the board.",
+              "degraded_mode": "Outside a Kanban worker context the tools are hidden or return kanban_context_missing; attempts to complete, block, or heartbeat a foreign task return kanban_task_ownership_denied without mutating the board. Kanban comment cross-task handoff and author hardening are owned by the completed follow-up child row.",
               "fixture": "internal/kanbantools/kanban_tools_test.go; cmd/gormes/registry_kanban_test.go",
               "source_refs": [
                 "./hermes-agent/tools/kanban_tools.py@b816fd4e2",
@@ -29518,7 +29518,7 @@
               ],
               "acceptance": [
                 "Tool visibility fixtures prove Kanban tools are hidden without worker context and visible with HERMES/GORMES-style task context or enabled profile toolset.",
-                "Ownership fixtures prove current-task destructive calls succeed while foreign task completion/block/comment is denied.",
+                "Ownership fixtures prove current-task destructive calls succeed while foreign task completion/block/heartbeat is denied; current Hermes cross-task comment handoff and author hardening are covered by the completed follow-up child row.",
                 "Heartbeat fixtures prove workers can refresh liveness without changing task status.",
                 "Complete/block fixtures prove summaries, metadata, comments, and child handoff context are stored and visible through kanban context.",
                 "Registry fixtures prove Kanban tools are not enabled in the default non-worker runtime."
@@ -29542,7 +29542,7 @@
               "evidence": {
                 "implementation": [
                   "internal/kanbantools/kanban_tools.go:NewTools and ConfigFromEnv gate kanban_show, kanban_complete, kanban_block, kanban_heartbeat, kanban_comment, kanban_create, and kanban_link on worker task context or explicit kanban toolset env.",
-                  "internal/kanbantools/kanban_tools.go:complete/block/heartbeat/comment enforce current worker task ownership and return kanban_task_ownership_denied without mutating foreign tasks.",
+                  "internal/kanbantools/kanban_tools.go:complete/block/heartbeat enforce current worker task ownership and return kanban_task_ownership_denied without mutating foreign tasks; the comment policy is updated by the completed follow-up child row.",
                   "internal/kanban/store.go:CompleteTask, AddComment, HeartbeatTask, ListComments, ListEvents, ListRuns, and BuildWorkerContext persist summaries, metadata, comments, events, and downstream context.",
                   "internal/kanban/dispatcher.go:insertRunWithDetails stores summary and metadata columns for completed handoffs while preserving existing run callers.",
                   "cmd/gormes/registry.go:buildDefaultRegistry registers Kanban tools only when ConfigFromEnv exposes a worker/profile Kanban context."
@@ -29565,6 +29565,80 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:b816fd4e2 tools/kanban_tools.py + tests/tools/test_kanban_tools.py",
                 "note": "Hermes defines tool names, visibility, ownership rules, and structured handoff context. The 2026-05-07 planner sweep verified the Gormes prerequisites are complete and selected this as the next builder-ready P1 slice."
+              }
+            },
+            {
+              "name": "Kanban comment author hardening and cross-task handoff policy",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes' `kanban_comment` tool matches current Hermes worker behavior: callers cannot supply or expose an author override, comments are attributed from the worker profile with a worker fallback, and workers may comment on other tasks as a deliberate handoff channel while complete, block, and heartbeat remain scoped to the worker task.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "child-agent",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If this regresses, a child agent can forge authoritative-looking Kanban comment authors through args.author, or Gormes can block the Hermes cross-task handoff channel.",
+              "fixture": "internal/kanbantools/kanban_tools_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/kanban_tools.py@4a1840e68:_handle_comment",
+                "./hermes-agent/tools/kanban_tools.py@4a1840e68:KANBAN_COMMENT_SCHEMA",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@4a1840e68:test_comment_ignores_caller_supplied_author",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@4a1840e68:test_comment_schema_omits_author_override",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@4a1840e68:test_worker_can_comment_on_foreign_task",
+                "internal/kanbantools/kanban_tools.go",
+                "internal/kanbantools/kanban_tools_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Operator tools"
+              ],
+              "ready_when": [
+                "Hermes Kanban worker tools and prompt gating is complete enough to expose native kanban_comment through the worker toolset.",
+                "Hermes has been refreshed to 4a1840e68 and current tests prove author override removal plus cross-task comment allowance.",
+                "The slice can use temp Gormes Kanban stores and fake worker profiles without live gateway, dashboard, or worker processes."
+              ],
+              "not_ready_when": [
+                "The implementation widens complete, block, or heartbeat ownership checks instead of changing only kanban_comment behavior.",
+                "The schema still exposes an author property to the model.",
+                "The tests depend on live HERMES_HOME, GORMES_HOME, profile config, gateway channels, or running worker processes."
+              ],
+              "acceptance": [
+                "A RED test proves caller-supplied `author` on kanban_comment is ignored and stored comments use the configured worker profile.",
+                "A schema test proves `kanban_comment` no longer exposes an `author` property.",
+                "A worker-context test proves kanban_comment can write to a foreign task as the cross-task handoff channel.",
+                "Existing ownership tests continue to prove foreign complete/block/heartbeat calls are denied."
+              ],
+              "write_scope": [
+                "internal/kanbantools/kanban_tools.go",
+                "internal/kanbantools/kanban_tools_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanbantools -run 'TestKanbanTools(Comment|WorkerCanComment|DenyForeignTaskMutationForWorkers|WorkerLifecycleStoresStructuredHandoff)' -count=1",
+                "go test ./internal/kanbantools -run TestKanbanTools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban comment tests prove author overrides are absent/ignored, cross-task comments work as handoffs, and destructive worker-task ownership gates still hold."
+              ],
+              "note": "Complete 2026-05-09: planned by the bounded all-topic weakness sweep after refreshing Hermes from 0f1d41a88 to 4a1840e68 and checking CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh upstream deltas included Feishu native update prompt cards, Google Chat relay sender_type security, browser/agent-loop get_running_loop fixes, release AUTHOR_MAP updates, and Kanban comment author hardening. Existing Feishu, Google Chat, browser, release, and public-surface rows were complete or row-backed; this row revisited the completed Kanban worker-tools row because Hermes removed caller-controlled kanban_comment authors while explicitly preserving cross-task comments as the handoff channel. TDD removed the Gormes author argument/schema property, derived comment authors only from worker profile fallback, allowed cross-task comments, and kept complete/block/heartbeat foreign-task ownership denial.",
+              "evidence": {
+                "implementation": [
+                  "internal/kanbantools/kanban_tools.go:comment no longer applies worker-task ownership to kanban_comment and no longer reads args.author.",
+                  "internal/kanbantools/kanban_tools.go:kanban_comment schema omits author and documents foreign task handoff.",
+                  "internal/kanbantools/kanban_tools_test.go:comment author, schema, cross-task handoff, and destructive ownership fixtures pin the current Hermes contract."
+                ],
+                "tests": [
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsCommentIgnoresCallerSuppliedAuthor",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsCommentSchemaOmitsAuthorOverride",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsWorkerCanCommentOnForeignTask",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsDenyForeignTaskMutationForWorkers"
+                ],
+                "validation": [
+                  "RED: go test ./internal/kanbantools -run 'TestKanbanTools(Comment|DenyForeignTaskMutationForWorkers|WorkerLifecycleStoresStructuredHandoff)' -count=1 failed because kanban_comment accepted args.author and exposed author in the schema.",
+                  "GREEN: go test ./internal/kanbantools -run 'TestKanbanTools(Comment|WorkerCanComment|DenyForeignTaskMutationForWorkers|WorkerLifecycleStoresStructuredHandoff)' -count=1 passed after the scoped Kanban comment change."
+                ]
               }
             },
             {
