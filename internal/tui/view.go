@@ -176,15 +176,15 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 	if height < 1 {
 		height = 1
 	}
-	wrap := lipgloss.NewStyle().Width(width - 4)
+	wrapWidth := width - 4
 	compact := width < 8 || height < 3
-	forced := conversationForcedBlocks(f, wrap, compact)
+	forced := conversationForcedBlocks(f, wrapWidth, compact)
 	maxLines := height + 1 + len(forced)
 
 	var visible []string
 	for i := len(f.History) - 1; i >= 0; i-- {
 		msg := f.History[i]
-		block := conversationMessageBlock(msg, wrap, compact)
+		block := conversationMessageBlock(msg, wrapWidth, compact)
 		omitted := i
 		candidate := append([]string{block}, visible...)
 		if omitted > 0 {
@@ -210,7 +210,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 	return strings.Join(lines, "\n\n")
 }
 
-func conversationForcedBlocks(f kernel.RenderFrame, wrap lipgloss.Style, compact bool) []string {
+func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool) []string {
 	var blocks []string
 	if !frameHasFinalAssistant(f) {
 		if progress := conversationToolProgressBlock(f, compact); progress != "" {
@@ -218,7 +218,7 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrap lipgloss.Style, compact
 		}
 	}
 	if f.DraftText != "" && !draftDuplicatesFinalAssistant(f) {
-		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrap, compact))
+		blocks = append(blocks, conversationDraftBlock(f.DraftText, wrapWidth, compact))
 	}
 	if f.LastError != "" {
 		blocks = append(blocks, conversationErrorBlock(f.LastError, compact))
@@ -265,20 +265,20 @@ func conversationToolProgressBlock(f kernel.RenderFrame, compact bool) string {
 	return muted.Render(progress)
 }
 
-func conversationMessageBlock(msg hermes.Message, wrap lipgloss.Style, compact bool) string {
+func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) string {
 	if msg.Role == "tool" {
-		return conversationToolResultBlock(msg, wrap, compact)
+		return conversationToolResultBlock(msg, wrapWidth, compact)
 	}
 	content := msg.Content
 	if compact {
 		content = compactViewportText(content)
 	} else {
-		content = wrap.Render(content)
+		content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	}
 	return roleTag(msg.Role) + " " + content
 }
 
-func conversationToolResultBlock(msg hermes.Message, wrap lipgloss.Style, compact bool) string {
+func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool) string {
 	name := strings.TrimSpace(msg.Name)
 	label := "tool result"
 	if name != "" {
@@ -288,7 +288,7 @@ func conversationToolResultBlock(msg hermes.Message, wrap lipgloss.Style, compac
 	if compact {
 		return muted.Render(label) + " " + compactViewportText(content)
 	}
-	content = wrap.Render(content)
+	content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
 		lines[i] = "│ " + line
@@ -296,11 +296,11 @@ func conversationToolResultBlock(msg hermes.Message, wrap lipgloss.Style, compac
 	return muted.Render("╭─ " + label + "\n" + strings.Join(lines, "\n") + "\n╰─")
 }
 
-func conversationDraftBlock(draft string, wrap lipgloss.Style, compact bool) string {
+func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
 	if compact {
 		draft = compactViewportText(draft)
 	} else {
-		draft = wrap.Render(draft)
+		draft = RenderMarkdownSoftWrapTrim(draft, wrapWidth)
 	}
 	return botStyle.Render(HermesChromeAssistantLabel()) + " " + draft
 }

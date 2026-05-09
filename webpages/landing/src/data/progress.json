@@ -42156,6 +42156,87 @@
               ]
             },
             {
+              "name": "Native TUI markdown soft-wrap boundary trim",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-09T00:00:00Z",
+              "contract": "Gormes native TUI prose and markdown wrapping trims exactly one whitespace character at each soft-wrap boundary, matching Hermes Ink's `wrap-trim` behavior for rendered markdown text while preserving intentional extra spacing and source-line indentation.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without the trim-aware wrapper, narrow terminal renders show stray leading spaces on continuation lines or collapse intentional indentation, making Gormes visually drift from active Hermes Ink markdown output.",
+              "fixture": "internal/tui/markdown_test.go::TestRenderMarkdownSoftWrapTrim_*",
+              "source_refs": [
+                "./hermes-agent/ui-tui/packages/hermes-ink/src/ink/wrap-text.ts@a7e7921db:trimSoftWrapBoundaries",
+                "./hermes-agent/ui-tui/packages/hermes-ink/src/ink/wrap-text.test.ts@a7e7921db",
+                "./hermes-agent/ui-tui/src/components/markdown.tsx@a7e7921db:MdInline/list/quote wrap=wrap-trim",
+                "./hermes-agent/ui-tui/src/__tests__/markdown.test.ts@a7e7921db",
+                "internal/tui/markdown.go",
+                "internal/tui/view.go"
+              ],
+              "ready_when": [
+                "Native TUI Ink behavioral transcript golden matrix is complete.",
+                "The worker can add pure renderer fixtures without starting a Bubble Tea Program, provider, gateway, Node, or Hermes Ink runtime.",
+                "The implementation can live in internal/tui wrapping helpers and reuse existing lipgloss width behavior."
+              ],
+              "not_ready_when": [
+                "The slice rewrites markdown parsing, provider/kernel turn semantics, live gateway delivery, or imports Node/Ink code.",
+                "The slice trims all leading indentation or collapses intentional multiple spaces instead of exactly one soft-wrap boundary whitespace.",
+                "The slice accepts a continuation line beginning with a boundary space for simple wrapped prose such as `Let me` at width 5."
+              ],
+              "blocked_by": [
+                "Native TUI Ink behavioral transcript golden matrix"
+              ],
+              "acceptance": [
+                "TestRenderMarkdownSoftWrapTrim_RemovesSingleBoundarySpace proves a width-limited prose wrap turns `Let me` into `Let` + `me`, never ` me`.",
+                "TestRenderMarkdownSoftWrapTrim_PreservesExtraBoundarySpacing proves `foo  bar` keeps one intentional boundary space on the preceding line while trimming only the wrap boundary space.",
+                "TestRenderMarkdownSoftWrapTrim_PreservesLeadingIndentation proves unwrapped leading indentation survives verbatim.",
+                "TestConversationMessageBlock_UsesSoftWrapTrim proves visible assistant conversation wrapping uses the same trim-aware boundary behavior."
+              ],
+              "write_scope": [
+                "internal/tui/markdown.go",
+                "internal/tui/markdown_test.go",
+                "internal/tui/view.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui -run 'TestRenderMarkdownSoftWrapTrim|TestConversationMessageBlock_UsesSoftWrapTrim' -count=1",
+                "go test ./internal/tui -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Native TUI markdown/prose fixtures prove soft-wrap boundary whitespace is trimmed without collapsing intentional indentation or extra spaces."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:a7e7921db ui-tui wrap-text/markdown",
+                "note": "2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 22, below the 90-row cap. The only newly refreshed upstream Hermes change was active Ink TUI markdown wrap-trim behavior; other major surfaces were already complete, owned, blocked, or row-backed by existing planned rows. This small source-backed TUI row is the highest-priority builder-ready weakness from the sweep."
+              },
+              "note": "Complete 2026-05-09: TDD added a trim-aware native TUI wrapper matching Hermes Ink's a7e7921db wrap-trim semantics. The helper removes exactly one whitespace at soft-wrap boundaries, preserves extra boundary spacing and unwrapped leading indentation, and conversation/tool/draft wrapping now uses the same behavior without importing Hermes Node/Ink runtime code.",
+              "evidence": {
+                "implementation": [
+                  "internal/tui/markdown.go: RenderMarkdownSoftWrapTrim, wrapLineSoftTrim, lastWhitespaceBreak",
+                  "internal/tui/view.go: conversation message, tool-result, and draft blocks use RenderMarkdownSoftWrapTrim for non-compact wrapping"
+                ],
+                "tests": [
+                  "internal/tui/markdown_test.go: TestRenderMarkdownSoftWrapTrim_RemovesSingleBoundarySpace",
+                  "internal/tui/markdown_test.go: TestRenderMarkdownSoftWrapTrim_PreservesExtraBoundarySpacing",
+                  "internal/tui/markdown_test.go: TestRenderMarkdownSoftWrapTrim_PreservesLeadingIndentation",
+                  "internal/tui/markdown_test.go: TestConversationMessageBlock_UsesSoftWrapTrim"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tui -run 'TestRenderMarkdownSoftWrapTrim|TestConversationMessageBlock_UsesSoftWrapTrim' -count=1 failed on undefined RenderMarkdownSoftWrapTrim",
+                  "GREEN: go test ./internal/tui -run 'TestRenderMarkdownSoftWrapTrim|TestConversationMessageBlock_UsesSoftWrapTrim' -count=1 -> ok",
+                  "go test ./internal/tui -count=1 -> ok"
+                ]
+              }
+            },
+            {
               "name": "Channel/TUI iteration-limit finalization transcript fixture",
               "priority": "P0",
               "status": "complete",
@@ -43191,8 +43272,8 @@
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-06T13:39:33Z",
-            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, and `ui-tui/src/__tests__`) remains the TUI source of truth, while Hermes b816fd4e2 API-server tests expose two additional gateway weaknesses: multimodal chat/responses normalization must preserve image parts instead of dropping them, and legacy /api/jobs plus hermes-api-server default toolset behavior must remain compatible with native cron/admin internals. The first 2026-05-05 sweep found terminal-helper drift in clipboard, OSC52, terminal setup, and truecolor tests; the second sweep found composer-ingress drift in image/file drop classification, image.attach, paste.collapse, bracketed-paste recovery, external-editor paste expansion, and copy redaction. The 2026-05-06 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; most high-risk surfaces are already row-backed or complete, but active Hermes `useCompletion` still has a small unbuilt path-vs-slash classifier. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits these into narrow API-server, TUI terminal-helper, TUI composer-ingress, and completion-routing rows rather than reopening completed chat-completions, cron-admin, keybinding, or slash rows."
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Current Hermes Ink (`ui-tui/src/components`, `ui-tui/src/app`, `ui-tui/packages/hermes-ink`, and `ui-tui/src/__tests__`) remains the TUI source of truth. The 2026-05-09 all-topic weakness sweep refreshed Hermes to a7e7921db and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Provider/auth, gateway/channel, tools, memory/Goncho, browser, docs/public, and release/operator gaps stayed complete, owned, blocked, or row-backed; the newly refreshed active Ink change was markdown/prose wrap-trim behavior, now tracked by `Native TUI markdown soft-wrap boundary trim`. Gormes keeps the Go-native Bubble Tea/kernel/API boundary and splits TUI drift into narrow renderer rows rather than reopening completed chat-completions, cron-admin, keybinding, slash, or websocket rows."
           }
         },
         "5.R": {

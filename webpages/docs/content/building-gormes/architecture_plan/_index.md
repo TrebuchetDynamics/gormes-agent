@@ -1040,6 +1040,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI /quit local exit binding
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [x] Native TUI Ink behavioral transcript golden matrix
+- [x] Native TUI markdown soft-wrap boundary trim
 - [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] TUI websocket attach transport
