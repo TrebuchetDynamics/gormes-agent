@@ -184,6 +184,7 @@ classification and row-backed implementation queue.
 - [x] Gateway session store + SessionSource parity
 - [x] Gateway manual reset session-boundary hooks
 - [x] Gateway session reset notification parity
+- [x] Gateway slash-confirm session-boundary cleanup
 - [x] SessionContext prompt injection
 - [x] Hermes live-turn prompt assembly parity (channel-neutral)
 - [x] Live-turn SOUL.md and project context wiring (channel-neutral)

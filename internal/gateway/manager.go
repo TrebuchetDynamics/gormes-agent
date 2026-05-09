@@ -180,6 +180,9 @@ type ManagerConfig struct {
 	// implementation used by the local CLI/TUI. Nil consumes /kanban with
 	// unavailable evidence instead of submitting it to the model.
 	KanbanSlashRunner KanbanSlashRunner
+	// SlashConfirmations stores confirmable slash-command prompts by session.
+	// Reset boundaries clear only the target session's pending confirmation.
+	SlashConfirmations *SlashConfirmationQueue
 	// ReloadConfig returns a freshly loaded manager config for reloadable
 	// runtime fields. Errors keep the last-good manager config active.
 	ReloadConfig func(context.Context) (ManagerConfig, error)
@@ -506,6 +509,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	if cfg.AllowDiscovery == nil {
 		cfg.AllowDiscovery = map[string]bool{}
 	}
+	if cfg.SlashConfirmations == nil {
+		cfg.SlashConfirmations = NewSlashConfirmationQueue()
+	}
 	seams := defaultLiveTurnPromptSeams()
 	explicitProfile := strings.TrimSpace(cfg.ContextFilesProfile) != ""
 	if dir := strings.TrimSpace(cfg.ContextFilesProfile); dir != "" {
@@ -584,6 +590,13 @@ func (m *Manager) DispatchReasoning(sessionKey string, args []string) (Reasoning
 	newState, reply := ApplyReasoningCommand(state, cmd, persist)
 	m.reasoningState[sessionKey] = newState
 	return reply, nil
+}
+
+func (m *Manager) clearSessionBoundaryControlState(sessionKey string) {
+	if m == nil || m.cfg.SlashConfirmations == nil {
+		return
+	}
+	m.cfg.SlashConfirmations.ClearSlashConfirmationSession(sessionKey)
 }
 
 func (m *Manager) now() time.Time {
@@ -936,8 +949,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 			}
 			return nil
 		}
+		key := m.sessionKeyForInbound(ev)
+		m.clearSessionBoundaryControlState(key)
 		if m.cfg.SessionMap != nil {
-			key := m.sessionKeyForInbound(ev)
 			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
 				m.log.Warn("clear session mapping", "key", key, "err", err)
 			}
@@ -1090,8 +1104,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 			}
 			return true
 		}
+		key := m.sessionKeyForInbound(ev)
+		m.clearSessionBoundaryControlState(key)
 		if m.cfg.SessionMap != nil {
-			key := m.sessionKeyForInbound(ev)
 			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
 				m.log.Warn("clear session mapping", "key", key, "err", err)
 			}

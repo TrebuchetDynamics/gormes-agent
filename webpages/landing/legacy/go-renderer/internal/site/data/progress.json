@@ -1667,6 +1667,72 @@
               }
             },
             {
+              "name": "Gateway slash-confirm session-boundary cleanup",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' session-boundary cleanup for pending slash-command confirmations: a channel-neutral pending confirmation store can register exactly one confirmable slash action per gateway session, resolve or clear it once, and successful `/new` or `/reset` clears only the target session's pending confirmation without running the action or touching other sessions.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "A nil or empty confirmation store is a no-op; reset refusal during an active turn leaves pending confirmations intact; stale, mismatched, or already-resolved confirmations fail closed with typed errors and no handler execution.",
+              "fixture": "internal/gateway/slash_confirm_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/run.py@0cafe7d50:_clear_session_boundary_security_state",
+                "./hermes-agent/tools/slash_confirm.py@0cafe7d50:register/get_pending/clear/resolve",
+                "./hermes-agent/tests/gateway/test_session_boundary_security_state.py@0cafe7d50:test_clear_session_boundary_security_state_is_scoped",
+                "internal/gateway/approval_queue.go",
+                "internal/gateway/manager.go:EventReset"
+              ],
+              "ready_when": [
+                "Gateway manual reset session-boundary hooks and approval queue cleanup semantics are complete, so this slice can add slash-confirm state without changing session key derivation or reset hook ordering.",
+                "Tests can use fake channels, fake kernels, and in-memory confirmation queues only; no Telegram, Slack, Discord, provider, MCP server, or Hermes Python runtime is required.",
+                "The row is scoped to the confirmation store plus reset-boundary clearing; `/reload-mcp` execution, adapter buttons, text fallback commands, and component authorization remain separate surfaces."
+              ],
+              "not_ready_when": [
+                "The implementation turns `/reload-mcp`, `/approve`, `/always`, or `/cancel` into live gateway commands instead of only adding the session-boundary confirmation state primitive.",
+                "A reset clears confirmations before kernel ResetSession succeeds or after ErrResetDuringTurn, causing an active session's pending confirmation to disappear without a real boundary switch.",
+                "The confirmation store records prompt text, credentials, adapter callback payloads, local paths, or raw channel messages in outcomes or progress evidence."
+              ],
+              "blocked_by": [
+                "Gateway manual reset session-boundary hooks",
+                "Gateway active-turn policy manifest closeout"
+              ],
+              "acceptance": [
+                "TestSlashConfirmQueueRegisterSupersedesAndClearScoped proves registering a new confirmation supersedes the old one for the same session, preserves other sessions, and scoped clear removes only the target session without recording an approval-like outcome.",
+                "TestSlashConfirmQueueResolveOnce validates once/always/cancel choices, ID mismatch fail-closed behavior, and double-resolution protection without invoking stale handlers.",
+                "TestManager_ResetClearsSlashConfirmationForTargetSessionOnly proves successful EventReset clears the target session's pending slash confirmation while preserving another session's pending confirmation.",
+                "TestManager_ResetDuringActiveTurnPreservesSlashConfirmation proves ErrResetDuringTurn keeps the pending confirmation and existing refusal text, matching Hermes' clear-only-on-boundary behavior.",
+                "Existing gateway reset, approval queue, and command policy tests remain green."
+              ],
+              "write_scope": [
+                "internal/gateway/slash_confirm.go",
+                "internal/gateway/slash_confirm_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestSlashConfirm|TestManager_ResetClearsSlashConfirmation|TestManager_ResetDuringActiveTurnPreservesSlashConfirmation' -count=1",
+                "go test ./internal/gateway -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway fixtures prove slash confirmations are scoped, one-shot, fail-closed, and cleared only after a successful reset boundary."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:0cafe7d50 gateway/run.py + tools/slash_confirm.py + tests/gateway/test_session_boundary_security_state.py",
+                "note": "2026-05-09 bounded all-topic weakness sweep refreshed Hermes from f1f42a7b9 to 0cafe7d50 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap. Higher-priority publication and release rows are operator-gated or draft, while existing provider/auth, browser, tool, Goncho, install/runtime, and public-surface deltas are complete or already row-backed. The new source-backed delta is Hermes clearing slash-confirm state at session boundaries; Gormes has reset-boundary hooks and approval queues but no slash-confirm state primitive."
+              },
+              "note": "Complete 2026-05-09: TDD added internal/gateway.SlashConfirmationQueue with one pending confirmation per session, scoped supersede/clear semantics, once/always/cancel resolution, ID mismatch preservation, and no outcome on boundary clear. Gateway reset handling now clears only the target session's pending confirmation after ResetSession succeeds, while ErrResetDuringTurn preserves the confirmation and refusal text. Evidence: go test ./internal/gateway -run 'TestSlashConfirm|TestManager_ResetClearsSlashConfirmation|TestManager_ResetDuringActiveTurnPreservesSlashConfirmation' -count=1; go test ./internal/gateway -count=1."
+            },
+            {
               "name": "SessionContext prompt injection",
               "status": "complete",
               "note": "TDD landed: each inbound submit now injects a stable Current Session Context system block ahead of recall/user messages, covering source metadata plus deterministic delivery-target exposure."
