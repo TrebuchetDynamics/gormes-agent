@@ -664,6 +664,7 @@ classification and row-backed implementation queue.
 - [x] Tool registry inventory + schema parity harness
 - [x] Tool parity manifest refresh for Hermes b35d692f
 - [x] Tool parity manifest refresh for Hermes ea86714 computer_use
+- [x] Tool parity manifest refresh for Hermes 524cbabd patch schema
 - [x] Microsoft Graph auth/client helper parity
 - [x] Discord tool split + platform-scoped toolsets
 - [x] Discord tool limit coercion helper

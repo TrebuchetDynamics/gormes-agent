@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-func TestToolParityManifestHermesEA86714ComputerUse(t *testing.T) {
+func TestToolParityManifestRetainsEA86714ComputerUse(t *testing.T) {
 	manifest, err := LoadUpstreamToolParityManifest()
 	if err != nil {
 		t.Fatalf("LoadUpstreamToolParityManifest: %v", err)
 	}
 
-	if got, want := manifest.Source.Commit, "ea86714cc"; !strings.HasPrefix(got, want) {
+	if got, want := manifest.Source.Commit, "524cbabd8"; !strings.HasPrefix(got, want) {
 		t.Fatalf("source commit = %q, want prefix %q", got, want)
 	}
 	for _, input := range []string{

@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-05-08T00:00:00Z",
+  "generated_at": "2026-05-09T00:00:00Z",
   "source": {
-    "commit": "ea86714cc0e0b3461a8f69b778116d8bbd3dc61c",
+    "commit": "524cbabd89811ce388bf51e997c6f6d3fd3ce4e2",
     "donor": "hermes",
     "input_files": [
       "toolsets.py",
@@ -12,10 +12,12 @@
       "tools/computer_use_tool.py",
       "tools/computer_use/schema.py",
       "tools/computer_use/tool.py",
+      "tools/file_tools.py",
       "tools/kanban_tools.py",
       "tests/tools/test_discord_tool.py",
       "tests/hermes_cli/test_tools_config.py",
       "tests/tools/test_computer_use.py",
+      "tests/tools/test_file_tools.py",
       "tests/tools/test_kanban_tools.py"
     ],
     "registry": "tools/registry.py",
@@ -3418,7 +3420,7 @@
       "dependencies": [
         "session filesystem environment"
       ],
-      "description": "Targeted find-and-replace edits in files. Use this instead of sed/awk in terminal. Uses fuzzy matching (9 strategies) so minor whitespace/indentation differences won't break it. Returns a unified diff. Auto-runs syntax checks after editing.\n\nReplace mode (default): find a unique string and replace it.\nPatch mode: apply V4A multi-file patches for bulk changes.",
+      "description": "Targeted find-and-replace edits in files. Use this instead of sed/awk in terminal. Uses fuzzy matching (9 strategies) so minor whitespace/indentation differences won't break it. Returns a unified diff. Auto-runs syntax checks after editing.\n\nREPLACE MODE (mode='replace', default): find a unique string and replace it. REQUIRED PARAMETERS: mode, path, old_string, new_string.\nPATCH MODE (mode='patch'): apply V4A multi-file patches for bulk changes. REQUIRED PARAMETERS: mode, patch.",
       "name": "patch",
       "provider_paths": [],
       "required_env": [],
@@ -3435,13 +3437,13 @@
         ]
       },
       "schema": {
-        "description": "Targeted find-and-replace edits in files. Use this instead of sed/awk in terminal. Uses fuzzy matching (9 strategies) so minor whitespace/indentation differences won't break it. Returns a unified diff. Auto-runs syntax checks after editing.\n\nReplace mode (default): find a unique string and replace it.\nPatch mode: apply V4A multi-file patches for bulk changes.",
+        "description": "Targeted find-and-replace edits in files. Use this instead of sed/awk in terminal. Uses fuzzy matching (9 strategies) so minor whitespace/indentation differences won't break it. Returns a unified diff. Auto-runs syntax checks after editing.\n\nREPLACE MODE (mode='replace', default): find a unique string and replace it. REQUIRED PARAMETERS: mode, path, old_string, new_string.\nPATCH MODE (mode='patch'): apply V4A multi-file patches for bulk changes. REQUIRED PARAMETERS: mode, patch.",
         "name": "patch",
         "parameters": {
           "properties": {
             "mode": {
               "default": "replace",
-              "description": "Edit mode: 'replace' for targeted find-and-replace, 'patch' for V4A multi-file patches",
+              "description": "Edit mode. 'replace' (default): requires path + old_string + new_string. 'patch': requires patch content only.",
               "enum": [
                 "replace",
                 "patch"
@@ -3449,19 +3451,19 @@
               "type": "string"
             },
             "new_string": {
-              "description": "Replacement text (required for 'replace' mode). Can be empty string to delete the matched text.",
+              "description": "REQUIRED when mode='replace'. Replacement text. Pass empty string '' to delete the matched text.",
               "type": "string"
             },
             "old_string": {
-              "description": "Text to find in the file (required for 'replace' mode). Must be unique in the file unless replace_all=true. Include enough surrounding context to ensure uniqueness.",
+              "description": "REQUIRED when mode='replace'. Exact text to find and replace. Must be unique in the file unless replace_all=true. Include surrounding context lines to ensure uniqueness.",
               "type": "string"
             },
             "patch": {
-              "description": "V4A format patch content (required for 'patch' mode). Format:\n*** Begin Patch\n*** Update File: path/to/file\n@@ context hint @@\n context line\n-removed line\n+added line\n*** End Patch",
+              "description": "REQUIRED when mode='patch'. V4A format patch content. Format:\n*** Begin Patch\n*** Update File: path/to/file\n@@ context hint @@\n context line\n-removed line\n+added line\n*** End Patch",
               "type": "string"
             },
             "path": {
-              "description": "File path to edit (required for 'replace' mode)",
+              "description": "REQUIRED when mode='replace'. File path to edit.",
               "type": "string"
             },
             "replace_all": {

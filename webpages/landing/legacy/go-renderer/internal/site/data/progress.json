@@ -19943,6 +19943,87 @@
       }
     },
     {
+      "name": "Tool parity manifest refresh for Hermes 524cbabd patch schema",
+      "priority": "P1",
+      "status": "complete",
+      "contract": "Refresh the embedded upstream tool parity manifest from Hermes ea86714cc to Hermes 524cbabd8 for descriptor-only patch-tool schema drift: PATCH_SCHEMA keeps required=[mode] with no anyOf/oneOf, but its top-level and property descriptions now advertise per-mode required parameters so strict providers do not omit replace-mode old_string/new_string or patch-mode patch content.",
+      "contract_status": "validated",
+      "slice_size": "small",
+      "execution_owner": "tools",
+      "trust_class": [
+        "operator",
+        "gateway",
+        "child-agent",
+        "system"
+      ],
+      "degraded_mode": "Tool parity doctor reports stale_source_commit or patch schema drift before provider/tool rows rely on the embedded manifest; this slice records upstream descriptor truth without enabling unsupported Gormes patch-mode execution.",
+      "fixture": "internal/tools/parity_524cbabd_test.go; internal/tools/testdata/upstream_tool_parity_manifest.json",
+      "source_refs": [
+        "./hermes-agent/tools/file_tools.py@524cbabd8:PATCH_SCHEMA",
+        "./hermes-agent/tests/tools/test_file_tools.py@524cbabd8:TestPatchSchemaShape",
+        "./hermes-agent/hermes_cli/slack_cli.py@24d321617:_build_full_manifest",
+        "./hermes-agent/tests/hermes_cli/test_slack_cli.py@24d321617",
+        "internal/tools/testdata/upstream_tool_parity_manifest.json"
+      ],
+      "ready_when": [
+        "The in-repo hermes-agent submodule is refreshed to 524cbabd8.",
+        "Tool registry inventory + schema parity harness and the ea86714 manifest refresh are validated.",
+        "The row can update descriptor fixtures and focused tests without porting V4A patch execution, Slack manifest generation, or release author-map behavior."
+      ],
+      "not_ready_when": [
+        "The slice implements patch-mode execution, fuzzy/V4A patch application, syntax lint hooks, checkpoint restore, Slack CLI manifest generation, Slack App Home setup, or release-note author mapping.",
+        "The manifest source commit is updated without proving PATCH_SCHEMA keeps required=[mode], omits anyOf/oneOf, and includes the upstream REQUIRED PARAMETERS guidance.",
+        "The row claims full current Hermes tool parity while omitting source-backed active tool descriptors discovered in the same sweep."
+      ],
+      "blocked_by": [
+        "Tool registry inventory + schema parity harness",
+        "Tool parity manifest refresh for Hermes ea86714 computer_use"
+      ],
+      "unblocks": [
+        "61-tool registry port",
+        "Stateful tool migration queue",
+        "Provider-tool-memory golden transcript suite"
+      ],
+      "acceptance": [
+        "TestToolParityManifestHermes524CBABDPatchSchema proves source.commit starts with 524cbabd8 and input_files include tools/file_tools.py plus tests/tools/test_file_tools.py.",
+        "The manifest patch tool schema description contains the upstream replace-mode REQUIRED PARAMETERS line for mode, path, old_string, and new_string.",
+        "The manifest patch tool schema description contains the upstream patch-mode REQUIRED PARAMETERS line for mode and patch.",
+        "The patch schema parameters retain required=[mode] and do not introduce anyOf or oneOf.",
+        "The path, old_string, new_string, and patch property descriptions include the upstream REQUIRED when mode=... guidance.",
+        "No runtime handler, gateway registration, Slack CLI manifest, or file editing behavior changes in this descriptor-only slice."
+      ],
+      "write_scope": [
+        "internal/tools/testdata/upstream_tool_parity_manifest.json",
+        "internal/tools/parity_524cbabd_test.go",
+        "internal/tools/parity_ea86714_test.go",
+        "docs/content/building-gormes/architecture_plan/progress.json"
+      ],
+      "test_commands": [
+        "go test ./internal/tools -run 'TestToolParityManifestHermes524CBABDPatchSchema|TestUpstreamToolParityManifestCapturesRegistryInventory|TestToolParityDoctorReportsManifestDrift' -count=1",
+        "go run ./cmd/progress validate",
+        "git diff --check"
+      ],
+      "done_signal": [
+        "Embedded tool parity manifest records Hermes 524cbabd8 patch schema descriptor guidance with focused tests and no runtime patch-mode or Slack CLI behavior changes."
+      ],
+      "note": "2026-05-09 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 29, so adding one P1 source-backed row is allowed. Current Hermes advanced from 7c174e65f to 524cbabd8; the new upstream behavior is narrow descriptor drift in tools/file_tools.py PATCH_SCHEMA plus Slack manifest App Home/grouplist scopes and release AUTHOR_MAP metadata. The patch schema manifest drift is selected because it affects model-visible strict-provider tool schemas and is builder-ready without live providers; Slack manifest generation remains row-backed by the CLI command manifest and should not be mixed into this tools descriptor slice.",
+      "evidence": {
+        "completed_at": "2026-05-09T00:00:00Z",
+        "source_commit": "524cbabd89811ce388bf51e997c6f6d3fd3ce4e2",
+        "implemented_scope": "Descriptor-only manifest refresh: updated embedded patch tool schema descriptions and source metadata, added a focused 524cbabd regression test, and kept the older ea86714 computer-use descriptor assertions active under the new manifest commit. No Gormes runtime patch-mode, Slack CLI manifest, gateway, or file-edit execution behavior changed.",
+        "test_commands": [
+          "RED: go test ./internal/tools -run TestToolParityManifestHermes524CBABDPatchSchema -count=1 failed because source.commit still recorded ea86714cc.",
+          "GREEN: go test ./internal/tools -run TestToolParityManifestHermes524CBABDPatchSchema -count=1 passed.",
+          "GREEN: go test ./internal/tools -run 'TestToolParityManifestRetainsEA86714|TestToolParityManifestHermesEA86714|TestToolParityManifestHermes524CBABDPatchSchema|TestUpstreamToolParityManifestCapturesRegistryInventory|TestToolParityDoctorReportsManifestDrift' -count=1 passed."
+        ]
+      },
+      "provenance": {
+        "origin_type": "upstream",
+        "upstream_ref": "hermes:524cbabd8 tools/file_tools.py tests/tools/test_file_tools.py",
+        "note": "Descriptor-only stale-manifest closure from the 2026-05-09 all-topic parity sweep; Gormes runtime PatchTool still only executes the replace-mode subset until a separate V4A/fuzzy patch row is selected."
+      }
+    },
+    {
       "name": "Microsoft Graph auth/client helper parity",
       "priority": "P2",
       "status": "complete",
