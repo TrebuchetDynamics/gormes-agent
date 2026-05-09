@@ -19,11 +19,24 @@ import (
 )
 
 func newKanbanCommand() *cobra.Command {
+	var boardOverride string
 	cmd := &cobra.Command{
 		Use:   "kanban",
 		Short: "Manage the durable local multi-agent Kanban board",
 		Args:  cobra.NoArgs,
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			slug := kanban.NormalizeBoardSlug(boardOverride)
+			if slug == "" {
+				return nil
+			}
+			if err := validateKanbanBoardOverride(slug); err != nil {
+				return err
+			}
+			cmd.SetContext(context.WithValue(cmd.Context(), kanbanBoardOverrideContextKey{}, slug))
+			return nil
+		},
 	}
+	cmd.PersistentFlags().StringVar(&boardOverride, "board", "", "operate on a named Kanban board for this invocation")
 	cmd.AddCommand(
 		newKanbanInitCommand(),
 		newKanbanCreateCommand(),
@@ -40,6 +53,8 @@ func newKanbanCommand() *cobra.Command {
 	)
 	return cmd
 }
+
+type kanbanBoardOverrideContextKey struct{}
 
 func newKanbanInitCommand() *cobra.Command {
 	var jsonOut bool
@@ -664,19 +679,27 @@ func kanbanRunFirstLine(value string, max int) string {
 }
 
 func openKanbanStore(ctx context.Context) (*kanban.Store, error) {
-	path, err := currentKanbanDBPath()
+	path, err := currentKanbanDBPath(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return kanban.Open(ctx, path)
 }
 
-func currentKanbanDBPath() (string, error) {
+func currentKanbanDBPath(ctx context.Context) (string, error) {
 	if strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")) != "" {
 		return config.KanbanDBPath(), nil
 	}
 
-	current, err := newBoardRegistry().Current()
+	reg := newBoardRegistry()
+	if override := kanbanBoardOverrideFromContext(ctx); override != "" {
+		if err := validateKanbanBoardOverride(override); err != nil {
+			return "", err
+		}
+		return reg.BoardPath(override), nil
+	}
+
+	current, err := reg.Current()
 	if err != nil {
 		return "", err
 	}
@@ -692,6 +715,40 @@ func currentKanbanDBPath() (string, error) {
 		return "", fmt.Errorf("inspect current kanban board %q: %w", current.Name, err)
 	}
 	return current.Path, nil
+}
+
+func kanbanBoardOverrideFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if value, ok := ctx.Value(kanbanBoardOverrideContextKey{}).(string); ok {
+		return value
+	}
+	return ""
+}
+
+func validateKanbanBoardOverride(slug string) error {
+	if slug == "" {
+		return nil
+	}
+	if slug != "default" {
+		if err := kanban.ValidateBoardSlug(slug); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")) != "" {
+		return nil
+	}
+	if slug == "default" {
+		return nil
+	}
+	boardDir := filepath.Dir(newBoardRegistry().BoardPath(slug))
+	if _, err := os.Stat(boardDir); os.IsNotExist(err) {
+		return fmt.Errorf("board %q does not exist", slug)
+	} else if err != nil {
+		return fmt.Errorf("inspect board %q: %w", slug, err)
+	}
+	return nil
 }
 
 var newKanbanTriageSpecifier = func(cfg config.Config) (kanban.TriageSpecifier, error) {

@@ -186,6 +186,64 @@ func TestKanbanTaskCommandsUseCurrentBoard(t *testing.T) {
 	}
 }
 
+func TestKanbanCommandBoardFlagRoutesWithoutSwitchingCurrent(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", root)
+
+	defaultTask := runKanbanJSONTask(t, "create", "default current task", "--json")
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "create", "alpha"); err != nil {
+		t.Fatalf("kanban boards create alpha: %v\nstderr=%s", err, stderr)
+	}
+
+	alphaTask := runKanbanJSONTask(t, "--board", "alpha", "create", "alpha one-off task", "--json")
+	alphaTasks := runKanbanJSONTasks(t, "--board", "alpha", "list", "--json")
+	if !containsKanbanTaskTitle(alphaTasks, alphaTask.Title) {
+		t.Fatalf("--board alpha tasks = %+v, want %q", alphaTasks, alphaTask.Title)
+	}
+	if containsKanbanTaskTitle(alphaTasks, defaultTask.Title) {
+		t.Fatalf("--board alpha tasks = %+v, should not include default-board task %q", alphaTasks, defaultTask.Title)
+	}
+
+	defaultTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(defaultTasks, defaultTask.Title) {
+		t.Fatalf("default/current board tasks = %+v, want %q", defaultTasks, defaultTask.Title)
+	}
+	if containsKanbanTaskTitle(defaultTasks, alphaTask.Title) {
+		t.Fatalf("default/current board tasks = %+v, should not include --board alpha task %q", defaultTasks, alphaTask.Title)
+	}
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "current", "--json")
+	if err != nil {
+		t.Fatalf("kanban boards current --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var current struct {
+		Current string `json:"current"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &current); err != nil {
+		t.Fatalf("current JSON decode: %v\nstdout=%s", err, stdout)
+	}
+	if current.Current != "default" {
+		t.Fatalf("current board = %q, want default after one-off --board", current.Current)
+	}
+}
+
+func TestKanbanCommandBoardFlagRejectsMissingBoardWithoutMutation(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", root)
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "--board", "missing", "list", "--json")
+	if err == nil {
+		t.Fatalf("kanban --board missing list error = nil\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	combined := stdout + stderr + err.Error()
+	if !strings.Contains(combined, `board "missing" does not exist`) {
+		t.Fatalf("missing-board output missing not-found evidence:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "kanban", "boards", "missing")); !os.IsNotExist(err) {
+		t.Fatalf("--board missing created board directory, stat err = %v", err)
+	}
+}
+
 func TestKanbanCommandPreservesExplicitDBPin(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("GORMES_HOME", filepath.Join(root, "home"))
@@ -206,6 +264,14 @@ func TestKanbanCommandPreservesExplicitDBPin(t *testing.T) {
 	}
 	if _, err := os.Stat(pinnedPath); err != nil {
 		t.Fatalf("explicit GORMES_KANBAN_DB path was not used: %v", err)
+	}
+
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "--board", "alpha", "create", "still pinned", "--json"); err != nil {
+		t.Fatalf("kanban --board alpha create with pinned DB: %v\nstderr=%s", err, stderr)
+	}
+	pinnedTasks = runKanbanJSONTasks(t, "--board", "alpha", "list", "--json")
+	if !containsKanbanTaskTitle(pinnedTasks, "still pinned") {
+		t.Fatalf("pinned DB tasks with --board alpha = %+v, want still pinned task", pinnedTasks)
 	}
 }
 

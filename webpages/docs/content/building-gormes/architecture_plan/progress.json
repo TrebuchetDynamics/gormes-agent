@@ -30015,6 +30015,90 @@
               }
             },
             {
+              "name": "Kanban global --board task command override",
+              "priority": "P2",
+              "status": "complete",
+              "completed_at": "2026-05-09T00:00:00Z",
+              "contract": "Gormes ports Hermes' global `kanban --board <slug>` override for task-level commands: create/list/show/runs/claim/complete/block/link operate on the named Gormes board for one invocation without mutating the persisted current-board pointer, while explicit GORMES_KANBAN_DB continues to pin the database path.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing or invalid board slugs return bounded CLI errors and do not create a board directory or fall back to the default board.",
+              "fixture": "cmd/gormes/kanban_command_test.go::TestKanbanCommandBoardFlagRoutesWithoutSwitchingCurrent",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:build_parser global --board flag and kanban_command board override",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:kanban_db_path(board=...)",
+                "./hermes-agent/website/docs/user-guide/features/kanban.md@a7e7921db:kanban --board examples and board resolution order",
+                "cmd/gormes/kanban.go:newKanbanCommand",
+                "cmd/gormes/kanban.go:openKanbanStore",
+                "internal/kanban/board.go:BoardRegistry"
+              ],
+              "ready_when": [
+                "Kanban current-board task command routing is complete.",
+                "Kanban boards list/show task-count read model is complete.",
+                "The slice can route through cmd/gormes openKanbanStore with temp GORMES_HOME fixtures only; no dispatcher, worker subprocess, gateway, or Hermes state is required."
+              ],
+              "not_ready_when": [
+                "The implementation reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live board state.",
+                "The slice changes persisted current-board state when `--board` is used for a one-off task command.",
+                "The slice expands into worker workspace/log routing, dispatcher board fan-out, notifications, watch/tail, stats, or GC behavior."
+              ],
+              "blocked_by": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "A CLI fixture proves `gormes kanban --board alpha create ...` writes to the alpha board while leaving the persisted current board unchanged.",
+                "A CLI fixture proves `gormes kanban --board alpha list --json` sees only alpha-board tasks, while `gormes kanban list --json` without the flag still sees the default/current board.",
+                "A missing-board fixture returns board-not-found evidence and does not create the missing board directory or database.",
+                "An explicit GORMES_KANBAN_DB fixture continues to pin task commands to that database path even when `--board` is supplied."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 23 before this planner pass, below the 90-row cap, so adding one source-backed P2 child row was allowed. Fresh Hermes a7e7921db TUI wrap-trim drift is already complete in Gormes, recent gateway/Slack/patch/release deltas are row-backed or complete, and the P1 public/release rows remain operator-blocked or too broad. TDD added the one-off `--board` task-command override, which previous Kanban child rows explicitly left out, without widening into worker routing, notifications, watch/tail, stats, or GC.",
+              "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestKanbanCommand(BoardFlag|PreservesExplicitDBPin)' -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban CLI fixtures prove `--board` selects a named Gormes board for one task-command invocation without changing current-board state, preserves explicit DB pinning, and rejects missing boards without mutation."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py global --board + hermes_cli/kanban_db.py board path resolution",
+                "note": "Hermes defines the global task-command board override; Gormes adapts it to Gormes-owned board registry state while deliberately excluding live Hermes env/home compatibility."
+              },
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/kanban.go registers a persistent `--board` flag on the native kanban command.",
+                  "cmd/gormes/kanban.go stores a validated one-invocation board override in command context and routes openKanbanStore through that board when no explicit GORMES_KANBAN_DB pin is set.",
+                  "cmd/gormes/kanban.go rejects missing non-default board overrides before opening a store, without creating the missing board directory."
+                ],
+                "tests": [
+                  "cmd/gormes/kanban_command_test.go:TestKanbanCommandBoardFlagRoutesWithoutSwitchingCurrent",
+                  "cmd/gormes/kanban_command_test.go:TestKanbanCommandBoardFlagRejectsMissingBoardWithoutMutation",
+                  "cmd/gormes/kanban_command_test.go:TestKanbanCommandPreservesExplicitDBPin"
+                ],
+                "red_green": [
+                  "RED: go test ./cmd/gormes -run 'TestKanbanCommand(BoardFlag|PreservesExplicitDBPin)' -count=1 failed with unknown flag: --board.",
+                  "GREEN: go test ./cmd/gormes -run 'TestKanbanCommand(BoardFlag|PreservesExplicitDBPin)' -count=1 passed after adding the persistent flag and context-routed DB path."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run 'TestKanbanCommand(BoardFlag|PreservesExplicitDBPin)' -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanCommand -count=1 -> ok"
+                ]
+              }
+            },
+            {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
               "status": "complete",
