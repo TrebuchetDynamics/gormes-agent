@@ -798,7 +798,7 @@ classification and row-backed implementation queue.
 - [x] Recoverable dangerous patterns + blocked-result schema
 - [x] Approval mode config normalization
 - [x] Gateway hook auto-accept strict parser
-- [ ] delegate_task batch JSON-string task recovery
+- [x] delegate_task batch JSON-string task recovery
 - [x] Subagent dangerous-command non-interactive approval policy
 - [x] Concurrent tool approval callback propagation
 - [x] Background review toolset restriction
