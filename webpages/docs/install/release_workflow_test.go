@@ -121,6 +121,27 @@ func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) 
 	}
 }
 
+func TestReleaseWorkflowAttestsSBOMsForArchives(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")
+	attestStep := workflowStepBlock(t, workflow, "- name: Attest SBOM")
+
+	wantAll := []string{
+		"uses: actions/attest@v4",
+		"subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz",
+		"sbom-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.sbom.json",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(attestStep, want) {
+			t.Errorf("Attest SBOM step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, workflow, "- name: Generate SBOM", "- name: Attest SBOM")
+	assertWorkflowOrder(t, workflow, "- name: Attest SBOM", "actions/upload-artifact@v4")
+	assertWorkflowOrder(t, workflow, sbomStep, attestStep)
+}
+
 func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
 	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")

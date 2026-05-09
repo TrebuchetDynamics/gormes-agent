@@ -726,7 +726,7 @@ classification and row-backed implementation queue.
 
 ### 5.E — TTS / Voice / Transcription 🔨
 
-- [ ] Voice mode port
+- [x] Voice mode port
 - [x] Voice mode environment detector + audio provider seam
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
@@ -1249,6 +1249,7 @@ classification and row-backed implementation queue.
 - [ ] Single-binary cross-platform release pipeline
 - [x] Release build-date provenance injection
 - [x] Release notes artifact size table
+- [ ] Release SBOM attestation binding
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
 
