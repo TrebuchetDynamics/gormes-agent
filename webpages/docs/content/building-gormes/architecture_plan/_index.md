@@ -1245,6 +1245,7 @@ classification and row-backed implementation queue.
 - [x] QQ Bot transport/bootstrap layer
 - [x] Google Chat shared-chassis platform adapter seam
 - [x] Google Chat relay sender-type self-filter
+- [x] Google Chat standalone cron sender
 
 ## Phase 8 — Reputation & Publication 🔨
 

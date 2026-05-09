@@ -50130,6 +50130,84 @@
                 "Google Chat relay/native fixtures prove sender_type preservation, BOT self-filtering, HUMAN fallback, native Pub/Sub envelope support, and no live Google transport dependency."
               ],
               "note": "Complete 2026-05-09: bounded all-topic Hermes weakness sweep refreshed Hermes to 93e25ceb1 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 18, below the 90-row cap. Higher-priority publication/release rows remained draft/operator-gated, and existing Kanban, delegate_task, Feishu, browser, release, and provider/auth deltas were complete or row-backed. This narrow Google Chat relay sender_type security delta was the highest-priority builder-ready source-backed slice. RED failed on missing native Chat API and relay-flat envelope support. GREEN added native MESSAGE and relay-flat normalization, relay sender_type preservation, BOT self-filtering, unknown-type HUMAN fallback, and pure fixtures with no Google Pub/Sub, Chat REST, OAuth, or live credentials. Evidence: go test ./internal/channels/googlechat -run 'TestGoogleChat(RelayFlatSenderTypeSelfFilter|NativeChatAPIPubSubMessage)' -count=1; go test ./internal/channels/googlechat -count=1."
+            },
+            {
+              "name": "Google Chat standalone cron sender",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f1f42a7b9 plugins/platforms/google_chat/adapter.py:_standalone_send",
+                "note": "2026-05-09 bounded all-topic weakness sweep refreshed Hermes to f1f42a7b9 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh f1f42a7b9 Telegram table drift is already complete, current runtime deltas are complete or row-backed, planned rows are 14 below the 90-row cap, and existing Google Chat rows name Workspace transport plus plugin standalone sender delivery as follow-ups. This row materializes the smallest source-backed child: Hermes' text-only Google Chat `_standalone_send` cron delivery guard with fakeable token/post seams."
+              },
+              "contract": "Gormes ports the Google Chat text-only standalone cron sender boundary: for cron targets whose platform is google_chat and that have no live gateway adapter, a package-local standalone sender validates Google Chat space/user and thread resource names, obtains an injected bearer token, posts a text-only Chat REST message with optional thread name through an injected poster, returns typed errors for invalid resource names or failed token/post operations, and reports unsupported platforms as cron.ErrStandaloneSenderUnavailable so the generic cron fallback remains intact.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Nil token/poster seams, invalid target resource names, missing tokens, or post failures return user-safe errors without opening live Google clients, reading service-account files, printing tokens, or skipping the existing cron DeliverySink fallback.",
+              "fixture": "internal/channels/googlechat/standalone_test.go",
+              "source_refs": [
+                "./hermes-agent/plugins/platforms/google_chat/adapter.py@f1f42a7b9:_standalone_send",
+                "./hermes-agent/gateway/platform_registry.py@f1f42a7b9:PlatformEntry.standalone_sender_fn",
+                "internal/cron/delivery_plan.go:StandaloneDeliveryAdapter",
+                "internal/channels/googlechat/runtime.go:PlatformName",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Channels"
+              ],
+              "ready_when": [
+                "Google Chat shared-chassis platform adapter seam and relay sender-type self-filter rows are complete.",
+                "Plugin standalone sender cron delivery fallback is complete and exposes cron.StandaloneDeliveryAdapter.",
+                "The slice can use fake token and poster seams; no Google Pub/Sub subscriber, Chat REST network request, OAuth refresh, service-account file, gateway runner, or live credentials are required."
+              ],
+              "not_ready_when": [
+                "The slice opens a live Google HTTP client, reads GOOGLE_CHAT_SERVICE_ACCOUNT_JSON, refreshes Google OAuth tokens, starts Pub/Sub, downloads attachments, or binds cmd/gormes gateway registration.",
+                "Invalid chat_id or thread_id values can reach URL construction or the poster.",
+                "A missing token/poster returns success or hides behind fallback_sink_used without standalone-specific evidence.",
+                "The change broadens into full Google Chat Workspace transport binding instead of only the standalone cron sender boundary."
+              ],
+              "blocked_by": [
+                "Google Chat shared-chassis platform adapter seam",
+                "Google Chat relay sender-type self-filter",
+                "Plugin standalone sender cron delivery fallback"
+              ],
+              "unblocks": [
+                "Google Chat Workspace transport binding"
+              ],
+              "acceptance": [
+                "TestGoogleChatStandaloneSenderValidatesResourceNames proves invalid spaces/users/thread resource names fail before token or poster calls, while spaces/<id>, users/<id>, and spaces/<id>/threads/<id> are accepted.",
+                "TestGoogleChatStandaloneSenderPostsTextOnlyMessage proves a valid cron target builds https://chat.googleapis.com/v1/{chat_id}/messages, uses Authorization: Bearer <token>, posts JSON with text and optional thread.name, returns the message name, and ignores media attachments on the standalone path.",
+                "TestGoogleChatStandaloneSenderFailureModes proves nil token/poster seams, empty tokens, and post failures return safe errors without leaking token values.",
+                "TestGoogleChatStandaloneSenderImplementsCronAdapter proves unsupported platforms return cron.ErrStandaloneSenderUnavailable so generic cron delivery fallback can continue."
+              ],
+              "write_scope": [
+                "internal/channels/googlechat/standalone.go",
+                "internal/channels/googlechat/standalone_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/googlechat -run TestGoogleChatStandaloneSender -count=1",
+                "go test ./internal/channels/googlechat -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Google Chat standalone cron sender fixtures prove strict resource-name validation, fakeable bearer-token REST posts, text-only media handling, safe errors, and cron fallback compatibility without live Google credentials."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f1f42a7b9 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh f1f42a7b9 Telegram table drift was already complete, current runtime deltas were complete or row-backed, and planned rows were 14 below the 90-row cap. The existing Google Chat rows still named Workspace transport plus plugin standalone sender delivery as follow-ups, so this source-backed child row materialized Hermes' text-only Google Chat `_standalone_send` cron delivery guard without broadening into live Pub/Sub, OAuth refresh, attachment delivery, or gateway registration.",
+              "evidence": {
+                "implementation": [
+                  "internal/channels/googlechat/standalone.go adds StandaloneSender, GoogleChatStandaloneTokenSource, GoogleChatStandalonePoster, strict spaces/users and thread resource-name validation, text-only JSON body construction, bearer-token headers, and cron.ErrStandaloneSenderUnavailable behavior for unsupported platforms or absent seams.",
+                  "internal/channels/googlechat/standalone_test.go proves invalid resource names fail before token/poster calls, valid spaces/users/thread targets post to the Chat REST message URL through fakes, media attachments stay out of the standalone JSON body, token/post failures are safe, and the sender implements cron.StandaloneDeliveryAdapter."
+                ],
+                "verification": [
+                  "RED: go test ./internal/channels/googlechat -run TestGoogleChatStandaloneSender -count=1 failed because StandaloneSender and the post request/response types were undefined.",
+                  "GREEN: go test ./internal/channels/googlechat -run TestGoogleChatStandaloneSender -count=1 passed after adding the standalone sender implementation.",
+                  "GREEN: go test ./internal/channels/googlechat -count=1 passed."
+                ]
+              }
             }
           ],
           "drift_state": {
