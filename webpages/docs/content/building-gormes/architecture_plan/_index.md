@@ -1258,6 +1258,7 @@ classification and row-backed implementation queue.
 - [x] Release build-date provenance injection
 - [x] Release notes artifact size table
 - [x] Release SBOM attestation binding
+- [x] Release build provenance attest action contract
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
 

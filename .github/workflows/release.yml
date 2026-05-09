@@ -173,6 +173,11 @@ jobs:
           subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
           sbom-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.sbom.json
 
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+
       - uses: actions/upload-artifact@v4
         with:
           name: gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}
@@ -181,12 +186,6 @@ jobs:
             dist/*.sha256
             dist/*.sbom.json
           if-no-files-found: error
-
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-path: |
-            dist/*.tar.gz
 
   publish:
     name: publish GitHub release

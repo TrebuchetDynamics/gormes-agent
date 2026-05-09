@@ -142,6 +142,27 @@ func TestReleaseWorkflowAttestsSBOMsForArchives(t *testing.T) {
 	assertWorkflowOrder(t, workflow, sbomStep, attestStep)
 }
 
+func TestReleaseWorkflowAttestsBuildProvenanceForArchives(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	provenanceStep := workflowStepBlock(t, workflow, "- name: Attest build provenance")
+
+	wantAll := []string{
+		"uses: actions/attest@v4",
+		"subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(provenanceStep, want) {
+			t.Errorf("Attest build provenance step missing %q\nstep body:\n%s", want, provenanceStep)
+		}
+	}
+	if strings.Contains(provenanceStep, "sbom-path:") {
+		t.Errorf("build provenance attestation must not use sbom-path; current step:\n%s", provenanceStep)
+	}
+
+	assertWorkflowOrder(t, workflow, "- name: Attest SBOM", "- name: Attest build provenance")
+	assertWorkflowOrder(t, workflow, "- name: Attest build provenance", "actions/upload-artifact@v4")
+}
+
 func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
 	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")

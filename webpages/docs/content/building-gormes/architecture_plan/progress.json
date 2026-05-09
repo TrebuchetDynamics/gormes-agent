@@ -49757,6 +49757,73 @@
               }
             },
             {
+              "name": "Release build provenance attest action contract",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The release workflow binds every matrix-built tar.gz release archive to GitHub build-provenance artifact attestations using the current artifact-attestation action shape: `actions/attest@v4` with the matrix-specific archive as `subject-path`. The attestation must run after the archive, checksum, size gate, and SBOM are produced, before the archive is uploaded from the build job, while preserving SBOM attestation, SHA-256 sidecars, release-note size/SHA output, and installer asset publication.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without a focused build-provenance attestation contract, the release flow can drift to an older action or attest the wrong subject while release notes continue to claim GitHub build provenance exists.",
+              "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowAttestsBuildProvenanceForArchives",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/success-plan.md:release provenance and install trust",
+                "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline not_ready_when release artifacts are unsigned",
+                ".github/workflows/release.yml:Attest build provenance",
+                "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowAttestsSBOMsForArchives",
+                "GitHub Actions docs: artifact attestations for binaries use actions/attest@v4 with subject-path and require id-token, contents, and attestations permissions"
+              ],
+              "ready_when": [
+                "Release workflow already builds one tar.gz archive per supported target and keeps it in dist for local attestation.",
+                "Release workflow already has id-token: write and attestations: write permissions.",
+                "Release SBOM attestation binding is complete and already pins actions/attest@v4 plus upload ordering."
+              ],
+              "not_ready_when": [
+                "The slice requires a live GitHub tag push, real release publication, or remote attestation-store verification.",
+                "The workflow attests the repository tree, checksum sidecar, SBOM file, or wildcard bundle instead of the matrix-specific tar.gz release archive.",
+                "The change removes SBOM attestation, SHA-256 sidecars, artifact upload, release notes, or install-script publication."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleaseWorkflowAttestsBuildProvenanceForArchives fails before the workflow uses `actions/attest@v4` for build provenance and passes after the current action shape is pinned.",
+                "The build-provenance attestation step uses the matrix-specific tar.gz path as `subject-path` and has no `sbom-path`.",
+                "The build-provenance attestation runs after the SBOM attestation and before actions/upload-artifact@v4.",
+                "Existing release workflow tests for target slugs, build-date metadata, SHA-256 sidecars, size cap, SBOM generation/attestation, release-note sizes, install-script assets, and tag-only publication remain green."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release workflow and workflow tests prove every matrix tar.gz archive receives a current GitHub build-provenance artifact attestation before build-job upload."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 20 before this planner pass, below the 90-row cap, so adding one P1 source-backed child row was allowed. Runtime parity areas were complete or row-backed; TD blog/writeup rows remain operator-blocked; the broad P1 release parent remains too large to assign directly. Context7 current GitHub Actions docs show binary artifact provenance uses `actions/attest@v4` with `subject-path`, while the local release workflow still used the older `actions/attest-build-provenance@v1` and no focused test pinned build-provenance subject or ordering. TDD migrated the workflow to actions/attest@v4 for the matrix tar.gz subject and moved build-provenance attestation before upload.",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/release.yml: Attest build provenance now uses actions/attest@v4 with the matrix-specific tar.gz archive as subject-path.",
+                  ".github/workflows/release.yml: build-provenance attestation now runs after SBOM attestation and before actions/upload-artifact@v4.",
+                  "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowAttestsBuildProvenanceForArchives pins action, subject-path, no sbom-path, and ordering."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run TestReleaseWorkflowAttestsBuildProvenanceForArchives -count=1 failed because the workflow used actions/attest-build-provenance@v1, wildcard subject-path, and post-upload ordering.",
+                  "GREEN: go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives)' -count=1 passed after workflow and test updates."
+                ]
+              }
+            },
+            {
               "name": "Release archive 30 MB size gate",
               "priority": "P1",
               "status": "complete",
