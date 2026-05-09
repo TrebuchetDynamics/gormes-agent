@@ -291,7 +291,18 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 		if len(sent) == 0 || sent[0].Data == nil {
 			return false
 		}
-		return sent[0].Data.Content == "partial" || sent[0].Data.Content == "done"
+		if sent[0].Data.Content == "done" {
+			return true
+		}
+		if sent[0].Data.Content != "partial ▉" {
+			return false
+		}
+		for _, edit := range ms.editsSnapshot() {
+			if edit.ChannelID == "42" && edit.Content == "done" {
+				return true
+			}
+		}
+		return false
 	})
 }
 
