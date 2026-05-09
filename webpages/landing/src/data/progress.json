@@ -7466,7 +7466,7 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/gateway -run TestHermesGatewayPlatformManifest -count=1",
+                "go test ./internal/gateway -run 'TestHermesGatewayPlatformManifest|TestPlatformConnectedCheckers' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
@@ -35015,6 +35015,72 @@
                 "Fake config and manifest fixtures prove `gormes channels capabilities` renders source-backed support metadata, configured/not-configured status, unknown-channel errors, and JSON without live channel SDKs."
               ],
               "note": "Complete: 2026-05-07 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 55, below the 90-row cap, so this pass added no new backlog and sharpened the existing small OpenClaw-owned channel introspection row. Hermes b816fd4e2 and Honcho e659b6b remain covered by existing row-backed channel/gateway and Goncho rows; OpenClaw 42d73fd955 supplies the operator CLI source for this Gormes-owned enhancement. TDD landed internal/channels/capabilities.go plus `gormes channels capabilities`; tests prove manifest-derived support, intents, scopes, format limitations, configured/not-configured status, JSON output without secrets, and unknown-channel evidence without opening live channel SDKs or runtime stores."
+            },
+            {
+              "name": "Teams configured-state in channel capabilities",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "`gormes channels capabilities --channel teams` reports Teams as a source-backed plugin platform and shows configured/not-configured Teams state from the same redacted `[teams]` config evidence used by `gormes gateway status`, without opening the Teams live transport or exposing TEAMS_CLIENT_SECRET. This closes the stale completed channel-capability row after Hermes added the Teams platform plugin and Gormes shipped the fakeable Teams seam.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Teams is absent from the Hermes gateway Platform enum but present as a plugin-backed platform. The capability manifest must include it as a channel without breaking enum/connector drift checks; Teams with `enabled = true` but missing credentials still appears as configured with redacted missing-credential detail, while absent Teams config remains not_configured and no live Microsoft SDK, Bot Framework listener, or credential probe is used.",
+              "fixture": "cmd/gormes/channels_capabilities_test.go",
+              "source_refs": [
+                "./hermes-agent/plugins/platforms/teams/adapter.py@bfc84bdc6:register required_env TEAMS_CLIENT_ID/TEAMS_CLIENT_SECRET/TEAMS_TENANT_ID and TeamsAdapter",
+                "./hermes-agent/plugins/platforms/teams/plugin.yaml@bfc84bdc6:TEAMS_* config keys",
+                "./hermes-agent/tests/gateway/test_teams.py@bfc84bdc6:validate_config and env/config precedence fixtures",
+                "cmd/gormes/gateway_status.go:configuredGatewayStatusChannels includes teams",
+                "internal/gateway/platform_manifest.go:HermesGatewayPlatformManifest currently omits plugin-backed teams",
+                "internal/gateway/platform_manifest_test.go:TestHermesGatewayPlatformManifestCoversUpstream currently checks enum/connectors but not plugin platforms",
+                "internal/gateway/platform_connected_checkers.go:MissingPlatformConnectedCheckers requires every manifest channel to expose redacted connected-state detection",
+                "cmd/gormes/channels_capabilities.go:configuredChannelCapabilityDetails currently omits teams",
+                "docs/content/building-gormes/architecture_plan/progress.json:Channels Capabilities Introspection",
+                "docs/content/building-gormes/architecture_plan/progress.json:Microsoft Teams adapter plugin seam"
+              ],
+              "ready_when": [
+                "The Teams config struct and redacted status helper are already present.",
+                "The platform manifest drift test can distinguish enum/connector platforms from Hermes plugin-backed platforms.",
+                "The channel capability command can read config without constructing a Teams client."
+              ],
+              "not_ready_when": [
+                "The implementation attempts live Microsoft Teams SDK, Graph, Bot Framework, or HTTP listener startup.",
+                "The capability output includes TEAMS_CLIENT_SECRET or any raw token-like value.",
+                "The row broadens Teams runtime delivery beyond configured-state reporting.",
+                "The implementation hardcodes a channel capability report outside the platform manifest instead of keeping manifest-derived support metadata."
+              ],
+              "unblocks": [
+                "Channel configuration UX"
+              ],
+              "acceptance": [
+                "HermesGatewayPlatformManifest includes `teams` as a source-backed plugin channel with row-backed/partial support metadata.",
+                "`gormes channels capabilities --channel teams` marks Teams configured when `[teams].enabled = true` and includes only redacted status detail.",
+                "`gormes channels capabilities --channel teams --json` reports configured=true and omits TEAMS_CLIENT_SECRET.",
+                "Absent Teams config still reports `not_configured` through the existing degraded evidence path.",
+                "Gateway status and channel capabilities use the same Teams redaction helper."
+              ],
+              "write_scope": [
+                "internal/gateway/platform_manifest.go",
+                "internal/gateway/platform_manifest_test.go",
+                "internal/gateway/platform_connected_checkers.go",
+                "internal/gateway/platform_connected_checkers_test.go",
+                "cmd/gormes/channels_capabilities.go",
+                "cmd/gormes/channels_capabilities_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run TestHermesGatewayPlatformManifest -count=1",
+                "go test ./cmd/gormes -run TestChannelsCapabilitiesCommandTeams -count=1",
+                "go test ./cmd/gormes -run TestChannelsCapabilities -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway manifest and focused command fixtures prove Teams is visible as a source-backed plugin channel and configured/not-configured capability output is redacted and live-SDK-free."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 13, so adding one P1 source-backed row was allowed. The top existing P1 public-surface/release rows remain operator-decision blocked. RED `go test ./cmd/gormes -run TestChannelsCapabilitiesCommandTeams -count=1` failed with `unknown_channel: teams`, exposing that Teams was missing from the platform manifest as a Hermes plugin-backed platform, not merely from the command's configured-state map. GREEN adds Teams as a source-backed plugin channel in HermesGatewayPlatformManifest, lets the manifest drift test accept extra plugin-backed sources only when their `plugins/platforms/...` file exists, adds a redacted Teams connected-state checker requiring client_id/client_secret/tenant_id, and feeds `[teams]` redacted status into `gormes channels capabilities`. Focused evidence: `go test ./internal/gateway -run 'TestHermesGatewayPlatformManifest|TestPlatformConnectedCheckers' -count=1`, `go test ./cmd/gormes -run TestChannelsCapabilitiesCommandTeams -count=1`, `go test ./cmd/gormes -run TestChannelsCapabilities -count=1`, and `go run ./cmd/progress validate`."
             },
             {
               "name": "Prompt Fragment Include System",

@@ -39,6 +39,7 @@ var platformConnectedCheckers = map[string]platformConnectedChecker{
 	"qqbot":           extraAll("app_id", "client_secret"),
 	"yuanbao":         extraAll("app_id", "app_secret"),
 	"dingtalk":        extraAll("client_id", "client_secret"),
+	"teams":           extraAll("client_id", "client_secret", "tenant_id"),
 }
 
 func PlatformLooksConfigured(cfg PlatformConnectionConfig) (bool, bool) {

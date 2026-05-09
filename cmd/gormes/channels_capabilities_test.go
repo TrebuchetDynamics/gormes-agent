@@ -107,6 +107,65 @@ allowed_chat_id = 42
 	}
 }
 
+func TestChannelsCapabilitiesCommandTeamsConfiguredStateIsRedacted(t *testing.T) {
+	setupChannelsCapabilitiesTestEnv(t)
+	writeChannelsCapabilitiesConfig(t, []byte(`
+[teams]
+enabled = true
+client_id = "teams-client"
+client_secret = "teams-client-secret"
+tenant_id = "teams-tenant"
+port = 5001
+allowed_users = ["aad-1", "aad-2"]
+allow_all_users = true
+`))
+
+	stdout, stderr, err := executeChannelsCapabilitiesCommand(t, "--channel", "teams")
+	if err != nil {
+		t.Fatalf("Execute: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	for _, want := range []string{
+		"Microsoft Teams (teams)",
+		"Status: configured",
+		"configured port=5001 allowed_users=2 allow_all_users=true",
+		"credentials:required",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "teams-client-secret") {
+		t.Fatalf("stdout leaked Teams secret:\n%s", stdout)
+	}
+
+	stdout, stderr, err = executeChannelsCapabilitiesCommand(t, "--channel", "teams", "--json")
+	if err != nil {
+		t.Fatalf("Execute JSON: %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
+	}
+	if strings.Contains(stdout, "teams-client-secret") {
+		t.Fatalf("json leaked Teams secret:\n%s", stdout)
+	}
+	var payload struct {
+		Channels []struct {
+			Channel      string `json:"channel"`
+			Configured   bool   `json:"configured"`
+			ConfigDetail string `json:"config_detail"`
+		} `json:"channels"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("invalid json: %v\n%s", err, stdout)
+	}
+	if len(payload.Channels) != 1 || payload.Channels[0].Channel != "teams" {
+		t.Fatalf("channels json = %+v, want teams only", payload.Channels)
+	}
+	if !payload.Channels[0].Configured {
+		t.Fatalf("teams json not configured: %+v", payload.Channels[0])
+	}
+	if got := payload.Channels[0].ConfigDetail; got != "configured port=5001 allowed_users=2 allow_all_users=true" {
+		t.Fatalf("teams config_detail = %q, want redacted configured detail", got)
+	}
+}
+
 func TestChannelsCapabilitiesCommandUnknownChannelFails(t *testing.T) {
 	setupChannelsCapabilitiesTestEnv(t)
 
@@ -129,6 +188,12 @@ func setupChannelsCapabilitiesTestEnv(t *testing.T) {
 	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("TEAMS_CLIENT_ID", "")
+	t.Setenv("TEAMS_CLIENT_SECRET", "")
+	t.Setenv("TEAMS_TENANT_ID", "")
+	t.Setenv("TEAMS_PORT", "")
+	t.Setenv("TEAMS_ALLOWED_USERS", "")
+	t.Setenv("TEAMS_ALLOW_ALL_USERS", "")
 }
 
 func writeChannelsCapabilitiesConfig(t *testing.T, data []byte) {
