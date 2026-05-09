@@ -6545,6 +6545,88 @@
               }
             },
             {
+              "name": "Telegram DM topic reply-fallback routing",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Gormes ports Hermes' May 2026 Telegram private-DM topic routing fix for Hermes-created topic lanes: a Telegram private chat with a topic/thread id must send text through the existing thread+reply anchor when the triggering message id is available, must never send with message_thread_id alone when the reply anchor is unavailable, must keep every long final-answer page anchored to the triggering message, and must skip sendChatAction for these lanes because Telegram Bot API 10.0 rejects typing calls that only carry message_thread_id.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If a Telegram private-DM topic turn lacks a triggering message id, Gormes degrades to a plain chat send instead of routing a partial message_thread_id-only send outside the visible topic lane; typing indicators are skipped without channel-visible errors or raw Bot API logs.",
+              "fixture": "internal/gateway/thread_delivery_test.go; internal/gateway/typing_action_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/telegram.py@8fb3e2d63:_thread_kwargs_for_send",
+                "./hermes-agent/gateway/platforms/telegram.py@8fb3e2d63:_reply_to_message_id_for_send",
+                "./hermes-agent/gateway/platforms/telegram.py@8fb3e2d63:_send_with_dm_topic_reply_anchor_retry",
+                "./hermes-agent/gateway/platforms/telegram.py@8fb3e2d63:send_typing",
+                "./hermes-agent/tests/gateway/test_telegram_thread_fallback.py@8fb3e2d63:test_send_uses_reply_fallback_for_hermes_dm_topics",
+                "./hermes-agent/tests/gateway/test_telegram_thread_fallback.py@8fb3e2d63:test_send_reply_fallback_applies_to_every_chunk_for_dm_topics",
+                "./hermes-agent/tests/gateway/test_telegram_thread_fallback.py@8fb3e2d63:test_send_dm_topic_fallback_without_anchor_does_not_crash",
+                "./hermes-agent/tests/gateway/test_telegram_thread_fallback.py@8fb3e2d63:test_send_typing_skips_api_call_for_dm_topic_reply_fallback",
+                "internal/gateway/manager.go",
+                "internal/gateway/typing_action.go",
+                "internal/channels/telegram/bot.go:SendThreadReply"
+              ],
+              "ready_when": [
+                "Telegram thread-aware outbound text + typing seam is complete, so gateway.Manager already has thread-aware final pages, placeholders, and typing-action routing.",
+                "Telegram forum thread fallback + send retry safety is complete and remains the forum-topic contract; this row only adds the separate private-DM topic reply-fallback route from upstream Hermes 8fb3e2d63.",
+                "Tests can use fake gateway channels and fake clocks only; no live Telegram Bot API, SDK upgrade, credentials, or private runtime home is required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites forum-topic routing, Telegram topic-mode storage, polling/reconnect behavior, media batching, or generic Slack/Discord thread semantics.",
+                "A Telegram private-DM topic send with no reply anchor still uses message_thread_id, a long final answer drops the reply anchor after page one, or sendChatAction is attempted for a private-DM topic fallback lane.",
+                "The implementation depends on live Telegram Bot API behavior instead of fake channel fixtures and existing Bot.SendThreadReply behavior."
+              ],
+              "acceptance": [
+                "Gateway fixtures prove Telegram private-DM topic sends with a reply anchor use SendThreadReply for every final-answer page.",
+                "Gateway fixtures prove Telegram private-DM topic sends without a reply anchor drop the thread id and send plain text rather than a partial topic route.",
+                "Typing-action fixtures prove Telegram private-DM topic lanes skip sendChatAction, while forum/supergroup topics still send threaded typing actions.",
+                "Existing Telegram forum thread fallback, reply-mode, and typing-action fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/thread_delivery_test.go",
+                "internal/gateway/typing_action_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestThreadAware.*DMTopic|TestTypingAction.*DMTopic|TestThreadAwareFinalPages|TestThreadAwareTypingAction' -count=1",
+                "go test ./internal/gateway ./internal/channels/telegram -run 'Thread|TypingAction|Telegram' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fake gateway/channel fixtures prove DM topic reply-fallback text routing, every-page anchoring, no-anchor degradation, typing skip, and unchanged forum-thread typing behavior."
+              ],
+              "outputs": [
+                "internal/gateway/manager.go",
+                "internal/gateway/typing_action.go",
+                "internal/gateway/thread_delivery_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "evidence": [
+                "RED: go test ./internal/gateway -run 'TestThreadAware.*DMTopic|TestThreadAwareFinalPages|TestThreadAwareTypingAction' -count=1 failed because current routing sent message_thread_id without a reply anchor, dropped the reply anchor after page one, and attempted threaded typing in a private DM topic lane.",
+                "GREEN: go test ./internal/gateway -run 'TestThreadAware.*DMTopic|TestThreadAwareFinalPages|TestThreadAwareTypingAction' -count=1 passed.",
+                "GREEN: go test ./internal/gateway ./internal/channels/telegram -run 'Thread|TypingAction|Telegram' -count=1 passed."
+              ],
+              "note": "Complete 2026-05-09: TDD added Telegram private-DM topic reply-fallback routing at the gateway delivery boundary. Positive Telegram chat IDs with a thread id are treated as Hermes-created DM topic fallback lanes: no-anchor sends degrade to plain chat sends instead of message_thread_id-only sends, long final-answer pages keep the reply anchor on every page, and typing actions are skipped so Bot API sendChatAction is not called for unsupported private topic lanes. Existing forum/supergroup thread fixtures were pinned to negative Telegram chat IDs and remain green.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:b3239572f gateway/platforms/telegram.py + tests/gateway/test_telegram_thread_fallback.py",
+                  "hermes:aef297a45 gateway/platforms/telegram.py + tests/gateway/test_telegram_thread_fallback.py",
+                  "hermes:8fb3e2d63 cumulative current upstream"
+                ],
+                "note": "2026-05-09 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 19, below the 90-row cap, so one new P0 source-backed runtime row was allowed. The upstream delta also exposed OpenViking tenant-header and context-compression JSON salvage gaps, but this Telegram DM topic routing slice is smaller, channel-visible, and immediately builder-ready over completed Gormes thread-aware gateway seams."
+              }
+            },
+            {
               "name": "Telegram semantic MarkdownV2 formatter + table rewrite",
               "status": "complete",
               "priority": "P1",

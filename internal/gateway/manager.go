@@ -1481,7 +1481,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			(*coCancel)()
 			*co = nil
 			*coCancel = nil
-			m.sendFinalPages(ctx, ch, chatID, threadID, "", finalPages[1:])
+			m.sendRemainingFinalPages(ctx, ch, chatID, threadID, replyToMsgID, finalPages[1:])
 		} else {
 			m.sendFinalPages(ctx, ch, chatID, threadID, "", finalPages)
 		}
@@ -1613,8 +1613,17 @@ func (m *Manager) sendWithHooksThread(ctx context.Context, ch Channel, chatID, t
 }
 
 func (m *Manager) sendFinalPages(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID string, pages []string) {
+	m.sendFinalPagesWithReplyPolicy(ctx, ch, chatID, threadID, replyToMsgID, pages, true)
+}
+
+func (m *Manager) sendRemainingFinalPages(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID string, pages []string) {
+	m.sendFinalPagesWithReplyPolicy(ctx, ch, chatID, threadID, replyToMsgID, pages, false)
+}
+
+func (m *Manager) sendFinalPagesWithReplyPolicy(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID string, pages []string, replyFirstPage bool) {
+	replyEveryPage := telegramDMTopicReplyFallbackLane(ch.Name(), chatID, threadID) && strings.TrimSpace(replyToMsgID) != ""
 	for i, page := range pages {
-		if i == 0 {
+		if replyEveryPage || (replyFirstPage && i == 0) {
 			_, _ = m.sendWithHooksReplyThread(ctx, ch, chatID, threadID, replyToMsgID, page)
 			continue
 		}
@@ -1629,6 +1638,9 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID, text string) (string, error) {
 	if ch == nil {
 		return "", nil
+	}
+	if telegramDMTopicReplyFallbackLane(ch.Name(), chatID, threadID) && strings.TrimSpace(replyToMsgID) == "" {
+		threadID = ""
 	}
 	ev := HookEvent{
 		Point:            HookBeforeSend,
@@ -1701,6 +1713,20 @@ func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chat
 		Text:             text,
 	})
 	return msgID, nil
+}
+
+func telegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
+	if !strings.EqualFold(strings.TrimSpace(platform), "telegram") {
+		return false
+	}
+	if strings.TrimSpace(threadID) == "" {
+		return false
+	}
+	chatID = strings.TrimSpace(chatID)
+	if chatID == "" {
+		return false
+	}
+	return !strings.HasPrefix(chatID, "-")
 }
 
 func (m *Manager) fireHook(ctx context.Context, ev HookEvent) {

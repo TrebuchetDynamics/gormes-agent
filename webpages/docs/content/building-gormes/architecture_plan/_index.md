@@ -252,6 +252,7 @@ classification and row-backed implementation queue.
 - [x] Telegram entity-only mention boundary closeout
 - [x] Telegram thread-aware outbound text + typing seam
 - [x] Telegram forum thread fallback + send retry safety
+- [x] Telegram DM topic reply-fallback routing
 - [x] Telegram semantic MarkdownV2 formatter + table rewrite
 - [x] Gateway platform reconnect isolation + channel health limits
 
