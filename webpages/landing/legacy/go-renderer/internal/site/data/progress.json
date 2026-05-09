@@ -21361,19 +21361,72 @@
               "priority": "P2"
             },
             {
-              "name": "Singularity",
-              "status": "planned",
-              "note": "TDD: port Singularity command construction, bind mounts, and timeout cleanup as a local command builder first; live runtime tests stay opt-in.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
+              "name": "Singularity command/preflight contract",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Port the Hermes Singularity/Apptainer sandbox command contract as a pure Go builder: executable resolution prefers apptainer over singularity, version preflight records bounded evidence, instance start command construction carries containment, no-home, writable tmpfs or overlay, readonly binds, memory, CPU, image, and instance id, exec wraps bash with optional login shell, and cleanup plans instance stop with the upstream timeout. Keep live Singularity execution out of unit tests.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "source_refs": [
+                "./hermes-agent/tools/environments/singularity.py@78b0008f4:_find_singularity_executable",
+                "./hermes-agent/tools/environments/singularity.py@78b0008f4:_ensure_singularity_available",
+                "./hermes-agent/tools/environments/singularity.py@78b0008f4:SingularityEnvironment._start_instance",
+                "./hermes-agent/tools/environments/singularity.py@78b0008f4:SingularityEnvironment._run_bash",
+                "./hermes-agent/tools/environments/singularity.py@78b0008f4:SingularityEnvironment.cleanup",
+                "./hermes-agent/tests/tools/test_singularity_preflight.py@78b0008f4",
+                "internal/tools/environment_contract.go"
+              ],
+              "acceptance": [
+                "Unit tests prove executable resolution prefers apptainer, falls back to singularity, and returns explicit unavailable evidence when neither executable is found.",
+                "Unit tests prove preflight runs [executable version] with a bounded timeout and records nonzero, error, and timeout failures without requiring a live Singularity install.",
+                "Unit tests prove instance start argv includes containment, no-home, writable tmpfs or overlay, readonly binds, memory, CPUs, image, and instance id in Hermes-compatible order.",
+                "Unit tests prove exec argv targets instance://<id>, wraps bash -c or bash -l -c, and cleanup argv stops the instance with the upstream stop timeout."
+              ],
+              "ready_when": [
+                "internal/tools already has the shared Environment evidence contract and pure Docker command-builder tests to mirror.",
+                "The slice is limited to command/preflight modeling and fake-runner tests; live container execution, SIF downloads, file sync, and persistent overlay snapshots remain future work."
+              ],
               "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+                "The implementation would invoke apptainer/singularity, require network pulls, require real credential directories, or start live containers in normal unit tests.",
+                "The slice expands into full sandbox backend execution, SIF cache management, persistent overlay snapshots, or tool routing beyond command/preflight construction."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "write_scope": [
+                "internal/tools/singularity_env.go",
+                "internal/tools/singularity_env_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestSingularity' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Singularity command/preflight fixtures prove executable resolution, version check evidence, start/exec/cleanup argv construction, and timeout constants without requiring a live Singularity runtime."
               ],
-              "priority": "P3"
+              "evidence": {
+                "implementation": [
+                  "internal/tools/singularity_env.go:ResolveSingularityExecutable prefers apptainer, falls back to singularity, and emits unavailable evidence when neither binary is present.",
+                  "internal/tools/singularity_env.go:CheckSingularityAvailable runs [executable version] through an injected SingularityCommandRunner with the Hermes 10s preflight timeout and bounded failure evidence.",
+                  "internal/tools/singularity_env.go:BuildSingularityStartCommand builds the contained instance start argv with no-home, writable tmpfs or overlay, binds, memory, CPUs, image, instance id, and 120s start timeout.",
+                  "internal/tools/singularity_env.go:BuildSingularityExecCommand and BuildSingularityStopCommand model instance:// exec and instance stop cleanup with the Hermes cleanup timeout."
+                ],
+                "tests": [
+                  "internal/tools/singularity_env_test.go:TestSingularityExecutableResolutionPrefersApptainer",
+                  "internal/tools/singularity_env_test.go:TestSingularityExecutableResolutionFallsBackToSingularity",
+                  "internal/tools/singularity_env_test.go:TestSingularityExecutableResolutionUnavailableEvidence",
+                  "internal/tools/singularity_env_test.go:TestSingularityPreflightRunsVersionWithTimeout",
+                  "internal/tools/singularity_env_test.go:TestSingularityPreflightReportsVersionFailures",
+                  "internal/tools/singularity_env_test.go:TestSingularityStartCommandBuildsHardenedInstance",
+                  "internal/tools/singularity_env_test.go:TestSingularityStartCommandUsesOverlayWhenPersistent",
+                  "internal/tools/singularity_env_test.go:TestSingularityExecAndCleanupCommands"
+                ],
+                "verification": [
+                  "go test ./internal/tools -run '^TestSingularity' -count=1 -> ok",
+                  "go test ./internal/tools -count=1 -> ok"
+                ]
+              }
             },
             {
               "name": "Sandbox Policy Explain",
