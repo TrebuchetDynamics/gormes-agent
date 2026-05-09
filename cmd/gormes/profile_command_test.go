@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -30,6 +31,9 @@ type profileCommandFakeSeams struct {
 	writeActiveProfileCalls []string
 
 	knownProfiles []string
+
+	distributionByRoot map[string]cli.ProfileDistributionManifest
+	distributionErr    error
 }
 
 func (f *profileCommandFakeSeams) defaults() profileCommandSeams {
@@ -65,6 +69,16 @@ func (f *profileCommandFakeSeams) defaults() profileCommandSeams {
 		},
 		ListKnownProfiles: func() ([]string, error) {
 			return append([]string(nil), f.knownProfiles...), nil
+		},
+		ReadDistributionManifest: func(root string) (cli.ProfileDistributionManifest, bool, error) {
+			if f.distributionErr != nil {
+				return cli.ProfileDistributionManifest{}, false, f.distributionErr
+			}
+			if f.distributionByRoot == nil {
+				return cli.ProfileDistributionManifest{}, false, nil
+			}
+			manifest, ok := f.distributionByRoot[root]
+			return manifest, ok, nil
 		},
 	}
 }
@@ -111,6 +125,54 @@ func TestGormesProfileShowRendersActivePathRedacted(t *testing.T) {
 	}
 }
 
+// TestGormesProfileShowJSONEmitsStructuredActiveRoot proves
+// `gormes profile show --json` emits a parseable
+// `{build, active, root}` document with the SAME redacted root the
+// human surface prints. Operator scripts checking which profile is
+// active and where its root lives need a structured shape — scraping
+// the two-line "active profile: X\nroot: ..." text is fragile.
+func TestGormesProfileShowJSONEmitsStructuredActiveRoot(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		resolveProfileRoot: func(name string) (string, error) {
+			return "/home/operator-secret/.config/gormes/profiles/work", nil
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "show", "--json")
+	if err != nil {
+		t.Fatalf("show --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, leak := range []string{"/home/operator-secret"} {
+		if strings.Contains(stdout+stderr, leak) {
+			t.Fatalf("show --json leaked raw path %q:\nstdout=%s\nstderr=%s", leak, stdout, stderr)
+		}
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Active string `json:"active"`
+		Root   string `json:"root"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Active != "work" {
+		t.Fatalf("got.Active = %q, want work", got.Active)
+	}
+	if !strings.Contains(got.Root, "...") {
+		t.Fatalf("got.Root = %q, want a redacted form (`...` marker)", got.Root)
+	}
+	// JSON mode must not interleave the human row.
+	if strings.Contains(stdout, "active profile:") {
+		t.Fatalf("--json must not emit the human row; got:\n%s", stdout)
+	}
+}
+
 func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 	t.Run("invalid_name_is_rejected_before_store_write", func(t *testing.T) {
 		fake := &profileCommandFakeSeams{}
@@ -130,7 +192,9 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 	})
 
 	t.Run("valid_name_writes_store_after_validation", func(t *testing.T) {
-		fake := &profileCommandFakeSeams{}
+		fake := &profileCommandFakeSeams{
+			knownProfiles: []string{"default", "work"},
+		}
 		stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "work")
 		if err != nil {
 			t.Fatalf("set valid name: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
@@ -148,6 +212,68 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 			t.Fatal("validator must be called before store write")
 		}
 	})
+}
+
+// TestGormesProfileSet_JSONEmitsStructuredOutcome proves
+// `gormes profile set <name> --json` returns a parseable
+// `{build, action, active, root}` document so fleet automation
+// switching profiles across machines can confirm the active marker
+// landed without scraping the two-line "active profile: ..." prose.
+// The root path is redacted (only the trailing segment) so the JSON
+// matches the same secrets contract as `profile show`.
+func TestGormesProfileSet_JSONEmitsStructuredOutcome(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		knownProfiles: []string{"default", "work"},
+		resolveProfileRoot: func(name string) (string, error) {
+			return "/home/operator-secret/.config/gormes/profiles/" + name, nil
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "set", "work", "--json")
+	if err != nil {
+		t.Fatalf("profile set --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	// Raw operator-secret path MUST never appear in stdout — same redaction
+	// promise the human surface keeps.
+	if strings.Contains(stdout+stderr, "/home/operator-secret") {
+		t.Fatalf("profile set --json LEAKED raw path:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action string `json:"action"`
+		Active string `json:"active"`
+		Root   string `json:"root"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("profile set --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "set" {
+		t.Errorf("action = %q, want %q", got.Action, "set")
+	}
+	if got.Active != "work" {
+		t.Errorf("active = %q, want %q", got.Active, "work")
+	}
+	if got.Root == "" {
+		t.Errorf("root must be populated (redacted form)")
+	}
+	// The root MUST be the redacted form (containing only the last segment).
+	if !strings.Contains(got.Root, "work") {
+		t.Errorf("root = %q, want redacted path including last segment", got.Root)
+	}
+
+	// Side effect: the validator and writer must still have been called.
+	if len(fake.validateProfileNameCalls) == 0 {
+		t.Errorf("validator must be called for --json path too")
+	}
+	if len(fake.writeActiveProfileCalls) != 1 || fake.writeActiveProfileCalls[0] != "work" {
+		t.Errorf("writeActiveProfile calls = %v, want exactly one with 'work'", fake.writeActiveProfileCalls)
+	}
 }
 
 func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T) {
@@ -197,9 +323,90 @@ func TestGormesProfileListEnumeratesKnownProfilesWithCurrentMarker(t *testing.T)
 	}
 }
 
+// TestGormesProfileListJSONEmitsStructuredInventory proves
+// `gormes profile list --json` emits a parseable
+// `{build, active, profiles: [{name, active}, ...]}` document. Fleet
+// automation that wants to inventory profiles or check which is active
+// across hosts needs a structured shape — scraping the human " *"
+// marker is fragile and locale-dependent.
+func TestGormesProfileListJSONEmitsStructuredInventory(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		knownProfiles:     []string{"default", "work", "research"},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "list", "--json")
+	if err != nil {
+		t.Fatalf("list --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Active   string `json:"active"`
+		Profiles []struct {
+			Name   string `json:"name"`
+			Active bool   `json:"active"`
+		} `json:"profiles"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Active != "work" {
+		t.Fatalf("got.Active = %q, want work", got.Active)
+	}
+	if len(got.Profiles) != 3 {
+		t.Fatalf("got %d profiles, want 3", len(got.Profiles))
+	}
+	wantOrder := []string{"default", "research", "work"} // sorted
+	for i, p := range got.Profiles {
+		if p.Name != wantOrder[i] {
+			t.Fatalf("profile[%d].Name = %q, want %q (sorted)", i, p.Name, wantOrder[i])
+		}
+		wantActive := p.Name == "work"
+		if p.Active != wantActive {
+			t.Fatalf("profile[%d].Active = %t for %q, want %t", i, p.Active, p.Name, wantActive)
+		}
+	}
+	// JSON mode must not interleave the human row.
+	if strings.Contains(stdout, "* work") {
+		t.Fatalf("--json must not emit the human row; got:\n%s", stdout)
+	}
+}
+
+// TestGormesProfileListJSONNoProfilesEmitsEmptyArray proves the JSON
+// surface stays parseable when no profiles are known — consumers see
+// `{"profiles": []}`, not the free-form "no profiles found" message.
+func TestGormesProfileListJSONNoProfilesEmitsEmptyArray(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		knownProfiles: []string{},
+	}
+	stdout, _, err := runProfileTestCommand(t, fake.defaults(), "list", "--json")
+	if err != nil {
+		t.Fatalf("list --json on empty: %v", err)
+	}
+	var got struct {
+		Profiles []any `json:"profiles"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("empty stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Profiles == nil {
+		t.Fatalf("profiles must be `[]`, not omitted/null; got %q", stdout)
+	}
+	if len(got.Profiles) != 0 {
+		t.Fatalf("got %d profiles, want 0", len(got.Profiles))
+	}
+}
+
 func TestGormesProfileSetUpdatesRootResolver(t *testing.T) {
 	t.Run("resolver_invoked_after_store_write_succeeds", func(t *testing.T) {
-		fake := &profileCommandFakeSeams{}
+		fake := &profileCommandFakeSeams{
+			knownProfiles: []string{"default", "research"},
+		}
 		var observedOrder []string
 		fake.writeActiveProfile = func(name string) error {
 			observedOrder = append(observedOrder, "write:"+name)
@@ -237,7 +444,9 @@ func TestGormesProfileSetUpdatesRootResolver(t *testing.T) {
 	})
 
 	t.Run("resolver_failure_after_write_surfaces_partial_failure", func(t *testing.T) {
-		fake := &profileCommandFakeSeams{}
+		fake := &profileCommandFakeSeams{
+			knownProfiles: []string{"default", "research"},
+		}
 		fake.resolveProfileRoot = func(name string) (string, error) {
 			return "", errors.New("disk full")
 		}
@@ -276,6 +485,129 @@ func TestGormesProfileSelectorWiring(t *testing.T) {
 	}
 	if !strings.Contains(profile.RootPath, "default") {
 		t.Fatalf("Profile.RootPath = %q, want a path containing 'default'", profile.RootPath)
+	}
+}
+
+func TestGormesProfileListShowsDistributionMetadata(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		knownProfiles:     []string{"default", "work", "research"},
+		distributionByRoot: map[string]cli.ProfileDistributionManifest{
+			"/tmp/gormes-test-home/profiles/work": {
+				Name:    "telemetry",
+				Version: "1.2.3",
+			},
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "list")
+	if err != nil {
+		t.Fatalf("profile list: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "telemetry@1.2.3") {
+		t.Fatalf("list output missing distribution summary:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "/tmp/gormes-test-home") {
+		t.Fatalf("profile list leaked raw profile root:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	stdout, stderr, err = runProfileTestCommand(t, fake.defaults(), "list", "--json")
+	if err != nil {
+		t.Fatalf("profile list --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Profiles []struct {
+			Name         string `json:"name"`
+			Distribution *struct {
+				Name    string `json:"name"`
+				Version string `json:"version"`
+			} `json:"distribution,omitempty"`
+		} `json:"profiles"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("profile list --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	for _, profile := range got.Profiles {
+		if profile.Name == "work" {
+			if profile.Distribution == nil {
+				t.Fatalf("work profile missing distribution object in JSON: %+v", got.Profiles)
+			}
+			if profile.Distribution.Name != "telemetry" || profile.Distribution.Version != "1.2.3" {
+				t.Fatalf("distribution = %+v, want telemetry@1.2.3", profile.Distribution)
+			}
+			return
+		}
+	}
+	t.Fatalf("work profile missing from JSON: %+v", got.Profiles)
+}
+
+func TestGormesProfileShowIncludesDistributionSummary(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		activeProfileName: "work",
+		distributionByRoot: map[string]cli.ProfileDistributionManifest{
+			"/tmp/gormes-test-home/profiles/work": {
+				Name:    "telemetry",
+				Version: "1.2.3",
+				Source:  "github.com/acme/telemetry",
+			},
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "show")
+	if err != nil {
+		t.Fatalf("profile show: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "distribution: telemetry@1.2.3") {
+		t.Fatalf("show output missing distribution summary:\n%s", stdout)
+	}
+	if strings.Contains(stdout+stderr, "/tmp/gormes-test-home") {
+		t.Fatalf("profile show leaked raw profile root:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+func TestGormesProfileInfoRendersDistributionManifest(t *testing.T) {
+	defaultValue := "http://127.0.0.1:8000/sse"
+	fake := &profileCommandFakeSeams{
+		knownProfiles: []string{"work", "plain"},
+		distributionByRoot: map[string]cli.ProfileDistributionManifest{
+			"/tmp/gormes-test-home/profiles/work": {
+				Name:           "telemetry",
+				Version:        "1.2.3",
+				Description:    "Compliance monitor",
+				Source:         "github.com/acme/telemetry",
+				InstalledAt:    "2026-05-08T00:00:00Z",
+				HermesRequires: ">=0.12.0",
+				EnvRequires: []cli.ProfileDistributionEnvRequirement{
+					{Name: "OPENAI_API_KEY", Description: "OpenAI key", Required: true},
+					{Name: "GRAPHITI_MCP_URL", Required: false, Default: &defaultValue},
+				},
+			},
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "info", "work")
+	if err != nil {
+		t.Fatalf("profile info: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Distribution: telemetry",
+		"Version:      1.2.3",
+		"Description:  Compliance monitor",
+		"Requires:     Hermes >=0.12.0",
+		"Source:       github.com/acme/telemetry",
+		"Installed:    2026-05-08T00:00:00Z",
+		"OPENAI_API_KEY (required)",
+		"GRAPHITI_MCP_URL (optional)",
+		"default: http://127.0.0.1:8000/sse",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("profile info missing %q:\n%s", want, stdout)
+		}
+	}
+
+	stdout, stderr, err = runProfileTestCommand(t, fake.defaults(), "info", "plain")
+	if err != nil {
+		t.Fatalf("profile info plain should be non-error: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Profile 'plain' is not a distribution") {
+		t.Fatalf("plain profile message mismatch:\n%s", stdout)
 	}
 }
 

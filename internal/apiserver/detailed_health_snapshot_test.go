@@ -6,6 +6,117 @@ import (
 	"testing"
 )
 
+// TestDetailedHealthSnapshot_RunEventsOldestActiveAge proves the
+// run events section also surfaces `oldest_active_age_seconds` so
+// fleet alerting reading /health/detailed can detect stalled runs
+// without a separate /v1/health round-trip.
+func TestDetailedHealthSnapshot_RunEventsOldestActiveAge(t *testing.T) {
+	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
+		RunEvents: DetailedHealthRunEventsInput{
+			Available:              true,
+			Active:                 1,
+			OldestActiveAgeSeconds: 600,
+		},
+	})
+	if got := snapshot.RunEvents.OldestActiveAgeSeconds; got != 600 {
+		t.Errorf("oldest_active_age_seconds = %d, want 600", got)
+	}
+	raw, err := json.Marshal(snapshot.RunEvents)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"oldest_active_age_seconds":600`) {
+		t.Errorf("run_events JSON missing oldest_active_age_seconds: %s", raw)
+	}
+}
+
+// TestDetailedHealthSnapshot_RunEventsPeakActive proves the run
+// events section also surfaces `peak_active` — the high-water mark
+// of concurrent runs across process lifetime — so capacity planners
+// can read it from /health/detailed alongside the lifetime counters.
+func TestDetailedHealthSnapshot_RunEventsPeakActive(t *testing.T) {
+	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
+		RunEvents: DetailedHealthRunEventsInput{
+			Available:  true,
+			Active:     2,
+			PeakActive: 9,
+		},
+	})
+	if got := snapshot.RunEvents.PeakActive; got != 9 {
+		t.Errorf("peak_active = %d, want 9", got)
+	}
+	raw, err := json.Marshal(snapshot.RunEvents)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"peak_active":9`) {
+		t.Errorf("run_events JSON missing peak_active: %s", raw)
+	}
+}
+
+// TestDetailedHealthSnapshot_RunEventsRequestTotal proves the run
+// events section also surfaces `request_total` — the count of every
+// run submitted to the registry — so /health/detailed can compute
+// in-flight + abandoned runs (request_total - completed - failed -
+// stopped - active) without reading /v1/health.
+func TestDetailedHealthSnapshot_RunEventsRequestTotal(t *testing.T) {
+	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
+		RunEvents: DetailedHealthRunEventsInput{
+			Available:    true,
+			RequestTotal: 22,
+		},
+	})
+	if got := snapshot.RunEvents.RequestTotal; got != 22 {
+		t.Errorf("request_total = %d, want 22", got)
+	}
+	raw, err := json.Marshal(snapshot.RunEvents)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"request_total":22`) {
+		t.Errorf("run_events JSON missing request_total: %s", raw)
+	}
+}
+
+// TestDetailedHealthSnapshot_RunEventsLifecycleCounters proves the
+// run events section surfaces process-lifetime lifecycle counters
+// (`completed_total`, `failed_total`, `stopped_total`) so fleet
+// monitoring graphing run error/stop velocity from /health/detailed
+// can read it without scraping /v1/health JSON. Counters mirror the
+// runRegistry stats wired into /v1/health (slice 130).
+func TestDetailedHealthSnapshot_RunEventsLifecycleCounters(t *testing.T) {
+	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
+		RunEvents: DetailedHealthRunEventsInput{
+			Available:      true,
+			Active:         3,
+			OrphanedSwept:  2,
+			TTLSeconds:     300,
+			CompletedTotal: 17,
+			FailedTotal:    4,
+			StoppedTotal:   1,
+		},
+	})
+	if got := snapshot.RunEvents.CompletedTotal; got != 17 {
+		t.Errorf("completed_total = %d, want 17", got)
+	}
+	if got := snapshot.RunEvents.FailedTotal; got != 4 {
+		t.Errorf("failed_total = %d, want 4", got)
+	}
+	if got := snapshot.RunEvents.StoppedTotal; got != 1 {
+		t.Errorf("stopped_total = %d, want 1", got)
+	}
+
+	raw, err := json.Marshal(snapshot.RunEvents)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, want := range []string{`"completed_total":17`, `"failed_total":4`, `"stopped_total":1`} {
+		if !strings.Contains(string(raw), want) {
+			t.Errorf("run_events JSON missing %s: %s", want, raw)
+		}
+	}
+}
+
 func TestDetailedHealthSnapshot_AllSystemsReady(t *testing.T) {
 	snapshot := DetailedHealthSnapshot(DetailedHealthSnapshotInput{
 		Provider: DetailedHealthProviderInput{

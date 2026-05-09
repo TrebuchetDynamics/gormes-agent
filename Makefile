@@ -1,7 +1,9 @@
 .PHONY: build build-slim run test test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
 
 VERSION ?= 0.1.0
-BUILD_FLAGS := -trimpath -ldflags="-s -w -X main.Version=$(VERSION)"
+GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+GIT_DIRTY ?= $(shell git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null && echo false || echo true)
+BUILD_FLAGS := -trimpath -ldflags="-s -w -X main.Version=$(VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.GitDirty=$(GIT_DIRTY)"
 BINARY_PATH := bin/gormes
 SLIM_BINARY_PATH := bin/gormes-slim
 
@@ -68,8 +70,8 @@ orchestrator-test-all:
 orchestrator-lint:
 	@if command -v shellcheck >/dev/null 2>&1; then \
 	  shellcheck scripts/gormes-auto-codexu-orchestrator.sh \
-	    scripts/codexu-gormes-builder-loop.sh \
-	    scripts/codexu-gormes-builder-cron.sh \
+	    scripts/gormes-builder-loop.sh \
+	    scripts/gormes-builder-cron.sh \
 	    scripts/orchestrator/audit.sh \
 	    scripts/orchestrator/daily-digest.sh \
 	    scripts/orchestrator/install-service.sh \

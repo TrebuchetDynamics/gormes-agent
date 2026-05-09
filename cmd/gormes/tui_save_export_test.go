@@ -117,6 +117,12 @@ func TestTUISaveExportHelper_CollisionSafeName(t *testing.T) {
 
 func TestTUISaveExportHelper_PropagatesExportErrors(t *testing.T) {
 	root := t.TempDir()
+	// Without t.Setenv("GORMES_HOME", ...), seedTUISaveTranscriptDB
+	// would resolve config.MemoryDBPath() against the operator's
+	// real GORMES_HOME and write fixtures to ~/.gormes/memory.db —
+	// observed in production as test fixtures (e.g. "hello from tui",
+	// "saved from transcript store") leaking into a fresh install.
+	t.Setenv("GORMES_HOME", filepath.Join(root, "gormes-home"))
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg-data"))
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes-home"))
@@ -134,7 +140,20 @@ func TestTUISaveExportHelper_PropagatesExportErrors(t *testing.T) {
 func seedTUISaveTranscriptDB(t *testing.T, sessionID, chatID string) {
 	t.Helper()
 
-	store, err := memory.OpenSqlite(config.MemoryDBPath(), 8, nil)
+	// Defensive guard against the test-pollution bug where a caller
+	// forgets to t.Setenv GORMES_HOME first and the seeder ends up
+	// writing fixtures into the developer's real ~/.gormes/memory.db.
+	// We require GORMES_HOME to either be unset-then-tmp-routed by the
+	// caller, or to obviously NOT be the operator's real home.
+	mdb := config.MemoryDBPath()
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		realHome := filepath.Join(home, ".gormes", "memory.db")
+		if mdb == realHome {
+			t.Fatalf("seedTUISaveTranscriptDB refuses to write fixtures to the operator's real memory.db at %s; t.Setenv GORMES_HOME to a t.TempDir() first", mdb)
+		}
+	}
+
+	store, err := memory.OpenSqlite(mdb, 8, nil)
 	if err != nil {
 		t.Fatalf("OpenSqlite: %v", err)
 	}

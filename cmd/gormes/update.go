@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -35,6 +37,11 @@ type updateCommandSeams struct {
 	// tests; default wraps internal/config.MigrateConfigFile against the
 	// resolved config path.
 	ConfigMigrateFn cli.ConfigMigrateRunner
+	// BackupWriterFor builds a BackupWriter closure for the active gormes
+	// home. Override in tests; default writes a zip of GormesHome (with
+	// IsExcludedFromBackup paths skipped) to
+	// `<home>/backups/pre-update-<UTC>.zip`.
+	BackupWriterFor func() cli.BackupWriter
 }
 
 func newUpdateCommand() *cobra.Command {
@@ -50,6 +57,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	var backup bool
 	var noBackup bool
 	var skipWeb bool
+	var asJSON bool
 
 	if seams.CheckoutDir == nil {
 		seams.CheckoutDir = os.Getwd
@@ -69,29 +77,62 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	if seams.ConfigMigrateFn == nil {
 		seams.ConfigMigrateFn = defaultConfigMigrate
 	}
+	if seams.BackupWriterFor == nil {
+		seams.BackupWriterFor = defaultBackupWriterFor
+	}
 
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update a managed Gormes source checkout",
+		Use:           "update",
+		Short:         "Update a managed Gormes source checkout",
+		SilenceUsage:  true,
+		Long: `Update a managed Gormes source checkout: fetch + fast-forward, sync
+bundled skills, rebuild the web UI, run a config schema migration check,
+and restart the gateway.
+
+Backup and rollback:
+
+  gormes update --backup           take a pre-update zip of GORMES_HOME
+                                   before pulling source. Set
+                                   ` + "`[updates] pre_update_backup = true`" + ` in
+                                   config.toml to make this the default.
+  gormes restore --list            enumerate available pre-update zips,
+                                   newest first.
+  gormes restore --latest --yes    roll back to the most recent zip
+                                   (overwrites files in GORMES_HOME).
+
+When ` + "`--backup`" + ` is set and the update later fails, the report ends with
+a ` + "`◆ update_rollback_hint`" + ` line spelling out the restore command above
+so the recovery path is visible inline.
+`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			checkoutDir, err := seams.CheckoutDir()
 			if err != nil {
 				return err
 			}
+			// Best-effort config read: when config.Load fails or no
+			// config exists, fall through with zero-value Updates so
+			// `gormes update` keeps working on a fresh install with
+			// no config.toml.
+			var updatesCfg config.UpdatesCfg
+			if cfg, cfgErr := config.Load(nil); cfgErr == nil {
+				updatesCfg = cfg.Updates
+			}
 			report := seams.RunLifecycle(cmd.Context(), cli.UpdateLifecycleOptions{
-				CheckoutDir:        checkoutDir,
-				Branch:             branch,
-				CheckOnly:          checkOnly,
-				Yes:                yes,
-				RestartGateway:     restartGateway,
-				KillStaleDashboard: killStaleDashboard,
-				Backup:             backup,
-				NoBackup:           noBackup,
-				SkillSync:          seams.SkillSyncFor(checkoutDir),
-				WebBuild:           seams.WebBuildFor(checkoutDir, skipWeb),
-				ConfigCheck:        seams.ConfigCheckFn,
-				ConfigMigrate:      seams.ConfigMigrateFn,
-				Git:                cli.RealUpdateGitRunner{},
+				CheckoutDir:         checkoutDir,
+				Branch:              branch,
+				CheckOnly:           checkOnly,
+				Yes:                 yes,
+				RestartGateway:      restartGateway,
+				KillStaleDashboard:  killStaleDashboard,
+				Backup:              backup,
+				NoBackup:            noBackup,
+				BackupConfigEnabled: updatesCfg.PreUpdateBackup,
+				SkillSync:           seams.SkillSyncFor(checkoutDir),
+				WebBuild:            seams.WebBuildFor(checkoutDir, skipWeb),
+				ConfigCheck:         seams.ConfigCheckFn,
+				ConfigMigrate:       seams.ConfigMigrateFn,
+				BackupWriter:        seams.BackupWriterFor(),
+				Git:                 cli.RealUpdateGitRunner{},
 			})
 			if report.Branch == "" {
 				report.Branch = branch
@@ -99,7 +140,13 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 			if checkOnly && !updateReportHasEvidence(report, cli.UpdateEvidenceCheck) {
 				report.Evidence = append([]cli.UpdateEvidence{{Kind: cli.UpdateEvidenceCheck, Detail: "no checkout mutations requested"}}, report.Evidence...)
 			}
-			printUpdateReport(cmd, report)
+			if asJSON {
+				if err := printUpdateReportJSON(cmd, report); err != nil {
+					return err
+				}
+			} else {
+				printUpdateReport(cmd, report, checkOnly)
+			}
 			if report.Failed {
 				message := "gormes update failed"
 				if report.OperatorRecovery != "" {
@@ -115,10 +162,52 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "assume yes for non-destructive recovery prompts")
 	cmd.Flags().StringVar(&restartGateway, "restart-gateway", "auto", "restart policy for a live gateway: auto, always, or never")
 	cmd.Flags().BoolVar(&killStaleDashboard, "kill-stale-dashboard", false, "stop stale dashboard processes after a successful update")
-	cmd.Flags().BoolVar(&backup, "backup", false, "create a single-run pre-update backup of ~/.gormes (writer is a follow-up slice; this surface emits the policy decision)")
+	cmd.Flags().BoolVar(&backup, "backup", false, "create a single-run pre-update backup zip of ~/.gormes; restore later with `gormes restore --latest --yes`")
 	cmd.Flags().BoolVar(&noBackup, "no-backup", false, "force-skip the pre-update backup; beats --backup and config opt-in")
 	cmd.Flags().BoolVar(&skipWeb, "skip-web", false, "skip the web UI rebuild step after pulling source")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable JSON report instead of the human-readable progress UX (suitable for CI/cron consumers)")
 	return cmd
+}
+
+// updateReportJSON shapes UpdateReport for machine-readable output.
+// Mirrors the internal/cli struct field-for-field with snake_case JSON
+// tags. Defined in cmd/gormes so internal/cli stays free of presentation
+// concerns.
+type updateReportJSON struct {
+	Build            buildProvenanceJSON  `json:"build"`
+	Branch           string               `json:"branch"`
+	PreviousBranch   string               `json:"previous_branch,omitempty"`
+	Failed           bool                 `json:"failed"`
+	Evidence         []updateEvidenceJSON `json:"evidence"`
+	OperatorRecovery string               `json:"operator_recovery,omitempty"`
+	DashboardPIDs    []int                `json:"dashboard_pids,omitempty"`
+}
+
+type updateEvidenceJSON struct {
+	Kind   string `json:"kind"`
+	Detail string `json:"detail,omitempty"`
+}
+
+func printUpdateReportJSON(cmd *cobra.Command, report cli.UpdateReport) error {
+	out := cmd.OutOrStdout()
+	shaped := updateReportJSON{
+		Build:            newBuildProvenance(),
+		Branch:           report.Branch,
+		PreviousBranch:   report.PreviousBranch,
+		Failed:           report.Failed,
+		Evidence:         make([]updateEvidenceJSON, len(report.Evidence)),
+		OperatorRecovery: report.OperatorRecovery,
+		DashboardPIDs:    report.DashboardPIDs,
+	}
+	for i, e := range report.Evidence {
+		shaped.Evidence[i] = updateEvidenceJSON{Kind: string(e.Kind), Detail: e.Detail}
+	}
+	body, err := json.MarshalIndent(shaped, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
 }
 
 func updateReportHasEvidence(report cli.UpdateReport, kind cli.UpdateEvidenceKind) bool {
@@ -130,13 +219,23 @@ func updateReportHasEvidence(report cli.UpdateReport, kind cli.UpdateEvidenceKin
 	return false
 }
 
-func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport) {
+func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport, checkOnly bool) {
 	out := cmd.OutOrStdout()
 	branch := report.Branch
 	if branch == "" {
 		branch = "main"
 	}
-	fmt.Fprintln(out, cli.Bold(out, "⚕ Updating Gormes Agent..."))
+	// `--check` is a readiness probe; the banner and summary must say
+	// "Checking" and "Update check complete" so operators don't read
+	// "Updating..." and "Update complete!" as evidence that an update
+	// actually happened (it didn't).
+	bannerText := "⚕ Updating Gormes Agent..."
+	successText := "✓ Update complete!"
+	if checkOnly {
+		bannerText = "⚕ Checking Gormes Agent..."
+		successText = "✓ Update check complete"
+	}
+	fmt.Fprintln(out, cli.Bold(out, bannerText))
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "%s %s\n", cli.Dim(out, "update branch:"), branch)
 	if report.PreviousBranch != "" {
@@ -156,7 +255,7 @@ func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport) {
 	if report.Failed {
 		fmt.Fprintln(out, cli.Bold(out, "✗ Update failed"))
 	} else {
-		fmt.Fprintln(out, cli.Green(out, cli.Bold(out, "✓ Update complete!")))
+		fmt.Fprintln(out, cli.Green(out, cli.Bold(out, successText)))
 	}
 	if report.OperatorRecovery != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), report.OperatorRecovery)
@@ -202,6 +301,58 @@ func defaultSkillSyncFor(checkoutDir string) cli.SkillSyncRunner {
 			})
 		}
 		return out, nil
+	}
+}
+
+// defaultBackupKeep is the retention budget the production BackupWriter
+// applies after each successful write when config.toml does not set
+// `[updates] backup_keep`. Matches Hermes' default.
+const defaultBackupKeep = 5
+
+// resolveBackupKeep reads `[updates] backup_keep` from config and falls
+// back to defaultBackupKeep when the value is missing, zero, or
+// negative. The fallback for non-positive values matches PruneBackups'
+// keep<=0 safety: an operator who set 0 by mistake should not lose
+// every backup on the next run.
+func resolveBackupKeep() int {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return defaultBackupKeep
+	}
+	if cfg.Updates.BackupKeep <= 0 {
+		return defaultBackupKeep
+	}
+	return cfg.Updates.BackupKeep
+}
+
+// defaultBackupWriterFor builds the production BackupWriter. Returns nil
+// when GormesHome is unset (so the lifecycle keeps the policy-only
+// behavior). Otherwise returns a closure that writes a UTC-stamped zip
+// under `<home>/backups/pre-update-<UTC>.zip`, skipping the existing
+// IsExcludedFromBackup paths (checkpoints/, backups/, *.db-{wal,shm,journal}),
+// then prunes older backups in the same directory to keep the newest
+// resolveBackupKeep() files.
+func defaultBackupWriterFor() cli.BackupWriter {
+	home := config.GormesHome()
+	if home == "" {
+		return nil
+	}
+	keep := resolveBackupKeep()
+	return func(ctx context.Context) (cli.BackupResult, error) {
+		stamp := time.Now().UTC().Format("20060102T150405Z")
+		dest := filepath.Join(home, "backups", "pre-update-"+stamp+".zip")
+		res, err := cli.WriteBackupZip(ctx, home, dest)
+		if err != nil {
+			return res, err
+		}
+		// Prune is best-effort: a prune failure must not surface as a
+		// backup-write failure (the new zip is already on disk and
+		// usable).
+		if count, freed, _ := cli.PruneBackups(filepath.Dir(dest), keep); count > 0 {
+			res.PrunedCount = count
+			res.PrunedBytes = freed
+		}
+		return res, nil
 	}
 }
 
@@ -277,7 +428,7 @@ func updateGlyphAndColor(w io.Writer, kind cli.UpdateEvidenceKind) (string, func
 		return cli.Yellow(w, "⚠"), cli.Yellow
 	case strings.HasSuffix(s, "_skipped"), s == "update_check", strings.HasSuffix(s, "_log_mirrored"), s == "update_not_managed_checkout":
 		return cli.Dim(w, "ℹ"), cli.Dim
-	case strings.HasSuffix(s, "_requested"):
+	case strings.HasSuffix(s, "_requested"), strings.HasSuffix(s, "_hint"):
 		return cli.BrightCyan(w, "◆"), cli.BrightCyan
 	default:
 		return cli.Green(w, "✓"), cli.Green

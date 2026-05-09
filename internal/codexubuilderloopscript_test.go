@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -13,7 +14,7 @@ import (
 func TestCodexuBuilderLoopStatusReportsPauseState(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	stateDir := t.TempDir()
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 
 	cmd := exec.Command("bash", script, "pause", "--ttl", "10m", "gormes-git waiting for active run")
 	cmd.Dir = repoRoot
@@ -48,7 +49,7 @@ func TestCodexuBuilderLoopStatusReportsLiveProgressSignals(t *testing.T) {
 	repoRoot := testRepoRoot(t)
 	stateDir := t.TempDir()
 	tmpRepo := filepath.Join(stateDir, "repo")
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 
 	writeFile(t, filepath.Join(tmpRepo, "README.md"), []byte("before\n"), 0o644)
 	runCommand(t, tmpRepo, "git", "init")
@@ -113,7 +114,7 @@ printf 'timestamp=%q\nreason=%q\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "test reques
 		t.Fatalf("write pause: %v", err)
 	}
 
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 	cmd := exec.Command("timeout", "10s", "bash", script, "run")
 	cmd.Dir = repoRoot
 	cmd.Env = overlayEnv(os.Environ(),
@@ -155,7 +156,7 @@ while [ ! -f "$GORMES_CODEXU_STATE_DIR/release-runner" ]; do
 done
 `), 0o755)
 
-	script := filepath.Join(repoRoot, "scripts", "codexu-gormes-builder-loop.sh")
+	script := filepath.Join(repoRoot, "scripts", "gormes-builder-loop.sh")
 	cmd := exec.Command("bash", script, "run")
 	cmd.Dir = repoRoot
 	cmd.Env = overlayEnv(os.Environ(),
@@ -178,12 +179,23 @@ done
 	}
 	runnerPID := 0
 	defer func() {
+		// Cooperative path: write the sentinel so the runner's wait
+		// loop exits cleanly within ~100ms.
 		_ = os.WriteFile(filepath.Join(stateDir, "release-runner"), []byte("1\n"), 0o644)
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
-		if runnerPID != 0 {
-			waitForPIDExit(t, runnerPID, 2*time.Second)
+		if runnerPID == 0 {
+			return
 		}
+		// Defensive path: SIGKILL the runner unconditionally before
+		// the test's t.TempDir cleanup deletes its stateDir. Without
+		// this, ANY failure to read the sentinel (state dir already
+		// gone, slow write, race during t.Fatalf unwind) orphans the
+		// runner — its `while [ ! -f $STATE/release-runner ]` loop
+		// then spins forever against a missing dir, accumulating one
+		// leaked process per failed test run.
+		_ = syscall.Kill(runnerPID, syscall.SIGKILL)
+		waitForPIDExit(t, runnerPID, 2*time.Second)
 	}()
 
 	runnerPIDPath := filepath.Join(stateDir, "runner.pid")

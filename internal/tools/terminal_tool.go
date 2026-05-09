@@ -66,6 +66,9 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		return marshalToolPayload(terminalResult{Status: "error", ExitCode: -1, Error: "terminal command is required"})
 	}
 	if in.Background {
+		if _, cwdErr := terminalWorkdir(t.cfg.Workdir, in.Workdir); cwdErr != nil && strings.Contains(cwdErr.Error(), "terminal_cwd_deleted") {
+			return marshalToolPayload(terminalResult{Status: "error", ExitCode: -1, Error: cwdErr.Error(), Command: in.Command})
+		}
 		return marshalToolPayload(terminalResult{
 			Status:   "unsupported",
 			ExitCode: -1,
@@ -175,6 +178,9 @@ type terminalWorkdirResult struct {
 }
 
 func terminalWorkdir(defaultWorkdir, requested string) (terminalWorkdirResult, error) {
+	_, processCWDErr := os.Getwd()
+	processCWDDeleted := processCWDErr != nil
+
 	workdir := strings.TrimSpace(defaultWorkdir)
 	if workdir == "" || terminalCWDPlaceholder(workdir) {
 		if envWorkdir := strings.TrimSpace(os.Getenv("TERMINAL_CWD")); envWorkdir != "" && !terminalCWDPlaceholder(envWorkdir) {
@@ -182,12 +188,27 @@ func terminalWorkdir(defaultWorkdir, requested string) (terminalWorkdirResult, e
 		}
 	}
 	if workdir == "" || terminalCWDPlaceholder(workdir) {
+		if processCWDDeleted {
+			if cfgWorkdir := strings.TrimSpace(defaultWorkdir); cfgWorkdir != "" && !terminalCWDPlaceholder(cfgWorkdir) {
+				if info, statErr := os.Stat(cfgWorkdir); statErr == nil && info.IsDir() {
+					return terminalWorkdirResult{Path: cfgWorkdir, Recovered: true}, nil
+				}
+			}
+			return terminalWorkdirResult{Path: os.TempDir(), Recovered: true}, nil
+		}
 		cwd, err := os.Getwd()
 		if err != nil {
+			if cfgWorkdir := strings.TrimSpace(defaultWorkdir); cfgWorkdir != "" && !terminalCWDPlaceholder(cfgWorkdir) {
+				if info, statErr := os.Stat(cfgWorkdir); statErr == nil && info.IsDir() {
+					return terminalWorkdirResult{Path: cfgWorkdir, Recovered: true}, nil
+				}
+			}
 			return terminalWorkdirResult{Path: os.TempDir(), Recovered: true}, nil
 		}
 		workdir = cwd
 	}
+
+	recovered := processCWDDeleted
 	if strings.HasPrefix(workdir, "~") {
 		expanded, err := expandUserPath(workdir)
 		if err != nil {
@@ -222,6 +243,10 @@ func terminalWorkdir(defaultWorkdir, requested string) (terminalWorkdirResult, e
 	info, err := os.Stat(workdir)
 	if err != nil {
 		if defaultMissingRecoveryAllowed {
+			if defaultConfiguredCWD := strings.TrimSpace(defaultWorkdir); defaultConfiguredCWD != "" && !terminalCWDPlaceholder(defaultConfiguredCWD) {
+				abs, _ := filepath.Abs(defaultConfiguredCWD)
+				return terminalWorkdirResult{}, fmt.Errorf("terminal_cwd_deleted: configured working directory %q no longer exists", abs)
+			}
 			return terminalWorkdirResult{Path: nearestExistingTerminalDir(workdir), Recovered: true}, nil
 		}
 		return terminalWorkdirResult{}, fmt.Errorf("resolve working directory: %w", err)
@@ -229,7 +254,7 @@ func terminalWorkdir(defaultWorkdir, requested string) (terminalWorkdirResult, e
 	if !info.IsDir() {
 		return terminalWorkdirResult{}, fmt.Errorf("workdir %q is not a directory", workdir)
 	}
-	return terminalWorkdirResult{Path: workdir}, nil
+	return terminalWorkdirResult{Path: workdir, Recovered: recovered}, nil
 }
 
 func nearestExistingTerminalDir(path string) string {

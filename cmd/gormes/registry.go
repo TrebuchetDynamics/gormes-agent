@@ -23,7 +23,11 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
 	reg.MustRegister(&tools.RandIntTool{})
-	reg.MustRegister(tools.NewExecuteCodeTool())
+	reg.MustRegister(tools.NewExecuteCodeTool(tools.ExecuteCodeToolConfig{
+		ConfigSet:   cfg.CodeExecution.Mode != "",
+		ConfigValue: cfg.CodeExecution.Mode,
+		DefaultMode: tools.DefaultExecuteCodeMode,
+	}))
 	fileTools := tools.FileTaskToolConfig{}
 	reg.MustRegister(tools.NewReadFileTool(fileTools))
 	reg.MustRegister(tools.NewSearchFilesTool(fileTools))
@@ -62,6 +66,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	tools.RegisterHomeAssistantTools(reg, tools.HomeAssistantConfig{})
 	registerAudioTools(reg, cfg)
 	registerImageGenerationTool(reg, cfg)
+	registerVideoAnalyzeTool(reg, cfg)
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
 	}))

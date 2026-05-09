@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 71/99 subphases shipped · 23 in progress · 5 planned
+**Overall:** 80/100 subphases shipped · 16 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,10 +95,10 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 14/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 
 ---
 
@@ -168,6 +168,7 @@ classification and row-backed implementation queue.
 - [x] Slack gateway.Channel adapter shim
 - [x] Slack config + cmd/gormes gateway registration
 - [x] Slack env-token enabled-state preservation
+- [x] Slack app manifest App Home and private-channel scopes
 
 ### 2.B.4 — WhatsApp Adapter ✅
 
@@ -269,6 +270,7 @@ classification and row-backed implementation queue.
 
 - [x] Channel-neutral native runtime turn adapter
 - [x] Hermes gateway platform registry manifest
+- [x] MSGraph webhook platform manifest drift closeout
 - [x] Navivox stdio protocol control-plane tracer
 - [x] Navivox QR pairing descriptor CLI
 - [x] Navivox Flutter voice morph surface
@@ -616,6 +618,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard + budget telemetry
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
+- [x] Hermes fast-mode request override serializer
 
 ### 4.I — Native Agent Turn Closure ✅
 
@@ -657,11 +660,14 @@ classification and row-backed implementation queue.
 
 *Python tool scripts ported to Go or WASM*
 
-### 5.A — Tool Surface Port 🔨
+### 5.A — Tool Surface Port ✅
 
-- [ ] 61-tool registry port
+- [x] 61-tool registry port
 - [x] Tool registry inventory + schema parity harness
 - [x] Tool parity manifest refresh for Hermes b35d692f
+- [x] Tool parity manifest refresh for Hermes ea86714 computer_use
+- [x] Tool parity manifest refresh for Hermes 524cbabd patch schema
+- [x] Microsoft Graph auth/client helper parity
 - [x] Discord tool split + platform-scoped toolsets
 - [x] Discord tool limit coercion helper
 - [x] Home Assistant HASS_TOKEN platform-toolset carveout
@@ -676,12 +682,12 @@ classification and row-backed implementation queue.
 
 - [x] Environment interface + file sync contract
 - [x] Terminal snapshot source stdout suppression guard
-- [ ] Terminal deleted-cwd recovery guard
+- [x] Terminal deleted-cwd recovery guard
 - [x] Raw tool-call parser fixture matrix
 - [x] Docker execution backend (container lifecycle + mount policy)
 - [x] Docker backend top-level container reuse semantics
-- [ ] Modal
-- [ ] Daytona
+- [x] Modal
+- [x] Daytona
 - [ ] Singularity
 - [x] Sandbox Policy Explain
 
@@ -706,14 +712,14 @@ classification and row-backed implementation queue.
 - [x] Go browser harness binary repo + integration lane (placeholder)
 - [x] Browser session inactivity cleanup thread
 
-### 5.D — Vision + Image Generation 🔨
+### 5.D — Vision + Image Generation ✅
 
 - [x] Multimodal in/out
 - [x] Image input mode router + native content parts
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch
-- [ ] Native video_analyze tool contract
+- [x] Native video_analyze tool contract
 
 ### 5.E — TTS / Voice / Transcription 🔨
 
@@ -727,11 +733,11 @@ classification and row-backed implementation queue.
 - [ ] TTS synthesis + voice-mode state
 - [x] Voice record-key config binding for native TUI
 
-### 5.F — Skills System (Remaining) 🔨
+### 5.F — Skills System (Remaining) ✅
 
 - [x] Skills hub search result types + in-memory registry provider
 - [x] Skills hub search read-model function over registry providers
-- [ ] Skill registries
+- [x] Skill registries
 - [x] Skills hub direct URL candidate parser
 - [x] Skills hub direct URL install name/category guard
 - [x] Skill preprocessing + dynamic slash commands
@@ -771,6 +777,7 @@ classification and row-backed implementation queue.
 - [x] Dashboard page-scoped plugin slot inventory
 - [ ] Third-party extensions
 - [x] Hermes plugin CLI lifecycle parity
+- [x] Teams pipeline plugin CLI metadata + disabled runtime inventory
 - [x] Goncho Honcho plugin session config + async write compatibility
 - [x] First-party Spotify plugin fixture
 - [x] First-party Google Meet plugin metadata fixture
@@ -778,7 +785,7 @@ classification and row-backed implementation queue.
 - [x] Agent Hooks Registry
 - [x] Plugin Marketplace + Doctor
 - [x] Extension Lifecycle Hook System
-- [ ] Plugin lifecycle hook: transform_llm_output
+- [x] Plugin lifecycle hook: transform_llm_output
 
 ### 5.J — Approval / Security Guards 🔨
 
@@ -791,6 +798,7 @@ classification and row-backed implementation queue.
 - [x] Concurrent tool approval callback propagation
 - [x] Background review toolset restriction
 - [ ] Cron dangerous-command approval mode
+- [x] Cron approval mode config normalizer
 - [ ] Tirith, path, URL, and website policy integration
 - [x] Shell blocklist (36+ dangerous patterns)
 - [x] Filesystem scoping (folder-level read/write restrictions)
@@ -809,6 +817,7 @@ classification and row-backed implementation queue.
 ### 5.L — File Ops + Patches 🔨
 
 - [ ] Atomic checkpoints
+- [x] Checkpoints CLI (status/list/prune/clear/clear-legacy)
 - [x] Checkpoint shadow-repo GC policy
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
@@ -827,9 +836,13 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban production worker process binding
 - [x] Hermes Kanban worker tools and prompt gating
 - [ ] Hermes Kanban slash/gateway/dashboard surfaces
+- [x] Native TUI /kanban slash command binding over gormes kanban
+- [x] Gateway /kanban shared command-runner binding
+- [x] Kanban dashboard dispatch quick path
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
+- [x] Hermes Kanban specify triage parity
 
 ### 5.N — Misc Operator Tools ✅
 
@@ -854,6 +867,7 @@ classification and row-backed implementation queue.
 - [x] Cron context_from output chaining
 - [x] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
+- [x] Cron deliver=all routing intent expansion
 - [x] Goncho serialized write queue + relation candidates
 - [x] Blocker Policy Integration
 - [x] OpenClaw SecretRef core resolver
@@ -880,16 +894,16 @@ classification and row-backed implementation queue.
 - [x] Navivox host setup apply with transient sudo
 - [x] Gateway auto-resume on restart
 
-### 5.O — Hermes CLI Parity 🔨
+### 5.O — Hermes CLI Parity ✅
 
-- [ ] 49-file CLI tree port
+- [x] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
 - [x] Hermes CLI nested parser inventory refresh
 - [x] Hermes auth command-tree manifest refresh
 - [x] Hermes auth credential-pool command surface
 - [x] Hermes auth OAuth provider adapters
 - [x] Hermes auth Spotify service-provider subcommand
-- [ ] Deterministic helper-file ports (banner/output/tips/webhook/dump)
+- [x] Deterministic helper-file ports (banner/output/tips/webhook/dump)
 - [x] CLI banner/output formatting helpers
 - [x] CLI deterministic tip selector
 - [x] CLI OpenClaw residue detection and hint text
@@ -906,13 +920,14 @@ classification and row-backed implementation queue.
 - [x] Gateway /reasoning command parser
 - [x] Gateway /reasoning apply + dispatch
 - [x] Busy command guard for compression and long CLI actions
-- [ ] Config, profile, auth, and setup command surfaces
+- [x] Config, profile, auth, and setup command surfaces
 - [x] Gormes agent template reset command
 - [x] Gormes auth bare interactive credential-pool readout
 - [x] Gormes auth status per-provider aggregator
 - [x] Gormes auth add openai-codex strict isolation contract
 - [x] Gormes auth add bedrock open-question planning note
 - [x] Gormes profile command binding
+- [x] Gormes profile distribution metadata readout
 - [x] Model and profile selector seam (Cobra + gateway)
 - [x] Gormes top-level logout provider shortcut
 - [x] Gormes login removed-command typo suggestion contract
@@ -946,14 +961,15 @@ classification and row-backed implementation queue.
 - [x] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
 - [x] Effective toolset picker dedupes bundled plugin keys
-- [ ] Gateway, platform, webhook, and cron management CLI
+- [x] Gateway, platform, webhook, and cron management CLI
 - [x] WhatsApp top-level pairing wizard shell
-- [ ] WhatsApp live Baileys QR pairing wizard
+- [x] WhatsApp live Baileys QR pairing wizard
 - [x] Gateway management CLI read-model closeout
 - [x] Gateway mutating-subcommand unavailability stub
+- [x] Windows gateway Scheduled Task lifecycle commands
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
-- [ ] Diagnostics, backup, logs, and status CLI
+- [x] Diagnostics, backup, logs, and status CLI
 - [x] Hermes sessions CLI MRU browse/delete ergonomics
 - [x] Backup/update opt-in and exclusion policy
 - [x] Self-update command lifecycle safety
@@ -970,6 +986,8 @@ classification and row-backed implementation queue.
 - [x] Logs Command
 - [x] Gateway planned stop marker + WSL systemd PATH parity
 - [x] Gateway stale-code self-check uses git HEAD SHA
+- [x] Agent lifecycle hooks (agent:start, agent:step, agent:end)
+- [x] Nous OAuth device code + refresh token + agent key provisioning
 
 ### 5.P — Docker / Packaging 🔨
 
@@ -977,7 +995,7 @@ classification and row-backed implementation queue.
 - [x] Homebrew
 - [x] Unix installer (install.sh) source-backed update flow
 - [x] Unix installer root/FHS layout policy
-- [ ] Windows installer (install.ps1 + install.cmd) parity
+- [x] Windows installer (install.ps1 + install.cmd) parity
 - [ ] Installer site asset/route coverage
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
@@ -1010,15 +1028,18 @@ classification and row-backed implementation queue.
 - [x] Native TUI Hermes status bar renderer
 - [x] Native TUI Hermes bottom-pinned chrome layout
 - [x] Native TUI Hermes input keybinding semantics
+- [x] Native TUI Shift+Enter newline CSI-u parity
 - [x] Native TUI clipboard, OSC52, and terminal setup parity
 - [x] Native TUI image/file drop + paste collapse ingress
 - [x] Native TUI Hermes slash completion helpers
 - [x] Native TUI absolute path completion routing
 - [x] Native TUI Hermes slash dispatch behavioral matrix
+- [x] Native TUI /quit local exit binding
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [x] Native TUI Ink behavioral transcript golden matrix
 - [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
+- [x] TUI websocket attach transport
 - [x] OpenAI-compatible chat-completions API server
 - [x] API server multimodal content preservation
 - [x] Responses API store + run event stream
@@ -1031,14 +1052,14 @@ classification and row-backed implementation queue.
 - [x] API server cron admin read-only endpoints
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
-- [ ] Provider client lazy-init for TUI cold-start budget
+- [x] Provider client lazy-init for TUI cold-start budget
 
-### 5.R — Code Execution Mode Policy 🔨
+### 5.R — Code Execution Mode Policy ✅
 
 - [x] Execution-mode resolver + config precedence
-- [ ] Strict-mode CWD + interpreter parity
-- [ ] Project-mode CWD + active venv detection
-- [ ] Default mode selection + config cut-over
+- [x] Strict-mode CWD + interpreter parity
+- [x] Project-mode CWD + active venv detection
+- [x] Default mode selection + config cut-over
 
 ### 5.S — Loop Detection ✅
 
@@ -1054,10 +1075,10 @@ classification and row-backed implementation queue.
 - [x] Transactional tool execution with snapshot/rollback
 - [x] Sandbox isolation depth selection
 
-### 5.V — Unified Event Bus 🔨
+### 5.V — Unified Event Bus ✅
 
 - [x] Event bus core: pub/sub interface + in-process implementation
-- [ ] Gateway channel adapters publish to event bus
+- [x] Gateway channel adapters publish to event bus
 - [x] Gateway outbound sends publish message-sent events
 - [x] Weixin gateway event-bus adapter
 - [x] WeCom gateway event-bus adapter
@@ -1067,6 +1088,10 @@ classification and row-backed implementation queue.
 - [x] WhatsApp gateway event-bus adapter
 - [x] Agent turn and tool execution events on bus
 - [x] Event bus integration test: full message flow
+
+### 5.W — i18n Internationalization ✅
+
+- [x] Hermes i18n static-message port
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
@@ -1141,11 +1166,11 @@ classification and row-backed implementation queue.
 
 *Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize*
 
-### 7.A — Signal Adapter 🔨
+### 7.A — Signal Adapter ✅
 
 - [x] Inbound event normalization + session identity
 - [x] Reply/send contract on shared chassis
-- [ ] Signal transport/bootstrap layer
+- [x] Signal transport/bootstrap layer
 - [x] Signal markdown bodyRanges + attachment rate scheduler
 
 ### 7.B — Email + SMS Adapters ✅
@@ -1156,12 +1181,12 @@ classification and row-backed implementation queue.
 ### 7.C — Matrix + Mattermost Adapters 🔨
 
 - [x] Threaded text adapter contract suite
-- [ ] Matrix shared-chassis bot seam
-- [ ] Matrix self/bridge sender drop helper
-- [ ] Mattermost shared-chassis bot seam
-- [ ] Matrix real client/bootstrap layer
+- [x] Matrix shared-chassis bot seam
+- [x] Matrix self/bridge sender drop helper
+- [x] Mattermost shared-chassis bot seam
+- [x] Matrix real client/bootstrap layer
 - [ ] Matrix E2EE device-id crypto-store binding
-- [ ] Mattermost REST/WS bootstrap layer
+- [x] Mattermost REST/WS bootstrap layer
 
 ### 7.D — Webhook + Trigger Ingress ✅
 
@@ -1188,7 +1213,7 @@ classification and row-backed implementation queue.
 - [x] Yuanbao gateway runtime + toolset registration
 - [x] Microsoft Teams adapter plugin seam
 - [ ] QQ Bot transport/bootstrap layer
-- [ ] Google Chat shared-chassis platform adapter seam
+- [x] Google Chat shared-chassis platform adapter seam
 
 ## Phase 8 — Reputation & Publication 🔨
 
@@ -1199,10 +1224,10 @@ classification and row-backed implementation queue.
 - [ ] TD engineering blog scaffolded and live
 - [ ] TD social presence connected to blog feed
 
-### 8.B — Repository Messaging ⏳
+### 8.B — Repository Messaging ✅
 
-- [ ] README rewrite to methodology-first positioning
-- [ ] gormes.ai landing page positioning audit
+- [x] README rewrite to methodology-first positioning
+- [x] gormes.ai landing page positioning audit
 
 ### 8.C — Engineering Writeups ⏳
 
@@ -1212,6 +1237,9 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
+- [x] Release notes artifact size table
+- [x] Release archive 30 MB size gate
+- [x] Termux android/arm64 release artifact and installer selector
 
 ### 8.E — Toolkit Extraction ⏳
 

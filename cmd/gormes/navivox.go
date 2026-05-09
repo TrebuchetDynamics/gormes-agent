@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -28,6 +29,7 @@ func newNavivoxCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "navivox",
 		Short: "Run the Navivox SSH stdio channel",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(newNavivoxServeCommand(), newNavivoxPairCommand(), newNavivoxSetupHostCommand())
 	return cmd
@@ -66,6 +68,28 @@ type navivoxPairOptions struct {
 	DeviceName string
 	Command    string
 	PrintQR    bool
+	JSONOut    bool
+}
+
+// navivoxPairReportJSON is the wire shape for `gormes navivox pair
+// --json`. Fleet automation provisioning Navivox pairing across machines
+// parses this to ingest the descriptor without scraping the multi-line
+// "Host: / Port: / Pairing code:" prose. Build provenance leads — same
+// convention as the rest of the `--json` arc. The pairing code is the
+// data being conveyed (a one-time gateway-issued credential bounded by
+// `expires_at`); long-lived secrets like SSH keys remain excluded.
+type navivoxPairReportJSON struct {
+	Build      buildProvenanceJSON `json:"build"`
+	Host       string              `json:"host"`
+	HostSource string              `json:"host_source,omitempty"`
+	Port       int                 `json:"port"`
+	User       string              `json:"user"`
+	Command    string              `json:"command"`
+	Protocol   uint32              `json:"protocol"`
+	Code       string              `json:"code"`
+	Device     string              `json:"device"`
+	ExpiresAt  string              `json:"expires_at,omitempty"`
+	URI        string              `json:"uri"`
 }
 
 func newNavivoxPairCommand() *cobra.Command {
@@ -112,6 +136,9 @@ func newNavivoxPairCommand() *cobra.Command {
 				Device:    opts.DeviceName,
 				ExpiresAt: result.ExpiresAt,
 			})
+			if opts.JSONOut {
+				return writeNavivoxPairJSON(cmd, opts, source, result, uri)
+			}
 			renderNavivoxPairing(cmd, opts, source, result, uri)
 			return nil
 		},
@@ -122,7 +149,34 @@ func newNavivoxPairCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.DeviceName, "device-name", "", "Navivox device name to pair; defaults to a generated local label")
 	cmd.Flags().StringVar(&opts.Command, "command", opts.Command, "remote command the Navivox app should run over SSH")
 	cmd.Flags().BoolVar(&opts.PrintQR, "qr", true, "print a terminal QR code")
+	cmd.Flags().BoolVar(&opts.JSONOut, "json", false, "emit the pairing descriptor as machine-readable JSON")
 	return cmd
+}
+
+func writeNavivoxPairJSON(cmd *cobra.Command, opts navivoxPairOptions, hostSource string, result gateway.PairingCodeResult, uri string) error {
+	expires := ""
+	if !result.ExpiresAt.IsZero() {
+		expires = result.ExpiresAt.UTC().Format(time.RFC3339)
+	}
+	report := navivoxPairReportJSON{
+		Build:      newBuildProvenance(),
+		Host:       opts.Host,
+		HostSource: hostSource,
+		Port:       opts.Port,
+		User:       opts.User,
+		Command:    opts.Command,
+		Protocol:   navivox.ProtocolVersion,
+		Code:       result.Code,
+		Device:     opts.DeviceName,
+		ExpiresAt:  expires,
+		URI:        uri,
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 type navivoxPairingDescriptor struct {
@@ -189,6 +243,7 @@ func newNavivoxSetupHostCommand() *cobra.Command {
 	var plan bool
 	var apply bool
 	var yes bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "setup-host",
 		Short:        "Show how to prepare this host for Navivox SSH pairing",
@@ -197,6 +252,9 @@ func newNavivoxSetupHostCommand() *cobra.Command {
 			if apply {
 				return runNavivoxSetupHostApply(cmd, navivoxHostSetupOptions{Yes: yes})
 			}
+			if asJSON {
+				return writeNavivoxSetupHostPlanJSON(cmd)
+			}
 			renderNavivoxSetupHostPlan(cmd)
 			return nil
 		},
@@ -204,7 +262,57 @@ func newNavivoxSetupHostCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&plan, "plan", false, "render the setup plan without changing the host")
 	cmd.Flags().BoolVar(&apply, "apply", false, "apply the host setup steps after confirmation")
 	cmd.Flags().BoolVar(&yes, "yes", false, "confirm setup-host --apply without an interactive confirmation prompt")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "with --plan, emit machine-readable JSON: {build, recommended, ssh_service, pair_command}")
 	return cmd
+}
+
+// navivoxSetupHostPlanReportJSON is the wire shape for
+// `gormes navivox setup-host --plan --json`. Fleet automation
+// provisioning Navivox SSH hosts across machines parses this to
+// inventory the recommended path and per-distro SSH install
+// commands without scraping the multi-line preflight prose.
+type navivoxSetupHostPlanReportJSON struct {
+	Build       buildProvenanceJSON                 `json:"build"`
+	Recommended navivoxSetupHostRecommendedJSON     `json:"recommended"`
+	SSHService  map[string][]string                 `json:"ssh_service"`
+	SudoNote    string                              `json:"sudo_note"`
+	PairCommand string                              `json:"pair_command"`
+}
+
+type navivoxSetupHostRecommendedJSON struct {
+	Path           string `json:"path"`
+	InstallCommand string `json:"install_command"`
+	JoinCommand    string `json:"join_command"`
+}
+
+func writeNavivoxSetupHostPlanJSON(cmd *cobra.Command) error {
+	report := navivoxSetupHostPlanReportJSON{
+		Build: newBuildProvenance(),
+		Recommended: navivoxSetupHostRecommendedJSON{
+			Path:           "tailscale",
+			InstallCommand: "curl -fsSL https://tailscale.com/install.sh | sh",
+			JoinCommand:    "sudo tailscale up --ssh",
+		},
+		SSHService: map[string][]string{
+			"debian": {
+				"sudo apt-get update",
+				"sudo apt-get install -y openssh-server",
+				"sudo systemctl enable --now ssh",
+			},
+			"fedora": {
+				"sudo dnf install -y openssh-server",
+				"sudo systemctl enable --now sshd",
+			},
+		},
+		SudoNote:    "sudo password is prompt-only and never stored in Gormes config; setup-host --apply asks once, previews exact steps, then discards it.",
+		PairCommand: "gormes navivox pair",
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func renderNavivoxSetupHostPlan(cmd *cobra.Command) {

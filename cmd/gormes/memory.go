@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,55 +16,143 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
 
-var memoryCmd = &cobra.Command{
-	Use:   "memory",
-	Short: "Inspect persisted memory and extractor state",
+// newMemoryCommand returns a fresh memory command tree (parent +
+// status subcommand). Constructor pattern avoids cross-test
+// FlagSet/state contamination on a shared package-level var.
+func newMemoryCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "memory",
+		Short: "Inspect persisted memory and extractor state",
+		Args:  cobra.NoArgs,
+	}
+	cmd.AddCommand(newMemoryStatusCommand())
+	return cmd
 }
 
-func init() {
-	memoryCmd.AddCommand(memoryStatusCmd)
-}
-
-var memoryStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show extractor queue depth and dead letters",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		path := config.MemoryDBPath()
-		if _, err := os.Stat(path); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("memory database not found at %s", path)
+func newMemoryStatusCommand() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show extractor queue depth and dead letters",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			path := config.MemoryDBPath()
+			if _, err := os.Stat(path); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					// Fresh install: goncho memory.db is created
+					// lazily on the first turn write. For a read-only
+					// inventory command absence of state is the empty
+					// state, not an error.
+					if asJSON {
+						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{})
+					}
+					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}))
+					return err
+				}
+				return err
 			}
-			return err
-		}
 
-		db, err := sql.Open("sqlite3", path)
-		if err != nil {
-			return fmt.Errorf("open memory db: %w", err)
-		}
-		defer db.Close()
+			db, err := sqlOpenGoncho(path)
+			if err != nil {
+				return fmt.Errorf("open memory db: %w", err)
+			}
+			defer db.Close()
 
-		status, err := memory.ReadExtractorStatus(context.Background(), db, 0)
-		if err != nil {
+			status, err := memory.ReadExtractorStatus(context.Background(), db, 0)
+			if err != nil {
+				// memory.db exists but the goncho schema isn't
+				// present yet (0-byte file from a previous failed
+				// open, or an aborted setup). Same empty-state UX
+				// as the missing-file path.
+				if strings.Contains(err.Error(), "no such table: turns") {
+					if asJSON {
+						return emitMemoryStatusJSON(cmd, memory.ExtractorStatus{}, goncho.QueueStatus{})
+					}
+					_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(memory.ExtractorStatus{}, goncho.QueueStatus{}))
+					return err
+				}
+				return err
+			}
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return err
+			}
+			gonchoCfg := cfg.Goncho.RuntimeConfig()
+			queueStatus, err := goncho.ReadQueueStatus(context.Background(), db, goncho.QueueStatusConfig{
+				DreamEnabled:     gonchoCfg.DreamEnabled,
+				WorkspaceID:      gonchoCfg.WorkspaceID,
+				ObserverPeerID:   gonchoCfg.ObserverPeerID,
+				DreamIdleTimeout: gonchoCfg.DreamIdleTimeout,
+			})
+			if err != nil {
+				return err
+			}
+			if asJSON {
+				return emitMemoryStatusJSON(cmd, status, queueStatus)
+			}
+			_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(status, queueStatus))
 			return err
-		}
-		cfg, err := config.Load(nil)
-		if err != nil {
-			return err
-		}
-		gonchoCfg := cfg.Goncho.RuntimeConfig()
-		queueStatus, err := goncho.ReadQueueStatus(context.Background(), db, goncho.QueueStatusConfig{
-			DreamEnabled:     gonchoCfg.DreamEnabled,
-			WorkspaceID:      gonchoCfg.WorkspaceID,
-			ObserverPeerID:   gonchoCfg.ObserverPeerID,
-			DreamIdleTimeout: gonchoCfg.DreamIdleTimeout,
-		})
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprint(cmd.OutOrStdout(), formatMemoryStatus(status, queueStatus))
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, extractor, goncho_queue}` JSON document (suitable for SRE alerting on memory backlog)")
+	return cmd
+}
+
+// memoryStatusReportJSON is the wire shape for `memory status --json`.
+// Build provenance leads, then the two status sub-blocks the human
+// surface renders. Cmd-side mapping (rather than tagging the internal
+// types directly) keeps internal/memory and internal/goncho package
+// types tag-free and isolates the JSON wire contract here.
+type memoryStatusReportJSON struct {
+	Build       buildProvenanceJSON `json:"build"`
+	Extractor   memoryExtractorJSON `json:"extractor"`
+	GonchoQueue goncho.QueueStatus  `json:"goncho_queue"`
+}
+
+type memoryExtractorJSON struct {
+	WorkerHealth       string                          `json:"worker_health"`
+	QueueDepth         int                             `json:"queue_depth"`
+	DeadLetterCount    int                             `json:"dead_letter_count"`
+	SkippedSyncCount   int                             `json:"skipped_sync_count"`
+	ErrorSummary       []memory.DeadLetterErrorSummary `json:"error_summary"`
+	RecentDeadLetters  []memory.DeadLetterSummary      `json:"recent_dead_letters"`
+	RecentSkippedSyncs []memory.SkippedSyncSummary     `json:"recent_skipped_syncs"`
+}
+
+func emitMemoryStatusJSON(cmd *cobra.Command, extractor memory.ExtractorStatus, queue goncho.QueueStatus) error {
+	// Normalize nil slices/maps to empty containers so JSON consumers
+	// iterate without nil-checks. Same convention enforced for
+	// session list, kanban list/boards, gateway probe/discover/status.
+	if extractor.ErrorSummary == nil {
+		extractor.ErrorSummary = []memory.DeadLetterErrorSummary{}
+	}
+	if extractor.RecentDeadLetters == nil {
+		extractor.RecentDeadLetters = []memory.DeadLetterSummary{}
+	}
+	if extractor.RecentSkippedSyncs == nil {
+		extractor.RecentSkippedSyncs = []memory.SkippedSyncSummary{}
+	}
+	if queue.WorkUnits == nil {
+		queue.WorkUnits = map[string]goncho.QueueWorkUnitStatus{}
+	}
+	body, err := json.MarshalIndent(memoryStatusReportJSON{
+		Build: newBuildProvenance(),
+		Extractor: memoryExtractorJSON{
+			WorkerHealth:       extractor.WorkerHealth,
+			QueueDepth:         extractor.QueueDepth,
+			DeadLetterCount:    extractor.DeadLetterCount,
+			SkippedSyncCount:   extractor.SkippedSyncCount,
+			ErrorSummary:       extractor.ErrorSummary,
+			RecentDeadLetters:  extractor.RecentDeadLetters,
+			RecentSkippedSyncs: extractor.RecentSkippedSyncs,
+		},
+		GonchoQueue: queue,
+	}, "", "  ")
+	if err != nil {
 		return err
-	},
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func formatMemoryStatus(status memory.ExtractorStatus, queueStatus goncho.QueueStatus) string {

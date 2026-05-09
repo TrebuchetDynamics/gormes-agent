@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/url"
 	"regexp"
 	"strings"
@@ -119,6 +120,86 @@ func TestNavivoxPairPrintsScannableDescriptorAndPersistsPendingPairing(t *testin
 	}
 	if len(status.Pending) != 1 || status.Pending[0].Platform != navivox.PlatformName || status.Pending[0].Code != code[1] || status.Pending[0].UserID != "pixel-lab" {
 		t.Fatalf("pending pairing = %+v, want navivox/pixel-lab/%s", status.Pending, code[1])
+	}
+}
+
+// TestNavivoxPairCommand_JSONEmitsStructuredPairingDescriptor proves
+// `gormes navivox pair --json` returns a parseable
+// `{build, host, port, user, command, protocol, code, device, expires_at,
+// uri, host_source}` document so fleet automation provisioning Navivox
+// pairing across machines can ingest the descriptor without scraping the
+// "Host: / Port: / Pairing code:" prose. Build provenance leads — same
+// convention as the rest of the `--json` arc. The pairing code is the
+// data being conveyed (one-time gateway-issued credential), so it is in
+// the document by design; long-lived secrets like SSH keys remain
+// excluded.
+func TestNavivoxPairCommand_JSONEmitsStructuredPairingDescriptor(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"navivox", "pair",
+		"--host", "100.77.1.2",
+		"--port", "2222",
+		"--user", "ada",
+		"--device-name", "pixel-lab",
+		"--qr=false",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("navivox pair --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Host       string `json:"host"`
+		Port       int    `json:"port"`
+		User       string `json:"user"`
+		Command    string `json:"command"`
+		Protocol   uint32 `json:"protocol"`
+		Code       string `json:"code"`
+		Device     string `json:"device"`
+		ExpiresAt  string `json:"expires_at"`
+		URI        string `json:"uri"`
+		HostSource string `json:"host_source"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("navivox pair --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Host != "100.77.1.2" {
+		t.Errorf("host = %q, want 100.77.1.2", got.Host)
+	}
+	if got.Port != 2222 {
+		t.Errorf("port = %d, want 2222", got.Port)
+	}
+	if got.User != "ada" {
+		t.Errorf("user = %q, want ada", got.User)
+	}
+	if got.Device != "pixel-lab" {
+		t.Errorf("device = %q, want pixel-lab", got.Device)
+	}
+	if !regexp.MustCompile(`^[A-Z2-9]{8}$`).MatchString(got.Code) {
+		t.Errorf("code = %q, want 8-char base32-ish bounded code", got.Code)
+	}
+	if !strings.HasPrefix(got.URI, "navivox://pair?") {
+		t.Errorf("uri = %q, want navivox://pair? prefix", got.URI)
+	}
+	if got.Command != "gormes navivox serve --stdio" {
+		t.Errorf("command = %q, want default serve command", got.Command)
+	}
+	// Pending pairing must still be persisted — JSON emit must not skip
+	// the gateway side effect.
+	status, err := gateway.NewXDGPairingStore().ReadPairingStatus(context.Background())
+	if err != nil {
+		t.Fatalf("read pairing status: %v", err)
+	}
+	if len(status.Pending) != 1 || status.Pending[0].Code != got.Code {
+		t.Fatalf("pending pairing = %+v, want one with code %s", status.Pending, got.Code)
 	}
 }
 

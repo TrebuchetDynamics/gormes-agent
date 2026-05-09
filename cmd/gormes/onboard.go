@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,40 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/spf13/cobra"
 )
+
+// onboardStatusReportJSON is the wire shape for `gormes onboard --json`.
+// Fleet automation querying first-run readiness across machines parses
+// this to inventory configured/missing setup without scraping prose.
+// Build provenance leads — same convention as the rest of the `--json`
+// arc. Secrets stay out: only `auth_configured` signals key presence.
+type onboardStatusReportJSON struct {
+	Build              buildProvenanceJSON          `json:"build"`
+	Home               string                       `json:"home"`
+	ConfigPath         string                       `json:"config_path"`
+	SkillsRoot         string                       `json:"skills_root"`
+	SkillsLocal        int                          `json:"skills_local"`
+	SkillsBundled      int                          `json:"skills_bundled"`
+	ProviderConfigured bool                         `json:"provider_configured"`
+	Provider           string                       `json:"provider,omitempty"`
+	Endpoint           string                       `json:"endpoint,omitempty"`
+	Model              string                       `json:"model,omitempty"`
+	AuthConfigured     bool                         `json:"auth_configured"`
+	DefaultAgent       string                       `json:"default_agent,omitempty"`
+	Agents             []onboardAgentJSON           `json:"agents,omitempty"`
+	Bindings           []onboardBindingJSON         `json:"bindings,omitempty"`
+}
+
+type onboardAgentJSON struct {
+	ID        string `json:"id"`
+	Workspace string `json:"workspace,omitempty"`
+	Default   bool   `json:"default,omitempty"`
+}
+
+type onboardBindingJSON struct {
+	Channel   string `json:"channel"`
+	AccountID string `json:"account_id,omitempty"`
+	AgentID   string `json:"agent_id"`
+}
 
 func newOnboardCommand() *cobra.Command {
 	return newOnboardCommandWithSeams(defaultOnboardCommandSeams())
@@ -43,6 +78,7 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 
 	var wizard bool
 	var nonInteractive bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "onboard",
 		Short:        "First-run status — see what's configured and what to do next",
@@ -51,6 +87,12 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 			cfg, err := config.Load(nil)
 			if err != nil {
 				return err
+			}
+			if asJSON {
+				if wizard {
+					return writeOnboardWizardPlanJSON(cmd, cfg, nonInteractive || !seams.IsTTY())
+				}
+				return writeOnboardStatusJSON(cmd, cfg)
 			}
 			if wizard {
 				if nonInteractive || !seams.IsTTY() {
@@ -65,7 +107,47 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&wizard, "wizard", false, "show the first-run wizard plan")
 	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "render the wizard without prompts or external launches")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, home, config_path, provider, auth_configured, agents, bindings, ...}")
 	return cmd
+}
+
+func writeOnboardStatusJSON(cmd *cobra.Command, cfg config.Config) error {
+	local, builtin := onboardSkillCounts(cfg)
+	defaultAgent := cfg.Agents.DefaultAgentID()
+	report := onboardStatusReportJSON{
+		Build:              newBuildProvenance(),
+		Home:               config.GormesHome(),
+		ConfigPath:         config.ConfigPath(),
+		SkillsRoot:         cfg.SkillsRoot(),
+		SkillsLocal:        local,
+		SkillsBundled:      builtin,
+		ProviderConfigured: onboardProviderConfigured(cfg),
+		Provider:           strings.TrimSpace(cfg.Hermes.Provider),
+		Endpoint:           strings.TrimSpace(cfg.Hermes.Endpoint),
+		Model:              strings.TrimSpace(cfg.Hermes.Model),
+		AuthConfigured:     configuredProviderAuthPresent(cfg),
+		DefaultAgent:       defaultAgent,
+	}
+	for _, a := range cfg.Agents.List {
+		report.Agents = append(report.Agents, onboardAgentJSON{
+			ID:        a.ID,
+			Workspace: a.Workspace,
+			Default:   strings.EqualFold(a.ID, defaultAgent),
+		})
+	}
+	for _, b := range cfg.Bindings {
+		report.Bindings = append(report.Bindings, onboardBindingJSON{
+			Channel:   b.Match.Channel,
+			AccountID: b.Match.AccountID,
+			AgentID:   b.AgentID,
+		})
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
@@ -160,6 +242,57 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "GORMES_SKILLS_ROOT is set; runtime skill tools and `gormes skills` will use that override.")
 	}
+}
+
+// onboardWizardPlanJSON is the wire shape for `gormes onboard
+// --wizard --json`. Without this path the same snapshot shape that
+// `--json` returns is emitted regardless of `--wizard` — operators
+// driving fleet provisioning from JSON had to scrape the numbered
+// step rows the human surface prints. The structured plan mirrors
+// the text ladder field-for-field so consumers can render the same
+// step ordering, status, next-command, and skip-warning copy.
+type onboardWizardPlanJSON struct {
+	Build buildProvenanceJSON     `json:"build"`
+	Mode  string                  `json:"mode"`
+	Steps []onboardWizardStepJSON `json:"steps"`
+}
+
+type onboardWizardStepJSON struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Status      string `json:"status"`
+	Detail      string `json:"detail"`
+	NextCommand string `json:"next_command"`
+	SkipWarning string `json:"skip_warning"`
+}
+
+func writeOnboardWizardPlanJSON(cmd *cobra.Command, cfg config.Config, nonInteractive bool) error {
+	plan := buildOnboardPlanFromConfig(cfg)
+	mode := "interactive"
+	if nonInteractive {
+		mode = "non-interactive"
+	}
+	report := onboardWizardPlanJSON{
+		Build: newBuildProvenance(),
+		Mode:  mode,
+		Steps: make([]onboardWizardStepJSON, 0, len(plan.Steps)),
+	}
+	for _, step := range plan.Steps {
+		report.Steps = append(report.Steps, onboardWizardStepJSON{
+			ID:          step.ID,
+			Title:       step.Title,
+			Status:      step.Status,
+			Detail:      step.Detail,
+			NextCommand: step.NextCommand,
+			SkipWarning: step.SkipWarning,
+		})
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func printOnboardWizardPlan(cmd *cobra.Command, cfg config.Config, nonInteractive bool) {

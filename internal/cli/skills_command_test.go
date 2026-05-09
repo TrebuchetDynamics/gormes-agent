@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -9,6 +10,73 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/spf13/cobra"
 )
+
+// TestSkillsListCommand_JSONEmitsStructuredInventory proves
+// `gormes skills list --json` emits a parseable
+// `{build, source, enabled_only, counts: {enabled, disabled}, skills:
+// [{name, category, source, trust, status, path}]}` document so fleet
+// automation inventorying installed skills across machines can ingest
+// the list with binary attribution. Build provenance leads — same
+// convention as the rest of the `--json` arc. The default
+// human-readable text output remains unchanged.
+func TestSkillsListCommand_JSONEmitsStructuredInventory(t *testing.T) {
+	rows := []skills.SkillRow{
+		{Name: "hub-skill", Category: "x", Source: "hub", Trust: "community", Status: "disabled", Path: "/skills/hub/hub-skill"},
+		{Name: "builtin-skill", Category: "y", Source: "builtin", Trust: "builtin", Status: "enabled", Path: "/skills/builtin/builtin-skill"},
+		{Name: "local-skill", Category: "z", Source: "local", Trust: "local", Status: "enabled", Path: "/skills/local/local-skill"},
+	}
+	cmd := NewSkillsCommand(SkillsCommandDeps{
+		ListInstalledSkills: func(opts skills.ListOptions, disabled map[string]struct{}) []skills.SkillRow {
+			return rows
+		},
+		DisabledSkills: func(string) map[string]struct{} {
+			return map[string]struct{}{"hub-skill": {}}
+		},
+		BuildProvenance: func() any {
+			return map[string]string{"version": "test-version-1.0"}
+		},
+	})
+
+	stdout, err := executeSkillsCommand(cmd, "list", "--json")
+	if err != nil {
+		t.Fatalf("Execute(): %v", err)
+	}
+	var got struct {
+		Build       map[string]string `json:"build"`
+		Source      string            `json:"source"`
+		EnabledOnly bool              `json:"enabled_only"`
+		Counts      struct {
+			Enabled  int `json:"enabled"`
+			Disabled int `json:"disabled"`
+		} `json:"counts"`
+		Skills []struct {
+			Name     string `json:"name"`
+			Category string `json:"category"`
+			Source   string `json:"source"`
+			Trust    string `json:"trust"`
+			Status   string `json:"status"`
+			Path     string `json:"path"`
+		} `json:"skills"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build["version"] != "test-version-1.0" {
+		t.Errorf("build.version = %q, want test-version-1.0", got.Build["version"])
+	}
+	if got.Source != "all" {
+		t.Errorf("source = %q, want all", got.Source)
+	}
+	if got.Counts.Enabled != 2 || got.Counts.Disabled != 1 {
+		t.Errorf("counts = %+v, want enabled=2 disabled=1", got.Counts)
+	}
+	if len(got.Skills) != 3 {
+		t.Fatalf("skills len = %d, want 3", len(got.Skills))
+	}
+	if got.Skills[0].Name != "hub-skill" || got.Skills[0].Status != "disabled" {
+		t.Errorf("skills[0] = %+v, want hub-skill disabled", got.Skills[0])
+	}
+}
 
 func TestSkillsListCommand_RendersStatusColumnAndSummary(t *testing.T) {
 	rows := []skills.SkillRow{

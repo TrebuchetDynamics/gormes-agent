@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
@@ -96,6 +97,75 @@ func TestRemoteTUI_StartupBypassesAPIServerHealthAndPackageManagers(t *testing.T
 	}
 }
 
+func TestRemoteTUI_EnvGatewayURLSelectsWebSocketAttach(t *testing.T) {
+	setupNativeTUITestEnv(t)
+
+	var sessionCreates atomic.Int32
+	upgrader := websocket.Upgrader{}
+	gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/events" {
+			http.Error(w, "SSE endpoint must not be used for websocket attach", http.StatusTeapot)
+			return
+		}
+		if r.URL.Path != "/api/ws" {
+			http.NotFound(w, r)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		for {
+			var req struct {
+				ID     string `json:"id"`
+				Method string `json:"method"`
+			}
+			if err := conn.ReadJSON(&req); err != nil {
+				return
+			}
+			if req.Method == "session.create" {
+				sessionCreates.Add(1)
+				_ = conn.WriteJSON(map[string]any{
+					"jsonrpc": "2.0",
+					"id":      req.ID,
+					"result":  map[string]any{"session_id": "sid-env"},
+				})
+				continue
+			}
+			_ = conn.WriteJSON(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": map[string]any{"status": "ok"}})
+		}
+	}))
+	defer gateway.Close()
+	t.Setenv("HERMES_TUI_GATEWAY_URL", "ws"+strings.TrimPrefix(gateway.URL, "http")+"/api/ws?token=secret")
+
+	workDir := t.TempDir()
+	t.Chdir(workDir)
+	commandLog := filepath.Join(workDir, "unexpected-package-command.log")
+	installFailingPackageCommands(t, commandLog)
+
+	var programRuns atomic.Int32
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		tuiProgramFactory: func(tea.Model, ...tea.ProgramOption) tuiProgram {
+			return fakeTUIProgram{run: func() { programRuns.Add(1) }}
+		},
+	})
+	stdout, stderr, err := executeNativeTUICommand(cmd)
+	if err != nil {
+		t.Fatalf("Execute() err=%v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if programRuns.Load() != 1 {
+		t.Fatalf("programRuns = %d; want 1", programRuns.Load())
+	}
+	if sessionCreates.Load() != 1 {
+		t.Fatalf("sessionCreates = %d; want 1 websocket session.create", sessionCreates.Load())
+	}
+	if data, err := os.ReadFile(commandLog); err == nil {
+		t.Fatalf("websocket attach startup invoked package command unexpectedly:\n%s", data)
+	}
+}
+
 // TestRemoteTUI_DoctorTUIStatusReportsRemoteDegradedMode confirms the
 // degraded-mode evidence: when the operator is running purely in local
 // Bubble Tea mode (no --remote), the doctor TUI status flags remote
@@ -106,7 +176,7 @@ func TestRemoteTUI_StartupBypassesAPIServerHealthAndPackageManagers(t *testing.T
 func TestRemoteTUI_DoctorTUIStatusReportsRemoteDegradedMode(t *testing.T) {
 	got := doctorTUIStatus().Format()
 	lower := strings.ToLower(got)
-	for _, want := range []string{"native tui", "go-native bubble tea", "remote"} {
+	for _, want := range []string{"native tui", "go-native bubble tea", "remote", "websocket"} {
 		if !strings.Contains(lower, want) {
 			t.Errorf("doctor TUI status missing %q:\n%s", want, got)
 		}

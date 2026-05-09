@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"text/tabwriter"
@@ -23,12 +24,19 @@ type SkillsCommandDeps struct {
 	ListInstalledSkills func(skills.ListOptions, map[string]struct{}) []skills.SkillRow
 	DisabledSkills      func(platform string) map[string]struct{}
 	URLInstall          SkillsURLInstallDeps
+	// BuildProvenance returns the binary attribution payload included
+	// at the top of `--json` output. Optional: when nil, the JSON
+	// document omits the `build` field. cmd/gormes injects
+	// newBuildProvenance() so fleet automation can attribute the
+	// inventory to the binary version that emitted it.
+	BuildProvenance func() any
 }
 
 func NewSkillsCommand(deps SkillsCommandDeps) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "skills",
 		Short: "Manage skills",
+		Args:  cobra.NoArgs,
 	}
 	root.AddCommand(NewSkillsListCommand(deps))
 	root.AddCommand(NewSkillsInstallCommand(deps))
@@ -40,6 +48,7 @@ func NewSkillsCommand(deps SkillsCommandDeps) *cobra.Command {
 // HTTPS SKILL.md URLs; other source adapters are out of scope for this row.
 func NewSkillsInstallCommand(deps SkillsCommandDeps) *cobra.Command {
 	var nameOverride, categoryOverride string
+	var asJSON bool
 
 	cmd := &cobra.Command{
 		Use:   "install <url>",
@@ -61,6 +70,9 @@ func NewSkillsInstallCommand(deps SkillsCommandDeps) *cobra.Command {
 			ev := skills.PerformURLInstall(cmd.Context(), policy, req)
 			switch ev.Code {
 			case "url_skill_installed":
+				if asJSON {
+					return writeSkillsInstallJSON(cmd, ev, deps.BuildProvenance)
+				}
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "installed %s\n", ev.InstalledPath)
 				return nil
 			default:
@@ -73,7 +85,34 @@ func NewSkillsInstallCommand(deps SkillsCommandDeps) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&nameOverride, "name", "", "explicit skill name override (required for non-interactive URL installs without a safe resolved name)")
 	cmd.Flags().StringVar(&categoryOverride, "category", "", "optional category bucket under the active store")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, action, name, installed_path}")
 	return cmd
+}
+
+// skillsInstallReportJSON is the wire shape for `skills install --json`.
+// Fleet automation rolling out skills across machines parses this to
+// confirm where each install landed without scraping prose. The
+// installed path is the reachable file the URL install wrote.
+type skillsInstallReportJSON struct {
+	Build         any    `json:"build,omitempty"`
+	Action        string `json:"action"`
+	InstalledPath string `json:"installed_path"`
+}
+
+func writeSkillsInstallJSON(cmd *cobra.Command, ev skills.URLInstallEvidence, buildProv func() any) error {
+	report := skillsInstallReportJSON{
+		Action:        "installed",
+		InstalledPath: ev.InstalledPath,
+	}
+	if buildProv != nil {
+		report.Build = buildProv()
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func NewSkillsListCommand(deps SkillsCommandDeps) *cobra.Command {
@@ -85,6 +124,7 @@ func NewSkillsListCommand(deps SkillsCommandDeps) *cobra.Command {
 	}
 
 	var opts skills.ListOptions
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
@@ -97,12 +137,70 @@ func NewSkillsListCommand(deps SkillsCommandDeps) *cobra.Command {
 			opts.Source = source
 			disabled := deps.DisabledSkills("")
 			rows := deps.ListInstalledSkills(opts, disabled)
+			if asJSON {
+				return writeSkillsListJSON(cmd, rows, opts, deps.BuildProvenance)
+			}
 			return writeSkillsList(cmd, rows, opts.EnabledOnly)
 		},
 	}
 	cmd.Flags().StringVar(&opts.Source, "source", "all", "filter by installed skill source: all, hub, builtin, or local")
 	cmd.Flags().BoolVar(&opts.EnabledOnly, "enabled-only", false, "hide disabled skills")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, source, enabled_only, counts, skills}")
 	return cmd
+}
+
+type skillsListReportJSON struct {
+	Build       any                `json:"build,omitempty"`
+	Source      string             `json:"source"`
+	EnabledOnly bool               `json:"enabled_only"`
+	Counts      skillsListCountsJSON `json:"counts"`
+	Skills      []skillsListEntryJSON `json:"skills"`
+}
+
+type skillsListCountsJSON struct {
+	Enabled  int `json:"enabled"`
+	Disabled int `json:"disabled"`
+}
+
+type skillsListEntryJSON struct {
+	Name     string `json:"name"`
+	Category string `json:"category"`
+	Source   string `json:"source"`
+	Trust    string `json:"trust"`
+	Status   string `json:"status"`
+	Path     string `json:"path,omitempty"`
+}
+
+func writeSkillsListJSON(cmd *cobra.Command, rows []skills.SkillRow, opts skills.ListOptions, buildProv func() any) error {
+	report := skillsListReportJSON{
+		Source:      opts.Source,
+		EnabledOnly: opts.EnabledOnly,
+		Skills:      make([]skillsListEntryJSON, 0, len(rows)),
+	}
+	if buildProv != nil {
+		report.Build = buildProv()
+	}
+	for _, row := range rows {
+		if row.Status == skills.SkillStatusDisabled {
+			report.Counts.Disabled++
+		} else {
+			report.Counts.Enabled++
+		}
+		report.Skills = append(report.Skills, skillsListEntryJSON{
+			Name:     row.Name,
+			Category: row.Category,
+			Source:   row.Source,
+			Trust:    row.Trust,
+			Status:   string(row.Status),
+			Path:     row.Path,
+		})
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
 }
 
 func writeSkillsList(cmd *cobra.Command, rows []skills.SkillRow, enabledOnly bool) error {

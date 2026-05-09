@@ -22,6 +22,7 @@ func newSecurityCommand() *cobra.Command {
 		Use:          "security",
 		Short:        "Audit gateway, channel, tool, filesystem, and credential security",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newSecurityAuditCommand())
 	return cmd
@@ -415,11 +416,24 @@ func cliSecurityAuditGenerateGatewayToken() (string, error) {
 	return token, nil
 }
 
+// securityAuditReportJSON wraps toolspkg.SecurityAuditResult with
+// build provenance so fleet automation aggregating audit findings
+// across machines can attribute each result to the binary version
+// that emitted it. Existing top-level fields stay addressable via
+// struct embedding.
+type securityAuditReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	toolspkg.SecurityAuditResult
+}
+
 func writeSecurityAuditResult(cmd *cobra.Command, result toolspkg.SecurityAuditResult, jsonOut bool) {
 	if jsonOut {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(result)
+		_ = enc.Encode(securityAuditReportJSON{
+			Build:               newBuildProvenance(),
+			SecurityAuditResult: result,
+		})
 		return
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%s ok=%t pass=%d warn=%d fail=%d fixed=%d redacted=%t\n", result.Code, result.OK, result.Summary.Pass, result.Summary.Warn, result.Summary.Fail, result.Summary.Fixed, result.Redacted)

@@ -13,6 +13,39 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
+// TestGatewayDiscoverCommand_JSONIncludesBuildProvenance proves
+// `gormes gateway discover --json` returns a `build` envelope so fleet
+// log/inventory pipelines can attribute discover beacons to the binary
+// version that emitted them. Same convention as the rest of the
+// `--json` arc; existing top-level fields (ok/count/beacons) remain
+// addressable for backwards compatibility.
+func TestGatewayDiscoverCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	restore := gatewayDiscovererForTest(t, tools.GatewayDiscovererFunc(func(context.Context) ([]tools.GatewayEndpoint, error) {
+		return nil, nil
+	}))
+	defer restore()
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "gateway", "discover", "--json")
+	if err != nil {
+		t.Fatalf("gateway discover --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		OK    bool `json:"ok"`
+		Count int  `json:"count"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\n%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+}
+
 func TestGatewayDiscoverCommand_JSONListsBonjourGateways(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	restore := gatewayDiscovererForTest(t, tools.GatewayDiscovererFunc(func(context.Context) ([]tools.GatewayEndpoint, error) {

@@ -54,7 +54,7 @@ func TestHermesCLIParityManifest(t *testing.T) {
 func TestHermesCLIParityManifestNestedParserInventoryMatchesHermes(t *testing.T) {
 	want := map[string][][]string{
 		"gateway": {
-			{"gateway", "run"}, {"gateway", "start"}, {"gateway", "stop"}, {"gateway", "restart"}, {"gateway", "status"}, {"gateway", "install"}, {"gateway", "uninstall"}, {"gateway", "setup"}, {"gateway", "migrate-legacy"},
+			{"gateway", "run"}, {"gateway", "start"}, {"gateway", "stop"}, {"gateway", "restart"}, {"gateway", "status"}, {"gateway", "install"}, {"gateway", "uninstall"}, {"gateway", "setup"}, {"gateway", "migrate-legacy"}, {"gateway", "list"},
 		},
 		"slack": {
 			{"slack", "manifest"},

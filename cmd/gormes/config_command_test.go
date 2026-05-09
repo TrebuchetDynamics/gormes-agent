@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,54 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
+
+// TestConfigCommand_PathAndEnvPathJSON proves
+// `gormes config path --json` and `gormes config env-path --json`
+// emit a parseable `{build, kind, path}` document so fleet automation
+// inventorying Gormes config locations across machines can ingest each
+// path with binary attribution. Build provenance leads — same
+// convention as the rest of the `--json` arc. The default text output
+// (single-line path) remains unchanged for shell-script consumers
+// already using $(gormes config path) interpolation.
+func TestConfigCommand_PathAndEnvPathJSON(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	for _, tc := range []struct {
+		args     []string
+		wantKind string
+		wantPath string
+	}{
+		{[]string{"config", "path", "--json"}, "config", config.ConfigPath()},
+		{[]string{"config", "env-path", "--json"}, "env", config.EnvPath()},
+	} {
+		t.Run(tc.wantKind, func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeOneshotFlagCommand(cmd, tc.args...)
+			if err != nil {
+				t.Fatalf("%v: %v\nstderr=%s", tc.args, err, stderr)
+			}
+			var got struct {
+				Build struct {
+					Version string `json:"version"`
+				} `json:"build"`
+				Kind string `json:"kind"`
+				Path string `json:"path"`
+			}
+			if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+				t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+			}
+			if got.Build.Version != Version {
+				t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+			}
+			if got.Kind != tc.wantKind {
+				t.Errorf("kind = %q, want %q", got.Kind, tc.wantKind)
+			}
+			if got.Path != tc.wantPath {
+				t.Errorf("path = %q, want %q", got.Path, tc.wantPath)
+			}
+		})
+	}
+}
 
 func TestConfigCommand_PathSubcommandPrintsConfigPath(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
@@ -334,6 +383,275 @@ model = "test-model"
 	}
 	if !strings.Contains(strings.ToLower(stdout), "set") {
 		t.Fatalf("show stdout does not surface api_key set/unset state:\n%s", stdout)
+	}
+}
+
+// TestConfigCommand_ShowJSONEmitsStructuredRedactedDocument proves
+// `gormes config show --json` returns a parseable
+// `{build, paths: {config, env}, hermes: {endpoint, model, provider},
+// secrets: {api_key, gormes_api_key_env}}` document with secrets
+// reduced to `set` / `(not set)` markers — never raw values. Fleet
+// dashboards use this to confirm config landed correctly across
+// machines without scraping multi-section prose.
+func TestConfigCommand_ShowJSONEmitsStructuredRedactedDocument(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://example.invalid/v1"
+model = "test-model"
+provider = "openai"
+`))
+
+	envDir := filepath.Join(filepath.Dir(config.ConfigPath()))
+	if err := os.MkdirAll(envDir, 0o755); err != nil {
+		t.Fatalf("mkdir env dir: %v", err)
+	}
+	if err := os.WriteFile(config.EnvPath(),
+		[]byte("GORMES_API_KEY=sk-not-leaked-1234\n"), 0o600); err != nil {
+		t.Fatalf("seed .env: %v", err)
+	}
+	t.Setenv("GORMES_API_KEY", "sk-not-leaked-1234")
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "show", "--json")
+	if err != nil {
+		t.Fatalf("config show --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Paths struct {
+			Config string `json:"config"`
+			Env    string `json:"env"`
+		} `json:"paths"`
+		Hermes struct {
+			Endpoint string `json:"endpoint"`
+			Model    string `json:"model"`
+			Provider string `json:"provider"`
+		} `json:"hermes"`
+		Secrets struct {
+			APIKey            string `json:"api_key"`
+			GormesAPIKeyEnv   string `json:"gormes_api_key_env"`
+		} `json:"secrets"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("config show --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Hermes.Endpoint != "https://example.invalid/v1" {
+		t.Errorf("hermes.endpoint = %q, want example.invalid", got.Hermes.Endpoint)
+	}
+	if got.Hermes.Model != "test-model" {
+		t.Errorf("hermes.model = %q, want test-model", got.Hermes.Model)
+	}
+	if got.Hermes.Provider != "openai" {
+		t.Errorf("hermes.provider = %q, want openai", got.Hermes.Provider)
+	}
+	// Secrets MUST be redacted — never the raw token, even though the env
+	// var is in scope.
+	if strings.Contains(stdout, "sk-not-leaked-1234") {
+		t.Fatalf("config show --json leaked raw secret:\n%s", stdout)
+	}
+	// And the secrets document MUST surface set/unset state so operators
+	// can audit which credentials are configured per machine.
+	if !strings.Contains(strings.ToLower(got.Secrets.GormesAPIKeyEnv), "set") {
+		t.Errorf("secrets.gormes_api_key_env = %q, want a set/unset marker", got.Secrets.GormesAPIKeyEnv)
+	}
+}
+
+// TestConfigCommand_CheckJSONEmitsStructuredReport proves
+// `gormes config check --json` returns a parseable
+// `{build, paths: {config, env}, config_version, latest_version,
+// dotenv_present, issues: [{severity, field, message}], ok}` document
+// so fleet automation can flag schema drift across machines without
+// scraping bracketed prose. `ok` is the single boolean a CI pipeline
+// can branch on.
+func TestConfigCommand_CheckJSONEmitsStructuredReport(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://example.invalid/v1"
+model = "test-model"
+provider = "openai"
+`))
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "check", "--json")
+	if err != nil {
+		t.Fatalf("config check --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Paths struct {
+			Config string `json:"config"`
+			Env    string `json:"env"`
+		} `json:"paths"`
+		ConfigVersion int  `json:"config_version"`
+		LatestVersion int  `json:"latest_version"`
+		DotenvPresent bool `json:"dotenv_present"`
+		Issues        []struct {
+			Severity string `json:"severity"`
+			Field    string `json:"field"`
+			Message  string `json:"message"`
+		} `json:"issues"`
+		OK bool `json:"ok"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("config check --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Paths.Config == "" {
+		t.Errorf("paths.config must be populated")
+	}
+	if got.LatestVersion <= 0 {
+		t.Errorf("latest_version = %d, want >0", got.LatestVersion)
+	}
+	if got.Issues == nil {
+		t.Errorf("issues must be a JSON array (possibly empty), not null; got %+v", got)
+	}
+}
+
+// TestConfigCommand_MigrateJSONEmitsStructuredOutcome proves
+// `gormes config migrate --json` returns a parseable
+// `{build, path, from_version, to_version, no_op, wrote}` document
+// for fleet rollouts that need to confirm config.toml landed on the
+// current schema version across machines. Operators driving rolling
+// upgrades parse `wrote` to know which hosts actually applied the
+// migration vs. were already current.
+func TestConfigCommand_MigrateJSONEmitsStructuredOutcome(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	// Already-current config => no-op migration. Operators on freshly
+	// installed machines hitting the migrate endpoint expect the JSON
+	// to clearly say "no-op", so they don't think a write happened.
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://example.invalid/v1"
+model = "test-model"
+`))
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "migrate", "--json")
+	if err != nil {
+		t.Fatalf("config migrate --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Path        string `json:"path"`
+		FromVersion int    `json:"from_version"`
+		ToVersion   int    `json:"to_version"`
+		NoOp        bool   `json:"no_op"`
+		Wrote       bool   `json:"wrote"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("config migrate --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Path == "" {
+		t.Errorf("path must be populated")
+	}
+	if got.ToVersion <= 0 {
+		t.Errorf("to_version = %d, want >0", got.ToVersion)
+	}
+}
+
+// TestConfigCommand_SetJSONEmitsStructuredOutcome proves
+// `gormes config set <key> <value> --json` returns
+// `{build, key, target, path, secret}` so fleet provisioning scripts
+// can confirm WHERE the value landed (TOML vs dotenv) and whether it
+// was treated as a secret. The raw value MUST never appear in JSON
+// output — even non-secret values are excluded so the on-disk config
+// remains the only source of truth and audit logs don't double-store
+// configuration.
+func TestConfigCommand_SetJSONEmitsStructuredOutcome(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "set", "hermes.endpoint", "https://example.invalid/v1", "--json")
+	if err != nil {
+		t.Fatalf("config set --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Key    string `json:"key"`
+		Target string `json:"target"`
+		Path   string `json:"path"`
+		Secret bool   `json:"secret"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("config set --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Key != "hermes.endpoint" {
+		t.Errorf("key = %q, want %q", got.Key, "hermes.endpoint")
+	}
+	if got.Target != "toml" {
+		t.Errorf("target = %q, want %q for non-secret key", got.Target, "toml")
+	}
+	if got.Secret {
+		t.Errorf("secret = true for hermes.endpoint; should be false (non-secret key)")
+	}
+	if got.Path == "" {
+		t.Errorf("path must point to the file that received the write")
+	}
+	// Raw VALUE must NEVER appear in JSON output — even non-secrets.
+	if strings.Contains(stdout, "https://example.invalid/v1") {
+		t.Fatalf("config set --json must not echo the raw value:\n%s", stdout)
+	}
+}
+
+// TestConfigCommand_SetJSONSecretRoutesToDotenv proves a secret key
+// (api_key) lands in the dotenv path with `secret: true` and `target:
+// "dotenv"`. The raw secret value MUST NEVER appear in stdout.
+func TestConfigCommand_SetJSONSecretRoutesToDotenv(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "config", "set", "api_key", "sk-must-not-leak-XYZ", "--json")
+	if err != nil {
+		t.Fatalf("config set api_key --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Key    string `json:"key"`
+		Target string `json:"target"`
+		Path   string `json:"path"`
+		Secret bool   `json:"secret"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("config set --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if !got.Secret {
+		t.Errorf("api_key must report secret=true; got %+v", got)
+	}
+	if got.Target != "dotenv" {
+		t.Errorf("api_key target = %q, want %q", got.Target, "dotenv")
+	}
+	// Hard guarantee: the raw secret must not appear anywhere in stdout.
+	if strings.Contains(stdout, "sk-must-not-leak-XYZ") {
+		t.Fatalf("config set --json LEAKED the raw secret to stdout:\n%s", stdout)
 	}
 }
 

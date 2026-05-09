@@ -44,6 +44,50 @@ func TestSecretsConfigureCommandOutputsTypedRefWithoutSecret(t *testing.T) {
 	}
 }
 
+// TestSecretsApplyJSONIncludesBuildProvenance proves
+// `gormes secrets apply --json` carries the running binary's build
+// version + SHA. Same contract as update/doctor/status/restore/auth-status —
+// captured secrets-runtime mutations stay attributable to a specific
+// binary.
+func TestSecretsApplyJSONIncludesBuildProvenance(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	t.Setenv("GORMES_API_KEY", "sk-build-prov-secret")
+
+	plan := filepath.Join(t.TempDir(), "secrets.json")
+	if err := os.WriteFile(plan, []byte(`{
+		"targets": [
+			{
+				"path": "hermes.api_key",
+				"required": true,
+				"ref": {"source": "env", "provider": "default", "id": "GORMES_API_KEY"}
+			}
+		]
+	}`), 0o600); err != nil {
+		t.Fatalf("write plan: %v", err)
+	}
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "secrets", "apply", "--plan", plan, "--json")
+	if err != nil {
+		t.Fatalf("secrets apply --json: %v\nstdout=%s stderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
+}
+
 func TestSecretsApplyAuditAndReloadCommandsUseRedactedSnapshot(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	t.Setenv("GORMES_API_KEY", "sk-apply-secret")

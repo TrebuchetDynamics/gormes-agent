@@ -96,20 +96,14 @@ func TestTerminalToolRecoversWhenConfiguredWorkdirDeleted(t *testing.T) {
 	tool := NewTerminalTool(TerminalToolConfig{Workdir: deleted, DefaultTimeout: 5 * time.Second})
 	out := executeTerminalTool(t, tool, `{"command":"pwd"}`)
 
-	if out["status"] != "completed" {
-		t.Fatalf("status = %v, want completed: %#v", out["status"], out)
+	if out["status"] != "error" {
+		t.Fatalf("status = %v, want error (fail closed for explicitly configured deleted cwd): %#v", out["status"], out)
 	}
-	if out["workdir"] != root {
-		t.Fatalf("workdir = %v, want nearest existing ancestor %q: %#v", out["workdir"], root, out)
+	if !strings.Contains(asString(out["error"]), "terminal_cwd_deleted") {
+		t.Fatalf("error = %v, want terminal_cwd_deleted evidence", out["error"])
 	}
-	if strings.TrimSpace(asString(out["output"])) != root {
-		t.Fatalf("output = %q, want pwd %q", out["output"], root)
-	}
-	if out["cwd_recovered"] != true {
-		t.Fatalf("cwd_recovered = %v, want true: %#v", out["cwd_recovered"], out)
-	}
-	if !strings.Contains(asString(out["cwd_recovery"]), "terminal_cwd_recovered") {
-		t.Fatalf("cwd_recovery = %v, want terminal_cwd_recovered evidence", out["cwd_recovery"])
+	if out["exit_code"] != float64(-1) {
+		t.Fatalf("exit_code = %v, want -1", out["exit_code"])
 	}
 }
 

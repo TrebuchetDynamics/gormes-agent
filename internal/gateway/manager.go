@@ -55,14 +55,18 @@ type activeTurnSnapshot struct {
 	LastUserText string
 }
 
+// KanbanSlashRunner executes a full /kanban command and returns channel-safe
+// command output.
+type KanbanSlashRunner func(context.Context, string) (string, error)
+
 // ManagerConfig drives the shared gateway manager.
 type ManagerConfig struct {
-	AllowedChats    map[string]string
-	AllowedUsers    map[string]map[string]bool
+	AllowedChats          map[string]string
+	AllowedUsers          map[string]map[string]bool
 	AllowedChatWhitelists map[string]WhitelistConfig
-	AllowDiscovery  map[string]bool
-	CoalesceMs      int
-	FreshFinalAfter time.Duration
+	AllowDiscovery        map[string]bool
+	CoalesceMs            int
+	FreshFinalAfter       time.Duration
 	// ToolProgressMode mirrors Hermes gateway display.tool_progress for
 	// editable channel progress messages. Empty and unknown values default to all.
 	ToolProgressMode string
@@ -172,6 +176,10 @@ type ManagerConfig struct {
 	// KanbanDispatcher owns the gateway-managed Kanban worker dispatcher loop.
 	// Nil preserves the legacy gateway behavior with no dispatcher activity.
 	KanbanDispatcher KanbanDispatcherConfig
+	// KanbanSlashRunner handles gateway /kanban through the same command
+	// implementation used by the local CLI/TUI. Nil consumes /kanban with
+	// unavailable evidence instead of submitting it to the model.
+	KanbanSlashRunner KanbanSlashRunner
 	// ReloadConfig returns a freshly loaded manager config for reloadable
 	// runtime fields. Errors keep the last-good manager config active.
 	ReloadConfig func(context.Context) (ManagerConfig, error)
@@ -933,6 +941,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventTopic:
 		m.handleTelegramTopicCommand(ctx, ch, ev)
 		return nil
+	case EventKanban:
+		m.handleKanbanCommand(ctx, ch, ev)
+		return nil
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
 		return nil
@@ -996,7 +1007,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -1084,6 +1095,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventTopic:
 		m.handleTelegramTopicCommand(ctx, ch, ev)
+		return true
+	case EventKanban:
+		m.handleKanbanCommand(ctx, ch, ev)
 		return true
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)

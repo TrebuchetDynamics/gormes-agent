@@ -25,6 +25,12 @@ func newDashboardCommand() *cobra.Command {
 			cfg := apiserver.Config{
 				APIKey:             os.Getenv("GORMES_DASHBOARD_API_KEY"),
 				DashboardBoundHost: "127.0.0.1",
+				BuildInfo: apiserver.BuildInfo{
+					Version:   Version,
+					GitCommit: resolveGitCommit(),
+					GitDirty:  resolveGitDirty(),
+					GoVersion: runtime.Version(),
+				},
 			}
 			if cfg.APIKey == "" {
 				cfg.APIKey = "gormes-dashboard-dev"
@@ -54,7 +60,9 @@ func newDashboardCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 43827, "Dashboard HTTP server port")
+	// No `-p` shorthand: root reserves -p for --profile (a persistent flag),
+	// and cobra's mergePersistentFlags would panic on shorthand collision.
+	cmd.Flags().IntVar(&port, "port", 43827, "Dashboard HTTP server port")
 	cmd.Flags().BoolVar(&noOpen, "no-open", false, "do not open the dashboard in a browser")
 	return cmd
 }

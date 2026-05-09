@@ -22,6 +22,7 @@ type codexResponsesPayload struct {
 	Tools             []codexResponsesTool `json:"tools,omitempty"`
 	Store             bool                 `json:"store"`
 	MaxOutputTokens   int                  `json:"max_output_tokens,omitempty"`
+	ServiceTier       string               `json:"service_tier,omitempty"`
 	ToolChoice        string               `json:"tool_choice,omitempty"`
 	ParallelToolCalls bool                 `json:"parallel_tool_calls,omitempty"`
 }
@@ -166,6 +167,7 @@ func buildCodexResponsesPayload(req ChatRequest) (codexResponsesPayload, error) 
 		Tools:             codexResponsesTools(req.Tools),
 		Store:             false,
 		MaxOutputTokens:   req.MaxTokens,
+		ServiceTier:       normalizeServiceTier(req.RequestOverrides.ServiceTier),
 		ToolChoice:        "auto",
 		ParallelToolCalls: true,
 	}

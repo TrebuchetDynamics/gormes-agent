@@ -1,11 +1,59 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
+
+// TestLogoutTopLevelJSONEmitsLifecycleReport proves
+// `gormes logout --provider <p> --json` emits the same
+// `{build, action, provider, redacted}` shape as `gormes auth logout
+// <p> --json` so fleet automation rotating provider auth across
+// machines can use either spelling without rewriting their JSON
+// parsers. Build provenance leads — same convention as the rest of
+// the `--json` arc. Raw tokens MUST never appear.
+func TestLogoutTopLevelJSONEmitsLifecycleReport(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	seedAuthCommandCredentials(t, "nous", []config.PooledCredential{
+		{ID: "nous-cred-1", Label: "primary", AuthType: config.CredentialAuthOAuth, Source: "manual", AccessToken: "plain-token-nous"},
+	})
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "logout", "--provider", "nous", "--json")
+	if err != nil {
+		t.Fatalf("logout --json: %v\nstderr=%s", err, stderr)
+	}
+	if strings.Contains(stdout+stderr, "plain-token-nous") {
+		t.Fatalf("logout --json LEAKED token:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action   string `json:"action"`
+		Provider string `json:"provider"`
+		Redacted bool   `json:"redacted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("logout --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "logged_out" {
+		t.Errorf("action = %q, want logged_out", got.Action)
+	}
+	if got.Provider != "nous" {
+		t.Errorf("provider = %q, want nous", got.Provider)
+	}
+	if !got.Redacted {
+		t.Errorf("redacted = false, want true")
+	}
+}
 
 func TestLogoutTopLevelAcceptsAllowedProviders(t *testing.T) {
 	for _, provider := range []string{"nous", config.CodexOAuthProvider, "spotify"} {

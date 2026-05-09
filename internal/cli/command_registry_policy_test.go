@@ -121,11 +121,11 @@ func TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands(t *testing.T) {
 	if !ok {
 		t.Fatal("ResolveCommandPolicy(/kanban create task) not found")
 	}
-	if cmd.ActiveTurnPolicy != ActiveTurnPolicyUnavailable {
-		t.Fatalf("/kanban policy = %q, want %q until gateway/TUI slash handler lands", cmd.ActiveTurnPolicy, ActiveTurnPolicyUnavailable)
+	if cmd.ActiveTurnPolicy != ActiveTurnPolicyBypass {
+		t.Fatalf("/kanban policy = %q, want %q now that gateway slash handler has landed", cmd.ActiveTurnPolicy, ActiveTurnPolicyBypass)
 	}
-	if cmd.Ported {
-		t.Fatal("/kanban Ported = true, want false until slash handler lands")
+	if !cmd.Ported {
+		t.Fatal("/kanban Ported = false, want true now that slash handler lands")
 	}
 	want := []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link"}
 	if len(cmd.Subcommands) != len(want) {

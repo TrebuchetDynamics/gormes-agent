@@ -14,6 +14,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
@@ -39,6 +40,9 @@ func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	}
 	if _, ok := reg.Get("image_generate"); !ok {
 		t.Fatal("image_generate not registered")
+	}
+	if _, ok := reg.Get("video_analyze"); !ok {
+		t.Fatal("video_analyze not registered")
 	}
 	for _, name := range []string{"read_file", "search_files", "write_file", "patch", "terminal"} {
 		if _, ok := reg.Get(name); !ok {
@@ -118,6 +122,50 @@ func TestBuildDefaultRegistryPassesTerminalCWDToTerminalTool(t *testing.T) {
 	if strings.TrimSpace(asRegistryString(out["output"])) != projectDir {
 		t.Fatalf("terminal output = %q, want pwd %q; raw=%s", out["output"], projectDir, raw)
 	}
+}
+
+func TestBuildDefaultRegistryPassesExecuteCodeMode(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.Config{
+		CodeExecution: config.CodeExecutionCfg{Mode: "project"},
+	}, nil, "")
+	tool, ok := reg.Get("execute_code")
+	if !ok {
+		t.Fatal("execute_code not registered")
+	}
+	execTool, ok := tool.(*tools.ExecuteCodeTool)
+	if !ok {
+		t.Fatalf("execute_code tool = %T, want *tools.ExecuteCodeTool", tool)
+	}
+	if execTool.Mode != tools.ExecuteCodeModeProject {
+		t.Fatalf("execute_code mode = %q, want %q", execTool.Mode, tools.ExecuteCodeModeProject)
+	}
+
+	reg = buildDefaultRegistry(context.Background(), config.Config{
+		CodeExecution: config.CodeExecutionCfg{Mode: "not-a-mode"},
+	}, nil, "")
+	tool, ok = reg.Get("execute_code")
+	if !ok {
+		t.Fatal("execute_code not registered after invalid mode")
+	}
+	execTool, ok = tool.(*tools.ExecuteCodeTool)
+	if !ok {
+		t.Fatalf("execute_code tool = %T, want *tools.ExecuteCodeTool", tool)
+	}
+	if execTool.Mode != tools.ExecuteCodeModeStrict {
+		t.Fatalf("invalid execute_code mode fell back to %q, want %q", execTool.Mode, tools.ExecuteCodeModeStrict)
+	}
+	if !executeCodeRegistryHasEvidence(execTool.ModeEvidence, tools.ExecuteCodeModeEvidenceInvalid) {
+		t.Fatalf("ModeEvidence = %#v, want invalid mode evidence", execTool.ModeEvidence)
+	}
+}
+
+func executeCodeRegistryHasEvidence(evidence []tools.ExecuteCodeModeEvidence, code string) bool {
+	for _, ev := range evidence {
+		if ev.Code == code {
+			return true
+		}
+	}
+	return false
 }
 
 func TestBuildDefaultRegistryDelegationEnabled(t *testing.T) {

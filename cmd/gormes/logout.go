@@ -20,6 +20,7 @@ func newLogoutCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&provider, "provider", "", "provider to log out from: nous, openai-codex, or spotify")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action, provider, redacted}")
 	return cmd
 }
 

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +13,21 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
+
+// TestMemoryCommand_ConstructorReturnsIndependentInstances proves
+// each newMemoryCommand() call returns a fresh tree (parent + status
+// subcommand) with no shared state. Same anti-pattern guard as
+// versionCmd / doctorCmd.
+func TestMemoryCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
+	a := newMemoryCommand()
+	b := newMemoryCommand()
+	if a == b {
+		t.Fatal("newMemoryCommand must return distinct instances; got same pointer")
+	}
+	if a.Commands()[0] == b.Commands()[0] {
+		t.Fatal("subcommand instances must also be distinct between constructor calls")
+	}
+}
 
 func TestMemoryStatusCommand_PrintsExtractorSummary(t *testing.T) {
 	seedMemoryStatusDB(t)
@@ -46,6 +63,17 @@ func TestMemoryStatusCommand_PrintsExtractorSummary(t *testing.T) {
 	}
 }
 
+// TestMemoryStatusCommand_MissingDatabase pins the empty-state UX:
+// on a fresh install the goncho memory.db doesn't exist yet (it's
+// created lazily on the first turn write), so a read-only inventory
+// command must report "queue empty / no DLQ entries / 0 jobs" rather
+// than raise a "memory database not found" error. Same shape as the
+// `session list` empty-state fence.
+//
+// Operator pain this prevents: `gormes memory status` is the natural
+// command an SRE runs to confirm the worker queue is healthy on a
+// freshly-imaged host. Erroring out makes that healthy state look
+// indistinguishable from a corrupt DB or permission error.
 func TestMemoryStatusCommand_MissingDatabase(t *testing.T) {
 	dataHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", dataHome)
@@ -58,15 +86,95 @@ func TestMemoryStatusCommand_MissingDatabase(t *testing.T) {
 	cmd.SetErr(&stderr)
 	cmd.SetArgs([]string{"memory", "status"})
 
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("Execute() error = nil, want missing-database error")
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute() on fresh install must succeed; got %v\nstderr=%s", err, stderr.String())
 	}
-	if !strings.Contains(err.Error(), "memory database not found") {
-		t.Fatalf("error = %v, want missing database message", err)
+	out := stdout.String()
+	for _, want := range []string{
+		"Extractor status",
+		"queue_depth: 0",
+		"dead_letters: 0",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout missing %q on fresh-install zero state:\n%s", want, out)
+		}
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty", stdout.String())
+}
+
+// TestMemoryStatusCommand_EmptyDatabase_NoSchemaIsZeroState pins a
+// second corner of the empty-state UX: an existing-but-zero-byte
+// memory.db (observed in production after install/upgrade flows that
+// touched the file path but didn't run schema migrations) must not
+// surface a raw `sqlite3: SQL logic error: no such table: turns` to
+// the operator. Same empty-state contract as the missing-file path.
+func TestMemoryStatusCommand_EmptyDatabase_NoSchemaIsZeroState(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	gormesHome := filepath.Join(dataHome, "gormes")
+	t.Setenv("GORMES_HOME", gormesHome)
+	if err := os.MkdirAll(gormesHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Seed a 0-byte memory.db — exists but no goncho schema applied.
+	if err := os.WriteFile(filepath.Join(gormesHome, "memory.db"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status on 0-byte memory.db must succeed; got %v\nstderr=%s", err, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{"Extractor status", "queue_depth: 0", "dead_letters: 0"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("stdout missing %q on schema-less DB:\n%s", want, out)
+		}
+	}
+	// The raw sqlite error must not leak through.
+	combined := out + stderr.String()
+	if strings.Contains(combined, "no such table") || strings.Contains(combined, "SQL logic error") {
+		t.Fatalf("raw sqlite error leaked to operator: %q", combined)
+	}
+}
+
+// TestMemoryStatusCommand_MissingDatabase_JSONEmitsZeroState keeps the
+// JSON surface symmetric: SREs scraping
+// `gormes memory status --json` from a freshly-imaged host should see
+// `{"extractor": {"queue_depth": 0, ...}}`, not a non-zero exit.
+func TestMemoryStatusCommand_MissingDatabase_JSONEmitsZeroState(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	t.Setenv("GORMES_HOME", filepath.Join(dataHome, "gormes"))
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status --json on fresh install: %v\nstderr=%s", err, stderr.String())
+	}
+
+	var got struct {
+		Extractor struct {
+			QueueDepth      int `json:"queue_depth"`
+			DeadLetterCount int `json:"dead_letter_count"`
+		} `json:"extractor"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Extractor.QueueDepth != 0 {
+		t.Errorf("extractor.queue_depth = %d, want 0 on fresh install", got.Extractor.QueueDepth)
+	}
+	if got.Extractor.DeadLetterCount != 0 {
+		t.Errorf("extractor.dead_letter_count = %d, want 0 on fresh install", got.Extractor.DeadLetterCount)
 	}
 }
 
@@ -97,6 +205,62 @@ func TestMemoryStatusCommand_PrintsGonchoQueueZeroState(t *testing.T) {
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+}
+
+// TestMemoryStatusCommand_JSONEmitsStructuredSnapshot proves
+// `gormes memory status --json` emits a parseable
+// `{build, extractor: {...}, goncho_queue: {...}}` document. SREs
+// monitoring fleet memory backlog (worker_health, queue_depth,
+// dead_letter_count) need a structured shape for alerting; scraping
+// the multi-section human format is fragile.
+func TestMemoryStatusCommand_JSONEmitsStructuredSnapshot(t *testing.T) {
+	seedMemoryStatusDB(t)
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status --json: %v\nstderr=%s", err, stderr.String())
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Extractor struct {
+			WorkerHealth    string `json:"worker_health"`
+			QueueDepth      int    `json:"queue_depth"`
+			DeadLetterCount int    `json:"dead_letter_count"`
+		} `json:"extractor"`
+		GonchoQueue struct {
+			ObservabilityOnly bool `json:"observability_only"`
+		} `json:"goncho_queue"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout.String(), jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+	if got.Extractor.WorkerHealth == "" {
+		t.Fatalf("extractor.worker_health must be populated; got %+v", got.Extractor)
+	}
+	if got.Extractor.QueueDepth < 1 {
+		t.Fatalf("extractor.queue_depth = %d, want >= 1 (fixture seeds at least one queued turn)", got.Extractor.QueueDepth)
+	}
+	if got.Extractor.DeadLetterCount != 2 {
+		t.Fatalf("extractor.dead_letter_count = %d, want 2 (fixture seeds 2 dead letters)", got.Extractor.DeadLetterCount)
+	}
+	if !got.GonchoQueue.ObservabilityOnly {
+		t.Fatalf("goncho_queue.observability_only = false, want true (matches goncho doctor convention)")
+	}
+	// JSON mode must not interleave the human "Extractor status" header.
+	if strings.Contains(stdout.String(), "Extractor status") {
+		t.Fatalf("--json must not emit the human header; got:\n%s", stdout.String())
 	}
 }
 

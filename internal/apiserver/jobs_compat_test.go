@@ -10,6 +10,72 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 )
 
+// TestAPIServerJobsCompatBuildAttribution proves the legacy
+// `/api/jobs` and `/api/jobs/{id}` envelopes include build provenance
+// at the top of their JSON response so fleet automation rolling out
+// schedule changes across machines can attribute every legacy
+// response to the binary version. Same convention as the rest of the
+// JSON arc — additive to the legacy contract since clients ignore
+// unknown fields.
+func TestAPIServerJobsCompatBuildAttribution(t *testing.T) {
+	mutator := newFakeCronJobMutator(
+		cron.Job{ID: "aabbccddeeff", Name: "enabled", Schedule: "@hourly", Prompt: "visible", Provider: "telegram"},
+	)
+	srv := NewServer(Config{
+		APIKey:         "plain-existing-token",
+		ModelName:      "gormes-agent",
+		BuildInfo:      BuildInfo{Version: "test-jobscompat-attr", GitCommit: "facefeed"},
+		CronJobs:       mutator,
+		CronJobMutator: mutator,
+		MaxBodyBytes:   1_000_000,
+	})
+	h := srv.Handler()
+	auth := map[string]string{"Authorization": "Bearer plain-existing-token"}
+
+	// list envelope
+	list := getJSON(t, h, "/api/jobs", auth)
+	if list.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body=%s", list.Code, list.Body.String())
+	}
+	var listGot struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Jobs []map[string]any `json:"jobs"`
+	}
+	if err := json.Unmarshal(list.Body.Bytes(), &listGot); err != nil {
+		t.Fatalf("decode list: %v\nbody=%s", err, list.Body.String())
+	}
+	if listGot.Build.Version != "test-jobscompat-attr" || listGot.Build.GitCommit != "facefeed" {
+		t.Errorf("list build = %+v, want version=test-jobscompat-attr commit=facefeed", listGot.Build)
+	}
+	if len(listGot.Jobs) != 1 {
+		t.Errorf("list jobs len = %d, want 1", len(listGot.Jobs))
+	}
+
+	// get envelope
+	get := getJSON(t, h, "/api/jobs/aabbccddeeff", auth)
+	if get.Code != http.StatusOK {
+		t.Fatalf("get status = %d; body=%s", get.Code, get.Body.String())
+	}
+	var getGot struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Job map[string]any `json:"job"`
+	}
+	if err := json.Unmarshal(get.Body.Bytes(), &getGot); err != nil {
+		t.Fatalf("decode get: %v\nbody=%s", err, get.Body.String())
+	}
+	if getGot.Build.Version != "test-jobscompat-attr" {
+		t.Errorf("get build = %+v, want version=test-jobscompat-attr", getGot.Build)
+	}
+	if getGot.Job["id"] != "aabbccddeeff" {
+		t.Errorf("get job id = %v, want aabbccddeeff", getGot.Job["id"])
+	}
+}
+
 func TestAPIServerJobsCompatListAndIncludeDisabled(t *testing.T) {
 	mutator := newFakeCronJobMutator(
 		cron.Job{ID: "aabbccddeeff", Name: "enabled", Schedule: "@hourly", Prompt: "visible", Provider: "telegram"},
@@ -127,11 +193,13 @@ func TestAPIServerJobsCompatCreateUpdateDeletePauseResumeRun(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
-	var deleteResp map[string]bool
+	var deleteResp struct {
+		OK bool `json:"ok"`
+	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &deleteResp); err != nil {
 		t.Fatalf("decode delete response: %v", err)
 	}
-	if !deleteResp["ok"] {
+	if !deleteResp.OK {
 		t.Fatalf("delete response = %+v, want ok true", deleteResp)
 	}
 }

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -18,6 +19,12 @@ func registerImageGenerationTool(reg *tools.Registry, cfg config.Config) {
 		Provider:     imageGenConfigString(cfg.ImageGen, "provider"),
 		DefaultModel: imageGenConfigString(cfg.ImageGen, "model"),
 	}, providers)))
+}
+
+func registerVideoAnalyzeTool(reg *tools.Registry, _ config.Config) {
+	reg.MustRegister(tools.NewVideoAnalyzeTool(tools.VideoAnalyzeConfig{
+		ProviderFactory: func(_ context.Context) tools.VideoAnalyzeProvider { return nil },
+	}))
 }
 
 func imageGenConfigString(values map[string]any, key string) string {

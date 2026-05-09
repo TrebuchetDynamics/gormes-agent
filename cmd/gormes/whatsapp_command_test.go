@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -38,7 +39,7 @@ func TestWhatsAppTopLevelCommandRendersPairingPreflight(t *testing.T) {
 		"WHATSAPP_MODE=bot",
 		"WHATSAPP_ALLOWED_USERS=528112345678,528187654321",
 		"node scripts/whatsapp-bridge/bridge.js --port 3000 --session " + filepath.Join(home, "whatsapp", "session") + " --mode bot",
-		"BLOCKER: live QR pairing is not bundled in this Go binary yet.",
+		"Run without --plan to start the live QR pairing wizard.",
 		"gormes gateway status",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -54,6 +55,69 @@ func TestWhatsAppTopLevelCommandRendersPairingPreflight(t *testing.T) {
 		if strings.Contains(stdout, forbidden) {
 			t.Fatalf("stdout contains Hermes-owned text %q:\n%s", forbidden, stdout)
 		}
+	}
+}
+
+// TestWhatsAppCommand_PlanJSONEmitsStructuredPlan proves
+// `gormes whatsapp --plan --json` emits a parseable
+// `{build, mode, config_path, env_path, session_dir, bridge_log,
+// allowed_users, debug, allow_all_users, bridge_command: [...]}` document
+// so fleet automation provisioning the WhatsApp Baileys bridge across
+// machines can consume the plan without scraping the multi-line preflight
+// prose. Build provenance leads — same convention as the rest of the
+// `--json` arc. Secrets MUST NOT appear: WhatsApp session credentials live
+// inside the session dir, not in the plan output, but a misordered emit
+// could leak the dotenv values, so the test asserts the plan stays
+// path-only.
+func TestWhatsAppCommand_PlanJSONEmitsStructuredPlan(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "whatsapp", "--plan", "--json", "--mode", "bot", "--allowed-users", "528112345678,528187654321", "--debug")
+	if err != nil {
+		t.Fatalf("gormes whatsapp --plan --json error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Mode          string   `json:"mode"`
+		ConfigPath    string   `json:"config_path"`
+		EnvPath       string   `json:"env_path"`
+		SessionDir    string   `json:"session_dir"`
+		BridgeLog     string   `json:"bridge_log"`
+		AllowedUsers  string   `json:"allowed_users"`
+		Debug         bool     `json:"debug"`
+		AllowAllUsers bool     `json:"allow_all_users"`
+		BridgeCommand []string `json:"bridge_command"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("whatsapp --plan --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Mode != "bot" {
+		t.Errorf("mode = %q, want bot", got.Mode)
+	}
+	if got.ConfigPath != config.ConfigPath() {
+		t.Errorf("config_path = %q, want %q", got.ConfigPath, config.ConfigPath())
+	}
+	if got.SessionDir != filepath.Join(home, "whatsapp", "session") {
+		t.Errorf("session_dir = %q, want %q", got.SessionDir, filepath.Join(home, "whatsapp", "session"))
+	}
+	if got.BridgeLog != filepath.Join(home, "whatsapp", "bridge.log") {
+		t.Errorf("bridge_log = %q, want %q", got.BridgeLog, filepath.Join(home, "whatsapp", "bridge.log"))
+	}
+	if got.AllowedUsers != "528112345678,528187654321" {
+		t.Errorf("allowed_users = %q, want %q", got.AllowedUsers, "528112345678,528187654321")
+	}
+	if !got.Debug {
+		t.Errorf("debug = false, want true")
+	}
+	if len(got.BridgeCommand) == 0 {
+		t.Errorf("bridge_command must be populated")
 	}
 }
 

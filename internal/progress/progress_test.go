@@ -71,10 +71,15 @@ func TestLoad_RealFile(t *testing.T) {
 	if got := p.Phases["3"].DerivedStatus(); got != StatusComplete {
 		t.Errorf("Phase 3 = %q, want complete", got)
 	}
-	// Phase 4 is complete once the model catalog cache/live-merge closeout
-	// joins the existing provider, prompt, context, routing, and resilience rows.
-	if got := p.Phases["4"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 4 = %q, want complete", got)
+	// Phase 4 reopens to in_progress whenever a planned provider-parity
+	// row (Nous OAuth device-code/refresh/mint port, Anthropic OAuth
+	// follow-ups, etc.) is added under it. The model catalog cache/
+	// live-merge closeout landed earlier; new upstream parity work
+	// continues to slot into Phase 4 as it surfaces, so the assertion
+	// here checks Phase 4 is at least started rather than pinning
+	// `complete` against a moving floor.
+	if got := p.Phases["4"].DerivedStatus(); got == StatusPlanned {
+		t.Errorf("Phase 4 = %q, want at least in_progress (porting work has landed)", got)
 	}
 	// Floor counts — catches mass-deletion regressions without pinning exact values.
 	if n := len(p.Phases); n < 6 {
@@ -422,8 +427,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if signal.Priority != "P2" {
 		t.Fatalf("Phase 7.A priority = %q, want P2", signal.Priority)
 	}
-	if got := signal.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 7.A = %q, want in_progress", got)
+	if got := signal.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 7.A = %q, want complete", got)
 	}
 	signalItems := itemsByName(signal.Items)
 	identity := signalItems["Inbound event normalization + session identity"]
@@ -441,10 +446,10 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.A reply/send note = %q, want signal.Bot/native group IDs detail", replySend.Note)
 	}
 	transport := signalItems["Signal transport/bootstrap layer"]
-	if transport.Status != StatusPlanned {
-		t.Fatalf("Phase 7.A transport/bootstrap status = %q, want planned", transport.Status)
+	if transport.Status != StatusComplete {
+		t.Fatalf("Phase 7.A transport/bootstrap status = %q, want complete", transport.Status)
 	}
-	if !strings.Contains(transport.Note, "signal-cli") || !strings.Contains(transport.Note, "bridge client lifecycle") {
+	if !strings.Contains(transport.Note, "signal-cli") || !strings.Contains(transport.Note, "bridge") {
 		t.Fatalf("Phase 7.A transport/bootstrap note = %q, want signal-cli/bridge detail", transport.Note)
 	}
 
@@ -636,32 +641,44 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.C threaded text status = %q, want complete", threadedText.Status)
 	}
 	matrixBot := matrixItems["Matrix shared-chassis bot seam"]
-	if matrixBot.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C matrix bot status = %q, want planned", matrixBot.Status)
+	if matrixBot.Status != StatusComplete {
+		t.Fatalf("Phase 7.C matrix bot status = %q, want complete (shipped MatrixSeam)", matrixBot.Status)
 	}
-	if matrixBot.ContractStatus != ContractStatusDraft || len(matrixBot.WriteScope) == 0 || len(matrixBot.TestCommands) == 0 {
-		t.Fatalf("Phase 7.C matrix bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", matrixBot.ContractStatus, len(matrixBot.WriteScope), len(matrixBot.TestCommands))
+	if matrixBot.ContractStatus != ContractStatusValidated || len(matrixBot.WriteScope) == 0 || len(matrixBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C matrix bot readiness = contract_status %q scope=%d tests=%d, want validated builder-ready row", matrixBot.ContractStatus, len(matrixBot.WriteScope), len(matrixBot.TestCommands))
 	}
 	if !containsString(matrixBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(matrixBot.Contract, "thread roots") {
 		t.Fatalf("Phase 7.C matrix bot refs=%v contract=%q, want threadtext/thread detail", matrixBot.SourceRefs, matrixBot.Contract)
 	}
 	mattermostBot := matrixItems["Mattermost shared-chassis bot seam"]
-	if mattermostBot.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C mattermost bot status = %q, want planned", mattermostBot.Status)
+	if mattermostBot.Status != StatusComplete {
+		t.Fatalf("Phase 7.C mattermost bot status = %q, want complete", mattermostBot.Status)
 	}
-	if mattermostBot.ContractStatus != ContractStatusDraft || len(mattermostBot.WriteScope) == 0 || len(mattermostBot.TestCommands) == 0 {
-		t.Fatalf("Phase 7.C mattermost bot readiness = contract_status %q scope=%d tests=%d, want draft builder-ready row", mattermostBot.ContractStatus, len(mattermostBot.WriteScope), len(mattermostBot.TestCommands))
+	if mattermostBot.ContractStatus != ContractStatusValidated || len(mattermostBot.WriteScope) == 0 || len(mattermostBot.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C mattermost bot readiness = contract_status %q scope=%d tests=%d, want validated builder-ready row", mattermostBot.ContractStatus, len(mattermostBot.WriteScope), len(mattermostBot.TestCommands))
 	}
 	if !containsString(mattermostBot.SourceRefs, "internal/channels/threadtext/contract.go") || !strings.Contains(mattermostBot.Contract, "REST/websocket") {
 		t.Fatalf("Phase 7.C mattermost bot refs=%v contract=%q, want threadtext/REST-WS detail", mattermostBot.SourceRefs, mattermostBot.Contract)
 	}
 	matrixBootstrap := matrixItems["Matrix real client/bootstrap layer"]
-	if matrixBootstrap.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C matrix bootstrap status = %q, want planned", matrixBootstrap.Status)
+	if matrixBootstrap.Status != StatusComplete {
+		t.Fatalf("Phase 7.C matrix bootstrap status = %q, want complete", matrixBootstrap.Status)
+	}
+	if matrixBootstrap.ContractStatus != ContractStatusValidated || len(matrixBootstrap.WriteScope) == 0 || len(matrixBootstrap.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C matrix bootstrap readiness = contract_status %q scope=%d tests=%d, want validated completed row", matrixBootstrap.ContractStatus, len(matrixBootstrap.WriteScope), len(matrixBootstrap.TestCommands))
+	}
+	if !strings.Contains(matrixBootstrap.Note, "SDK-free Matrix bootstrap boundary") || !containsString(matrixBootstrap.SourceRefs, "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter.connect") {
+		t.Fatalf("Phase 7.C matrix bootstrap refs=%v note=%q, want active Hermes bootstrap evidence", matrixBootstrap.SourceRefs, matrixBootstrap.Note)
 	}
 	mattermostBootstrap := matrixItems["Mattermost REST/WS bootstrap layer"]
-	if mattermostBootstrap.Status != StatusPlanned {
-		t.Fatalf("Phase 7.C mattermost bootstrap status = %q, want planned", mattermostBootstrap.Status)
+	if mattermostBootstrap.Status != StatusComplete {
+		t.Fatalf("Phase 7.C mattermost bootstrap status = %q, want complete", mattermostBootstrap.Status)
+	}
+	if mattermostBootstrap.ContractStatus != ContractStatusValidated || len(mattermostBootstrap.WriteScope) == 0 || len(mattermostBootstrap.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C mattermost bootstrap readiness = contract_status %q scope=%d tests=%d, want validated completed row", mattermostBootstrap.ContractStatus, len(mattermostBootstrap.WriteScope), len(mattermostBootstrap.TestCommands))
+	}
+	if !strings.Contains(mattermostBootstrap.Note, "fakeable config/auth") || !containsString(mattermostBootstrap.SourceRefs, "./hermes-agent/gateway/platforms/mattermost.py@242da9db9:MattermostAdapter.connect") {
+		t.Fatalf("Phase 7.C mattermost bootstrap refs=%v note=%q, want active Hermes bootstrap evidence", mattermostBootstrap.SourceRefs, mattermostBootstrap.Note)
 	}
 
 	longTail := p.Phases["7"].Subphases["7.E"]

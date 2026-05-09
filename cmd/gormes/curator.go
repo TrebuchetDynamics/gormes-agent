@@ -37,6 +37,7 @@ func newCuratorCommandWithDeps(deps curatorCommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "curator",
 		Short: "Manage Hermes-compatible background skill curation",
+		Args:  cobra.NoArgs,
 	}
 	cmd.AddCommand(
 		newCuratorStatusCommand(deps),
@@ -53,7 +54,7 @@ func newCuratorCommandWithDeps(deps curatorCommandDeps) *cobra.Command {
 }
 
 func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show curator status and skill stats",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -62,6 +63,14 @@ func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
 			state, err := curator.LoadState()
 			if err != nil {
 				return err
+			}
+			rows, err := skills.ListAgentCreatedSkillUsage(root)
+			if err != nil {
+				return err
+			}
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				return writeCuratorStatusJSON(cmd.OutOrStdout(), state, rows)
 			}
 			status := "ENABLED"
 			if state.Paused {
@@ -98,35 +107,134 @@ func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
 			if _, err := fmt.Fprintf(out, "  archive after:  %dd unused\n", skills.DefaultCuratorArchiveDays); err != nil {
 				return err
 			}
-			rows, err := skills.ListAgentCreatedSkillUsage(root)
-			if err != nil {
-				return err
-			}
 			return writeCuratorStatusRows(cmd, rows)
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, state, defaults, skills: {total, rows: [...]}}`")
+	return cmd
+}
+
+// curatorStatusReportJSON is the wire shape for `curator status --json`.
+// Fleet dashboards parse this to monitor curator across machines without
+// scraping multi-section prose. `state` mirrors the CuratorState struct;
+// `defaults` documents the build-baked thresholds; `skills.rows` lets
+// dashboards sort by activity, identify stale skills, and feed alerts.
+type curatorStatusReportJSON struct {
+	Build    buildProvenanceJSON       `json:"build"`
+	State    curatorStateJSON          `json:"state"`
+	Defaults curatorDefaultsJSON       `json:"defaults"`
+	Skills   curatorSkillsJSON         `json:"skills"`
+}
+
+type curatorStateJSON struct {
+	Paused                 bool       `json:"paused"`
+	RunCount               int        `json:"run_count"`
+	LastRunAt              *time.Time `json:"last_run_at,omitempty"`
+	LastRunDurationSeconds float64    `json:"last_run_duration_seconds,omitempty"`
+	LastRunSummary         string     `json:"last_run_summary,omitempty"`
+	LastReportPath         string     `json:"last_report_path,omitempty"`
+}
+
+type curatorDefaultsJSON struct {
+	IntervalHours int `json:"interval_hours"`
+	StaleDays     int `json:"stale_days"`
+	ArchiveDays   int `json:"archive_days"`
+}
+
+type curatorSkillsJSON struct {
+	Total int                 `json:"total"`
+	Rows  []curatorSkillRowJSON `json:"rows"`
+}
+
+type curatorSkillRowJSON struct {
+	Name           string    `json:"name"`
+	Activity       int       `json:"activity"`
+	UseCount       int       `json:"use_count"`
+	LastUsedAt     time.Time `json:"last_used_at,omitempty"`
+	LastActivityAt time.Time `json:"last_activity_at,omitempty"`
+	SkillDir       string    `json:"skill_dir,omitempty"`
+}
+
+func writeCuratorStatusJSON(out interface{ Write(p []byte) (int, error) }, state skills.CuratorState, rows []skills.AgentCreatedSkillUsage) error {
+	report := curatorStatusReportJSON{
+		Build: newBuildProvenance(),
+		State: curatorStateJSON{
+			Paused:                 state.Paused,
+			RunCount:               state.RunCount,
+			LastRunAt:              state.LastRunAt,
+			LastRunDurationSeconds: state.LastRunDurationSeconds,
+			LastRunSummary:         state.LastRunSummary,
+			LastReportPath:         state.LastReportPath,
+		},
+		Defaults: curatorDefaultsJSON{
+			IntervalHours: skills.DefaultCuratorIntervalHours,
+			StaleDays:     skills.DefaultCuratorStaleDays,
+			ArchiveDays:   skills.DefaultCuratorArchiveDays,
+		},
+		Skills: curatorSkillsJSON{
+			Total: len(rows),
+			Rows:  make([]curatorSkillRowJSON, len(rows)),
+		},
+	}
+	for i, r := range rows {
+		report.Skills.Rows[i] = curatorSkillRowJSON{
+			Name:           r.Name,
+			Activity:       r.Record.UseCount,
+			UseCount:       r.Record.UseCount,
+			LastUsedAt:     r.Record.LastUsedAt,
+			LastActivityAt: r.LastActivityAt,
+			SkillDir:       r.SkillDir,
+		}
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
 }
 
 func newCuratorRunCommand(deps curatorCommandDeps) *cobra.Command {
 	var dryRun bool
 	var synchronous bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Trigger a curator review now",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			out := cmd.OutOrStdout()
-			if dryRun {
-				if _, err := fmt.Fprintln(out, "curator: running DRY-RUN (report only, no mutations)..."); err != nil {
-					return err
-				}
-			} else {
-				if _, err := fmt.Fprintln(out, "curator: running review pass..."); err != nil {
-					return err
+			if !asJSON {
+				if dryRun {
+					if _, err := fmt.Fprintln(out, "curator: running DRY-RUN (report only, no mutations)..."); err != nil {
+						return err
+					}
+				} else {
+					if _, err := fmt.Fprintln(out, "curator: running review pass..."); err != nil {
+						return err
+					}
 				}
 			}
 			root := resolveCuratorSkillsRoot(deps)
 			report, err := newCuratorForCommand(root, deps).Run(cmd.Context(), skills.CuratorRunOptions{DryRun: dryRun})
 			if err != nil {
+				return err
+			}
+			if asJSON {
+				wire := curatorRunReportJSON{
+					Build:          newBuildProvenance(),
+					DryRun:         report.DryRun,
+					Summary:        report.Summary,
+					AutoCounts:     report.AutoCounts,
+					BeforeNames:    report.BeforeNames,
+					AfterNames:     report.AfterNames,
+					LastReportPath: report.LastReportPath,
+					BackupID:       report.BackupID,
+				}
+				body, marshalErr := json.MarshalIndent(wire, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				_, err = fmt.Fprintln(out, string(body))
 				return err
 			}
 			if report.Summary != "" {
@@ -162,53 +270,88 @@ func newCuratorRunCommand(deps curatorCommandDeps) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&synchronous, "sync", false, "Wait for the review pass to finish")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Report only; do not mutate state, archives, or skill content")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, dry_run, summary, auto_counts, before_names, after_names, last_report_path, backup_id}")
 	return cmd
 }
 
+// curatorRunReportJSON is the wire shape for `curator run --json`.
+// Fleet automation triggering scheduled curator passes parses this
+// to audit per-machine activity. The internal CuratorReport already
+// has json tags; this wrapper just inlines build provenance.
+type curatorRunReportJSON struct {
+	Build          buildProvenanceJSON           `json:"build"`
+	DryRun         bool                          `json:"dry_run"`
+	Summary        string                        `json:"summary,omitempty"`
+	AutoCounts     skills.CuratorTransitionCounts `json:"auto_counts"`
+	BeforeNames    []string                      `json:"before_names"`
+	AfterNames     []string                      `json:"after_names,omitempty"`
+	LastReportPath string                        `json:"last_report_path,omitempty"`
+	BackupID       string                        `json:"backup_id,omitempty"`
+}
+
 func newCuratorPauseCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "pause",
 		Short: "Pause curator runs until resumed",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			root := resolveCuratorSkillsRoot(deps)
-			curator := newCuratorForCommand(root, deps)
-			state, err := curator.LoadState()
-			if err != nil {
-				return err
-			}
-			state.Paused = true
-			if err := curator.SaveState(state); err != nil {
-				return err
-			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "curator: paused")
-			return err
+			return runCuratorPauseFlip(cmd, deps, true, "paused")
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'paused', paused: true}`")
+	return cmd
 }
 
 func newCuratorResumeCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "resume",
 		Short: "Resume curator runs",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			root := resolveCuratorSkillsRoot(deps)
-			curator := newCuratorForCommand(root, deps)
-			state, err := curator.LoadState()
-			if err != nil {
-				return err
-			}
-			state.Paused = false
-			if err := curator.SaveState(state); err != nil {
-				return err
-			}
-			_, err = fmt.Fprintln(cmd.OutOrStdout(), "curator: resumed")
-			return err
+			return runCuratorPauseFlip(cmd, deps, false, "resumed")
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'resumed', paused: false}`")
+	return cmd
+}
+
+func runCuratorPauseFlip(cmd *cobra.Command, deps curatorCommandDeps, pausedAfter bool, action string) error {
+	root := resolveCuratorSkillsRoot(deps)
+	curator := newCuratorForCommand(root, deps)
+	state, err := curator.LoadState()
+	if err != nil {
+		return err
+	}
+	state.Paused = pausedAfter
+	if err := curator.SaveState(state); err != nil {
+		return err
+	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(curatorPauseFlipReportJSON{
+			Build:  newBuildProvenance(),
+			Action: action,
+			Paused: pausedAfter,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "curator: %s\n", action)
+	return err
+}
+
+// curatorPauseFlipReportJSON is the wire shape for `curator pause --json`
+// and `curator resume --json`. Fleet kill-switch automation parses this
+// to confirm the curator state flip landed.
+type curatorPauseFlipReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	Paused bool                `json:"paused"`
 }
 
 func newCuratorPinCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "pin <skill>",
 		Short: "Pin an agent-created skill so curator never auto-transitions it",
 		Args:  cobra.ExactArgs(1),
@@ -216,10 +359,12 @@ func newCuratorPinCommand(deps curatorCommandDeps) *cobra.Command {
 			return runCuratorPin(cmd, resolveCuratorSkillsRoot(deps), args[0], true)
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'pinned', skill, pinned: true}`")
+	return cmd
 }
 
 func newCuratorUnpinCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "unpin <skill>",
 		Short: "Unpin an agent-created skill",
 		Args:  cobra.ExactArgs(1),
@@ -227,10 +372,13 @@ func newCuratorUnpinCommand(deps curatorCommandDeps) *cobra.Command {
 			return runCuratorPin(cmd, resolveCuratorSkillsRoot(deps), args[0], false)
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'unpinned', skill, pinned: false}`")
+	return cmd
 }
 
 func newCuratorBackupCommand(deps curatorCommandDeps) *cobra.Command {
 	var reason string
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "backup",
 		Short: "Take a manual curator snapshot",
@@ -243,18 +391,47 @@ func newCuratorBackupCommand(deps curatorCommandDeps) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(curatorBackupReportJSON{
+					Build:        newBuildProvenance(),
+					ID:           backup.ID,
+					ArchivePath:  backup.ArchivePath,
+					ManifestPath: backup.ManifestPath,
+					Reason:       reason,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return err
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "curator: snapshot created at %s\n", filepath.Dir(backup.ArchivePath))
 			return err
 		},
 	}
 	cmd.Flags().StringVar(&reason, "reason", "", "Free-text label stored in manifest.json")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, id, archive_path, manifest_path, reason}`")
 	return cmd
+}
+
+// curatorBackupReportJSON is the wire shape for `curator backup --json`.
+// Fleet automation taking pre-deploy snapshots parses this to record
+// the snapshot id (for later rollback) and archive path. The reason
+// echo lets dashboards correlate snapshots with the deploy that
+// triggered them.
+type curatorBackupReportJSON struct {
+	Build        buildProvenanceJSON `json:"build"`
+	ID           string              `json:"id"`
+	ArchivePath  string              `json:"archive_path"`
+	ManifestPath string              `json:"manifest_path"`
+	Reason       string              `json:"reason"`
 }
 
 func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 	var list bool
 	var backupID string
 	var yes bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "rollback",
 		Short: "Restore skills from a curator snapshot",
@@ -265,6 +442,9 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 				return err
 			}
 			if list {
+				if asJSON {
+					return writeCuratorBackupListJSON(cmd.OutOrStdout(), rows)
+				}
 				return writeCuratorBackupList(cmd, rows)
 			}
 			target := resolveCuratorBackupID(rows, backupID)
@@ -276,8 +456,10 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 				}
 				return newExitCodeError(1, fmt.Errorf("curator_rollback_snapshot_missing"))
 			}
-			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Rollback target: %s\n", target); err != nil {
-				return err
+			if !asJSON {
+				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Rollback target: %s\n", target); err != nil {
+					return err
+				}
 			}
 			if !yes {
 				if _, err := fmt.Fprintln(cmd.OutOrStdout(), "This will replace the current Gormes skills tree after taking a safety snapshot."); err != nil {
@@ -297,6 +479,19 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(curatorRollbackReportJSON{
+					Build:               newBuildProvenance(),
+					Action:              "rolled_back",
+					RestoredBackupID:    rollback.RestoredBackupID,
+					PreRollbackBackupID: rollback.PreRollbackBackupID,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return err
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "curator: rollback restored %s (safety snapshot %s)\n", rollback.RestoredBackupID, rollback.PreRollbackBackupID)
 			return err
 		},
@@ -304,11 +499,55 @@ func newCuratorRollbackCommand(deps curatorCommandDeps) *cobra.Command {
 	cmd.Flags().BoolVar(&list, "list", false, "List available snapshots and exit")
 	cmd.Flags().StringVar(&backupID, "id", "", "Snapshot id to restore; defaults to newest")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `--list` returns `{build, backups: [{id, reason, created_at}]}`; rollback returns `{build, action, restored_backup_id, pre_rollback_backup_id}`")
 	return cmd
 }
 
+// curatorRollbackReportJSON is the wire shape for `curator rollback --json`
+// (apply mode). Operator scripts capture `pre_rollback_backup_id` to undo
+// the rollback if needed — that's the safety snapshot the rollback
+// implicitly takes before mutating the live tree.
+type curatorRollbackReportJSON struct {
+	Build               buildProvenanceJSON `json:"build"`
+	Action              string              `json:"action"`
+	RestoredBackupID    string              `json:"restored_backup_id"`
+	PreRollbackBackupID string              `json:"pre_rollback_backup_id"`
+}
+
+// curatorBackupListJSON is the wire shape for `curator rollback --list --json`.
+type curatorBackupListJSON struct {
+	Build   buildProvenanceJSON          `json:"build"`
+	Backups []curatorBackupListEntryJSON `json:"backups"`
+}
+
+type curatorBackupListEntryJSON struct {
+	ID        string `json:"id"`
+	Reason    string `json:"reason"`
+	CreatedAt string `json:"created_at"`
+}
+
+func writeCuratorBackupListJSON(out interface{ Write(p []byte) (int, error) }, rows []curatorBackupRow) error {
+	report := curatorBackupListJSON{
+		Build:   newBuildProvenance(),
+		Backups: make([]curatorBackupListEntryJSON, len(rows)),
+	}
+	for i, r := range rows {
+		report.Backups[i] = curatorBackupListEntryJSON{
+			ID:        r.ID,
+			Reason:    r.Reason,
+			CreatedAt: r.CreatedAt,
+		}
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
+}
+
 func newCuratorRestoreCommand(deps curatorCommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "restore <skill>",
 		Short: "Restore one archived skill",
 		Args:  cobra.ExactArgs(1),
@@ -318,10 +557,34 @@ func newCuratorRestoreCommand(deps curatorCommandDeps) *cobra.Command {
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "curator: %v\n", err)
 				return newExitCodeError(1, err)
 			}
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(curatorRestoreReportJSON{
+					Build:  newBuildProvenance(),
+					Action: "restored",
+					Skill:  args[0],
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return err
+			}
 			_, err := fmt.Fprintf(cmd.OutOrStdout(), "curator: restored '%s'\n", args[0])
 			return err
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'restored', skill}`")
+	return cmd
+}
+
+// curatorRestoreReportJSON is the wire shape for `curator restore --json`.
+// Fleet automation re-activating archived skills across machines parses
+// this to confirm the skill landed back in active state.
+type curatorRestoreReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	Skill  string              `json:"skill"`
 }
 
 func resolveCuratorSkillsRoot(deps curatorCommandDeps) string {
@@ -506,12 +769,40 @@ func runCuratorPin(cmd *cobra.Command, root, name string, pinned bool) error {
 	if err := skills.SetPinned(root, name, pinned); err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	action := "unpinned"
+	if pinned {
+		action = "pinned"
+	}
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(curatorPinReportJSON{
+			Build:  newBuildProvenance(),
+			Action: action,
+			Skill:  name,
+			Pinned: pinned,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
 	if pinned {
 		_, err := fmt.Fprintf(cmd.OutOrStdout(), "curator: pinned '%s' (will bypass auto-transitions)\n", name)
 		return err
 	}
 	_, err := fmt.Fprintf(cmd.OutOrStdout(), "curator: unpinned '%s'\n", name)
 	return err
+}
+
+// curatorPinReportJSON is the wire shape for `curator pin --json` and
+// `curator unpin --json`. Fleet automation reconciling pin lists across
+// machines parses this to confirm the state flip landed.
+type curatorPinReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	Skill  string              `json:"skill"`
+	Pinned bool                `json:"pinned"`
 }
 
 func curatorAgentCreatedActive(root, name string) bool {

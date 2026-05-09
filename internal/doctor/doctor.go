@@ -18,6 +18,11 @@ const (
 	StatusPass Status = iota
 	StatusFail
 	StatusWarn
+	// StatusSkip marks a check that was intentionally not run (e.g.
+	// `--offline` skipping provider health, or a disabled gateway
+	// channel). Distinct from StatusWarn so consumers can filter
+	// "intentionally skipped" out of "needs attention" buckets.
+	StatusSkip
 )
 
 func (s Status) String() string {
@@ -28,8 +33,16 @@ func (s Status) String() string {
 		return "FAIL"
 	case StatusWarn:
 		return "WARN"
+	case StatusSkip:
+		return "SKIP"
 	}
 	return "UNKNOWN"
+}
+
+// MarshalJSON renders Status as its string form so JSON consumers see
+// "PASS"/"FAIL"/"WARN"/"SKIP" instead of the iota integer.
+func (s Status) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
 }
 
 // Symbol returns a compact glyph for console output.
@@ -41,23 +54,25 @@ func (s Status) Symbol() string {
 		return "✗"
 	case StatusWarn:
 		return "!"
+	case StatusSkip:
+		return "-"
 	}
 	return "?"
 }
 
 // CheckResult is the output of one diagnostic check.
 type CheckResult struct {
-	Name    string // short label, e.g. "Toolbox"
-	Status  Status
-	Summary string     // one-line headline
-	Items   []ItemInfo // optional per-entry detail
+	Name    string     `json:"name"`
+	Status  Status     `json:"status"`
+	Summary string     `json:"summary,omitempty"`
+	Items   []ItemInfo `json:"items,omitempty"`
 }
 
 // ItemInfo is a per-tool (or per-entry) row rendered under the headline.
 type ItemInfo struct {
-	Name   string
-	Status Status
-	Note   string // description on pass; error detail on fail
+	Name   string `json:"name"`
+	Status Status `json:"status"`
+	Note   string `json:"note,omitempty"`
 }
 
 // ErrGitHubCLIMissing identifies a missing gh binary without exposing PATH or

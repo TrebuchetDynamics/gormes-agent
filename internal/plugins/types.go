@@ -20,23 +20,26 @@ const (
 )
 
 const (
-	EvidenceExecutionDisabled              = "execution_disabled"
-	EvidenceIncompatibleVersion            = "incompatible_version"
-	EvidenceInvalidName                    = "invalid_name"
-	EvidenceMalformedManifest              = "malformed_manifest"
-	EvidenceMissingCredential              = "missing_credential"
-	EvidenceMissingRequiredField           = "missing_required_field"
-	EvidenceProjectPluginsDisabled         = "project_plugins_disabled"
-	EvidenceThemeRuntimeUnavailable        = "theme_runtime_unavailable"
-	EvidenceUnsupportedCapabilityKind      = "unsupported_capability_kind"
-	EvidenceGoogleMeetRuntimeUnavailable   = "google_meet_runtime_unavailable"
-	EvidenceGoogleMeetRealtimeUnconfigured = "google_meet_realtime_unconfigured"
-	EvidenceNodeAuthRequired               = "node_auth_required"
-	EvidenceBrowserProfileRequired         = "browser_profile_required"
-	EvidenceMeetURLGate                    = "meet_url_gate"
-	EvidenceNoCalendarAutoDial             = "meet_no_calendar_auto_dial"
-	EvidenceOneActiveMeeting               = "meet_one_active_meeting"
-	EvidenceMeetSayRealtimeRequired        = "meet_say_realtime_required"
+	EvidenceExecutionDisabled               = "execution_disabled"
+	EvidenceIncompatibleVersion             = "incompatible_version"
+	EvidenceInvalidName                     = "invalid_name"
+	EvidenceMalformedManifest               = "malformed_manifest"
+	EvidenceMissingCredential               = "missing_credential"
+	EvidenceMissingRequiredField            = "missing_required_field"
+	EvidenceProjectPluginsDisabled          = "project_plugins_disabled"
+	EvidenceThemeRuntimeUnavailable         = "theme_runtime_unavailable"
+	EvidenceUnsupportedCapabilityKind       = "unsupported_capability_kind"
+	EvidenceGoogleMeetRuntimeUnavailable    = "google_meet_runtime_unavailable"
+	EvidenceGoogleMeetRealtimeUnconfigured  = "google_meet_realtime_unconfigured"
+	EvidenceNodeAuthRequired                = "node_auth_required"
+	EvidenceBrowserProfileRequired          = "browser_profile_required"
+	EvidenceMeetURLGate                     = "meet_url_gate"
+	EvidenceNoCalendarAutoDial              = "meet_no_calendar_auto_dial"
+	EvidenceOneActiveMeeting                = "meet_one_active_meeting"
+	EvidenceMeetSayRealtimeRequired         = "meet_say_realtime_required"
+	EvidenceTeamsPipelineRuntimeUnavailable = "teams_pipeline_runtime_unavailable"
+	EvidenceGraphCredentialsRequired        = "graph_credentials_required"
+	EvidenceTeamsDeliveryTargetRequired     = "teams_delivery_target_required"
 )
 
 // CapabilityKind is the metadata-only declaration for plugin extension points.
@@ -53,6 +56,7 @@ const (
 	CapabilityContextEngine  CapabilityKind = "context_engine"
 	CapabilityImageGen       CapabilityKind = "image_gen"
 	CapabilityTTSEngine      CapabilityKind = "tts_engine"
+	CapabilityCLICommand     CapabilityKind = "cli_command"
 )
 
 type HookKind string

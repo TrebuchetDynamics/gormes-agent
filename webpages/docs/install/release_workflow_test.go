@@ -24,14 +24,19 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"linux",
 		"darwin",
 		"windows",
+		"android",
 		"amd64",
 		"arm64",
 		"CGO_ENABLED=0",
 		"go build -trimpath",
-		"-ldflags=\"-s -w -X main.Version=${VERSION}\"",
+		"-ldflags=\"-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY}\"",
+		"GIT_COMMIT=\"$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\"",
+		"GIT_DIRTY=false",
+		"GIT_DIRTY=true",
 		"gormes-${VERSION}-${GOOS}-${GOARCH}",
-		"tar -C dist -czf \"dist/${target}.tar.gz\"",
-		"sha256sum \"dist/${target}.tar.gz\"",
+		"archive=\"dist/${target}.tar.gz\"",
+		"tar -C dist -czf \"$archive\"",
+		"sha256sum \"$archive\"",
 		"actions/upload-artifact@v4",
 		"actions/download-artifact@v4",
 		"softprops/action-gh-release@v2",
@@ -63,6 +68,7 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"darwin-arm64",
 		"windows-amd64",
 		"windows-arm64",
+		"android-arm64",
 	} {
 		parts := strings.Split(target, "-")
 		if !strings.Contains(workflow, "goos: "+parts[0]) ||
@@ -90,6 +96,66 @@ func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) 
 	}
 }
 
+func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
+
+	wantAll := []string{
+		"archive=\"dist/${target}.tar.gz\"",
+		"tar -C dist -czf \"$archive\" \"${target}\"",
+		"sha256sum \"$archive\" > \"${archive}.sha256\"",
+		"max_archive_bytes=31457280",
+		"actual_archive_bytes=$(wc -c < \"$archive\" | tr -d '[:space:]')",
+		"if [ \"$actual_archive_bytes\" -gt \"$max_archive_bytes\" ]; then",
+		"archive exceeds 30 MiB",
+		"bytes=${actual_archive_bytes}",
+		"max=${max_archive_bytes}",
+		"exit 1",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(buildStep, want) {
+			t.Errorf("Build static binary archive step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, workflow,
+		"sha256sum \"$archive\" > \"${archive}.sha256\"",
+		"max_archive_bytes=31457280",
+	)
+	assertWorkflowOrder(t, workflow,
+		"max_archive_bytes=31457280",
+		"actions/upload-artifact@v4",
+	)
+}
+
+func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
+
+	wantAll := []string{
+		"echo \"| Platform | Archive | Size | SHA-256 |\"",
+		"echo \"|----------|---------|------|---------|\"",
+		"size=$(wc -c < \"$f\" | tr -d '[:space:]')",
+		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
+		"Software Bill of Materials (SPDX JSON) is included for each platform artifact.",
+		"Build provenance attestations are published to the GitHub Attestations store.",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(notesStep, want) {
+			t.Errorf("Build release notes step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, notesStep,
+		"size=$(wc -c < \"$f\" | tr -d '[:space:]')",
+		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
+	)
+	assertWorkflowOrder(t, notesStep,
+		"echo \"| Platform | Archive | Size | SHA-256 |\"",
+		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
+	)
+}
+
 func readRepoFileRelease(t *testing.T, rel string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))
@@ -111,4 +177,19 @@ func workflowStepBlock(t *testing.T, workflow, stepName string) string {
 		return workflow[start:]
 	}
 	return workflow[start : start+len(stepName)+end]
+}
+
+func assertWorkflowOrder(t *testing.T, workflow, before, after string) {
+	t.Helper()
+	beforeIndex := strings.Index(workflow, before)
+	if beforeIndex < 0 {
+		t.Fatalf("workflow missing earlier fragment %q", before)
+	}
+	afterIndex := strings.Index(workflow, after)
+	if afterIndex < 0 {
+		t.Fatalf("workflow missing later fragment %q", after)
+	}
+	if beforeIndex >= afterIndex {
+		t.Fatalf("workflow fragment %q must appear before %q", before, after)
+	}
 }

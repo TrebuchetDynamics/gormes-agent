@@ -45,6 +45,7 @@ scripts/.swarm/
 docs/www-tests/node_modules/
 docs/www-tests/test-results/
 webpages/docs/www-tests/test-results/
+scripts/whatsapp-bridge/node_modules/
 
 # claude-flow swarm coordination state (created by `npx claude-flow swarm init`)
 .claude-flow/

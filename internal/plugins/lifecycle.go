@@ -207,6 +207,7 @@ func (m *LifecycleManager) List() ([]PluginLifecycleEntry, error) {
 			Description: status.Description,
 			Source:      status.Source,
 			Status:      state,
+			Path:        filepath.Join(m.userRoot, status.Name),
 		})
 	}
 	sort.Slice(entries, func(i, j int) bool {

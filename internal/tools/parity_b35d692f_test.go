@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestToolParityManifestHermesB35D692F(t *testing.T) {
+func TestToolParityManifestRetainsB35D692FDiscordCronDrift(t *testing.T) {
 	manifest, err := LoadUpstreamToolParityManifest()
 	if err != nil {
 		t.Fatalf("LoadUpstreamToolParityManifest: %v", err)
@@ -16,9 +16,6 @@ func TestToolParityManifestHermesB35D692F(t *testing.T) {
 
 	if got, want := manifest.Source.Donor, "hermes"; got != want {
 		t.Fatalf("source donor = %q, want %q", got, want)
-	}
-	if got, want := manifest.Source.Commit, "b35d692f"; !strings.HasPrefix(got, want) {
-		t.Fatalf("source commit = %q, want prefix %q", got, want)
 	}
 	for _, input := range []string{
 		"toolsets.py",

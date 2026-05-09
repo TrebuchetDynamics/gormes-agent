@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -59,7 +61,7 @@ var knownProviderModels = map[string]string{
 type setupCommandSeams struct {
 	IsTTY              func() bool
 	HasExistingInstall func() (bool, error)
-	ResetConfig        func() error
+	ResetConfig        func() (string, error)
 	RunModelPicker     func(*cobra.Command) error
 	LoadCurrentModel   func() (cli.ProviderModel, error)
 	ChooseSetupAction  func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
@@ -144,6 +146,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	var reset bool
 	var reconfigure bool
 	var quick bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "setup [section]",
 		Short:        "Guided interactive setup — provider, model, and more",
@@ -152,10 +155,27 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			headless := nonInteractive || !seams.IsTTY()
 			if reset {
-				if err := seams.ResetConfig(); err != nil {
+				breadcrumb, err := seams.ResetConfig()
+				if err != nil {
 					return err
 				}
+				if asJSON {
+					body, marshalErr := json.MarshalIndent(setupResetReportJSON{
+						Build:          newBuildProvenance(),
+						Action:         "reset",
+						ConfigPath:     config.ConfigPath(),
+						BreadcrumbPath: breadcrumb,
+					}, "", "  ")
+					if marshalErr != nil {
+						return marshalErr
+					}
+					fmt.Fprintln(cmd.OutOrStdout(), string(body))
+					return nil
+				}
 				fmt.Fprintln(cmd.OutOrStdout(), "Configuration reset to defaults.")
+				if breadcrumb != "" {
+					fmt.Fprintf(cmd.OutOrStdout(), "Prior config preserved at %s — restore with `cp %s %s`\n", breadcrumb, breadcrumb, config.ConfigPath())
+				}
 			}
 			if len(args) > 0 {
 				section := strings.ToLower(strings.TrimSpace(args[0]))
@@ -188,10 +208,22 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "use defaults/env and never prompt")
-	cmd.Flags().BoolVar(&reset, "reset", false, "run the full setup wizard in compatibility mode")
-	cmd.Flags().BoolVar(&reconfigure, "reconfigure", false, "re-run the full setup wizard in compatibility mode")
+	cmd.Flags().BoolVar(&reset, "reset", false, "DESTRUCTIVE: overwrite config.toml back to defaults, then re-run the setup wizard")
+	cmd.Flags().BoolVar(&reconfigure, "reconfigure", false, "re-run the setup wizard against the current config (non-destructive; existing values are kept where the operator skips a step)")
 	cmd.Flags().BoolVar(&quick, "quick", false, "configure missing setup items only")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON for `--reset`: `{build, action: 'reset', config_path, breadcrumb_path}`")
 	return cmd
+}
+
+// setupResetReportJSON is the wire shape for `setup --reset --json`.
+// Fleet automation running reset across machines parses this to record
+// where each operator's prior config was preserved (`breadcrumb_path`)
+// — the recovery handle scripts capture for rollback.
+type setupResetReportJSON struct {
+	Build          buildProvenanceJSON `json:"build"`
+	Action         string              `json:"action"`
+	ConfigPath     string              `json:"config_path"`
+	BreadcrumbPath string              `json:"breadcrumb_path"`
 }
 
 func defaultSetupCommandSeams() setupCommandSeams {
@@ -222,40 +254,49 @@ func defaultSetupHasExistingInstall() (bool, error) {
 		strings.TrimSpace(os.Getenv("GORMES_API_KEY")) != "", nil
 }
 
-func resetSetupDefaultConfig() error {
+func resetSetupDefaultConfig() (string, error) {
 	path := config.ConfigPath()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("setup reset: mkdir %s: %w", dir, err)
+		return "", fmt.Errorf("setup reset: mkdir %s: %w", dir, err)
+	}
+	var breadcrumb string
+	if prior, readErr := os.ReadFile(path); readErr == nil {
+		breadcrumb = path + ".before-reset." + time.Now().UTC().Format("20060102T150405Z")
+		if err := os.WriteFile(breadcrumb, prior, 0o600); err != nil {
+			return "", fmt.Errorf("setup reset: write breadcrumb %s: %w", breadcrumb, err)
+		}
+	} else if !os.IsNotExist(readErr) {
+		return "", fmt.Errorf("setup reset: read prior %s: %w", path, readErr)
 	}
 	body, err := toml.Marshal(map[string]any{"_config_version": int64(config.CurrentConfigVersion)})
 	if err != nil {
-		return fmt.Errorf("setup reset: marshal defaults: %w", err)
+		return "", fmt.Errorf("setup reset: marshal defaults: %w", err)
 	}
 	tmp, err := os.CreateTemp(dir, ".config.toml.reset-*")
 	if err != nil {
-		return fmt.Errorf("setup reset: tempfile: %w", err)
+		return "", fmt.Errorf("setup reset: tempfile: %w", err)
 	}
 	tmpName := tmp.Name()
 	if _, err := tmp.Write(body); err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
-		return fmt.Errorf("setup reset: write temp: %w", err)
+		return "", fmt.Errorf("setup reset: write temp: %w", err)
 	}
 	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
 		os.Remove(tmpName)
-		return fmt.Errorf("setup reset: chmod temp: %w", err)
+		return "", fmt.Errorf("setup reset: chmod temp: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpName)
-		return fmt.Errorf("setup reset: close temp: %w", err)
+		return "", fmt.Errorf("setup reset: close temp: %w", err)
 	}
 	if _, err := toolspkg.AtomicReplace(tmpName, path, toolspkg.AtomicReplaceOptions{FirstWriteMode: 0o600}); err != nil {
 		os.Remove(tmpName)
-		return fmt.Errorf("setup reset: replace %s: %w", path, err)
+		return "", fmt.Errorf("setup reset: replace %s: %w", path, err)
 	}
-	return nil
+	return breadcrumb, nil
 }
 
 func printSetupSections(cmd *cobra.Command) {

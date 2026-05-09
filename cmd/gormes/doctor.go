@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,16 +24,93 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
-func init() {
-	doctorCmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
+// newDoctorCommand returns a fresh doctor command. Constructor pattern
+// (rather than a package-level var with init-time flag registration)
+// avoids cross-test flag-value contamination on the shared cobra
+// FlagSet — each newRootCommand() builds an independent instance.
+func newDoctorCommand() *cobra.Command {
+	cmd := buildDoctorCmd()
+	cmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
+	cmd.Flags().Bool("json", false, "emit a machine-readable {checks: [...]} JSON document (suitable for fleet-health monitoring)")
+	return cmd
+}
+
+// doctorReporter funnels each CheckResult through either the human
+// streaming surface (text mode) or a buffered slice rendered at the
+// end (JSON mode). Calling sites stay branch-free: every check uses
+// the same Add() entry point.
+type doctorReporter struct {
+	w         io.Writer
+	asJSON    bool
+	collected []doctor.CheckResult
+	failed    bool
+}
+
+func (r *doctorReporter) Add(c doctor.CheckResult) {
+	if c.Status == doctor.StatusFail {
+		r.failed = true
+	}
+	if r.asJSON {
+		r.collected = append(r.collected, c)
+		return
+	}
+	fmt.Fprint(r.w, c.Format())
+}
+
+// doctorReportJSON is the wire shape for `gormes doctor --json`.
+// Field order matters for consumer rendering — build provenance and
+// summary fields lead, per-check array follows. Mirrors the
+// convention update --json / status --json / restore --list --json
+// use.
+type doctorReportJSON struct {
+	Build  buildProvenanceJSON  `json:"build"`
+	Failed bool                 `json:"failed"`
+	Checks []doctor.CheckResult `json:"checks"`
+}
+
+func (r *doctorReporter) Finalize() error {
+	if !r.asJSON {
+		return nil
+	}
+	checks := r.collected
+	if checks == nil {
+		checks = []doctor.CheckResult{}
+	}
+	body, err := json.MarshalIndent(doctorReportJSON{
+		Build:  newBuildProvenance(),
+		Failed: r.failed,
+		Checks: checks,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(r.w, string(body))
+	return err
 }
 
 var doctorGitHubAuthRunner = doctor.DefaultGitHubAuthStatusRunner
 
-var doctorCmd = &cobra.Command{
-	Use:   "doctor",
-	Short: "Verify Gormes runtime: provider readiness + built-in tools",
-	RunE: func(cmd *cobra.Command, _ []string) error {
+func buildDoctorCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:           "doctor",
+		Short:         "Verify Gormes runtime: provider readiness + built-in tools",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+		out := cmd.OutOrStdout()
+		errOut := cmd.ErrOrStderr()
+		asJSON, _ := cmd.Flags().GetBool("json")
+		reporter := &doctorReporter{w: out, asJSON: asJSON}
+		// Defer Finalize so JSON output renders even on early-return
+		// failure paths. Errors from finalize are best-effort logged.
+		defer func() {
+			if err := reporter.Finalize(); err != nil {
+				fmt.Fprintf(errOut, "doctor: emit json: %v\n", err)
+			}
+		}()
+
+		reporter.Add(doctorBuildIdentityStatus())
+
 		cfg, err := config.Load(nil)
 		if err != nil {
 			return err
@@ -41,97 +120,134 @@ var doctorCmd = &cobra.Command{
 		activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
 		cfg = activatedCfg
 		secretRuntimeResult := doctorSecretRuntimeStatus(secretSnapshot, secretActivationErr)
-		fmt.Fprint(cmd.OutOrStdout(), secretRuntimeResult.Format())
+		reporter.Add(secretRuntimeResult)
 		if secretRuntimeResult.Status == doctor.StatusFail {
-			os.Exit(2)
+			return newExitCodeError(2, fmt.Errorf("doctor: secret runtime failed"))
 		}
 
 		if !offline {
 			providerName := cfg.Hermes.Provider
 			if doctorProviderHealthUsesAuthReadiness(cfg) {
 				if !configuredProviderAuthPresent(cfg) {
-					fmt.Fprintf(os.Stderr,
-						"[FAIL] provider health: auth missing (%s)\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
-						doctorProviderHealthTarget(cfg))
-					os.Exit(1)
+					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("auth missing (%s)", doctorProviderHealthTarget(cfg))})
+					fmt.Fprintf(errOut,
+						"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
+					return newExitCodeError(1, fmt.Errorf("doctor: provider auth missing"))
 				}
-				fmt.Printf("[PASS] provider health: auth-ready (%s)\n", doctorProviderHealthTarget(cfg))
+				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("auth-ready (%s)", doctorProviderHealthTarget(cfg))})
 			} else {
 				c, err := newProviderHTTPClient(cfg, providerName)
 				if err != nil {
 					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-					fmt.Fprintf(os.Stderr,
-						"[FAIL] provider setup: %s\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
-						redactedErr)
-					os.Exit(1)
+					reporter.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: redactedErr})
+					fmt.Fprintf(errOut,
+						"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
+					return newExitCodeError(1, fmt.Errorf("doctor: provider setup failed: %s", redactedErr))
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 				defer cancel()
 				if err := c.Health(ctx); err != nil {
 					target := doctorProviderHealthTarget(cfg)
 					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-					fmt.Fprintf(os.Stderr,
-						"[FAIL] provider health: NOT reachable (%s): %v\n\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n",
-						target, redactedErr)
-					os.Exit(1)
+					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("NOT reachable (%s): %s", target, redactedErr)})
+					fmt.Fprintf(errOut,
+						"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
+					return newExitCodeError(1, fmt.Errorf("doctor: provider unreachable"))
 				}
-				fmt.Printf("[PASS] provider health: reachable (%s)\n", doctorProviderHealthTarget(cfg))
+				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("reachable (%s)", doctorProviderHealthTarget(cfg))})
 			}
 		} else {
-			fmt.Println("[SKIP] provider health: skipped (--offline)")
+			reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusSkip, Summary: "skipped (--offline)"})
 		}
 
-		fmt.Print(doctorTUIStatus().Format())
+		reporter.Add(doctorTUIStatus())
 
 		// Toolbox section — inspect the built-in registry. Runs in both modes.
 		reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
 		result := doctor.CheckTools(reg)
-		fmt.Print(result.Format())
-		fmt.Print(doctorWebToolsStatus(cfg).Format())
-		fmt.Print(doctorBrowserRuntimeStatus().Format())
-		fmt.Print(doctorACPBridgeStatus().Format())
-		fmt.Print(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
+		reporter.Add(result)
+		reporter.Add(doctorWebToolsStatus(cfg))
+		reporter.Add(doctorBrowserRuntimeStatus())
+		reporter.Add(doctorACPBridgeStatus())
+		reporter.Add(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
 			Env:             doctorGitHubAuthEnv(),
 			RunGHAuthStatus: doctorGitHubAuthRunner,
-		}).Format())
-		fmt.Print(doctorGonchoConfig(cfg).Format())
+		}))
+		reporter.Add(doctorGonchoConfig(cfg))
 
 		runtimeStatus := gateway.RuntimeStatus{}
 		if snapshot, err := gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()).ReadRuntimeStatusSnapshot(context.Background()); err == nil && !snapshot.Missing {
 			runtimeStatus = snapshot.Status
 		}
-		fmt.Print(doctorSlackGatewayConfig(cfg, runtimeStatus).Format())
-		fmt.Print(doctorCustomEndpointReadiness(cfg).Format())
+		reporter.Add(doctorSlackGatewayConfig(cfg, runtimeStatus))
+		reporter.Add(doctorCustomEndpointReadiness(cfg))
 
 		if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled {
-			fmt.Println("[WARN] gateway: no channels configured ([telegram], [discord], or [slack])")
+			reporter.Add(doctor.CheckResult{Name: "gateway", Status: doctor.StatusWarn, Summary: "no channels configured ([telegram], [discord], or [slack])"})
 		} else {
 			if cfg.Telegram.BotToken != "" {
 				if _, err := telegram.NewRealClient(cfg.Telegram.BotToken); err != nil {
-					fmt.Printf("[FAIL] gateway/telegram: %v\n", err)
-					os.Exit(2)
+					reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusFail, Summary: err.Error()})
+					return newExitCodeError(2, fmt.Errorf("doctor: telegram client init failed: %w", err))
 				}
-				fmt.Printf("[PASS] gateway/telegram: %s\n", configuredTelegramGatewayStatusDetail(cfg.Telegram))
+				reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram)})
 			} else {
-				fmt.Println("[SKIP] gateway/telegram: disabled")
+				reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusSkip, Summary: "disabled"})
 			}
 
 			if cfg.Discord.Enabled() {
 				if _, err := discord.NewRealSession(cfg.Discord.Token); err != nil {
-					fmt.Printf("[FAIL] gateway/discord: %v\n", err)
-					os.Exit(2)
+					reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusFail, Summary: err.Error()})
+					return newExitCodeError(2, fmt.Errorf("doctor: discord session init failed: %w", err))
 				}
-				fmt.Printf("[PASS] gateway/discord: allowed_channel_id=%s\n", cfg.Discord.AllowedChannelID)
+				reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusPass, Summary: "allowed_channel_id=" + cfg.Discord.AllowedChannelID})
 			} else {
-				fmt.Println("[SKIP] gateway/discord: disabled")
+				reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusSkip, Summary: "disabled"})
 			}
 		}
 
 		if result.Status == doctor.StatusFail {
-			os.Exit(2)
+			return newExitCodeError(2, fmt.Errorf("doctor: toolbox check failed"))
 		}
 		return nil
-	},
+		},
+	}
+}
+
+// doctorBuildIdentityStatus reports the running binary's identity as
+// the first doctor check. PASS when the binary was built from a clean
+// source tree (the default release CI invariant); WARN when the
+// `-X main.GitDirty=true` ldflag was injected, signalling the binary
+// includes uncommitted local changes. Operators reading doctor output
+// must know they are NOT running a clean release artifact, otherwise
+// stale or unreviewed local work silently rides into production.
+//
+// When GitCommit is the literal default "unknown" (no ldflags injection
+// happened, e.g., `go run` or `go build` without the Makefile/CI flags),
+// the summary labels the binary as a "source build" rather than showing
+// a bare `commit=unknown` — the sentinel value is accurate but cryptic.
+func doctorBuildIdentityStatus() doctor.CheckResult {
+	dirty := resolveGitDirty()
+	short := resolveGitCommit()
+	if len(short) > 12 {
+		short = short[:12]
+	}
+	commitLabel := "commit=" + short
+	if short == "unknown" {
+		commitLabel = "source build (no commit metadata)"
+	}
+	if dirty {
+		return doctor.CheckResult{
+			Name:    "build identity",
+			Status:  doctor.StatusWarn,
+			Summary: fmt.Sprintf("dirty build: version=%s %s — uncommitted source at build time", Version, commitLabel),
+		}
+	}
+	return doctor.CheckResult{
+		Name:    "build identity",
+		Status:  doctor.StatusPass,
+		Summary: fmt.Sprintf("version=%s %s", Version, commitLabel),
+	}
 }
 
 func doctorGitHubAuthEnv() map[string]string {

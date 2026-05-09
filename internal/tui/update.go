@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"bytes"
+	"reflect"
 	"strings"
 	"time"
 
@@ -228,7 +230,7 @@ func ResolveHermesKey(ev HermesKeyEvent, st HermesInputState) HermesKeyDecision 
 
 	switch ev.Kind {
 	case HermesKeyEnter:
-		if ev.Alt {
+		if ev.Alt || ev.Shift {
 			return HermesKeyDecision{Action: HermesActionInsertNewline}
 		}
 		return resolveHermesEnter(st)
@@ -399,6 +401,10 @@ type cancelledMsg struct{}
 // interaction is dispatched via tea.Cmd returned values.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+	if isHermesShiftEnterCSIMessage(msg) {
+		m.editor.InsertString("\n")
+		return m, tea.Batch(cmds...)
+	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -549,6 +555,37 @@ func hermesKeyEventFromTea(msg tea.KeyMsg) (HermesKeyEvent, bool) {
 		return HermesKeyEvent{}, false
 	}
 	return ev, true
+}
+
+var hermesShiftEnterCSISequences = [][]byte{
+	[]byte("\x1b[13;2u"),
+	[]byte("\x1b[27;2;13~"),
+	[]byte("\x1b[27;2;13u"),
+}
+
+func isHermesShiftEnterCSIMessage(msg tea.Msg) bool {
+	raw, ok := byteSliceMessage(msg)
+	if !ok {
+		return false
+	}
+	for _, seq := range hermesShiftEnterCSISequences {
+		if bytes.Equal(raw, seq) {
+			return true
+		}
+	}
+	return false
+}
+
+func byteSliceMessage(msg tea.Msg) ([]byte, bool) {
+	value := reflect.ValueOf(msg)
+	if !value.IsValid() || value.Kind() != reflect.Slice || value.Type().Elem().Kind() != reflect.Uint8 {
+		return nil, false
+	}
+	raw := make([]byte, value.Len())
+	for i := 0; i < value.Len(); i++ {
+		raw[i] = byte(value.Index(i).Uint())
+	}
+	return raw, true
 }
 
 func teaCtrlRune(kind tea.KeyType) (string, bool) {

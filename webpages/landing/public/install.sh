@@ -1,5 +1,5 @@
 #!/bin/sh
-# install.sh - source-backed Unix installer for Gormes.
+# install.sh - release-first Unix installer for Gormes, with source fallback.
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
@@ -165,10 +165,12 @@ Options:
   --no-restart   Alias for --restart-gateway never
   -h, --help     Show this help
 
-Default installs clone or update a managed source checkout, build gormes
-locally, and publish the resulting command. Rerun this installer to update the
-checkout and rebuild the command, matching the Hermes Agent install workflow
-while keeping Gormes a single Go binary with no Python or Node runtime.
+Default installs fetch the latest signed release binary on supported main-branch
+platforms. If a release asset is unavailable, verification fails, --from-source
+is set, --local is used, or --branch is not main, the installer clones or
+updates a managed source checkout, builds gormes locally, and publishes the
+resulting command. Rerun this installer to update the command while keeping
+Gormes a single Go binary with no Python or Node runtime.
 
 Root Linux installs use an FHS command path like Hermes Agent:
 /usr/local/bin/gormes, with data under $GORMES_INSTALL_HOME.
@@ -189,6 +191,14 @@ platform_name() {
     return
   fi
   uname -s
+}
+
+machine_name() {
+  if [ -n "${GORMES_INSTALL_TEST_UNAME_M:-}" ]; then
+    printf '%s\n' "$GORMES_INSTALL_TEST_UNAME_M"
+    return
+  fi
+  uname -m
 }
 
 detect_os() {
@@ -763,6 +773,29 @@ check_ripgrep_optional() {
     return
   fi
   log_warn "ripgrep not found (file search will use slower fallbacks)"
+  # Offer a per-distro install hint so operators don't have to guess the
+  # package name. The package name is `ripgrep` everywhere except Alpine
+  # (which calls the binary `rg` from a `ripgrep` package too) and macOS.
+  case "${DISTRO:-}" in
+    ubuntu|debian|raspbian|pop|linuxmint)
+      log "  install:  sudo apt install ripgrep"
+      ;;
+    fedora|rhel|centos|rocky|almalinux)
+      log "  install:  sudo dnf install ripgrep"
+      ;;
+    arch|manjaro|endeavouros)
+      log "  install:  sudo pacman -S ripgrep"
+      ;;
+    alpine)
+      log "  install:  sudo apk add ripgrep"
+      ;;
+    *)
+      case "$(platform_name)" in
+        Darwin*) log "  install:  brew install ripgrep" ;;
+        *)       log "  install:  see https://github.com/BurntSushi/ripgrep#installation" ;;
+      esac
+      ;;
+  esac
 }
 
 check_ffmpeg_optional() {
@@ -907,19 +940,26 @@ new_tmp_dir() {
 # arch slug. Returns empty for unsupported platforms — caller MUST treat empty
 # as "no published binary; fall back to source build".
 #
-# Supported asset slugs match the v0.1.06+ release matrix:
+# Supported asset slugs match the release matrix:
 #   linux-amd64, linux-arm64, darwin-amd64, darwin-arm64,
-#   windows-amd64, windows-arm64
+#   windows-amd64, windows-arm64, android-arm64
 release_platform_arch() {
   rpa_pn=$(platform_name)
-  rpa_m=$(uname -m 2>/dev/null || printf 'unknown\n')
+  rpa_m=$(machine_name 2>/dev/null || printf 'unknown\n')
   case "$rpa_pn" in
     Linux)
-      case "$rpa_m" in
-        x86_64|amd64) printf 'linux-amd64\n' ;;
-        aarch64|arm64) printf 'linux-arm64\n' ;;
-        *) printf '\n' ;;
-      esac
+      if is_termux; then
+        case "$rpa_m" in
+          aarch64|arm64) printf 'android-arm64\n' ;;
+          *) printf '\n' ;;
+        esac
+      else
+        case "$rpa_m" in
+          x86_64|amd64) printf 'linux-amd64\n' ;;
+          aarch64|arm64) printf 'linux-arm64\n' ;;
+          *) printf '\n' ;;
+        esac
+      fi
       ;;
     Darwin)
       case "$rpa_m" in
@@ -966,7 +1006,7 @@ decide_install_method() {
   dim_arch=$(release_platform_arch)
   if [ -z "$dim_arch" ]; then
     INSTALL_METHOD="source-build"
-    INSTALL_METHOD_DETAIL="platform $(platform_name)/$(uname -m 2>/dev/null || printf unknown) has no published release asset"
+    INSTALL_METHOD_DETAIL="platform $(platform_name)/$(machine_name 2>/dev/null || printf unknown) has no published release asset"
     return 0
   fi
   INSTALL_METHOD="binary-fetch"
@@ -982,7 +1022,7 @@ decide_install_method() {
 fetch_release_binary() {
   frb_arch=$(release_platform_arch)
   if [ -z "$frb_arch" ]; then
-    log "fetch_release_binary: no asset for platform $(platform_name)/$(uname -m); aborting"
+    log "fetch_release_binary: no asset for platform $(platform_name)/$(machine_name); aborting"
     return 1
   fi
 
@@ -1082,6 +1122,7 @@ fetch_release_binary() {
     return 1
   }
   chmod +x "$frb_bin_target"
+  INSTALL_SOURCE_DESC="GitHub Releases (${frb_tag}/${frb_asset})"
   log_success "Installed gormes ${frb_ver} from release ${frb_tag} (${frb_arch})"
   return 0
 }
@@ -1228,10 +1269,20 @@ build_gormes() {
   fi
 
   mkdir -p "$(managed_bin_dir)"
+  # Embed git metadata so `gormes doctor` can report the real commit and
+  # dirty state instead of the compiled-in defaults ("unknown"/"false").
+  build_commit="$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || true)"
+  [ -n "$build_commit" ] || build_commit="unknown"
+  build_dirty="false"
+  if ! git -C "$build_root" diff --quiet 2>/dev/null \
+    || ! git -C "$build_root" diff --cached --quiet 2>/dev/null; then
+    build_dirty="true"
+  fi
+  build_ldflags="-X main.GitCommit=${build_commit} -X main.GitDirty=${build_dirty}"
   log_info "Building gormes from ${build_root} (${cache_tag})"
   (
     cd "$build_root" || exit 1
-    go build -o "$build_bin" ./cmd/gormes
+    go build -ldflags "$build_ldflags" -o "$build_bin" ./cmd/gormes
   ) || fail "go build failed"
 
   printf '%s\n' "$cache_tag" > "${build_bin}.build-tag"
@@ -1791,13 +1842,18 @@ install_systemd_user_service() {
 Description=Gormes Gateway
 After=network-online.target
 Wants=network-online.target
+# RestartSec=30 + StartLimitIntervalSec=300 + StartLimitBurst=5 stop a
+# misconfigured gateway (e.g. missing [hermes].endpoint) from crash-looping
+# indefinitely: 5 restarts in 5 minutes trips the burst limit.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=${build_bin} gateway
 ExecReload=${build_bin} gateway stop && ${build_bin} gateway
 Restart=on-failure
-RestartSec=5
+RestartSec=30
 Environment=GORMES_HOME=$(managed_home_dir)
 
 [Install]
@@ -1805,6 +1861,22 @@ WantedBy=default.target
 SYSTEMDUNIT
 
   systemctl --user daemon-reload
+  # Skip auto-enable when the wizard was skipped: enabling a unit that
+  # requires [hermes].endpoint without configuring it first would crash-loop
+  # the gateway on next login. Operators who actually want auto-start can
+  # run `systemctl --user enable --now gormes-gateway` once setup completes.
+  if [ "$RUN_SETUP" = "false" ]; then
+    log ""
+    log "systemd user service file installed (NOT auto-enabled under --skip-setup):"
+    log "  ${service_file}"
+    log "After configuring [hermes].endpoint, enable with:"
+    log "  systemctl --user enable --now gormes-gateway"
+    log "Then check:"
+    log "  systemctl --user status gormes-gateway"
+    log "  journalctl --user -u gormes-gateway -f"
+    return 0
+  fi
+
   systemctl --user enable gormes-gateway.service
 
   log ""
@@ -1886,7 +1958,11 @@ print_install_plan_body() {
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
+    if [ "$RUN_SETUP" = "false" ]; then
+      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled under --skip-setup — run \`systemctl --user enable --now gormes-gateway\` after configuring [hermes].endpoint)"
+    else
+      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
+    fi
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"
@@ -1918,7 +1994,7 @@ print_verbose_plan() {
   log "resolved install plan"
   log "  verbose: true"
   log "  platform: $(platform_name)"
-  log "  arch: $(uname -m 2>/dev/null || printf unknown)"
+  log "  arch: $(machine_name 2>/dev/null || printf unknown)"
   log "  termux: $(yes_no is_termux)"
   log "  root_linux_install: $(yes_no is_root_linux_install)"
   log "  effective_uid: $(effective_uid)"
@@ -1947,7 +2023,11 @@ print_verbose_plan() {
   else
     log "  update_active_path_command: yes (default install; will adopt any existing gormes on PATH)"
     log "  edit_shell_rc_files: yes (writes export PATH lines to ~/.bashrc, ~/.profile, or shell-appropriate config when bin dir is not already on PATH)"
-    log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
+    if [ "$RUN_SETUP" = "false" ]; then
+      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS; not auto-enabled under --skip-setup — run \`systemctl --user enable --now gormes-gateway\` after configuring [hermes].endpoint)"
+    else
+      log "  install_system_service: yes (writes ~/.config/systemd/user/gormes-gateway.service on Linux with systemctl --user, or ~/Library/LaunchAgents/com.gormes.gateway.plist on macOS)"
+    fi
   fi
   log "  restart_gateway: ${RESTART_GATEWAY}"
   log "  setup_wizard: ${RUN_SETUP}"

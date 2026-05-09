@@ -75,8 +75,10 @@ func configuredChannelCapabilityDetails(cfg config.Config) map[string]string {
 
 func renderChannelsCapabilitiesJSON(cmd *cobra.Command, reports []channelcaps.CapabilityReport) error {
 	payload := struct {
+		Build    buildProvenanceJSON            `json:"build"`
 		Channels []channelcaps.CapabilityReport `json:"channels"`
 	}{
+		Build:    newBuildProvenance(),
 		Channels: reports,
 	}
 	enc := json.NewEncoder(cmd.OutOrStdout())

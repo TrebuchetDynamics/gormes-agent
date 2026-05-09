@@ -192,11 +192,11 @@ func TestRenderIndex_RendersRedesignedLanding(t *testing.T) {
 		}
 	}
 
-	// There should be exactly 7 roadmap phase blocks — not a specific
-	// phase-name assertion, just that the roadmap actually renders the
-	// full phase set from progress.json.
-	if n := strings.Count(text, `class="roadmap-phase"`); n != 7 {
-		t.Errorf("roadmap phase count = %d, want 7", n)
+	// Roadmap phase count follows embedded progress data rather than a
+	// hardcoded phase total.
+	wantPhaseCount := len(buildRoadmapPhases(loadEmbeddedProgress()))
+	if n := strings.Count(text, `class="roadmap-phase"`); n != wantPhaseCount {
+		t.Errorf("roadmap phase count = %d, want %d", n, wantPhaseCount)
 	}
 
 	// The progress tracker label follows a "N/M shipped" shape driven

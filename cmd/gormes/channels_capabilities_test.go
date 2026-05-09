@@ -76,6 +76,37 @@ allowed_chat_id = 42
 	}
 }
 
+// TestChannelsCapabilitiesCommandJSONIncludesBuildProvenance proves
+// `channels capabilities --json` carries the `build` provenance block
+// — same convention as the rest of the --json arc. Operators
+// inventorying which channels are configured across hosts can attribute
+// each snapshot to the binary that produced it.
+func TestChannelsCapabilitiesCommandJSONIncludesBuildProvenance(t *testing.T) {
+	setupChannelsCapabilitiesTestEnv(t)
+	writeChannelsCapabilitiesConfig(t, []byte(`
+[telegram]
+bot_token = "12345:secret-token"
+allowed_chat_id = 42
+`))
+
+	stdout, _, err := executeChannelsCapabilitiesCommand(t, "--channel", "telegram", "--json")
+	if err != nil {
+		t.Fatalf("channels capabilities --json: %v", err)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version || got.Build.GitCommit == "" {
+		t.Fatalf("build provenance missing/wrong: %+v", got.Build)
+	}
+}
+
 func TestChannelsCapabilitiesCommandUnknownChannelFails(t *testing.T) {
 	setupChannelsCapabilitiesTestEnv(t)
 

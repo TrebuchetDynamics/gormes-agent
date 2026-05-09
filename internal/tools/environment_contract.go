@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -21,11 +22,12 @@ const (
 )
 
 const (
-	EnvironmentCommandRecorded      = "environment_command_recorded"
-	EnvironmentFileUploadRecorded   = "environment_file_upload_recorded"
-	EnvironmentFileDownloadRecorded = "environment_file_download_recorded"
-	EnvironmentCleanupRecorded      = "environment_cleanup_recorded"
-	EnvironmentBackendUnavailable   = "environment_backend_unavailable"
+	EnvironmentCommandRecorded       = "environment_command_recorded"
+	EnvironmentFileUploadRecorded    = "environment_file_upload_recorded"
+	EnvironmentFileDownloadRecorded  = "environment_file_download_recorded"
+	EnvironmentCleanupRecorded       = "environment_cleanup_recorded"
+	EnvironmentBackendUnavailable    = "environment_backend_unavailable"
+	EnvironmentTerminalCWDDeleted    = "terminal_cwd_deleted"
 )
 
 type EnvironmentEvidence struct {
@@ -300,11 +302,25 @@ func (e *FakeEnvironment) Execute(ctx context.Context, command EnvironmentComman
 		HostPath:        command.WorkingDir,
 		EnvironmentPath: command.WorkingDir,
 	})
+
+	evidence := []EnvironmentEvidence{e.evidence(EnvironmentCommandRecorded, "execute", command.Command)}
+	if command.WorkingDir != "" {
+		if info, err := os.Stat(command.WorkingDir); err != nil || !info.IsDir() {
+			evidence = append(evidence, EnvironmentEvidence{
+				Code:      EnvironmentTerminalCWDDeleted,
+				Status:    EnvironmentStatusRecorded,
+				Backend:   e.backend,
+				Operation: string(EnvironmentOperationExecute),
+				Resource:  command.WorkingDir,
+				Message:   "cwd was deleted; resetting to a safe fallback",
+			})
+		}
+	}
 	return EnvironmentResult{
 		Command:  command,
 		Output:   "fake environment recorded command: " + command.Command,
 		ExitCode: 0,
-		Evidence: []EnvironmentEvidence{e.evidence(EnvironmentCommandRecorded, "execute", command.Command)},
+		Evidence: evidence,
 	}, nil
 }
 

@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -110,6 +111,56 @@ func TestSkillsURLInstall_NonInteractiveRequiresName(t *testing.T) {
 	}
 	if len(store.files) != 0 {
 		t.Fatalf("store wrote %d files, want 0", len(store.files))
+	}
+}
+
+// TestSkillsURLInstall_JSONEmitsStructuredInstallEvent proves
+// `gormes skills install <url> --json` returns a parseable
+// `{build, action, name, installed_path}` document so fleet automation
+// rolling out skills across machines can confirm where each install
+// landed without scraping the "installed <path>" prose. Build
+// provenance leads — same convention as `skills list --json` (slice
+// 105) and the rest of the JSON arc.
+func TestSkillsURLInstall_JSONEmitsStructuredInstallEvent(t *testing.T) {
+	rawURL := "https://example.com/SKILL.md"
+	fetcher := &fakeURLFetcher{payload: skillURLDoc("")}
+	scanner := &fakeURLScanner{ok: true, evidence: "scan_clean"}
+	store := newFakeURLStore(t.TempDir())
+
+	deps := SkillsCommandDeps{
+		ListInstalledSkills: func(skills.ListOptions, map[string]struct{}) []skills.SkillRow { return nil },
+		DisabledSkills:      func(string) map[string]struct{} { return nil },
+		URLInstall: SkillsURLInstallDeps{
+			Fetcher: fetcher,
+			Scanner: scanner,
+			Store:   store,
+		},
+		BuildProvenance: func() any {
+			return map[string]string{"version": "test-install-attr"}
+		},
+	}
+	cmd := NewSkillsCommand(deps)
+
+	stdout, err := executeURLInstall(cmd, "install", rawURL, "--name", "my-url-skill", "--json")
+	if err != nil {
+		t.Fatalf("Execute(): %v\nstdout: %s", err, stdout)
+	}
+	var got struct {
+		Build         map[string]string `json:"build"`
+		Action        string            `json:"action"`
+		InstalledPath string            `json:"installed_path"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build["version"] != "test-install-attr" {
+		t.Errorf("build.version = %q, want test-install-attr", got.Build["version"])
+	}
+	if got.Action != "installed" {
+		t.Errorf("action = %q, want installed", got.Action)
+	}
+	if got.InstalledPath == "" {
+		t.Errorf("installed_path empty, want populated")
 	}
 }
 

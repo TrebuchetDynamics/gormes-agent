@@ -224,7 +224,7 @@ func hermesClawCommands() []hermesCLIParityEntry {
 }
 
 func hermesGatewayNestedCommands() []hermesCLIParityEntry {
-	out := hermesNestedCommands("gateway", "hermes_cli/main.py:gateway_subparsers", "Gateway, platform, webhook, and cron management CLI", []string{"run", "start", "stop", "restart", "status", "install", "uninstall", "setup", "migrate-legacy"})
+	out := hermesNestedCommands("gateway", "hermes_cli/main.py:gateway_subparsers", "Gateway, platform, webhook, and cron management CLI", []string{"run", "start", "stop", "restart", "status", "install", "uninstall", "setup", "migrate-legacy", "list"})
 	for i := range out {
 		key := strings.Join(out[i].Path, " ")
 		switch key {

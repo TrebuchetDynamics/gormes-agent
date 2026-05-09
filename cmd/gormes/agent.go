@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -13,6 +14,24 @@ type agentResetOptions struct {
 	Target string
 	Force  bool
 	DryRun bool
+	JSON   bool
+}
+
+// agentResetReportJSON is the wire shape for `agent reset --json`.
+// Fleet automation seeding agent context across many machines parses
+// this to confirm which template files landed (or, in dry-run mode,
+// which would land). Build provenance leads — same convention as the
+// rest of the `--json` arc.
+type agentResetReportJSON struct {
+	Build  buildProvenanceJSON       `json:"build"`
+	Target string                    `json:"target"`
+	DryRun bool                      `json:"dry_run"`
+	Files  []agentResetFileJSON      `json:"files"`
+}
+
+type agentResetFileJSON struct {
+	Path   string `json:"path"`
+	Action string `json:"action"`
 }
 
 func newAgentCommand() *cobra.Command {
@@ -20,6 +39,7 @@ func newAgentCommand() *cobra.Command {
 		Use:          "agent",
 		Short:        "Manage Gormes agent context templates",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newAgentResetCommand())
 	return cmd
@@ -39,6 +59,7 @@ func newAgentResetCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.Target, "target", opts.Target, "target directory for agent context templates")
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "overwrite existing template files")
 	cmd.Flags().BoolVar(&opts.DryRun, "dry-run", false, "report reset actions without writing files")
+	cmd.Flags().BoolVar(&opts.JSON, "json", false, "emit machine-readable JSON: `{build, target, dry_run, files: [{path, action}]}`")
 	return cmd
 }
 
@@ -50,6 +71,26 @@ func runAgentResetCommand(cmd *cobra.Command, opts agentResetOptions) error {
 	})
 	if err != nil {
 		return fmt.Errorf("gormes agent reset: %w", err)
+	}
+	if opts.JSON {
+		report := agentResetReportJSON{
+			Build:  newBuildProvenance(),
+			Target: result.TargetDir,
+			DryRun: opts.DryRun,
+			Files:  make([]agentResetFileJSON, len(result.Files)),
+		}
+		for i, f := range result.Files {
+			report.Files[i] = agentResetFileJSON{
+				Path:   f.Path,
+				Action: string(f.Action),
+			}
+		}
+		body, marshalErr := json.MarshalIndent(report, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "target: %s\n", result.TargetDir)
 	for _, file := range result.Files {

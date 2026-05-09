@@ -175,8 +175,7 @@ func workspaceRoot() (string, error) {
 		return "", err
 	}
 	for dir := wd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-		base := filepath.Base(dir)
-		if (base == "workspace-gormes" || base == "workspace-mineru") && hasHermesGatewayConfig(dir) {
+		if hasHermesGatewayConfig(dir) {
 			return dir, nil
 		}
 	}

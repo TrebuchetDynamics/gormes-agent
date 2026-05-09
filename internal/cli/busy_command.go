@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 )
@@ -59,8 +60,13 @@ func (g *BusyCommandGuard) Run(name, status string, fn func() error) error {
 	}
 	g.mu.Lock()
 	if g.active != nil {
+		activeName := g.active.name
 		g.mu.Unlock()
-		return ErrBusyCommandActive
+		// Wrap the sentinel so callers using errors.Is keep working,
+		// but operators/devs see WHICH long-running command holds the
+		// guard. The shared guard is taken by /compress, /reload-mcp,
+		// /skills sync, and friends — the active name matters for triage.
+		return fmt.Errorf("%w: %s", ErrBusyCommandActive, activeName)
 	}
 	g.active = &busyState{name: name, status: status}
 	g.mu.Unlock()

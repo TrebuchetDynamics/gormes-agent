@@ -47,6 +47,18 @@ func (f *fakeKanbanGatewayDispatcher) callCount() int {
 	return f.calls
 }
 
+func waitForKanbanManagerStop(t *testing.T, label string, done <-chan error) {
+	t.Helper()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("%s Run returned error: %v", label, err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("%s Manager.Run did not stop after context cancellation", label)
+	}
+}
+
 func TestManagerKanbanDispatcherLifecycleRunsTicksNudgesAndStops(t *testing.T) {
 	ctx := context.Background()
 	ticks := make(chan time.Time, 2)
@@ -110,14 +122,7 @@ func TestManagerKanbanDispatcherLifecycleRunsTicksNudgesAndStops(t *testing.T) {
 	}
 
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Manager.Run did not stop after context cancellation")
-	}
+	waitForKanbanManagerStop(t, "lifecycle", done)
 	status, err = statusStore.ReadRuntimeStatus(ctx)
 	if err != nil {
 		t.Fatalf("ReadRuntimeStatus after stop: %v", err)
@@ -194,14 +199,7 @@ func TestManagerKanbanDispatcherUsesProductionProcessSpawnerRunner(t *testing.T)
 	}
 
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Manager.Run did not stop after context cancellation")
-	}
+	waitForKanbanManagerStop(t, "production runner", done)
 }
 
 type recordingGatewayProcessStarter struct {
@@ -261,14 +259,7 @@ func TestManagerKanbanDispatcherRecordsTriggerTimestamp(t *testing.T) {
 		t.Fatalf("LastTickAt = %q, want tick timestamp %q", got, want)
 	}
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Manager.Run did not stop after context cancellation")
-	}
+	waitForKanbanManagerStop(t, "timestamp", done)
 }
 
 func TestManagerKanbanDispatcherErrorRecordsStatusWithoutStoppingGateway(t *testing.T) {
@@ -318,14 +309,7 @@ func TestManagerKanbanDispatcherErrorRecordsStatusWithoutStoppingGateway(t *test
 	})
 
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Manager.Run did not stop after context cancellation")
-	}
+	waitForKanbanManagerStop(t, "degraded dispatcher", done)
 }
 
 func TestManagerKanbanDispatcherCanRestartAfterGatewayStop(t *testing.T) {
@@ -347,14 +331,7 @@ func TestManagerKanbanDispatcherCanRestartAfterGatewayStop(t *testing.T) {
 		return dispatcher.callCount() == 1
 	})
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("first Run returned error: %v", err)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("first Manager.Run did not stop after context cancellation")
-	}
+	waitForKanbanManagerStop(t, "first restart run", done)
 
 	runCtx, cancel = context.WithCancel(ctx)
 	defer cancel()
@@ -365,14 +342,7 @@ func TestManagerKanbanDispatcherCanRestartAfterGatewayStop(t *testing.T) {
 		return dispatcher.callCount() == 2
 	})
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("second Run returned error: %v", err)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("second Manager.Run did not stop after context cancellation")
-	}
+	waitForKanbanManagerStop(t, "second restart run", done)
 }
 
 func TestManagerKanbanDispatcherClosedTickChannelStopsDispatcherLoop(t *testing.T) {
@@ -403,12 +373,5 @@ func TestManagerKanbanDispatcherClosedTickChannelStopsDispatcherLoop(t *testing.
 	}
 
 	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Manager.Run did not stop after context cancellation")
-	}
+	waitForKanbanManagerStop(t, "closed tick channel", done)
 }

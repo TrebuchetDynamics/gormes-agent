@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
@@ -9,12 +10,72 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// statusReportJSON is the wire shape for `gormes status --json`.
+// Build provenance leads, then the blockers array — same convention
+// as update --json / doctor --json. The `system` block + `audit_path`
+// mirror the system-events line the text surface prints
+// via renderSystemStatusLine, so JSON consumers can ingest the same
+// information without scraping prose. The `progress` block surfaces
+// progress.Load failures as structured unavailable evidence (the
+// text surface already renders this gracefully — JSON now matches).
+type statusReportJSON struct {
+	Build     buildProvenanceJSON           `json:"build"`
+	Progress  *statusProgressJSON           `json:"progress,omitempty"`
+	Blockers  []cli.StatusBlocker           `json:"blockers"`
+	System    toolspkg.SystemEventsSnapshot `json:"system"`
+	AuditPath string                        `json:"audit_path"`
+}
+
+// statusProgressJSON carries the parity equivalent of the text
+// surface's `blockers: unavailable status=progress_unavailable
+// reason=...` line. Operators on a freshly-imaged host (no
+// progress.json yet) get a structured degraded snapshot rather than
+// a non-zero exit + raw filesystem error.
+type statusProgressJSON struct {
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+}
+
 func newStatusCommand() *cobra.Command {
 	var progressPath string
+	var asJSON bool
 	cmd := &cobra.Command{
-		Use:   "status",
-		Short: "Show Gormes runtime and progress blockers",
+		Use:          "status",
+		Short:        "Show Gormes runtime and progress blockers",
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if asJSON {
+				blockers, err := cli.CollectStatusBlockers(cli.StatusReportOptions{ProgressPath: progressPath})
+				var progressUnavailable *statusProgressJSON
+				if err != nil {
+					// Match the text surface's degraded path: a missing or
+					// unreadable progress.json is operator state, not a CLI
+					// failure. Surface it as structured unavailable evidence
+					// and keep an empty blockers array so consumers can
+					// iterate without branching on err.
+					progressUnavailable = &statusProgressJSON{
+						Status: "progress_unavailable",
+						Reason: err.Error(),
+					}
+					blockers = nil
+				}
+				if blockers == nil {
+					blockers = []cli.StatusBlocker{}
+				}
+				system := collectSystemSnapshotForJSON(cmd)
+				body, err := json.MarshalIndent(statusReportJSON{
+					Build:     newBuildProvenance(),
+					Progress:  progressUnavailable,
+					Blockers:  blockers,
+					System:    system,
+					AuditPath: config.ToolAuditLogPath(),
+				}, "", "  ")
+				if err != nil {
+					return err
+				}
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return err
+			}
 			report, err := cli.RenderStatusReport(cli.StatusReportOptions{ProgressPath: progressPath})
 			if err != nil {
 				return err
@@ -24,6 +85,7 @@ func newStatusCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&progressPath, "progress", cli.DefaultStatusProgressPath, "progress.json path used for blocker status")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable {blockers: [...]} JSON document (suitable for monitoring/automation)")
 	return cmd
 }
 
@@ -33,4 +95,25 @@ func renderSystemStatusLine(cmd *cobra.Command) string {
 		return fmt.Sprintf("system: %s reason=status_unavailable audit=%s\n", toolspkg.SystemEventCodeUnavailable, config.ToolAuditLogPath())
 	}
 	return toolspkg.FormatSystemStatus(snapshot, config.ToolAuditLogPath()) + "\n"
+}
+
+// collectSystemSnapshotForJSON returns a snapshot suitable for the
+// JSON wire shape, normalizing nil slices to empty arrays so consumers
+// can iterate without nil-checks (same convention as
+// emitSessionListJSON returning `[]` for empty inventories).
+func collectSystemSnapshotForJSON(cmd *cobra.Command) toolspkg.SystemEventsSnapshot {
+	snapshot, err := cliSystemEventsManager().Snapshot(cmd.Context())
+	if err != nil {
+		return toolspkg.SystemEventsSnapshot{
+			Events:   []toolspkg.SystemEvent{},
+			Presence: []toolspkg.SystemPresenceEntry{},
+		}
+	}
+	if snapshot.Events == nil {
+		snapshot.Events = []toolspkg.SystemEvent{}
+	}
+	if snapshot.Presence == nil {
+		snapshot.Presence = []toolspkg.SystemPresenceEntry{}
+	}
+	return snapshot
 }

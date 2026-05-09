@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,23 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/spf13/cobra"
 )
+
+// skillsSyncReportJSON is the wire shape for `skills sync --json`.
+// Fleet automation rolling skills across profiles parses this to
+// audit per-profile counts. Build provenance leads — same convention
+// as the rest of the `--json` arc.
+type skillsSyncReportJSON struct {
+	Build     buildProvenanceJSON           `json:"build"`
+	Summaries []skillsSyncSummaryJSON       `json:"summaries"`
+}
+
+type skillsSyncSummaryJSON struct {
+	Profile   string `json:"profile"`
+	Added     int    `json:"added"`
+	Unchanged int    `json:"unchanged"`
+	Conflicts int    `json:"conflicts"`
+	Failed    int    `json:"failed"`
+}
 
 type skillsProfileSyncSeams struct {
 	BundledRoot func() string
@@ -41,6 +59,7 @@ func newSkillsCommandWithProfileSync(syncSeams skillsProfileSyncSeams) *cobra.Co
 			Fetcher: httpSkillFetcher{client: &http.Client{Timeout: 30 * time.Second}},
 			Store:   configSkillStore{},
 		},
+		BuildProvenance: func() any { return newBuildProvenance() },
 	})
 	cmd.AddCommand(newSkillsSyncCommand(syncSeams))
 	return cmd
@@ -57,7 +76,7 @@ func newSkillsSyncCommand(seams skillsProfileSyncSeams) *cobra.Command {
 		seams.Sync = skills.SyncBundledSkillsToProfiles
 	}
 
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Sync bundled skills into all configured profiles",
 		Args:  cobra.NoArgs,
@@ -73,12 +92,36 @@ func newSkillsSyncCommand(seams skillsProfileSyncSeams) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			asJSON, _ := cmd.Flags().GetBool("json")
+			if asJSON {
+				wire := skillsSyncReportJSON{
+					Build:     newBuildProvenance(),
+					Summaries: make([]skillsSyncSummaryJSON, len(report.Summaries)),
+				}
+				for i, s := range report.Summaries {
+					wire.Summaries[i] = skillsSyncSummaryJSON{
+						Profile:   s.Profile,
+						Added:     s.Added,
+						Unchanged: s.Unchanged,
+						Conflicts: s.Conflicts,
+						Failed:    s.Failed,
+					}
+				}
+				body, marshalErr := json.MarshalIndent(wire, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return nil
+			}
 			for _, summary := range report.Summaries {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s\tadded=%d unchanged=%d conflicts=%d failed=%d\n", summary.Profile, summary.Added, summary.Unchanged, summary.Conflicts, summary.Failed)
 			}
 			return nil
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, summaries: [{profile, added, unchanged, conflicts, failed}]}`")
+	return cmd
 }
 
 func defaultSkillSyncProfiles() ([]skills.SkillProfileRoot, error) {

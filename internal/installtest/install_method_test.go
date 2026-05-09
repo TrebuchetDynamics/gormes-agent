@@ -71,10 +71,10 @@ func TestInstall_DryRunFromSourceFlag_ForcesSourceBuild(t *testing.T) {
 func TestInstall_DryRunFromSourceEnvVar_ForcesSourceBuild(t *testing.T) {
 	sb := t.TempDir()
 	out := runInstallDryRun(t, map[string]string{
-		"GORMES_INSTALL_HOME":          filepath.Join(sb, "home"),
-		"GORMES_SKIP_SETUP":            "1",
-		"GORMES_RESTART_GATEWAY":       "never",
-		"GORMES_INSTALL_FROM_SOURCE":   "1",
+		"GORMES_INSTALL_HOME":        filepath.Join(sb, "home"),
+		"GORMES_SKIP_SETUP":          "1",
+		"GORMES_RESTART_GATEWAY":     "never",
+		"GORMES_INSTALL_FROM_SOURCE": "1",
 	})
 
 	if !strings.Contains(out, "install_method: source-build") {
@@ -128,13 +128,62 @@ func TestInstall_DryRunVerboseDefault_SurfacesReleaseArchAndApi(t *testing.T) {
 	}
 }
 
+// TestInstall_DryRunTermuxArm64_PrefersAndroidReleaseAsset proves Termux arm64
+// is not treated as ordinary Linux arm64 for binary-fetch installs. The release
+// workflow publishes a GOOS=android/GOARCH=arm64 artifact for this host shape.
+func TestInstall_DryRunTermuxArm64_PrefersAndroidReleaseAsset(t *testing.T) {
+	sb := t.TempDir()
+	out := runInstallDryRun(t, map[string]string{
+		"GORMES_INSTALL_HOME":         filepath.Join(sb, "home"),
+		"GORMES_SKIP_SETUP":           "1",
+		"GORMES_RESTART_GATEWAY":      "never",
+		"GORMES_INSTALL_TEST_UNAME_M": "aarch64",
+		"PREFIX":                      "/data/data/com.termux/files/usr",
+		"TERMUX_VERSION":              "0.119.0",
+	}, "--verbose")
+
+	if !strings.Contains(out, "install_method: binary-fetch") {
+		t.Fatalf("Termux arm64 dry-run should prefer binary-fetch; got:\n%s", out)
+	}
+	if !strings.Contains(out, "release_arch: android-arm64") {
+		t.Fatalf("Termux arm64 dry-run should select android-arm64 release asset; got:\n%s", out)
+	}
+	if strings.Contains(out, "release_arch: linux-arm64") {
+		t.Fatalf("Termux arm64 dry-run must not select linux-arm64 release asset; got:\n%s", out)
+	}
+}
+
+// TestInstall_DryRunLinuxArm64_StillUsesLinuxReleaseAsset is the regression
+// fence for ordinary Linux arm64 hosts: the Termux android-arm64 special case
+// must not steal non-Termux Linux installs.
+func TestInstall_DryRunLinuxArm64_StillUsesLinuxReleaseAsset(t *testing.T) {
+	sb := t.TempDir()
+	out := runInstallDryRun(t, map[string]string{
+		"GORMES_INSTALL_HOME":         filepath.Join(sb, "home"),
+		"GORMES_SKIP_SETUP":           "1",
+		"GORMES_RESTART_GATEWAY":      "never",
+		"GORMES_INSTALL_TEST_UNAME_M": "aarch64",
+		"UNAME":                       "Linux",
+	}, "--verbose")
+
+	if !strings.Contains(out, "install_method: binary-fetch") {
+		t.Fatalf("Linux arm64 dry-run should prefer binary-fetch; got:\n%s", out)
+	}
+	if !strings.Contains(out, "release_arch: linux-arm64") {
+		t.Fatalf("Linux arm64 dry-run should select linux-arm64 release asset; got:\n%s", out)
+	}
+	if strings.Contains(out, "release_arch: android-arm64") {
+		t.Fatalf("Linux arm64 dry-run must not select android-arm64 release asset; got:\n%s", out)
+	}
+}
+
 // supportedHostForBinaryFetch returns true when the host runtime.GOOS/GOARCH
 // matches one of the published release-asset slugs. The test runner is the
 // host the install would actually run on, so this gates platform-dependent
 // assertions.
 func supportedHostForBinaryFetch() bool {
 	switch runtime.GOOS {
-	case "linux", "darwin":
+	case "linux", "darwin", "android":
 		switch runtime.GOARCH {
 		case "amd64", "arm64":
 			return true

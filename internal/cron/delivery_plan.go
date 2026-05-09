@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -37,6 +38,10 @@ type DeliveryPlanOptions struct {
 
 type DeliveryTargetDirectory interface {
 	HomeDeliveryTarget(platform string) (DeliveryTarget, bool)
+}
+
+type DeliveryAllTargetDirectory interface {
+	HomeDeliveryTargets() []DeliveryTarget
 }
 
 type DeliveryPlan struct {
@@ -114,19 +119,16 @@ func PlanCronDelivery(opts DeliveryPlanOptions) DeliveryPlan {
 			continue
 		}
 
-		target, evidence, ok := resolveCronDeliveryTarget(token, opts)
-		if evidence.Code != "" {
-			plan.Evidence = append(plan.Evidence, evidence)
+		targets, evidence := resolveCronDeliveryTargets(token, opts)
+		plan.Evidence = append(plan.Evidence, evidence...)
+		for _, target := range targets {
+			key := target.Normalized()
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			plan.Targets = append(plan.Targets, target)
 		}
-		if !ok {
-			continue
-		}
-		key := target.Normalized()
-		if _, exists := seen[key]; exists {
-			continue
-		}
-		seen[key] = struct{}{}
-		plan.Targets = append(plan.Targets, target)
 	}
 	return plan
 }
@@ -153,6 +155,58 @@ func PlanCronDeliveryForJob(job any, directory DeliveryTargetDirectory) Delivery
 		opts.Origin = &origin
 	}
 	return PlanCronDelivery(opts)
+}
+
+func resolveCronDeliveryTargets(raw string, opts DeliveryPlanOptions) ([]DeliveryTarget, []DeliveryEvidence) {
+	if strings.EqualFold(strings.TrimSpace(raw), "all") {
+		return expandCronDeliveryAllTargets(opts)
+	}
+	target, evidence, ok := resolveCronDeliveryTarget(raw, opts)
+	if evidence.Code != "" {
+		if ok {
+			return []DeliveryTarget{target}, []DeliveryEvidence{evidence}
+		}
+		return nil, []DeliveryEvidence{evidence}
+	}
+	if !ok {
+		return nil, nil
+	}
+	return []DeliveryTarget{target}, nil
+}
+
+func expandCronDeliveryAllTargets(opts DeliveryPlanOptions) ([]DeliveryTarget, []DeliveryEvidence) {
+	directory, ok := opts.Directory.(DeliveryAllTargetDirectory)
+	if !ok || directory == nil {
+		return nil, []DeliveryEvidence{{
+			Code:   DeliveryEvidenceChannelDirectoryMissing,
+			Target: "all",
+			Detail: "home delivery targets unavailable",
+		}}
+	}
+	targets := make([]DeliveryTarget, 0)
+	for _, target := range directory.HomeDeliveryTargets() {
+		target.Platform = strings.ToLower(strings.TrimSpace(target.Platform))
+		target.ChatID = strings.TrimSpace(target.ChatID)
+		target.ThreadID = strings.TrimSpace(target.ThreadID)
+		target.Local = false
+		target.Origin = false
+		target.Explicit = false
+		if target.Platform == "" || strings.EqualFold(target.Platform, "local") || target.ChatID == "" {
+			continue
+		}
+		targets = append(targets, target)
+	}
+	sort.SliceStable(targets, func(i, j int) bool {
+		return targets[i].Normalized() < targets[j].Normalized()
+	})
+	if len(targets) == 0 {
+		return nil, []DeliveryEvidence{{
+			Code:   DeliveryEvidenceChannelDirectoryMissing,
+			Target: "all",
+			Detail: "no home delivery targets configured",
+		}}
+	}
+	return targets, nil
 }
 
 func resolveCronDeliveryTarget(raw string, opts DeliveryPlanOptions) (DeliveryTarget, DeliveryEvidence, bool) {

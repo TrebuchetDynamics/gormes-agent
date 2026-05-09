@@ -38,14 +38,20 @@ type RunEventStream interface {
 }
 
 type ChatRequest struct {
-	Model           string
-	MaxTokens       int
-	Temperature     *float64
-	Messages        []Message
-	SessionID       string
-	Stream          bool
-	ReasoningEffort *ReasoningEffort
-	Tools           []ToolDescriptor // omitempty at wire time via the Marshal path in http_client
+	Model            string
+	MaxTokens        int
+	Temperature      *float64
+	Messages         []Message
+	SessionID        string
+	Stream           bool
+	ReasoningEffort  *ReasoningEffort
+	RequestOverrides RequestOverrides
+	Tools            []ToolDescriptor // omitempty at wire time via the Marshal path in http_client
+}
+
+type RequestOverrides struct {
+	ServiceTier string
+	Speed       string
 }
 
 type ReasoningEffort string
@@ -161,6 +167,51 @@ func ProviderSupportsReasoningEffort(status ProviderStatus) bool {
 	return normalized.Runtime == "chat_completions"
 }
 
+func ResolveFastModeRequestOverrides(model string) (RequestOverrides, bool) {
+	if modelSupportsAnthropicFastMode(model) {
+		return RequestOverrides{Speed: "fast"}, true
+	}
+	if modelSupportsOpenAIPriorityProcessing(model) {
+		return RequestOverrides{ServiceTier: "priority"}, true
+	}
+	return RequestOverrides{}, false
+}
+
+func modelSupportsOpenAIPriorityProcessing(model string) bool {
+	base := fastModeModelBase(model)
+	if base == "" || strings.Contains(base, "codex") {
+		return false
+	}
+	for _, prefix := range []string{"gpt-", "o1", "o3", "o4"} {
+		if strings.HasPrefix(base, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func modelSupportsAnthropicFastMode(model string) bool {
+	base := fastModeModelBase(model)
+	if !strings.HasPrefix(base, "claude-") {
+		return false
+	}
+	return strings.Contains(base, "opus-4-6") || strings.Contains(base, "opus-4.6")
+}
+
+func fastModeModelBase(model string) string {
+	raw := strings.ToLower(strings.TrimSpace(model))
+	if raw == "" {
+		return ""
+	}
+	if slash := strings.Index(raw, "/"); slash >= 0 {
+		raw = raw[slash+1:]
+	}
+	if colon := strings.Index(raw, ":"); colon >= 0 {
+		raw = raw[:colon]
+	}
+	return raw
+}
+
 // ToolDescriptor mirrors tools.ToolDescriptor so hermes stays
 // dependency-free of the tools package. Serialised shape is
 // OpenAI's {"type":"function","function":{...}} wrapper — the
@@ -267,3 +318,4 @@ const (
 // responds 404 — which is the case for non-Hermes OpenAI-compatible servers
 // (LM Studio, Open WebUI) that don't implement /v1/runs.
 var ErrRunEventsNotSupported = errors.New("hermes: /v1/runs not supported by this server")
+var ErrProviderUnavailable = errors.New("hermes: provider unavailable")

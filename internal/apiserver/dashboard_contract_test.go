@@ -213,6 +213,187 @@ func TestDashboardContract_CoversNativeDashboardEndpoints(t *testing.T) {
 	}
 }
 
+// TestDashboard_BuildAttributionPluginsAndDelete proves the remaining
+// authenticated dashboard endpoints — `/api/plugins` and the session
+// DELETE response — also embed BuildInfo. Slices 110-112 covered
+// /api/status, kanban, model, oauth, and sessions; this rounds out
+// every JSON-emitting dashboard endpoint with the same attribution
+// contract.
+func TestDashboard_BuildAttributionPluginsAndDelete(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:   "test-build-rest",
+			GitCommit: "fee1b00d",
+			GitDirty:  true,
+			GoVersion: "go1.23.0-test",
+		},
+	})
+	h := srv.Handler()
+
+	t.Run("plugins", func(t *testing.T) {
+		rec := getJSON(t, h, "/api/dashboard/plugins", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("/api/plugins status = %d; body=%s", rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+				GitDirty  bool   `json:"git_dirty"`
+			} `json:"build"`
+			Runtime struct {
+				State string `json:"state"`
+			} `json:"runtime"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+		}
+		if got.Build.Version != "test-build-rest" || got.Build.GitCommit != "fee1b00d" || !got.Build.GitDirty {
+			t.Errorf("build = %+v, want version=test-build-rest commit=fee1b00d dirty=true", got.Build)
+		}
+		if got.Runtime.State == "" {
+			t.Errorf("runtime.state empty — top-level fields lost via wrapping")
+		}
+	})
+
+	t.Run("session_delete", func(t *testing.T) {
+		store := NewResponseStore(10)
+		seeded := NewServer(Config{
+			ModelName:     "gormes-agent",
+			ResponseStore: store,
+			BuildInfo: BuildInfo{
+				Version:   "test-build-rest",
+				GitCommit: "fee1b00d",
+				GitDirty:  true,
+				GoVersion: "go1.23.0-test",
+			},
+		})
+		if err := store.Put("resp_seed", StoredResponse{
+			Response:  ResponseObject{ID: "resp_seed", Object: "response", Status: "completed", Model: "gormes-agent"},
+			SessionID: "sess-delete",
+		}); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+		rec := deleteJSON(t, seeded.Handler(), "/api/sessions/sess-delete", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("delete status = %d; body=%s", rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+				GitDirty  bool   `json:"git_dirty"`
+			} `json:"build"`
+			OK        bool   `json:"ok"`
+			SessionID string `json:"session_id"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode: %v\nbody=%s", err, rec.Body.String())
+		}
+		if got.Build.Version != "test-build-rest" || got.Build.GitCommit != "fee1b00d" || !got.Build.GitDirty {
+			t.Errorf("build = %+v, want version=test-build-rest commit=fee1b00d dirty=true", got.Build)
+		}
+		if !got.OK || got.SessionID != "sess-delete" {
+			t.Errorf("body = %+v, want ok=true session_id=sess-delete", got)
+		}
+	})
+}
+
+// TestDashboard_BuildAttributionAcrossEndpoints proves the remaining
+// authenticated dashboard endpoints carry the configured BuildInfo at
+// the top of their JSON response so fleet automation aggregating
+// dashboard state across machines can attribute every response to the
+// binary version that emitted it. /api/status (slice 110), the kanban
+// endpoints (slice 111), and these endpoints all use the same `build`
+// envelope — a single source of truth across the dashboard surface.
+func TestDashboard_BuildAttributionAcrossEndpoints(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName:    "gormes-agent",
+		ProviderName: "test-provider",
+		BuildInfo: BuildInfo{
+			Version:   "test-build-attr",
+			GitCommit: "abc1234",
+			GitDirty:  false,
+			GoVersion: "go1.23.0-test",
+		},
+	})
+	h := srv.Handler()
+
+	for _, path := range []string{
+		"/api/model/info",
+		"/api/model/options",
+		"/api/providers/oauth",
+		"/api/sessions",
+	} {
+		rec := getJSON(t, h, path, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d; body=%s", path, rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+			} `json:"build"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("%s: decode: %v\nbody=%s", path, err, rec.Body.String())
+		}
+		if got.Build.Version != "test-build-attr" {
+			t.Errorf("%s: build.version = %q, want test-build-attr (body=%s)", path, got.Build.Version, rec.Body.String())
+		}
+		if got.Build.GitCommit != "abc1234" {
+			t.Errorf("%s: build.git_commit = %q, want abc1234", path, got.Build.GitCommit)
+		}
+	}
+}
+
+// TestDashboardStatus_BuildAttribution proves the dashboard /api/status
+// response carries the configured build version/git commit/dirty
+// flag/Go version so fleet automation querying dashboards across
+// machines can attribute each status response to the binary version
+// that emitted it. Same convention as the rest of the `--json` arc.
+// The configured BuildInfo (zero-value defaults to safe placeholders)
+// must round-trip through `build` at the top of the JSON document.
+func TestDashboardStatus_BuildAttribution(t *testing.T) {
+	srv := NewServer(Config{
+		ModelName: "gormes-agent",
+		BuildInfo: BuildInfo{
+			Version:    "test-version-1.2.3",
+			GitCommit:  "deadbeef",
+			GitDirty:   true,
+			GoVersion:  "go1.23.0-test",
+		},
+	})
+	status := getJSON(t, srv.Handler(), "/api/status", nil)
+	if status.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want 200; body=%s", status.Code, status.Body.String())
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+			GitDirty  bool   `json:"git_dirty"`
+			GoVersion string `json:"go_version"`
+		} `json:"build"`
+	}
+	if err := json.Unmarshal(status.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode status: %v", err)
+	}
+	if got.Build.Version != "test-version-1.2.3" {
+		t.Errorf("build.version = %q, want test-version-1.2.3", got.Build.Version)
+	}
+	if got.Build.GitCommit != "deadbeef" {
+		t.Errorf("build.git_commit = %q, want deadbeef", got.Build.GitCommit)
+	}
+	if !got.Build.GitDirty {
+		t.Errorf("build.git_dirty = false, want true")
+	}
+	if got.Build.GoVersion != "go1.23.0-test" {
+		t.Errorf("build.go_version = %q, want go1.23.0-test", got.Build.GoVersion)
+	}
+}
+
 func TestDashboardStatus_DegradesMissingNativeAndOptionalPanels(t *testing.T) {
 	srv := NewServer(Config{ModelName: "gormes-agent"})
 	status := getJSON(t, srv.Handler(), "/api/status", nil)

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,50 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/memory"
 )
+
+// TestSessionExportCommand_JSONEmitsStructuredTranscript proves
+// `gormes session export <id> --json` emits a parseable
+// `{build, session_id, format, content}` envelope so fleet automation
+// aggregating exported session transcripts across machines can ingest
+// each export with binary attribution and stable shape, instead of
+// concatenating raw markdown blobs. Build provenance leads — same
+// convention as the rest of the `--json` arc.
+func TestSessionExportCommand_JSONEmitsStructuredTranscript(t *testing.T) {
+	seedTranscriptDB(t, "sess-cli-json", "discord:chan-9")
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"session", "export", "sess-cli-json", "--format=markdown", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("session export --json: %v\nstderr=%s", err, stderr.String())
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		SessionID string `json:"session_id"`
+		Format    string `json:"format"`
+		Content   string `json:"content"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", err, stdout.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.SessionID != "sess-cli-json" {
+		t.Errorf("session_id = %q, want sess-cli-json", got.SessionID)
+	}
+	if got.Format != "markdown" {
+		t.Errorf("format = %q, want markdown", got.Format)
+	}
+	if !strings.Contains(got.Content, "# Session: sess-cli-json") {
+		t.Errorf("content missing session heading:\n%s", got.Content)
+	}
+}
 
 func TestSessionExportCommand_Markdown(t *testing.T) {
 	seedTranscriptDB(t, "sess-cli", "discord:chan-7")

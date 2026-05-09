@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +13,83 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/spf13/cobra"
 )
+
+// TestOnboardCommand_JSONEmitsStructuredFirstRunStatus proves
+// `gormes onboard --json` returns a parseable
+// `{build, home, config_path, skills_root, skills_local, skills_bundled,
+// provider_configured, provider, endpoint, model, auth_configured,
+// agents: [...], bindings: [...]}` document so fleet automation
+// querying first-run readiness across machines can ingest the status
+// without scraping the multi-line "Home: / Config: / Provider:" prose.
+// Build provenance leads — same convention as the rest of the `--json`
+// arc. Secrets stay out: API keys live in the env file, not in this
+// report; only their *presence* is signalled via `auth_configured`.
+func TestOnboardCommand_JSONEmitsStructuredFirstRunStatus(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+provider = "anthropic"
+endpoint = "https://api.anthropic.com"
+model = "claude-sonnet-4-5"
+api_key = "sk-ant-fixture-token"
+`))
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"onboard", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("onboard --json: %v\nstderr=%s", err, stderr.String())
+	}
+
+	// Raw API key MUST never leak into stdout.
+	if strings.Contains(stdout.String(), "sk-ant-fixture-token") {
+		t.Fatalf("onboard --json LEAKED the api key:\nstdout=%s", stdout.String())
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Home               string `json:"home"`
+		ConfigPath         string `json:"config_path"`
+		SkillsRoot         string `json:"skills_root"`
+		SkillsLocal        int    `json:"skills_local"`
+		SkillsBundled      int    `json:"skills_bundled"`
+		ProviderConfigured bool   `json:"provider_configured"`
+		Provider           string `json:"provider"`
+		Endpoint           string `json:"endpoint"`
+		Model              string `json:"model"`
+		AuthConfigured     bool   `json:"auth_configured"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("onboard --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Home != config.GormesHome() {
+		t.Errorf("home = %q, want %q", got.Home, config.GormesHome())
+	}
+	if !got.ProviderConfigured {
+		t.Errorf("provider_configured = false, want true (endpoint+model set)")
+	}
+	if got.Provider != "anthropic" {
+		t.Errorf("provider = %q, want anthropic", got.Provider)
+	}
+	if got.Model != "claude-sonnet-4-5" {
+		t.Errorf("model = %q, want claude-sonnet-4-5", got.Model)
+	}
+	if !got.AuthConfigured {
+		t.Errorf("auth_configured = false, want true (api_key was set)")
+	}
+}
+
 
 func TestOnboardWizardInteractivePromptsForStepActions(t *testing.T) {
 	home := t.TempDir()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,16 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/spf13/cobra"
 )
+
+// usageReportJSON is the wire shape for `gormes usage --json`.
+// Fleet automation tracking provider account usage across machines
+// parses this to plot dashboards. Build provenance leads — same
+// convention as the rest of the `--json` arc. The snapshot embeds
+// the AccountUsageSnapshot which already has json tags.
+type usageReportJSON struct {
+	Build buildProvenanceJSON         `json:"build"`
+	hermes.AccountUsageSnapshot
+}
 
 func newUsageCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -29,6 +40,7 @@ func newUsageCommand() *cobra.Command {
 	cmd.Flags().String("api-key", "", "provider API/OAuth token for account usage; defaults to configured hermes api_key")
 	cmd.Flags().String("base-url", "", "provider account usage base URL override")
 	cmd.Flags().String("account-id", "", "provider account identifier when required")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, provider, account_id, plan, source, fetched_at, windows: [...], details, unavailable}")
 	return cmd
 }
 
@@ -38,6 +50,12 @@ type usageInvocation struct {
 	BaseURL   string
 	AccountID string
 }
+
+// usageHTTPClient bounds the provider account-usage fetch so an
+// unresponsive provider can't hang the operator's terminal. 30s gives
+// slow providers room to respond while preventing indefinite hangs;
+// http.DefaultClient has no timeout at all.
+var usageHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
 	cfg, err := config.Load(nil)
@@ -51,7 +69,7 @@ func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
 	}
 	key := firstUsageString(invocation.APIKey, cfg.Hermes.APIKey)
 	baseURL := firstUsageString(invocation.BaseURL, cfg.Hermes.Endpoint)
-	fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: http.DefaultClient}, func() time.Time { return time.Now().UTC() })
+	fetcher := hermes.NewAccountUsageFetcher(accountUsageHTTPClient{client: usageHTTPClient}, func() time.Time { return time.Now().UTC() })
 	snapshot, err := fetcher.Fetch(cmd.Context(), hermes.AccountUsageFetchRequest{
 		Provider:  provider,
 		BaseURL:   baseURL,
@@ -60,6 +78,18 @@ func runUsageCommand(cmd *cobra.Command, invocation usageInvocation) error {
 	})
 	if err != nil {
 		return err
+	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(usageReportJSON{
+			Build:                newBuildProvenance(),
+			AccountUsageSnapshot: snapshot,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
 	}
 	for _, line := range hermes.RenderAccountUsageLines(snapshot, hermes.AccountUsageRenderOptions{}) {
 		fmt.Fprintln(cmd.OutOrStdout(), line)

@@ -13,10 +13,6 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-func init() {
-	gatewayCmd.AddCommand(gatewayStatusCmd)
-}
-
 type gatewayStatusRuntimeStore interface {
 	ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error)
 }
@@ -25,14 +21,14 @@ var newGatewayStatusRuntimeStore = func(path string) gatewayStatusRuntimeStore {
 	return gateway.NewRuntimeStatusStore(path)
 }
 
-var gatewayStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Inspect configured gateway channels and persisted runtime state",
-	RunE:  runGatewayStatus,
-}
-
-func init() {
-	gatewayStatusCmd.Flags().Bool("json", false, "print gateway status as JSON")
+func newGatewayStatusCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "status",
+		Short: "Inspect configured gateway channels and persisted runtime state",
+		RunE:  runGatewayStatus,
+	}
+	cmd.Flags().Bool("json", false, "print gateway status as JSON")
+	return cmd
 }
 
 func runGatewayStatus(cmd *cobra.Command, _ []string) error {
@@ -80,6 +76,7 @@ func runGatewayStatus(cmd *cobra.Command, _ []string) error {
 }
 
 type gatewayStatusJSON struct {
+	Build      buildProvenanceJSON              `json:"build"`
 	Runtime    gateway.RuntimeStatus            `json:"runtime"`
 	Channels   []gateway.StatusChannel          `json:"channels"`
 	Pairing    gateway.PairingStatus            `json:"pairing"`
@@ -89,7 +86,24 @@ type gatewayStatusJSON struct {
 }
 
 func renderGatewayStatusJSON(cmd *cobra.Command, cfg config.Config, pairing gateway.PairingStatus, runtime gateway.RuntimeStatus, validation gateway.RuntimeProcessValidation, missing bool) error {
+	// Normalize nil maps/slices on the empty/missing-runtime path so
+	// `--json` consumers iterate over `[]` / `{}` instead of crashing
+	// on `null`. Same convention as emitSessionListJSON /
+	// gateway probe/discover.
+	if runtime.Platforms == nil {
+		runtime.Platforms = map[string]gateway.PlatformRuntimeStatus{}
+	}
+	if pairing.Platforms == nil {
+		pairing.Platforms = []gateway.PairingPlatformStatus{}
+	}
+	if pairing.Pending == nil {
+		pairing.Pending = []gateway.PairingPendingRecord{}
+	}
+	if pairing.Approved == nil {
+		pairing.Approved = []gateway.PairingApprovedRecord{}
+	}
 	payload := gatewayStatusJSON{
+		Build:      newBuildProvenance(),
 		Runtime:    runtime,
 		Channels:   configuredGatewayStatusChannels(cfg),
 		Pairing:    pairing,

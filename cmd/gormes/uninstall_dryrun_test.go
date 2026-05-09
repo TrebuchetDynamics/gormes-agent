@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,35 +65,294 @@ func TestUninstallKeepConfigExcludesGroup(t *testing.T) {
 	}
 }
 
+// TestUninstallCommand_DryRunRoutesThroughCobraWriters proves the
+// command writes its dry-run output via cmd.OutOrStdout() so end-to-end
+// tests can capture stdout instead of forking through helpers like
+// printDryRunTo. Without this, runUninstall's fmt.Printf goes to
+// os.Stdout directly and bypasses cobra's writer plumbing — meaning
+// the test fixture in this file had to copy-paste a parallel
+// `printDryRunTo` helper to verify formatting. The refactor matches
+// the same testability pattern doctor adopted (commit 39ff073db).
+func TestUninstallCommand_DryRunRoutesThroughCobraWriters(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newUninstallCommand()
+	var stdout, stderr strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	got := stdout.String()
+	if got == "" {
+		t.Fatalf("uninstall must write to cmd.OutOrStdout(); captured stdout is empty (output likely went to os.Stdout)")
+	}
+	for _, want := range []string{"uninstall dry-run:", "[config]", "config.toml"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("uninstall stdout missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// TestUninstallExecute_ReportsRemovedAndFailedCounts proves the
+// destructive path surfaces an operator-meaningful summary at the end:
+// "uninstall complete: N removed, M failed (warnings above)" rather than
+// the previous bare "uninstall complete." that emitted regardless of
+// whether anything succeeded. Without these counts an operator who hit
+// permission errors on every file would see "uninstall complete" and
+// assume success — a real footgun for cleanup workflows.
+func TestUninstallExecute_ReportsRemovedAndFailedCounts(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	// Two real, removable files.
+	for _, name := range []string{"config.toml", "auth.json"} {
+		if err := os.WriteFile(filepath.Join(home, name), []byte("body"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := newUninstallCommand()
+	var stdout, stderr strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"--dry-run=false", "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "uninstall complete") {
+		t.Fatalf("stdout missing completion line:\n%s", out)
+	}
+	if !strings.Contains(out, "removed") {
+		t.Fatalf("stdout must report removed count; got:\n%s", out)
+	}
+	if !strings.Contains(out, "failed") {
+		t.Fatalf("stdout must report failed count (even when zero); got:\n%s", out)
+	}
+}
+
+// TestUninstallExecute_FailureExitsNonZero proves the destructive path
+// returns a non-nil error (rendered by cobra as a non-zero process
+// exit code) when at least one removal failed. Without this, fleet
+// scripts running `gormes uninstall --yes && echo OK` would believe
+// uninstall succeeded even when permission errors blocked every file.
+// The per-file warnings are already on stderr; the exit code is the
+// machine signal scripts can branch on.
+func TestUninstallExecute_FailureExitsNonZero(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	// Seed a real artifact whose REMOVAL fails: a directory whose
+	// PARENT is read-only via 0o500. With no write bit on the parent,
+	// unlink of the inner file is denied, and so is rmdir of the
+	// guarded dir itself.
+	innerDir := filepath.Join(home, "memory")
+	if err := os.MkdirAll(innerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(innerDir, "guarded.bin"), []byte("body"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(innerDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		// Restore mode so the t.TempDir cleanup succeeds.
+		_ = os.Chmod(innerDir, 0o755)
+	})
+
+	cmd := newUninstallCommand()
+	var stdout, stderr strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"--dry-run=false", "--yes"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("uninstall must return non-nil when at least one removal failed; stdout=%s\nstderr=%s", stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "failed") {
+		t.Fatalf("stdout should still report the failed count on error path:\n%s", stdout.String())
+	}
+	// The summary line must show a positive failed count, not zero.
+	if !strings.Contains(stdout.String(), "1 failed") && !strings.Contains(stdout.String(), "2 failed") {
+		t.Fatalf("expected `N failed` with N>=1 in summary; got:\n%s", stdout.String())
+	}
+}
+
+// TestUninstallDryRun_SkipsEmptyGroups proves the dry-run preview
+// suppresses group headers (e.g. "[cron]" or "[mcp-oauth]") when the
+// group has no actual artifacts on disk. Without this, every dry-run
+// shows a wall of empty bracketed headers — operators have to scan
+// through them to find the groups that actually have content. Showing
+// only non-empty groups keeps the preview focused on what would
+// actually be removed.
+func TestUninstallDryRun_SkipsEmptyGroups(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	// Seed only the config group; other groups (credentials, sessions,
+	// gateway-state, memory, logs, cron, mcp-oauth) have no on-disk
+	// artifacts.
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newUninstallCommand()
+	var stdout, stderr strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	got := stdout.String()
+	// The config group must appear (it has an artifact).
+	if !strings.Contains(got, "[config]") {
+		t.Fatalf("config group missing from dry-run:\n%s", got)
+	}
+	// Truly empty groups must not appear. (Note: the `logs` group
+	// includes config.CrashLogDir() which equals GormesHome itself,
+	// so it always has a non-empty Paths list under a t.TempDir
+	// fixture — that's expected and not what this test checks.)
+	for _, empty := range []string{"[cron]", "[mcp-oauth]", "[memory]", "[gateway-state]", "[sessions]", "[credentials]"} {
+		if strings.Contains(got, empty) {
+			t.Fatalf("empty group %s should be suppressed in dry-run; got:\n%s", empty, got)
+		}
+	}
+}
+
 func TestUninstallDryRunOutputIsGroupedAndStable(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644)
 
-	// First run
+	// First run — exercise the real printDryRun, not a copy-paste helper.
 	groups1 := collectArtifacts(home)
 	var sb1 strings.Builder
-	printDryRunTo(&sb1, groups1)
+	if err := printDryRun(&sb1, groups1); err != nil {
+		t.Fatalf("printDryRun: %v", err)
+	}
 
-	// Second run should produce identical output
+	// Second run should produce identical output.
 	groups2 := collectArtifacts(home)
 	var sb2 strings.Builder
-	printDryRunTo(&sb2, groups2)
+	if err := printDryRun(&sb2, groups2); err != nil {
+		t.Fatalf("printDryRun: %v", err)
+	}
 
 	if sb1.String() != sb2.String() {
 		t.Errorf("dry-run output not byte-stable between runs")
 	}
 }
 
-func printDryRunTo(sb *strings.Builder, groups []artifactGroup) {
-	total := 0
-	for _, g := range groups {
-		total += len(g.Paths)
-	}
-	for _, g := range groups {
-		sb.WriteString("[" + g.Name + "]\n")
-		for _, p := range g.Paths {
-			sb.WriteString("  " + p + "\n")
+// TestUninstallCommand_DryRunJSONEmitsStructuredPreview proves
+// `gormes uninstall --json` (default dry-run) returns a parseable
+// `{build, action: "preview", dry_run: true, total, groups: [{name, paths}]}`
+// document so fleet automation can audit what WOULD be removed across
+// many machines without scraping bracketed prose. Same convention as
+// restore --json preview.
+func TestUninstallCommand_DryRunJSONEmitsStructuredPreview(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	for _, name := range []string{"config.toml", "auth.json"} {
+		if err := os.WriteFile(filepath.Join(home, name), []byte("body"), 0o644); err != nil {
+			t.Fatal(err)
 		}
+	}
+
+	cmd := newUninstallCommand()
+	var stdout strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall --json (dry-run): %v\nstdout=%s", err, stdout.String())
+	}
+
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+		Action string `json:"action"`
+		DryRun bool   `json:"dry_run"`
+		Total  int    `json:"total"`
+		Groups []struct {
+			Name  string   `json:"name"`
+			Paths []string `json:"paths"`
+		} `json:"groups"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout.String()), &got); jsonErr != nil {
+		t.Fatalf("uninstall --json (dry-run) must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Build.Version != Version {
+		t.Errorf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "preview" {
+		t.Errorf("action = %q, want %q", got.Action, "preview")
+	}
+	if !got.DryRun {
+		t.Errorf("dry_run must be true in dry-run JSON")
+	}
+	if got.Total < 2 {
+		t.Errorf("total = %d, want >=2 (config.toml + auth.json)", got.Total)
+	}
+	// Files MUST stay untouched — JSON dry-run is still a dry-run.
+	if _, err := os.Stat(filepath.Join(home, "config.toml")); err != nil {
+		t.Errorf("dry-run JSON must not delete files: config.toml stat err=%v", err)
+	}
+}
+
+// TestUninstallCommand_ExecuteJSONEmitsStructuredOutcome proves
+// `--dry-run=false --yes --json` returns
+// `{build, action: "uninstalled", removed, failed, groups: [...]}`
+// so fleet automation can confirm cleanup completed across machines.
+// Apply mode reports actual removed/failed counts; dry_run is false.
+func TestUninstallCommand_ExecuteJSONEmitsStructuredOutcome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	for _, name := range []string{"config.toml", "auth.json"} {
+		if err := os.WriteFile(filepath.Join(home, name), []byte("body"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := newUninstallCommand()
+	var stdout strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"--dry-run=false", "--yes", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall --yes --json: %v\nstdout=%s", err, stdout.String())
+	}
+
+	var got struct {
+		Action  string `json:"action"`
+		DryRun  bool   `json:"dry_run"`
+		Removed int    `json:"removed"`
+		Failed  int    `json:"failed"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout.String()), &got); jsonErr != nil {
+		t.Fatalf("uninstall --yes --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Action != "uninstalled" {
+		t.Errorf("action = %q, want %q", got.Action, "uninstalled")
+	}
+	if got.DryRun {
+		t.Errorf("dry_run must be false in apply mode")
+	}
+	if got.Removed < 2 {
+		t.Errorf("removed = %d, want >=2 (config.toml + auth.json)", got.Removed)
+	}
+	if got.Failed != 0 {
+		t.Errorf("failed = %d, want 0", got.Failed)
+	}
+	if _, err := os.Stat(filepath.Join(home, "config.toml")); !os.IsNotExist(err) {
+		t.Errorf("apply must remove config.toml; stat err=%v", err)
 	}
 }

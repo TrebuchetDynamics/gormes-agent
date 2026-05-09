@@ -112,6 +112,72 @@ func TestCronDeliveryPlan_InvalidTargetsReturnEvidence(t *testing.T) {
 	assertDeliveryEvidence(t, plan.Evidence, DeliveryEvidenceChannelDirectoryMissing)
 }
 
+func TestCronDeliveryPlan_RoutingIntentAllExpandsHomeTargets(t *testing.T) {
+	directory := staticDeliveryDirectory{
+		targets: map[string]DeliveryTarget{
+			"telegram": {Platform: "telegram", ChatID: "-100777", ThreadID: "99"},
+			"discord":  {Platform: "discord", ChatID: "home-channel", ThreadID: "thread-7"},
+			"slack":    {Platform: "slack", ChatID: "C123"},
+		},
+	}
+
+	plan := PlanCronDelivery(DeliveryPlanOptions{Deliver: "all", Directory: directory})
+
+	want := []string{"discord:home-channel:thread-7", "slack:C123", "telegram:-100777:99"}
+	if got := normalizedDeliveryTargets(plan.Targets); !reflect.DeepEqual(got, want) {
+		t.Fatalf("targets = %#v, want %#v; evidence=%#v", got, want, plan.Evidence)
+	}
+	if len(plan.Evidence) != 0 {
+		t.Fatalf("evidence = %#v, want none", plan.Evidence)
+	}
+}
+
+func TestCronDeliveryPlan_RoutingIntentAllComposesAndDedupes(t *testing.T) {
+	origin := &DeliveryOrigin{Platform: "telegram", ChatID: "-100777", ThreadID: "99"}
+	directory := staticDeliveryDirectory{
+		targets: map[string]DeliveryTarget{
+			"telegram": {Platform: "telegram", ChatID: "-100777", ThreadID: "99"},
+			"discord":  {Platform: "discord", ChatID: "home-channel", ThreadID: "thread-7"},
+		},
+	}
+
+	plan := PlanCronDelivery(DeliveryPlanOptions{
+		Deliver:   "origin,all,telegram:-100777:99,local",
+		Origin:    origin,
+		Directory: directory,
+	})
+
+	want := []string{"telegram:-100777:99", "discord:home-channel:thread-7", "local"}
+	if got := normalizedDeliveryTargets(plan.Targets); !reflect.DeepEqual(got, want) {
+		t.Fatalf("targets = %#v, want %#v; evidence=%#v", got, want, plan.Evidence)
+	}
+	if len(plan.Evidence) != 0 {
+		t.Fatalf("evidence = %#v, want none", plan.Evidence)
+	}
+}
+
+func TestCronDeliveryPlan_RoutingIntentAllMissingDirectoryReturnsEvidence(t *testing.T) {
+	tests := []struct {
+		name      string
+		directory DeliveryTargetDirectory
+	}{
+		{name: "nil directory"},
+		{name: "empty directory", directory: staticDeliveryDirectory{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := PlanCronDelivery(DeliveryPlanOptions{Deliver: "all", Directory: tt.directory})
+			if len(plan.Targets) != 0 {
+				t.Fatalf("targets = %#v, want none", plan.Targets)
+			}
+			assertDeliveryEvidence(t, plan.Evidence, DeliveryEvidenceChannelDirectoryMissing)
+			if got := plan.Evidence[0].Target; got != "all" {
+				t.Fatalf("evidence target = %q, want all", got)
+			}
+		})
+	}
+}
+
 func TestCronDeliveryPlan_MediaTags(t *testing.T) {
 	content := PrepareCronDeliveryContent("Report ready [MEDIA:outputs/chart.png]\nUnsafe [MEDIA:../../secret.txt]\nStill text.")
 
@@ -199,6 +265,17 @@ type staticDeliveryDirectory struct {
 func (d staticDeliveryDirectory) HomeDeliveryTarget(platform string) (DeliveryTarget, bool) {
 	target, ok := d.targets[strings.ToLower(strings.TrimSpace(platform))]
 	return target, ok
+}
+
+func (d staticDeliveryDirectory) HomeDeliveryTargets() []DeliveryTarget {
+	out := make([]DeliveryTarget, 0, len(d.targets))
+	for platform, target := range d.targets {
+		if target.Platform == "" {
+			target.Platform = platform
+		}
+		out = append(out, target)
+	}
+	return out
 }
 
 type fakeCronLiveAdapter struct {

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -22,7 +23,31 @@ type whatsappCommandOptions struct {
 	AllowAll     bool
 	Debug        bool
 	PlanOnly     bool
+	JSONOut      bool
 	BridgeScript string
+}
+
+// whatsappPlanReportJSON is the wire shape for `gormes whatsapp --plan
+// --json`. Fleet automation provisioning the WhatsApp Baileys bridge
+// across machines parses this to render the bridge command, paths, and
+// allowlist without scraping the multi-line preflight prose. Build
+// provenance leads — same convention as the rest of the `--json` arc.
+// Secrets stay out: the dotenv values that pair WhatsApp live in
+// `EnvPath` on disk, not in this report.
+type whatsappPlanReportJSON struct {
+	Build         buildProvenanceJSON `json:"build"`
+	Mode          string              `json:"mode"`
+	ConfigPath    string              `json:"config_path"`
+	EnvPath       string              `json:"env_path"`
+	HomePath      string              `json:"home_path"`
+	BridgeDir     string              `json:"bridge_dir"`
+	SessionDir    string              `json:"session_dir"`
+	BridgeLog     string              `json:"bridge_log"`
+	AllowedUsers  string              `json:"allowed_users"`
+	Debug         bool                `json:"debug"`
+	AllowAllUsers bool                `json:"allow_all_users"`
+	BridgeCommand []string            `json:"bridge_command"`
+	PairCommand   []string            `json:"pair_command"`
 }
 
 func newWhatsAppCommand() *cobra.Command {
@@ -64,6 +89,7 @@ func newWhatsAppCommandWithSeams(seams whatsappCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&opts.AllowAll, "allow-all-users", false, "render allow-all sender configuration")
 	cmd.Flags().BoolVar(&opts.Debug, "debug", false, "render WHATSAPP_DEBUG=true in the dotenv plan")
 	cmd.Flags().BoolVar(&opts.PlanOnly, "plan", false, "render the WhatsApp bridge plan without starting QR pairing")
+	cmd.Flags().BoolVar(&opts.JSONOut, "json", false, "with --plan, emit the plan as machine-readable JSON")
 	cmd.Flags().StringVar(&opts.BridgeScript, "bridge-script", "", "override the WhatsApp bridge.js path")
 	return cmd
 }
@@ -86,6 +112,9 @@ func runWhatsAppCommand(cmd *cobra.Command, opts whatsappCommandOptions, seams w
 
 	out := cmd.OutOrStdout()
 	if opts.PlanOnly {
+		if opts.JSONOut {
+			return writeWhatsAppPlanJSON(out, pairingPlan)
+		}
 		renderWhatsAppPairingPreflight(out, pairingPlan)
 		return nil
 	}
@@ -153,6 +182,30 @@ func buildWhatsAppPairingPlan(opts whatsappCommandOptions) (whatsappPairingPlan,
 	}, nil
 }
 
+func writeWhatsAppPlanJSON(out io.Writer, plan whatsappPairingPlan) error {
+	report := whatsappPlanReportJSON{
+		Build:         newBuildProvenance(),
+		Mode:          string(plan.Runtime.Account.Mode),
+		ConfigPath:    plan.ConfigPath,
+		EnvPath:       plan.EnvPath,
+		HomePath:      plan.HomePath,
+		BridgeDir:     plan.BridgeDir,
+		SessionDir:    plan.Runtime.Session.Path,
+		BridgeLog:     plan.Runtime.Bridge.LogPath,
+		AllowedUsers:  plan.AllowedUsers,
+		Debug:         plan.Debug,
+		AllowAllUsers: plan.AllowAllUsers,
+		BridgeCommand: plan.Runtime.Bridge.Command,
+		PairCommand:   plan.PairCommand,
+	}
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(out, string(body))
+	return err
+}
+
 func renderWhatsAppPairingPreflight(out io.Writer, plan whatsappPairingPlan) {
 	fmt.Fprintln(out, "WhatsApp pairing setup")
 	fmt.Fprintln(out)
@@ -187,7 +240,7 @@ func renderWhatsAppPairingPreflight(out io.Writer, plan whatsappPairingPlan) {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Security: the session directory is a login credential; keep it private and mode 0700.")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "BLOCKER: live QR pairing is not bundled in this Go binary yet.")
+	fmt.Fprintln(out, "Run without --plan to start the live QR pairing wizard.")
 }
 
 func renderWhatsAppPairingWizardIntro(cmd *cobra.Command, out io.Writer, plan *whatsappPairingPlan) error {

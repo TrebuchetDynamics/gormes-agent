@@ -15,6 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -41,6 +43,7 @@ type RemoteClient struct {
 	httpClient *http.Client
 	baseURL    string
 	sessionID  string
+	sidecarURL string
 
 	frames chan kernel.RenderFrame
 	errors chan error
@@ -53,6 +56,14 @@ type RemoteClient struct {
 	cancel         context.CancelFunc
 
 	mu sync.Mutex // guards lifecycle ops
+
+	ws        *websocket.Conn
+	sidecarWS *websocket.Conn
+	pending   map[string]chan websocketMessage
+	pendingMu sync.Mutex
+	writeMu   sync.Mutex
+	sidecarMu sync.Mutex
+	reqSeq    atomic.Uint64
 }
 
 // DialOption tunes a RemoteClient before DialSSE opens the stream.
@@ -78,6 +89,13 @@ func WithHTTPClient(c *http.Client) DialOption {
 // "no resident session" invariant.
 func WithSessionID(sid string) DialOption {
 	return func(rc *RemoteClient) { rc.sessionID = sid }
+}
+
+// WithSidecarURL configures a best-effort websocket mirror that receives raw
+// event frames from a websocket attach session. A sidecar connection failure is
+// reported on Errors() but does not tear down the main gateway connection.
+func WithSidecarURL(raw string) DialOption {
+	return func(rc *RemoteClient) { rc.sidecarURL = strings.TrimSpace(raw) }
 }
 
 // WithReconnectBackoff overrides the exponential reconnect envelope.
@@ -141,6 +159,46 @@ func DialSSE(ctx context.Context, baseURL string, opts ...DialOption) (*RemoteCl
 	return rc, nil
 }
 
+// DialWebSocketAttach connects to an existing TUI gateway websocket using the
+// Hermes JSON-RPC attach contract. It adapts event frames into the same native
+// RenderFrame stream consumed by the SSE remote TUI path.
+func DialWebSocketAttach(ctx context.Context, gatewayURL string, opts ...DialOption) (*RemoteClient, error) {
+	rc := NewRemoteClient(gatewayURL, opts...)
+	rc.pending = make(map[string]chan websocketMessage)
+	runCtx, cancel := context.WithCancel(ctx)
+	rc.cancel = cancel
+
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, gatewayURL, nil)
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("tuigateway: websocket attach %s: %w", RedactRemoteURL(gatewayURL), err)
+	}
+	rc.ws = conn
+
+	if rc.sidecarURL != "" {
+		rc.connectSidecar(ctx)
+	}
+
+	go rc.runWebSocket(runCtx)
+
+	result, err := rc.requestWebSocket(ctx, "session.create", map[string]any{"cols": 80})
+	if err != nil {
+		rc.Close()
+		return nil, err
+	}
+	var created struct {
+		SessionID string `json:"session_id"`
+	}
+	if len(result) > 0 {
+		if err := json.Unmarshal(result, &created); err != nil {
+			rc.Close()
+			return nil, fmt.Errorf("tuigateway: decode session.create result: %w", err)
+		}
+	}
+	rc.sessionID = strings.TrimSpace(created.SessionID)
+	return rc, nil
+}
+
 // Frames returns the receive-side of the kernel render-frame stream. The
 // channel is closed when the run loop exits.
 func (rc *RemoteClient) Frames() <-chan kernel.RenderFrame { return rc.frames }
@@ -166,6 +224,18 @@ func (rc *RemoteClient) Close() {
 	if cancel != nil {
 		cancel()
 	}
+	rc.writeMu.Lock()
+	if rc.ws != nil {
+		_ = rc.ws.Close()
+		rc.ws = nil
+	}
+	rc.writeMu.Unlock()
+	rc.sidecarMu.Lock()
+	if rc.sidecarWS != nil {
+		_ = rc.sidecarWS.Close()
+		rc.sidecarWS = nil
+	}
+	rc.sidecarMu.Unlock()
 }
 
 // PostPlatformEvent serialises evt as JSON and POSTs it to the gateway's
@@ -182,6 +252,13 @@ func (rc *RemoteClient) PostPlatformEvent(ctx context.Context, evt platformEvent
 // the dedicated endpoint so the GatewayMux can dispatch with simple
 // path matchers instead of a kind switch on every request.
 func (rc *RemoteClient) Submit(ctx context.Context, text string) error {
+	if rc.isWebSocketAttach() {
+		_, err := rc.requestWebSocket(ctx, "prompt.submit", map[string]any{
+			"session_id": rc.sessionID,
+			"text":       text,
+		})
+		return err
+	}
 	return rc.postJSON(ctx, "/submit", SubmitEvent{
 		Kind:      PlatformEventKindSubmit,
 		SessionID: rc.sessionID,
@@ -191,6 +268,12 @@ func (rc *RemoteClient) Submit(ctx context.Context, text string) error {
 
 // Cancel posts a CancelEvent to /cancel using the resident session id.
 func (rc *RemoteClient) Cancel(ctx context.Context) error {
+	if rc.isWebSocketAttach() {
+		_, err := rc.requestWebSocket(ctx, "session.interrupt", map[string]any{
+			"session_id": rc.sessionID,
+		})
+		return err
+	}
 	return rc.postJSON(ctx, "/cancel", CancelEvent{
 		Kind:      PlatformEventKindCancel,
 		SessionID: rc.sessionID,
@@ -200,11 +283,24 @@ func (rc *RemoteClient) Cancel(ctx context.Context) error {
 // Resize posts a ResizeEvent to /resize using the resident session id
 // and the supplied terminal column count.
 func (rc *RemoteClient) Resize(ctx context.Context, cols int) error {
+	if rc.isWebSocketAttach() {
+		_, err := rc.requestWebSocket(ctx, "terminal.resize", map[string]any{
+			"session_id": rc.sessionID,
+			"cols":       cols,
+		})
+		return err
+	}
 	return rc.postJSON(ctx, "/resize", ResizeEvent{
 		Kind:      PlatformEventKindResize,
 		SessionID: rc.sessionID,
 		Cols:      cols,
 	})
+}
+
+func (rc *RemoteClient) isWebSocketAttach() bool {
+	rc.writeMu.Lock()
+	defer rc.writeMu.Unlock()
+	return rc.ws != nil
 }
 
 func (rc *RemoteClient) postJSON(ctx context.Context, path string, body any) error {
@@ -367,4 +463,217 @@ func (rc *RemoteClient) publishError(err error) {
 		default:
 		}
 	}
+}
+
+type websocketRequest struct {
+	JSONRPC string          `json:"jsonrpc,omitempty"`
+	ID      string          `json:"id,omitempty"`
+	Method  string          `json:"method,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
+}
+
+type websocketMessage struct {
+	JSONRPC string          `json:"jsonrpc,omitempty"`
+	ID      string          `json:"id,omitempty"`
+	Method  string          `json:"method,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   *websocketError `json:"error,omitempty"`
+}
+
+type websocketError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+func (rc *RemoteClient) connectSidecar(ctx context.Context) {
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, rc.sidecarURL, nil)
+	if err != nil {
+		rc.publishError(fmt.Errorf("tuigateway: websocket sidecar attach %s: %w", RedactRemoteURL(rc.sidecarURL), err))
+		return
+	}
+	rc.sidecarMu.Lock()
+	rc.sidecarWS = conn
+	rc.sidecarMu.Unlock()
+}
+
+func (rc *RemoteClient) runWebSocket(ctx context.Context) {
+	defer close(rc.frames)
+	defer rc.rejectWebSocketPending(errors.New("gateway websocket closed"))
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		rc.writeMu.Lock()
+		conn := rc.ws
+		rc.writeMu.Unlock()
+		if conn == nil {
+			return
+		}
+		_, payload, err := conn.ReadMessage()
+		if err != nil {
+			if ctx.Err() == nil && !rc.closed.Load() {
+				rc.publishError(fmt.Errorf("tuigateway: websocket read: %w", err))
+			}
+			return
+		}
+		var msg websocketMessage
+		if err := json.Unmarshal(payload, &msg); err != nil {
+			rc.publishError(fmt.Errorf("tuigateway: websocket protocol: %w", err))
+			continue
+		}
+		if msg.Method == "event" {
+			rc.mirrorWebSocketEvent(payload)
+			rc.handleWebSocketEvent(ctx, msg.Params)
+			continue
+		}
+		if msg.ID != "" {
+			rc.deliverWebSocketResponse(msg)
+		}
+	}
+}
+
+func (rc *RemoteClient) requestWebSocket(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	rc.writeMu.Lock()
+	conn := rc.ws
+	rc.writeMu.Unlock()
+	if conn == nil {
+		return nil, errors.New("tuigateway: websocket attach is not connected")
+	}
+	rawParams, err := json.Marshal(params)
+	if err != nil {
+		return nil, fmt.Errorf("tuigateway: marshal websocket %s params: %w", method, err)
+	}
+	id := fmt.Sprintf("r%d", rc.reqSeq.Add(1))
+	ch := make(chan websocketMessage, 1)
+	rc.pendingMu.Lock()
+	rc.pending[id] = ch
+	rc.pendingMu.Unlock()
+
+	req := websocketRequest{JSONRPC: "2.0", ID: id, Method: method, Params: rawParams}
+	rc.writeMu.Lock()
+	err = conn.WriteJSON(req)
+	rc.writeMu.Unlock()
+	if err != nil {
+		rc.pendingMu.Lock()
+		delete(rc.pending, id)
+		rc.pendingMu.Unlock()
+		return nil, fmt.Errorf("tuigateway: websocket %s send: %w", method, err)
+	}
+
+	select {
+	case resp := <-ch:
+		if resp.Error != nil {
+			if resp.Error.Message != "" {
+				return nil, fmt.Errorf("tuigateway: websocket %s: %s", method, resp.Error.Message)
+			}
+			return nil, fmt.Errorf("tuigateway: websocket %s failed", method)
+		}
+		return resp.Result, nil
+	case <-ctx.Done():
+		rc.pendingMu.Lock()
+		delete(rc.pending, id)
+		rc.pendingMu.Unlock()
+		return nil, ctx.Err()
+	}
+}
+
+func (rc *RemoteClient) deliverWebSocketResponse(msg websocketMessage) {
+	rc.pendingMu.Lock()
+	ch := rc.pending[msg.ID]
+	delete(rc.pending, msg.ID)
+	rc.pendingMu.Unlock()
+	if ch != nil {
+		ch <- msg
+	}
+}
+
+func (rc *RemoteClient) rejectWebSocketPending(err error) {
+	rc.pendingMu.Lock()
+	pending := rc.pending
+	rc.pending = make(map[string]chan websocketMessage)
+	rc.pendingMu.Unlock()
+	for _, ch := range pending {
+		ch <- websocketMessage{Error: &websocketError{Message: err.Error()}}
+	}
+}
+
+func (rc *RemoteClient) handleWebSocketEvent(ctx context.Context, raw json.RawMessage) {
+	var params struct {
+		Type    string          `json:"type"`
+		Payload json.RawMessage `json:"payload"`
+	}
+	if err := json.Unmarshal(raw, &params); err != nil {
+		rc.publishError(fmt.Errorf("tuigateway: websocket event params: %w", err))
+		return
+	}
+	if params.Type != "frame" || len(params.Payload) == 0 {
+		return
+	}
+	var frame kernel.RenderFrame
+	if err := json.Unmarshal(params.Payload, &frame); err != nil {
+		rc.publishError(fmt.Errorf("tuigateway: websocket frame payload: %w", err))
+		return
+	}
+	select {
+	case rc.frames <- frame:
+	case <-ctx.Done():
+	}
+}
+
+func (rc *RemoteClient) mirrorWebSocketEvent(payload []byte) {
+	rc.sidecarMu.Lock()
+	conn := rc.sidecarWS
+	if conn == nil {
+		rc.sidecarMu.Unlock()
+		return
+	}
+	err := conn.WriteMessage(websocket.TextMessage, payload)
+	if err != nil {
+		_ = conn.Close()
+		rc.sidecarWS = nil
+	}
+	rc.sidecarMu.Unlock()
+	if err != nil {
+		rc.publishError(fmt.Errorf("tuigateway: websocket sidecar mirror: %w", err))
+	}
+}
+
+// RedactRemoteURL removes query-string bearer tokens and embedded user-info
+// credentials from remote gateway URLs before they are shown in diagnostics.
+func RedactRemoteURL(raw string) string {
+	if raw == "" {
+		return raw
+	}
+	if parsed, err := url.Parse(raw); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		userInfo := ""
+		if parsed.User != nil {
+			userInfo = "***@"
+		}
+		query := ""
+		if parsed.RawQuery != "" {
+			query = "?***"
+		}
+		return parsed.Scheme + "://" + userInfo + parsed.Host + parsed.EscapedPath() + query
+	}
+	noUserInfo := raw
+	if schemeIdx := strings.Index(noUserInfo, "://"); schemeIdx >= 0 {
+		authorityStart := schemeIdx + len("://")
+		authorityEnd := len(noUserInfo)
+		for _, sep := range []string{"/", "?", "#"} {
+			if idx := strings.Index(noUserInfo[authorityStart:], sep); idx >= 0 && authorityStart+idx < authorityEnd {
+				authorityEnd = authorityStart + idx
+			}
+		}
+		if at := strings.LastIndex(noUserInfo[authorityStart:authorityEnd], "@"); at >= 0 {
+			noUserInfo = noUserInfo[:authorityStart] + "***@" + noUserInfo[authorityStart+at+1:]
+		}
+	}
+	if queryIdx := strings.Index(noUserInfo, "?"); queryIdx >= 0 {
+		return noUserInfo[:queryIdx] + "?***"
+	}
+	return noUserInfo
 }

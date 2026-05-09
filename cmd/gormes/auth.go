@@ -90,11 +90,13 @@ func newAuthAddCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&insecure, "insecure", false, "disable OAuth TLS verification")
 	cmd.Flags().StringVar(&caBundle, "ca-bundle", "", "OAuth CA bundle")
 	cmd.Flags().StringVar(&emergencyImportFromCodexCLI, "emergency-import-from-codex-cli", "", "explicitly import Codex CLI auth.json after accepting the refresh-token race envelope")
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'added', provider, id, label, redacted}` (api-key path only)")
 	return cmd
 }
 
 func newAuthListCommand() *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:          "list [provider]",
 		Short:        "List provider credentials with secrets redacted",
 		Args:         cobra.MaximumNArgs(1),
@@ -104,13 +106,15 @@ func newAuthListCommand() *cobra.Command {
 			if len(args) > 0 {
 				provider = args[0]
 			}
-			return runAuthListCommand(cmd, provider)
+			return runAuthListCommand(cmd, provider, asJSON)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a `{build, provider, credentials: [...]}` JSON document with the same redacted fields the human row prints (suitable for fleet credential-health monitoring)")
+	return cmd
 }
 
 func newAuthRemoveCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "remove <provider> <target>",
 		Short:        "Remove a provider credential by index, id, or label",
 		Args:         cobra.ExactArgs(2),
@@ -119,10 +123,12 @@ func newAuthRemoveCommand() *cobra.Command {
 			return runAuthRemoveCommand(cmd, args[0], args[1])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, provider, removed: {id, label}, redacted}`")
+	return cmd
 }
 
 func newAuthResetCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "reset <provider>",
 		Short:        "Reset provider credential cooldown/exhaustion state",
 		Args:         cobra.ExactArgs(1),
@@ -131,22 +137,27 @@ func newAuthResetCommand() *cobra.Command {
 			return runAuthResetCommand(cmd, args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, provider, count, redacted}`")
+	return cmd
 }
 
 func newAuthStatusCommand() *cobra.Command {
-	return &cobra.Command{
+	var asJSON bool
+	cmd := &cobra.Command{
 		Use:          "status <provider>",
 		Short:        "Show redacted provider auth status",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAuthStatusCommand(cmd, args[0])
+			return runAuthStatusCommand(cmd, args[0], asJSON)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable JSON document with the same redacted fields (suitable for credential-health monitoring)")
+	return cmd
 }
 
 func newAuthLogoutCommand() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "logout <provider>",
 		Short:        "Clear provider credentials",
 		Args:         cobra.ExactArgs(1),
@@ -155,6 +166,27 @@ func newAuthLogoutCommand() *cobra.Command {
 			return runAuthLogoutCommand(cmd, args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'logged_out'|'absent', provider, redacted}`")
+	return cmd
+}
+
+// authLifecycleReportJSON is the wire shape for `auth remove --json`,
+// `auth reset --json`, and `auth logout --json`. Fleet credential
+// rotation/cleanup automation parses this to confirm what changed
+// per machine. Raw secrets are NEVER present — `redacted: true` is
+// always emitted as a guarantee.
+type authLifecycleReportJSON struct {
+	Build    buildProvenanceJSON `json:"build"`
+	Action   string              `json:"action"`
+	Provider string              `json:"provider"`
+	Count    int                 `json:"count,omitempty"`
+	Removed  *authRemovedJSON    `json:"removed,omitempty"`
+	Redacted bool                `json:"redacted"`
+}
+
+type authRemovedJSON struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
 }
 
 type authAddOptions struct {
@@ -379,8 +411,37 @@ func runAuthAddCommand(cmd *cobra.Command, opts authAddOptions) error {
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(authAddReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "added",
+			Provider: provider,
+			ID:       id,
+			Label:    label,
+			Redacted: true,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_api_key_saved provider=%s id=%s label=%s redacted=true\n", provider, id, label)
 	return nil
+}
+
+// authAddReportJSON is the wire shape for `auth add --json` (api-key
+// path). Fleet credential-provisioning automation parses this to record
+// the assigned credential id + label per machine. Raw API key values
+// MUST never appear here — `redacted: true` is the contract.
+type authAddReportJSON struct {
+	Build    buildProvenanceJSON `json:"build"`
+	Action   string              `json:"action"`
+	Provider string              `json:"provider"`
+	ID       string              `json:"id"`
+	Label    string              `json:"label"`
+	Redacted bool                `json:"redacted"`
 }
 
 func runAuthAddAnthropicOAuthCommand(cmd *cobra.Command, opts authAddOptions) error {
@@ -641,9 +702,12 @@ func runAuthAddCodexEmergencyImportCommand(cmd *cobra.Command, opts authAddOptio
 	return nil
 }
 
-func runAuthListCommand(cmd *cobra.Command, providerInput string) error {
+func runAuthListCommand(cmd *cobra.Command, providerInput string, asJSON bool) error {
 	provider := normalizeAuthProvider(providerInput)
 	if provider == "" {
+		if asJSON {
+			return emitAuthListJSON(cmd, "all", []config.RedactedCredentialStatus{})
+		}
 		fmt.Fprintln(cmd.OutOrStdout(), "credential_pool_empty provider=all redacted=true")
 		return nil
 	}
@@ -652,6 +716,9 @@ func runAuthListCommand(cmd *cobra.Command, providerInput string) error {
 		return fmt.Errorf("gormes auth list %s: %s", provider, evidence.Code)
 	}
 	status := pool.RedactedStatus()
+	if asJSON {
+		return emitAuthListJSON(cmd, provider, status.Entries)
+	}
 	if status.Count == 0 {
 		fmt.Fprintf(cmd.OutOrStdout(), "credential_pool_empty provider=%s redacted=true\n", provider)
 		return nil
@@ -672,6 +739,62 @@ func runAuthListCommand(cmd *cobra.Command, providerInput string) error {
 	return nil
 }
 
+// authListReportJSON is the wire shape for `gormes auth list --json`.
+// Build provenance leads, then provider + credentials — same convention
+// as update / doctor / status / restore / auth-status / gateway-status /
+// secrets. Credentials carry exactly the fields the human row already
+// prints, with secrets pre-redacted upstream by RedactedStatus.
+type authListReportJSON struct {
+	Build       buildProvenanceJSON       `json:"build"`
+	Provider    string                    `json:"provider"`
+	Redacted    bool                      `json:"redacted"`
+	Credentials []authListCredentialJSON  `json:"credentials"`
+}
+
+type authListCredentialJSON struct {
+	ID              string `json:"id"`
+	Label           string `json:"label"`
+	AuthType        string `json:"auth_type"`
+	Source          string `json:"source"`
+	Status          string `json:"status"`
+	Reason          string `json:"reason"`
+	SecretsRedacted bool   `json:"secrets_redacted"`
+}
+
+func emitAuthListJSON(cmd *cobra.Command, provider string, entries []config.RedactedCredentialStatus) error {
+	creds := make([]authListCredentialJSON, len(entries))
+	for i, e := range entries {
+		statusText := e.LastStatus
+		if statusText == "" {
+			statusText = config.CredentialStatusOK
+		}
+		reason := e.LastErrorReason
+		if reason == "" {
+			reason = "-"
+		}
+		creds[i] = authListCredentialJSON{
+			ID:              e.ID,
+			Label:           e.Label,
+			AuthType:        string(e.AuthType),
+			Source:          displayCredentialSource(e.Source),
+			Status:          string(statusText),
+			Reason:          reason,
+			SecretsRedacted: e.SecretsRedacted,
+		}
+	}
+	body, err := json.MarshalIndent(authListReportJSON{
+		Build:       newBuildProvenance(),
+		Provider:    provider,
+		Redacted:    true,
+		Credentials: creds,
+	}, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	return err
+}
+
 func runAuthRemoveCommand(cmd *cobra.Command, providerInput, target string) error {
 	provider := normalizeAuthProvider(providerInput)
 	entries, err := loadAuthEntries(provider)
@@ -686,6 +809,16 @@ func runAuthRemoveCommand(cmd *cobra.Command, providerInput, target string) erro
 	entries = append(entries[:idx], entries[idx+1:]...)
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
 		return err
+	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "removed",
+			Provider: provider,
+			Removed:  &authRemovedJSON{ID: removed.ID, Label: removed.Label},
+			Redacted: true,
+		})
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_credential_removed provider=%s id=%s label=%s redacted=true\n", provider, removed.ID, removed.Label)
 	return nil
@@ -707,13 +840,77 @@ func runAuthResetCommand(cmd *cobra.Command, providerInput string) error {
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, entries); err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "reset",
+			Provider: provider,
+			Count:    len(entries),
+			Redacted: true,
+		})
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_status_reset provider=%s count=%d redacted=true\n", provider, len(entries))
 	return nil
 }
 
-func runAuthStatusCommand(cmd *cobra.Command, providerInput string) error {
+func writeAuthLifecycleJSON(out interface{ Write(p []byte) (int, error) }, report authLifecycleReportJSON) error {
+	body, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(out, string(body))
+	return nil
+}
+
+func runAuthStatusCommand(cmd *cobra.Command, providerInput string, asJSON bool) error {
+	if asJSON {
+		status, err := cli.ResolveAuthStatus(context.Background(), providerInput, cli.AuthStatusOptions{})
+		if err != nil {
+			return err
+		}
+		body, err := json.MarshalIndent(authStatusToJSON(status), "", "  ")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
 	_, err := cli.RenderAuthStatus(context.Background(), cmd.OutOrStdout(), providerInput, cli.AuthStatusOptions{})
 	return err
+}
+
+// authStatusReportJSON is the cmd-side JSON shape for ProviderAuthStatus.
+// internal/cli's struct is intentionally tag-free; mirroring it here
+// keeps presentation concerns out of the package and makes the wire
+// shape explicit. Build provenance leads — same convention as
+// update --json / doctor --json / status --json / restore --list --json.
+type authStatusReportJSON struct {
+	Build         buildProvenanceJSON               `json:"build"`
+	Provider      string                            `json:"provider"`
+	AuthType      string                            `json:"auth_type"`
+	Status        string                            `json:"status"`
+	Reason        string                            `json:"reason,omitempty"`
+	Authenticated bool                              `json:"authenticated"`
+	Redacted      bool                              `json:"redacted"`
+	Credentials   []config.RedactedCredentialStatus `json:"credentials"`
+}
+
+func authStatusToJSON(status cli.ProviderAuthStatus) authStatusReportJSON {
+	creds := status.Credentials
+	if creds == nil {
+		creds = []config.RedactedCredentialStatus{}
+	}
+	return authStatusReportJSON{
+		Build:         newBuildProvenance(),
+		Provider:      status.Provider,
+		AuthType:      status.AuthType,
+		Status:        status.Status,
+		Reason:        status.Reason,
+		Authenticated: status.Authenticated,
+		Redacted:      status.Redacted,
+		Credentials:   creds,
+	}
 }
 
 func runAuthLogoutCommand(cmd *cobra.Command, providerInput string) error {
@@ -722,12 +919,29 @@ func runAuthLogoutCommand(cmd *cobra.Command, providerInput string) error {
 	if err != nil {
 		return err
 	}
+	asJSON, _ := cmd.Flags().GetBool("json")
 	if len(entries) == 0 {
+		if asJSON {
+			return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+				Build:    newBuildProvenance(),
+				Action:   "absent",
+				Provider: provider,
+				Redacted: true,
+			})
+		}
 		fmt.Fprintf(cmd.OutOrStdout(), "auth_state_absent provider=%s redacted=true\n", provider)
 		return nil
 	}
 	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: provider}, nil); err != nil {
 		return err
+	}
+	if asJSON {
+		return writeAuthLifecycleJSON(cmd.OutOrStdout(), authLifecycleReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "logged_out",
+			Provider: provider,
+			Redacted: true,
+		})
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_logged_out provider=%s redacted=true\n", provider)
 	return nil

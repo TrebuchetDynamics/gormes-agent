@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // ErrActiveProfileUnset is returned by ReadActiveProfile when the active
@@ -17,6 +18,12 @@ var ErrActiveProfileUnset = errors.New("active profile is unset")
 // When rootFile does not exist it returns ("", ErrActiveProfileUnset) so
 // callers can branch on the sentinel rather than parsing free-form errors.
 // Other I/O errors are returned wrapped with %w.
+//
+// Returned names are trimmed of leading/trailing ASCII whitespace so a
+// stray newline (from `echo coder > active_profile`, manual edit, or a
+// sync tool that appends `\n`) does not surface a confusing
+// "invalid characters" error from ValidateProfileName downstream — the
+// visible profile name is what the operator sees.
 func ReadActiveProfile(rootFile string) (string, error) {
 	data, err := os.ReadFile(rootFile)
 	if err != nil {
@@ -25,7 +32,7 @@ func ReadActiveProfile(rootFile string) (string, error) {
 		}
 		return "", fmt.Errorf("read active profile: %w", err)
 	}
-	return string(data), nil
+	return strings.TrimSpace(string(data)), nil
 }
 
 // WriteActiveProfile persists name as the active profile in rootFile.

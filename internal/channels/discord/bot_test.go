@@ -268,7 +268,15 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 		Author:    &discordgo.User{ID: "u1", Bot: false},
 	}})
 
-	waitForDiscord(t, 200*time.Millisecond, func() bool {
+	// Generous timeouts for the polling waits below: in isolation each
+	// transition takes <10ms, but under parallel `go test ./...` load
+	// the scheduler can delay goroutine wake-ups by hundreds of ms (one
+	// observed flake hit the previous 4s ceiling exactly). The second
+	// wait now spans the manager's CoalesceMs (10) + scheduler-stalled
+	// goroutine wake plus the discord send round-trip, so 8s covers the
+	// extreme case without slowing the happy path (polls return as soon
+	// as the condition holds).
+	waitForDiscord(t, 4*time.Second, func() bool {
 		return len(k.submitsSnapshot()) == 1
 	})
 
@@ -278,12 +286,23 @@ func TestDiscordAdapter_ManagerSmokeE2E(t *testing.T) {
 		History: []hermes.Message{{Role: "assistant", Content: "done"}},
 	}
 
-	waitForDiscord(t, 500*time.Millisecond, func() bool {
+	waitForDiscord(t, 8*time.Second, func() bool {
 		sent := ms.complexSnapshot()
 		if len(sent) == 0 || sent[0].Data == nil {
 			return false
 		}
-		return sent[0].Data.Content == "partial" || sent[0].Data.Content == "done"
+		if sent[0].Data.Content == "done" {
+			return true
+		}
+		if sent[0].Data.Content != "partial ▉" {
+			return false
+		}
+		for _, edit := range ms.editsSnapshot() {
+			if edit.ChannelID == "42" && edit.Content == "done" {
+				return true
+			}
+		}
+		return false
 	})
 }
 

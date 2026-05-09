@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 )
 
@@ -112,6 +113,7 @@ type dashboardExtensionStatus struct {
 }
 
 type dashboardPluginInventoryResponse struct {
+	Build         BuildInfo                       `json:"build"`
 	Runtime       dashboardExtensionRuntimeStatus `json:"runtime"`
 	Themes        dashboardThemeInventoryStatus   `json:"themes"`
 	Plugins       []pluginmeta.PluginStatus       `json:"plugins"`
@@ -148,6 +150,7 @@ func (s *Server) handleDashboardStatus(w http.ResponseWriter, r *http.Request) {
 		"plugins":       disabledPanel(dashboardPanelOptionalExtension, dashboardPluginPanelReason(s.pluginInventory)),
 		"pty_chat":      dashboardPtyChatPanel(s.chatTransport),
 		"chat_sidecar":  dashboardChatSidecarPanel(s.chatTransport),
+		"kanban":        dashboardKanbanPanel(s.kanbanStore, s.kanbanDispatcher),
 	}
 	if s.loop == nil {
 		panels["chat"] = disabledPanel(dashboardPanelBuiltIn, "native turn loop is not configured")
@@ -160,6 +163,7 @@ func (s *Server) handleDashboardStatus(w http.ResponseWriter, r *http.Request) {
 	extensions := dashboardExtensionsFromInventory(s.pluginInventory)
 
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":           s.buildInfo,
 		"active_sessions": activeSessions,
 		"version":         "gormes-agent",
 		"platform":        "gormes-agent",
@@ -183,6 +187,7 @@ func (s *Server) handleDashboardModelInfo(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":                    s.buildInfo,
 		"model":                    s.modelName,
 		"provider":                 s.providerName,
 		"auto_context_length":      0,
@@ -202,6 +207,7 @@ func (s *Server) handleDashboardModelOptions(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":     s.buildInfo,
 		"model":     s.modelName,
 		"provider":  s.providerName,
 		"providers": s.dashboardModelProviders(),
@@ -217,7 +223,10 @@ func (s *Server) handleDashboardOAuthProviders(w http.ResponseWriter, r *http.Re
 		writeDashboardUnauthorized(w)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"providers": cloneDashboardOAuthProviders(s.oauthProviders)})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build":     s.buildInfo,
+		"providers": cloneDashboardOAuthProviders(s.oauthProviders),
+	})
 }
 
 func (s *Server) handleDashboardPlugins(w http.ResponseWriter, r *http.Request) {
@@ -225,7 +234,9 @@ func (s *Server) handleDashboardPlugins(w http.ResponseWriter, r *http.Request) 
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 		return
 	}
-	writeJSON(w, http.StatusOK, dashboardPluginInventoryFromInventory(s.pluginInventory))
+	resp := dashboardPluginInventoryFromInventory(s.pluginInventory)
+	resp.Build = s.buildInfo
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleDashboardSessions(w http.ResponseWriter, r *http.Request) {
@@ -245,6 +256,7 @@ func (s *Server) handleDashboardSessions(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":    s.buildInfo,
 		"sessions": sessions,
 		"total":    total,
 		"limit":    limit,
@@ -277,7 +289,7 @@ func (s *Server) handleDashboardSessionByID(w http.ResponseWriter, r *http.Reque
 			writeOpenAIError(w, http.StatusNotFound, "Session not found: "+sessionID, "invalid_request_error", "", "session_not_found")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "session_id": sessionID})
+		writeJSON(w, http.StatusOK, map[string]any{"build": s.buildInfo, "ok": true, "session_id": sessionID})
 	default:
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 	}
@@ -356,6 +368,17 @@ func dashboardPluginPanelReason(inventory pluginmeta.Inventory) string {
 		return "plugin manifest metadata is available, but plugin runtime execution is disabled in the native API server"
 	}
 	return "dashboard plugin runtime is not configured in the native API server"
+}
+
+func dashboardKanbanPanel(store KanbanStore, dispatcher KanbanDispatcher) dashboardPanelStatus {
+	if store == nil {
+		return disabledPanel(dashboardPanelOptional, "kanban store is not configured")
+	}
+	endpoints := []string{"/api/kanban", "/api/kanban/tasks", "/api/kanban/tasks/{id}"}
+	if dispatcher != nil {
+		endpoints = append(endpoints, "/api/kanban/dispatch")
+	}
+	return enabledPanel(dashboardPanelOptional, endpoints...)
 }
 
 func dashboardExtensionsFromInventory(in pluginmeta.Inventory) dashboardExtensionStatus {
@@ -527,4 +550,207 @@ func clonePluginCapabilityStatus(in pluginmeta.CapabilityStatus) pluginmeta.Capa
 	out := in
 	out.Evidence = append([]pluginmeta.Evidence(nil), in.Evidence...)
 	return out
+}
+
+// DashboardKanbanResponse is the read-only kanban board shape consumed by the
+// authenticated dashboard /api/kanban endpoint. `Build` carries the
+// configured BuildInfo so fleet automation aggregating Kanban dashboard
+// state across machines can attribute each response to the binary
+// version that emitted it — same convention as /api/status (slice 110)
+// and the rest of the JSON arc.
+type DashboardKanbanResponse struct {
+	Build      BuildInfo                       `json:"build"`
+	Lanes      []DashboardKanbanLane           `json:"lanes"`
+	Dispatcher DashboardKanbanDispatcherStatus `json:"dispatcher"`
+	TotalTasks int                             `json:"total_tasks"`
+}
+
+// dashboardKanbanTaskResponse wraps a single kanban.Task with build
+// attribution for the per-task dashboard endpoint. The Task fields
+// stay top-level via struct embedding so callers parsing the bare
+// kanban.Task shape continue to work — Go's JSON decoder ignores the
+// unknown `build` field by default.
+type dashboardKanbanTaskResponse struct {
+	Build BuildInfo `json:"build"`
+	kanban.Task
+}
+
+type DashboardKanbanLane struct {
+	Status string `json:"status"`
+	Count  int    `json:"count"`
+	Label  string `json:"label"`
+}
+
+type DashboardKanbanDispatcherStatus struct {
+	Available bool   `json:"available"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+type dashboardKanbanDispatchResponse struct {
+	Build  BuildInfo             `json:"build"`
+	Result kanban.DispatchResult `json:"result"`
+}
+
+func (s *Server) handleDashboardKanban(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
+		return
+	}
+	if s.kanbanStore == nil {
+		writeOpenAIError(w, http.StatusServiceUnavailable, "Kanban store is not configured", "server_error", "", "kanban_store_unavailable")
+		return
+	}
+	tasks, err := s.kanbanStore.ListTasks(r.Context(), kanban.ListFilter{})
+	if err != nil {
+		writeOpenAIError(w, http.StatusInternalServerError, "Kanban store error: "+err.Error(), "server_error", "", "kanban_store_error")
+		return
+	}
+	lanes := buildKanbanLanes(tasks)
+	writeJSON(w, http.StatusOK, DashboardKanbanResponse{
+		Build: s.buildInfo,
+		Lanes: lanes,
+		Dispatcher: DashboardKanbanDispatcherStatus{
+			Available: false,
+			Reason:    "dashboard kanban dispatcher status is not wired; gateway status provides dispatcher evidence",
+		},
+		TotalTasks: len(tasks),
+	})
+}
+
+func (s *Server) handleDashboardKanbanDispatch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
+		return
+	}
+	if s.kanbanDispatcher == nil {
+		writeOpenAIError(w, http.StatusServiceUnavailable, "Kanban dispatcher is not configured", "server_error", "", "kanban_dispatcher_unavailable")
+		return
+	}
+	opts := KanbanDispatchOptions{
+		MaxSpawn: parseDashboardInt(r.URL.Query().Get("max"), 8, 1, 100),
+	}
+	result, err := s.kanbanDispatcher.DispatchKanban(r.Context(), opts)
+	if err != nil {
+		writeOpenAIError(w, http.StatusInternalServerError, "Kanban dispatch failed", "server_error", "", "kanban_dispatch_failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, dashboardKanbanDispatchResponse{
+		Build:  s.buildInfo,
+		Result: result,
+	})
+}
+
+func (s *Server) handleDashboardKanbanTasks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
+		return
+	}
+	if s.kanbanStore == nil {
+		writeOpenAIError(w, http.StatusServiceUnavailable, "Kanban store is not configured", "server_error", "", "kanban_store_unavailable")
+		return
+	}
+	filter := kanban.ListFilter{
+		Status:   kanban.Status(strings.TrimSpace(r.URL.Query().Get("status"))),
+		Assignee: strings.TrimSpace(r.URL.Query().Get("assignee")),
+	}
+	tasks, err := s.kanbanStore.ListTasks(r.Context(), filter)
+	if err != nil {
+		writeOpenAIError(w, http.StatusInternalServerError, "Kanban store error: "+err.Error(), "server_error", "", "kanban_store_error")
+		return
+	}
+	if tasks == nil {
+		tasks = []kanban.Task{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"build": s.buildInfo,
+		"tasks": tasks,
+		"total": len(tasks),
+	})
+}
+
+func (s *Server) handleDashboardKanbanTaskByID(w http.ResponseWriter, r *http.Request) {
+	if !s.dashboardAuthorized(r) {
+		writeDashboardUnauthorized(w)
+		return
+	}
+	if s.kanbanStore == nil {
+		writeOpenAIError(w, http.StatusServiceUnavailable, "Kanban store is not configured", "server_error", "", "kanban_store_unavailable")
+		return
+	}
+	taskID := strings.TrimPrefix(r.URL.Path, "/api/kanban/tasks/")
+	if decoded, err := url.PathUnescape(taskID); err == nil {
+		taskID = decoded
+	}
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" || strings.Contains(taskID, "/") {
+		writeOpenAIError(w, http.StatusNotFound, "Task not found", "invalid_request_error", "", "kanban_task_not_found")
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		task, err := s.kanbanStore.GetTask(r.Context(), taskID)
+		if err != nil {
+			writeOpenAIError(w, http.StatusNotFound, "Task not found: "+taskID, "invalid_request_error", "", "kanban_task_not_found")
+			return
+		}
+		writeJSON(w, http.StatusOK, dashboardKanbanTaskResponse{
+			Build: s.buildInfo,
+			Task:  task,
+		})
+	default:
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+	}
+}
+
+func kanbanLaneOrder() []kanban.Status {
+	return []kanban.Status{kanban.StatusTriage, kanban.StatusTodo, kanban.StatusReady, kanban.StatusRunning, kanban.StatusBlocked, kanban.StatusDone, kanban.StatusArchived}
+}
+
+func kanbanLaneLabel(s kanban.Status) string {
+	switch s {
+	case kanban.StatusTriage:
+		return "Triage"
+	case kanban.StatusTodo:
+		return "To Do"
+	case kanban.StatusReady:
+		return "Ready"
+	case kanban.StatusRunning:
+		return "Running"
+	case kanban.StatusBlocked:
+		return "Blocked"
+	case kanban.StatusDone:
+		return "Done"
+	case kanban.StatusArchived:
+		return "Archived"
+	default:
+		return string(s)
+	}
+}
+
+func buildKanbanLanes(tasks []kanban.Task) []DashboardKanbanLane {
+	counts := map[kanban.Status]int{}
+	for _, t := range tasks {
+		counts[t.Status]++
+	}
+	lanes := make([]DashboardKanbanLane, 0, len(kanbanLaneOrder()))
+	for _, status := range kanbanLaneOrder() {
+		lanes = append(lanes, DashboardKanbanLane{
+			Status: string(status),
+			Count:  counts[status],
+			Label:  kanbanLaneLabel(status),
+		})
+	}
+	return lanes
 }

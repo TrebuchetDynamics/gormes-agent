@@ -14,6 +14,30 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
+// TestGatewayCommand_ConstructorReturnsIndependentInstances proves
+// each newGatewayCommand() returns a fresh tree. With 6 real
+// subcommands plus 4 mutating-unavailable placeholders, the parent
+// must own 10 children per call.
+func TestGatewayCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
+	a := newGatewayCommand()
+	b := newGatewayCommand()
+	if a == b {
+		t.Fatal("newGatewayCommand must return distinct instances")
+	}
+	want := 10
+	if got := len(a.Commands()); got != want {
+		t.Fatalf("gateway tree must have %d subcommands; got %d", want, got)
+	}
+	if got := len(b.Commands()); got != want {
+		t.Fatalf("gateway tree must have %d subcommands; got %d", want, got)
+	}
+	for i := range a.Commands() {
+		if a.Commands()[i] == b.Commands()[i] {
+			t.Fatalf("subcommand[%d] %q shared between constructor calls", i, a.Commands()[i].Use)
+		}
+	}
+}
+
 func TestGatewayStatusCommand_NoChannelsSucceedsWithoutOpeningRuntimeClients(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 
@@ -147,6 +171,37 @@ func TestGatewayStatusCommand_RendersRuntimePIDValidationEvidence(t *testing.T) 
 		}
 	}
 	assertGatewayStatusDidNotOpenRuntimeStores(t)
+}
+
+// TestGatewayStatusCommand_JSONIncludesBuildProvenance proves
+// `gormes gateway status --json` carries the running binary's build
+// version + SHA. Same contract as
+// update --json / doctor --json / status --json / restore --list --json /
+// auth status --json / secrets ... --json — captured gateway snapshots
+// stay attributable to a specific binary, which matters when operators
+// correlate gateway behavior with the binary build that produced it.
+func TestGatewayStatusCommand_JSONIncludesBuildProvenance(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+
+	stdout, _, err := executeGatewayStatusCommand(t, "--json")
+	if err != nil {
+		t.Fatalf("gateway status --json: %v", err)
+	}
+	var got struct {
+		Build struct {
+			Version   string `json:"version"`
+			GitCommit string `json:"git_commit"`
+		} `json:"build"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("got.build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Build.GitCommit == "" {
+		t.Fatalf("got.build.git_commit must be non-empty")
+	}
 }
 
 func TestGatewayStatusCommand_JSONRendersStableRuntimeFields(t *testing.T) {
@@ -354,9 +409,9 @@ func writeGatewayStatusConfig(t *testing.T, data []byte) {
 
 func executeGatewayStatusCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	if err := gatewayStatusCmd.Flags().Set("json", "false"); err != nil {
-		t.Fatalf("reset gateway status json flag: %v", err)
-	}
+	// Each newRootCommand() builds a fresh gateway tree via
+	// newGatewayCommand(), so the JSON flag's default state is
+	// natural — no explicit reset needed.
 	var stdout, stderr bytes.Buffer
 	cmd := newRootCommand()
 	cmd.SetOut(&stdout)

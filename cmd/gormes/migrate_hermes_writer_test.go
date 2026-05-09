@@ -50,6 +50,44 @@ RANDOM_USER_VAR=plainvalue
 	}
 }
 
+// TestMigrateHermesWriter_JSONIncludesBuildProvenance proves
+// `gormes migrate hermes --yes` emits a top-level `build` envelope so
+// fleet automation orchestrating Hermes-to-Gormes migration across
+// machines can attribute each apply outcome to the binary version that
+// emitted it. Existing top-level fields stay addressable via struct
+// embedding — additive change.
+func TestMigrateHermesWriter_JSONIncludesBuildProvenance(t *testing.T) {
+	root := setupMigrateHermesWriterEnv(t)
+	src := filepath.Join(root, "hermes-src")
+	writeMigrateWriterFixture(t, src)
+	dest := filepath.Join(root, "dest")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	_, stdout, stderr, err := executeMigrateHermes("hermes", "--yes", "--source", src, "--dest", dest)
+	if err != nil {
+		t.Fatalf("migrate hermes --yes: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Counts struct {
+			Migrated int `json:"migrated"`
+		} `json:"counts"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Counts.Migrated < 1 {
+		t.Errorf("counts.migrated = %d, want >= 1 (still addressable)", got.Counts.Migrated)
+	}
+}
+
 func TestMigrateHermesWriter_CommandWiring(t *testing.T) {
 	root := setupMigrateHermesWriterEnv(t)
 	src := filepath.Join(root, "hermes-src")

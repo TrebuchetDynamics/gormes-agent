@@ -19,6 +19,7 @@ func newSecretsCommand() *cobra.Command {
 		Use:          "secrets",
 		Short:        "Apply, audit, configure, and reload SecretRef-backed runtime secrets",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 	}
 	cmd.AddCommand(newSecretsApplyCommand())
 	cmd.AddCommand(newSecretsAuditCommand())
@@ -308,8 +309,29 @@ func writeSecretsConfigureResult(cmd *cobra.Command, result toolspkg.SecretsConf
 	fmt.Fprintf(cmd.OutOrStdout(), "%s path=%s source=%s provider=%s id=%s preflight_ok=%t redacted=%t\n", result.Code, result.Target.Path, result.Target.Ref.Source, result.Target.Ref.Provider, result.Target.Ref.ID, result.PreflightOK, result.Redacted)
 }
 
+// writeSecretsJSON encodes a `secrets ... --json` payload with the
+// shared `build` provenance block merged inline alongside the underlying
+// result fields. Same convention as
+// update --json / doctor --json / status --json / restore --list --json /
+// auth status --json — captured secrets-runtime snapshots stay
+// attributable to a specific binary. Inline merge (rather than nesting
+// under a wrapper) keeps existing consumers parsing into the raw result
+// struct working (Go's json decoder ignores the extra `build` key).
 func writeSecretsJSON(cmd *cobra.Command, value any) {
+	bodyBytes, err := json.Marshal(value)
+	if err != nil {
+		return
+	}
+	merged := map[string]json.RawMessage{}
+	if jerr := json.Unmarshal(bodyBytes, &merged); jerr != nil {
+		return
+	}
+	buildBytes, err := json.Marshal(newBuildProvenance())
+	if err != nil {
+		return
+	}
+	merged["build"] = buildBytes
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetIndent("", "  ")
-	_ = enc.Encode(value)
+	_ = enc.Encode(merged)
 }

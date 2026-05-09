@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,6 +37,12 @@ func newPluginsCommandWithManager(manager *plugins.LifecycleManager) *cobra.Comm
 		Use:          "plugins",
 		Short:        "Manage Hermes-compatible plugins",
 		SilenceUsage: true,
+		// NoArgs rejects positional args at the parent level. Without
+		// it, a typo like `gormes plugins listt` silently fell through
+		// to the parent's RunE and printed "No plugins installed." as
+		// if the typo had succeeded; cobra was unable to surface its
+		// typo suggestion because the parent had a RunE.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPluginsList(cmd, manager)
 		},
@@ -52,6 +59,7 @@ func newPluginsCommandWithManager(manager *plugins.LifecycleManager) *cobra.Comm
 func newPluginsInstallCommand(manager *plugins.LifecycleManager) *cobra.Command {
 	var force bool
 	var enable bool
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "install <identifier>",
 		Short:        "Install a plugin from a Git URL or owner/repo shorthand",
@@ -61,6 +69,20 @@ func newPluginsInstallCommand(manager *plugins.LifecycleManager) *cobra.Command 
 			result, err := manager.Install(args[0], plugins.InstallOptions{Force: force, Enable: enable})
 			if err != nil {
 				return err
+			}
+			if asJSON {
+				body, marshalErr := json.MarshalIndent(pluginInstallReportJSON{
+					Build:   newBuildProvenance(),
+					Action:  "installed",
+					Name:    result.Name,
+					Path:    result.Path,
+					Enabled: enable,
+				}, "", "  ")
+				if marshalErr != nil {
+					return marshalErr
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), string(body))
+				return nil
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "installed %s\n", result.Name)
 			if enable {
@@ -73,11 +95,24 @@ func newPluginsInstallCommand(manager *plugins.LifecycleManager) *cobra.Command 
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "replace an existing plugin directory inside the plugin root")
 	cmd.Flags().BoolVar(&enable, "enable", false, "enable the plugin after install")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: {build, action: 'installed', name, path, enabled}")
 	return cmd
 }
 
+// pluginInstallReportJSON is the wire shape for `plugins install --json`.
+// Fleet automation provisioning plugins parses this to record both the
+// resulting on-disk path AND the enable state in one parseable
+// document, instead of scraping two-line "installed X / enabled Y" prose.
+type pluginInstallReportJSON struct {
+	Build   buildProvenanceJSON `json:"build"`
+	Action  string              `json:"action"`
+	Name    string              `json:"name"`
+	Path    string              `json:"path"`
+	Enabled bool                `json:"enabled"`
+}
+
 func newPluginsListCommand(manager *plugins.LifecycleManager) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "list",
 		Aliases:      []string{"ls"},
 		Short:        "List installed plugins",
@@ -86,10 +121,12 @@ func newPluginsListCommand(manager *plugins.LifecycleManager) *cobra.Command {
 			return runPluginsList(cmd, manager)
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, plugins: [{name, version, status, source, path, description}]}`")
+	return cmd
 }
 
 func newPluginsUpdateCommand(manager *plugins.LifecycleManager) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "update <name>",
 		Short:        "Update a git-installed plugin",
 		Args:         cobra.ExactArgs(1),
@@ -98,14 +135,15 @@ func newPluginsUpdateCommand(manager *plugins.LifecycleManager) *cobra.Command {
 			if _, err := manager.Update(args[0]); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "updated %s\n", args[0])
-			return nil
+			return writePluginLifecycleResult(cmd, "updated", args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'updated', name}")
+	return cmd
 }
 
 func newPluginsRemoveCommand(manager *plugins.LifecycleManager) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "remove <name>",
 		Aliases:      []string{"rm", "uninstall"},
 		Short:        "Remove an installed plugin",
@@ -115,14 +153,15 @@ func newPluginsRemoveCommand(manager *plugins.LifecycleManager) *cobra.Command {
 			if err := manager.Remove(args[0]); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", args[0])
-			return nil
+			return writePluginLifecycleResult(cmd, "removed", args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'removed', name}")
+	return cmd
 }
 
 func newPluginsEnableCommand(manager *plugins.LifecycleManager) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "enable <name>",
 		Short:        "Enable an installed plugin",
 		Args:         cobra.ExactArgs(1),
@@ -131,14 +170,15 @@ func newPluginsEnableCommand(manager *plugins.LifecycleManager) *cobra.Command {
 			if err := manager.Enable(args[0]); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "enabled %s\n", args[0])
-			return nil
+			return writePluginLifecycleResult(cmd, "enabled", args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'enabled', name}")
+	return cmd
 }
 
 func newPluginsDisableCommand(manager *plugins.LifecycleManager) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "disable <name>",
 		Short:        "Disable an installed plugin",
 		Args:         cobra.ExactArgs(1),
@@ -147,16 +187,68 @@ func newPluginsDisableCommand(manager *plugins.LifecycleManager) *cobra.Command 
 			if err := manager.Disable(args[0]); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "disabled %s\n", args[0])
-			return nil
+			return writePluginLifecycleResult(cmd, "disabled", args[0])
 		},
 	}
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON: {build, action: 'disabled', name}")
+	return cmd
+}
+
+// pluginLifecycleReportJSON is the wire shape for `plugins enable/disable/
+// update/remove --json`. Fleet automation reconciling plugin state
+// across machines parses this with one JSON parser path — `action` is
+// the only field that varies between the four verbs.
+type pluginLifecycleReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	Action string              `json:"action"`
+	Name   string              `json:"name"`
+}
+
+func writePluginLifecycleResult(cmd *cobra.Command, action, name string) error {
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, err := json.MarshalIndent(pluginLifecycleReportJSON{
+			Build:  newBuildProvenance(),
+			Action: action,
+			Name:   name,
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", action, name)
+	return nil
 }
 
 func runPluginsList(cmd *cobra.Command, manager *plugins.LifecycleManager) error {
 	entries, err := manager.List()
 	if err != nil {
 		return err
+	}
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		report := pluginsListReportJSON{
+			Build:   newBuildProvenance(),
+			Plugins: make([]pluginsListEntryJSON, len(entries)),
+		}
+		for i, entry := range entries {
+			report.Plugins[i] = pluginsListEntryJSON{
+				Name:        entry.Name,
+				Version:     entry.Version,
+				Status:      string(entry.Status),
+				Source:      string(entry.Source),
+				Path:        entry.Path,
+				Description: entry.Description,
+			}
+		}
+		body, marshalErr := json.MarshalIndent(report, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return nil
 	}
 	if len(entries) == 0 {
 		fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
@@ -171,6 +263,24 @@ func runPluginsList(cmd *cobra.Command, manager *plugins.LifecycleManager) error
 		fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\t%s\n", entry.Name, entry.Status, version, entry.Source)
 	}
 	return nil
+}
+
+// pluginsListReportJSON is the wire shape for `plugins list --json`.
+// Fleet automation auditing plugin state across machines parses this
+// to identify drift, missing plugins, or unexpected versions. Build
+// provenance leads — same convention as the rest of the `--json` arc.
+type pluginsListReportJSON struct {
+	Build   buildProvenanceJSON    `json:"build"`
+	Plugins []pluginsListEntryJSON `json:"plugins"`
+}
+
+type pluginsListEntryJSON struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Status      string `json:"status"`
+	Source      string `json:"source"`
+	Path        string `json:"path"`
+	Description string `json:"description"`
 }
 
 type pluginDotEnv struct {

@@ -11,6 +11,7 @@ Operator-facing documentation. Build the binary, prove the local runtime offline
 
 - [Quickstart](./quickstart/) — 60-second install + first run
 - [Install](./install/) — full install matrix (Linux, macOS, WSL2, Termux, Go install)
+- [Windows native](./windows-native/) — PowerShell install, update, PATH, and verification details
 - [Hardware matrix](./hardware/) — tested devices, build profiles, binary size, and RSS evidence
 - [TUI mode](./tui-mode/) — interactive terminal shell
 - [Telegram adapter](./telegram-adapter/) — run a configured Telegram gateway path

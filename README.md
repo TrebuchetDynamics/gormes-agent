@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>AI agents that don't break when your environment does.</strong><br>
-  A single static binary. No Python. No pip. No Docker daemon.
+  <strong>Autonomous-porting methodology, proven in a Go-native agent runtime.</strong><br>
+  The autonomous-porting methodology runs the 30 most-used Hermes skills unchanged in a single 30 MB Go binary on Termux, Windows-without-Python, and locked-down corp Linux.
 </p>
 
 <p align="center">
@@ -21,9 +21,17 @@
 
 `gormes --offline` starts locally with no API key, no network calls, and no Python runtime.
 
-Gormes is a Go-native runtime for AI agents, packaged as a single Go binary. It keeps the TUI, provider turns, local memory, gateways, diagnostics, and setup flows behind one command, so setup is a checklist instead of a Python environment.
+Gormes is TrebuchetDynamics' receipt for an autonomous-porting methodology: a validation-gated loop that carries Hermes-compatible agent behavior into a Go-native runtime users can inspect, install, and run.
 
-Gormes is a Go-native rewrite of Hermes-Agent, with upstream Git history preserved for attribution and Hermes-compatible agent behavior carried forward in Go.
+The v1.0 cut is deliberately sharp: Gormes runs the 30 most-used Hermes skills unchanged in a single 30 MB Go binary on Termux, Windows-without-Python, and locked-down corp Linux. No pip. No venv. No Docker daemon.
+
+Hermes-Agent, with upstream Git history preserved for attribution, remains the parity oracle. The single static binary packaging and local-first Go runtime are the proof that the porting loop works under real operator constraints.
+
+## Methodology
+
+- Strategy: [Gormes Success Plan](docs/content/building-gormes/strategy/success-plan.md)
+- Differentiator: [Gormes v1.0 Differentiator](docs/content/building-gormes/strategy/v1-differentiator.md)
+- Toolkit extraction: `agentic-porting-kit` is tracked as a Phase 8 row; until that public repo exists, the repo-local [Gormes development skills](docs/development-skills/) are the inspectable placeholder.
 
 ## Capability Map
 
@@ -44,13 +52,23 @@ Gormes runtime; `fixture-backed` means covered by local tests or fake clients;
 
 ## Quick Install
 
+**Linux, macOS, WSL2:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
 ```
 
-Works on Linux, macOS, and WSL2. The installer clones a managed checkout, builds the `gormes` command from source, verifies `gormes version`, runs `gormes doctor --offline`, then starts `gormes setup` when a terminal is available. Pass `GORMES_SKIP_SETUP=1` to defer that wizard.
+**Windows (native PowerShell):**
 
-> **Windows:** Native Windows is not supported. Please install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) and run the command above.
+```powershell
+irm https://gormes.ai/install.ps1 | iex
+```
+
+Both installers clone a managed checkout, build the `gormes` command from source, verify `gormes version`, run `gormes doctor --offline`, then start `gormes setup` when a terminal is available. Pass `GORMES_SKIP_SETUP=1` to defer that wizard.
+
+> **Inspect first:** download `install.sh` (or `install.ps1`) from the URL above, read it, then run it. Both scripts are user-scoped — no root or admin install paths.
+
+> Prefer Linux on Windows? [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) plus the bash command above also works.
 
 After installation:
 
@@ -236,10 +254,10 @@ after the normal release lane.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 7/22 subphases |
+| Phase 5 — The Final Purge | 🔨 | 14/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 2/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 1/7 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 <!-- PROGRESS:END -->
 
 </details>

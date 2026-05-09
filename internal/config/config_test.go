@@ -59,6 +59,52 @@ func TestLoad_BuiltinDefaults(t *testing.T) {
 	if !cfg.TUI.MouseTracking {
 		t.Error("default TUI mouse tracking = false, want true")
 	}
+	if cfg.CodeExecution.Mode != "strict" {
+		t.Errorf("default CodeExecution.Mode = %q, want strict", cfg.CodeExecution.Mode)
+	}
+}
+
+func TestLoad_CodeExecutionModeConfig(t *testing.T) {
+	t.Run("toml config", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+		t.Setenv("GORMES_CODE_EXECUTION_MODE", "strict")
+		dir := filepath.Join(cfgHome, "gormes")
+		_ = os.MkdirAll(dir, 0o755)
+		_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[code_execution]
+mode = "project"
+`), 0o644)
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.CodeExecution.Mode != "project" {
+			t.Fatalf("CodeExecution.Mode = %q, want project from config.toml", cfg.CodeExecution.Mode)
+		}
+	})
+
+	t.Run("yaml fallback", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+		dir := filepath.Join(cfgHome, "gormes")
+		_ = os.MkdirAll(dir, 0o755)
+		_ = os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(`
+code_execution:
+  mode: project
+`), 0o644)
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.CodeExecution.Mode != "project" {
+			t.Fatalf("CodeExecution.Mode = %q, want project from config.yaml", cfg.CodeExecution.Mode)
+		}
+	})
 }
 
 func TestLoad_TUIMouseTrackingDefaultsOnWhenTUISectionOmitsIt(t *testing.T) {
@@ -1269,6 +1315,53 @@ func TestLoad_RecallDecayHorizonDays(t *testing.T) {
 	if cfg.Telegram.RecallDecayHorizonDays != 180 {
 		t.Errorf("RecallDecayHorizonDays default = %d, want 180",
 			cfg.Telegram.RecallDecayHorizonDays)
+	}
+}
+
+// TestLoad_UpdatesDefaults proves the built-in defaults for the
+// `[updates]` table: pre_update_backup is false (opt-in) and backup_keep
+// is 5 (matches Hermes' default retention budget). Operators who never
+// touch the table should get the silent-default behavior the lifecycle
+// already documents.
+func TestLoad_UpdatesDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Updates.PreUpdateBackup {
+		t.Errorf("Updates.PreUpdateBackup default = true, want false (opt-in)")
+	}
+	if cfg.Updates.BackupKeep != 5 {
+		t.Errorf("Updates.BackupKeep default = %d, want 5", cfg.Updates.BackupKeep)
+	}
+}
+
+// TestLoad_UpdatesFromFile proves the `[updates]` TOML table populates
+// the typed Config.Updates field. This is the policy seam consumed by
+// `gormes update` to decide whether to take a pre-update backup and how
+// many older zips to keep.
+func TestLoad_UpdatesFromFile(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	dir := filepath.Join(cfgHome, "gormes")
+	_ = os.MkdirAll(dir, 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[updates]
+pre_update_backup = true
+backup_keep = 3
+`), 0o644)
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Updates.PreUpdateBackup {
+		t.Errorf("Updates.PreUpdateBackup = false, want true from config.toml")
+	}
+	if cfg.Updates.BackupKeep != 3 {
+		t.Errorf("Updates.BackupKeep = %d, want 3 from config.toml", cfg.Updates.BackupKeep)
 	}
 }
 

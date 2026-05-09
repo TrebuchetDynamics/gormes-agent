@@ -19,6 +19,7 @@ var pluginNameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 var pluginToolRowRE = regexp.MustCompile(`\(\s*["']([^"']+)["']\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([A-Za-z_][A-Za-z0-9_]*)\s*,`)
 var pluginToolsetRE = regexp.MustCompile(`toolset\s*=\s*["']([^"']+)["']`)
 var pluginCheckRE = regexp.MustCompile(`check_fn\s*=\s*([A-Za-z_][A-Za-z0-9_]*)`)
+var pluginCLICommandRE = regexp.MustCompile(`register_cli_command\(\s*name\s*=\s*["']([^"']+)["']`)
 var pluginAuthStatusRE = regexp.MustCompile(`get_auth_status\(\s*["']([A-Za-z0-9_-]+)["']\s*\)`)
 var pythonSchemaAssignRE = regexp.MustCompile(`(?m)^([A-Z0-9_]+_SCHEMA)\s*=\s*\{`)
 var pythonCommonStringAssignRE = regexp.MustCompile(`(?m)^COMMON_STRING\s*=\s*\{`)
@@ -126,6 +127,7 @@ func LoadDir(dir string, opts LoadOptions) PluginStatus {
 	}
 
 	tools, toolEvidence := loadPythonToolPackage(dir, &manifest)
+	cliEvidence := loadPythonCLICommands(dir, &manifest)
 
 	var dashboard *DashboardManifest
 	if hasDashboardManifest {
@@ -152,6 +154,7 @@ func LoadDir(dir string, opts LoadOptions) PluginStatus {
 	status.Evidence = append(status.Evidence, validation...)
 	status.Evidence = append(status.Evidence, credentialEvidence...)
 	status.Evidence = append(status.Evidence, toolEvidence...)
+	status.Evidence = append(status.Evidence, cliEvidence...)
 
 	if len(validation) > 0 {
 		status.State = StateInvalid
@@ -311,6 +314,46 @@ func parsePythonToolRows(source string) []pythonToolRow {
 			handler: strings.TrimSpace(match[3]),
 		})
 	}
+	return out
+}
+
+func loadPythonCLICommands(dir string, manifest *Manifest) []Evidence {
+	initPath := filepath.Join(dir, "__init__.py")
+	if !fileExists(initPath) {
+		return nil
+	}
+	initData, err := os.ReadFile(initPath)
+	if err != nil {
+		return []Evidence{evidence(EvidenceMalformedManifest, "__init__.py", err.Error())}
+	}
+	for _, name := range parsePythonCLICommands(string(initData)) {
+		if !hasCapability(*manifest, CapabilityCLICommand, name) {
+			manifest.Capabilities = append(manifest.Capabilities, Capability{
+				Kind:        CapabilityCLICommand,
+				Name:        name,
+				SourceField: "__init__.py:register_cli_command",
+			})
+		}
+	}
+	return nil
+}
+
+func parsePythonCLICommands(source string) []string {
+	matches := pluginCLICommandRE.FindAllStringSubmatch(source, -1)
+	out := make([]string, 0, len(matches))
+	seen := make(map[string]bool, len(matches))
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		name := strings.TrimSpace(match[1])
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	sort.Strings(out)
 	return out
 }
 
@@ -612,7 +655,7 @@ func sortPluginStatus(status PluginStatus) PluginStatus {
 func supportedCapabilityKind(kind CapabilityKind) bool {
 	switch kind {
 	case CapabilityTool, CapabilityHook, CapabilityDashboard, CapabilityBackendRoute,
-		CapabilityRealtime, CapabilityRemoteNode:
+		CapabilityRealtime, CapabilityRemoteNode, CapabilityCLICommand:
 		return true
 	default:
 		return false

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 	pluginmeta "github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 )
 
@@ -64,6 +65,52 @@ type Config struct {
 	// CronAdminAuditor receives a redacted audit event for each mutation. It
 	// is optional; when nil the endpoints continue to work but emit no audit.
 	CronAdminAuditor CronAdminAuditor
+	// KanbanStore is the read facade for the kanban task board used by the
+	// authenticated dashboard kanban endpoints. *kanban.Store satisfies this
+	// interface. When nil, the kanban dashboard panel is disabled and
+	// endpoints respond with code "kanban_store_unavailable".
+	KanbanStore KanbanStore
+	// KanbanDispatcher is the write seam for the authenticated dashboard
+	// Kanban dispatch quick path. When nil, POST /api/kanban/dispatch reports
+	// kanban_dispatcher_unavailable.
+	KanbanDispatcher KanbanDispatcher
+	// BuildInfo carries the binary attribution (semver version, git
+	// commit, dirty flag, Go toolchain) the dashboard /api/status
+	// endpoint surfaces under `build`. Fleet automation querying
+	// dashboards across machines uses this to attribute responses to a
+	// specific binary. Zero-value is safe — fields default to empty
+	// strings and false.
+	BuildInfo BuildInfo
+}
+
+// BuildInfo is the binary attribution payload surfaced by the
+// dashboard /api/status endpoint. cmd/gormes/dashboard.go injects the
+// values from cmd/gormes' Version/Commit/Dirty/GoVersion at server
+// construction time. Same semantic as the CLI's `--json` build
+// envelope — a single source of truth for which binary produced a
+// given response.
+type BuildInfo struct {
+	Version   string `json:"version"`
+	GitCommit string `json:"git_commit"`
+	GitDirty  bool   `json:"git_dirty"`
+	GoVersion string `json:"go_version"`
+}
+
+// KanbanStore is the read-only kanban surface consumed by the dashboard.
+type KanbanStore interface {
+	ListTasks(ctx context.Context, filter kanban.ListFilter) ([]kanban.Task, error)
+	GetTask(ctx context.Context, id string) (kanban.Task, error)
+}
+
+// KanbanDispatchOptions carries the dashboard quick-dispatch parameters.
+type KanbanDispatchOptions struct {
+	MaxSpawn int
+}
+
+// KanbanDispatcher runs one immediate Kanban dispatcher pass for the
+// authenticated dashboard quick path.
+type KanbanDispatcher interface {
+	DispatchKanban(ctx context.Context, opts KanbanDispatchOptions) (kanban.DispatchResult, error)
 }
 
 // ChatTransportStatus describes the dashboard's embedded chat transports
@@ -99,6 +146,9 @@ type Server struct {
 	cronMutator            CronJobMutator
 	cronTrigger            CronTriggerHandler
 	cronAuditor            CronAdminAuditor
+	kanbanStore            KanbanStore
+	kanbanDispatcher       KanbanDispatcher
+	buildInfo              BuildInfo
 	statusMu               sync.Mutex
 	previousResponseMisses int
 	now                    func() time.Time
@@ -216,6 +266,9 @@ func NewServer(cfg Config) *Server {
 		cronMutator:           cfg.CronJobMutator,
 		cronTrigger:           cfg.CronTrigger,
 		cronAuditor:           cfg.CronAdminAuditor,
+		kanbanStore:           cfg.KanbanStore,
+		kanbanDispatcher:      cfg.KanbanDispatcher,
+		buildInfo:             cfg.BuildInfo,
 		now:                   time.Now,
 		mux:                   http.NewServeMux(),
 		logStore:              NewLogStore(200),
@@ -260,7 +313,25 @@ func weakAPIKeyPlaceholder(value string) bool {
 
 // Handler returns an http.Handler suitable for httptest or http.Server.
 func (s *Server) Handler() http.Handler {
-	return securityHeaders(s.hostGuard(s.mux))
+	return s.buildHeaders(securityHeaders(s.hostGuard(s.mux)))
+}
+
+// buildHeaders sets `X-Gormes-Build-Version` and `X-Gormes-Build-Commit`
+// on every apiserver response so fleet log aggregation can attribute
+// responses to a binary version without parsing JSON. Same source of
+// truth (Config.BuildInfo) as the JSON `build` envelopes; OpenAI-spec
+// endpoints (e.g. /v1/models) that intentionally keep their body
+// untouched still get attribution via these headers.
+func (s *Server) buildHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if v := s.buildInfo.Version; v != "" {
+			w.Header().Set("X-Gormes-Build-Version", v)
+		}
+		if c := s.buildInfo.GitCommit; c != "" {
+			w.Header().Set("X-Gormes-Build-Commit", c)
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) hostGuard(next http.Handler) http.Handler {
@@ -327,6 +398,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/dashboard/plugins", s.handleDashboardPlugins)
 	s.mux.HandleFunc("/api/sessions", s.handleDashboardSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleDashboardSessionByID)
+	s.mux.HandleFunc("/api/kanban", s.handleDashboardKanban)
+	s.mux.HandleFunc("/api/kanban/dispatch", s.handleDashboardKanbanDispatch)
+	s.mux.HandleFunc("/api/kanban/tasks", s.handleDashboardKanbanTasks)
+	s.mux.HandleFunc("/api/kanban/tasks/", s.handleDashboardKanbanTaskByID)
 	s.mux.HandleFunc("/api/logs", s.handleDashboardLogs)
 	s.mux.Handle("/static/", staticHandler())
 	s.mux.HandleFunc("/dashboard", s.handleWebDashboard)
@@ -351,6 +426,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":     s.buildInfo,
 		"status":    "ok",
 		"platform":  "gormes-agent",
 		"responses": s.responseHealthStatus(),
@@ -367,7 +443,50 @@ func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
 	if s.detailedHealth != nil {
 		input = s.detailedHealth()
 	}
-	writeJSON(w, http.StatusOK, DetailedHealthSnapshot(input))
+	if !input.RunEvents.Available {
+		input.RunEvents = s.runEventsHealthInput()
+	}
+	snapshot := DetailedHealthSnapshot(input)
+	snapshot.Build = s.buildInfo
+	writeJSON(w, http.StatusOK, snapshot)
+}
+
+// runEventsHealthInput builds DetailedHealthRunEventsInput from the
+// in-process runRegistry so /health/detailed always reflects truth
+// without requiring callers to thread these values through their
+// DetailedHealth callback. The registry is the single source of truth
+// for run lifecycle telemetry.
+func (s *Server) runEventsHealthInput() DetailedHealthRunEventsInput {
+	stats := s.runs.stats()
+	return DetailedHealthRunEventsInput{
+		Available:              true,
+		Active:                 intFromAny(stats["active"]),
+		PeakActive:             intFromAny(stats["peak_active"]),
+		OrphanedSwept:          intFromAny(stats["orphaned_swept"]),
+		TTLSeconds:             intFromAny(stats["ttl_seconds"]),
+		RequestTotal:           intFromAny(stats["request_total"]),
+		CompletedTotal:         intFromAny(stats["completed_total"]),
+		FailedTotal:            intFromAny(stats["failed_total"]),
+		StoppedTotal:           intFromAny(stats["stopped_total"]),
+		OldestActiveAgeSeconds: int64FromAny(stats["oldest_active_age_seconds"]),
+	}
+}
+
+func intFromAny(v any) int {
+	if i, ok := v.(int); ok {
+		return i
+	}
+	return 0
+}
+
+func int64FromAny(v any) int64 {
+	switch t := v.(type) {
+	case int64:
+		return t
+	case int:
+		return int64(t)
+	}
+	return 0
 }
 
 func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
@@ -405,6 +524,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
+		"build":    s.buildInfo,
 		"object":   "hermes.api_server.capabilities",
 		"platform": "gormes-agent",
 		"model":    s.modelName,
@@ -421,9 +541,21 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 			"run_status":                 true,
 			"run_events_sse":             true,
 			"run_stop":                   true,
-			"tool_progress_events":       true,
-			"session_continuity_header":  "X-Hermes-Session-Id",
-			"cors":                       false,
+			"runs_list":                  true,
+			"runs_list_filters":          []string{"status", "since", "limit", "order", "session_id", "session_id_prefix"},
+			"run_events_params":          []string{"backlog_only", "keep"},
+			"run_events_backlog_cap":     runEventsBacklogCap,
+			"run_lifecycle_events": []string{
+				"run.started",
+				"message.delta",
+				"tool.progress",
+				"run.completed",
+				"run.failed",
+				"run.stopped",
+			},
+			"tool_progress_events":      true,
+			"session_continuity_header": "X-Hermes-Session-Id",
+			"cors":                      false,
 		},
 		"endpoints": map[string]map[string]string{
 			"health":           {"method": "GET", "path": "/health"},
@@ -432,6 +564,7 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 			"chat_completions": {"method": "POST", "path": "/v1/chat/completions"},
 			"responses":        {"method": "POST", "path": "/v1/responses"},
 			"runs":             {"method": "POST", "path": "/v1/runs"},
+			"runs_list":        {"method": "GET", "path": "/v1/runs"},
 			"run_status":       {"method": "GET", "path": "/v1/runs/{run_id}"},
 			"run_events":       {"method": "GET", "path": "/v1/runs/{run_id}/events"},
 			"run_stop":         {"method": "POST", "path": "/v1/runs/{run_id}/stop"},

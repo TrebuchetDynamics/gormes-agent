@@ -27,37 +27,48 @@ type Config struct {
 	// document. Absent in TOML = treated as 1.
 	ConfigVersion int `toml:"_config_version" yaml:"_config_version"`
 
-	Hermes     HermesCfg         `toml:"hermes" yaml:"hermes"`
-	Runtime    RuntimeCfg        `toml:"runtime" yaml:"runtime"`
-	TTS        map[string]any    `toml:"tts" yaml:"tts"`
-	ImageGen   map[string]any    `toml:"image_gen" yaml:"image_gen"`
-	Gateway    GatewayCfg        `toml:"gateway" yaml:"gateway"`
-	Terminal   TerminalCfg       `toml:"terminal" yaml:"terminal"`
-	Display    DisplayCfg        `toml:"display" yaml:"display"`
-	TUI        TUICfg            `toml:"tui" yaml:"tui"`
-	Input      InputCfg          `toml:"input" yaml:"input"`
-	Voice      VoiceCfg          `toml:"voice" yaml:"voice"`
-	Auxiliary  AuxiliaryCfg      `toml:"auxiliary" yaml:"auxiliary"`
-	Curator    CuratorCfg        `toml:"curator" yaml:"curator"`
-	Telegram   TelegramCfg       `toml:"telegram" yaml:"telegram"`
-	Discord    DiscordCfg        `toml:"discord" yaml:"discord"`
-	Slack      SlackCfg          `toml:"slack" yaml:"slack"`
-	Teams      TeamsCfg          `toml:"teams" yaml:"teams"`
-	Yuanbao    YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
-	Web        WebCfg            `toml:"web" yaml:"web"`
-	Browser    BrowserCfg        `toml:"browser" yaml:"browser"`
-	Security   SecurityCfg       `toml:"security" yaml:"security"`
-	Secrets    SecretsCfg        `toml:"secrets" yaml:"secrets"`
-	Agents     AgentsCfg         `toml:"agents" yaml:"agents"`
-	Bindings   []AgentBindingCfg `toml:"bindings" yaml:"bindings"`
-	Cron       CronCfg           `toml:"cron" yaml:"cron"`
-	Skills     SkillsCfg         `toml:"skills" yaml:"skills"`
-	Delegation DelegationCfg     `toml:"delegation" yaml:"delegation"`
-	Goncho     GonchoCfg         `toml:"goncho" yaml:"goncho"`
+	Hermes        HermesCfg         `toml:"hermes" yaml:"hermes"`
+	Runtime       RuntimeCfg        `toml:"runtime" yaml:"runtime"`
+	TTS           map[string]any    `toml:"tts" yaml:"tts"`
+	ImageGen      map[string]any    `toml:"image_gen" yaml:"image_gen"`
+	Gateway       GatewayCfg        `toml:"gateway" yaml:"gateway"`
+	Terminal      TerminalCfg       `toml:"terminal" yaml:"terminal"`
+	CodeExecution CodeExecutionCfg  `toml:"code_execution" yaml:"code_execution"`
+	Display       DisplayCfg        `toml:"display" yaml:"display"`
+	TUI           TUICfg            `toml:"tui" yaml:"tui"`
+	Input         InputCfg          `toml:"input" yaml:"input"`
+	Voice         VoiceCfg          `toml:"voice" yaml:"voice"`
+	Auxiliary     AuxiliaryCfg      `toml:"auxiliary" yaml:"auxiliary"`
+	Curator       CuratorCfg        `toml:"curator" yaml:"curator"`
+	Telegram      TelegramCfg       `toml:"telegram" yaml:"telegram"`
+	Discord       DiscordCfg        `toml:"discord" yaml:"discord"`
+	Slack         SlackCfg          `toml:"slack" yaml:"slack"`
+	Teams         TeamsCfg          `toml:"teams" yaml:"teams"`
+	Yuanbao       YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
+	Web           WebCfg            `toml:"web" yaml:"web"`
+	Browser       BrowserCfg        `toml:"browser" yaml:"browser"`
+	Security      SecurityCfg       `toml:"security" yaml:"security"`
+	Secrets       SecretsCfg        `toml:"secrets" yaml:"secrets"`
+	Agents        AgentsCfg         `toml:"agents" yaml:"agents"`
+	Bindings      []AgentBindingCfg `toml:"bindings" yaml:"bindings"`
+	Cron          CronCfg           `toml:"cron" yaml:"cron"`
+	Skills        SkillsCfg         `toml:"skills" yaml:"skills"`
+	Delegation    DelegationCfg     `toml:"delegation" yaml:"delegation"`
+	Goncho        GonchoCfg         `toml:"goncho" yaml:"goncho"`
+	Updates       UpdatesCfg        `toml:"updates" yaml:"updates"`
 	// Resume is set only via the --resume CLI flag; intentionally not
 	// a TOML field. Empty means "use whatever internal/session had
 	// persisted for this binary's default key."
 	Resume string `toml:"-"`
+}
+
+// UpdatesCfg controls `gormes update` behavior. PreUpdateBackup is the
+// config equivalent of `--backup` and is silent-default off. BackupKeep
+// is the retention budget applied after a successful write; <=0 keeps
+// the built-in default of 5 (matches Hermes' upstream).
+type UpdatesCfg struct {
+	PreUpdateBackup bool `toml:"pre_update_backup" yaml:"pre_update_backup"`
+	BackupKeep      int  `toml:"backup_keep" yaml:"backup_keep"`
 }
 
 type TelegramCfg struct {
@@ -376,12 +387,20 @@ type TerminalCfg struct {
 	CWD     string `toml:"cwd" yaml:"cwd"`
 }
 
+// CodeExecutionCfg controls the native execute_code tool mode. Hermes defaults
+// to project mode; Gormes keeps strict as the built-in default until the
+// shell-only guard is intentionally relaxed by explicit config.
+type CodeExecutionCfg struct {
+	Mode string `toml:"mode" yaml:"mode"`
+}
+
 type GatewayCfg struct {
 	ProxyURL string `toml:"proxy_url" yaml:"proxy_url"`
 	ProxyKey string `toml:"proxy_key" yaml:"proxy_key"`
 }
 
 type DisplayCfg struct {
+	Language            string                        `toml:"language" yaml:"language"`
 	ToolProgress        string                        `toml:"tool_progress" yaml:"tool_progress"`
 	ToolProgressCommand bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
 	Platforms           map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
@@ -560,6 +579,9 @@ func defaults() Config {
 		Terminal: TerminalCfg{
 			CWD: ".",
 		},
+		CodeExecution: CodeExecutionCfg{
+			Mode: "strict",
+		},
 		TUI:   TUICfg{Theme: "dark", MouseTracking: true},
 		Input: InputCfg{MaxBytes: 200_000, MaxLines: 10_000},
 		Voice: VoiceCfg{RecordKey: "ctrl+b"},
@@ -637,6 +659,10 @@ func defaults() Config {
 			DefaultTimeout:        45 * time.Second,
 			RunLogPath:            "",
 			MaxWaiting:            128,
+		},
+		Updates: UpdatesCfg{
+			PreUpdateBackup: false,
+			BackupKeep:      5,
 		},
 		Goncho: GonchoCfg{
 			Enabled:                      true,
@@ -1391,6 +1417,16 @@ func KanbanDBPath() string {
 		return filepath.Join(v, "kanban.db")
 	}
 	return filepath.Join(GormesHome(), "kanban.db")
+}
+
+// KanbanHome returns the root directory for the Kanban board registry.
+// Named board databases live under <KanbanHome>/kanban/boards/<slug>/kanban.db
+// while the legacy default board lives at <KanbanHome>/kanban.db.
+func KanbanHome() string {
+	if v := strings.TrimSpace(os.Getenv("GORMES_KANBAN_HOME")); v != "" {
+		return v
+	}
+	return GormesHome()
 }
 
 // CronMirrorPath returns the resolved CRON.md path — either
