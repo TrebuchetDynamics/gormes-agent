@@ -254,6 +254,7 @@ classification and row-backed implementation queue.
 - [x] Telegram forum thread fallback + send retry safety
 - [x] Telegram DM topic reply-fallback routing
 - [x] Telegram semantic MarkdownV2 formatter + table rewrite
+- [x] Telegram streaming edit Markdown safety
 - [x] Gateway platform reconnect isolation + channel health limits
 
 ### 2.B.10 — WeChat Adapter ✅

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
 // TestBot_Send_SetsMarkdownV2ParseMode locks in the Hermes parity contract:
@@ -81,6 +83,77 @@ func TestBot_EditMessage_SetsMarkdownV2ParseMode(t *testing.T) {
 	}
 	if msg.ParseMode != tgbotapi.ModeMarkdownV2 {
 		t.Fatalf("ParseMode = %q, want %q", msg.ParseMode, tgbotapi.ModeMarkdownV2)
+	}
+}
+
+func TestBot_EditMessageFinal_NonFinalUsesPlainTextWithoutMarkdownV2(t *testing.T) {
+	var _ gateway.FinalizingMessageEditor = (*Bot)(nil)
+
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+
+	body := "partial **bold"
+	if err := b.EditMessageFinal(context.Background(), "42", "1234", body, false); err != nil {
+		t.Fatalf("EditMessageFinal(non-final): %v", err)
+	}
+
+	sent := mc.sentMessages()
+	if len(sent) != 1 {
+		t.Fatalf("sent count = %d, want 1", len(sent))
+	}
+	msg, ok := sent[0].(tgbotapi.EditMessageTextConfig)
+	if !ok {
+		t.Fatalf("sent type = %T, want EditMessageTextConfig", sent[0])
+	}
+	if msg.ParseMode != "" {
+		t.Fatalf("ParseMode = %q, want empty for non-final streaming edit", msg.ParseMode)
+	}
+	if msg.Text != body {
+		t.Fatalf("body = %q, want exact partial body %q", msg.Text, body)
+	}
+}
+
+func TestBot_EditMessageFinal_FinalUsesMarkdownV2WithPlainFallback(t *testing.T) {
+	mc := newMockClient()
+	calls := 0
+	mc.SendFn = func(c tgbotapi.Chattable) (tgbotapi.Message, error) {
+		calls++
+		if calls == 1 {
+			return tgbotapi.Message{}, errors.New("Bad Request: can't parse entities: malformed markdown")
+		}
+		return tgbotapi.Message{MessageID: 1234}, nil
+	}
+	b := New(Config{AllowedChatID: 42}, mc, nil)
+
+	body := `final *bold* and \(parens\)`
+	wantFallback := "final bold and (parens)"
+	if err := b.EditMessageFinal(context.Background(), "42", "1234", body, true); err != nil {
+		t.Fatalf("EditMessageFinal(final): %v", err)
+	}
+
+	sent := mc.sentMessages()
+	if len(sent) != 2 {
+		t.Fatalf("sent count = %d, want 2 (MarkdownV2 attempt + fallback)", len(sent))
+	}
+	first, ok := sent[0].(tgbotapi.EditMessageTextConfig)
+	if !ok {
+		t.Fatalf("first send type = %T, want EditMessageTextConfig", sent[0])
+	}
+	if first.ParseMode != tgbotapi.ModeMarkdownV2 {
+		t.Fatalf("first ParseMode = %q, want %q", first.ParseMode, tgbotapi.ModeMarkdownV2)
+	}
+	if first.Text != body {
+		t.Fatalf("first body = %q, want %q", first.Text, body)
+	}
+	second, ok := sent[1].(tgbotapi.EditMessageTextConfig)
+	if !ok {
+		t.Fatalf("second send type = %T, want EditMessageTextConfig", sent[1])
+	}
+	if second.ParseMode != "" {
+		t.Fatalf("fallback ParseMode = %q, want empty", second.ParseMode)
+	}
+	if second.Text != wantFallback {
+		t.Fatalf("fallback body = %q, want %q", second.Text, wantFallback)
 	}
 }
 

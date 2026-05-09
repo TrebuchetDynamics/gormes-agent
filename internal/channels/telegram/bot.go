@@ -90,6 +90,7 @@ type Bot struct {
 
 var _ gateway.Channel = (*Bot)(nil)
 var _ gateway.MessageEditor = (*Bot)(nil)
+var _ gateway.FinalizingMessageEditor = (*Bot)(nil)
 var _ gateway.MessageDeleter = (*Bot)(nil)
 var _ gateway.ThreadSender = (*Bot)(nil)
 var _ gateway.ThreadReplySender = (*Bot)(nil)
@@ -784,6 +785,10 @@ func (b *Bot) SendThreadReplyPlaceholder(ctx context.Context, chatID, threadID, 
 }
 
 func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error {
+	return b.EditMessageFinal(ctx, chatID, msgID, text, true)
+}
+
+func (b *Bot) EditMessageFinal(ctx context.Context, chatID, msgID, text string, finalize bool) error {
 	_ = ctx
 	cid, err := parseChatID(chatID)
 	if err != nil {
@@ -794,6 +799,10 @@ func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error
 		return fmt.Errorf("telegram: invalid msgID %q: %w", msgID, err)
 	}
 	editCfg := tgbotapi.NewEditMessageText(cid, mid, text)
+	if !finalize {
+		_, err := b.client.Send(editCfg)
+		return err
+	}
 	editCfg.ParseMode = tgbotapi.ModeMarkdownV2
 	if _, err := b.client.Send(editCfg); err != nil {
 		if isMarkdownParseError(err) {

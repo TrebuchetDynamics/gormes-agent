@@ -6695,6 +6695,70 @@
               "note": "Complete 2026-05-07: TDD added Telegram final-message table rewriting in internal/gateway/render.go before MarkdownV2 rendering, preserving fenced code tables while converting GFM pipe tables into mobile-readable bold row headings and bullet fields. The Telegram renderer now preserves MarkdownV2 strikethrough, spoiler, and blockquote constructs with escaped content and still escapes mid-line greater-than text. internal/channels/telegram/format.go now mirrors Hermes _strip_mdv2 for parse-error plaintext fallback, preserving snake_case while removing MarkdownV2 escapes and formatting markers; Bot.Send and EditMessage use it only after MarkdownV2 parse failures. Verification: go test ./internal/channels/telegram -run 'TestTelegram(Format|Markdown|Table|Chunk)' -count=1; go test ./internal/gateway ./internal/channels/telegram -run 'Telegram|MarkdownV2|Format' -count=1."
             },
             {
+              "name": "Telegram streaming edit Markdown safety",
+              "status": "complete",
+              "priority": "P0",
+              "contract": "Telegram streamed edit delivery mirrors Hermes' finalization split: non-final editMessageText calls send the partial draft as plain text with no MarkdownV2 parse_mode so incomplete Markdown cannot break live streaming, while final edits keep MarkdownV2 formatting and parse-error plaintext fallback. The shared gateway coalescer already passes the finalize flag through gateway.FinalizingMessageEditor; this slice binds that interface in the Telegram adapter without changing generic coalescer semantics or Telegram send/reply behavior.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "If the adapter cannot distinguish streaming from final edits, Gormes may send partial Markdown through Telegram's MarkdownV2 parser and drop or delay visible streamed updates; final replies still fall back to a plain text send path.",
+              "fixture": "internal/channels/telegram/bot_parse_mode_test.go::TestBot_EditMessageFinal_*",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/telegram.py@1ac8deb3c:TelegramAdapter.edit_message",
+                "./hermes-agent/tests/gateway/test_telegram_format.py@1ac8deb3c:TestEditMessageStreamingSafety",
+                "internal/gateway/coalesce.go:editCoalescedMessage",
+                "internal/channels/telegram/bot.go:Bot.EditMessage",
+                "internal/channels/telegram/bot_parse_mode_test.go"
+              ],
+              "ready_when": [
+                "Gateway coalescing already calls gateway.FinalizingMessageEditor when a channel implements it.",
+                "Telegram semantic MarkdownV2 formatter + table rewrite is validated, so final edit parse-mode and plaintext fallback behavior have existing helper coverage.",
+                "Tests can use the existing fake telegram client and never call the live Telegram Bot API."
+              ],
+              "not_ready_when": [
+                "The slice rewrites coalescer timing, fresh-final sends, Telegram send/reply parse-mode behavior, or gateway render formatting.",
+                "Non-final edits strip or mutate draft text instead of sending the exact partial body without parse_mode.",
+                "Final edits stop using MarkdownV2 or lose the existing parse-error plaintext fallback."
+              ],
+              "blocked_by": [
+                "Telegram semantic MarkdownV2 formatter + table rewrite"
+              ],
+              "acceptance": [
+                "Bot implements gateway.FinalizingMessageEditor so the coalescer can pass finalize=false for streaming flushes and finalize=true for terminal flushes.",
+                "A fake-client fixture proves EditMessageFinal(..., finalize=false) sends one EditMessageTextConfig with empty ParseMode and byte-identical partial text such as `partial **bold`.",
+                "A fake-client fixture proves EditMessageFinal(..., finalize=true) sends MarkdownV2 on the first attempt and, on a Markdown parse error, retries once with empty ParseMode and stripTelegramMarkdownV2 plaintext.",
+                "Existing Bot.EditMessage callers keep MarkdownV2 final-edit behavior through the new finalizing helper, and existing Send/SendReply parse-mode tests remain green."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/bot_parse_mode_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestBot_EditMessageFinal|TestBot_EditMessage_SetsMarkdownV2ParseMode|TestBot_Send' -count=1",
+                "go test ./internal/channels/telegram ./internal/gateway -run 'Telegram|Coalescer|MarkdownV2|Format' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram edit fixtures prove non-final streamed edits are plain exact text, final edits keep MarkdownV2 plus parse fallback, Bot satisfies gateway.FinalizingMessageEditor, and existing Telegram send/edit parse-mode coverage remains green."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:1ac8deb3c gateway/platforms/telegram.py",
+                  "hermes:1ac8deb3c tests/gateway/test_telegram_format.py"
+                ],
+                "note": "2026-05-09 all-topic weakness sweep refreshed Hermes to f6d45e5df and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 16, below the 90-row cap. Existing rows cover recent delegate JSON-string recovery, Kanban, provider/auth, browser, docs, and release surfaces as complete, owned, blocked, or row-backed; the only fresh source-backed missing runtime parity is Hermes' Telegram streaming edit safety split from commit 1ac8deb3c."
+              },
+              "note": "Complete 2026-05-09: RED proved Bot did not implement gateway.FinalizingMessageEditor and EditMessageFinal was missing. GREEN added Bot.EditMessageFinal with non-final exact plain-text edits, final MarkdownV2 edits, and existing parse-error plaintext fallback; Bot.EditMessage now delegates to the final-edit path to preserve legacy callers. Verification: go test ./internal/channels/telegram -run 'TestBot_EditMessageFinal|TestBot_EditMessage_SetsMarkdownV2ParseMode|TestBot_Send' -count=1; go test ./internal/channels/telegram ./internal/gateway -run 'Telegram|Coalescer|MarkdownV2|Format' -count=1."
+            },
+            {
               "name": "Gateway platform reconnect isolation + channel health limits",
               "status": "complete",
               "priority": "P1",
