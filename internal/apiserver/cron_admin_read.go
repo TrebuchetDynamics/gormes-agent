@@ -271,6 +271,7 @@ func cronAdminParseLimit(raw string) int {
 }
 
 func cronAdminJobViewFor(job cron.Job, now time.Time) cronAdminJobView {
+	job = cron.NormalizeJobRecord(job, job.ID)
 	view := cronAdminJobView{
 		ID:              job.ID,
 		Name:            job.Name,

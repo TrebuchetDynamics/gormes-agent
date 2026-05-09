@@ -97,6 +97,46 @@ func TestCronjobTool_CreateListAndRedact(t *testing.T) {
 	}
 }
 
+func TestCronjobTool_ListHandlesPartialLegacyJobRecords(t *testing.T) {
+	store, done := newCronjobToolTestStore(t)
+	defer done()
+
+	if err := store.Create(cron.Job{ID: "abc123deadbe"}); err != nil {
+		t.Fatalf("seed partial job: %v", err)
+	}
+	tool := tools.NewCronjobTool(tools.CronjobToolConfig{
+		Store:       store,
+		ScriptsRoot: t.TempDir(),
+		Now:         fixedCronjobToolNow,
+	})
+
+	listed := execCronjobTool[cronjobListResult](t, tool, map[string]any{"action": "list"})
+
+	if !listed.Success {
+		t.Fatalf("list success = false, error = %q", listed.Error)
+	}
+	if listed.Count != 1 || len(listed.Jobs) != 1 {
+		t.Fatalf("list returned count=%d len=%d, want one job", listed.Count, len(listed.Jobs))
+	}
+	got := listed.Jobs[0]
+	if got.JobID != "abc123deadbe" {
+		t.Fatalf("job_id = %q, want abc123deadbe", got.JobID)
+	}
+	if got.Name != "abc123deadbe" {
+		t.Fatalf("name = %q, want id fallback", got.Name)
+	}
+	if got.Schedule != "?" {
+		t.Fatalf("schedule = %q, want ?", got.Schedule)
+	}
+	if got.State != "scheduled" || !got.Enabled {
+		t.Fatalf("state/enabled = %q/%v, want scheduled/true", got.State, got.Enabled)
+	}
+	raw := execCronjobToolRaw(t, tool, map[string]any{"action": "list"})
+	if strings.Contains(string(raw), `"prompt"`) {
+		t.Fatalf("list leaked prompt material for partial job: %s", raw)
+	}
+}
+
 func TestCronjobTool_UpdatePreservesAndClearsFields(t *testing.T) {
 	store, done := newCronjobToolTestStore(t)
 	defer done()
@@ -349,6 +389,7 @@ type cronjobJobSummary struct {
 	Deliver  string `json:"deliver"`
 	Repeat   string `json:"repeat"`
 	Enabled  bool   `json:"enabled"`
+	State    string `json:"state"`
 }
 
 type cronjobUpdateResult struct {

@@ -546,6 +546,7 @@ func ensureCronjobNameAvailable(store *reflectedCronStore, currentID, name strin
 }
 
 func summarizeCronjob(rec cronjobRecord) map[string]any {
+	rec = normalizeCronjobRecord(rec)
 	out := map[string]any{
 		"job_id":      rec.ID,
 		"name":        rec.Name,
@@ -596,6 +597,51 @@ func cronjobState(rec cronjobRecord) string {
 		return "paused"
 	}
 	return "scheduled"
+}
+
+func normalizeCronjobRecord(rec cronjobRecord) cronjobRecord {
+	rec.ID = strings.TrimSpace(rec.ID)
+	if rec.ID == "" {
+		rec.ID = "unknown"
+	}
+	if strings.TrimSpace(rec.Name) == "" {
+		rec.Name = fallbackCronjobName(rec)
+	}
+	if strings.TrimSpace(rec.Schedule) == "" {
+		rec.Schedule = "?"
+	}
+	return rec
+}
+
+func fallbackCronjobName(rec cronjobRecord) string {
+	for _, candidate := range []string{
+		rec.Prompt,
+		firstNonEmptyCronjobString(rec.Skills),
+		rec.Script,
+		rec.ID,
+		"cron job",
+	} {
+		text := strings.TrimSpace(candidate)
+		if text == "" {
+			continue
+		}
+		if len(text) > 50 {
+			text = strings.TrimSpace(text[:50])
+		}
+		if text != "" {
+			return text
+		}
+	}
+	return "cron job"
+}
+
+func firstNonEmptyCronjobString(values []string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func repeatDisplay(rec cronjobRecord) string {
@@ -904,7 +950,7 @@ func applyCronjobRecord(value reflect.Value, rec cronjobRecord) {
 }
 
 func cronjobRecordFromValue(value reflect.Value) cronjobRecord {
-	return cronjobRecord{
+	return normalizeCronjobRecord(cronjobRecord{
 		ID:              stringField(value, "ID"),
 		Name:            stringField(value, "Name"),
 		Schedule:        stringField(value, "Schedule"),
@@ -924,7 +970,7 @@ func cronjobRecordFromValue(value reflect.Value) cronjobRecord {
 		Script:          stringField(value, "Script"),
 		NoAgent:         boolField(value, "NoAgent"),
 		ContextFrom:     stringSliceField(value, "ContextFrom"),
-	}
+	})
 }
 
 func setStringField(value reflect.Value, name, fieldValue string) {

@@ -113,6 +113,36 @@ func TestAPIServerJobsCompatListAndIncludeDisabled(t *testing.T) {
 	}
 }
 
+func TestAPIServerJobsCompatListNormalizesPartialRecords(t *testing.T) {
+	mutator := newFakeCronJobMutator(cron.Job{ID: "abc123deadbe"})
+	h := newCronAdminMutateTestServer(t, mutator, nil, nil)
+	auth := map[string]string{"Authorization": "Bearer plain-existing-token"}
+
+	rec := getJSON(t, h, "/api/jobs", auth)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Jobs []map[string]any `json:"jobs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode list body: %v", err)
+	}
+	if len(body.Jobs) != 1 {
+		t.Fatalf("jobs = %+v, want one partial job", body.Jobs)
+	}
+	got := body.Jobs[0]
+	if got["id"] != "abc123deadbe" || got["name"] != "abc123deadbe" || got["schedule"] != "?" {
+		t.Fatalf("partial job view = %+v, want id/name fallback and ? schedule", got)
+	}
+	if got["enabled"] != true || got["paused"] != false {
+		t.Fatalf("enabled/paused = %v/%v, want true/false", got["enabled"], got["paused"])
+	}
+	if strings.Contains(rec.Body.String(), `"prompt"`) {
+		t.Fatalf("legacy list leaked prompt field for partial job: %s", rec.Body.String())
+	}
+}
+
 func TestAPIServerJobsCompatCreateUpdateDeletePauseResumeRun(t *testing.T) {
 	mutator := newFakeCronJobMutator()
 	mutator.nextID = "aabbccddeeff"

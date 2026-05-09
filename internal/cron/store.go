@@ -102,6 +102,9 @@ func (s *Store) Get(id string) (Job, error) {
 		}
 		return json.Unmarshal(blob, &j)
 	})
+	if err == nil {
+		j = NormalizeJobRecord(j, id)
+	}
 	return j, err
 }
 
@@ -116,11 +119,65 @@ func (s *Store) List() ([]Job, error) {
 			if err := json.Unmarshal(v, &j); err != nil {
 				return nil // skip corrupt
 			}
-			out = append(out, j)
+			out = append(out, NormalizeJobRecord(j, string(k)))
 			return nil
 		})
 	})
 	return out, err
+}
+
+// NormalizeJobRecord returns a read-safe cron job shape for list/get consumers.
+// Legacy, hand-edited, or partially written records can omit fields that newer
+// operator surfaces expect; normalization happens only on the returned value and
+// never rewrites the persisted blob as a side effect of reads.
+func NormalizeJobRecord(j Job, fallbackID string) Job {
+	id := strings.TrimSpace(j.ID)
+	if id == "" {
+		id = strings.TrimSpace(fallbackID)
+	}
+	if id == "" {
+		id = "unknown"
+	}
+	j.ID = id
+
+	if strings.TrimSpace(j.Name) == "" {
+		j.Name = fallbackJobName(j)
+	}
+	if strings.TrimSpace(j.Schedule) == "" {
+		j.Schedule = "?"
+	}
+	return j
+}
+
+func fallbackJobName(j Job) string {
+	for _, candidate := range []string{
+		j.Prompt,
+		firstNonEmptyString(j.Skills),
+		j.Script,
+		j.ID,
+		"cron job",
+	} {
+		text := strings.TrimSpace(candidate)
+		if text == "" {
+			continue
+		}
+		if len(text) > 50 {
+			text = strings.TrimSpace(text[:50])
+		}
+		if text != "" {
+			return text
+		}
+	}
+	return "cron job"
+}
+
+func firstNonEmptyString(values []string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // Update overwrites an existing job by ID. Errors with ErrJobNotFound

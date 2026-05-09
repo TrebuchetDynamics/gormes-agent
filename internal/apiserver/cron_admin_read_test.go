@@ -229,6 +229,49 @@ func TestAPIServerCronAdmin_ListJobs(t *testing.T) {
 	}
 }
 
+func TestAPIServerCronAdmin_ListJobsNormalizesPartialRecords(t *testing.T) {
+	jobs := &fakeCronJobReader{
+		jobs: []cron.Job{{
+			ID: "abc123deadbe",
+		}},
+	}
+	h := newCronAdminTestServer(t, jobs, &fakeCronRunReader{})
+
+	rec := getJSON(t, h, "/v1/admin/cron/jobs", map[string]string{"Authorization": "Bearer plain-existing-token"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Jobs []map[string]any `json:"jobs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode jobs: %v", err)
+	}
+	if len(body.Jobs) != 1 {
+		t.Fatalf("len(jobs) = %d, want 1; body=%s", len(body.Jobs), rec.Body.String())
+	}
+	got := body.Jobs[0]
+	if got["id"] != "abc123deadbe" {
+		t.Fatalf("id = %v, want abc123deadbe", got["id"])
+	}
+	if got["name"] != "abc123deadbe" {
+		t.Fatalf("name = %v, want id fallback", got["name"])
+	}
+	if got["schedule"] != "?" {
+		t.Fatalf("schedule = %v, want ?", got["schedule"])
+	}
+	if got["enabled"] != true || got["paused"] != false {
+		t.Fatalf("enabled/paused = %v/%v, want true/false", got["enabled"], got["paused"])
+	}
+	if got["next_run_unix"] != float64(0) {
+		t.Fatalf("next_run_unix = %v, want 0 for unknown schedule", got["next_run_unix"])
+	}
+	if strings.Contains(rec.Body.String(), `"prompt"`) {
+		t.Fatalf("list leaked prompt field for partial job: %s", rec.Body.String())
+	}
+}
+
 func TestAPIServerCronAdmin_GetJobMissing(t *testing.T) {
 	jobs := &fakeCronJobReader{
 		jobs: []cron.Job{{
