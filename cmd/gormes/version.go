@@ -17,14 +17,14 @@ import (
 // notes, release.json, and the GitHub release title. The git tag remains
 // v<Version> until the release workflow learns to extract version from this
 // file independently of the tag string.
-var Version = "0.1.07"
+var Version = "0.2.0"
 
 // VersionDateAlias is the Hermes-style vYYYY.M.D paired alias for the
 // current release. Bumped together with Version on every release. Fleet
 // automation comparing Gormes deployments against Hermes upstream
 // baselines (whose own version IS the date) consumes this through
 // `gormes version --json`.
-var VersionDateAlias = "v2026.5.7"
+var VersionDateAlias = "v2026.5.8"
 
 // GitCommit is the source SHA the binary was built from. Defaults to
 // "unknown" in dev/source builds; release CI is expected to inject the

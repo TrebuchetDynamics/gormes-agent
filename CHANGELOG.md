@@ -8,6 +8,76 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-08
+
+Date alias: `v2026.5.8`.
+
+> **Convention enforcement via fresh-install E2E batteries.** The autonomous
+> engineering loop now ships its own conformance fence: a six-battery suite
+> runs every probed `--json` surface from a freshly nuked
+> `GORMES_HOME`/`XDG`/`HERMES_HOME`/`CODEX_HOME` and asserts the wire shape
+> fleet automation depends on. Minor bump (0.1 → 0.2) marks the move from
+> case-by-case bug fixing to a CI-guarded contract.
+
+### Added — Fresh-install E2E conformance fence
+
+- **Six-battery `cmd/gormes/fresh_install_e2e_test.go`** asserts the
+  `--json` arc behaves uniformly across every probed surface, run from a
+  hermetic `freshInstallE2EHome(t)` (temp `GORMES_HOME`, `XDG_DATA_HOME`,
+  `XDG_CONFIG_HOME`, `HERMES_HOME`, `CODEX_HOME`; provider env zeroed):
+  - `TestFreshInstallE2E_NoNullArrayFieldsInJSON` — 21 commands; empty
+    arrays and maps emit `[]`/`{}`, never `null`. Fleet automation can
+    `len(items)` without nil-checking.
+  - `TestFreshInstallE2E_TypoSuggestionsAcrossParents` — 9 parents wire
+    cobra `SuggestionsMinimumDistance`/`SuggestionsFor` so typo hints
+    surface across the whole command tree, not just root.
+  - `TestFreshInstallE2E_FreshInstallReadOnlyCommandsExitZero` — 8
+    read-only commands return exit 0 from a never-initialized home (no
+    "DB not found" failures masquerading as user errors).
+  - `TestFreshInstallE2E_BuildProvenancePresentInJSON` — 18 commands
+    prepend `{build: {version, git_commit}}` so any captured snapshot
+    can be attributed to a specific binary.
+  - `TestFreshInstallE2E_JSONIsParseable` — 20 commands; stdout under
+    `--json` is always a single parseable JSON document.
+  - `TestFreshInstallE2E_NotFoundJSONEmitsStructuredDocument` —
+    `kanban show|complete|claim <missing> --json` now emit
+    `{build, action: "not_found", id, error}` instead of empty stdout
+    on cobra-rendered stderr. Same convention as
+    `session delete --json` and the mcp login JSON path. Fleet
+    automation can distinguish "task missing" from "command crashed."
+
+### Added — Native Windows installer
+
+- **`scripts/install.ps1`** ships native Windows install support
+  alongside `install.sh` (Linux/macOS/WSL2). Source-backed managed
+  install, no Python/Node/Docker required. README + install docs
+  document the path; landing page advertises it as a separate
+  post-release slice (held back to keep this release scoped to the
+  conformance fence).
+
+### Added — Structured `--json` surfaces
+
+- **`gormes config get --json`** emits
+  `{build, key, value, secret_redacted, set}`. Secret keys
+  (`hermes.api_key`, `hermes.api_token`, etc.) emit a redacted
+  placeholder instead of the raw value, even when the env-overlay path
+  has populated the key. Test asserts the placeholder leak-protection
+  contract end-to-end.
+
+### Fixed — Fresh-install UX
+
+- Legacy `~/.hermes` XDG migration runs cleanly when `XDG_DATA_HOME`
+  has not yet been seeded by another command.
+- Read commands no longer fail when the kanban DB does not exist
+  (lazy-init under cover).
+- Parent-command typo suggestions now surface across the entire
+  command tree (cobra `SuggestionsMinimumDistance` set on every
+  parent in `newRootCommand`).
+- `t.Setenv` cleanup vs. dotenv overlay leak — config-set tests
+  use explicit `os.LookupEnv`/`t.Cleanup` capture/restore so
+  `internal/config/dotenv.go`'s `os.Setenv` overlays do not bleed
+  into later tests in the suite.
+
 ## [0.1.07] - 2026-05-07
 
 Date alias: `v2026.5.7` (same operating day as v0.1.06).
