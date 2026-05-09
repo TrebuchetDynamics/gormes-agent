@@ -89,27 +89,7 @@ selection.
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Release archive 30 MB size gate
-
-- Phase: 8 / 8.D
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: The release workflow enforces the v1 differentiator's single 30 MB binary promise before release artifacts are uploaded: every built archive is checked against a 31,457,280-byte cap after packaging and checksum generation, and any oversize archive fails the build with a clear target-specific message.
-- Trust class: operator, system
-- Ready when: Sharp v1.0 differentiator decision is complete., Release workflow already builds tar.gz archives for the seven supported targets and writes SHA-256 checksums.
-- Not ready when: The slice requires a live GitHub tag push, real release publication, or changing installer selection logic., The workflow checks repository size, source tree size, or SBOM size instead of the per-target binary archive size., Oversize failures happen after upload-artifact or GitHub release publication.
-- Degraded mode: If an archive exceeds the cap, the release matrix fails before upload or publication; operators keep source-build installs rather than receiving an oversized prebuilt binary.
-- Fixture: `webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowEnforcesMaxArchiveSize`
-- Write scope: `.github/workflows/release.yml`, `webpages/docs/install/release_workflow_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract\|EnforcesMaxArchiveSize)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Release workflow, release workflow test, and progress evidence prove every prebuilt archive is capped at 30 MiB before upload.
-- Acceptance: TestReleaseWorkflowEnforcesMaxArchiveSize fails before the workflow contains an explicit 31,457,280-byte archive cap and passes after the release workflow checks each tar.gz before artifact upload., The size check runs in the build job after `sha256sum` has generated the archive checksum and before `actions/upload-artifact@v4`., The workflow failure message includes the target archive name and both observed and maximum byte counts., The existing release workflow contract test stays green for all seven target slugs, SHA-256 files, SBOM generation, artifact upload, and tag-only publication.
-- Source refs: docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim, docs/content/building-gormes/strategy/success-plan.md:sharp v1.0 differentiator and install-size benchmark, .github/workflows/release.yml:Build static binary archive, webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowContract
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Agentic-porting-kit repo scaffold
+## 4. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -130,7 +110,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Built-with-Gormes page scaffold
+## 5. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

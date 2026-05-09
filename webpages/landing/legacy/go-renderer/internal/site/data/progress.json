@@ -47840,12 +47840,12 @@
             {
               "name": "Release archive 30 MB size gate",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "The release workflow enforces the v1 differentiator's single 30 MB binary promise before release artifacts are uploaded: every built archive is checked against a 31,457,280-byte cap after packaging and checksum generation, and any oversize archive fails the build with a clear target-specific message.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
