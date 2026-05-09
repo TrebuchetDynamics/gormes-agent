@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const siteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(siteRoot, '../..');
 const legacyStatic = resolve(siteRoot, 'legacy/go-renderer/internal/site/static');
+const legacyInstallers = resolve(siteRoot, 'legacy/go-renderer/internal/site/installers');
 
 async function pathExists(path) {
   try {
@@ -76,6 +77,16 @@ const copies = [
   ['install.sh', resolve(repoRoot, 'install.sh'), resolve(siteRoot, 'public/install.sh')],
   ['install.ps1', resolve(repoRoot, 'scripts/install.ps1'), resolve(siteRoot, 'public/install.ps1')],
   ['install.cmd', resolve(repoRoot, 'scripts/install.cmd'), resolve(siteRoot, 'public/install.cmd')],
+  [
+    'legacy install.ps1',
+    resolve(repoRoot, 'scripts/install.ps1'),
+    resolve(legacyInstallers, 'install.ps1'),
+  ],
+  [
+    'legacy install.cmd',
+    resolve(repoRoot, 'scripts/install.cmd'),
+    resolve(legacyInstallers, 'install.cmd'),
+  ],
   [
     'benchmarks.json',
     resolve(repoRoot, 'benchmarks.json'),
