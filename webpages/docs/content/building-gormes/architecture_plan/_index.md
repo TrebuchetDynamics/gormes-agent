@@ -903,6 +903,7 @@ classification and row-backed implementation queue.
 - [x] Cron script/workdir/inactivity execution binding
 - [x] Cron no-agent script-only watchdog mode
 - [x] Cron partial legacy job read-model normalization
+- [x] Cron dashboard partial-record page
 - [x] Navivox host setup apply with transient sudo
 - [x] Gateway auto-resume on restart
 

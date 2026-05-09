@@ -33766,6 +33766,89 @@
               }
             },
             {
+              "name": "Cron dashboard partial-record page",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes replaces the placeholder Cron dashboard route with a native React page over `/v1/admin/cron/jobs` that matches Hermes' refreshed partial-record resilience: loading/error/empty states are explicit, partial legacy records render stable title/schedule/state fallbacks, pause/resume decisions use a shared `getJobState` helper instead of raw `state`, and pause/resume/trigger buttons call the existing cron admin endpoints without starting schedulers, providers, or live channels.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "If the cron API is unreachable, the page shows bounded error evidence and a retry action; partial records still render as readable operator rows with `?` schedule and scheduled/paused/disabled state instead of blank cards or JavaScript exceptions.",
+              "fixture": "web/tests/run-tests.mjs:CronDashboardPage",
+              "source_refs": [
+                "./hermes-agent/web/src/pages/CronPage.tsx@96dc27262:getJobTitle",
+                "./hermes-agent/web/src/pages/CronPage.tsx@96dc27262:getJobScheduleDisplay",
+                "./hermes-agent/web/src/pages/CronPage.tsx@96dc27262:getJobState",
+                "./hermes-agent/web/src/lib/api.ts@e57273727:CronJob partial/null fields",
+                "web/src/pages/CronPage.tsx",
+                "internal/apiserver/cron_admin_read.go",
+                "internal/apiserver/cron_admin_mutate.go"
+              ],
+              "ready_when": [
+                "Cron partial legacy job read-model normalization is complete.",
+                "Native cron admin read and pause/resume/trigger endpoints are complete.",
+                "The existing Gormes web dashboard scaffold routes `/cron` to `web/src/pages/CronPage.tsx`.",
+                "Tests can statically inspect the small React page and endpoint wiring without a live browser, scheduler, provider, gateway channel, or private cron state."
+              ],
+              "not_ready_when": [
+                "The slice implements create/edit/delete forms, scheduler execution, live auth negotiation, or a full upstream React dashboard port.",
+                "The page imports Hermes web code, requires Node at Gormes runtime, or calls live Hermes/Python services.",
+                "Button handlers decide pause/resume from raw `job.state` alone instead of the normalized state helper."
+              ],
+              "blocked_by": [
+                "Cron partial legacy job read-model normalization"
+              ],
+              "acceptance": [
+                "CronPage fetches `/v1/admin/cron/jobs`, renders loading/error/empty states, and no longer renders the generic UnavailablePanel placeholder.",
+                "Partial job helpers preserve Hermes fallbacks: title from name/prompt/script/id, schedule from schedule_display/schedule object/schedule string/`?`, and state from state/paused/enabled with scheduled as the default.",
+                "Pause/resume buttons use `getJobState(job)` to choose `/pause` versus `/resume`; trigger uses `/trigger`, and each successful action reloads the list.",
+                "Static web tests pin the route, helper names, endpoint paths, partial-record fallback tokens, and the fact that Cron is now a concrete page while other placeholder routes still name their endpoints."
+              ],
+              "write_scope": [
+                "web/src/pages/CronPage.tsx",
+                "web/src/styles.css",
+                "web/tests/run-tests.mjs",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "npm --prefix web test -- --run CronDashboardPage",
+                "npm --prefix web test -- --run DashboardFrontendScaffoldPageFallbacks",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Web static tests prove the Cron route is a concrete partial-record-safe dashboard page over native Gormes cron endpoints."
+              ],
+              "note": "Complete 2026-05-09: TDD replaced the placeholder Cron dashboard page with a native React route over `/v1/admin/cron/jobs`. The page now has stale-response-safe loading via a `useEffect` cleanup guard, bounded loading/error/empty states, Hermes-shaped `getJobTitle`, `getJobScheduleDisplay`, and `getJobState` fallbacks for partial legacy records, and pause/resume/trigger buttons over the existing cron admin endpoints. Static web fixtures were updated so the Cron route is treated as concrete while the remaining scaffold-only pages still prove their endpoint placeholders.",
+              "evidence": {
+                "implementation": [
+                  "web/src/pages/CronPage.tsx defines the concrete Cron dashboard page and partial-record helpers.",
+                  "web/src/styles.css adds Cron dashboard row, status, action, and state-panel styling.",
+                  "web/tests/run-tests.mjs pins Cron helper names, native endpoint paths, fallback tokens, and the Node 18-compatible test harness root."
+                ],
+                "tests": [
+                  "RED: npm --prefix web test -- --run CronDashboardPage failed because CronPage still rendered UnavailablePanel.",
+                  "GREEN: npm --prefix web test -- --run CronDashboardPage",
+                  "GREEN: npm --prefix web test -- --run DashboardFrontendScaffoldPageFallbacks",
+                  "GREEN: npm --prefix web test"
+                ],
+                "note": "The first RED exposed the static web test harness using Node 20-only import.meta.dirname under Node 18.19.1; the harness now resolves its root from import.meta.url before running the Cron fixture."
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:96dc27262 web/src/pages/CronPage.tsx",
+                  "hermes:e57273727 web/src/lib/api.ts",
+                  "hermes:e407376c5 cron/jobs.py"
+                ],
+                "note": "Added 2026-05-09 by a bounded all-topic weakness sweep. Fresh Hermes deltas since a7e7921db touched cron partial-record normalization, cron dashboard rendering, cron delivery-origin isolation, and a release AUTHOR_MAP-only salvage entry. Gormes already completed origin isolation and backend/API partial-record normalization, while CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator rows were complete, owned, blocked, or row-backed. The remaining source-backed gap was the concrete Cron dashboard route: Gormes rendered `UnavailablePanel` even though the native cron admin endpoints now exist."
+              }
+            },
+            {
               "name": "Navivox host setup apply with transient sudo",
               "status": "complete",
               "priority": "P1",
