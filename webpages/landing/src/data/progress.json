@@ -24861,6 +24861,77 @@
                 "upstream_ref": "hermes:b816fd4e2 voice.record_key TUI binding",
                 "note": "2026-05-06 bounded all-topic Hermes/Honcho weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned row count is 74; no new row was added. Planned P1 rows are blocked, draft-only, or not honest to select, while this row has complete STT/TTS prerequisites and active Hermes b816fd4e2 evidence for config extraction, status formatting, gateway responses, and TUI key matching. Promote to P1 as the highest unblocked small Hermes-sourced builder slice for this cycle."
               }
+            },
+            {
+              "name": "Telegram voice STT HTTP-provider fallback",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "When the local whisper/whisper-cli binary is absent from PATH, Gormes' Telegram channel falls back to the HTTP STT providers already shipped in the binary (internal/tools/transcription_providers.go) — currently OpenAI Whisper, plumbed via env vars GORMES_STT_OPENAI_KEY / OPENAI_API_KEY / VOICE_TOOLS_OPENAI_KEY. Local-CLI shim retains priority when both are available (matches Hermes' free-local default). When neither is configured, the channel preserves the prior attachment-marker-only fallback behavior.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Resolver returns nil when neither local binary nor HTTP provider env vars are set; the channel surfaces the existing 'audio unavailable' attachment marker without leaking provider configuration details.",
+              "fixture": "internal/channels/telegram/transcriber_resolver_test.go and cmd/gormes/telegram_transcriber_test.go",
+              "source_refs": [
+                "../hermes-agent/tools/transcription_tools.py:transcribe_audio (Hermes parity — local-default + cloud-fallback)",
+                "../hermes-agent/gateway/run.py:6205 (Hermes' STT-unavailable user message)",
+                "internal/channels/telegram/transcriber.go:ResolveAudioTranscriber",
+                "internal/channels/telegram/transcriber.go:CommandAudioTranscriber (existing local CLI shim)",
+                "internal/tools/transcription_providers.go:TranscriptionOpenAIProvider (existing HTTP client)",
+                "cmd/gormes/telegram_transcriber.go (resolver + adapter)",
+                "cmd/gormes/gateway.go:445 (injection site)",
+                "cmd/gormes/telegram.go:204 (injection site)"
+              ],
+              "ready_when": [
+                "Local-CLI transcriber row 'Telegram voice/audio STT ingress hook' is shipped and the AudioTranscriber seam is stable.",
+                "internal/tools/transcription_providers.go HTTP clients are present in the binary (built with !slim)."
+              ],
+              "not_ready_when": [
+                "The HTTP fallback would auto-share the openai-codex OAuth token with the STT path (different scope, different endpoint) — that needs its own row.",
+                "The slice introduces a hard import dependency from internal/channels/telegram on internal/tools (would massively bloat the channel package's deps)."
+              ],
+              "blocked_by": [
+                "Telegram voice/audio STT ingress hook"
+              ],
+              "acceptance": [
+                "ResolveAudioTranscriber returns the first non-nil candidate in priority order (local CLI before HTTP), nil when all candidates are nil; tests prove no candidate is silently dropped.",
+                "httpSTTAudioTranscriber adapter materializes audio bytes to a tempfile, calls the underlying tools.TranscriptionProvider, returns the transcript verbatim, and removes the tempfile after the call.",
+                "newHTTPAudioTranscriberFromEnv returns a non-nil OpenAI-backed transcriber when GORMES_STT_OPENAI_KEY, OPENAI_API_KEY, or VOICE_TOOLS_OPENAI_KEY is set; returns nil when none are set.",
+                "resolveTelegramAudioTranscriber prefers the local CLI when the whisper binary is on PATH and falls back to the HTTP transcriber when it is not; returns nil when neither path is configured.",
+                "Both gateway injection sites (cmd/gormes/gateway.go and cmd/gormes/telegram.go) call resolveTelegramAudioTranscriber instead of telegram.NewWhisperTranscriberFromEnv directly.",
+                "Slim builds (go build -tags slim ./...) keep working via cmd/gormes/telegram_transcriber_slim.go which exposes only the local-CLI path."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/transcriber.go",
+                "internal/channels/telegram/transcriber_resolver_test.go",
+                "cmd/gormes/telegram_transcriber.go",
+                "cmd/gormes/telegram_transcriber_slim.go",
+                "cmd/gormes/telegram_transcriber_test.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestResolveAudioTranscriber' -count=1",
+                "go test ./cmd/gormes -run 'TestHTTPSTT|TestNewHTTP|TestResolveTelegramAudio' -count=1",
+                "go test ./internal/channels/telegram ./cmd/gormes -count=1",
+                "go build -tags slim ./...",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Resolver tests prove local-first priority and HTTP fallback wiring; cmd/gormes adapter tests prove bytes round-trip through the tempfile bridge to a fake tools.TranscriptionProvider; both build tags compile clean; existing voice/STT tests remain green; setting OPENAI_API_KEY (or GORMES_STT_OPENAI_KEY) on a fresh PC with no local whisper binary now produces transcribed Telegram voice messages instead of attachment-marker-only fallback."
+              ],
+              "note": "Filed and shipped 2026-05-09 from a live regression on this PC: voice messages to the Telegram bot were arriving as attachment markers only because no local whisper binary was on PATH. Gormes already ships HTTP STT clients (internal/tools/transcription_providers.go from earlier work), they just weren't wired into the Telegram inbound voice path. This slice adds a tiny ResolveAudioTranscriber priority resolver in the channels package plus a cmd/gormes-side adapter that bridges telegram.AudioInput bytes to tools.TranscriptionProvider's file-path interface. Local CLI keeps priority. OAuth-token sharing between the openai-codex provider and the STT endpoint is intentionally out of scope (different endpoint, different auth scope) and is a follow-up row.",
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes tools/transcription_tools.py + gateway/run.py STT plumbing",
+                "note": "Hermes' transcribe_audio supports local faster-whisper plus cloud providers (OpenAI/Groq) and prefers local. Gormes had the cloud clients but only the local-CLI path was wired into the Telegram channel; this slice closes that wiring gap."
+              }
             }
           ],
           "drift_state": {
@@ -31371,6 +31442,85 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py + hermes_cli/kanban_db.py",
                 "note": "Hermes supplies the expanded Kanban operator contract; Gormes ports it through Gormes-owned, child-row slices rather than one broad row."
+              }
+            },
+            {
+              "name": "Kanban schema migration duplicate-column race guard",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-09T21:11:40Z",
+              "contract": "Gormes Kanban schema migrations tolerate the same stale-snapshot race Hermes fixed in _migrate_add_optional_columns: if a connection sees an optional column missing but another concurrent opener adds it before this connection executes ALTER TABLE, Gormes treats SQLite duplicate-column errors as a successful idempotent migration while still surfacing real schema failures.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Duplicate-column migration races return nil and keep gateway/CLI Kanban open usable; non-duplicate ALTER TABLE failures still return typed migrate kanban table.column errors without deleting tasks, rewriting rows, changing board routing, or reading Hermes home/env state.",
+              "fixture": "internal/kanban/store_test.go::TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban_db.py@78698381a:_add_column_if_missing",
+                "./hermes-agent/hermes_cli/kanban_db.py@78698381a:_migrate_add_optional_columns",
+                "internal/kanban/store.go:ensureColumn",
+                "internal/kanban/store.go:migrateSchema"
+              ],
+              "ready_when": [
+                "internal/kanban/store.go already centralizes optional column migrations through ensureColumn for tasks and task_runs.",
+                "The slice can prove the race by invoking the ALTER helper against an already-present optional column in a temp SQLite store; no live gateway loop, worker process, Hermes Python runtime, or wall-clock race is required.",
+                "The 2026-05-09 parity sweep counted 13 planned executable rows, below the 90-row cap, and this adds no P3/P4 backlog."
+              ],
+              "not_ready_when": [
+                "The implementation changes Kanban schema names, copies/renames legacy columns, edits dispatcher/worker semantics, enables a gateway dispatcher by default, or adds a second migration framework.",
+                "Tests rely on nondeterministic goroutine timing, real gateway ticks, real worker subprocesses, or live Hermes configuration.",
+                "The duplicate-column guard hides non-duplicate SQLite migration errors."
+              ],
+              "unblocks": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "A store fixture proves the low-level optional-column ADD helper returns nil when SQLite reports duplicate column name for a column another opener already added.",
+                "The same fixture proves a genuinely new optional column is still added through ALTER TABLE and visible in PRAGMA table_info.",
+                "A non-duplicate ALTER TABLE failure remains an error with table/column migrate evidence.",
+                "migrateSchema routes all optional task and task_runs column additions through the duplicate-column-aware helper."
+              ],
+              "note": "Complete 2026-05-09: added by the bounded all-topic weakness sweep after refreshing Hermes to bfc84bdc6 and Honcho to e659b6b. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Recent upstream deltas for OpenRouter Grok headers, gateway system HERMES_HOME, Telegram notification mode, browser provider-cache fallback, zsh completion, delegate ACP guidance, doctor provider aliases, release authors, and docs/public surfaces were complete, owned, operator-gated, or better handled by existing rows. Hermes commit 78698381a fixed a Kanban dispatcher-start crash caused by duplicate optional-column ALTER races; Gormes had the same stale PRAGMA snapshot shape in internal/kanban/store.go:ensureColumn. TDD added addColumnIfMissing and duplicate-column detection, routed ensureColumn through the helper, and proved duplicate ALTER races are idempotent while missing-table ALTER errors still surface table/column migrate evidence.",
+              "write_scope": [
+                "internal/kanban/store.go",
+                "internal/kanban/store_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace -count=1",
+                "go test ./internal/kanban -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban migration fixtures prove duplicate-column races are idempotent while real schema failures still surface, and the full internal/kanban package remains green."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/store.go:addColumnIfMissing wraps ALTER TABLE ADD COLUMN and ignores only SQLite duplicate column name errors.",
+                  "internal/kanban/store.go:ensureColumn routes optional tasks and task_runs schema additions through the duplicate-column-aware helper while preserving migrate kanban table.column wrapping for real failures."
+                ],
+                "tests": [
+                  "internal/kanban/store_test.go:TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/kanban -run TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace -count=1 failed because Store.addColumnIfMissing was undefined.",
+                  "GREEN: go test ./internal/kanban -run TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace -count=1 passed after adding the duplicate-column-aware helper and routing ensureColumn through it."
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace -count=1 -> ok",
+                  "go test ./internal/kanban -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:78698381a hermes_cli/kanban_db.py _add_column_if_missing + _migrate_add_optional_columns",
+                "note": "Hermes fixed duplicate-column races from concurrent Kanban DB open/migration passes; Gormes ports the behavior into its native SQLite migration helper."
               }
             },
             {

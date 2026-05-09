@@ -746,6 +746,7 @@ classification and row-backed implementation queue.
 - [x] TTS provider matrix + dotenv/command-provider resolution
 - [x] TTS synthesis + voice-mode state
 - [x] Voice record-key config binding for native TUI
+- [x] Telegram voice STT HTTP-provider fallback
 
 ### 5.F — Skills System (Remaining) ✅
 
@@ -863,6 +864,7 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [x] Kanban schema migration duplicate-column race guard
 - [x] Kanban notify subscription store and CLI
 - [x] Kanban stats command and board summary
 - [x] Kanban named-board workspace and log roots
