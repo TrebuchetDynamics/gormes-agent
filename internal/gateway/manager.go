@@ -2009,6 +2009,14 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 func (m *Manager) allowed(ev InboundEvent) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if ev.Platform == "telegram" && ev.AllowlistBypassReason == AllowlistBypassTelegramGuestMention {
+		if _, ok := m.cfg.AllowedChatWhitelists[ev.Platform]; ok {
+			return true
+		}
+		if want := strings.TrimSpace(m.cfg.AllowedChats[ev.Platform]); want != "" {
+			return true
+		}
+	}
 	if wl, ok := m.cfg.AllowedChatWhitelists[ev.Platform]; ok && !wl.IsAllowed(ev.ChatID) {
 		return false
 	}

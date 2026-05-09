@@ -48,6 +48,64 @@ func TestBot_ToInboundEvent_GroupMentionGate_PlainTextMentionAccepted(t *testing
 	}
 }
 
+func TestBot_ToInboundEvent_GuestModeExplicitMentionMarksAllowlistBypass(t *testing.T) {
+	b := New(Config{
+		AllowedChatID: -200,
+		GuestMode:     true,
+		BotUsername:   "gormes_bot",
+	}, newMockClient(), nil)
+	text := "hello @gormes_bot"
+	update := groupUpdate(-201, text, []tgbotapi.MessageEntity{
+		{Type: "mention", Offset: len("hello "), Length: len("@gormes_bot")},
+	})
+
+	ev, ok := b.toInboundEvent(context.Background(), update)
+	if !ok {
+		t.Fatal("expected guest direct mention to be converted into an inbound event")
+	}
+	if ev.AllowlistBypassReason != gateway.AllowlistBypassTelegramGuestMention {
+		t.Fatalf("AllowlistBypassReason = %q, want %q", ev.AllowlistBypassReason, gateway.AllowlistBypassTelegramGuestMention)
+	}
+}
+
+func TestBot_ToInboundEvent_GuestModeDefaultDoesNotBypassAllowlist(t *testing.T) {
+	b := New(Config{
+		AllowedChatID: -200,
+		BotUsername:   "gormes_bot",
+	}, newMockClient(), nil)
+	text := "hello @gormes_bot"
+	update := groupUpdate(-201, text, []tgbotapi.MessageEntity{
+		{Type: "mention", Offset: len("hello "), Length: len("@gormes_bot")},
+	})
+
+	ev, ok := b.toInboundEvent(context.Background(), update)
+	if !ok {
+		t.Fatal("expected ordinary direct mention to stay visible to the gateway")
+	}
+	if ev.AllowlistBypassReason != "" {
+		t.Fatalf("AllowlistBypassReason = %q, want empty when guest_mode is disabled", ev.AllowlistBypassReason)
+	}
+}
+
+func TestBot_ToInboundEvent_GuestModeBareCommandDoesNotBypassAllowlist(t *testing.T) {
+	b := New(Config{
+		AllowedChatID: -200,
+		GuestMode:     true,
+		BotUsername:   "gormes_bot",
+	}, newMockClient(), nil)
+	update := groupUpdate(-201, "/status", []tgbotapi.MessageEntity{
+		{Type: "bot_command", Offset: 0, Length: len("/status")},
+	})
+
+	ev, ok := b.toInboundEvent(context.Background(), update)
+	if !ok {
+		t.Fatal("expected bare command to remain a gateway decision when require_mention is disabled")
+	}
+	if ev.AllowlistBypassReason != "" {
+		t.Fatalf("AllowlistBypassReason = %q, want empty for bare command", ev.AllowlistBypassReason)
+	}
+}
+
 func TestBot_ToInboundEvent_DMBypassesMentionGate(t *testing.T) {
 	b := New(Config{RequireMention: true, BotUsername: "gormes_bot"}, newMockClient(), nil)
 	update := dmUpdate(42, "hello")

@@ -21,6 +21,7 @@ import (
 // kept here so SDK-specific entrypoints can reuse the typed values.
 type Config struct {
 	AllowedChatID     int64
+	AllowedChatIDs    []string
 	AllowedUserIDs    []int64
 	FirstRunDiscovery bool
 	// AttachmentCacheDir stores Telegram downloads before the channel emits
@@ -46,6 +47,9 @@ type Config struct {
 	// RequireMention gates group inbound messages so only those addressed to
 	// BotUsername (mention or bot_command @suffix) reach the gateway.
 	RequireMention bool
+	// GuestMode permits non-allowlisted group chats to trigger only via an
+	// explicit bot mention, matching Hermes' telegram.guest_mode.
+	GuestMode bool
 	// BotUsername is the bare bot handle used to recognise group mentions.
 	BotUsername string
 	// BotUserID is optional and lets Telegram text_mention entities target the
@@ -290,10 +294,13 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 	chatID := u.Message.Chat.ID
 	text, attachments := b.telegramInboundTextAndAttachments(ctx, u.Message)
 
-	if b.cfg.RequireMention && telegramIsGroupChat(u.Message.Chat) {
-		if !telegramGroupMentionGateMessageAddressed(u.Message, b.cfg.BotUsername, b.cfg.BotUserID, true) {
+	guestBypass := false
+	if telegramIsGroupChat(u.Message.Chat) {
+		addressed := telegramGroupMentionGateMessageAddressed(u.Message, b.cfg.BotUsername, b.cfg.BotUserID, true)
+		if b.cfg.RequireMention && !addressed {
 			return gateway.InboundEvent{}, false
 		}
+		guestBypass = b.cfg.GuestMode && addressed && b.telegramHasConfiguredAllowedChats() && !b.telegramChatAllowed(chatID)
 	}
 
 	kind, body := gateway.ParseInboundText(text)
@@ -303,7 +310,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		userID = strconv.FormatInt(u.Message.From.ID, 10)
 	}
 
-	return gateway.InboundEvent{
+	ev := gateway.InboundEvent{
 		Platform:    "telegram",
 		ChatID:      strconv.FormatInt(chatID, 10),
 		ChatType:    telegramChatType(u.Message.Chat),
@@ -313,7 +320,26 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		Kind:        kind,
 		Text:        body,
 		Attachments: attachments,
-	}, true
+	}
+	if guestBypass {
+		ev.AllowlistBypassReason = gateway.AllowlistBypassTelegramGuestMention
+	}
+	return ev, true
+}
+
+func (b *Bot) telegramHasConfiguredAllowedChats() bool {
+	return b.cfg.AllowedChatID != 0 || len(b.cfg.AllowedChatIDs) > 0
+}
+
+func (b *Bot) telegramChatAllowed(chatID int64) bool {
+	chatIDText := strconv.FormatInt(chatID, 10)
+	if b.cfg.AllowedChatID != 0 && b.cfg.AllowedChatID == chatID {
+		return true
+	}
+	if wl := gateway.ParseWhitelistConfig(b.cfg.AllowedChatIDs); wl.Enabled {
+		return wl.IsAllowed(chatIDText)
+	}
+	return false
 }
 
 func telegramChatType(chat *tgbotapi.Chat) string {

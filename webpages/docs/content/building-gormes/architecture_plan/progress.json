@@ -6886,6 +6886,84 @@
               "note": "Complete 2026-05-09: RED proved Bot did not implement gateway.FinalizingMessageEditor and EditMessageFinal was missing. GREEN added Bot.EditMessageFinal with non-final exact plain-text edits, final MarkdownV2 edits, and existing parse-error plaintext fallback; Bot.EditMessage now delegates to the final-edit path to preserve legacy callers. Verification: go test ./internal/channels/telegram -run 'TestBot_EditMessageFinal|TestBot_EditMessage_SetsMarkdownV2ParseMode|TestBot_Send' -count=1; go test ./internal/channels/telegram ./internal/gateway -run 'Telegram|Coalescer|MarkdownV2|Format' -count=1."
             },
             {
+              "name": "Telegram guest mention allowlist bypass",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Telegram group admission matches Hermes guest_mode: when an operator configures an allowed_chat_id/allowed_chats allowlist and enables guest_mode, a group or supergroup outside that allowlist may reach the gateway only when the message explicitly mentions the bot by @username, text_mention user ID, or /command@botname entity. Replies to the bot, regex mention patterns, bare slash commands, and ordinary text must not bypass the allowlist.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "If guest_mode is disabled or bot identity is unavailable, Gormes keeps the existing strict allowlist behavior and drops non-allowlisted group traffic.",
+              "fixture": "internal/channels/telegram/group_mention_binding_test.go::TestBot_ToInboundEvent_GuestMode* plus internal/gateway manager admission fixture",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/telegram.py@55f518e52:_telegram_guest_mode",
+                "./hermes-agent/gateway/platforms/telegram.py@55f518e52:_is_guest_mention",
+                "./hermes-agent/gateway/platforms/telegram.py@55f518e52:_should_process_message",
+                "./hermes-agent/tests/gateway/test_telegram_group_gating.py@55f518e52:test_guest_mode_allows_only_direct_mentions_outside_allowed_chats",
+                "./hermes-agent/tests/gateway/test_telegram_group_gating.py@55f518e52:test_guest_mode_defaults_to_false_for_allowed_chat_bypass",
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/bot.go",
+                "internal/gateway/manager.go:allowed",
+                "internal/config/config.go:TelegramCfg"
+              ],
+              "ready_when": [
+                "Telegram require-mention entity parsing and bot-command suffix handling are complete.",
+                "Gateway manager admission already owns platform allowlist enforcement, so the guest-mode bypass can be represented as explicit adapter evidence instead of weakening global allowed-chat checks.",
+                "Tests can use fake Telegram updates and gateway manager fixtures without a live Telegram Bot API."
+              ],
+              "not_ready_when": [
+                "The slice treats guest_mode as a general open-group policy instead of a direct-mention-only bypass.",
+                "Replies to the bot, regex wake words, bare /status, DMs, or non-Telegram platforms bypass configured allowed_chats because of this change.",
+                "The implementation reads live Telegram config or private home directories instead of typed config and hermetic test fixtures."
+              ],
+              "blocked_by": [
+                "Telegram group require-mention bot binding",
+                "Gateway startup allowlist + weak credential guard"
+              ],
+              "acceptance": [
+                "A Telegram adapter fixture proves guest_mode=false drops a non-allowlisted group mention and guest_mode=true marks only explicit bot mentions as a guest mention bypass candidate.",
+                "A gateway manager fixture proves the guest mention candidate is admitted even when AllowedChats[\"telegram\"] points at another group, while a reply-to-bot, regex wake word, bare command, or ordinary text from the same non-allowlisted group is still rejected.",
+                "Config loading supports telegram.guest_mode and TELEGRAM_GUEST_MODE without changing existing require_mention or allowed_chat_id behavior.",
+                "Existing Telegram require-mention, bot-command suffix, DM bypass, and allowed-chat manager tests remain green."
+              ],
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
+                "internal/gateway/event.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/group_mention_binding_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestBot_ToInboundEvent_GroupMentionGate|TestBot_ToInboundEvent_GuestMode' -count=1",
+                "go test ./internal/gateway -run 'TestManager_Allowed|TestManager_GuestMention' -count=1",
+                "go test ./internal/config -run 'Test.*Telegram.*Guest|TestLoad.*Telegram|TestEnv.*Telegram' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram adapter, config, and gateway admission fixtures prove Hermes guest_mode only admits explicit bot mentions from non-allowlisted groups, and progress evidence cites Hermes 55f518e52."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55f518e52 gateway/platforms/telegram.py",
+                  "hermes:55f518e52 tests/gateway/test_telegram_group_gating.py"
+                ],
+                "note": "2026-05-09 bounded all-topic weakness sweep refreshed Hermes to dae94fa65 and Honcho to e659b6b. Sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap. Existing P1 publication/release parents are operator-blocked or non-selectable; current runtime parity gaps are complete or row-backed except latest Telegram guest mention mode, so this one P1 source-backed gateway row was added."
+              },
+              "note": "Complete 2026-05-09: RED added Telegram adapter, gateway manager, and config fixtures proving Hermes 55f518e52 guest_mode semantics. GREEN added config `telegram.guest_mode` plus `TELEGRAM_GUEST_MODE`/`GORMES_TELEGRAM_GUEST_MODE`, row-scoped `AllowlistBypassTelegramGuestMention` evidence on Telegram inbound events, and manager admission that only honors that bypass when a Telegram chat allowlist exists. Explicit @mentions, text_mention user IDs, and /command@botname entities can bypass a different allowed_chat_id/allowed_chats group when guest_mode is enabled; bare slash commands and ordinary non-allowlisted traffic remain blocked. Verification: go test ./internal/channels/telegram -run 'TestBot_ToInboundEvent_GroupMentionGate|TestBot_ToInboundEvent_GuestMode' -count=1; go test ./internal/gateway -run 'TestManager_Allowed|TestManager_GuestMention' -count=1; go test ./internal/config -run 'Test.*Telegram.*Guest|TestLoad.*Telegram|TestEnv.*Telegram' -count=1."
+            },
+            {
               "name": "Gateway platform reconnect isolation + channel health limits",
               "status": "complete",
               "priority": "P1",

@@ -257,6 +257,7 @@ classification and row-backed implementation queue.
 - [x] Telegram semantic MarkdownV2 formatter + table rewrite
 - [x] Telegram Markdown table row-label bullet suppression
 - [x] Telegram streaming edit Markdown safety
+- [x] Telegram guest mention allowlist bypass
 - [x] Gateway platform reconnect isolation + channel health limits
 
 ### 2.B.10 — WeChat Adapter ✅
