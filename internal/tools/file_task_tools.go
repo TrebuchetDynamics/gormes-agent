@@ -16,6 +16,9 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/pelletier/go-toml/v2"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -25,6 +28,7 @@ const (
 	defaultSearchFilesLimit  = 50
 	defaultSearchFilesMax    = 500
 	defaultWriteFileFileMode = 0o644
+	maxStructuredLintOutput  = 2000
 )
 
 // FileTaskToolConfig constrains local file tools to a workspace root.
@@ -35,6 +39,12 @@ type FileTaskToolConfig struct {
 	TaskID        string
 	CWDResolver   func() string
 	MaxReadChars  int
+}
+
+type structuredLintResult struct {
+	Success bool   `json:"success"`
+	Output  string `json:"output,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type ReadFileToolConfig = FileTaskToolConfig
@@ -515,6 +525,13 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if isFileReadGuardStatusText([]byte(in.Content)) {
 		return marshalToolPayload(map[string]any{"path": rel, "error": ErrFileReadGuardStatusContent.Error()})
 	}
+	var preContent *string
+	if supportsStructuredLint(rel) {
+		if raw, err := os.ReadFile(resolved); err == nil {
+			pre := string(raw)
+			preContent = &pre
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(resolved), 0o755); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "create parent directories: " + err.Error()})
 	}
@@ -526,6 +543,9 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 		"path":          rel,
 		"bytes_written": len([]byte(in.Content)),
 		"status":        "ok",
+	}
+	if lint, ok := structuredLintDelta(rel, in.Content, preContent); ok {
+		payload["lint"] = lint
 	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
 		payload["file_state"] = statePayload
@@ -620,6 +640,9 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		"replacements": replacements,
 		"status":       "ok",
 	}
+	if lint, ok := structuredLintDelta(rel, updated, &content); ok {
+		payload["lint"] = lint
+	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
 		payload["file_state"] = statePayload
 	}
@@ -647,6 +670,7 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 	}
 
 	var modified, created, deleted []string
+	lintResults := map[string]structuredLintResult{}
 	registry := fileTaskStateRegistry(t.cfg)
 	for _, action := range actions {
 		switch action.kind {
@@ -659,12 +683,18 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 			}
 			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			created = append(created, action.rel)
+			if lint, ok := structuredLintDelta(action.rel, action.content, nil); ok {
+				lintResults[action.rel] = lint
+			}
 		case v4aOperationUpdate:
 			if err := os.WriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
 				return marshalPatchApplyError(action.rel, "write patched file: "+err.Error(), modified, created, deleted)
 			}
 			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			modified = append(modified, action.rel)
+			if lint, ok := structuredLintDelta(action.rel, action.content, action.preContent); ok {
+				lintResults[action.rel] = lint
+			}
 		case v4aOperationDelete:
 			if err := os.Remove(action.abs); err != nil {
 				return marshalPatchApplyError(action.rel, "delete file: "+err.Error(), modified, created, deleted)
@@ -681,14 +711,18 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 			modified = append(modified, action.rel+" -> "+action.newRel)
 		}
 	}
-	return marshalToolPayload(map[string]any{
+	payload := map[string]any{
 		"status":         "ok",
 		"success":        true,
 		"operations":     len(actions),
 		"files_modified": modified,
 		"files_created":  created,
 		"files_deleted":  deleted,
-	})
+	}
+	if len(lintResults) > 0 {
+		payload["lint"] = lintResults
+	}
+	return marshalToolPayload(payload)
 }
 
 func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, *fileStateCheck, error) {
@@ -723,6 +757,8 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		if err != nil {
 			return action, nil, fmt.Errorf("update file %s: %w", rel, err)
 		}
+		pre := string(raw)
+		action.preContent = &pre
 		action.content = updated
 	case v4aOperationDelete:
 		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
@@ -812,16 +848,17 @@ type v4aPatchLine struct {
 }
 
 type v4aPatchAction struct {
-	kind    v4aOperationKind
-	rel     string
-	abs     string
-	root    string
-	cwd     string
-	newRel  string
-	newAbs  string
-	newRoot string
-	newCWD  string
-	content string
+	kind       v4aOperationKind
+	rel        string
+	abs        string
+	root       string
+	cwd        string
+	newRel     string
+	newAbs     string
+	newRoot    string
+	newCWD     string
+	content    string
+	preContent *string
 }
 
 func parseV4APatch(patchText string) ([]v4aPatchOperation, error) {
@@ -1001,6 +1038,88 @@ func appendV4AText(content, insertText string) string {
 		return insertText
 	}
 	return strings.TrimRight(content, "\n") + "\n" + insertText + "\n"
+}
+
+func supportsStructuredLint(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".json", ".yaml", ".yml", ".toml":
+		return true
+	default:
+		return false
+	}
+}
+
+func structuredLintDelta(path, postContent string, preContent *string) (structuredLintResult, bool) {
+	post, ok := runStructuredLint(path, postContent)
+	if !ok {
+		return structuredLintResult{}, false
+	}
+	if post.Success || preContent == nil {
+		return post, true
+	}
+	pre, ok := runStructuredLint(path, *preContent)
+	if !ok || pre.Success || strings.TrimSpace(pre.Output) == "" {
+		return post, true
+	}
+	preLines := lintOutputLineSet(pre.Output)
+	var newLines []string
+	for _, line := range strings.Split(post.Output, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if _, existed := preLines[trimmed]; !existed {
+			newLines = append(newLines, line)
+		}
+	}
+	if len(newLines) == 0 {
+		post.Message = "Pre-existing lint errors - this edit didn't introduce new ones but the file is still broken."
+		return post, true
+	}
+	post.Output = boundStructuredLintOutput("New lint errors introduced by this edit (pre-existing errors filtered out):\n" + strings.Join(newLines, "\n"))
+	return post, true
+}
+
+func runStructuredLint(path, content string) (structuredLintResult, bool) {
+	var err error
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".json":
+		var decoded any
+		err = json.Unmarshal([]byte(content), &decoded)
+	case ".yaml", ".yml":
+		var decoded any
+		err = yaml.Unmarshal([]byte(content), &decoded)
+	case ".toml":
+		var decoded map[string]any
+		err = toml.Unmarshal([]byte(content), &decoded)
+	default:
+		return structuredLintResult{}, false
+	}
+	if err != nil {
+		return structuredLintResult{Success: false, Output: boundStructuredLintOutput(err.Error())}, true
+	}
+	return structuredLintResult{Success: true}, true
+}
+
+func lintOutputLineSet(output string) map[string]struct{} {
+	lines := map[string]struct{}{}
+	for _, line := range strings.Split(output, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			lines[trimmed] = struct{}{}
+		}
+	}
+	return lines
+}
+
+func boundStructuredLintOutput(output string) string {
+	output = strings.TrimSpace(output)
+	if len(output) <= maxStructuredLintOutput {
+		return output
+	}
+	if maxStructuredLintOutput <= len("...") {
+		return output[:maxStructuredLintOutput]
+	}
+	return output[:maxStructuredLintOutput-len("...")] + "..."
 }
 
 func resolveWorkspaceFile(root, rawPath string) (string, string, error) {

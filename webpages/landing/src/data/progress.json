@@ -28701,7 +28701,7 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. The umbrella remains planned because fuzzy matching, lint hooks, checkpoint rollback linkage, and full file_operations.py parity remain row-backed.",
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. The umbrella remains planned because fuzzy matching, checkpoint rollback linkage, Python/shell lint parity, and full file_operations.py parity remain row-backed.",
               "priority": "P2"
             },
             {
@@ -29702,12 +29702,93 @@
                 ],
                 "note": "2026-05-06 all-topic parity weakness sweep promoted this builder-ready row to P1. CLI/TUI, provider/auth, gateway/channels, sessions/Goncho, install/runtime, browser, docs/public, and release/operator rows are already represented elsewhere; Hermes b816fd4e2 keeps the file-search hidden-root and rightmost context-line parser behavior active, and Gormes' native SearchFilesTool is the smallest ready runtime slice."
               }
+            },
+            {
+              "name": "Structured lint delta for native write/patch tools",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes write_file and patch preserve Hermes' post-edit structured lint feedback for JSON, YAML, and TOML files: successful writes still land the requested bytes, but the tool result includes lint evidence showing clean output, malformed post-write content, or pre-existing parse failures that were not newly introduced by the edit.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Unsupported extensions omit lint evidence for this slice; malformed structured files return bounded parser errors without rolling back the edit, shelling out to external linters, reading files outside the workspace root, or leaking absolute home paths.",
+              "fixture": "internal/tools/file_lint_delta_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/file_operations.py@0cafe7d50:write_file/_check_lint/_check_lint_delta",
+                "./hermes-agent/tools/file_operations.py@0cafe7d50:patch_replace",
+                "./hermes-agent/tools/patch_parser.py@0cafe7d50:apply_v4a_operations lint collection",
+                "internal/tools/file_task_tools.go:WriteFileTool/PatchTool"
+              ],
+              "ready_when": [
+                "Native file task tool surface, file-state registry, V4A patch mode, and V4A move operation rows are complete.",
+                "The slice can use t.TempDir fixtures and in-process JSON/YAML/TOML parsers only; no shell linter, provider, terminal backend, checkpoint rollback, Python runtime, or live Hermes process is required.",
+                "The row is scoped to structured lint result evidence after write/patch; fuzzy matching, shell lint commands, Python AST linting, rollback integration, and full file_operations.py parity remain separate follow-ups."
+              ],
+              "not_ready_when": [
+                "The implementation rejects or rolls back writes solely because JSON/YAML/TOML lint fails instead of matching Hermes' write-then-report behavior.",
+                "The slice shells out to gofmt, ruff, py_compile, node, tsc, go vet, rustfmt, or any external command.",
+                "The result includes raw absolute home paths, file contents, credentials, or unbounded parser output in lint evidence."
+              ],
+              "blocked_by": [
+                "Native file task tool surface",
+                "File write/patch staleness registry + cwd tracking",
+                "V4A patch mode for native patch tool",
+                "V4A move operation for native patch tool"
+              ],
+              "acceptance": [
+                "TestWriteFileToolStructuredLintReportsJSONYAMLTOML writes malformed `.json`, `.yaml`, and `.toml` files and proves the tool returns status ok plus lint.success=false evidence while the requested bytes are on disk.",
+                "TestPatchToolStructuredLintDeltaPreservesPreExistingError patches a file that was already malformed and proves lint.message marks the error as pre-existing when the edit does not introduce a distinct parser error.",
+                "TestPatchToolV4AStructuredLintReportsPerFile updates a structured file through mode=patch and proves lint evidence is keyed by the modified path.",
+                "Existing write_file, patch, V4A, stale-state, and search_files fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_lint_delta_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Structured lint fixtures prove JSON/YAML/TOML parse evidence appears on write_file, replace patch, and V4A patch results without preventing writes or expanding to external lint commands."
+              ],
+              "note": "Complete 2026-05-09: TDD added in-process structured lint-delta evidence for native file tools. WriteFileTool now captures pre-write structured content when available, writes requested bytes, and returns lint.success/output for JSON/YAML/TOML. Replace-mode PatchTool returns the same lint evidence and marks identical parser errors as pre-existing. V4A patch add/update operations collect per-file lint evidence keyed by path. Unsupported extensions omit lint in this slice; shell/Python lint, fuzzy matching, checkpoint rollback, and full file_operations.py parity remain row-backed.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:0cafe7d50 tools/file_operations.py write_file/_check_lint_delta + patch_replace",
+                "note": "2026-05-09 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing drift gates for command trees, provider registry, gateway platforms, tool descriptors, Goncho MCP catalog, browser provider bridge, and upstream docs coverage were green. Planned rows were 13, below the 90 cap. Higher-priority publication/release rows are operator-gated or draft; this source-backed file-operation lint slice is the highest-priority small builder-ready runtime gap."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go adds structuredLintDelta/runStructuredLint for JSON/YAML/TOML using in-process parsers only.",
+                  "internal/tools/file_task_tools.go wires lint evidence into WriteFileTool and replace-mode PatchTool results without changing write success semantics.",
+                  "internal/tools/file_task_tools.go collects per-file lint evidence for V4A add/update operations."
+                ],
+                "tests": [
+                  "internal/tools/file_lint_delta_test.go:TestWriteFileToolStructuredLintReportsJSONYAMLTOML",
+                  "internal/tools/file_lint_delta_test.go:TestPatchToolStructuredLintDeltaPreservesPreExistingError",
+                  "internal/tools/file_lint_delta_test.go:TestPatchToolV4AStructuredLintReportsPerFile"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'Test.*StructuredLint' -count=1 failed because write_file, patch, and V4A patch returned no lint object.",
+                  "GREEN: go test ./internal/tools -run 'Test.*StructuredLint' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run 'Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1 passed."
+                ]
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-06T00:00:00Z",
-            "origin_decision": "Hermes b816fd4e2 plus recent terminal/file-operation fixes show the remaining File Ops + Patches weaknesses are stateful edit safety, terminal cwd recovery, and search_files drift. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, and terminal deleted-cwd recovery validated. The 2026-05-06 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; most high-risk surfaces are already row-backed, so the sweep promotes `search_files hidden-root and context-line parsing drift` to P1 as the highest-priority small builder-ready tools slice."
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Hermes 0cafe7d50 plus recent file-operation rows show the remaining File Ops + Patches weaknesses are fuzzy patch matching, checkpoint rollback linkage, Python/shell lint parity, and full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, and structured JSON/YAML/TOML lint-delta evidence validated. The 2026-05-09 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; manifest drift gates were green, so the sweep selected and completed `Structured lint delta for native write/patch tools` as the highest-priority small builder-ready runtime slice."
           }
         },
         "5.M": {
