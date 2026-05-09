@@ -1263,6 +1263,7 @@ classification and row-backed implementation queue.
 - [x] Google Chat shared-chassis platform adapter seam
 - [x] Google Chat relay sender-type self-filter
 - [x] Google Chat standalone cron sender
+- [x] Google Chat install dependency hint refresh
 
 ## Phase 8 — Reputation & Publication 🔨
 

@@ -51519,12 +51519,86 @@
                 ],
                 "verification": [
                   "RED: go test ./internal/channels/googlechat -run TestGoogleChatStandaloneSender -count=1 failed because StandaloneSender and the post request/response types were undefined.",
-                  "GREEN: go test ./internal/channels/googlechat -run TestGoogleChatStandaloneSender -count=1 passed after adding the standalone sender implementation.",
-                  "GREEN: go test ./internal/channels/googlechat -count=1 passed."
-                ]
-              }
-            }
-          ],
+	                  "GREEN: go test ./internal/channels/googlechat -run TestGoogleChatStandaloneSender -count=1 passed after adding the standalone sender implementation.",
+	                  "GREEN: go test ./internal/channels/googlechat -count=1 passed."
+	                ]
+	              }
+	            },
+	            {
+	              "name": "Google Chat install dependency hint refresh",
+	              "priority": "P2",
+	              "status": "complete",
+	              "provenance": {
+	                "origin_type": "upstream",
+	                "upstream_ref": "hermes:fef1a4124 website/docs/user-guide/messaging/google_chat.md",
+	                "note": "Hermes' current public Google Chat operator guide corrects the dependency install path: no `hermes-agent[google_chat]` extra is published, so operators should install the Google Cloud dependencies directly. Gormes adapts the completed Google Chat metadata seam to stop surfacing the stale extra-package hint."
+	              },
+	              "contract": "Gormes refreshes the Google Chat platform metadata install hint from the stale Hermes plugin extra to the current public operator dependency command: `pip install google-cloud-pubsub google-api-python-client google-auth google-auth-oauthlib`. This is metadata-only and does not add live Pub/Sub, OAuth, attachment, gateway registration, or transport behavior.",
+	              "contract_status": "validated",
+	              "slice_size": "small",
+	              "execution_owner": "gateway",
+	              "trust_class": [
+	                "gateway",
+	                "operator"
+	              ],
+	              "degraded_mode": "If Google Chat transport remains unwired, delivery still returns googlechat_transport_not_configured; the refreshed install hint only changes operator guidance and never reads credentials or starts Google clients.",
+	              "fixture": "internal/channels/googlechat/runtime_test.go::TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint",
+	              "source_refs": [
+	                "./hermes-agent/website/docs/user-guide/messaging/google_chat.md@fef1a4124:Install the dependencies the Google Chat adapter needs",
+	                "./hermes-agent/plugins/platforms/google_chat/plugin.yaml@fef1a4124:requires_env",
+	                "internal/channels/googlechat/runtime.go:PluginMetadata",
+	                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Gateway, Channels, Cron, API, TUI, And CLI"
+	              ],
+	              "ready_when": [
+	                "Google Chat shared-chassis platform adapter seam is complete.",
+	                "The public Hermes docs at fef1a4124 are available in ./hermes-agent/website/docs/user-guide/messaging/google_chat.md.",
+	                "The slice can update pure metadata fixtures without importing Google SDKs, reading service-account files, starting Pub/Sub, or sending Chat REST requests."
+	              ],
+	              "not_ready_when": [
+	                "The implementation opens a live Google client, reads GOOGLE_CHAT_SERVICE_ACCOUNT_JSON, refreshes OAuth tokens, downloads attachments, or binds cmd/gormes gateway registration.",
+	                "The row changes required env names, sender filtering, standalone cron sender behavior, or message normalization.",
+	                "The metadata continues to advertise `hermes-agent[google_chat]` as the install command."
+	              ],
+	              "blocked_by": [
+	                "Google Chat shared-chassis platform adapter seam"
+	              ],
+	              "unblocks": [
+	                "Google Chat Workspace transport binding"
+	              ],
+	              "acceptance": [
+	                "TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint proves PluginMetadata().InstallHint uses the direct Google dependency install command from Hermes fef1a4124 docs.",
+	                "Existing Google Chat metadata, relay, standalone sender, and delivery-without-transport fixtures remain green.",
+	                "No production code imports Google SDKs or reads live Google credentials in this metadata refresh."
+	              ],
+	              "write_scope": [
+	                "internal/channels/googlechat/runtime.go",
+	                "internal/channels/googlechat/runtime_test.go",
+	                "docs/content/building-gormes/architecture_plan/progress.json"
+	              ],
+	              "test_commands": [
+	                "go test ./internal/channels/googlechat -run TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint -count=1",
+	                "go test ./internal/channels/googlechat -count=1",
+	                "go run ./cmd/progress validate",
+	                "git diff --check"
+	              ],
+	              "done_signal": [
+	                "Google Chat metadata fixtures prove the install hint matches the current Hermes operator docs, while the channel seam remains fakeable and transport-unwired."
+	              ],
+	              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to fef1a4124 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. The upstream delta was docs-only, but the Google Chat public operator guide now corrects the dependency install command while Gormes' completed Google Chat metadata seam still surfaced the stale `hermes-agent[google_chat]` extra. Higher-priority publication/release rows remained operator-gated and existing provider/fallback, browser, cron, public-docs, and channel rows were complete or row-backed, so this P2 metadata drift was the highest-priority builder-ready slice. TDD updated the pure metadata fixture and PluginMetadata install hint only; no Google SDK import, live Pub/Sub, OAuth refresh, attachment delivery, or gateway registration was added.",
+	              "completed_at": "2026-05-09T00:00:00Z",
+	              "evidence": {
+	                "implementation": [
+	                  "internal/channels/googlechat/runtime.go: PluginMetadata().InstallHint now uses the direct Google dependency install command from Hermes fef1a4124 public docs.",
+	                  "internal/channels/googlechat/runtime_test.go: TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint pins the refreshed install hint while preserving env, label, setup, and transport-unwired metadata."
+	                ],
+	                "verification": [
+	                  "RED: go test ./internal/channels/googlechat -run TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint -count=1 failed on stale `pip install 'hermes-agent[google_chat]'`.",
+	                  "GREEN: go test ./internal/channels/googlechat -run TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint -count=1 passed after updating PluginMetadata().InstallHint.",
+	                  "GREEN: go test ./internal/channels/googlechat -count=1 passed."
+	                ]
+	              }
+	            }
+	          ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-05T00:00:00Z",
