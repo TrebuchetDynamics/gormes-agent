@@ -30,6 +30,8 @@ var supportedBenchmarkPlatforms = []string{
 	"android/arm64",
 }
 
+const benchmarkGoVersionFloor = "1.26+"
+
 var benchmarkMirrorPaths = []string{
 	filepath.Join("docs", "data", "benchmarks.json"),
 	filepath.Join("webpages", "docs", "data", "benchmarks.json"),
@@ -94,6 +96,7 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 	binary["size_mb"] = sizeMB
 	binary["commit"] = commit
 	binary["last_measured"] = date
+	binary["go_version"] = benchmarkGoVersionFloor
 	bench["binary"] = binary
 
 	code := countCodeMetrics(opts.Root)
@@ -162,7 +165,7 @@ func defaultBenchmarkSkeleton() map[string]any {
 			"build_flags": `CGO_ENABLED=0 -trimpath -ldflags="-s -w"`,
 			"linker":      "static",
 			"stripped":    true,
-			"go_version":  "1.25+",
+			"go_version":  benchmarkGoVersionFloor,
 		},
 		"code": map[string]any{
 			"test_count":   0,

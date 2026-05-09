@@ -142,7 +142,7 @@ func TestRecordBenchmarkCreatesLegacySkeletonWhenBenchmarksMissing(t *testing.T)
 	if got.Binary.Name != "gormes" || got.Binary.Path != "bin/gormes" {
 		t.Fatalf("binary identity = %+v", got.Binary)
 	}
-	if got.Binary.BuildFlags != `CGO_ENABLED=0 -trimpath -ldflags="-s -w"` || got.Binary.Linker != "static" || !got.Binary.Stripped || got.Binary.GoVersion != "1.25+" {
+	if got.Binary.BuildFlags != `CGO_ENABLED=0 -trimpath -ldflags="-s -w"` || got.Binary.Linker != "static" || !got.Binary.Stripped || got.Binary.GoVersion != "1.26+" {
 		t.Fatalf("binary build metadata = %+v", got.Binary)
 	}
 	if got.Binary.SizeBytes != 4*1024*1024 || got.Binary.SizeMB != "4.0" || got.Binary.LastMeasured != "2026-04-24" || got.Binary.Commit != "abc123" {
@@ -232,7 +232,7 @@ func TestRecordBenchmarkPreservesRepoStyleMetadata(t *testing.T) {
 	if binary["name"] != "gormes" || binary["path"] != "bin/gormes" || binary["build_flags"] == nil {
 		t.Fatalf("binary metadata was not preserved: %+v", binary)
 	}
-	if binary["linker"] != "static" || binary["stripped"] != true || binary["go_version"] != "1.25+" {
+	if binary["linker"] != "static" || binary["stripped"] != true || binary["go_version"] != "1.26+" {
 		t.Fatalf("binary build metadata was not preserved: %+v", binary)
 	}
 	if binary["size_bytes"] != float64(3*1024*1024) || binary["size_mb"] != "3.0" {
