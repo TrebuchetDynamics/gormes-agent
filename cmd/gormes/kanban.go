@@ -45,6 +45,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanShowCommand(),
 		newKanbanRunsCommand(),
 		newKanbanStatsCommand(),
+		newKanbanLogCommand(),
 		newKanbanGCCommand(),
 		newKanbanNotifySubscribeCommand(),
 		newKanbanNotifyListCommand(),
@@ -307,6 +308,42 @@ func newKanbanStatsCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanLogCommand() *cobra.Command {
+	var tailBytes int64
+	cmd := &cobra.Command{
+		Use:   "log <task-id>",
+		Short: "Print the worker log for a Kanban task",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if tailBytes < 0 {
+				return errors.New("tail must be >= 0")
+			}
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			content, ok, err := store.ReadWorkerLog(args[0], tailBytes)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "(no log for %s - task may not have spawned yet)\n", args[0])
+				return fmt.Errorf("no log for %s", args[0])
+			}
+			if _, err := fmt.Fprint(cmd.OutOrStdout(), content); err != nil {
+				return err
+			}
+			if !strings.HasSuffix(content, "\n") {
+				_, err = fmt.Fprintln(cmd.OutOrStdout())
+			}
+			return err
+		},
+	}
+	cmd.Flags().Int64Var(&tailBytes, "tail", 0, "only print the last N bytes")
 	return cmd
 }
 

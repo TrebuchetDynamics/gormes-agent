@@ -300,6 +300,11 @@ func hermesKanbanCommands() []hermesCLIParityEntry {
 		out = append(out, entry)
 	}
 
+	logEntry := hermesRowPath([]string{"kanban", "log"}, hermesCLICommand, source+":log", "Kanban worker log read command", "kanban log is implemented as a read-only selected-board worker log accessor")
+	logEntry.Status = hermesCLIImplemented
+	logEntry.Target = "cmd/gormes kanban log"
+	out = append(out, logEntry)
+
 	alias := hermesRowPath([]string{"kanban", "ls"}, hermesCLIAlias, source+":list aliases", row, "kanban ls alias remains row-backed until the CLI alias is wired")
 	alias.AliasFor = []string{"kanban", "list"}
 	out = append(out, alias)
@@ -318,7 +323,6 @@ func hermesKanbanCommands() []hermesCLIParityEntry {
 		"notify-subscribe",
 		"notify-list",
 		"notify-unsubscribe",
-		"log",
 		"runs",
 		"heartbeat",
 		"assignees",

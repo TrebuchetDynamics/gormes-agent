@@ -32414,6 +32414,107 @@
               }
             },
             {
+              "name": "Kanban worker log read command",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes `kanban log <task-id> [--tail N]` as a read-only native operator command: it reads the selected Gormes board's worker log for the task, optionally returns only the last N bytes with partial-line trimming, prints missing-log evidence without creating files, and never reads HERMES_HOME, Hermes profiles, live worker processes, or other boards.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing logs return a bounded `no log for <task-id>` error on stderr; unreadable logs return redacted read-worker-log evidence without mutating task state, worker logs, board state, or Hermes-owned paths.",
+              "fixture": "internal/kanban/store_test.go::TestReadWorkerLog*; cmd/gormes/kanban_log_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@fef1a4124:p_log parser and _cmd_log",
+                "./hermes-agent/hermes_cli/kanban_db.py@fef1a4124:read_worker_log",
+                "./hermes-agent/tests/hermes_cli/test_kanban_core_functionality.py@fef1a4124:test_read_worker_log_tail",
+                "./hermes-agent/tests/hermes_cli/test_kanban_core_functionality.py@fef1a4124:test_cli_log_missing_task",
+                "internal/kanban/board_paths.go:kanbanWorkerLogRootForDBPath",
+                "cmd/gormes/kanban.go:newKanbanCommand",
+                "cmd/gormes/hermes_cli_parity.go:hermesKanbanCommands"
+              ],
+              "ready_when": [
+                "Kanban named-board workspace/log roots, global --board routing, worker log rotation, GC, stats, and notification subscription rows are complete.",
+                "The slice can use temp GORMES_HOME/GORMES_KANBAN_HOME roots and static log fixtures only; no dispatcher, worker subprocess, gateway, Hermes Python runtime, or live profiles are required.",
+                "The command stays read-only and updates only CLI/manifest/registry evidence for the implemented log accessor."
+              ],
+              "not_ready_when": [
+                "The implementation tails in a long-running loop, starts a worker, reads live Hermes state, or implements `kanban tail` / `kanban watch` in the same row.",
+                "The command creates missing log files, mutates tasks, deletes logs, or crosses from the selected Gormes board into another board's log root.",
+                "Tail handling reads the entire file into memory for large logs instead of seeking to the requested tail window."
+              ],
+              "blocked_by": [
+                "Kanban named-board workspace and log roots",
+                "Kanban global --board task command override",
+                "Kanban GC terminal event and worker-log retention"
+              ],
+              "acceptance": [
+                "TestReadWorkerLogFullTailAndMissing proves the store reads the full selected-board log, tails only the last N bytes while skipping a partial first line, and returns missing=false without creating files for absent logs.",
+                "TestKanbanLogCommandPrintsFullAndTail proves `gormes kanban log <task-id>` prints worker log text, appends a trailing newline when needed, and `--tail N` prints only the bounded tail.",
+                "TestKanbanLogCommandMissingLogFailsBounded proves a missing log returns non-zero bounded `no log for <task-id>` evidence and leaves the log root untouched.",
+                "Hermes CLI parity and command-registry fixtures mark `kanban log` implemented while `tail` and `watch` remain row-backed residuals."
+              ],
+              "note": "Complete 2026-05-09: added by the bounded all-topic weakness sweep against Hermes fef1a4124 and Honcho e659b6b. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing P1 publication rows remain operator-blocked, the release parent remains non-selectable, and recent runtime drift for Telegram, Google Chat, provider transports, browser, tools, release metadata, and Kanban stats/notify/GC is complete or row-backed. TDD ported the read-only `kanban log` accessor with selected-board worker-log reads, bounded tail output, missing-log evidence, command registry evidence, and Hermes CLI parity manifest implementation status. Live `tail`/`watch` loops remain separate row-backed residuals.",
+              "write_scope": [
+                "internal/kanban/store.go",
+                "internal/kanban/store_test.go",
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_log_test.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run '^TestReadWorkerLog' -count=1",
+                "go test ./cmd/gormes -run '^TestKanbanLogCommand|TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals' -count=1",
+                "go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban log fixtures prove read-only selected-board worker-log access, bounded tail output, missing-log errors, and parity manifest/command registry implementation evidence without live Hermes or worker processes."
+              ],
+              "completed_at": "2026-05-09T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/store.go adds Store.ReadWorkerLog over the selected Gormes board log root with full-read, tail-read, missing-log, unsafe-task-id, and no-Hermes-path behavior.",
+                  "cmd/gormes/kanban.go registers `gormes kanban log <task-id> --tail N`, prints log content with a trailing newline, rejects negative tail values, and reports missing logs without creating files.",
+                  "cmd/gormes/hermes_cli_parity.go and internal/cli/command_registry.go mark `kanban log` implemented while long-running `tail` and `watch` remain row-backed residuals."
+                ],
+                "tests": [
+                  "internal/kanban/store_test.go:TestReadWorkerLogFullTailAndMissing",
+                  "cmd/gormes/kanban_log_test.go:TestKanbanLogCommandPrintsFullAndTail",
+                  "cmd/gormes/kanban_log_test.go:TestKanbanLogCommandMissingLogFailsBounded",
+                  "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals",
+                  "internal/cli/command_registry_policy_test.go:TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/kanban -run '^TestReadWorkerLog' -count=1 failed because Store.ReadWorkerLog did not exist.",
+                  "RED: go test ./cmd/gormes -run '^TestKanbanLogCommand' -count=1 failed because `gormes kanban log` was unknown.",
+                  "RED: go test ./cmd/gormes -run 'TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals' -count=1 failed because `kanban log` was still row-backed in the manifest.",
+                  "GREEN: focused store, command, manifest, registry, and Kanban command tests passed after adding the read-only log accessor."
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run '^TestReadWorkerLog' -count=1 -> ok",
+                  "go test ./cmd/gormes -run '^TestKanbanLogCommand|TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals' -count=1 -> ok",
+                  "go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanCommand -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:fef1a4124 hermes_cli/kanban.py log parser + hermes_cli/kanban_db.py read_worker_log",
+                "note": "Hermes defines the operator log accessor; Gormes adapts it to Gormes-owned board log roots and keeps long-running tail/watch behavior row-backed."
+              }
+            },
+            {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
               "status": "complete",

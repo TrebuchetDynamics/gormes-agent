@@ -214,6 +214,7 @@ func TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals(t *testing.T) {
 		{"kanban", "block"},
 		{"kanban", "unblock"},
 		{"kanban", "link"},
+		{"kanban", "log"},
 	} {
 		entry := requireHermesCLIEntry(t, path)
 		if entry.Status != hermesCLIImplemented || !strings.Contains(entry.Target, "cmd/gormes kanban") {

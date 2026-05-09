@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -820,6 +821,95 @@ func (s *Store) PruneWorkerLogs(olderThan time.Duration) (int, error) {
 		deleted++
 	}
 	return deleted, nil
+}
+
+func (s *Store) ReadWorkerLog(taskID string, tailBytes int64) (string, bool, error) {
+	if tailBytes < 0 {
+		return "", false, errors.New("tail bytes must be >= 0")
+	}
+	path, err := s.workerLogPath(taskID)
+	if err != nil {
+		return "", false, err
+	}
+	file, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("read kanban worker log: %w", err)
+	}
+	defer file.Close()
+
+	if tailBytes <= 0 {
+		data, err := io.ReadAll(file)
+		if err != nil {
+			return "", false, fmt.Errorf("read kanban worker log: %w", err)
+		}
+		return string(data), true, nil
+	}
+
+	info, err := file.Stat()
+	if err != nil {
+		return "", false, fmt.Errorf("stat kanban worker log: %w", err)
+	}
+	size := info.Size()
+	if size > tailBytes {
+		start := size - tailBytes
+		if _, err := file.Seek(start, io.SeekStart); err != nil {
+			return "", false, fmt.Errorf("seek kanban worker log: %w", err)
+		}
+		probe, err := file.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return "", false, fmt.Errorf("probe kanban worker log: %w", err)
+		}
+		var skipped []byte
+		for {
+			buf := make([]byte, 1)
+			n, readErr := file.Read(buf)
+			if n == 1 {
+				skipped = append(skipped, buf[0])
+				if buf[0] == '\n' {
+					break
+				}
+			}
+			if readErr != nil {
+				if errors.Is(readErr, io.EOF) {
+					break
+				}
+				return "", false, fmt.Errorf("read kanban worker log tail: %w", readErr)
+			}
+		}
+		pos, err := file.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return "", false, fmt.Errorf("probe kanban worker log: %w", err)
+		}
+		if len(skipped) > 0 && skipped[len(skipped)-1] != '\n' && pos >= size {
+			if _, err := file.Seek(probe, io.SeekStart); err != nil {
+				return "", false, fmt.Errorf("seek kanban worker log: %w", err)
+			}
+		}
+	} else {
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			return "", false, fmt.Errorf("seek kanban worker log: %w", err)
+		}
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return "", false, fmt.Errorf("read kanban worker log tail: %w", err)
+	}
+	return string(data), true, nil
+}
+
+func (s *Store) workerLogPath(taskID string) (string, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return "", errors.New("task id is required")
+	}
+	if strings.ContainsAny(taskID, `/\`) || taskID == "." || taskID == ".." || filepath.Base(taskID) != taskID {
+		return "", fmt.Errorf("unsafe kanban task id %q", taskID)
+	}
+	return filepath.Join(kanbanWorkerLogRootForDBPath(s.dbPath), taskID+".log"), nil
 }
 
 func (s *Store) BuildWorkerContext(ctx context.Context, taskID string) (string, error) {

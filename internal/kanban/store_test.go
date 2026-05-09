@@ -345,6 +345,61 @@ func TestKanbanGC_PrunesOnlySelectedBoardLogFiles(t *testing.T) {
 	}
 }
 
+func TestReadWorkerLogFullTailAndMissing(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dbPath := filepath.Join(root, "kanban", "boards", "alpha", "kanban.db")
+	store, err := Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	logRoot := filepath.Join(root, "kanban", "boards", "alpha", "logs")
+	if err := os.MkdirAll(logRoot, 0o755); err != nil {
+		t.Fatalf("create log root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(logRoot, "t_log.log"), []byte("line 0\nline 1\nline 2\nline 3"), 0o644); err != nil {
+		t.Fatalf("write worker log fixture: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "kanban", "boards", "beta", "logs"), 0o755); err != nil {
+		t.Fatalf("create beta log root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "kanban", "boards", "beta", "logs", "t_log.log"), []byte("beta leaked"), 0o644); err != nil {
+		t.Fatalf("write beta log fixture: %v", err)
+	}
+
+	full, ok, err := store.ReadWorkerLog("t_log", 0)
+	if err != nil {
+		t.Fatalf("ReadWorkerLog(full) error = %v", err)
+	}
+	if !ok || full != "line 0\nline 1\nline 2\nline 3" {
+		t.Fatalf("ReadWorkerLog(full) = ok=%v %q, want full alpha-board log", ok, full)
+	}
+
+	tail, ok, err := store.ReadWorkerLog("t_log", 16)
+	if err != nil {
+		t.Fatalf("ReadWorkerLog(tail) error = %v", err)
+	}
+	if !ok || tail != "line 2\nline 3" {
+		t.Fatalf("ReadWorkerLog(tail) = ok=%v %q, want bounded tail without partial first line", ok, tail)
+	}
+	if strings.Contains(tail, "beta") {
+		t.Fatalf("ReadWorkerLog(tail) crossed into sibling board log: %q", tail)
+	}
+
+	missing, ok, err := store.ReadWorkerLog("t_missing", 0)
+	if err != nil {
+		t.Fatalf("ReadWorkerLog(missing) error = %v", err)
+	}
+	if ok || missing != "" {
+		t.Fatalf("ReadWorkerLog(missing) = ok=%v %q, want not found without content", ok, missing)
+	}
+	if _, err := os.Stat(filepath.Join(logRoot, "t_missing.log")); !os.IsNotExist(err) {
+		t.Fatalf("ReadWorkerLog(missing) created missing log or stat failed: %v", err)
+	}
+}
+
 func insertKanbanEventFixture(t *testing.T, store *Store, taskID, kind string, at time.Time) {
 	t.Helper()
 	if _, err := store.db.ExecContext(context.Background(), `INSERT INTO task_events(task_id, kind, payload, created_at) VALUES (?, ?, '', ?)`, taskID, kind, at.UTC().UnixMilli()); err != nil {
