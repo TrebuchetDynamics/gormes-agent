@@ -15747,12 +15747,84 @@
                 "note": "Hermes provides the compression-boundary regression; Gormes binds it to kernel lineage only after the Go callback vocabulary and compression execution path are fixture-backed."
               },
               "wired": true
+            },
+            {
+              "name": "ContextEngine session-end hook on reset",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Kernel session reset and session-rotation boundaries notify the active ContextEngine with the outgoing session id and transcript before clearing local state, then run the existing reset cleanup, mirroring Hermes commit_memory_session calling context_compressor.on_session_end without tearing providers down.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If no ContextEngine is configured, reset behavior remains unchanged. If the ContextEngine hook fails, reset remains best-effort and still clears local state like Hermes' failure-tolerant lifecycle hook.",
+              "fixture": "internal/kernel/contextengine_test.go::TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset",
+              "source_refs": [
+                "./hermes-agent/run_agent.py@e90aa7f28:AIAgent.commit_memory_session",
+                "./hermes-agent/tests/run_agent/test_commit_memory_session_context_engine.py@e90aa7f28",
+                "internal/hermes/context_engine.go:ContextEngine.OnSessionEnd",
+                "internal/kernel/kernel.go:PlatformEventResetSession"
+              ],
+              "ready_when": [
+                "ContextEngine interface + status tool contract is validated.",
+                "Kernel reset/session-rotation behavior is already serialized through PlatformEventResetSession and can be tested with a fake ContextEngine plus hermes.MockClient.",
+                "The worker can prove hook ordering with in-memory state only; no provider credentials, gateway process, persisted session DB, or live compression engine is required."
+              ],
+              "not_ready_when": [
+                "The slice changes memory extraction, Goncho storage, compression summary generation, provider lifecycle, gateway command parsing, or channel adapter behavior.",
+                "The reset path propagates ContextEngine hook failures to operators instead of preserving Hermes' failure-tolerant session-boundary behavior.",
+                "The implementation calls OnSessionEnd after clearing history/session id, preventing context engines from seeing the outgoing transcript boundary."
+              ],
+              "acceptance": [
+                "A fake ContextEngine receives OnSessionEnd with the outgoing non-empty session id and completed transcript before ResetSession clears history and session id.",
+                "The existing OnSessionReset cleanup still runs after the session-end hook so status and unknown-tool state reset as before.",
+                "A failing OnSessionEnd hook does not prevent ResetSession from returning nil and clearing state.",
+                "A nil ContextEngine preserves the existing reset success path."
+              ],
+              "write_scope": [
+                "internal/kernel/kernel.go",
+                "internal/kernel/contextengine_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run 'TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset|TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets|TestKernel_ResetSession_IdleSucceeds' -count=1",
+                "go test ./internal/kernel -run 'Test.*ContextEngine|TestKernel_ResetSession' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kernel fixtures prove reset/session-rotation boundaries call ContextEngine.OnSessionEnd with outgoing transcript evidence before reset cleanup, tolerate hook failures, and preserve nil-engine reset behavior."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes from dae94fa65 to e90aa7f28 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing non-context-engine runtime gaps were complete, row-backed, or operator-gated; planned rows were 14, below the 90-row cap. The fresh source-backed delta was Hermes #22764: commit_memory_session now notifies ContextEngine.on_session_end when a session id rotates. Gormes already exposed ContextEngine.OnSessionEnd and serialized kernel reset boundaries, but PlatformEventResetSession only called OnSessionReset after clearing state, so context engines could not observe the outgoing transcript boundary. TDD added reset-boundary fixtures that first failed with OnSessionEnd calls=0, then passed after kernel reset captured outgoing history/session id, invoked OnSessionEnd best-effort, and then ran OnSessionReset before clearing local state.",
+              "evidence": {
+                "implementation": [
+                  "internal/kernel/kernel.go:PlatformEventResetSession snapshots outgoing history and session id, calls ContextEngine.OnSessionEnd best-effort, then runs OnSessionReset and clears state."
+                ],
+                "tests": [
+                  "internal/kernel/contextengine_test.go:TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset",
+                  "internal/kernel/contextengine_test.go:TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets",
+                  "internal/kernel/reset_test.go:TestKernel_ResetSession_IdleSucceeds"
+                ],
+                "verification": [
+                  "RED: go test ./internal/kernel -run 'TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset|TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets' -count=1 failed with OnSessionEnd calls=0.",
+                  "GREEN: go test ./internal/kernel -run 'TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset|TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets|TestKernel_ResetSession_IdleSucceeds' -count=1 passed.",
+                  "GREEN: go test ./internal/kernel -run 'Test.*ContextEngine|TestKernel_ResetSession' -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:e90aa7f28 run_agent.py + tests/run_agent/test_commit_memory_session_context_engine.py",
+                "note": "Hermes defines this as a failure-tolerant session-boundary hook for context engines that accumulate per-session state. Gormes ports it at the kernel reset boundary without changing provider teardown or Goncho memory extraction."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-04-27T11:44:19Z",
-            "origin_decision": "Hermes 8ed599dc is current after sync; no newer ContextEngine drift supersedes the existing 4.B queue. Hermes 5006b220 removed flush_memories and restored auxiliary compression feasibility to a single-prompt request model, e85b7525 adds an explicit compression-boundary signal to the context engine, and cfc8befe/94346523/bda2dbc2 harden protected-tail token estimates for multimodal content lists and bare string items. Gormes has the Go ContextEngine status boundary, provider-cap resolver, and single-prompt budget reconciliation validated. The compression-boundary row is split: a hermes-package callback vocabulary row is fixture-ready, while kernel binding stays draft/blocked because internal/kernel/context_engine.go does not exist and context compression remains umbrella-only."
+            "last_upstream_check": "2026-05-09T12:28:42-07:00",
+            "origin_decision": "Hermes e90aa7f28 is current after sync. Prior context-engine compression, budget, and boundary rows remain complete or row-backed. New Hermes #22764 fixes commit_memory_session so context_compressor.on_session_end fires when a session id rotates; Gormes has ContextEngine.OnSessionEnd but reset/session-rotation only called OnSessionReset after clearing state. Track the bounded P1 row `ContextEngine session-end hook on reset` rather than reopening compression, memory extraction, or gateway reset umbrella rows."
           }
         },
         "4.C": {

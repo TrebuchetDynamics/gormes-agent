@@ -559,6 +559,7 @@ classification and row-backed implementation queue.
 - [x] Manual compression feedback renderer + focus parser
 - [x] ContextEngine compression-boundary callback vocabulary
 - [x] Kernel compression-boundary callback binding
+- [x] ContextEngine session-end hook on reset
 
 ### 4.C — Native Prompt Builder ✅
 

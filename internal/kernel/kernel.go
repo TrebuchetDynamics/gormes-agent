@@ -316,12 +316,14 @@ func (k *Kernel) Run(ctx context.Context) error {
 					}
 					continue
 				}
+				if k.cfg.ContextEngine != nil {
+					outgoingHistory := append([]hermes.Message(nil), k.history...)
+					_ = k.cfg.ContextEngine.OnSessionEnd(ctx, k.sessionID, outgoingHistory)
+					k.cfg.ContextEngine.OnSessionReset()
+				}
 				k.history = nil
 				k.sessionID = ""
 				k.lastError = ""
-				if k.cfg.ContextEngine != nil {
-					k.cfg.ContextEngine.OnSessionReset()
-				}
 				k.phase = PhaseIdle
 				k.emitFrame("session reset")
 				if e.ack != nil {
