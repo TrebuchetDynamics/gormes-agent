@@ -8,6 +8,31 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-05-09
+
+Date alias: `v2026.5.9` (same-day patch over v0.2.1; shared alias
+follows the v0.1.06 / v0.1.07 precedent for back-to-back same-day
+releases).
+
+### Fixed — `--json` conformance fence (parent without subcommand)
+
+- **13 parent commands** that previously printed Help text on stdout
+  when invoked with `--json` and no subcommand now emit a structured
+  `{build, action: "subcommand_required", parent, available, error}`
+  document instead. Affects `config`, `kanban`, `session`, `auth`,
+  `mcp`, `memory`, `goncho`, `profile`, `curator`, `system`,
+  `security`, `channels`, `agent`. Fleet automation can now discover
+  every parent's subcommand surface programmatically without scraping
+  Help text. The recursive
+  `installParentUnknownSubcommandGuards` helper registers a hidden
+  `--json` flag on each guarded parent; `auth` and `mcp` parents
+  (which have their own RunE so the guard skips them) wire the same
+  helper explicitly.
+
+Three new subtests in the `TestFreshInstallE2E_InvalidInputJSONEmitsStructuredError`
+battery pin the contract for representative cases (`config`,
+`kanban`, `agent`) plus the explicit-RunE path (`auth`, `mcp`).
+
 ## [0.2.1] - 2026-05-09
 
 Date alias: `v2026.5.9`.

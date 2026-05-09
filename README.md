@@ -163,7 +163,7 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 ## Status
 
-Latest public release: [v0.2.1](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.1).
+Latest public release: [v0.2.2](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.2).
 
 CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~28.0 MB (`benchmarks.json`).
 
