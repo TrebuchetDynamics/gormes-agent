@@ -70,6 +70,78 @@ func TestUpdateReadmeSkipsMissingBenchmarks(t *testing.T) {
 	}
 }
 
+func TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{
+  "binary": {
+    "size_mb": "28.0",
+    "last_measured": "2026-05-09"
+  },
+  "code": {
+    "test_count": 4603,
+    "go_files": 748,
+    "go_lines": 185311,
+    "dependencies": 139
+  }
+}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	releasePath := filepath.Join(root, "webpages", "landing", "src", "data", "release.json")
+	if err := os.MkdirAll(filepath.Dir(releasePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(releasePath, []byte(`{
+  "version": "0.2.0",
+  "tag": "v0.2.0",
+  "url": "https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.0"
+}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	readme := filepath.Join(root, "README.md")
+	original := strings.Join([]string{
+		"Gormes runs the 30 most-used Hermes skills unchanged in a single 30 MB Go binary.",
+		"",
+		"Latest public release: [v0.1.05](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.05).",
+		"",
+		"Current `development` head after `v0.1.05` also includes fixture-backed work.",
+		"",
+		"Release v0.1.05 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. The current benchmark mirror reports a Linux build at ~39.1 MB (`benchmarks.json`, 2026-05-05). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`.",
+		"",
+		"1,000+ tests across 10+ Go source files, 20 lines of Go, and 3 dependencies.",
+	}, "\n")
+	if err := os.WriteFile(readme, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := UpdateReadme(ReadmeOptions{Root: root}); err != nil {
+		t.Fatalf("UpdateReadme: %v", err)
+	}
+	raw, err := os.ReadFile(readme)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(raw)
+	wants := []string{
+		"single 30 MB Go binary",
+		"Latest public release: [v0.2.0](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.0).",
+		"Current `development` head after `v0.2.0`",
+		"Release v0.2.0 publishes static Go binaries for Linux, macOS, Windows, and Termux/Android across the supported release matrix.",
+		"~28.0 MB (`benchmarks.json`, 2026-05-09)",
+		"4603+ tests",
+		"748+ Go source files",
+		"185311 lines of Go",
+		"139 dependencies",
+	}
+	for _, want := range wants {
+		if !strings.Contains(got, want) {
+			t.Fatalf("README missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "v0.1.05") || strings.Contains(got, "2026-05-05") || strings.Contains(got, "~39.1 MB") {
+		t.Fatalf("README retained stale release or benchmark data:\n%s", got)
+	}
+}
+
 func TestREADMEStartsWithMethodology(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
 	lead := firstReadmeBodyParagraph(raw)

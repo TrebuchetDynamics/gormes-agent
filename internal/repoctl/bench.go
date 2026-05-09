@@ -20,6 +20,23 @@ type BenchmarkOptions struct {
 	GitCommit func(string) (string, error)
 }
 
+var supportedBenchmarkPlatforms = []string{
+	"linux/amd64",
+	"linux/arm64",
+	"darwin/amd64",
+	"darwin/arm64",
+	"windows/amd64",
+	"windows/arm64",
+	"android/arm64",
+}
+
+var benchmarkMirrorPaths = []string{
+	filepath.Join("docs", "data", "benchmarks.json"),
+	filepath.Join("webpages", "docs", "data", "benchmarks.json"),
+	filepath.Join("webpages", "landing", "src", "data", "benchmarks.json"),
+	filepath.Join("webpages", "landing", "legacy", "go-renderer", "internal", "site", "data", "benchmarks.json"),
+}
+
 func RecordBenchmark(opts BenchmarkOptions) error {
 	if opts.Root == "" {
 		opts.Root = "."
@@ -82,6 +99,19 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 	code := countCodeMetrics(opts.Root)
 	bench["code"] = code
 
+	properties, _ := bench["properties"].(map[string]any)
+	if properties == nil {
+		properties = map[string]any{}
+	}
+	if _, ok := properties["cgo"]; !ok {
+		properties["cgo"] = false
+	}
+	if _, ok := properties["dependencies"]; !ok {
+		properties["dependencies"] = "zero (no dynamic library deps)"
+	}
+	properties["platforms"] = append([]string(nil), supportedBenchmarkPlatforms...)
+	bench["properties"] = properties
+
 	history, _ := bench["history"].([]any)
 	if len(history) == 0 || historyDate(history[0]) != date {
 		entry := map[string]any{
@@ -104,11 +134,16 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 		return err
 	}
 
-	docsBenchPath := filepath.Join(opts.Root, "docs", "data", "benchmarks.json")
-	if err := os.MkdirAll(filepath.Dir(docsBenchPath), 0o755); err != nil {
-		return err
+	for _, rel := range benchmarkMirrorPaths {
+		target := filepath.Join(opts.Root, rel)
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(target, raw, 0o644); err != nil {
+			return err
+		}
 	}
-	return os.WriteFile(docsBenchPath, raw, 0o644)
+	return nil
 }
 
 func gitCommit(root string) (string, error) {
@@ -130,20 +165,15 @@ func defaultBenchmarkSkeleton() map[string]any {
 			"go_version":  "1.25+",
 		},
 		"code": map[string]any{
-			"test_count":    0,
-			"go_files":      0,
-			"go_lines":      0,
-			"dependencies":  0,
+			"test_count":   0,
+			"go_files":     0,
+			"go_lines":     0,
+			"dependencies": 0,
 		},
 		"properties": map[string]any{
 			"cgo":          false,
 			"dependencies": "zero (no dynamic library deps)",
-			"platforms": []string{
-				"linux/amd64",
-				"linux/arm64",
-				"darwin/amd64",
-				"darwin/arm64",
-			},
+			"platforms":    append([]string(nil), supportedBenchmarkPlatforms...),
 		},
 		"history": []any{},
 	}

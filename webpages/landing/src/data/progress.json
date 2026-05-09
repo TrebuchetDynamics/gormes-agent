@@ -50473,6 +50473,87 @@
               "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 33, below the 90-row cap. The sweep found this P1 docs/public row was highest-priority and now unblocked by the ratified v1 differentiator, but its test command still pointed at removed internal/repodocs. Planner pass corrected the row to internal/repoctl README contract tests, then TDD rewrote README.md to lead with the autonomous-porting methodology, state the 30-skill single-binary differentiator within the first 50 words, preserve install/first-run/status commands, link success-plan.md and v1-differentiator.md, and keep Hermes-Agent as attribution/parity oracle rather than the lede."
             },
             {
+              "name": "README release and benchmark metadata sync",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "README.md and public benchmark mirrors stay synchronized with the current release metadata and freshly measured optimized Linux binary: the README latest-release stanza, development-head wording, release-summary sentence, benchmark size, and benchmark date are derived from version/release metadata plus benchmarks.json, while repoctl benchmark recording updates every checked-in public benchmark mirror from one source of truth.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If release or benchmark metadata drifts, public trust surfaces can advertise an old release, stale size evidence, or a >30 MB benchmark even after the release pipeline and current optimized build satisfy the v1 size contract.",
+              "fixture": "internal/repoctl/readme_test.go::TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata and internal/repoctl/bench_test.go::TestRecordBenchmarkCopiesBenchmarksToPublicMirrors",
+              "source_refs": [
+                "README.md:Latest public release stanza",
+                "benchmarks.json:binary.size_mb and binary.last_measured",
+                "webpages/landing/src/data/release.json:v0.2.0 release metadata",
+                "cmd/gormes/version.go:Version and VersionDateAlias",
+                "docs/content/building-gormes/strategy/v1-differentiator.md:30 MB binary claim",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
+              ],
+              "ready_when": [
+                "The latest public GitHub release is known from local release metadata or gh release evidence.",
+                "A trusted optimized local binary can be built with CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\" for benchmark recording.",
+                "Existing README methodology and differentiator tests remain green."
+              ],
+              "not_ready_when": [
+                "The slice invents release versions or benchmark numbers instead of deriving them from checked-in release/benchmark data and a local optimized build.",
+                "The README's fixed v1 differentiator claim is rewritten from the measured current benchmark rather than preserving the ratified 30 MB promise.",
+                "Benchmark recording updates only the root file while docs or landing mirrors remain stale."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata fails while README.md still names v0.1.05 and stale 2026-05-05 benchmark data, then passes after repoctl readme update derives v0.2.0, the release URL, benchmark size, and last_measured date.",
+                "TestRecordBenchmarkCopiesBenchmarksToPublicMirrors proves repoctl benchmark record writes identical benchmark JSON to benchmarks.json, docs/data/benchmarks.json, webpages/docs/data/benchmarks.json, webpages/landing/src/data/benchmarks.json, and webpages/landing/legacy/go-renderer/internal/site/data/benchmarks.json.",
+                "A fresh optimized Linux build is recorded into benchmarks.json and mirrors, showing the current size evidence below the 30 MB release gate without overwriting the ratified differentiator text.",
+                "README release and benchmark prose names the current public release v0.2.0 and current benchmark date/size."
+              ],
+              "write_scope": [
+                "README.md",
+                "benchmarks.json",
+                "docs/data/benchmarks.json",
+                "webpages/docs/data/benchmarks.json",
+                "webpages/landing/src/data/benchmarks.json",
+                "webpages/landing/legacy/go-renderer/internal/site/data/benchmarks.json",
+                "internal/repoctl/bench.go",
+                "internal/repoctl/bench_test.go",
+                "internal/repoctl/readme.go",
+                "internal/repoctl/readme_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/repoctl -run 'Test(UpdateReadme|README|RecordBenchmark)' -count=1",
+                "BINARY_PATH=bin/gormes go run ./cmd/repoctl benchmark record",
+                "go run ./cmd/repoctl readme update",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "README, benchmark root data, docs mirrors, landing mirrors, repoctl fixtures, and progress evidence agree on the current release and measured optimized binary size."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f1f42a7b9 and Honcho to e659b6b, then checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Runtime parity drift gates were green or row-backed, planned rows were 13 below the 90-row cap, and higher-priority TD publication rows remained operator-blocked while the broad release parent stayed non-selectable. The unblocked public-surface weakness was stale README and benchmark metadata: GitHub release evidence shows v0.2.0 is latest, release.json already says v0.2.0, and a fresh optimized linux/amd64 build measured below the 30 MB release gate while README still pointed at v0.1.05 and stale 2026-05-05 ~39.1 MB benchmark data. TDD taught repoctl to sync release and benchmark metadata into README, normalize the seven-target benchmark platform matrix, and copy benchmark JSON into docs plus landing mirrors.",
+              "evidence": {
+                "implementation": [
+                  "internal/repoctl/bench.go now normalizes the supported release platform matrix and writes identical benchmark JSON to root, docs/data, webpages/docs/data, landing source data, and legacy landing renderer data.",
+                  "internal/repoctl/readme.go now derives README latest-release, development-head, release-summary, benchmark-size, and benchmark-date text from release metadata plus benchmarks.json while preserving the ratified 30 MB differentiator.",
+                  "benchmarks.json and public mirrors record the fresh optimized linux/amd64 build at 29,311,138 bytes (~28.0 MB) on 2026-05-09.",
+                  "README.md now names v0.2.0 as the latest public release and reports the current benchmark mirror date/size."
+                ],
+                "verification": [
+                  "RED: go test ./internal/repoctl -run 'TestRecordBenchmarkCopiesBenchmarksToPublicMirrors|TestRecordBenchmarkNormalizesSupportedPlatformMatrix|TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata' -count=1 failed on missing mirrors, stale platform matrix, and stale README metadata.",
+                  "GREEN: go test ./internal/repoctl -run 'TestRecordBenchmarkCopiesBenchmarksToPublicMirrors|TestRecordBenchmarkNormalizesSupportedPlatformMatrix|TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata' -count=1 passed after repoctl updates.",
+                  "GREEN: timeout 5m env CGO_ENABLED=0 go build -trimpath -ldflags=\"-s -w\" -o bin/gormes ./cmd/gormes produced a 29,311,138-byte linux/amd64 binary.",
+                  "GREEN: BINARY_PATH=bin/gormes go run ./cmd/repoctl benchmark record and go run ./cmd/repoctl readme update refreshed checked-in metadata surfaces."
+                ]
+              }
+            },
+            {
               "name": "gormes.ai landing page positioning audit",
               "priority": "P1",
               "status": "complete",

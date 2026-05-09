@@ -1260,6 +1260,7 @@ classification and row-backed implementation queue.
 ### 8.B — Repository Messaging ✅
 
 - [x] README rewrite to methodology-first positioning
+- [x] README release and benchmark metadata sync
 - [x] gormes.ai landing page positioning audit
 
 ### 8.C — Engineering Writeups ⏳
