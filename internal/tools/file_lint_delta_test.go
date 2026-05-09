@@ -98,6 +98,86 @@ func TestPatchToolV4AStructuredLintReportsPerFile(t *testing.T) {
 	assertFileContent(t, path, "name =\n")
 }
 
+func TestWriteFileToolPythonLintReportsSyntaxError(t *testing.T) {
+	root := t.TempDir()
+	tool := NewWriteFileTool(FileTaskToolConfig{Root: root})
+	content := "def broken(:\n    pass\n"
+
+	out := executeWriteFileTool(t, tool, `{"path":"src/bad.py","content":`+quoteJSON(t, content)+`}`)
+	if out["status"] != "ok" {
+		t.Fatalf("write result = %#v, want ok with lint evidence", out)
+	}
+	lint := requireStructuredLint(t, out["lint"])
+	if lint["success"] != false {
+		t.Fatalf("lint = %#v, want success=false", lint)
+	}
+	if !strings.Contains(asString(lint["output"]), "SyntaxError") {
+		t.Fatalf("lint output = %#v, want Python syntax evidence", lint)
+	}
+	assertFileContent(t, filepath.Join(root, "src", "bad.py"), content)
+}
+
+func TestPatchToolPythonLintDeltaPreservesPreExistingError(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "bad.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("x =\nname = 'old'\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/bad.py"}`)
+
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"src/bad.py","old_string":"'old'","new_string":"'new'"}`)
+	if out["status"] != "ok" {
+		t.Fatalf("patch result = %#v, want ok with lint evidence", out)
+	}
+	lint := requireStructuredLint(t, out["lint"])
+	if lint["success"] != false {
+		t.Fatalf("lint = %#v, want success=false", lint)
+	}
+	if !strings.Contains(asString(lint["message"]), "Pre-existing lint errors") {
+		t.Fatalf("lint message = %#v, want pre-existing error note", lint)
+	}
+	assertFileContent(t, path, "x =\nname = 'new'\n")
+}
+
+func TestPatchToolV4APythonLintReportsPerFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "settings.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("value = 1\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/settings.py"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/settings.py",
+		"@@",
+		"-value = 1",
+		"+value =",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+	if out["status"] != "ok" {
+		t.Fatalf("patch result = %#v, want ok with lint evidence", out)
+	}
+	lintByPath, _ := out["lint"].(map[string]any)
+	lint := requireStructuredLint(t, lintByPath["src/settings.py"])
+	if lint["success"] != false {
+		t.Fatalf("lint = %#v, want success=false", lint)
+	}
+	if !strings.Contains(asString(lint["output"]), "SyntaxError") {
+		t.Fatalf("lint output = %#v, want Python syntax evidence", lint)
+	}
+	assertFileContent(t, path, "value =\n")
+}
+
 func requireStructuredLint(t *testing.T, raw any) map[string]any {
 	t.Helper()
 	lint, ok := raw.(map[string]any)

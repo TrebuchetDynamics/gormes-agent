@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -1042,7 +1043,7 @@ func appendV4AText(content, insertText string) string {
 
 func supportsStructuredLint(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".json", ".yaml", ".yml", ".toml":
+	case ".json", ".yaml", ".yml", ".toml", ".py":
 		return true
 	default:
 		return false
@@ -1092,6 +1093,8 @@ func runStructuredLint(path, content string) (structuredLintResult, bool) {
 	case ".toml":
 		var decoded map[string]any
 		err = toml.Unmarshal([]byte(content), &decoded)
+	case ".py":
+		return runPythonSyntaxLint(path, content)
 	default:
 		return structuredLintResult{}, false
 	}
@@ -1099,6 +1102,47 @@ func runStructuredLint(path, content string) (structuredLintResult, bool) {
 		return structuredLintResult{Success: false, Output: boundStructuredLintOutput(err.Error())}, true
 	}
 	return structuredLintResult{Success: true}, true
+}
+
+func runPythonSyntaxLint(path, content string) (structuredLintResult, bool) {
+	binary := pythonSyntaxLintBinary()
+	if binary == "" {
+		return structuredLintResult{}, false
+	}
+	const script = `import ast
+import sys
+
+path = sys.argv[1] if len(sys.argv) > 1 else "<input>"
+try:
+    ast.parse(sys.stdin.read(), filename=path)
+except SyntaxError as exc:
+    loc = f" (line {exc.lineno}, column {exc.offset})" if exc.lineno else ""
+    print(f"{type(exc).__name__}: {exc.msg}{loc}")
+    sys.exit(1)
+except Exception as exc:
+    print(f"{type(exc).__name__}: {exc}")
+    sys.exit(1)
+`
+	cmd := exec.Command(binary, "-c", script, path)
+	cmd.Stdin = strings.NewReader(content)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		text := strings.TrimSpace(string(output))
+		if text == "" {
+			text = err.Error()
+		}
+		return structuredLintResult{Success: false, Output: boundStructuredLintOutput(text)}, true
+	}
+	return structuredLintResult{Success: true}, true
+}
+
+func pythonSyntaxLintBinary() string {
+	for _, name := range []string{"python3", "python"} {
+		if path, err := exec.LookPath(name); err == nil {
+			return path
+		}
+	}
+	return ""
 }
 
 func lintOutputLineSet(output string) map[string]struct{} {

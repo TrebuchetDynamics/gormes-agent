@@ -842,6 +842,7 @@ classification and row-backed implementation queue.
 - [x] Terminal deleted-cwd recovery
 - [x] search_files hidden-root and context-line parsing drift
 - [x] Structured lint delta for native write/patch tools
+- [x] Python syntax lint delta for native write/patch tools
 
 ### 5.M — Mixture of Agents 🔨
 
