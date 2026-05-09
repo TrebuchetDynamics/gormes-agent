@@ -57,21 +57,27 @@ func (a httpSTTAudioTranscriber) Transcribe(ctx context.Context, audio telegram.
 }
 
 // newHTTPAudioTranscriberFromEnv returns an HTTP-backed AudioTranscriber when
-// an OpenAI Whisper-compatible STT key is present in the environment, else
-// nil. Future provider expansion (Groq, Mistral, xAI) plugs in here without
-// changing callers.
+// any HTTP STT provider key is present in the environment, else nil.
+// Provider preference matches Hermes' free-first stance: Groq's free tier
+// wins over paid OpenAI Whisper when both are configured. Future provider
+// expansion (Mistral, xAI) plugs in here without changing callers.
 func newHTTPAudioTranscriberFromEnv() telegram.AudioTranscriber {
-	key := firstNonEmpty(
+	if strings.TrimSpace(os.Getenv("GROQ_API_KEY")) != "" {
+		return httpSTTAudioTranscriber{
+			provider: tools.NewTranscriptionGroqProvider(tools.TranscriptionProviderConfig{}),
+		}
+	}
+	openAIKey := firstNonEmpty(
 		strings.TrimSpace(os.Getenv("GORMES_STT_OPENAI_KEY")),
 		strings.TrimSpace(os.Getenv("OPENAI_API_KEY")),
 		strings.TrimSpace(os.Getenv("VOICE_TOOLS_OPENAI_KEY")),
 	)
-	if key == "" {
-		return nil
+	if openAIKey != "" {
+		return httpSTTAudioTranscriber{
+			provider: tools.NewTranscriptionOpenAIProvider(tools.TranscriptionProviderConfig{}),
+		}
 	}
-	return httpSTTAudioTranscriber{
-		provider: tools.NewTranscriptionOpenAIProvider(tools.TranscriptionProviderConfig{}),
-	}
+	return nil
 }
 
 // resolveTelegramAudioTranscriber picks an AudioTranscriber for the Telegram

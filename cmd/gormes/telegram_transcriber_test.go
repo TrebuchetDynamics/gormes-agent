@@ -114,14 +114,15 @@ func TestHTTPSTTAudioTranscriber_FallsBackToOggExtensionWhenFileNameMissing(t *t
 	}
 }
 
-func TestNewHTTPAudioTranscriberFromEnv_ReturnsNilWhenNoOpenAIKey(t *testing.T) {
+func TestNewHTTPAudioTranscriberFromEnv_ReturnsNilWhenNoSTTKeySet(t *testing.T) {
 	t.Setenv("GORMES_STT_OPENAI_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("VOICE_TOOLS_OPENAI_KEY", "")
+	t.Setenv("GROQ_API_KEY", "")
 
 	got := newHTTPAudioTranscriberFromEnv()
 	if got != nil {
-		t.Fatalf("expected nil when no OpenAI STT key is set, got %T", got)
+		t.Fatalf("expected nil when no STT key is set, got %T", got)
 	}
 }
 
@@ -129,10 +130,46 @@ func TestNewHTTPAudioTranscriberFromEnv_ReturnsOpenAIAdapterWhenKeySet(t *testin
 	t.Setenv("GORMES_STT_OPENAI_KEY", "")
 	t.Setenv("VOICE_TOOLS_OPENAI_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "sk-test-not-real")
+	t.Setenv("GROQ_API_KEY", "")
 
 	got := newHTTPAudioTranscriberFromEnv()
 	if got == nil {
 		t.Fatal("expected non-nil HTTP transcriber when OPENAI_API_KEY is set, got nil")
+	}
+	if _, ok := got.(httpSTTAudioTranscriber); !ok {
+		t.Fatalf("expected httpSTTAudioTranscriber adapter, got %T", got)
+	}
+}
+
+func TestNewHTTPAudioTranscriberFromEnv_PrefersGroqWhenBothKeysSet(t *testing.T) {
+	// Groq is free-tier; prefer it over paid OpenAI when both are configured.
+	t.Setenv("GORMES_STT_OPENAI_KEY", "")
+	t.Setenv("VOICE_TOOLS_OPENAI_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "sk-test-not-real")
+	t.Setenv("GROQ_API_KEY", "gsk-test-not-real")
+
+	got := newHTTPAudioTranscriberFromEnv()
+	if got == nil {
+		t.Fatal("expected non-nil HTTP transcriber when both keys are set, got nil")
+	}
+	adapter, ok := got.(httpSTTAudioTranscriber)
+	if !ok {
+		t.Fatalf("expected httpSTTAudioTranscriber, got %T", got)
+	}
+	if _, isGroq := adapter.provider.(*tools.TranscriptionGroqProvider); !isGroq {
+		t.Fatalf("expected resolver to bind Groq provider when GROQ_API_KEY was set; got %T", adapter.provider)
+	}
+}
+
+func TestNewHTTPAudioTranscriberFromEnv_ReturnsGroqAdapterWhenOnlyGroqKeySet(t *testing.T) {
+	t.Setenv("GORMES_STT_OPENAI_KEY", "")
+	t.Setenv("OPENAI_API_KEY", "")
+	t.Setenv("VOICE_TOOLS_OPENAI_KEY", "")
+	t.Setenv("GROQ_API_KEY", "gsk-test-not-real")
+
+	got := newHTTPAudioTranscriberFromEnv()
+	if got == nil {
+		t.Fatal("expected non-nil HTTP transcriber when GROQ_API_KEY is set, got nil")
 	}
 	if _, ok := got.(httpSTTAudioTranscriber); !ok {
 		t.Fatalf("expected httpSTTAudioTranscriber adapter, got %T", got)
