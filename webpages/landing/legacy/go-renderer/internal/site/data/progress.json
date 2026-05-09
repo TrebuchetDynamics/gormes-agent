@@ -36576,6 +36576,82 @@
               }
             },
             {
+              "name": "Gormes profile create clone-all infrastructure exclusion",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Port Hermes' hardened `profile create --clone-all` default-profile copy policy: Gormes creates a named profile from the default Gormes profile, preserves real profile data, strips runtime process files, excludes default-root infrastructure directories, and excludes regenerable bytecode/socket/temp files at any depth.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Invalid, reserved, or existing profile names fail before copying; missing default profile roots return typed create evidence; stdout/stderr and JSON output render only redacted profile roots and never print raw home paths, secrets, repo checkout paths, or copied file contents.",
+              "fixture": "internal/cli/profile_create_test.go; cmd/gormes/profile_command_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/profiles.py@f7e514d4a:_CLONE_ALL_DEFAULT_EXCLUDE_ROOT",
+                "./hermes-agent/hermes_cli/profiles.py@f7e514d4a:_clone_all_copytree_ignore",
+                "./hermes-agent/hermes_cli/profiles.py@f7e514d4a:create_profile clone_all branch",
+                "./hermes-agent/tests/hermes_cli/test_profiles.py@f7e514d4a:TestCreateProfile.test_clone_all_excludes_default_infrastructure",
+                "cmd/gormes/profile.go",
+                "internal/cli/profile_name.go",
+                "internal/cli/profile_root.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree"
+              ],
+              "ready_when": [
+                "Gormes profile command binding and distribution metadata readout are complete, so `profile` command wiring and profile-root resolution already exist.",
+                "The row can be proven with temp XDG/GORMES_HOME fixtures and fake command seams; no live ~/.hermes, ~/.gormes, credentials, git network, or remote provider access is required.",
+                "The slice is limited to local profile creation and clone-all exclusion policy, not remote distribution install/update, aliases, rename/delete/export/import, or gateway `/profile` work."
+              ],
+              "not_ready_when": [
+                "The implementation reads or writes an operator's live ~/.hermes, ~/.gormes, repository checkout, or named-profile roots in tests.",
+                "The slice shells out to git, clones a remote profile distribution, mutates auth tokens, or copies infrastructure directories into the target profile.",
+                "The slice expands into full profile lifecycle parity instead of `create --clone-all` plus minimal fresh-create support needed for a coherent command."
+              ],
+              "blocked_by": [
+                "Gormes profile command binding",
+                "Gormes profile distribution metadata readout"
+              ],
+              "unblocks": [
+                "Full Hermes profile create/delete/rename/export/import parity"
+              ],
+              "acceptance": [
+                "TestCreateProfileCloneAllExcludesDefaultInfrastructure proves `CreateProfile(... CloneAll=true)` copies config, env, state, sessions, logs, and skills from a temp default profile while excluding root `gormes-agent`, `.worktrees`, `profiles`, `bin`, and `node_modules` plus nested `__pycache__`, `*.pyc`, `*.pyo`, `*.sock`, and `*.tmp` entries.",
+                "TestCreateProfileCloneAllStripsRuntimeFiles proves `gateway.pid`, `gateway_state.json`, and `processes.json` are removed from the cloned target after copy.",
+                "TestGormesProfileCreateCloneAllCommand proves `gormes profile create <name> --clone-all --json` returns a structured created report with a redacted root and no raw temp-home leakage.",
+                "TestGormesProfileCreateRejectsDefaultAndExistingTargets proves invalid/reserved/existing targets fail before copy and leave source data untouched."
+              ],
+              "write_scope": [
+                "internal/cli/profile_create.go",
+                "internal/cli/profile_create_test.go",
+                "cmd/gormes/profile.go",
+                "cmd/gormes/profile_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run '^TestCreateProfile' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesProfileCreate' -count=1",
+                "go test ./cmd/gormes ./internal/cli -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Profile-create fixtures prove clone-all preserves profile data, excludes default-root infrastructure and regenerable files, strips runtime files, rejects unsafe targets before copy, and renders redacted command output only."
+              ],
+              "completed_at": "2026-05-09T11:22:32Z",
+              "evidence": {
+                "implementation": "internal/cli/profile_create.go implements CreateProfile, clone-all copy exclusion, runtime-file stripping, and minimal fresh profile directory creation; cmd/gormes/profile.go wires `gormes profile create <name> [--clone-all] [--json]` through fakeable seams with redacted root output.",
+                "tests": "go test ./internal/cli -run '^TestCreateProfile' -count=1; go test ./cmd/gormes -run '^TestGormesProfileCreate' -count=1; go test ./cmd/gormes ./internal/cli -count=1",
+                "note": "TDD added temp-profile fixtures only. Clone-all copies config, dotenv, state, sessions, logs, and skills while excluding default-root infrastructure directories (`gormes-agent`, `.worktrees`, `profiles`, `bin`, `node_modules`), nested regenerable files (`__pycache__`, `*.pyc`, `*.pyo`, `*.sock`, `*.tmp`), and root runtime process files (`gateway.pid`, `gateway_state.json`, `processes.json`)."
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f7e514d4a fix(profiles): exclude infrastructure artifacts when cloning with --clone-all",
+                "note": "2026-05-09 bounded all-topic weakness sweep refreshed Hermes from 93e25ceb1 to cca2869d7 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh upstream deltas were profile clone-all infrastructure exclusion and banner update-check repo resolution. Existing Gormes update/install rows already own managed-checkout update safety, while profile create/clone-all remained row-backed after show/set/list and distribution metadata completion; this is the one new source-backed row for the cycle."
+              }
+            },
+            {
               "name": "Model and profile selector seam (Cobra + gateway)",
               "status": "complete",
               "priority": "P1",
