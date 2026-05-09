@@ -1272,12 +1272,69 @@
                 "upstream_ref": "hermes:49fb7546 gateway/config.py",
                 "note": "Hermes supplies the env-token regression lesson; Gormes adapts it to the Go config/status surfaces over the completed Slack shared chassis."
               }
+            },
+            {
+              "name": "Slack app manifest App Home and private-channel scopes",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "`gormes slack manifest` generates a Hermes-compatible Slack app manifest without contacting Slack: full manifests include writable App Home DMs, `groups:read`, assistant view/events, bot scopes, and registry-derived slash commands; `--slashes-only` emits only the slash-command array for manual merges; `--write[=PATH]` writes atomically to an operator-chosen path or `$GORMES_HOME/slack-manifest.json`.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "If the command is unavailable or cannot write the target file, operators receive bounded CLI errors with no Slack token, app token, or live workspace access. The row does not start Socket Mode or call Slack APIs.",
+              "fixture": "cmd/gormes/slack_manifest_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/slack_cli.py@24d321617:_build_full_manifest",
+                "./hermes-agent/tests/hermes_cli/test_slack_cli.py@24d321617:TestSlackFullManifest",
+                "./hermes-agent/hermes_cli/commands.py@24d321617:slack_app_manifest",
+                "cmd/gormes/hermes_cli_parity_test.go:slack manifest",
+                "internal/gateway/commands.go:GatewayHelpLines"
+              ],
+              "ready_when": [
+                "Hermes CLI command-tree parity manifest already recognizes `slack manifest` as row-backed.",
+                "Slack shared chassis, command registry parser wiring, and Slack config/status rows are complete.",
+                "The slice can derive slash commands from the local command registry and use temp files only; no Slack credentials, Socket Mode connection, or network access is required."
+              ],
+              "not_ready_when": [
+                "The slice changes Slack message parsing, Socket Mode, gateway channel registration, approval buttons, media delivery, or live Slack API behavior.",
+                "The command reads real Slack tokens, writes outside the requested/default manifest path, or requires a live workspace.",
+                "The row implements OAuth installation or Slack manifest upload instead of local manifest generation."
+              ],
+              "blocked_by": [
+                "Slack CommandRegistry parser wiring",
+                "Slack config + cmd/gormes gateway registration"
+              ],
+              "acceptance": [
+                "TestSlackManifestFullManifestAppHomeAndScopes proves the JSON includes features.app_home with home_tab_enabled=false, messages_tab_enabled=true, messages_tab_read_only_enabled=false, includes groups:read, assistant:write, assistant_thread_started, bot_user, and registry-derived slash commands.",
+                "TestSlackManifestSlashesOnly proves `gormes slack manifest --slashes-only` emits only the slash-command array and includes /stop, /model, and /kanban-style registry entries without full manifest sections.",
+                "TestSlackManifestWriteDefaultAndCustomPath proves `--write` writes `$GORMES_HOME/slack-manifest.json`, `--write=PATH` writes the explicit path, stdout stays empty, and stderr reports the next manual Slack app steps.",
+                "`gormes slack manifest` is registered on the root command and no unknown-command text leaks for the active Hermes parser path."
+              ],
+              "write_scope": [
+                "cmd/gormes/main.go",
+                "cmd/gormes/slack.go",
+                "cmd/gormes/slack_manifest_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestSlackManifest|TestHermesCLIParityManifestNestedParserInventoryMatchesHermes' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Slack manifest CLI tests prove Gormes locally emits Hermes-compatible full and slashes-only Slack app manifests with writable App Home DMs, private-channel directory scope, and no live Slack calls."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 26, below the 90-row cap, so adding one source-backed P1 child row was allowed. Upstream Hermes 24d321617 added Slack manifest App Home DM mutability plus groups:read; Gormes only classified `slack manifest` in the CLI parity manifest and had no local generator. Higher-priority Phase 8 publication rows remain operator-blocked, and release/tool drift from the same upstream window is already covered by completed rows. TDD added `gormes slack manifest`, full-manifest App Home and private-channel scope fixtures, slashes-only output, and default/custom `--write` coverage without live Slack calls. Evidence: `go test ./cmd/gormes -run 'TestSlackManifest|TestHermesCLIParityManifestNestedParserInventoryMatchesHermes' -count=1`."
             }
           ],
           "drift_state": {
             "status": "planned",
-            "last_upstream_check": "2026-04-28T01:55:00Z",
-            "origin_decision": "Slack's shared Gormes channel chassis is shipped: Socket Mode acking, shared parser wiring, gateway.Channel registration, config, and doctor/status are complete. Upstream Hermes 49fb7546 added an env-token enabled-state regression fix; Gormes tracks that as a narrow config/status row here. Earlier Hermes 6087e040/c0d25df3/f414df3a follow-up Slack context/delivery semantics remain tracked under 2.B.5 rather than reopening transport behavior."
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Slack's shared Gormes channel chassis is shipped: Socket Mode acking, shared parser wiring, gateway.Channel registration, config, and doctor/status are complete. Upstream Hermes 49fb7546 added an env-token enabled-state regression fix; Gormes tracks that as a narrow config/status row here. Upstream Hermes 24d321617 added Slack manifest App Home DM mutability plus groups:read; Gormes now tracks the local `gormes slack manifest` generator as a dedicated P1 child row without reopening Slack transport behavior. Earlier Hermes 6087e040/c0d25df3/f414df3a follow-up Slack context/delivery semantics remain tracked under 2.B.5."
           }
         },
         "2.B.4": {

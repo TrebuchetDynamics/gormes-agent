@@ -168,6 +168,7 @@ classification and row-backed implementation queue.
 - [x] Slack gateway.Channel adapter shim
 - [x] Slack config + cmd/gormes gateway registration
 - [x] Slack env-token enabled-state preservation
+- [x] Slack app manifest App Home and private-channel scopes
 
 ### 2.B.4 — WhatsApp Adapter ✅
 
