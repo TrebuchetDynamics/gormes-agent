@@ -99,3 +99,45 @@ func TestResolveGitDirtyFrom_FallsBackToVCSModified(t *testing.T) {
 		t.Error("vcs.modified=false should yield dirty=false")
 	}
 }
+
+func TestResolveBuildDateFrom_FavorsInjectedValue(t *testing.T) {
+	got := resolveBuildDateFrom("2026-05-09T12:34:56Z", []debug.BuildSetting{
+		{Key: "vcs.time", Value: "2026-01-01T00:00:00Z"},
+	})
+	if got != "2026-05-09T12:34:56Z" {
+		t.Errorf("injected build date must win over vcs.time; got %q", got)
+	}
+}
+
+func TestResolveBuildDateFrom_FallsBackToVCSTime(t *testing.T) {
+	cases := []struct {
+		name     string
+		injected string
+	}{
+		{"empty injected", ""},
+		{"unknown sentinel", "unknown"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := resolveBuildDateFrom(tc.injected, []debug.BuildSetting{
+				{Key: "vcs.time", Value: "2026-05-08T19:20:21Z"},
+			})
+			if got != "2026-05-08T19:20:21Z" {
+				t.Errorf("vcs.time fallback = %q, want %q", got, "2026-05-08T19:20:21Z")
+			}
+		})
+	}
+}
+
+func TestResolveBuildDateFrom_NoVCSInfo(t *testing.T) {
+	got := resolveBuildDateFrom("", nil)
+	if got != "unknown" {
+		t.Errorf("missing build-date fallback should return %q; got %q", "unknown", got)
+	}
+	got = resolveBuildDateFrom("unknown", []debug.BuildSetting{
+		{Key: "vcs.revision", Value: "1234567890abcdef"},
+	})
+	if got != "unknown" {
+		t.Errorf("missing vcs.time fallback should return %q; got %q", "unknown", got)
+	}
+}

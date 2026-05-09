@@ -144,8 +144,9 @@ jobs:
           else
             GIT_DIRTY=true
           fi
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
-            go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY}" \
+            go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY} -X main.BuildDate=${BUILD_DATE}" \
               -o "dist/${target}/${exe}" ./cmd/gormes
           archive="dist/${target}.tar.gz"
           tar -C dist -czf "$archive" "${target}"

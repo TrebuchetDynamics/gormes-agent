@@ -29,10 +29,11 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"arm64",
 		"CGO_ENABLED=0",
 		"go build -trimpath",
-		"-ldflags=\"-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY}\"",
+		"-ldflags=\"-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY} -X main.BuildDate=${BUILD_DATE}\"",
 		"GIT_COMMIT=\"$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\"",
 		"GIT_DIRTY=false",
 		"GIT_DIRTY=true",
+		"BUILD_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
 		"gormes-${VERSION}-${GOOS}-${GOARCH}",
 		"archive=\"dist/${target}.tar.gz\"",
 		"tar -C dist -czf \"$archive\"",
@@ -76,6 +77,30 @@ func TestReleaseWorkflowContract(t *testing.T) {
 			t.Errorf("release workflow missing target %s", target)
 		}
 	}
+}
+
+func TestReleaseWorkflowInjectsBuildDateProvenance(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
+
+	wantAll := []string{
+		"BUILD_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+		"-X main.BuildDate=${BUILD_DATE}",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(buildStep, want) {
+			t.Errorf("Build static binary archive step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, buildStep,
+		"BUILD_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+		"go build -trimpath",
+	)
+	assertWorkflowOrder(t, buildStep,
+		"-X main.GitDirty=${GIT_DIRTY}",
+		"-X main.BuildDate=${BUILD_DATE}",
+	)
 }
 
 func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) {

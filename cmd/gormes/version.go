@@ -41,6 +41,11 @@ var GitCommit = "unknown"
 // builds default to clean.
 var GitDirty = "false"
 
+// BuildDate is the UTC timestamp when the binary was built. Defaults to
+// "unknown" in dev/source builds; release CI injects the real value via
+// `-ldflags="-X main.BuildDate=<RFC3339 UTC>"`.
+var BuildDate = "unknown"
+
 // versionReportJSON is the wire shape for `gormes version --json`.
 // Field order matches the rest of the --json arc: identity fields lead.
 type versionReportJSON struct {
@@ -48,6 +53,7 @@ type versionReportJSON struct {
 	DateAlias string `json:"date_alias"`
 	GitCommit string `json:"git_commit"`
 	GitDirty  bool   `json:"git_dirty"`
+	BuildDate string `json:"build_date"`
 	GoVersion string `json:"go_version"`
 	OS        string `json:"os"`
 	Arch      string `json:"arch"`
@@ -130,6 +136,24 @@ func resolveGitDirtyFrom(injected string, settings []debug.BuildSetting) bool {
 	return false
 }
 
+// resolveBuildDate returns the UTC timestamp the binary was built at,
+// preferring release-CI ldflags and falling back to Go's VCS build time.
+func resolveBuildDate() string {
+	return resolveBuildDateFrom(BuildDate, buildInfoSettings())
+}
+
+func resolveBuildDateFrom(injected string, settings []debug.BuildSetting) string {
+	if injected != "" && injected != "unknown" {
+		return injected
+	}
+	for _, s := range settings {
+		if s.Key == "vcs.time" && s.Value != "" {
+			return s.Value
+		}
+	}
+	return "unknown"
+}
+
 // buildInfoSettings is a thin wrapper around debug.ReadBuildInfo so the
 // resolveGit* helpers stay testable via the *From variants without
 // reaching into the runtime.
@@ -158,6 +182,7 @@ func newVersionCommand() *cobra.Command {
 					DateAlias: VersionDateAlias,
 					GitCommit: resolveGitCommit(),
 					GitDirty:  resolveGitDirty(),
+					BuildDate: resolveBuildDate(),
 					GoVersion: runtime.Version(),
 					OS:        runtime.GOOS,
 					Arch:      runtime.GOARCH,
@@ -176,6 +201,6 @@ func newVersionCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Bool("json", false, "emit a machine-readable {version, date_alias, git_commit} JSON record (suitable for fleet automation)")
+	cmd.Flags().Bool("json", false, "emit a machine-readable {version, date_alias, git_commit, build_date} JSON record (suitable for fleet automation)")
 	return cmd
 }
