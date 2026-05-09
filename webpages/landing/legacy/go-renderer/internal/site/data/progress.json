@@ -49146,6 +49146,81 @@
               }
             },
             {
+              "name": "OCI image PR build and arm64 smoke workflow",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:93679ef27 .github/workflows/docker-publish.yml + .github/actions/hermes-smoke-test/action.yml"
+              },
+              "contract": "Gormes verifies OCI image changes before merge by running path-scoped PR and development Docker builds for linux/amd64 and linux/arm64, loading each image locally, and smoking --help, dashboard --help, and doctor --offline through the image entrypoint. The final image must stay Python/Node/Playwright-free, run as a nonroot user, and keep the config-volume bootstrap path executable.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without OCI smoke coverage, Dockerfile or entrypoint regressions can merge to development/main and surface only after an operator pulls the image. PR/development runs must build and smoke images only; they must not push registry tags or upload release artifacts.",
+              "fixture": "webpages/docs/install/oci_image_test.go::TestOCIWorkflowBuildsAndSmokesAMD64AndARM64",
+              "source_refs": [
+                "./hermes-agent/.github/workflows/docker-publish.yml@93679ef27:pull_request path filters, PR-scoped concurrency, and build-arm64 smoke",
+                "./hermes-agent/.github/actions/hermes-smoke-test/action.yml@93679ef27:shared image smoke action",
+                "Dockerfile",
+                "docker/entrypoint.sh",
+                "webpages/docs/install/oci_image_test.go:TestOCIImageContract"
+              ],
+              "ready_when": [
+                "The OCI image contract is complete and Dockerfile already builds a static Gormes binary.",
+                "The workflow contract can be tested by static Go fixtures; local unit tests do not require Docker, registry credentials, or provider credentials.",
+                "GitHub Actions can run actual Docker build/smoke jobs only for Dockerfile, entrypoint, workflow, or runtime source paths."
+              ],
+              "not_ready_when": [
+                "The slice publishes, pushes, signs, or retags images from pull_request or development runs.",
+                "The smoke test requires live provider credentials, a running gateway, or live user config.",
+                "The workflow builds only amd64, builds without loading/running the image, or skips the image entrypoint."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestOCIWorkflowBuildsAndSmokesAMD64AndARM64 fails before a workflow builds and smokes both linux/amd64 and linux/arm64 images and passes after path-scoped PR/development triggers exist.",
+                "A reusable Gormes OCI smoke action prepares a nonroot-writable temp config volume and runs --help, dashboard --help, and doctor --offline through the image entrypoint.",
+                "Dockerfile smoke contract remains valid: the final image can execute its entrypoint, runs as nonroot, contains no Python/Node/Playwright runtime, and defaults to doctor --offline.",
+                "PR/development workflow steps never log in to registries, push images, upload release artifacts, or mutate tags."
+              ],
+              "write_scope": [
+                ".github/workflows/oci.yml",
+                ".github/actions/gormes-oci-smoke/action.yml",
+                "Dockerfile",
+                "docker/entrypoint.sh",
+                "webpages/docs/install/oci_image_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run 'TestOCI(ImageContract|WorkflowBuildsAndSmokesAMD64AndARM64)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OCI image workflow fixtures prove path-scoped PR/development builds, linux/amd64 and linux/arm64 local-load smoke tests, nonroot config-volume preparation, and no image publishing from non-release runs."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Recent Hermes a7e7921db runtime deltas were already complete or row-backed in Gormes; Hermes 93679ef27 added PR Docker builds plus arm64 image smoke coverage, while Gormes had only static OCI file-contract tests and no CI image smoke. Planned rows were 20, below the 90-row cap, and higher-priority TD publication rows remained operator-blocked, so this source-backed release/operator row was selected and completed as the bounded builder slice.",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/oci.yml adds path-scoped pull_request and development/main push image builds for linux/amd64 and linux/arm64, loads each image locally, smokes it through the shared action, and never logs in, pushes, uploads artifacts, or mutates image tags.",
+                  ".github/actions/gormes-oci-smoke/action.yml prepares a 65534-owned config volume and runs --help, dashboard --help, and doctor --offline through /opt/gormes/docker/entrypoint.sh.",
+                  "Dockerfile now uses a Go 1.26 builder plus a shell-capable BusyBox final stage, copies CA certificates from the build stage, installs docker/entrypoint.sh with nonroot ownership, runs as 65534:65534, and keeps Python/Node/Playwright runtimes out of the image.",
+                  "webpages/docs/install/oci_image_test.go pins the Dockerfile, entrypoint, workflow, and smoke-action contracts without requiring Docker, registry credentials, or provider credentials."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run 'TestOCI(ImageContract|WorkflowBuildsAndSmokesAMD64AndARM64)' -count=1 failed before implementation because Dockerfile lacked the BusyBox/nonroot/CA-copy fragments and .github/workflows/oci.yml was missing.",
+                  "RED: docker build -t gormes-agent:local-oci-smoke . failed with go.mod requiring Go 1.26 while the Dockerfile builder used golang:1.25; a focused static assertion then failed on missing FROM golang:1.26.",
+                  "GREEN: go test ./webpages/docs/install -run 'TestOCI(ImageContract|WorkflowBuildsAndSmokesAMD64AndARM64)' -count=1 passed after the workflow, smoke action, Dockerfile, entrypoint, and static contract updates.",
+                  "GREEN: docker build --network=host -t gormes-agent:local-oci-smoke . passed after the Go 1.26 builder update; the default-network retry had reached module download but hit local Docker DNS timeouts against proxy.golang.org.",
+                  "GREEN: docker run smokes for --help, dashboard --help, and doctor --offline passed through /opt/gormes/docker/entrypoint.sh with a 65534-owned /opt/data volume."
+                ]
+              }
+            },
+            {
               "name": "Release build-date provenance injection",
               "priority": "P1",
               "status": "complete",

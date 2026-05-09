@@ -1250,6 +1250,7 @@ classification and row-backed implementation queue.
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
 - [x] Windows install.ps1 release binary fetch selector
+- [x] OCI image PR build and arm64 smoke workflow
 - [x] Release build-date provenance injection
 - [x] Release notes artifact size table
 - [x] Release SBOM attestation binding

@@ -33,15 +33,18 @@ func TestOCIImageContract(t *testing.T) {
 			name: "dockerfile_runs_go_binary_with_no_python_runtime",
 			body: dockerfile,
 			wantAll: []string{
-				"FROM golang",
+				"FROM golang:1.26",
 				"AS build",
 				"go build",
 				"./cmd/gormes",
-				"FROM gcr.io/distroless/static",
+				"FROM busybox",
+				"ca-certificates.crt",
+				"COPY --chown=65534:65534 docker/entrypoint.sh",
 				"COPY --from=build",
 				"/usr/local/bin/gormes",
 				"VOLUME [\"/opt/data\"]",
 				"ENV GORMES_HOME=/opt/data",
+				"USER 65534:65534",
 				"ENTRYPOINT [\"/opt/gormes/docker/entrypoint.sh\"]",
 				"CMD [\"doctor\", \"--offline\"]",
 			},
@@ -125,6 +128,103 @@ func TestOCIImageContract(t *testing.T) {
 				"--online",
 				"http://",
 				"https://",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, want := range tc.wantAll {
+				if !strings.Contains(tc.body, want) {
+					t.Errorf("missing required fragment %q", want)
+				}
+			}
+			for _, banned := range tc.wantNone {
+				if strings.Contains(tc.body, banned) {
+					t.Errorf("forbidden fragment present: %q", banned)
+				}
+			}
+		})
+	}
+}
+
+// TestOCIWorkflowBuildsAndSmokesAMD64AndARM64 pins the CI contract added after
+// Hermes started running Docker image builds on PRs and smoke-testing arm64
+// images before publish. This test is static by design: unit tests must not
+// require a Docker daemon, registry credentials, or provider credentials.
+func TestOCIWorkflowBuildsAndSmokesAMD64AndARM64(t *testing.T) {
+	workflow := readRepoFile(t, ".github/workflows/oci.yml")
+	action := readRepoFile(t, ".github/actions/gormes-oci-smoke/action.yml")
+
+	tests := []struct {
+		name     string
+		body     string
+		wantAll  []string
+		wantNone []string
+	}{
+		{
+			name: "workflow_path_scoped_pr_and_development_builds",
+			body: workflow,
+			wantAll: []string{
+				"pull_request:",
+				"branches: [main]",
+				"push:",
+				"branches: [main, development]",
+				"paths:",
+				"Dockerfile",
+				"docker/**",
+				".github/workflows/oci.yml",
+				".github/actions/gormes-oci-smoke/**",
+				"cmd/**",
+				"internal/**",
+				"cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+			},
+			wantNone: []string{
+				"docker/login-action",
+				"docker push",
+				"push: true",
+				"actions/upload-artifact",
+				"secrets.DOCKER",
+			},
+		},
+		{
+			name: "workflow_builds_and_smokes_both_arches",
+			body: workflow,
+			wantAll: []string{
+				"build-amd64:",
+				"runs-on: ubuntu-latest",
+				"platforms: linux/amd64",
+				"cache-from: type=gha,scope=oci-amd64",
+				"build-arm64:",
+				"runs-on: ubuntu-24.04-arm",
+				"platforms: linux/arm64",
+				"cache-from: type=gha,scope=oci-arm64",
+				"load: true",
+				"uses: ./.github/actions/gormes-oci-smoke",
+			},
+			wantNone: []string{
+				"qemu",
+				":latest",
+			},
+		},
+		{
+			name: "smoke_action_uses_entrypoint_and_nonroot_volume",
+			body: action,
+			wantAll: []string{
+				"name: Gormes OCI smoke test",
+				"mkdir -p /tmp/gormes-oci-test",
+				"sudo chown -R 65534:65534 /tmp/gormes-oci-test",
+				"docker run --rm",
+				"-v /tmp/gormes-oci-test:/opt/data",
+				"--entrypoint /opt/gormes/docker/entrypoint.sh",
+				"${{ inputs.image }}\" --help",
+				"${{ inputs.image }}\" dashboard --help",
+				"${{ inputs.image }}\" doctor --offline",
+			},
+			wantNone: []string{
+				"HERMES",
+				"DOCKERHUB",
+				"docker push",
 			},
 		},
 	}

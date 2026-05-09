@@ -1,0 +1,43 @@
+name: Gormes OCI smoke test
+description: >
+  Run the image entrypoint against help and offline doctor commands after the
+  image has already been loaded into the local Docker daemon.
+
+inputs:
+  image:
+    description: Local image tag to smoke test.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare nonroot config volume
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p /tmp/gormes-oci-test
+        sudo chown -R 65534:65534 /tmp/gormes-oci-test
+
+    - name: gormes --help
+      shell: bash
+      run: |
+        docker run --rm \
+          -v /tmp/gormes-oci-test:/opt/data \
+          --entrypoint /opt/gormes/docker/entrypoint.sh \
+          "${{ inputs.image }}" --help
+
+    - name: gormes dashboard --help
+      shell: bash
+      run: |
+        docker run --rm \
+          -v /tmp/gormes-oci-test:/opt/data \
+          --entrypoint /opt/gormes/docker/entrypoint.sh \
+          "${{ inputs.image }}" dashboard --help
+
+    - name: gormes doctor --offline
+      shell: bash
+      run: |
+        docker run --rm \
+          -v /tmp/gormes-oci-test:/opt/data \
+          --entrypoint /opt/gormes/docker/entrypoint.sh \
+          "${{ inputs.image }}" doctor --offline
