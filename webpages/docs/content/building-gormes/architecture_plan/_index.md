@@ -1232,6 +1232,7 @@ classification and row-backed implementation queue.
 - [x] Microsoft Teams adapter plugin seam
 - [x] QQ Bot transport/bootstrap layer
 - [x] Google Chat shared-chassis platform adapter seam
+- [x] Google Chat relay sender-type self-filter
 
 ## Phase 8 — Reputation & Publication 🔨
 

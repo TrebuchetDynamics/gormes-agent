@@ -49104,6 +49104,70 @@
                 "Google Chat channel seam exposes Hermes-compatible plugin metadata, the inbound event normalizer round-trips an upstream-shaped fixture, and the delivery seam emits googlechat_transport_not_configured evidence when no transport is wired."
               ],
               "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 40, so no new P3/P4 rows were added. The sweep refreshed stale Google Chat refs from removed `hermes-agent/gateway/google_chat/` to current bundled plugin sources at Hermes 839cdd1b0 and selected this source-backed, unblocked P2 channel seam after P1 docs/release rows remained operator- or release-infra-gated. TDD added `internal/channels/googlechat` with Hermes-compatible plugin metadata, a Pub/Sub/CloudEvents envelope normalizer into `gateway.InboundEvent`, gateway.Channel + ThreadSender implementation over a fakeable client seam, and googlechat_transport_not_configured degraded evidence when no transport is wired. Live Pub/Sub, Chat REST, OAuth, attachment download, setup wizard, and config/gateway registration remain separate rows."
+            },
+            {
+              "name": "Google Chat relay sender-type self-filter",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:93e25ceb1 plugins/platforms/google_chat/adapter.py",
+                "note": "Current Hermes preserves relay-flat sender_type so Google Chat BOT messages forwarded by a relay still hit the self-filter instead of re-entering the agent."
+              },
+              "contract": "Gormes extends the completed Google Chat channel seam to normalize Hermes relay-flat and native Chat API Pub/Sub envelopes, preserving sender_type from relay payloads and dropping BOT-originated messages before gateway dispatch. Missing or unsupported sender_type values default to HUMAN for backward compatibility.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Malformed relay/native envelopes return no inbound event and never dispatch a synthetic user message. Unknown relay sender_type values are treated as HUMAN rather than failing existing human relay traffic.",
+              "fixture": "internal/channels/googlechat/runtime_test.go::TestGoogleChatRelayFlatSenderTypeSelfFilter",
+              "source_refs": [
+                "./hermes-agent/plugins/platforms/google_chat/adapter.py@93e25ceb1:_extract_message_payload",
+                "./hermes-agent/tests/gateway/test_google_chat.py@93e25ceb1:relay-declared sender_type honoring",
+                "internal/channels/googlechat/runtime.go:NormalizePubSubMessage",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Channels"
+              ],
+              "ready_when": [
+                "Google Chat shared-chassis platform adapter seam is complete.",
+                "The RED fixture can use pure JSON relay/native payloads and does not need Google Pub/Sub, Chat REST, OAuth, or live credentials.",
+                "gateway.InboundEvent remains the public boundary under test."
+              ],
+              "not_ready_when": [
+                "The slice opens a Pub/Sub subscriber, refreshes Google service-account tokens, sends Chat REST requests, or adds attachment download behavior.",
+                "The normalizer ignores relay sender_type or lets BOT relay messages through as user submissions.",
+                "The row expands into full Google Chat transport binding instead of only the inbound envelope normalization/security seam."
+              ],
+              "blocked_by": [
+                "Google Chat shared-chassis platform adapter seam"
+              ],
+              "unblocks": [
+                "Google Chat Workspace transport binding",
+                "Plugin standalone sender out-of-process cron delivery"
+              ],
+              "acceptance": [
+                "TestGoogleChatRelayFlatSenderTypeSelfFilter proves relay-flat HUMAN payloads normalize into gateway.InboundEvent while relay-flat BOT payloads are dropped.",
+                "TestGoogleChatRelayFlatSenderTypeSelfFilter proves invalid relay sender_type values default to HUMAN and preserve space/thread/message/sender identity.",
+                "TestGoogleChatNativeChatAPIPubSubMessage proves top-level native Chat API Pub/Sub MESSAGE envelopes normalize without the Workspace Add-ons wrapper.",
+                "Existing Google Chat seam tests remain green."
+              ],
+              "write_scope": [
+                "internal/channels/googlechat/runtime.go",
+                "internal/channels/googlechat/runtime_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/googlechat -run 'TestGoogleChat(RelayFlatSenderTypeSelfFilter|NativeChatAPIPubSubMessage)' -count=1",
+                "go test ./internal/channels/googlechat -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Google Chat relay/native fixtures prove sender_type preservation, BOT self-filtering, HUMAN fallback, native Pub/Sub envelope support, and no live Google transport dependency."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic Hermes weakness sweep refreshed Hermes to 93e25ceb1 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 18, below the 90-row cap. Higher-priority publication/release rows remained draft/operator-gated, and existing Kanban, delegate_task, Feishu, browser, release, and provider/auth deltas were complete or row-backed. This narrow Google Chat relay sender_type security delta was the highest-priority builder-ready source-backed slice. RED failed on missing native Chat API and relay-flat envelope support. GREEN added native MESSAGE and relay-flat normalization, relay sender_type preservation, BOT self-filtering, unknown-type HUMAN fallback, and pure fixtures with no Google Pub/Sub, Chat REST, OAuth, or live credentials. Evidence: go test ./internal/channels/googlechat -run 'TestGoogleChat(RelayFlatSenderTypeSelfFilter|NativeChatAPIPubSubMessage)' -count=1; go test ./internal/channels/googlechat -count=1."
             }
           ],
           "drift_state": {

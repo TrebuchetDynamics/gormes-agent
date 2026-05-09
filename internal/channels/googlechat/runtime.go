@@ -85,11 +85,18 @@ func (c *Channel) SendThread(ctx context.Context, chatID, threadID, text string)
 
 func (c *Channel) NormalizePubSubMessage(payload []byte) (gateway.InboundEvent, bool) {
 	var envelope googleChatEnvelope
+	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(payload, &envelope); err != nil {
 		return gateway.InboundEvent{}, false
 	}
-	msg := envelope.Chat.MessagePayload.Message
-	space := firstNonEmpty(msg.Space.Name, envelope.Chat.MessagePayload.Space.Name)
+	if err := json.Unmarshal(payload, &raw); err != nil {
+		return gateway.InboundEvent{}, false
+	}
+	msg, spacePayload, ok := googleChatMessageAndSpace(envelope, raw)
+	if !ok {
+		return gateway.InboundEvent{}, false
+	}
+	space := firstNonEmpty(msg.Space.Name, spacePayload.Name)
 	thread := strings.TrimSpace(msg.Thread.Name)
 	text := strings.TrimSpace(firstNonEmpty(msg.ArgumentText, msg.Text))
 	senderID := strings.TrimSpace(msg.Sender.Name)
@@ -105,7 +112,7 @@ func (c *Channel) NormalizePubSubMessage(payload []byte) (gateway.InboundEvent, 
 		Platform:  PlatformName,
 		AccountID: strings.TrimSpace(msg.Sender.Email),
 		ChatID:    space,
-		ChatType:  googleChatType(firstNonEmpty(msg.Space.Type, envelope.Chat.MessagePayload.Space.Type)),
+		ChatType:  googleChatType(firstNonEmpty(msg.Space.Type, spacePayload.Type)),
 		UserID:    senderID,
 		UserName:  strings.TrimSpace(msg.Sender.DisplayName),
 		ThreadID:  thread,
@@ -114,6 +121,73 @@ func (c *Channel) NormalizePubSubMessage(payload []byte) (gateway.InboundEvent, 
 		Kind:      kind,
 		Text:      body,
 	}, true
+}
+
+func googleChatMessageAndSpace(envelope googleChatEnvelope, raw map[string]json.RawMessage) (googleChatMessage, googleChatSpace, bool) {
+	msg := envelope.Chat.MessagePayload.Message
+	space := envelope.Chat.MessagePayload.Space
+	if googleChatMessagePresent(msg) || strings.TrimSpace(space.Name) != "" {
+		return msg, space, true
+	}
+
+	if _, ok := raw["message"]; ok {
+		if strings.ToUpper(strings.TrimSpace(envelope.Type)) != "MESSAGE" {
+			return googleChatMessage{}, googleChatSpace{}, false
+		}
+		msg := envelope.Message
+		space := envelope.Space
+		if strings.TrimSpace(space.Name) == "" {
+			space = msg.Space
+		}
+		return msg, space, true
+	}
+
+	_, hasEventType := raw["event_type"]
+	_, hasSenderEmail := raw["sender_email"]
+	if !hasEventType && !hasSenderEmail {
+		return googleChatMessage{}, googleChatSpace{}, false
+	}
+	eventType := strings.ToUpper(strings.TrimSpace(envelope.EventType))
+	if eventType == "" {
+		eventType = "MESSAGE"
+	}
+	if eventType != "MESSAGE" {
+		return googleChatMessage{}, googleChatSpace{}, false
+	}
+	senderEmail := strings.TrimSpace(envelope.SenderEmail)
+	senderDisplay := strings.TrimSpace(firstNonEmpty(envelope.SenderDisplayName, senderEmail, "Unknown"))
+	senderName := "users/relay-" + strings.ReplaceAll(strings.ReplaceAll(firstNonEmpty(senderEmail, "unknown"), "@", "_at_"), ".", "_")
+	msg = googleChatMessage{
+		Name:         strings.TrimSpace(envelope.MessageName),
+		Text:         envelope.Text,
+		ArgumentText: envelope.Text,
+		Sender: googleChatSender{
+			Name:        senderName,
+			Email:       senderEmail,
+			DisplayName: senderDisplay,
+			Type:        googleChatSenderType(envelope.SenderType),
+		},
+		Space: googleChatSpace{
+			Name: strings.TrimSpace(envelope.SpaceName),
+			Type: strings.TrimSpace(envelope.SpaceType),
+		},
+	}
+	msg.Thread.Name = strings.TrimSpace(envelope.ThreadName)
+	return msg, msg.Space, true
+}
+
+func googleChatMessagePresent(msg googleChatMessage) bool {
+	return firstNonEmpty(msg.Name, msg.Text, msg.ArgumentText, msg.Sender.Name, msg.Space.Name) != ""
+}
+
+func googleChatSenderType(value string) string {
+	senderType := strings.ToUpper(strings.TrimSpace(value))
+	switch senderType {
+	case "BOT", "HUMAN":
+		return senderType
+	default:
+		return "HUMAN"
+	}
 }
 
 type PluginInfo struct {
@@ -149,6 +223,18 @@ type googleChatEnvelope struct {
 			Message googleChatMessage `json:"message"`
 		} `json:"messagePayload"`
 	} `json:"chat"`
+	Type              string            `json:"type"`
+	Message           googleChatMessage `json:"message"`
+	Space             googleChatSpace   `json:"space"`
+	EventType         string            `json:"event_type"`
+	SenderEmail       string            `json:"sender_email"`
+	SenderDisplayName string            `json:"sender_display_name"`
+	SenderType        string            `json:"sender_type"`
+	Text              string            `json:"text"`
+	SpaceName         string            `json:"space_name"`
+	SpaceType         string            `json:"space_type"`
+	ThreadName        string            `json:"thread_name"`
+	MessageName       string            `json:"message_name"`
 }
 
 type googleChatSpace struct {
