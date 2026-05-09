@@ -46,6 +46,9 @@ func newMCPCommandWithRuntime(runtime mcpLoginRuntime) *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
+				if asJSON {
+					return emitJSONSubcommandRequired(cmd)
+				}
 				return cmd.Help()
 			}
 			msg := fmt.Sprintf("unknown command %q for %q", args[0], cmd.CommandPath())

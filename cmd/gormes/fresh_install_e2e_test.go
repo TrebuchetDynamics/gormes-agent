@@ -395,6 +395,22 @@ func TestFreshInstallE2E_InvalidInputJSONEmitsStructuredError(t *testing.T) {
 		// other parent. Same intent: the user typed an invocation
 		// containing --json; conformance demands JSON on stdout.
 		{name: "gateway_unknown_subcommand_json", args: []string{"gateway", "definitely-not-a-subcommand", "--json"}, wantAction: "unknown_subcommand"},
+		// Parent commands with subcommands but no operator-supplied
+		// subcommand previously printed Help text on stdout when
+		// --json was set — silently ignoring the JSON contract.
+		// `gormes config --json`, `gormes kanban --json`, etc. now
+		// emit a structured `subcommand_required` document with the
+		// available subcommand list so fleet automation can discover
+		// the parent's surface programmatically.
+		{name: "config_no_subcommand_json", args: []string{"config", "--json"}, wantAction: "subcommand_required"},
+		{name: "kanban_no_subcommand_json", args: []string{"kanban", "--json"}, wantAction: "subcommand_required"},
+		{name: "agent_no_subcommand_json", args: []string{"agent", "--json"}, wantAction: "subcommand_required"},
+		// Auth and mcp parents have their own RunE so the
+		// installParentUnknownSubcommandGuards recursive helper skips
+		// them. Explicit handling at each parent's RunE wires the
+		// same conformance contract.
+		{name: "auth_no_subcommand_json", args: []string{"auth", "--json"}, wantAction: "subcommand_required"},
+		{name: "mcp_no_subcommand_json", args: []string{"mcp", "--json"}, wantAction: "subcommand_required"},
 	}
 	for _, tc := range cases {
 		tc := tc

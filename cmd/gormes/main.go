@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -305,6 +306,16 @@ func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
 	cmd.SilenceUsage = true
 	cmd.Args = nil
 	cmd.FParseErrWhitelist.UnknownFlags = true
+	// Register --json as a hidden parent-only flag so the no-args
+	// fallback path can detect "operator wants JSON" without
+	// reaching for os.Args (broken in tests). Hidden so it doesn't
+	// pollute the parent's --help text. Subcommands with their own
+	// --json flag are unaffected: cobra's flag parsing happens at
+	// the matched leaf command, not the traversed parent.
+	if cmd.Flags().Lookup("json") == nil {
+		cmd.Flags().Bool("json", false, "")
+		_ = cmd.Flags().MarkHidden("json")
+	}
 	// cobra.Command.SuggestionsFor compares against
 	// SuggestionsMinimumDistance literally, but the field stays at 0
 	// until cobra's own findSuggestions lazy-inits it to 2. We don't
@@ -331,8 +342,52 @@ func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
 			}
 			return fmt.Errorf("%s", msg)
 		}
+		// No subcommand provided. With --json the operator wants
+		// machine-readable output, not Help text — emit a structured
+		// `subcommand_required` document listing the available
+		// subcommands so fleet automation can discover the parent's
+		// surface programmatically.
+		if asJSON, _ := cmd.Flags().GetBool("json"); asJSON {
+			return emitJSONSubcommandRequired(cmd)
+		}
 		return cmd.Help()
 	}
+}
+
+// emitJSONSubcommandRequired writes a structured `subcommand_required`
+// report to cmd's stdout and returns a non-zero exit-code error.
+// Fleet automation invoking `gormes <parent> --json` (no subcommand)
+// gets the parent's available subcommand list as a JSON array
+// instead of Help text on stdout. Same conformance fence as the
+// other invalid-input paths; `action: "subcommand_required"`
+// discriminates from `unknown_subcommand` (caller typo) and
+// `missing_argument` (subcommand-known, arg-missing).
+func emitJSONSubcommandRequired(cmd *cobra.Command) error {
+	available := make([]string, 0, len(cmd.Commands()))
+	for _, child := range cmd.Commands() {
+		if child.Hidden || child.Name() == "help" {
+			continue
+		}
+		available = append(available, child.Name())
+	}
+	parent := cmd.CommandPath()
+	report := struct {
+		Build     buildProvenanceJSON `json:"build"`
+		Action    string              `json:"action"`
+		Parent    string              `json:"parent"`
+		Available []string            `json:"available"`
+		Error     string              `json:"error"`
+	}{
+		Build:     newBuildProvenance(),
+		Action:    "subcommand_required",
+		Parent:    parent,
+		Available: available,
+		Error:     fmt.Sprintf("subcommand required for %q; choose one of: %s", parent, strings.Join(available, ", ")),
+	}
+	encoder := json.NewEncoder(cmd.OutOrStdout())
+	encoder.SetIndent("", "  ")
+	_ = encoder.Encode(report)
+	return newExitCodeError(1, fmt.Errorf("%s", report.Error))
 }
 
 func applyProfileStartupFlag(cmd *cobra.Command) error {
