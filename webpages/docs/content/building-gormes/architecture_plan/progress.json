@@ -47835,7 +47835,73 @@
               "done_signal": [
                 "A test tag push produces all seven release artifacts; install.sh fetches and verifies each on a matching host."
               ],
-              "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure."
+              "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure. A later 2026-05-09 sweep found the same parent still promised release notes with install size and SHA while the workflow emitted SHA only; the child row `Release notes artifact size table` owns that bounded closure."
+            },
+            {
+              "name": "Release notes artifact size table",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The release workflow records each release archive's install size beside its SHA-256 in generated GitHub release notes. The publish job must compute the byte count from the downloaded tar.gz artifacts, render a Size column in the artifacts table before publication, and keep SBOM and provenance wording intact.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without artifact sizes in release notes, operators cannot verify the v1 single-binary size promise from the public release page even though the workflow enforces the cap internally.",
+              "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowReleaseNotesIncludeArchiveSize",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim",
+                "docs/content/building-gormes/strategy/success-plan.md:release notes install-size benchmark",
+                ".github/workflows/release.yml:Build release notes",
+                "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowEnforcesMaxArchiveSize"
+              ],
+              "ready_when": [
+                "Sharp v1.0 differentiator decision is complete.",
+                "Release workflow already downloads all target artifacts into dist before building release notes.",
+                "Release archive 30 MB size gate is complete."
+              ],
+              "not_ready_when": [
+                "The slice requires a live GitHub release publication or tag push.",
+                "The release notes table records source tree, SBOM, or checksum file sizes instead of the tar.gz archive byte size.",
+                "The size column replaces SHA-256, SBOM, or provenance wording rather than adding to them."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleaseWorkflowReleaseNotesIncludeArchiveSize fails before the release notes table contains a Size column and passes after each dist/*.tar.gz row computes bytes with wc -c.",
+                "The generated artifacts table columns are Platform, Archive, Size, and SHA-256.",
+                "The size cell is derived from the tar.gz artifact path used for the release asset link and is rendered before the SHA cell.",
+                "Existing release workflow tests for target slugs, SHA-256 sidecars, SBOM generation, size cap, artifact upload, and tag-only publication remain green."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|EnforcesMaxArchiveSize|ReleaseNotesIncludeArchiveSize)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release workflow and workflow tests prove generated release notes expose tar.gz archive size and SHA-256 for every platform artifact."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 27, below the 90-row cap. Higher-priority TD blog/writeup rows remained operator-blocked, runtime parity manifests and focused package gates were green, and the broad P1 release pipeline row remained too large to assign directly. This child row was the highest unblocked builder-ready release/operator slice because the parent contract promised release notes with install size and SHA, while the workflow emitted SHA only. TDD added archive byte-count rendering to the release notes artifact table while preserving SHA, SBOM, and provenance wording.",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/release.yml: Build release notes now renders Platform, Archive, Size, and SHA-256 columns for every dist/*.tar.gz artifact.",
+                  ".github/workflows/release.yml: the publish job computes size with wc -c from the same tar.gz path used for the release asset link and renders the byte count before the SHA cell.",
+                  "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseNotesIncludeArchiveSize pins the table shape, byte-count command, shell-safe Markdown backticks, and retained SBOM/provenance text."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run 'TestReleaseWorkflowReleaseNotesIncludeArchiveSize' -count=1 failed because the release notes table lacked a Size column and byte-count command.",
+                  "GREEN: go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|EnforcesMaxArchiveSize|ReleaseNotesIncludeArchiveSize)' -count=1 passed after the workflow and test updates."
+                ]
+              }
             },
             {
               "name": "Release archive 30 MB size gate",

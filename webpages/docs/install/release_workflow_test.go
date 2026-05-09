@@ -128,6 +128,34 @@ func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
 	)
 }
 
+func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
+
+	wantAll := []string{
+		"echo \"| Platform | Archive | Size | SHA-256 |\"",
+		"echo \"|----------|---------|------|---------|\"",
+		"size=$(wc -c < \"$f\" | tr -d '[:space:]')",
+		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
+		"Software Bill of Materials (SPDX JSON) is included for each platform artifact.",
+		"Build provenance attestations are published to the GitHub Attestations store.",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(notesStep, want) {
+			t.Errorf("Build release notes step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, notesStep,
+		"size=$(wc -c < \"$f\" | tr -d '[:space:]')",
+		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
+	)
+	assertWorkflowOrder(t, notesStep,
+		"echo \"| Platform | Archive | Size | SHA-256 |\"",
+		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
+	)
+}
+
 func readRepoFileRelease(t *testing.T, rel string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))

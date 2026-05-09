@@ -1236,6 +1236,7 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
+- [x] Release notes artifact size table
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
 

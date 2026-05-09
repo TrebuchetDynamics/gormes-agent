@@ -208,12 +208,13 @@ jobs:
             echo '```'
             echo ""
             echo "## Artifacts"
-            echo "| Platform | Archive | SHA-256 |"
-            echo "|----------|---------|---------|"
+            echo "| Platform | Archive | Size | SHA-256 |"
+            echo "|----------|---------|------|---------|"
             for f in dist/*.tar.gz; do
               name=$(basename "$f")
+              size=$(wc -c < "$f" | tr -d '[:space:]')
               sha=$(cat "${f}.sha256" | awk '{print $1}')
-              echo "| ${name%.tar.gz} | [$name]($name) | \`${sha}\` |"
+              echo "| ${name%.tar.gz} | [$name]($name) | \`${size} bytes\` | \`${sha}\` |"
             done
             echo ""
             echo "## SBOM"
