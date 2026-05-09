@@ -75,6 +75,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesCommandSet("kanban", "hermes_cli/kanban.py:build_parser", "durable board core is implemented in cmd/gormes; multi-board, dispatcher, worker-tool, notification, slash/gateway, and dashboard surfaces remain row-backed", "Hermes Kanban durable board core"),
 		hermesCommandSet("claw", "hermes_cli/claw.py", "`claw migrate` compatibility is implemented; cleanup remains row-backed", "OpenClaw migration dry-run manifest"),
 		hermesImplementedCommand("version", "hermes_cli/main.py:version", "cmd/gormes version"),
+		hermesImplementedCommand("curator", "hermes_cli/main.py:curator", "cmd/gormes curator"),
 		hermesImplementedCommand("retry", "gateway/run.py:_handle_retry_command", "internal/gateway retry"),
 		hermesImplementedCommand("platforms", "gateway/run.py:_handle_status_command", "internal/gateway platforms alias"),
 		hermesRowCommand("update", "gateway/run.py:_handle_update_command", "Backup/update opt-in and exclusion policy", "self-update command remains row-backed"),
@@ -144,6 +145,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries = append(entries, hermesNestedCommands("sessions", "hermes_cli/main.py:sessions_subparsers", "Session shutdown memory transcript handoff", []string{"list", "export", "delete", "prune", "stats", "rename", "browse"})...)
 	entries = append(entries, hermesKanbanCommands()...)
 	entries = append(entries, hermesClawCommands()...)
+	entries = append(entries, hermesCuratorCommands()...)
 	entries = append(entries, hermesNestedCommands("profile", "hermes_cli/main.py:profile_subparsers", "Gormes profile command binding", []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import"})...)
 	entries = append(entries, hermesOwnedPath([]string{"agent", "reset"}, "cmd/gormes/agent.go:reset", "Gormes-owned default agent template reset command"))
 
@@ -221,6 +223,21 @@ func hermesClawCommands() []hermesCLIParityEntry {
 	markHermesCLIEntryFlags(&cleanup)
 	clean := hermesNestedAlias("claw", "clean", "cleanup", "hermes_cli/main.py:claw_subparsers:cleanup aliases", "OpenClaw migration writer and cleanup command")
 	return []hermesCLIParityEntry{migrate, cleanup, clean}
+}
+
+func hermesCuratorCommands() []hermesCLIParityEntry {
+	const row = "Hermes curator archive/list/prune CLI catch-up"
+	const source = "hermes_cli/curator.py:register_cli"
+	commands := []string{"status", "run", "pause", "resume", "pin", "unpin", "restore", "list-archived", "archive", "prune", "backup", "rollback"}
+	out := make([]hermesCLIParityEntry, 0, len(commands))
+	for _, command := range commands {
+		entry := hermesRowPath([]string{"curator", command}, hermesCLICommand, source+":"+command, row, "curator "+command+" is implemented over native Gormes curator state")
+		entry.Status = hermesCLIImplemented
+		entry.Target = "cmd/gormes curator " + command
+		markHermesCLIEntryFlags(&entry)
+		out = append(out, entry)
+	}
+	return out
 }
 
 func hermesGatewayNestedCommands() []hermesCLIParityEntry {
@@ -305,6 +322,7 @@ func markHermesCLIEntryFlags(entry *hermesCLIParityEntry) {
 	case "backup create",
 		"claw cleanup", "claw clean",
 		"cron remove", "cron rm", "cron delete",
+		"curator archive", "curator prune", "curator rollback", "curator restore",
 		"hooks revoke", "hooks remove", "hooks rm",
 		"kanban archive", "kanban gc",
 		"mcp remove", "mcp rm",
@@ -321,7 +339,7 @@ func markHermesCLIEntryFlags(entry *hermesCLIParityEntry) {
 		entry.RedactsSecrets = true
 	}
 	switch key {
-	case "claw migrate", "config migrate":
+	case "claw migrate", "config migrate", "curator prune":
 		entry.DryRun = true
 	}
 }

@@ -16,7 +16,7 @@ func TestHermesCLIParityManifest(t *testing.T) {
 	}
 
 	wantTopLevel := []string{
-		"chat", "model", "gateway", "setup", "whatsapp", "slack", "login", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
+		"chat", "model", "gateway", "setup", "whatsapp", "slack", "login", "logout", "auth", "status", "cron", "webhook", "hooks", "doctor", "dump", "debug", "backup", "import", "config", "pairing", "skills", "plugins", "memory", "tools", "mcp", "sessions", "insights", "claw", "curator", "version", "update", "uninstall", "acp", "profile", "completion", "dashboard", "logs",
 	}
 	for _, path := range wantTopLevel {
 		entry := requireHermesCLIEntry(t, []string{path})
@@ -41,6 +41,7 @@ func TestHermesCLIParityManifest(t *testing.T) {
 		{"mcp", "serve"}, {"mcp", "list"}, {"mcp", "ls"}, {"mcp", "test"}, {"mcp", "configure"}, {"mcp", "config"}, {"mcp", "login"},
 		{"sessions", "list"}, {"sessions", "export"}, {"sessions", "delete"}, {"sessions", "prune"}, {"sessions", "stats"}, {"sessions", "browse"},
 		{"claw", "migrate"}, {"claw", "cleanup"}, {"claw", "clean"},
+		{"curator", "status"}, {"curator", "run"}, {"curator", "pause"}, {"curator", "resume"}, {"curator", "pin"}, {"curator", "unpin"}, {"curator", "backup"}, {"curator", "rollback"}, {"curator", "restore"}, {"curator", "archive"}, {"curator", "list-archived"}, {"curator", "prune"},
 		{"profile", "list"}, {"profile", "use"}, {"profile", "create"}, {"profile", "show"}, {"profile", "import"},
 	}
 	for _, path := range wantNested {
@@ -100,6 +101,9 @@ func TestHermesCLIParityManifestNestedParserInventoryMatchesHermes(t *testing.T)
 		},
 		"claw": {
 			{"claw", "migrate"}, {"claw", "cleanup"}, {"claw", "clean"},
+		},
+		"curator": {
+			{"curator", "status"}, {"curator", "run"}, {"curator", "pause"}, {"curator", "resume"}, {"curator", "pin"}, {"curator", "unpin"}, {"curator", "restore"}, {"curator", "list-archived"}, {"curator", "archive"}, {"curator", "prune"}, {"curator", "backup"}, {"curator", "rollback"},
 		},
 		"profile": {
 			{"profile", "list"}, {"profile", "use"}, {"profile", "create"}, {"profile", "delete"}, {"profile", "show"}, {"profile", "alias"}, {"profile", "rename"}, {"profile", "export"}, {"profile", "import"},

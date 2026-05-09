@@ -1151,6 +1151,7 @@ classification and row-backed implementation queue.
 
 - [x] Hermes skill_manage support-file and curator intent actions
 - [x] Hermes curator command surface
+- [x] Hermes curator archive/list/prune CLI catch-up
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface
 
@@ -1261,7 +1262,7 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
-- [ ] Release prep guide target matrix sync
+- [x] Release prep guide target matrix sync
 - [x] Windows install.ps1 release binary fetch selector
 - [x] OCI image PR build and arm64 smoke workflow
 - [x] Release build-date provenance injection

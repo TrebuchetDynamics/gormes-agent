@@ -47203,6 +47203,94 @@
               }
             },
             {
+              "name": "Hermes curator archive/list/prune CLI catch-up",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f6d45e5df hermes_cli/curator.py + tools/skill_usage.py"
+              },
+              "contract": "Gormes extends the already-shipped native `gormes curator` surface to match the current Hermes curator maintenance commands added after the original command-surface row: `archive <skill>` manually archives one unpinned agent-created skill, `list-archived` lists recoverable archived skill names, and `prune --days N [--dry-run|-y]` previews or bulk-archives unpinned agent-created skills idle for at least N days. The commands must use the native skills usage/archive state and keep bundled, hub-installed, pinned, recent, and already-archived skills out of destructive paths.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "The CLI reports curator_archive_refused_pinned, curator_archive_not_agent_created, curator_archive_missing, curator_prune_invalid_days, curator_prune_empty, or curator_prune_cancelled instead of silently mutating the wrong skill tree.",
+              "fixture": "cmd/gormes/curator_test.go + cmd/gormes/hermes_cli_parity_test.go + internal/cli/command_registry_policy_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/curator.py@f6d45e5df:_cmd_archive",
+                "./hermes-agent/hermes_cli/curator.py@f6d45e5df:_cmd_list_archived",
+                "./hermes-agent/hermes_cli/curator.py@f6d45e5df:_cmd_prune",
+                "./hermes-agent/hermes_cli/curator.py@f6d45e5df:register_cli",
+                "./hermes-agent/tools/skill_usage.py@f6d45e5df:archive_skill",
+                "./hermes-agent/tools/skill_usage.py@f6d45e5df:list_archived_skill_names",
+                "cmd/gormes/curator.go",
+                "internal/skills/usage.go"
+              ],
+              "ready_when": [
+                "The native curator command surface, usage sidecar, backup/restore helpers, and command registry policy are already validated.",
+                "The in-repo Hermes source is refreshed to f6d45e5df and exposes archive/list-archived/prune in hermes_cli/curator.py.",
+                "The slice can use temporary GORMES_HOME skill roots and does not need a live LLM, gateway, network, or real home-directory state."
+              ],
+              "not_ready_when": [
+                "The slice reads or writes live ~/.hermes, ~/.gormes, bundled development skills, or hub-installed skill directories.",
+                "The slice archives pinned, bundled, hub-installed, manually-authored, recent, or already-archived skills.",
+                "The slice rewrites curator scheduling, backup tarball format, background review, or restore semantics beyond the three current CLI verbs."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestCuratorCommand_ArchiveListArchivedPrune fails before the three commands exist and passes after `archive`, `list-archived`, and `prune` use the native usage/archive state.",
+                "`gormes curator archive <skill>` refuses pinned and non-agent-created skills, archives an unpinned agent-created skill under active/.archive, and records archived state.",
+                "`gormes curator list-archived` prints archived skill names and reports an empty archive without failing.",
+                "`gormes curator prune --days N --dry-run` previews unpinned idle candidates without mutating them, rejects --days < 1, and `--yes` archives only eligible candidates while skipping pinned, recent, and already-archived skills.",
+                "Hermes CLI parity manifest and CLI command registry policy include curator plus the current archive/list-archived/prune subcommands."
+              ],
+              "write_scope": [
+                "cmd/gormes/curator.go",
+                "cmd/gormes/curator_test.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "internal/skills/usage.go",
+                "internal/skills/usage_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes ./internal/cli ./internal/skills -run 'TestCuratorCommand|TestHermesCLIParityManifest|TestCommandRegistry|TestSkillUsage' -count=1",
+                "go test ./cmd/gormes ./internal/cli ./internal/skills -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Curator CLI fixtures and manifest tests prove current Hermes archive/list-archived/prune behavior is available through native Gormes state without touching live homes."
+              ],
+              "note": "Complete 2026-05-09: the all-topic Hermes parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing runtime parity rows were complete or row-backed, the TD publication rows remain operator-blocked, the broad release pipeline row remains parent-level, and the release-prep guide row already had completion evidence but stale planned status. Current Hermes f6d45e5df added curator archive/list-archived/prune beyond the older completed Gormes curator command-surface row, making this the highest-priority unblocked builder-ready source-backed slice. TDD added native archive/list/prune commands over temporary Gormes skill roots, manifest coverage, and registry policy updates without live LLM, gateway, network, or home-directory state.",
+              "evidence": {
+                "implementation": [
+                  "internal/skills/usage.go: ArchiveAgentCreatedSkill and ListArchivedSkillNames provide reusable native archive state operations with pinned/provenance/path guards.",
+                  "cmd/gormes/curator.go: curator archive, list-archived, and prune commands now match current Hermes maintenance verbs over native usage state.",
+                  "cmd/gormes/hermes_cli_parity.go and internal/cli/command_registry.go: curator and archive/list-archived/prune are represented in the CLI parity manifest and command registry policy."
+                ],
+                "tests": [
+                  "cmd/gormes/curator_test.go:TestCuratorCommand_ArchiveListArchivedPrune",
+                  "internal/skills/usage_test.go:TestArchiveAgentCreatedSkillAndListArchivedNames",
+                  "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifest",
+                  "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifestNestedParserInventoryMatchesHermes",
+                  "internal/cli/command_registry_policy_test.go:TestCommandRegistryCuratorCommandAvailableOnCLISurface"
+                ],
+                "verification": [
+                  "RED: go test ./cmd/gormes ./internal/cli -run 'TestCuratorCommand_ArchiveListArchivedPrune|TestHermesCLIParityManifest|TestCommandRegistryCuratorCommandAvailableOnCLISurface' -count=1 failed on unknown curator archive, missing curator manifest entries, and missing registry subcommands.",
+                  "GREEN: go test ./cmd/gormes ./internal/cli ./internal/skills -run 'TestCuratorCommand_ArchiveListArchivedPrune|TestHermesCLIParityManifest|TestCommandRegistryCuratorCommandAvailableOnCLISurface|TestArchiveAgentCreatedSkillAndListArchivedNames' -count=1 passed.",
+                  "GREEN: go test ./cmd/gormes ./internal/cli ./internal/skills -run 'TestCuratorCommand|TestHermesCLIParityManifest|TestCommandRegistry|TestSkillUsage' -count=1 passed.",
+                  "GREEN: go test ./cmd/gormes ./internal/cli ./internal/skills -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "TUI + Telegram browsing",
               "status": "planned",
               "note": "TDD: expose browse/edit/disable/review flows through TUI and gateway commands after the store and feedback records are stable, with permission and active-turn behavior pinned by tests.",
@@ -50001,7 +50089,7 @@
             {
               "name": "Release prep guide target matrix sync",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -306,6 +308,69 @@ func ListAgentCreatedSkillUsage(root string) ([]AgentCreatedSkillUsage, error) {
 		})
 	}
 	return out, nil
+}
+
+func ListArchivedSkillNames(root string) ([]string, error) {
+	archiveRoot := filepath.Join(root, "active", ".archive")
+	entries, err := os.ReadDir(archiveRoot)
+	if errors.Is(err, os.ErrNotExist) {
+		return []string{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			names = append(names, entry.Name())
+		}
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+func ArchiveAgentCreatedSkill(root, name string, now time.Time) (string, error) {
+	if name == "" || filepath.Base(name) != name || strings.Contains(name, "..") {
+		return "", fmt.Errorf("unsafe skill name %q", name)
+	}
+	rec, err := GetUsageRecord(root, name)
+	if errors.Is(err, ErrUsageRecordNotFound) {
+		return "", fmt.Errorf("skill %q is bundled or hub-installed; never archive", name)
+	}
+	if err != nil {
+		return "", err
+	}
+	if rec.CreatedBy != "agent" && !rec.AgentCreated {
+		return "", fmt.Errorf("skill %q is bundled or hub-installed; never archive", name)
+	}
+	if rec.Pinned {
+		return "", fmt.Errorf("skill %q is pinned - unpin first with `gormes curator unpin %s`", name, name)
+	}
+	skillDir, ok := findActiveSkillDir(root, name)
+	if !ok {
+		return "", fmt.Errorf("skill %q not found", name)
+	}
+	if isArchivedSkillPath(root, skillDir) || isHubSkillPath(root, skillDir) || isBundledSkill(root, name) {
+		return "", fmt.Errorf("skill %q is bundled or hub-installed; never archive", name)
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	archiveRoot := filepath.Join(root, "active", ".archive")
+	if err := os.MkdirAll(archiveRoot, 0o755); err != nil {
+		return "", err
+	}
+	dest := filepath.Join(archiveRoot, name)
+	if _, err := os.Stat(dest); err == nil {
+		dest = filepath.Join(archiveRoot, fmt.Sprintf("%s-%s", name, timestampID(now)))
+	}
+	if err := os.Rename(skillDir, dest); err != nil {
+		return "", err
+	}
+	return dest, updateUsageRecord(root, name, func(rec *SkillUsageRecord) {
+		rec.State = SkillStateArchived
+		rec.ArchivedAt = now.UTC()
+	})
 }
 
 func lastSkillActivity(rec SkillUsageRecord) time.Time {
