@@ -14273,6 +14273,86 @@
               }
             },
             {
+              "name": "OpenRouter Grok prompt-cache affinity header",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "OpenRouter-routed Grok models carry Hermes' current xAI prompt-cache affinity contract: when a Gormes turn has a session id and the model slug starts with x-ai/grok- or xai/grok-, the OpenRouter HTTP request sends x-grok-conv-id equal to that session id. Non-Grok OpenRouter models, Grok requests without a session id, and non-OpenRouter routes must not receive the header.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system",
+                "operator"
+              ],
+              "degraded_mode": "Without the header, Grok-on-OpenRouter turns can lose xAI backend affinity and prompt-cache hit rate across session turns even though the generic OpenRouter request succeeds.",
+              "fixture": "internal/hermes/openrouter_compatible_test.go::TestOpenRouterGrokPromptCacheAffinityHeader",
+              "source_refs": [
+                "hermes-agent/plugins/model-providers/openrouter/__init__.py@bfc84bdc6:OpenRouterProfile.build_api_kwargs_extras",
+                "hermes-agent/tests/providers/test_provider_profiles.py@bfc84bdc6:TestOpenRouterProfile.test_grok_session_id_sets_cache_affinity_header",
+                "hermes-agent/tests/providers/test_provider_profiles.py@bfc84bdc6:TestOpenRouterProfile.test_grok_xai_prefix_also_supported",
+                "hermes-agent/tests/providers/test_provider_profiles.py@bfc84bdc6:TestOpenRouterProfile.test_non_grok_model_no_affinity_header",
+                "internal/hermes/openrouter_compatible.go:ApplyOpenRouterAttributionHeaders",
+                "internal/hermes/openrouter_compatible.go:ApplyOpenRouterGrokPromptCacheAffinityHeader",
+                "internal/hermes/http_client.go:doProviderPost"
+              ],
+              "ready_when": [
+                "OpenRouter compatible-provider routing is complete and request headers are centralized in internal/hermes.",
+                "xAI Grok provider adapter is complete and model slugs can be tested without a live OpenRouter or xAI credential.",
+                "ChatRequest.SessionID already reaches the provider HTTP request boundary."
+              ],
+              "not_ready_when": [
+                "The slice requires live OpenRouter/xAI credentials or a real prompt-cache measurement.",
+                "The implementation sends x-grok-conv-id on non-Grok models, non-OpenRouter routes, or empty session ids.",
+                "The change rewrites provider routing, model metadata, prompt-cache body semantics, or xAI native adapter behavior instead of only adding the OpenRouter header contract."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "OpenRouter provider health probe",
+                "OpenRouter pricing cache refresh"
+              ],
+              "acceptance": [
+                "TestOpenRouterGrokPromptCacheAffinityHeader fails before OpenRouter Grok requests receive x-grok-conv-id and passes after x-ai/grok-* and xai/grok-* slugs use the session id.",
+                "The same fixture proves non-Grok OpenRouter models and Grok requests without a session id omit x-grok-conv-id.",
+                "The existing OpenRouter attribution header fixture stays green and non-OpenRouter routes still receive no OpenRouter-specific headers.",
+                "No live provider, credential, cache server, or network call is required."
+              ],
+              "note": "Complete 2026-05-09: planned by the bounded all-topic weakness sweep after refreshing Hermes from dcff23a25 to bfc84bdc6. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. CLI/TUI zsh-completion drift, gateway system HERMES_HOME and Telegram notification-mode drift, browser provider-cache drift, Kanban migration concurrency, auxiliary-client credential-pool rotation, docs/public audit changes, and release author-map updates were complete, owned, operator-gated, or better handled by existing row families. Existing P1 publication/release rows remain draft/operator-gated or umbrella-sized, so this fresh P1 provider transport delta was the highest unblocked builder-ready row for this cycle. TDD added a request-boundary helper and wired doProviderPost so OpenRouter-routed x-ai/grok-* and xai/grok-* requests send x-grok-conv-id from ChatRequest.SessionID, while non-Grok, empty-session, and non-OpenRouter routes omit the header.",
+              "write_scope": [
+                "internal/hermes/openrouter_compatible.go",
+                "internal/hermes/openrouter_compatible_test.go",
+                "internal/hermes/http_client.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestOpenRouter(GrokPromptCacheAffinityHeader|AttributionHeaders)' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Focused OpenRouter header fixtures prove Grok prompt-cache affinity is session-scoped and absent everywhere else."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:plugins/model-providers/openrouter/__init__.py",
+                  "hermes:tests/providers/test_provider_profiles.py"
+                ],
+                "note": "Hermes bfc84bdc6 defines the x-grok-conv-id behavior for OpenRouter-routed Grok models; Gormes implements the same request-boundary contract natively."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/openrouter_compatible.go: ApplyOpenRouterGrokPromptCacheAffinityHeader detects OpenRouter routes, x-ai/grok-* and xai/grok-* slugs, and non-empty session ids before setting x-grok-conv-id.",
+                  "internal/hermes/http_client.go: doProviderPost now receives the request model and applies the Grok cache-affinity header alongside existing OpenRouter attribution headers.",
+                  "internal/hermes/openrouter_compatible_test.go: TestOpenRouterGrokPromptCacheAffinityHeader covers x-ai and xai Grok prefixes, non-Grok omission, empty-session omission, and non-OpenRouter omission through an httptest provider boundary."
+                ],
+                "verification": [
+                  "RED: go test ./internal/hermes -run TestOpenRouterGrokPromptCacheAffinityHeader -count=1 failed because x-grok-conv-id was empty for x-ai/grok-4 and xai/grok-3 OpenRouter requests.",
+                  "GREEN: go test ./internal/hermes -run 'TestOpenRouter(GrokPromptCacheAffinityHeader|AttributionHeaders)' -count=1 passed after the header helper and doProviderPost wiring landed."
+                ]
+              }
+            },
+            {
               "name": "Google Code Assist project/quota resolver",
               "status": "complete",
               "contract": "Gormes ports the Google Code Assist control-plane helpers that Gemini Cloud Code depends on: build Google API headers from a token provider, discover/load Code Assist tier and managed project, run onboarding with free-vs-paid project requirements, retrieve quota buckets for /gquota-style status, resolve configured/env/managed project context, and classify VPC-SC/quota/Retry-After errors safely.",

@@ -530,6 +530,7 @@ classification and row-backed implementation queue.
 - [x] Bedrock stale-client eviction + retry classification
 - [x] Gemini Cloud Code request/stream mapper
 - [x] OpenRouter compatible-provider routing
+- [x] OpenRouter Grok prompt-cache affinity header
 - [x] Google Code Assist project/quota resolver
 - [x] Codex
 - [x] Codex Responses pure conversion harness

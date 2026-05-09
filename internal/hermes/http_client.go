@@ -263,7 +263,7 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 		accept = "text/event-stream"
 	}
 
-	resp, err := c.doProviderPost(ctx, req.SessionID, providerReq.Path, providerReq.Body, accept)
+	resp, err := c.doProviderPost(ctx, req.SessionID, req.Model, providerReq.Path, providerReq.Body, accept)
 	if err != nil {
 		return nil, err
 	}
@@ -313,10 +313,10 @@ func replaceMaxTokensWithMaxCompletionTokens(body []byte, maxTokens int) ([]byte
 }
 
 func (c *httpClient) doChatCompletions(ctx context.Context, req ChatRequest, body []byte) (*http.Response, error) {
-	return c.doProviderPost(ctx, req.SessionID, defaultChatCompletionsPath, body, "text/event-stream")
+	return c.doProviderPost(ctx, req.SessionID, req.Model, defaultChatCompletionsPath, body, "text/event-stream")
 }
 
-func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath string, body []byte, accept string) (*http.Response, error) {
+func (c *httpClient) doProviderPost(ctx context.Context, sessionID, model, endpointPath string, body []byte, accept string) (*http.Response, error) {
 	// Header-phase budget enforced by Transport.ResponseHeaderTimeout (5s).
 	// The request ctx governs the full response lifetime including body reads —
 	// do NOT cancel it after Do returns or streaming breaks.
@@ -332,6 +332,7 @@ func (c *httpClient) doProviderPost(ctx context.Context, sessionID, endpointPath
 		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 	ApplyOpenRouterAttributionHeaders(httpReq, c.provider, c.baseURL)
+	ApplyOpenRouterGrokPromptCacheAffinityHeader(httpReq, c.provider, c.baseURL, model, sessionID)
 	c.applyCodexCloudflareHeaders(httpReq)
 	if sessionID != "" {
 		httpReq.Header.Set("X-Hermes-Session-Id", sessionID)

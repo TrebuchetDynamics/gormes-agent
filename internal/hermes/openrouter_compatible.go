@@ -104,12 +104,28 @@ func ApplyOpenRouterAttributionHeaders(req *http.Request, provider, baseURL stri
 	}
 }
 
+func ApplyOpenRouterGrokPromptCacheAffinityHeader(req *http.Request, provider, baseURL, model, sessionID string) {
+	if req == nil || !IsOpenRouterRoute(provider, baseURL) {
+		return
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" || !openRouterModelIsGrok(model) {
+		return
+	}
+	req.Header.Set("x-grok-conv-id", sessionID)
+}
+
 func OpenRouterAttributionHeaders() map[string]string {
 	return map[string]string{
 		"HTTP-Referer":            "https://gormes.ai",
 		"X-OpenRouter-Title":      "Gormes Agent",
 		"X-OpenRouter-Categories": "productivity,cli-agent",
 	}
+}
+
+func openRouterModelIsGrok(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(model, "x-ai/grok-") || strings.HasPrefix(model, "xai/grok-")
 }
 
 func ParseOpenRouterModelRegistry(data []byte, version string) ([]ModelRegistryEntry, error) {
