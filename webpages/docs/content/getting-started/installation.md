@@ -51,7 +51,7 @@ later.
 
 ## Requirements
 
-Source builds need Git and Go 1.25+. The installer can download a managed Go
+Source builds need Git and Go 1.26+. The installer can download a managed Go
 toolchain when local Go is missing. Put the freshly built source checkout first
 on `PATH` while validating development work so PATH shadowing cannot hide an
 older installed command.

@@ -51052,6 +51052,115 @@
               "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure. A later 2026-05-09 sweep found the same parent still promised release notes with install size and SHA while the workflow emitted SHA only; the child row `Release notes artifact size table` owns that bounded closure. This 2026-05-09 all-topic sweep found current Hermes runtime parity rows complete or row-backed, but the same release parent still generated SBOM files without proving the current GitHub SBOM-attestation contract. The child row `Release SBOM attestation binding` owns that bounded closure. A later 2026-05-09 sweep found the parent still promised install.ps1 fetches the right asset while the PowerShell installer was source-build only; the child row `Windows install.ps1 release binary fetch selector` owns that bounded closure."
             },
             {
+              "name": "CI and installer Go toolchain floor sync",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "Every CI/release workflow and source-build installer path follows the Go toolchain floor declared in go.mod instead of pinning stale Go 1.25 text. GitHub Actions setup-go steps use go-version-file: go.mod so the toolchain directive selects Go 1.26, while install.sh, install.ps1, and public source-build docs require and install Go 1.26+.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If the workflow or installer floor drifts below go.mod, development CI, release builds, and source-build fallback can fail with a toolchain mismatch even though Docker and local development already use Go 1.26.",
+              "fixture": "docs/install/go_toolchain_workflow_test.go::TestGitHubActionsUseGoModToolchain and internal/installtest/go_toolchain_floor_test.go::TestInstallersRequireCurrentGoToolchain",
+              "source_refs": [
+                "go.mod:go 1.26 and toolchain go1.26.0",
+                "Dockerfile:FROM golang:1.26",
+                ".github/workflows/ci.yml",
+                ".github/workflows/release.yml",
+                ".github/workflows/release-prep.yml",
+                ".github/workflows/deploy-gormes-www.yml",
+                "install.sh",
+                "scripts/install.ps1",
+                "Context7 /actions/setup-go docs: go-version-file reads go.mod/toolchain and go-version takes precedence"
+              ],
+              "ready_when": [
+                "go.mod declares Go 1.26 and the Dockerfile already builds with golang:1.26.",
+                "The current actions/setup-go documentation supports go-version-file: go.mod and says explicit go-version takes precedence.",
+                "The slice can use static workflow and installer tests; no live GitHub Actions run, release tag, Windows host, or network download is required."
+              ],
+              "not_ready_when": [
+                "The slice changes release publication semantics, Cloudflare deployment credentials, installer release-asset selection, or version numbers.",
+                "Any workflow keeps an explicit stale go-version: '1.25' after go.mod has moved to Go 1.26.",
+                "Public docs or installer error messages still advertise Go 1.25+ for source builds."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestGitHubActionsUseGoModToolchain fails while CI/release/release-prep/www deploy workflows use actions/setup-go with go-version: '1.25' and passes when each Go setup reads go.mod through go-version-file.",
+                "TestInstallersRequireCurrentGoToolchain fails while install.sh or install.ps1 accept/advertise Go 1.25 and passes after managed Go defaults, version predicates, and error messages require 1.26+.",
+                "Source-build public docs in docs/content and webpages/docs/content say Go 1.26+.",
+                "Existing release workflow, installer, landing sync, and progress validation gates remain green."
+              ],
+              "write_scope": [
+                ".github/workflows/ci.yml",
+                ".github/workflows/release.yml",
+                ".github/workflows/release-prep.yml",
+                ".github/workflows/deploy-gormes-www.yml",
+                "install.sh",
+                "scripts/install.ps1",
+                "internal/installtest/go_toolchain_floor_test.go",
+                "docs/install/go_toolchain_workflow_test.go",
+                "webpages/docs/install/go_toolchain_workflow_test.go",
+                "docs/content/getting-started/installation.md",
+                "docs/content/using-gormes/install.md",
+                "docs/content/using-gormes/quickstart.md",
+                "docs/content/reference/environment.md",
+                "docs/src/content/docs/getting-started/installation.md",
+                "docs/src/content/docs/using-gormes/install.md",
+                "docs/src/content/docs/using-gormes/quickstart.md",
+                "docs/src/content/docs/reference/environment.md",
+                "webpages/docs/content/getting-started/installation.md",
+                "webpages/docs/content/using-gormes/install.md",
+                "webpages/docs/content/using-gormes/quickstart.md",
+                "webpages/docs/content/reference/environment.md",
+                "webpages/docs/src/content/docs/getting-started/installation.md",
+                "webpages/docs/src/content/docs/using-gormes/install.md",
+                "webpages/docs/src/content/docs/using-gormes/quickstart.md",
+                "webpages/docs/src/content/docs/reference/environment.md",
+                "webpages/landing/scripts/sync-assets.mjs",
+                "webpages/landing/public/install.sh",
+                "webpages/landing/public/install.ps1",
+                "webpages/landing/legacy/go-renderer/internal/site/installers/install.sh",
+                "webpages/landing/legacy/go-renderer/internal/site/installers/install.ps1",
+                "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./docs/install ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1",
+                "go test ./internal/installtest -run TestInstallersRequireCurrentGoToolchain -count=1",
+                "node webpages/landing/scripts/sync-assets.mjs",
+                "timeout 20m sh -c 'cd webpages/landing/legacy/go-renderer && go test ./... -count=1'",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Workflow and installer fixtures prove CI/release/source-build paths follow go.mod's Go 1.26 toolchain floor, public docs advertise Go 1.26+, and generated landing installer mirrors are synchronized."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing publication rows remain operator-blocked and the broad P1 release parent remains too large to assign directly. The unblocked release/install weakness was toolchain drift: go.mod and Dockerfile require Go 1.26, while CI/release workflows, installer managed-Go defaults, and source-build docs still pinned Go 1.25. Context7 current actions/setup-go docs confirm go-version-file: go.mod reads the toolchain directive and avoids hard-coded drift. TDD changed all Go-using workflows to setup-go@v6 with go-version-file: go.mod, raised installer source-build floors to Go 1.26+, synced public docs, and refreshed landing installer mirrors.",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/ci.yml, release.yml, release-prep.yml, and deploy-gormes-www.yml: actions/setup-go now uses @v6 with go-version-file: go.mod instead of a hard-coded Go 1.25.",
+                  "install.sh and scripts/install.ps1: managed Go fallback default, version predicate, and source-build error text now require Go 1.26+.",
+                  "docs/content, docs/src/content, webpages/docs/content, and webpages/docs/src/content source-build and environment-reference pages now advertise Go 1.26+ / managed Go 1.26.0.",
+                  "webpages/landing/scripts/sync-assets.mjs refreshed public and legacy installer mirrors after canonical install.sh/install.ps1 changed.",
+                  "webpages/landing/legacy/go-renderer/internal/site/install_unix_test.go fake managed-Go fixtures now report go1.26.0 so site installer tests exercise the new floor."
+                ],
+                "verification": [
+                  "RED: go test ./docs/install ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1 failed because workflows used actions/setup-go@v5 with go-version: '1.25'.",
+                  "RED: go test ./internal/installtest -run TestInstallersRequireCurrentGoToolchain -count=1 failed because installers and docs still accepted/advertised Go 1.25.",
+                  "GREEN: go test ./docs/install ./webpages/docs/install -run TestGitHubActionsUseGoModToolchain -count=1 passed.",
+                  "GREEN: go test ./internal/installtest -run TestInstallersRequireCurrentGoToolchain -count=1 passed.",
+                  "GREEN: node webpages/landing/scripts/sync-assets.mjs synced public installer assets.",
+                  "GREEN: timeout 20m sh -c 'cd webpages/landing/legacy/go-renderer && go test ./... -count=1' passed after managed-Go test fixtures were updated."
+                ]
+              }
+            },
+            {
               "name": "Release prep guide target matrix sync",
               "priority": "P1",
               "status": "complete",

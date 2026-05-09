@@ -72,7 +72,7 @@ Native names win when both are set.
 | `GORMES_BIN_DIR` | Published binary directory override. |
 | `GORMES_RESTART_GATEWAY` | Restart policy: `auto`, `always`, `never`. |
 | `GORMES_SKIP_SETUP` | Skip the post-install `gormes setup` wizard when set to `1`, `true`, `yes`, or `on`. |
-| `GORMES_GO_VERSION` | Go version for managed Go download (default `1.25.0`). |
+| `GORMES_GO_VERSION` | Go version for managed Go download (default `1.26.0`). |
 | `GORMES_GO_SHA256` | Optional SHA-256 checksum for managed Go download. |
 | `GORMES_SKIP_SERVICE` | Set to `1` to skip systemd/launchd service installation. |
 

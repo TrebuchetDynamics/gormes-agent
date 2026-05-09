@@ -17,7 +17,7 @@ export PATH="$PWD/bin:$PATH"
 ```
 
 Builds `gormes` from the source tree you inspected and puts that fresh command
-first on `PATH`. Requires Go 1.25+. For install.sh see [Install](../install/).
+first on `PATH`. Requires Go 1.26+. For install.sh see [Install](../install/).
 
 ## 2. Verify the local stack
 

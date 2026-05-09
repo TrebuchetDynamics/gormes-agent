@@ -32,7 +32,7 @@ REPO_URL_HTTPS="${GORMES_REPO_URL_HTTPS:-https://github.com/TrebuchetDynamics/go
 RELEASES_API_URL="${GORMES_RELEASES_API_URL:-https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest}"
 RELEASES_DOWNLOAD_BASE="${GORMES_RELEASES_DOWNLOAD_BASE:-https://github.com/TrebuchetDynamics/gormes-agent/releases/download}"
 BRANCH="${GORMES_BRANCH:-main}"
-GO_VERSION="${GORMES_GO_VERSION:-1.25.0}"
+GO_VERSION="${GORMES_GO_VERSION:-1.26.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
 RUN_SETUP=true
 VERBOSE="${GORMES_INSTALL_VERBOSE:-0}"
@@ -363,8 +363,24 @@ uninstall_command_path() {
 run_uninstall() {
   uninstall_bin=$(uninstall_command_path 2>/dev/null || true)
   [ -n "$uninstall_bin" ] || fail "could not find an installed gormes command; rerun with --bin-dir or put gormes on PATH"
-  log "running ${uninstall_bin} uninstall"
-  "$uninstall_bin" uninstall "$@"
+  # Mirror install.sh's default-to-apply UX: `install.sh` actually
+  # installs by default, so `install.sh --uninstall` should actually
+  # uninstall by default. Without this, the operator saw a dry-run
+  # preview and assumed cleanup happened. Caller's `--dry-run` opt-in
+  # still wins (preserved verbatim in "$@").
+  apply_default=1
+  for arg; do
+    case "$arg" in
+      --dry-run|--dry-run=*) apply_default=0; break ;;
+    esac
+  done
+  if [ "$apply_default" -eq 1 ]; then
+    log "running ${uninstall_bin} uninstall --yes --dry-run=false $*"
+    "$uninstall_bin" uninstall --yes --dry-run=false "$@"
+  else
+    log "running ${uninstall_bin} uninstall $*"
+    "$uninstall_bin" uninstall "$@"
+  fi
 }
 
 readlink_f() {
@@ -481,7 +497,7 @@ check_platform() {
 
 check_go_version() {
   goversion=$(current_go_version)
-  go_version_supported "$goversion" || fail "Go 1.25+ required; found ${goversion}"
+  go_version_supported "$goversion" || fail "Go 1.26+ required; found ${goversion}"
 }
 
 current_go_version() {
@@ -495,7 +511,7 @@ current_go_version() {
 
 go_version_supported() {
   case "$1" in
-    go1.2[5-9]*|go1.[3-9][0-9]*|go[2-9]*)
+    go1.2[6-9]*|go1.[3-9][0-9]*|go[2-9]*)
       return 0 ;;
     *)
       return 1 ;;

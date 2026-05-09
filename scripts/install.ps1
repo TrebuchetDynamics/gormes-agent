@@ -10,7 +10,7 @@
 #   GORMES_INSTALL_HOME  managed install home (default: $env:LOCALAPPDATA\gormes)
 #   GORMES_INSTALL_DIR   managed checkout directory (default: $InstallHome\gormes-agent)
 #   GORMES_BIN_DIR       published command directory (default: $InstallHome\bin)
-#   GORMES_GO_VERSION    managed Go fallback version (default: 1.25.0)
+#   GORMES_GO_VERSION    managed Go fallback version (default: 1.26.0)
 #   GORMES_RESTART_GATEWAY restart policy: auto, always, never (default: auto)
 #   GORMES_GO_SHA256     optional expected SHA-256 for managed Go download
 #   GORMES_INSTALL_FROM_SOURCE set to 1/true/yes/on to force source build
@@ -51,7 +51,7 @@ try {
 }
 
 $Script:GormesBranch      = if ($Branch) { $Branch } elseif ($env:GORMES_BRANCH) { $env:GORMES_BRANCH } else { 'main' }
-$Script:GormesGoVersion   = if ($env:GORMES_GO_VERSION) { $env:GORMES_GO_VERSION } else { '1.25.0' }
+$Script:GormesGoVersion   = if ($env:GORMES_GO_VERSION) { $env:GORMES_GO_VERSION } else { '1.26.0' }
 $Script:GormesRepoHttps   = if ($env:GORMES_REPO_URL_HTTPS) { $env:GORMES_REPO_URL_HTTPS } else { 'https://github.com/TrebuchetDynamics/gormes-agent.git' }
 $Script:GormesReleasesApiUrl = if ($env:GORMES_RELEASES_API_URL) { $env:GORMES_RELEASES_API_URL } else { 'https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest' }
 $Script:GormesReleasesDownloadBase = if ($env:GORMES_RELEASES_DOWNLOAD_BASE) { $env:GORMES_RELEASES_DOWNLOAD_BASE } else { 'https://github.com/TrebuchetDynamics/gormes-agent/releases/download' }
@@ -211,7 +211,7 @@ function Get-GoVersionString {
 
 function Test-GoVersionSupported([string]$Version) {
     if (-not $Version) { return $false }
-    return ($Version -match '^go1\.(2[5-9]|[3-9][0-9])') -or ($Version -match '^go[2-9]')
+    return ($Version -match '^go1\.(2[6-9]|[3-9][0-9])') -or ($Version -match '^go[2-9]')
 }
 
 function Invoke-WinGet([string[]]$Arguments) {
@@ -338,7 +338,7 @@ function Ensure-Go {
 
     $version = Get-GoVersionString
     if (-not (Test-GoVersionSupported $version)) {
-        Stop-GormesWithError "Go 1.25+ required; found $version"
+        Stop-GormesWithError "Go 1.26+ required; found $version"
     }
 }
 
