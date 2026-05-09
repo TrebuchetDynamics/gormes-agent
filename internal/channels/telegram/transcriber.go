@@ -34,6 +34,20 @@ type AudioTranscriber interface {
 	Transcribe(ctx context.Context, audio AudioInput) (string, error)
 }
 
+// ResolveAudioTranscriber returns the first non-nil candidate, or nil when
+// every candidate is nil. Callers list candidates in priority order: the
+// local whisper-CLI shim first, then HTTP STT fallbacks. This keeps the
+// channel package free of HTTP-provider dependencies — cmd wiring assembles
+// the candidate list.
+func ResolveAudioTranscriber(candidates ...AudioTranscriber) AudioTranscriber {
+	for _, c := range candidates {
+		if c != nil {
+			return c
+		}
+	}
+	return nil
+}
+
 func (b *Bot) transcribeTelegramAudio(ctx context.Context, input AudioInput) (string, error) {
 	if b == nil || b.cfg.AudioTranscriber == nil {
 		return "", nil

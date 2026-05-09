@@ -201,7 +201,7 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		RequireMention:    cfg.Telegram.RequireMention,
 		GuestMode:         cfg.Telegram.GuestMode,
 		BotUsername:       cfg.Telegram.BotUsername,
-		AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
+		AudioTranscriber:  resolveTelegramAudioTranscriber(),
 		DynamicCommands:   gatewayTelegramDynamicCommands(rootCtx, cfg),
 		TokenLockDir:      config.GatewayLockDir(),
 	}, tc, slog.Default())
