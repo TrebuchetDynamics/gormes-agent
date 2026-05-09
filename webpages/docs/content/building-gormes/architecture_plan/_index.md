@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 87/100 subphases shipped · 10 in progress · 3 planned
+**Overall:** 88/100 subphases shipped · 9 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -775,12 +775,12 @@ classification and row-backed implementation queue.
 - [x] ACP JSON-RPC stdio session/prompt closeout
 - [x] ACP stdio benign ping/probe suppression
 
-### 5.I — Plugins Architecture 🔨
+### 5.I — Plugins Architecture ✅
 
 - [x] Plugin SDK
 - [x] Dashboard theme/plugin extension status contract
 - [x] Dashboard page-scoped plugin slot inventory
-- [ ] Third-party extensions
+- [x] Third-party extensions
 - [x] Hermes plugin CLI lifecycle parity
 - [x] Teams pipeline plugin CLI metadata + disabled runtime inventory
 - [x] Goncho Honcho plugin session config + async write compatibility
@@ -1261,6 +1261,7 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
+- [ ] Release prep guide target matrix sync
 - [x] Windows install.ps1 release binary fetch selector
 - [x] OCI image PR build and arm64 smoke workflow
 - [x] Release build-date provenance injection

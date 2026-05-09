@@ -268,6 +268,56 @@ func TestReleaseWorkflowPublishesInstallScripts(t *testing.T) {
 	}
 }
 
+func TestReleasePrepGuideTargetMatrixMatchesWorkflow(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	raw, err := os.ReadFile("v0.1.0-release-prep.md")
+	if err != nil {
+		t.Fatalf("read release prep guide: %v", err)
+	}
+	guide := string(raw)
+
+	targets := []struct {
+		slug   string
+		goos   string
+		goarch string
+	}{
+		{slug: "linux-amd64", goos: "linux", goarch: "amd64"},
+		{slug: "linux-arm64", goos: "linux", goarch: "arm64"},
+		{slug: "darwin-amd64", goos: "darwin", goarch: "amd64"},
+		{slug: "darwin-arm64", goos: "darwin", goarch: "arm64"},
+		{slug: "windows-amd64", goos: "windows", goarch: "amd64"},
+		{slug: "windows-arm64", goos: "windows", goarch: "arm64"},
+		{slug: "android-arm64", goos: "android", goarch: "arm64"},
+	}
+	for _, target := range targets {
+		if !strings.Contains(workflow, "goos: "+target.goos) ||
+			!strings.Contains(workflow, "goarch: "+target.goarch) {
+			t.Fatalf("release workflow missing target %s", target.slug)
+		}
+		if !strings.Contains(guide, target.slug) {
+			t.Errorf("release prep guide missing target slug %s", target.slug)
+		}
+	}
+
+	wantGuide := []string{
+		"Release workflow still only publishes GitHub Releases from `v*` tags.",
+		"Do not create or push `v0.1.0` unless",
+		"SHA-256 sidecars",
+		"SPDX SBOMs",
+		"GitHub SBOM and build-provenance attestations",
+		"android-arm64 (Termux)",
+	}
+	for _, want := range wantGuide {
+		if !strings.Contains(guide, want) {
+			t.Errorf("release prep guide missing %q", want)
+		}
+	}
+
+	if strings.Contains(guide, "will build Linux, macOS, and Windows static archives") {
+		t.Errorf("release prep guide still contains stale Linux/macOS/Windows summary")
+	}
+}
+
 func readRepoFileRelease(t *testing.T, rel string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))

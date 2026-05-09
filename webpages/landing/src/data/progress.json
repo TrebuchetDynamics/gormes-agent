@@ -26239,7 +26239,7 @@
             },
             {
               "name": "Third-party extensions",
-              "status": "planned",
+              "status": "complete",
               "note": "TDD: add extension install/enable/disable flows only after the SDK contract is stable, with fixture plugins proving failure containment and no implicit runtime code execution.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -49997,6 +49997,75 @@
                 "A test tag push produces all seven release artifacts; install.sh and install.ps1 fetch and verify each on a matching host."
               ],
               "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure. A later 2026-05-09 sweep found the same parent still promised release notes with install size and SHA while the workflow emitted SHA only; the child row `Release notes artifact size table` owns that bounded closure. This 2026-05-09 all-topic sweep found current Hermes runtime parity rows complete or row-backed, but the same release parent still generated SBOM files without proving the current GitHub SBOM-attestation contract. The child row `Release SBOM attestation binding` owns that bounded closure. A later 2026-05-09 sweep found the parent still promised install.ps1 fetches the right asset while the PowerShell installer was source-build only; the child row `Windows install.ps1 release binary fetch selector` owns that bounded closure."
+            },
+            {
+              "name": "Release prep guide target matrix sync",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The v0.1.0 release-prep guide stays in lockstep with the current release workflow target matrix and trust artifacts: it must name linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, windows/arm64, and android/arm64 Termux archives, plus SHA-256 sidecars, SPDX SBOMs, and GitHub SBOM/build-provenance attestations. The guide must not fall back to the stale generic Linux/macOS/Windows summary once the workflow and installer rows prove a seven-target release.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If release documentation drifts from the workflow matrix, operators can approve a tag believing fewer or different artifacts will be produced. The fixture fails before release-prep docs can understate or omit target-specific archives and trust artifacts.",
+              "fixture": "docs/install/release_workflow_test.go::TestReleasePrepGuideTargetMatrixMatchesWorkflow and webpages/docs/install/release_workflow_test.go::TestReleasePrepGuideTargetMatrixMatchesWorkflow",
+              "source_refs": [
+                ".github/workflows/release.yml:build matrix include",
+                "docs/install/v0.1.0-release-prep.md:release workflow summary",
+                "webpages/docs/install/v0.1.0-release-prep.md:release workflow summary",
+                "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Packaging and release"
+              ],
+              "ready_when": [
+                "The release workflow already builds the seven supported target archives and publishes SHA-256, SBOM, and attestation evidence.",
+                "The release-prep guide is the approval-facing operator document for v0.1.0 tagging and can be tested through static docs fixtures.",
+                "The slice can update docs and fixture tests without publishing a release, pushing a tag, or changing the workflow."
+              ],
+              "not_ready_when": [
+                "The slice changes release workflow behavior, installer selection, version numbers, or approval policy instead of synchronizing the guide.",
+                "The test only checks broad operating-system families and does not require every release archive slug.",
+                "The docs claim a release was published or tell the agent to create/push a tag without maintainer approval."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleasePrepGuideTargetMatrixMatchesWorkflow fails while v0.1.0-release-prep.md summarizes only Linux, macOS, and Windows instead of all seven archive slugs.",
+                "Both docs/install and webpages/docs/install copies of the guide name linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64, windows-arm64, and android-arm64 Termux.",
+                "The guide still states the release workflow is tag-only and approval-only, and it names SHA-256 sidecars, SPDX SBOMs, and GitHub SBOM/build-provenance attestations.",
+                "Existing release workflow static contract tests remain green."
+              ],
+              "write_scope": [
+                "docs/install/v0.1.0-release-prep.md",
+                "webpages/docs/install/v0.1.0-release-prep.md",
+                "docs/install/release_workflow_test.go",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./docs/install ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release-prep guide fixtures prove the approval-facing v0.1.0 guide names the same seven release archives and trust artifacts as the release workflow."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 15 before this planner pass, below the 90-row cap, so adding one P1 source-backed row was allowed. Higher-priority TD publication rows remain operator-blocked, runtime parity manifests are complete or row-backed, and the broad P1 release pipeline row remains too large to assign directly. The unblocked docs/public release weakness was stale approval-facing v0.1.0 wording: the release workflow and completed child rows now prove seven release targets, SHA-256 sidecars, SBOMs, and GitHub attestations, while the guide still promised only Linux, macOS, and Windows archives. TDD added a fixture that pins the release-prep guide to the current workflow matrix and trust artifacts.",
+              "evidence": {
+                "implementation": [
+                  "docs/install/release_workflow_test.go and hardlinked webpages/docs/install/release_workflow_test.go: TestReleasePrepGuideTargetMatrixMatchesWorkflow checks every release target slug, approval-only tag policy, SHA-256 sidecars, SPDX SBOMs, and GitHub SBOM/build-provenance attestations.",
+                  "docs/install/v0.1.0-release-prep.md and hardlinked webpages/docs/install/v0.1.0-release-prep.md: release workflow summary now lists linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64, windows-arm64, and android-arm64 (Termux) plus trust artifacts."
+                ],
+                "verification": [
+                  "RED: go test ./docs/install ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1 failed because the guide lacked all seven target slugs, SHA-256 sidecars, SPDX SBOMs, GitHub SBOM/build-provenance attestation wording, and android-arm64 (Termux).",
+                  "GREEN: go test ./docs/install ./webpages/docs/install -run TestReleasePrepGuideTargetMatrixMatchesWorkflow -count=1 passed after guide sync.",
+                  "GREEN: go test ./docs/install ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|PublishesInstallScripts|GeneratesSBOMsWithoutPublishingFromMatrix|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives|EnforcesMaxArchiveSize|ReleaseNotesIncludeArchiveSize)|TestReleasePrepGuideTargetMatrixMatchesWorkflow' -count=1 passed."
+                ]
+              }
             },
             {
               "name": "Windows install.ps1 release binary fetch selector",
