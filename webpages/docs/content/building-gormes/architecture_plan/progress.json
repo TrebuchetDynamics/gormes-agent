@@ -48956,7 +48956,7 @@
             {
               "name": "Release SBOM attestation binding",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
