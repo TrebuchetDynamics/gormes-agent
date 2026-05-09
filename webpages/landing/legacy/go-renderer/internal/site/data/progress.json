@@ -29864,9 +29864,9 @@
               "name": "Hermes Kanban multi-board, workspace, and run-history parity",
               "priority": "P2",
               "status": "planned",
-              "contract": "Gormes extends the default Kanban core to Hermes multi-board and workspace semantics: board registry/list/create/switch/rename/remove, per-board database roots, scratch/worktree/dir workspace allocation, comments/events/runs/log retention, notification subscriptions, stats/watch/tail views, and garbage collection policies.",
+              "contract": "Inventory parent for Hermes Kanban multi-board, workspace, run-history, notification, stats/watch/tail, and retention surfaces. Gormes executes this through narrow child rows; the parent must not be assigned as one combined builder slice.",
               "contract_status": "validated",
-              "slice_size": "large",
+              "slice_size": "umbrella",
               "execution_owner": "orchestrator",
               "trust_class": [
                 "operator",
@@ -29874,50 +29874,41 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Unsupported board names, workspace collisions, missing log files, invalid notification subscriptions, and GC denial return typed evidence without deleting active task state or crossing into Hermes home directories.",
-              "fixture": "internal/kanban/boards_test.go; internal/kanban/workspaces_test.go; cmd/gormes/kanban_command_test.go",
+              "degraded_mode": "Child rows must preserve Gormes-owned board namespaces and return typed evidence for unsupported board names, workspace collisions, missing log files, invalid notification subscriptions, and retention denial without deleting active task state or crossing into Hermes home directories.",
+              "fixture": "Child rows under Phase 5.M carry the executable fixtures.",
               "source_refs": [
-                "../hermes-agent/hermes_cli/kanban.py@54e78cadb:boards/workspace/log/runs/gc commands",
-                "../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:board registry and workspace helpers",
-                "../hermes-agent/tests/hermes_cli/test_kanban_db.py@54e78cadb:tenant/board/workspace tests",
-                "../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:context/tenant/json tests"
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:boards/workspace/log/runs/gc commands",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:board registry, workspace helpers, run history, notification subscriptions, and retention GC",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@a7e7921db:board/workspace/run/notification tests",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@a7e7921db:kanban operator command tests",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Operator tools"
               ],
               "ready_when": [
-                "Hermes Kanban durable board core is complete.",
-                "Dispatcher and worker-tool rows define run/log/heartbeat data that board views should expose.",
-                "A Gormes-owned board namespace policy exists and rejects Hermes env aliases outside migrate commands."
+                "This parent is used only for source-backed inventory continuity and the Kanban child rows remain present below it.",
+                "A planner pass may split another child row when a specific Hermes Kanban atom remains unimplemented or stale."
               ],
               "not_ready_when": [
-                "Board switching reads HERMES_KANBAN_BOARD or ~/.hermes board files as live config.",
-                "Workspace allocation creates git worktrees in tests or deletes real operator directories.",
-                "GC can delete active-task logs, workspaces, or board databases without explicit archived/retention checks."
+                "The row is assigned as one broad multi-board/workspace/run-history/notification/stats/watch/tail/GC implementation slice.",
+                "A child row would read HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live state instead of using Gormes-owned board state.",
+                "A child row can delete active-task logs, workspaces, events, board databases, or operator directories without explicit terminal-status and retention checks."
               ],
               "acceptance": [
-                "Board fixtures prove list/create/switch/rename/remove behavior under temp GORMES_KANBAN_HOME roots with no Hermes state reads.",
-                "Workspace fixtures prove scratch, worktree, and dir metadata resolution without creating real git worktrees in unit tests.",
-                "Runs/log/event fixtures prove show/context/tail/watch/stats expose deterministic read models.",
-                "Notification fixtures prove subscribe/list/unsubscribe records are scoped to Gormes gateway sources.",
-                "GC fixtures prove archived-task workspaces, old events, and old logs are pruned only under explicit retention rules."
+                "Completed child rows prove board registry/list/create/switch/show/rename/remove, current-board routing, one-off --board routing, named-board workspace/log roots, run-history readout, worker heartbeat/reclaim, and specify triage behavior.",
+                "Remaining child rows, if any, must be one behavior each and cite exact Hermes Kanban functions/tests plus Gormes write scope.",
+                "The parent remains non-selectable until every child row is complete and progress evidence can close the broad surface honestly."
               ],
-              "note": "Planned breadth row for the Kanban surfaces intentionally left out of the first slice.",
+              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py.",
               "write_scope": [
-                "internal/kanban/",
-                "cmd/gormes/kanban.go",
-                "internal/gateway/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "test_commands": [
-                "go test ./internal/kanban -run 'TestKanban(Board|Workspace|Run|Notification|GC)' -count=1",
-                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
-                "go run ./cmd/progress validate"
-              ],
+              "no_test_required": "Inventory-only parent row; executable child rows carry focused tests and progress evidence.",
               "done_signal": [
-                "Gormes Kanban supports Gormes-owned board namespaces, workspaces, comments/events/runs/logs, notifications, stats/watch/tail, and safe GC without live Hermes config."
+                "Parent row remains non-selectable and source-backed while the dependency-ordered child rows provide the runnable implementation and tests."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:54e78cadb hermes_cli/kanban.py + hermes_cli/kanban_db.py",
-                "note": "Hermes supplies the expanded board/workspace/run-history contract; Gormes preserves Gormes-owned namespace boundaries."
+                "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py + hermes_cli/kanban_db.py",
+                "note": "Hermes supplies the expanded Kanban operator contract; Gormes ports it through Gormes-owned, child-row slices rather than one broad row."
               }
             },
             {
@@ -30344,6 +30335,99 @@
                   "go test ./cmd/gormes -run 'TestKanbanCommand(BoardFlag|PreservesExplicitDBPin)' -count=1 -> ok",
                   "go test ./cmd/gormes -run TestKanbanCommand -count=1 -> ok"
                 ]
+              }
+            },
+            {
+              "name": "Kanban GC terminal event and worker-log retention",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes `kanban gc` retention as a safe native store and CLI slice: old task_events are deleted only for terminal done/archived tasks, worker log files older than the selected retention are pruned only from the current Gormes board log root, and active task state, board databases, workspaces, directories, and Hermes home paths are never deleted.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing log directories return zero deletions, invalid retention values return bounded CLI errors, and filesystem cleanup failures surface kanban_gc_unavailable evidence without deleting active task events or crossing board roots.",
+              "fixture": "internal/kanban/store_test.go::TestKanbanGC_*; cmd/gormes/kanban_command_test.go::TestKanbanGCCommand_*",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:p_gc parser and gc command",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:gc_events",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:gc_worker_logs",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:worker_logs_dir",
+                "internal/kanban/store.go:ListEvents and task_events schema",
+                "internal/kanban/board_paths.go:kanbanLogRootForDBPath",
+                "cmd/gormes/kanban.go:newKanbanCommand"
+              ],
+              "ready_when": [
+                "Kanban named-board workspace and log roots is complete, so the selected Gormes DB path determines the safe board-local log root.",
+                "Kanban current-board task command routing and global --board override are complete, so CLI GC can use openKanbanStore without reading Hermes env or home state.",
+                "Tests can use temp GORMES_HOME/GORMES_KANBAN_HOME roots, fake file mtimes, and store.now injection; no dispatcher, worker subprocess, gateway, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice deletes workspaces, board directories, databases, active-task events, or any path outside the selected Gormes board log root.",
+                "The implementation reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live state.",
+                "The tests require real worker subprocesses, a gateway loop, wall-clock sleeps, or live Hermes Python execution."
+              ],
+              "blocked_by": [
+                "Kanban named-board workspace and log roots",
+                "Kanban global --board task command override"
+              ],
+              "acceptance": [
+                "TestKanbanGC_PrunesOnlyTerminalTaskEvents proves old task_events for done and archived tasks are deleted while old ready/running/blocked events and new terminal events remain.",
+                "TestKanbanGC_PrunesOnlySelectedBoardLogFiles proves only old regular files under the selected board log root are deleted; fresh files, directories, and sibling-board logs remain.",
+                "TestKanbanGCCommand_JSONReportsCountsAndRetention proves `gormes kanban gc --event-retention-days N --log-retention-days M --json` emits build provenance, retention days, events_deleted, and logs_deleted over the selected board.",
+                "TestKanbanGCCommand_RejectsNegativeRetention proves negative retention values fail before deletion with bounded evidence.",
+                "Existing Kanban command, board-routing, and named-board workspace/log root fixtures remain green."
+              ],
+              "note": "Added 2026-05-09 by the bounded all-topic parity sweep. The major Hermes/Gormes surfaces were checked: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh Hermes a7e7921db TUI wrap-trim drift is already complete; gateway lifecycle, Slack manifest, patch schema, Teams/Graph, release artifact, and Kanban board/run rows are complete or row-backed. The remaining source-backed builder-ready Kanban gap is Hermes `kanban gc`, which was still only present in the broad parent row.",
+              "write_scope": [
+                "internal/kanban/store.go",
+                "internal/kanban/store_test.go",
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run '^TestKanbanGC_' -count=1",
+                "go test ./cmd/gormes -run '^TestKanbanGCCommand_' -count=1",
+                "go test ./internal/kanban -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban GC fixtures prove terminal-only event retention and selected-board log pruning through native store and CLI surfaces without deleting active task state, workspaces, board databases, or live Hermes state."
+              ],
+              "completed_at": "2026-05-09T06:37:08Z",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/store.go adds PruneTerminalEvents and PruneWorkerLogs, deleting only old task_events for done/archived tasks and old regular files beneath the selected board's worker-log root.",
+                  "cmd/gormes/kanban.go registers `gormes kanban gc` with --event-retention-days, --log-retention-days, --json, build provenance, and deletion counts.",
+                  "The CLI uses openKanbanStore, so current-board routing, --board overrides, and explicit GORMES_KANBAN_DB pins stay on the existing Kanban path selection seam."
+                ],
+                "tests": [
+                  "internal/kanban/store_test.go:TestKanbanGC_PrunesOnlyTerminalTaskEvents",
+                  "internal/kanban/store_test.go:TestKanbanGC_PrunesOnlySelectedBoardLogFiles",
+                  "cmd/gormes/kanban_command_test.go:TestKanbanGCCommand_JSONReportsCountsAndRetention",
+                  "cmd/gormes/kanban_command_test.go:TestKanbanGCCommand_RejectsNegativeRetention"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/kanban -run '^TestKanbanGC_' -count=1 failed with missing Store.PruneTerminalEvents and Store.PruneWorkerLogs.",
+                  "RED: go test ./cmd/gormes -run '^TestKanbanGCCommand_' -count=1 failed because `gormes kanban gc` was unknown.",
+                  "GREEN: both focused GC selectors passed after adding the store pruning API and CLI command."
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run '^TestKanbanGC_' -count=1 -> ok",
+                  "go test ./cmd/gormes -run '^TestKanbanGCCommand_' -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py gc parser + hermes_cli/kanban_db.py gc_events/gc_worker_logs",
+                "note": "Hermes defines the operator GC semantics; Gormes adapts them to Gormes-owned board/log roots and native SQLite event storage."
               }
             },
             {

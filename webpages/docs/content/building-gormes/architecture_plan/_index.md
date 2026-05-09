@@ -850,6 +850,7 @@ classification and row-backed implementation queue.
 - [x] Kanban task run history command
 - [x] Kanban boards list/show task-count read model
 - [x] Kanban global --board task command override
+- [x] Kanban GC terminal event and worker-log retention
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
 - [x] Hermes Kanban specify triage parity
 

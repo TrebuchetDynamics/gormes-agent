@@ -575,6 +575,67 @@ func (s *Store) ListEvents(ctx context.Context, taskID string) ([]Event, error) 
 	return events, nil
 }
 
+func (s *Store) PruneTerminalEvents(ctx context.Context, olderThan time.Duration) (int64, error) {
+	if olderThan < 0 {
+		return 0, errors.New("event retention must be >= 0")
+	}
+	cutoff := s.now().UTC().Add(-olderThan).UnixMilli()
+	result, err := s.db.ExecContext(ctx, `
+DELETE FROM task_events
+WHERE created_at < ?
+  AND task_id IN (
+    SELECT id FROM tasks WHERE status IN (?, ?)
+  )`,
+		cutoff, string(StatusDone), string(StatusArchived),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("prune kanban terminal events: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count pruned kanban terminal events: %w", err)
+	}
+	return deleted, nil
+}
+
+func (s *Store) PruneWorkerLogs(olderThan time.Duration) (int, error) {
+	if olderThan < 0 {
+		return 0, errors.New("log retention must be >= 0")
+	}
+	logRoot := kanbanWorkerLogRootForDBPath(s.dbPath)
+	entries, err := os.ReadDir(logRoot)
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read kanban worker log root: %w", err)
+	}
+
+	cutoff := s.now().UTC().Add(-olderThan)
+	deleted := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if !info.Mode().IsRegular() || !info.ModTime().Before(cutoff) {
+			continue
+		}
+		path := filepath.Join(logRoot, entry.Name())
+		if err := os.Remove(path); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return deleted, fmt.Errorf("remove kanban worker log %s: %w", path, err)
+		}
+		deleted++
+	}
+	return deleted, nil
+}
+
 func (s *Store) BuildWorkerContext(ctx context.Context, taskID string) (string, error) {
 	task, err := s.GetTask(ctx, taskID)
 	if err != nil {

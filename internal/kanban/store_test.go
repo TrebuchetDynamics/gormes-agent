@@ -2,6 +2,7 @@ package kanban
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -198,4 +199,136 @@ func TestKanbanStoreBlockUnblockRecomputesReadiness(t *testing.T) {
 	if ready.Status != StatusReady {
 		t.Fatalf("child after parent complete Status = %q, want %q", ready.Status, StatusReady)
 	}
+}
+
+func TestKanbanGC_PrunesOnlyTerminalTaskEvents(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	store.now = func() time.Time { return now }
+
+	active, err := store.CreateTask(ctx, CreateTaskInput{Title: "active task"})
+	if err != nil {
+		t.Fatalf("CreateTask(active) error = %v", err)
+	}
+	done, err := store.CreateTask(ctx, CreateTaskInput{Title: "done task"})
+	if err != nil {
+		t.Fatalf("CreateTask(done) error = %v", err)
+	}
+	if err := store.CompleteTask(ctx, done.ID, CompleteTaskInput{Result: "done"}); err != nil {
+		t.Fatalf("CompleteTask(done) error = %v", err)
+	}
+	archived, err := store.CreateTask(ctx, CreateTaskInput{Title: "archived task"})
+	if err != nil {
+		t.Fatalf("CreateTask(archived) error = %v", err)
+	}
+	if _, err := store.db.ExecContext(ctx, `UPDATE tasks SET status = ? WHERE id = ?`, string(StatusArchived), archived.ID); err != nil {
+		t.Fatalf("archive fixture task: %v", err)
+	}
+	if _, err := store.db.ExecContext(ctx, `DELETE FROM task_events`); err != nil {
+		t.Fatalf("reset fixture events: %v", err)
+	}
+
+	old := now.Add(-45 * 24 * time.Hour)
+	fresh := now.Add(-5 * 24 * time.Hour)
+	insertKanbanEventFixture(t, store, active.ID, "active-old", old)
+	insertKanbanEventFixture(t, store, done.ID, "done-old", old)
+	insertKanbanEventFixture(t, store, done.ID, "done-fresh", fresh)
+	insertKanbanEventFixture(t, store, archived.ID, "archived-old", old)
+	insertKanbanEventFixture(t, store, archived.ID, "archived-fresh", fresh)
+
+	deleted, err := store.PruneTerminalEvents(ctx, 30*24*time.Hour)
+	if err != nil {
+		t.Fatalf("PruneTerminalEvents() error = %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("PruneTerminalEvents() deleted = %d, want 2", deleted)
+	}
+
+	activeEvents, err := store.ListEvents(ctx, active.ID)
+	if err != nil {
+		t.Fatalf("ListEvents(active) error = %v", err)
+	}
+	if len(activeEvents) != 1 || activeEvents[0].Kind != "active-old" {
+		t.Fatalf("active events = %+v, want old non-terminal event preserved", activeEvents)
+	}
+	doneEvents, err := store.ListEvents(ctx, done.ID)
+	if err != nil {
+		t.Fatalf("ListEvents(done) error = %v", err)
+	}
+	if len(doneEvents) != 1 || doneEvents[0].Kind != "done-fresh" {
+		t.Fatalf("done events = %+v, want only fresh terminal event", doneEvents)
+	}
+	archivedEvents, err := store.ListEvents(ctx, archived.ID)
+	if err != nil {
+		t.Fatalf("ListEvents(archived) error = %v", err)
+	}
+	if len(archivedEvents) != 1 || archivedEvents[0].Kind != "archived-fresh" {
+		t.Fatalf("archived events = %+v, want only fresh terminal event", archivedEvents)
+	}
+}
+
+func TestKanbanGC_PrunesOnlySelectedBoardLogFiles(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dbPath := filepath.Join(root, "kanban", "boards", "alpha", "kanban.db")
+	store, err := Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+	now := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	store.now = func() time.Time { return now }
+
+	alphaLogRoot := filepath.Join(root, "kanban", "boards", "alpha", "logs")
+	betaLogRoot := filepath.Join(root, "kanban", "boards", "beta", "logs")
+	oldAlpha := writeKanbanLogFixture(t, alphaLogRoot, "old-alpha.log", now.Add(-45*24*time.Hour))
+	freshAlpha := writeKanbanLogFixture(t, alphaLogRoot, "fresh-alpha.log", now.Add(-5*24*time.Hour))
+	oldBeta := writeKanbanLogFixture(t, betaLogRoot, "old-beta.log", now.Add(-45*24*time.Hour))
+	keptDir := filepath.Join(alphaLogRoot, "worker-dir")
+	if err := os.MkdirAll(keptDir, 0o755); err != nil {
+		t.Fatalf("create log fixture dir: %v", err)
+	}
+
+	deleted, err := store.PruneWorkerLogs(30 * 24 * time.Hour)
+	if err != nil {
+		t.Fatalf("PruneWorkerLogs() error = %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("PruneWorkerLogs() deleted = %d, want 1", deleted)
+	}
+	if _, err := os.Stat(oldAlpha); !os.IsNotExist(err) {
+		t.Fatalf("old alpha log still exists or stat failed: %v", err)
+	}
+	for _, path := range []string{freshAlpha, oldBeta, keptDir} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %s to remain: %v", path, err)
+		}
+	}
+}
+
+func insertKanbanEventFixture(t *testing.T, store *Store, taskID, kind string, at time.Time) {
+	t.Helper()
+	if _, err := store.db.ExecContext(context.Background(), `INSERT INTO task_events(task_id, kind, payload, created_at) VALUES (?, ?, '', ?)`, taskID, kind, at.UTC().UnixMilli()); err != nil {
+		t.Fatalf("insert fixture event %q: %v", kind, err)
+	}
+}
+
+func writeKanbanLogFixture(t *testing.T, root, name string, modTime time.Time) string {
+	t.Helper()
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("create log root: %v", err)
+	}
+	path := filepath.Join(root, name)
+	if err := os.WriteFile(path, []byte("log\n"), 0o644); err != nil {
+		t.Fatalf("write log fixture: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("age log fixture: %v", err)
+	}
+	return path
 }

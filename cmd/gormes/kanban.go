@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -43,6 +44,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanListCommand(),
 		newKanbanShowCommand(),
 		newKanbanRunsCommand(),
+		newKanbanGCCommand(),
 		newKanbanSpecifyCommand(),
 		newKanbanCompleteCommand(),
 		newKanbanClaimCommand(),
@@ -271,6 +273,55 @@ func newKanbanRunsCommand() *cobra.Command {
 			return writeKanbanRunsText(cmd, taskID, runs)
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanGCCommand() *cobra.Command {
+	var eventRetentionDays int
+	var logRetentionDays int
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "gc",
+		Short: "Garbage-collect terminal Kanban events and worker logs",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if eventRetentionDays < 0 {
+				return errors.New("event retention days must be >= 0")
+			}
+			if logRetentionDays < 0 {
+				return errors.New("log retention days must be >= 0")
+			}
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			eventsDeleted, err := store.PruneTerminalEvents(cmd.Context(), kanbanRetentionDuration(eventRetentionDays))
+			if err != nil {
+				return err
+			}
+			logsDeleted, err := store.PruneWorkerLogs(kanbanRetentionDuration(logRetentionDays))
+			if err != nil {
+				return err
+			}
+			report := kanbanGCReportJSON{
+				Build:              newBuildProvenance(),
+				Action:             "gc",
+				EventRetentionDays: eventRetentionDays,
+				LogRetentionDays:   logRetentionDays,
+				EventsDeleted:      eventsDeleted,
+				LogsDeleted:        logsDeleted,
+			}
+			if jsonOut {
+				return writeKanbanJSON(cmd, report)
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Kanban GC pruned %d terminal event(s) and %d worker log file(s).\n", eventsDeleted, logsDeleted)
+			return err
+		},
+	}
+	cmd.Flags().IntVar(&eventRetentionDays, "event-retention-days", 30, "terminal task event retention window in days")
+	cmd.Flags().IntVar(&logRetentionDays, "log-retention-days", 30, "worker log retention window in days")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
 	return cmd
 }
@@ -553,6 +604,15 @@ type kanbanRunsReportJSON struct {
 	Build  buildProvenanceJSON `json:"build"`
 	TaskID string              `json:"task_id"`
 	Runs   []kanban.TaskRun    `json:"runs"`
+}
+
+type kanbanGCReportJSON struct {
+	Build              buildProvenanceJSON `json:"build"`
+	Action             string              `json:"action"`
+	EventRetentionDays int                 `json:"event_retention_days"`
+	LogRetentionDays   int                 `json:"log_retention_days"`
+	EventsDeleted      int64               `json:"events_deleted"`
+	LogsDeleted        int                 `json:"logs_deleted"`
 }
 
 // kanbanTaskReportJSON wraps a single kanban.Task with build
@@ -872,6 +932,10 @@ func writeKanbanJSON(cmd *cobra.Command, v any) error {
 	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(v)
+}
+
+func kanbanRetentionDuration(days int) time.Duration {
+	return time.Duration(days) * 24 * time.Hour
 }
 
 func writeKanbanTaskText(cmd *cobra.Command, task kanban.Task) error {
