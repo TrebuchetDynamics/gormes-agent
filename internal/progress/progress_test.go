@@ -770,8 +770,14 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.E DingTalk emoji reaction note = %q, want EmojiReactionClient/Thinking/Done detail", dingTalkReactions.Note)
 	}
 	qqTransport := longTailItems["QQ Bot transport/bootstrap layer"]
-	if qqTransport.Status != StatusPlanned {
-		t.Fatalf("Phase 7.E QQ Bot transport/bootstrap status = %q, want planned", qqTransport.Status)
+	if qqTransport.Status != StatusComplete {
+		t.Fatalf("Phase 7.E QQ Bot transport/bootstrap status = %q, want complete", qqTransport.Status)
+	}
+	if qqTransport.ContractStatus != ContractStatusValidated ||
+		!strings.Contains(qqTransport.Note, "NewBootstrap") ||
+		!strings.Contains(qqTransport.Note, "RejectUnsafeRedirect") ||
+		!strings.Contains(qqTransport.Note, "TranscribeVoice") {
+		t.Fatalf("Phase 7.E QQ Bot transport/bootstrap evidence = contract_status %q note %q, want validated bootstrap/redirect/voice detail", qqTransport.ContractStatus, qqTransport.Note)
 	}
 
 	lifecycleStore := lifecycleItems["Pairing read-model schema + atomic persistence"]

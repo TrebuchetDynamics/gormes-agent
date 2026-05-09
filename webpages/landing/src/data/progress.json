@@ -48502,10 +48502,10 @@
             },
             {
               "name": "QQ Bot transport/bootstrap layer",
-              "status": "planned",
-              "priority": "P3",
+              "status": "complete",
+              "priority": "P2",
               "contract": "Fakeable Official QQ Bot transport bootstrap binds the existing QQ Bot shared-chassis seam to token, gateway, websocket, and REST clients without live QQ: config resolves app_id/client_secret from explicit values or QQ_APP_ID/QQ_CLIENT_SECRET, applies markdown support and DM/group allowlist policies, acquires an app-id platform lock, uses an HTTP redirect guard for token/media requests, fetches token and gateway URL through injected clients, consumes websocket READY/RESUMED/dispatch/heartbeat frames with sequence tracking, builds REST message bodies for markdown/plain/truncated replies, waits for reconnect before sends, and returns retryable send evidence on timeout or close.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -48516,14 +48516,14 @@
               "degraded_mode": "Missing dependencies, missing credentials, token failure, gateway failure, websocket close codes, reconnect timeouts, send failures, voice STT unavailability, and unsafe voice/media URLs return typed evidence such as qq_missing_dependency, qq_missing_credentials, qq_token_failed, qq_gateway_unavailable, qq_ws_closed, qq_send_retryable, qq_voice_stt_unavailable, and qq_ssrf_blocked with secrets redacted.",
               "fixture": "internal/channels/qqbot/bootstrap_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/qqbot/adapter.py:QQAdapter",
-                "../hermes-agent/gateway/platforms/qqbot/adapter.py:QQCloseError",
-                "../hermes-agent/gateway/platforms/qqbot/adapter.py:connect",
-                "../hermes-agent/gateway/platforms/qqbot/adapter.py:_dispatch_payload",
-                "../hermes-agent/gateway/platforms/qqbot/adapter.py:_build_text_body",
-                "../hermes-agent/gateway/platforms/qqbot/constants.py",
-                "../hermes-agent/gateway/platforms/qqbot/utils.py",
-                "../hermes-agent/tests/gateway/test_qqbot.py",
+                "./hermes-agent/gateway/platforms/qqbot/adapter.py@a7e7921db:QQAdapter",
+                "./hermes-agent/gateway/platforms/qqbot/adapter.py@a7e7921db:QQCloseError",
+                "./hermes-agent/gateway/platforms/qqbot/adapter.py@a7e7921db:connect",
+                "./hermes-agent/gateway/platforms/qqbot/adapter.py@a7e7921db:_dispatch_payload",
+                "./hermes-agent/gateway/platforms/qqbot/adapter.py@a7e7921db:_build_text_body",
+                "./hermes-agent/gateway/platforms/qqbot/constants.py@a7e7921db",
+                "./hermes-agent/gateway/platforms/qqbot/utils.py@a7e7921db",
+                "./hermes-agent/tests/gateway/test_qqbot.py@a7e7921db",
                 "internal/channels/qqbot/bot.go",
                 "references/go-agent-os/trpc-agent-go/agent/callbacks.go",
                 "references/go-agent-os/trpc-agent-go/model/callbacks.go"
@@ -48554,7 +48554,7 @@
                 "TestQQBotSendReconnectRetryable proves sends wait for reconnect with fake time and return qq_send_retryable after timeout.",
                 "TestQQBotVoiceAttachmentSSRFGuard proves unsafe private/loopback voice URLs are blocked before HTTP and safe fake URLs can hand off to the future transcription contract."
               ],
-              "note": "Builder-ready paused-channel slice. Hermes' QQ Bot adapter supplies the token/gateway/websocket/send contract; Gormes already has the shared-chassis bot seam, so this row freezes fakeable bootstrap, reconnect, send, and SSRF guards before live transport.",
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Planned rows were 20, below the 90-row cap; no new row was needed. Higher-priority TD blog/writeup rows remain operator-blocked, the broad release pipeline and Kanban parents are inventory/non-selectable, and the QQ Bot shared-chassis dependency was complete. This row was selected as the highest-priority builder-ready gateway/channel parity slice because Hermes' QQ Bot adapter supplies the token/gateway/websocket/send contract while Gormes covered only the shared-chassis ingress/passive-reply seam. TDD added `ResolveBootstrapConfig`, `NewBootstrap`, `RejectUnsafeRedirect`, and `TranscribeVoice` as a fakeable Go bootstrap seam with config/env precedence, dependency and credential evidence redaction, app-id lock release on connect failure, injected token/gateway/websocket/REST clients, HTTPS redirect guard, READY/RESUMED dispatch state, heartbeat frames with latest sequence, message dispatch through the existing Bot seam, markdown/plain/truncated reply bodies, reconnect retryable sends, QQ close-code evidence, and SSRF-protected voice handoff without live QQ credentials or network calls.",
               "write_scope": [
                 "internal/channels/qqbot/bootstrap.go",
                 "internal/channels/qqbot/bootstrap_test.go",
