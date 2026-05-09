@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
@@ -48,7 +50,7 @@ func newKanbanInitCommand() *cobra.Command {
 				return err
 			}
 			defer store.Close()
-			path := config.KanbanDBPath()
+			path := store.DBPath()
 			if jsonOut {
 				return writeKanbanJSON(cmd, kanbanInitReportJSON{
 					Build:  newBuildProvenance(),
@@ -539,7 +541,34 @@ func writeKanbanLifecycleJSON(cmd *cobra.Command, report kanbanLifecycleReportJS
 }
 
 func openKanbanStore(ctx context.Context) (*kanban.Store, error) {
-	return kanban.Open(ctx, config.KanbanDBPath())
+	path, err := currentKanbanDBPath()
+	if err != nil {
+		return nil, err
+	}
+	return kanban.Open(ctx, path)
+}
+
+func currentKanbanDBPath() (string, error) {
+	if strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")) != "" {
+		return config.KanbanDBPath(), nil
+	}
+
+	current, err := newBoardRegistry().Current()
+	if err != nil {
+		return "", err
+	}
+	if current.Name == "default" {
+		return current.Path, nil
+	}
+	if err := kanban.ValidateBoardSlug(current.Name); err != nil {
+		return "", fmt.Errorf("current kanban board %q is invalid: %w", current.Name, err)
+	}
+	if _, err := os.Stat(filepath.Dir(current.Path)); os.IsNotExist(err) {
+		return "", fmt.Errorf("current kanban board %q does not exist", current.Name)
+	} else if err != nil {
+		return "", fmt.Errorf("inspect current kanban board %q: %w", current.Name, err)
+	}
+	return current.Path, nil
 }
 
 var newKanbanTriageSpecifier = func(cfg config.Config) (kanban.TriageSpecifier, error) {

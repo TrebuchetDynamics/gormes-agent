@@ -29610,6 +29610,89 @@
               }
             },
             {
+              "name": "Kanban current-board task command routing",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes task-level `kanban` commands route through the Gormes-owned current-board pointer written by `gormes kanban boards switch`, so create/list/show/claim/complete/block/link operate on the selected board database instead of always opening the default kanban.db. The slice preserves GORMES_KANBAN_DB as the explicit DB pin and does not read Hermes HERMES_KANBAN_BOARD or ~/.hermes state.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If the current-board file points at a missing board, task commands fail with board-not-found evidence rather than silently creating an empty board or falling back to default.",
+              "fixture": "cmd/gormes/kanban_command_test.go::TestKanbanTaskCommandsUseCurrentBoard and TestKanbanCommandPreservesExplicitDBPin",
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban.py@78b0008f4:global --board flag and current-board resolution",
+                "../hermes-agent/hermes_cli/kanban_db.py@78b0008f4:kanban_db_path(board=...)",
+                "../hermes-agent/tests/hermes_cli/test_kanban_db.py@78b0008f4:TestSharedBoardPaths",
+                "internal/kanban/board.go:BoardRegistry.Current",
+                "cmd/gormes/kanban.go:openKanbanStore"
+              ],
+              "ready_when": [
+                "The Gormes BoardRegistry create/list/switch/remove behavior is already fixture-backed under temp GORMES_HOME/GORMES_KANBAN_HOME roots.",
+                "Task commands already open Kanban through cmd/gormes openKanbanStore, giving the slice one routing seam.",
+                "The slice can use temp GORMES_HOME fixtures only; no live Hermes, dispatcher, worker, or service manager is required."
+              ],
+              "not_ready_when": [
+                "The implementation reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live config.",
+                "The slice adds `--board` parsing, worker workspace/log routing, dispatcher board fan-out, tenant filters, notifications, or GC behavior.",
+                "A typoed current-board name silently creates a new database or falls back to default."
+              ],
+              "blocked_by": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "A CLI fixture creates a default-board task, creates and switches to another Gormes board, creates a second task, and proves `kanban list --json` sees only the selected board's task.",
+                "Switching back to default makes `kanban list --json` see only the original default task.",
+                "Setting GORMES_KANBAN_DB continues to pin task commands to that explicit database regardless of the current-board pointer.",
+                "No Hermes env variable or home directory is consulted."
+              ],
+              "note": "2026-05-09 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 26, below the 90-row cap, so adding one P2 source-backed child row was allowed. P1 public/blog rows remain operator-blocked and the P1 release parent is too broad for one local pass; fresh Hermes gateway/patch/Slack/release deltas are already row-backed or complete. The remaining high-value P2 gap is Kanban board isolation: Gormes has BoardRegistry and board commands, but task commands still open config.KanbanDBPath directly. This row routes task commands through the Gormes current-board pointer without importing Hermes env compatibility or widening into workspaces/runs/GC.",
+              "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run TestKanbanTaskCommandsUseCurrentBoard -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "CLI board-routing fixtures prove task commands follow the selected Gormes current board while preserving explicit GORMES_KANBAN_DB pinning."
+              ],
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/kanban.go:openKanbanStore now resolves the database through currentKanbanDBPath before opening the store.",
+                  "cmd/gormes/kanban.go:currentKanbanDBPath preserves explicit GORMES_KANBAN_DB pins, otherwise reads BoardRegistry.Current from the Gormes-owned Kanban home.",
+                  "cmd/gormes/kanban.go:currentKanbanDBPath rejects invalid or missing non-default current boards instead of silently creating a fallback board.",
+                  "cmd/gormes/kanban.go:kanban init reports the opened store DB path, so selected-board init output matches the routed database."
+                ],
+                "tests": [
+                  "cmd/gormes/kanban_command_test.go:TestKanbanTaskCommandsUseCurrentBoard",
+                  "cmd/gormes/kanban_command_test.go:TestKanbanCommandPreservesExplicitDBPin"
+                ],
+                "red_green": [
+                  "RED: go test ./cmd/gormes -run TestKanbanTaskCommandsUseCurrentBoard -count=1 failed because the alpha-board list included the default-board task.",
+                  "GREEN: go test ./cmd/gormes -run TestKanbanTaskCommandsUseCurrentBoard -count=1 passed after routing through BoardRegistry.Current.",
+                  "GREEN: go test ./cmd/gormes -run TestKanbanCommand -count=1 passed, including the explicit GORMES_KANBAN_DB pin fixture."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run TestKanbanTaskCommandsUseCurrentBoard -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanCommand -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:78b0008f4 hermes_cli/kanban.py + hermes_cli/kanban_db.py",
+                "note": "Hermes resolves task commands through board selection; Gormes adopts the behavior through a Gormes-owned current-board pointer and explicitly excludes live Hermes env/home reads."
+              }
+            },
+            {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
               "status": "complete",

@@ -154,6 +154,61 @@ func TestKanbanCommandListJSONFiltersByStatus(t *testing.T) {
 	}
 }
 
+func TestKanbanTaskCommandsUseCurrentBoard(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+
+	defaultTask := runKanbanJSONTask(t, "create", "default board task", "--json")
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "create", "alpha"); err != nil {
+		t.Fatalf("kanban boards create alpha: %v\nstderr=%s", err, stderr)
+	}
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "switch", "alpha"); err != nil {
+		t.Fatalf("kanban boards switch alpha: %v\nstderr=%s", err, stderr)
+	}
+
+	alphaTask := runKanbanJSONTask(t, "create", "alpha board task", "--json")
+	alphaTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(alphaTasks, alphaTask.Title) {
+		t.Fatalf("alpha board tasks = %+v, want %q", alphaTasks, alphaTask.Title)
+	}
+	if containsKanbanTaskTitle(alphaTasks, defaultTask.Title) {
+		t.Fatalf("alpha board tasks = %+v, should not include default-board task %q", alphaTasks, defaultTask.Title)
+	}
+
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "switch", "default"); err != nil {
+		t.Fatalf("kanban boards switch default: %v\nstderr=%s", err, stderr)
+	}
+	defaultTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(defaultTasks, defaultTask.Title) {
+		t.Fatalf("default board tasks = %+v, want %q", defaultTasks, defaultTask.Title)
+	}
+	if containsKanbanTaskTitle(defaultTasks, alphaTask.Title) {
+		t.Fatalf("default board tasks = %+v, should not include alpha-board task %q", defaultTasks, alphaTask.Title)
+	}
+}
+
+func TestKanbanCommandPreservesExplicitDBPin(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", filepath.Join(root, "home"))
+
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "create", "alpha"); err != nil {
+		t.Fatalf("kanban boards create alpha: %v\nstderr=%s", err, stderr)
+	}
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "switch", "alpha"); err != nil {
+		t.Fatalf("kanban boards switch alpha: %v\nstderr=%s", err, stderr)
+	}
+
+	pinnedPath := filepath.Join(root, "pinned", "kanban.db")
+	t.Setenv("GORMES_KANBAN_DB", pinnedPath)
+	pinnedTask := runKanbanJSONTask(t, "create", "pinned db task", "--json")
+	pinnedTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(pinnedTasks, pinnedTask.Title) {
+		t.Fatalf("pinned DB tasks = %+v, want %q", pinnedTasks, pinnedTask.Title)
+	}
+	if _, err := os.Stat(pinnedPath); err != nil {
+		t.Fatalf("explicit GORMES_KANBAN_DB path was not used: %v", err)
+	}
+}
+
 // TestKanbanInitCommand_JSONEmitsStructuredReport proves
 // `gormes kanban init --json` emits a parseable
 // `{build, action, path}` document so fleet automation provisioning
@@ -388,6 +443,30 @@ func runKanbanJSONTask(t *testing.T, args ...string) kanban.Task {
 		t.Fatalf("gormes kanban %v JSON decode error = %v\nstdout=%s", args, err, stdout)
 	}
 	return task
+}
+
+func runKanbanJSONTasks(t *testing.T, args ...string) []kanban.Task {
+	t.Helper()
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), append([]string{"kanban"}, args...)...)
+	if err != nil {
+		t.Fatalf("gormes kanban %v error = %v\nstdout=%s\nstderr=%s", args, err, stdout, stderr)
+	}
+	var list struct {
+		Tasks []kanban.Task `json:"tasks"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &list); err != nil {
+		t.Fatalf("gormes kanban %v JSON decode error = %v\nstdout=%s", args, err, stdout)
+	}
+	return list.Tasks
+}
+
+func containsKanbanTaskTitle(tasks []kanban.Task, title string) bool {
+	for _, task := range tasks {
+		if task.Title == title {
+			return true
+		}
+	}
+	return false
 }
 
 func containsKanbanString(values []string, want string) bool {
