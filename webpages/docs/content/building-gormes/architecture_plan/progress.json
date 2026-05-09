@@ -26969,7 +26969,7 @@
           "items": [
             {
               "name": "Dangerous action gating",
-              "status": "planned",
+              "status": "complete",
               "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, gateway queue, and policy-integration tasks below before dangerous terminal/file/code tools become available. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes 93e25ceb1 and Honcho e659b6b. Planned leaf rows are 18, below the 90-row cap. The selected source-backed weakness is Hermes' FIFO gateway approval queue: Gormes has Slack/Telegram approval buttons and an ApprovalResolver interface, but no shared gateway queue helper that stores pending entries, reports blocking state, resolves oldest/all entries, and clears a session boundary.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -37013,6 +37013,75 @@
                 "upstream_ref": "hermes:hermes_cli/main.py:8232-8243 logout_parser",
                 "note": "Hermes ships top-level logout in parallel with auth logout; Gormes mirrors the parallelism rather than aliasing."
               }
+            },
+            {
+              "name": "Top-level logout configured-provider fallback",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f6d45e5df hermes_cli/main.py:logout_parser + hermes_cli/auth.py:logout_command",
+                "note": "The 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing runtime, gateway, browser, Goncho, install, docs, and release gaps were complete or row-backed; this stale-complete auth CLI row was the smallest source-backed P1 weakness because Hermes accepts top-level logout with no provider and falls back to the configured OAuth provider before resetting model.provider."
+              },
+              "contract": "`gormes logout` without `--provider` falls back to the current configured provider when it is a top-level Hermes logout target (`nous` or `openai-codex`), invokes the same redacted logout helper as the explicit shortcut, and resets `hermes.provider` to `auto` after a successful or idempotent logout. Explicit `--provider {nous|openai-codex|spotify}` keeps the existing allow-list and also resets `hermes.provider` when it matched the target.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If no explicit provider and no configured fallback exists, the command exits 0 with redacted absent-state evidence instead of treating an empty provider as an unsupported provider error.",
+              "fixture": "cmd/gormes/logout_top_level_test.go",
+              "source_refs": [
+                "hermes-agent/hermes_cli/main.py:9364-9377 logout_parser",
+                "hermes-agent/hermes_cli/auth.py:4245-4284 _logout_default_provider_from_config/_reset_config_provider",
+                "hermes-agent/hermes_cli/auth.py:5323-5350 logout_command",
+                "cmd/gormes/logout.go",
+                "cmd/gormes/logout_top_level_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
+              ],
+              "ready_when": [
+                "The completed `Gormes top-level logout provider shortcut` row owns the explicit provider allow-list and shared auth logout helper.",
+                "Tests use isolated GORMES_HOME config/auth files and do not read live operator homes or credentials.",
+                "The implementation can use the native config writer to reset only `hermes.provider` without broad config migration."
+              ],
+              "not_ready_when": [
+                "The slice changes `gormes auth logout <provider>` positional semantics; this row only owns top-level `gormes logout`.",
+                "The slice clears providers outside the named or configured fallback target.",
+                "The slice prints access_token, refresh_token, auth.json bytes, or dotenv secret values.",
+                "The slice silently accepts unknown configured providers instead of returning absent-state evidence for a missing fallback."
+              ],
+              "blocked_by": [
+                "Gormes top-level logout provider shortcut"
+              ],
+              "acceptance": [
+                "TestLogoutTopLevelDefaultsToConfiguredOAuthProvider proves `gormes logout` with `hermes.provider=openai-codex` clears only the openai-codex credential pool and resets `hermes.provider` to `auto`.",
+                "TestLogoutTopLevelDefaultFallbackIsIdempotent proves `gormes logout` with `hermes.provider=nous` and no stored credentials still exits 0, reports `auth_state_absent provider=nous`, and resets the provider to `auto`.",
+                "TestLogoutTopLevelExplicitProviderResetsMatchingConfig proves an explicit `--provider nous` logout also resets `hermes.provider` when config matched the target.",
+                "TestLogoutTopLevelMissingDefaultDoesNotBecomeUnsupported proves `gormes logout` with no `--provider` and no supported configured provider exits 0 with redacted absent-state evidence rather than `auth_logout_provider_unsupported provider=`.",
+                "Existing explicit-provider shortcut tests continue to pass and prove the allow-list, redaction, and `gormes auth logout` coexistence."
+              ],
+              "note": "Complete 2026-05-09. RED: `go test ./cmd/gormes -run '^TestLogoutTopLevel' -count=1` failed because `gormes logout` with no provider returned `auth_logout_provider_unsupported provider=`. GREEN: cmd/gormes/logout.go now resolves a supported configured fallback (`nous` or `openai-codex`), delegates through the existing redacted auth logout helper, emits redacted `provider=auto` absent-state evidence when no fallback exists, and resets `hermes.provider` to `auto` when the top-level target matched config. Tests cover configured openai-codex logout, idempotent configured nous absent state, explicit matching-provider reset, missing-default absent state, existing allow-list behavior, redaction, and `gormes auth logout` coexistence.",
+              "evidence": {
+                "implementation": "cmd/gormes/logout.go",
+                "tests": "cmd/gormes/logout_top_level_test.go (TestLogoutTopLevelDefaultsToConfiguredOAuthProvider, TestLogoutTopLevelDefaultFallbackIsIdempotent, TestLogoutTopLevelExplicitProviderResetsMatchingConfig, TestLogoutTopLevelMissingDefaultDoesNotBecomeUnsupported, plus existing explicit-provider shortcut fixtures)",
+                "validation": "go test ./cmd/gormes -run '^TestLogoutTopLevel' -count=1"
+              },
+              "write_scope": [
+                "cmd/gormes/logout.go",
+                "cmd/gormes/logout_top_level_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestLogoutTopLevel' -count=1",
+                "go test ./cmd/gormes ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Top-level logout fixtures prove configured-provider fallback, idempotent absent-state reset, no unsupported-provider error for empty defaults, and no regression to explicit-provider logout behavior.",
+                "Progress evidence records the stale-complete row closure and the all-topic parity sweep source boundary."
+              ]
             },
             {
               "name": "Gormes login removed-command typo suggestion contract",
