@@ -68,6 +68,22 @@ func TestManager_AllowedUsesPlatformUserAllowlist(t *testing.T) {
 	}
 }
 
+func TestManager_GuestMentionBypassOnlyAdmitsTelegramDirectMention(t *testing.T) {
+	m := NewManager(ManagerConfig{
+		AllowedChats: map[string]string{"telegram": "-200"},
+	}, nil, slog.Default())
+
+	if !m.allowed(InboundEvent{Platform: "telegram", ChatID: "-201", AllowlistBypassReason: AllowlistBypassTelegramGuestMention}) {
+		t.Fatal("telegram guest mention bypass was blocked")
+	}
+	if m.allowed(InboundEvent{Platform: "telegram", ChatID: "-201"}) {
+		t.Fatal("non-allowlisted telegram chat without guest mention bypass was allowed")
+	}
+	if m.allowed(InboundEvent{Platform: "slack", ChatID: "C-201", AllowlistBypassReason: AllowlistBypassTelegramGuestMention}) {
+		t.Fatal("non-telegram platform used telegram guest mention bypass")
+	}
+}
+
 type fakeKernel struct {
 	mu        sync.Mutex
 	submits   []kernel.PlatformEvent

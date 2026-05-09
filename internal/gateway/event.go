@@ -183,6 +183,10 @@ type InboundEvent struct {
 	// adapter. It is injected for this turn only and never mutates global
 	// prompt or skill configuration.
 	ChannelPrompt string
+	// AllowlistBypassReason is set only by adapters for source-backed,
+	// policy-scoped admission exceptions that should pass the manager
+	// allowlist while remaining auditable.
+	AllowlistBypassReason string
 
 	ThreadLifecycle *ThreadLifecycleEvent
 
@@ -191,6 +195,8 @@ type InboundEvent struct {
 	// download and fallback behavior.
 	Attachments []Attachment
 }
+
+const AllowlistBypassTelegramGuestMention = "telegram_guest_mention"
 
 // ChatKey returns the internal/session map key shape for this event.
 func (e InboundEvent) ChatKey() string {

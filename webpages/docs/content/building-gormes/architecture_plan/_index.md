@@ -257,6 +257,7 @@ classification and row-backed implementation queue.
 - [x] Telegram semantic MarkdownV2 formatter + table rewrite
 - [x] Telegram Markdown table row-label bullet suppression
 - [x] Telegram streaming edit Markdown safety
+- [x] Telegram guest mention allowlist bypass
 - [x] Gateway platform reconnect isolation + channel health limits
 
 ### 2.B.10 — WeChat Adapter ✅
@@ -841,6 +842,7 @@ classification and row-backed implementation queue.
 - [x] Terminal deleted-cwd recovery
 - [x] search_files hidden-root and context-line parsing drift
 - [x] Structured lint delta for native write/patch tools
+- [x] Python syntax lint delta for native write/patch tools
 
 ### 5.M — Mixture of Agents 🔨
 
@@ -885,6 +887,7 @@ classification and row-backed implementation queue.
 - [x] Cron schedule parser + repeat state fixtures
 - [x] Cron recurring next-run failure preservation
 - [x] Cron prompt/script safety + pre-run script contract
+- [x] Cron GitHub auth-header scanner parity
 - [x] Cronjob tool action envelope over native store
 - [x] Cron run resource release contract
 - [x] Cron run resource release executor binding
@@ -990,6 +993,7 @@ classification and row-backed implementation queue.
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
+- [x] Platform toolset mixed composite runtime expansion
 - [x] Effective toolset picker dedupes bundled plugin keys
 - [x] Gateway, platform, webhook, and cron management CLI
 - [x] WhatsApp top-level pairing wizard shell

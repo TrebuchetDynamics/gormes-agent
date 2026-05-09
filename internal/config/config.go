@@ -79,6 +79,7 @@ type TelegramCfg struct {
 	AllowedChats           any        `toml:"allowed_chats" yaml:"allowed_chats"`
 	AllowedUserIDs         []int64    `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 	RequireMention         bool       `toml:"require_mention" yaml:"require_mention"`
+	GuestMode              bool       `toml:"guest_mode" yaml:"guest_mode"`
 	BotUsername            string     `toml:"bot_username" yaml:"bot_username"`
 	CoalesceMs             int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
 	FreshFinalAfterSeconds float64    `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
@@ -908,6 +909,13 @@ func loadEnv(cfg *Config) error {
 	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_ALLOWED_CHATS"), os.Getenv("TELEGRAM_ALLOWED_CHATS")); v != "" {
 		cfg.Telegram.AllowedChats = parseEnvCSV(v)
 	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_GUEST_MODE"), os.Getenv("TELEGRAM_GUEST_MODE")); v != "" {
+		parsed, err := parseEnvBool("TELEGRAM_GUEST_MODE", v)
+		if err != nil {
+			return err
+		}
+		cfg.Telegram.GuestMode = parsed
+	}
 	if v := os.Getenv("GORMES_DISCORD_TOKEN"); v != "" {
 		cfg.Discord.Token = v
 	}
@@ -1131,7 +1139,14 @@ func loadEnv(cfg *Config) error {
 }
 
 func parseEnvBool(name, value string) (bool, error) {
-	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+	text := strings.ToLower(strings.TrimSpace(value))
+	switch text {
+	case "yes", "on":
+		return true, nil
+	case "no", "off":
+		return false, nil
+	}
+	parsed, err := strconv.ParseBool(text)
 	if err != nil {
 		return false, fmt.Errorf("config env %s: %w", name, err)
 	}

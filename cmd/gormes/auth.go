@@ -25,14 +25,23 @@ var (
 )
 
 func newAuthCommand() *cobra.Command {
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "auth",
 		Short:        "Manage Hermes-compatible provider credentials",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			// `gormes auth --json` (no subcommand) → structured
+			// subcommand_required document instead of the
+			// human-readable credential pool table. The bare list
+			// is still available via `gormes auth list --json`.
+			if asJSON {
+				return emitJSONSubcommandRequired(cmd)
+			}
 			return runAuthBareCommand(cmd)
 		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit a machine-readable {build, action: 'subcommand_required', parent, available, error} document on stdout (the bare credential pool listing remains the default text output)")
 	cmd.AddCommand(newAuthAddCommand())
 	cmd.AddCommand(newAuthListCommand())
 	cmd.AddCommand(newAuthRemoveCommand())

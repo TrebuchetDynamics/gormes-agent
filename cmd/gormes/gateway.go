@@ -436,9 +436,11 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 			}
 			return telegram.New(telegram.Config{
 				AllowedChatID:     cfg.Telegram.AllowedChatID,
+				AllowedChatIDs:    cfg.Telegram.AllowedChatIDs(),
 				AllowedUserIDs:    cfg.Telegram.AllowedUserIDs,
 				FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
 				RequireMention:    cfg.Telegram.RequireMention,
+				GuestMode:         cfg.Telegram.GuestMode,
 				BotUsername:       cfg.Telegram.BotUsername,
 				AudioTranscriber:  telegram.NewWhisperTranscriberFromEnv(),
 				DynamicCommands:   gatewayTelegramDynamicCommands(context.Background(), cfg),

@@ -270,6 +270,7 @@ func TestLoad_TelegramRequireMentionFields(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
 [telegram]
 require_mention = true
+guest_mode = true
 bot_username = "gormes_bot"
 `), 0o644); err != nil {
 		t.Fatal(err)
@@ -282,8 +283,24 @@ bot_username = "gormes_bot"
 	if !cfg.Telegram.RequireMention {
 		t.Error("RequireMention = false, want true")
 	}
+	if !cfg.Telegram.GuestMode {
+		t.Error("GuestMode = false, want true")
+	}
 	if cfg.Telegram.BotUsername != "gormes_bot" {
 		t.Errorf("BotUsername = %q, want %q", cfg.Telegram.BotUsername, "gormes_bot")
+	}
+}
+
+func TestLoad_TelegramGuestModeEnvOverride(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("TELEGRAM_GUEST_MODE", "yes")
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Telegram.GuestMode {
+		t.Fatal("GuestMode = false, want true from TELEGRAM_GUEST_MODE")
 	}
 }
 
@@ -295,6 +312,9 @@ func TestLoad_TelegramRequireMentionDefaults(t *testing.T) {
 	}
 	if cfg.Telegram.RequireMention {
 		t.Error("RequireMention default = true, want false")
+	}
+	if cfg.Telegram.GuestMode {
+		t.Error("GuestMode default = true, want false")
 	}
 	if cfg.Telegram.BotUsername != "" {
 		t.Errorf("BotUsername default = %q, want empty", cfg.Telegram.BotUsername)

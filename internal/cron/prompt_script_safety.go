@@ -21,18 +21,28 @@ type cronThreatPattern struct {
 	id string
 }
 
+const cronSecretVarPattern = `\$\{?\w*(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)\w*\}?`
+
 var cronThreatPatterns = []cronThreatPattern{
 	mustCronThreatPattern(`ignore\s+(?:\w+\s+)*(?:previous|all|above|prior)\s+(?:\w+\s+)*instructions`, "prompt_injection"),
 	mustCronThreatPattern(`do\s+not\s+tell\s+the\s+user`, "deception_hide"),
 	mustCronThreatPattern(`system\s+prompt\s+override`, "sys_prompt_override"),
 	mustCronThreatPattern(`disregard\s+(your|all|any)\s+(instructions|rules|guidelines)`, "disregard_rules"),
-	mustCronThreatPattern(`curl\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`, "exfil_curl"),
-	mustCronThreatPattern(`wget\s+[^\n]*\$\{?\w*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|API)`, "exfil_wget"),
 	mustCronThreatPattern(`cat\s+[^\n]*(\.env|credentials|\.netrc|\.pgpass)`, "read_secrets"),
 	mustCronThreatPattern(`authorized_keys`, "ssh_backdoor"),
 	mustCronThreatPattern(`/etc/sudoers|visudo`, "sudoers_mod"),
 	mustCronThreatPattern(`rm\s+-rf\s+/`, "destructive_root_rm"),
 }
+
+var cronExfilCommandPatterns = []cronThreatPattern{
+	mustCronThreatPattern("curl\\s+[^\\n]*https?://[^\\s\"'`]*"+cronSecretVarPattern, "exfil_curl"),
+	mustCronThreatPattern("wget\\s+[^\\n]*https?://[^\\s\"'`]*"+cronSecretVarPattern, "exfil_wget"),
+	mustCronThreatPattern(`curl\s+[^\n]*(?:--data(?:-raw|-binary|-urlencode)?|-d|--form|-F)\s+[^\n]*`+cronSecretVarPattern, "exfil_curl_data"),
+	mustCronThreatPattern(`wget\s+[^\n]*--post-(?:data|file)=[^\n]*`+cronSecretVarPattern, "exfil_wget_post"),
+	mustCronThreatPattern(`curl\s+[^\n]*(?:-H|--header)\s+["']Authorization:\s*(?:Bearer|token)\s+`+cronSecretVarPattern+`["']`, "exfil_curl_auth_header"),
+}
+
+var cronGitHubAuthHeaderAllowlist = regexp.MustCompile(`(?is)curl\s+[^\n]*(?:-H|--header)\s+["']Authorization:\s*token\s+` + cronSecretVarPattern + `["']\s+["']?https://api\.github\.com(?:/|\b)`)
 
 var cronInvisibleChars = map[rune]struct{}{
 	'\u200b': {},
@@ -50,7 +60,9 @@ var cronInvisibleChars = map[rune]struct{}{
 // ScanPromptForCronThreat scans a cron prompt for Hermes critical-severity
 // prompt-injection, exfiltration, backdoor, and invisible-control patterns.
 func ScanPromptForCronThreat(prompt string) (CronSafetyFinding, bool) {
-	for _, r := range prompt {
+	promptToScan := cronGitHubAuthHeaderAllowlist.ReplaceAllString(prompt, "curl https://api.github.com/user")
+
+	for _, r := range promptToScan {
 		if _, ok := cronInvisibleChars[r]; !ok {
 			continue
 		}
@@ -64,7 +76,20 @@ func ScanPromptForCronThreat(prompt string) (CronSafetyFinding, bool) {
 	}
 
 	for _, pattern := range cronThreatPatterns {
-		match := pattern.re.FindString(prompt)
+		match := pattern.re.FindString(promptToScan)
+		if match == "" {
+			continue
+		}
+		return CronSafetyFinding{
+			Code:     "blocked_prompt",
+			ID:       pattern.id,
+			Evidence: match,
+			Message:  fmt.Sprintf("prompt matches threat pattern %q", pattern.id),
+		}, true
+	}
+
+	for _, pattern := range cronExfilCommandPatterns {
+		match := pattern.re.FindString(promptToScan)
 		if match == "" {
 			continue
 		}

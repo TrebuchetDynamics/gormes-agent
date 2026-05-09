@@ -6886,6 +6886,84 @@
               "note": "Complete 2026-05-09: RED proved Bot did not implement gateway.FinalizingMessageEditor and EditMessageFinal was missing. GREEN added Bot.EditMessageFinal with non-final exact plain-text edits, final MarkdownV2 edits, and existing parse-error plaintext fallback; Bot.EditMessage now delegates to the final-edit path to preserve legacy callers. Verification: go test ./internal/channels/telegram -run 'TestBot_EditMessageFinal|TestBot_EditMessage_SetsMarkdownV2ParseMode|TestBot_Send' -count=1; go test ./internal/channels/telegram ./internal/gateway -run 'Telegram|Coalescer|MarkdownV2|Format' -count=1."
             },
             {
+              "name": "Telegram guest mention allowlist bypass",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Telegram group admission matches Hermes guest_mode: when an operator configures an allowed_chat_id/allowed_chats allowlist and enables guest_mode, a group or supergroup outside that allowlist may reach the gateway only when the message explicitly mentions the bot by @username, text_mention user ID, or /command@botname entity. Replies to the bot, regex mention patterns, bare slash commands, and ordinary text must not bypass the allowlist.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "If guest_mode is disabled or bot identity is unavailable, Gormes keeps the existing strict allowlist behavior and drops non-allowlisted group traffic.",
+              "fixture": "internal/channels/telegram/group_mention_binding_test.go::TestBot_ToInboundEvent_GuestMode* plus internal/gateway manager admission fixture",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/telegram.py@55f518e52:_telegram_guest_mode",
+                "./hermes-agent/gateway/platforms/telegram.py@55f518e52:_is_guest_mention",
+                "./hermes-agent/gateway/platforms/telegram.py@55f518e52:_should_process_message",
+                "./hermes-agent/tests/gateway/test_telegram_group_gating.py@55f518e52:test_guest_mode_allows_only_direct_mentions_outside_allowed_chats",
+                "./hermes-agent/tests/gateway/test_telegram_group_gating.py@55f518e52:test_guest_mode_defaults_to_false_for_allowed_chat_bypass",
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/bot.go",
+                "internal/gateway/manager.go:allowed",
+                "internal/config/config.go:TelegramCfg"
+              ],
+              "ready_when": [
+                "Telegram require-mention entity parsing and bot-command suffix handling are complete.",
+                "Gateway manager admission already owns platform allowlist enforcement, so the guest-mode bypass can be represented as explicit adapter evidence instead of weakening global allowed-chat checks.",
+                "Tests can use fake Telegram updates and gateway manager fixtures without a live Telegram Bot API."
+              ],
+              "not_ready_when": [
+                "The slice treats guest_mode as a general open-group policy instead of a direct-mention-only bypass.",
+                "Replies to the bot, regex wake words, bare /status, DMs, or non-Telegram platforms bypass configured allowed_chats because of this change.",
+                "The implementation reads live Telegram config or private home directories instead of typed config and hermetic test fixtures."
+              ],
+              "blocked_by": [
+                "Telegram group require-mention bot binding",
+                "Gateway startup allowlist + weak credential guard"
+              ],
+              "acceptance": [
+                "A Telegram adapter fixture proves guest_mode=false drops a non-allowlisted group mention and guest_mode=true marks only explicit bot mentions as a guest mention bypass candidate.",
+                "A gateway manager fixture proves the guest mention candidate is admitted even when AllowedChats[\"telegram\"] points at another group, while a reply-to-bot, regex wake word, bare command, or ordinary text from the same non-allowlisted group is still rejected.",
+                "Config loading supports telegram.guest_mode and TELEGRAM_GUEST_MODE without changing existing require_mention or allowed_chat_id behavior.",
+                "Existing Telegram require-mention, bot-command suffix, DM bypass, and allowed-chat manager tests remain green."
+              ],
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/telegram.go",
+                "internal/gateway/event.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/channels/telegram/group_mention.go",
+                "internal/channels/telegram/group_mention_binding_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run 'TestBot_ToInboundEvent_GroupMentionGate|TestBot_ToInboundEvent_GuestMode' -count=1",
+                "go test ./internal/gateway -run 'TestManager_Allowed|TestManager_GuestMention' -count=1",
+                "go test ./internal/config -run 'Test.*Telegram.*Guest|TestLoad.*Telegram|TestEnv.*Telegram' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram adapter, config, and gateway admission fixtures prove Hermes guest_mode only admits explicit bot mentions from non-allowlisted groups, and progress evidence cites Hermes 55f518e52."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:55f518e52 gateway/platforms/telegram.py",
+                  "hermes:55f518e52 tests/gateway/test_telegram_group_gating.py"
+                ],
+                "note": "2026-05-09 bounded all-topic weakness sweep refreshed Hermes to dae94fa65 and Honcho to e659b6b. Sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap. Existing P1 publication/release parents are operator-blocked or non-selectable; current runtime parity gaps are complete or row-backed except latest Telegram guest mention mode, so this one P1 source-backed gateway row was added."
+              },
+              "note": "Complete 2026-05-09: RED added Telegram adapter, gateway manager, and config fixtures proving Hermes 55f518e52 guest_mode semantics. GREEN added config `telegram.guest_mode` plus `TELEGRAM_GUEST_MODE`/`GORMES_TELEGRAM_GUEST_MODE`, row-scoped `AllowlistBypassTelegramGuestMention` evidence on Telegram inbound events, and manager admission that only honors that bypass when a Telegram chat allowlist exists. Explicit @mentions, text_mention user IDs, and /command@botname entities can bypass a different allowed_chat_id/allowed_chats group when guest_mode is enabled; bare slash commands and ordinary non-allowlisted traffic remain blocked. Verification: go test ./internal/channels/telegram -run 'TestBot_ToInboundEvent_GroupMentionGate|TestBot_ToInboundEvent_GuestMode' -count=1; go test ./internal/gateway -run 'TestManager_Allowed|TestManager_GuestMention' -count=1; go test ./internal/config -run 'Test.*Telegram.*Guest|TestLoad.*Telegram|TestEnv.*Telegram' -count=1."
+            },
+            {
               "name": "Gateway platform reconnect isolation + channel health limits",
               "status": "complete",
               "priority": "P1",
@@ -28701,7 +28779,7 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. The umbrella remains planned because fuzzy matching, checkpoint rollback linkage, Python/shell lint parity, and full file_operations.py parity remain row-backed.",
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. 2026-05-09 sweep against Hermes dae94fa65 found the remaining small ready lint gap: Hermes also runs `_lint_python_inproc` through the same lint-delta path for `.py` writes/patches, while Gormes still omitted lint evidence for Python files; child row `Python syntax lint delta for native write/patch tools` is now complete. The umbrella remains planned because fuzzy matching, checkpoint rollback linkage, external shell-linter parity, and full file_operations.py parity remain row-backed.",
               "priority": "P2"
             },
             {
@@ -29760,7 +29838,7 @@
               "done_signal": [
                 "Structured lint fixtures prove JSON/YAML/TOML parse evidence appears on write_file, replace patch, and V4A patch results without preventing writes or expanding to external lint commands."
               ],
-              "note": "Complete 2026-05-09: TDD added in-process structured lint-delta evidence for native file tools. WriteFileTool now captures pre-write structured content when available, writes requested bytes, and returns lint.success/output for JSON/YAML/TOML. Replace-mode PatchTool returns the same lint evidence and marks identical parser errors as pre-existing. V4A patch add/update operations collect per-file lint evidence keyed by path. Unsupported extensions omit lint in this slice; shell/Python lint, fuzzy matching, checkpoint rollback, and full file_operations.py parity remain row-backed.",
+              "note": "Complete 2026-05-09: TDD added in-process structured lint-delta evidence for native file tools. WriteFileTool now captures pre-write structured content when available, writes requested bytes, and returns lint.success/output for JSON/YAML/TOML. Replace-mode PatchTool returns the same lint evidence and marks identical parser errors as pre-existing. V4A patch add/update operations collect per-file lint evidence keyed by path. Unsupported extensions omit lint in this slice; Python syntax lint, external shell-linter parity, fuzzy matching, checkpoint rollback, and full file_operations.py parity remain row-backed.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:0cafe7d50 tools/file_operations.py write_file/_check_lint_delta + patch_replace",
@@ -29783,12 +29861,92 @@
                   "GREEN: go test ./internal/tools -run 'Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1 passed."
                 ]
               }
+            },
+            {
+              "name": "Python syntax lint delta for native write/patch tools",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes write_file and patch preserve Hermes' post-edit Python syntax lint feedback for `.py` files: successful writes still land the requested bytes, but the tool result includes lint evidence for clean Python, syntax errors introduced by the edit, and pre-existing syntax errors that were not introduced by the edit.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Python syntax lint uses a bounded syntax-only parser path and never executes the edited module. If a parser binary is unavailable in production, the write still succeeds and omits lint evidence rather than blocking file edits or invoking terminal/execute_code.",
+              "fixture": "internal/tools/file_lint_delta_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/file_operations.py@dae94fa65:LINTERS_INPROC/_lint_python_inproc/_check_lint_delta",
+                "./hermes-agent/tools/file_operations.py@dae94fa65:write_file",
+                "./hermes-agent/tools/file_operations.py@dae94fa65:patch_replace",
+                "./hermes-agent/tools/patch_parser.py@dae94fa65:apply_v4a_operations lint collection",
+                "internal/tools/file_task_tools.go:WriteFileTool/PatchTool/structuredLintDelta"
+              ],
+              "ready_when": [
+                "Native file task tool surface, file-state registry, V4A patch mode, V4A move operation, and structured JSON/YAML/TOML lint-delta rows are complete.",
+                "The slice can use t.TempDir fixtures and syntax-only Python parsing; no live Hermes process, provider, terminal backend, checkpoint rollback, or code execution tool is required.",
+                "The row is scoped to `.py` lint result evidence after write/patch; fuzzy matching, external shell linters such as node/tsc/go vet/rustfmt, checkpoint rollback, and full file_operations.py parity remain separate follow-ups."
+              ],
+              "not_ready_when": [
+                "The implementation executes edited Python modules, writes pyc files, shells through terminal/execute_code, or exposes a model-visible Python runtime.",
+                "The implementation rejects or rolls back writes solely because Python syntax lint fails instead of matching Hermes' write-then-report behavior.",
+                "The result includes raw absolute home paths, file contents, credentials, or unbounded parser output in lint evidence."
+              ],
+              "blocked_by": [
+                "Structured lint delta for native write/patch tools"
+              ],
+              "acceptance": [
+                "TestWriteFileToolPythonLintReportsSyntaxError writes malformed `.py` content and proves the tool returns status ok plus lint.success=false evidence while the requested bytes are on disk.",
+                "TestPatchToolPythonLintDeltaPreservesPreExistingError patches a Python file that was already malformed and proves lint.message marks the syntax error as pre-existing when the edit does not introduce a distinct parser error.",
+                "TestPatchToolV4APythonLintReportsPerFile updates a Python file through mode=patch and proves lint evidence is keyed by the modified path.",
+                "Existing structured lint, write_file, patch, V4A, stale-state, and search_files fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_lint_delta_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'Test.*PythonLint|Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Python lint fixtures prove `.py` syntax evidence appears on write_file, replace patch, and V4A patch results without preventing writes or exposing Python as a model-visible runtime."
+              ],
+              "note": "Complete 2026-05-09: TDD added Python syntax lint-delta evidence to the existing native file tool lint path. WriteFileTool now captures pre-write `.py` content, writes requested bytes, and returns lint.success/output for Python syntax checks using a bounded ast.parse helper when a parser binary is available. Replace-mode PatchTool marks unchanged Python syntax errors as pre-existing, and V4A patch update operations collect per-file Python lint evidence keyed by path. The slice does not execute edited modules, write pyc files, expose Python through terminal/execute_code, roll back lint-failing writes, or broaden into fuzzy matching, checkpoint rollback, or external shell linters. The parity sweep refreshed Hermes to dae94fa65 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Drift gates for CLI command parity, provider registry, gateway platform registry, tool parity, browser provider bridge, upstream coverage, release docs, and Telegram guest mention behavior were green. The latest Telegram ignored-thread delta is not builder-ready in Gormes because the current tgbotapi dependency does not expose inbound message_thread_id. Planned rows were 13, below the 90 cap.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:dae94fa65 tools/file_operations.py _lint_python_inproc + _check_lint_delta",
+                "note": "Hermes includes Python syntax checking in the same post-edit lint-delta path already ported for structured file formats. Gormes should preserve that operator feedback while keeping Python execution unavailable to model-visible tools."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go includes `.py` in supportsStructuredLint and routes Python files through runPythonSyntaxLint.",
+                  "internal/tools/file_task_tools.go uses a bounded ast.parse helper over stdin when python3/python is available; edited modules are not executed and pyc files are not written.",
+                  "internal/tools/file_task_tools.go reuses structuredLintDelta for write_file, replace patch, and V4A patch per-file lint evidence."
+                ],
+                "tests": [
+                  "internal/tools/file_lint_delta_test.go:TestWriteFileToolPythonLintReportsSyntaxError",
+                  "internal/tools/file_lint_delta_test.go:TestPatchToolPythonLintDeltaPreservesPreExistingError",
+                  "internal/tools/file_lint_delta_test.go:TestPatchToolV4APythonLintReportsPerFile"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'Test.*PythonLint' -count=1 failed because write_file, patch, and V4A patch returned no lint object for `.py` files.",
+                  "GREEN: go test ./internal/tools -run 'Test.*PythonLint' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run 'Test.*PythonLint|Test.*StructuredLint|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -count=1 passed."
+                ]
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-09T00:00:00Z",
-            "origin_decision": "Hermes 0cafe7d50 plus recent file-operation rows show the remaining File Ops + Patches weaknesses are fuzzy patch matching, checkpoint rollback linkage, Python/shell lint parity, and full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, and structured JSON/YAML/TOML lint-delta evidence validated. The 2026-05-09 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; manifest drift gates were green, so the sweep selected and completed `Structured lint delta for native write/patch tools` as the highest-priority small builder-ready runtime slice."
+            "origin_decision": "Hermes dae94fa65 plus recent file-operation rows show the remaining File Ops + Patches weaknesses are fuzzy patch matching, checkpoint rollback linkage, external shell-linter parity, and full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, and Python syntax lint-delta evidence validated. The 2026-05-09 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows; manifest drift gates were green, so the sweep selected and completed `Python syntax lint delta for native write/patch tools` as the highest-priority small builder-ready runtime slice."
           }
         },
         "5.M": {
@@ -32772,6 +32930,89 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:755a2804 tools/cronjob_tools.py:_scan_cron_prompt",
                 "note": "Hermes defines cron creation hardening; Gormes ports it as Go-native validation helpers before the cronjob tool handler."
+              }
+            },
+            {
+              "name": "Cron GitHub auth-header scanner parity",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:783d11717+691778a08+b6ff96c05 tools/cronjob_tools.py and tests/tools/test_cronjob_tools.py",
+                "note": "Current Hermes permits bundled GitHub API Authorization-header examples for api.github.com, including quoted URLs, while keeping Authorization headers to arbitrary hosts blocked as exfiltration."
+              },
+              "contract": "Gormes refreshes the completed cron prompt scanner and cronjob tool scanner to match current Hermes cron auth-header behavior: bundled GitHub API examples that pass $GITHUB_TOKEN in Authorization headers to api.github.com, including single- or double-quoted URLs, are allowed, while Authorization headers carrying secret variables to arbitrary hosts and URL/form secret exfiltration remain blocked with stable evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If the scanner drifts, safe built-in GitHub cron skills are blocked on every tick or unsafe Authorization-header exfiltration to non-GitHub hosts is accepted.",
+              "fixture": "internal/cron/prompt_script_safety_test.go::TestScanPromptForCronThreat_GitHubAuthHeaderAllowlist and internal/tools/cronjob_tool_test.go::TestCronjobTool_GitHubAuthHeaderScannerParity",
+              "source_refs": [
+                "./hermes-agent/tools/cronjob_tools.py@783d11717:_scan_cron_prompt",
+                "./hermes-agent/tools/cronjob_tools.py@691778a08:_CRON_EXFIL_COMMAND_PATTERNS",
+                "./hermes-agent/tools/cronjob_tools.py@b6ff96c05:quoted api.github.com allowlist",
+                "./hermes-agent/tests/tools/test_cronjob_tools.py@b6ff96c05:test_authorization_header_quoted_url_allowed",
+                "./hermes-agent/tests/cron/test_cron_prompt_injection_skill.py@783d11717:test_builtin_style_github_api_example_is_allowed",
+                "internal/cron/prompt_script_safety.go:ScanPromptForCronThreat",
+                "internal/tools/cronjob_tool.go:scanCronjobPrompt"
+              ],
+              "ready_when": [
+                "Cron prompt/script safety + pre-run script contract is complete and exposes a pure scanner helper.",
+                "Cronjob tool action envelope over native store is complete and rejects create/update prompts through scanCronjobPrompt.",
+                "The slice can use pure prompt strings and temp cron stores; no scheduler tick, provider, network, GitHub token, or live skill install is required."
+              ],
+              "not_ready_when": [
+                "The slice broadens into cron scheduling, skill loading, GitHub API calls, or live gateway cron execution.",
+                "The scanner allows Authorization headers carrying secret variables to arbitrary non-api.github.com hosts.",
+                "The cronjob tool path and pure internal/cron helper diverge on the same prompt fixture."
+              ],
+              "blocked_by": [
+                "Cron prompt/script safety + pre-run script contract",
+                "Cronjob tool action envelope over native store"
+              ],
+              "acceptance": [
+                "TestScanPromptForCronThreat_GitHubAuthHeaderAllowlist fails before the pure scanner allows bare, single-quoted, and double-quoted api.github.com Authorization-token examples and passes after the allowlist is ported.",
+                "TestScanPromptForCronThreat_BlocksAuthorizationHeaderExfil fails before the pure scanner blocks Authorization headers with secret variables to arbitrary hosts and passes after the exfil pattern is narrowed.",
+                "TestCronjobTool_GitHubAuthHeaderScannerParity proves cronjob create accepts the allowed GitHub API prompt and rejects arbitrary-host Authorization-header exfiltration through the public tool envelope.",
+                "Existing cron prompt/script safety and cronjob tool fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/cron/prompt_script_safety.go",
+                "internal/cron/prompt_script_safety_test.go",
+                "internal/tools/cronjob_tool.go",
+                "internal/tools/cronjob_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1",
+                "go test ./internal/tools -run TestCronjobTool_GitHubAuthHeaderScannerParity -count=1",
+                "go test ./internal/cron ./internal/tools -run 'TestScanPromptForCronThreat_|TestCronjobTool_' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Cron scanner fixtures prove current Hermes GitHub Authorization-header allowlisting, quoted api.github.com URL support, arbitrary-host Authorization-header exfil blocking, and parity between the pure cron helper and the cronjob tool envelope."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep against Hermes 369cee018 covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap, so adding one P1 source-backed row was allowed. The stale complete row `Cron prompt/script safety + pre-run script contract` still used the older broad secret regex, while current Hermes commits 783d11717, 691778a08, and b6ff96c05 narrowed exfil detection to URL/data/Auth-header leak paths, allowed bundled api.github.com Authorization-token examples, kept arbitrary-host Authorization-header exfil blocked, and accepted quoted api.github.com URLs. TDD refreshed both the pure internal/cron scanner and the model-visible cronjob tool scanner so safe api.github.com Authorization-token examples pass and arbitrary-host Authorization-header exfiltration remains blocked.",
+              "evidence": {
+                "implementation": [
+                  "internal/cron/prompt_script_safety.go now sanitizes only current Hermes api.github.com Authorization-token curl examples, including single- and double-quoted URLs, before scanning the prompt.",
+                  "internal/cron/prompt_script_safety.go and internal/tools/cronjob_tool.go now split exfil detection into URL secret, form/data secret, wget post, and Authorization-header leak patterns while preserving existing URL/wget evidence IDs.",
+                  "internal/cron/prompt_script_safety_test.go pins pure scanner allowlist and arbitrary-host Authorization-header rejection.",
+                  "internal/tools/cronjob_tool_test.go proves the public cronjob create envelope accepts the GitHub API prompt and rejects the arbitrary-host Authorization-header prompt."
+                ],
+                "verification": [
+                  "RED: go test ./internal/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1 failed because safe GitHub auth-header prompts were blocked as exfil_curl and arbitrary-host auth-header prompts reported the old broad ID.",
+                  "RED: go test ./internal/tools -run TestCronjobTool_GitHubAuthHeaderScannerParity -count=1 failed because cronjob create rejected the quoted api.github.com Authorization-token prompt.",
+                  "GREEN: go test ./internal/cron -run 'TestScanPromptForCronThreat_(GitHubAuthHeaderAllowlist|BlocksAuthorizationHeaderExfil)' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run TestCronjobTool_GitHubAuthHeaderScannerParity -count=1 passed.",
+                  "GREEN: go test ./internal/cron ./internal/tools -run 'TestScanPromptForCronThreat_|TestCronjobTool_' -count=1 passed.",
+                  "GREEN: go test ./internal/cron ./internal/tools -count=1 passed."
+                ]
               }
             },
             {
@@ -39678,6 +39919,66 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:b35d692f hermes_cli/tools_config.py",
                 "note": "Hermes defines the persistence edge cases; Gormes should keep the first port as pure config logic before command UI wiring."
+              }
+            },
+            {
+              "name": "Platform toolset mixed composite runtime expansion",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "When a persisted platform_toolsets entry mixes a Hermes platform-default composite such as hermes-cli with explicit configurable opt-ins such as spotify, Gormes expands the composite into its native runtime toolsets while preserving the explicit opt-in and without resurrecting default-off or platform-restricted toolsets.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "Unknown composite names remain passthrough/MCP candidates with existing restricted-toolset evidence; explicit empty platform selections still stay empty; platform-default supersets are still stripped before persistence.",
+              "fixture": "internal/cli/toolset_config_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/tools_config.py@7d276bfbe:_get_platform_tools",
+                "./hermes-agent/tests/hermes_cli/test_tools_config.py@7d276bfbe:test_get_platform_tools_expands_composite_when_mixed_with_configurable",
+                "./hermes-agent/tests/hermes_cli/test_tools_config.py@7d276bfbe:test_get_platform_tools_mixed_does_not_resurrect_default_off",
+                "internal/cli/toolset_config.go",
+                "internal/cli/toolset_config_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
+              ],
+              "ready_when": [
+                "Platform toolset config persistence + MCP sentinel is validated, so PlatformStatus already has the pure helper seam for persisted platform_toolsets.",
+                "Effective toolset picker dedupes bundled plugin keys is validated, so built-in spotify metadata and duplicate runtime toolset handling are already covered."
+              ],
+              "not_ready_when": [
+                "The slice launches interactive setup/tools UI, executes plugin code, refreshes the embedded tool parity manifest, or changes SavePlatformSelection persistence semantics.",
+                "The slice widens platform-restricted toolsets such as discord, discord_admin, teams, or yuanbao onto CLI/cron/Telegram platforms."
+              ],
+              "blocked_by": [
+                "Platform toolset config persistence + MCP sentinel",
+                "Effective toolset picker dedupes bundled plugin keys"
+              ],
+              "acceptance": [
+                "A CLI platform config containing hermes-cli plus spotify returns the normal Gormes runtime toolsets such as terminal, file, web, browser, memory, delegation, code_execution, todo, session_search, skills, and the explicit spotify opt-in exactly once.",
+                "A composite-only hermes-cli config still expands to the default CLI runtime toolset set, while an explicit empty platform_toolsets list remains empty.",
+                "A configurable-only list such as terminal,file does not infer unrelated toolsets such as web.",
+                "Implicit expansion never enables default-off Home Assistant without HASS_TOKEN or platform-restricted toolsets outside their allowed platform."
+              ],
+              "write_scope": [
+                "internal/cli/toolset_config.go",
+                "internal/cli/toolset_config_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run 'TestPlatformToolsetConfig.*Composite|TestPlatformToolsetConfigMixedComposite' -count=1",
+                "go test ./internal/cli ./internal/tools -run 'TestPlatformToolset|TestEffectiveToolset' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "PlatformStatus fixtures prove mixed composite+configurable expansion, composite-only expansion, configurable-only non-expansion, explicit-empty preservation, and no default-off or platform-restricted resurrection."
+              ],
+              "note": "Complete 2026-05-09: TDD added PlatformStatus composite expansion only for configured platform-default supersets. `platform_toolsets.cli=[hermes-cli, spotify]` now expands hermes-cli back into the native CLI runtime toolsets while preserving explicit spotify exactly once; composite-only hermes-cli matches default CLI runtime toolsets; configurable-only terminal/file stays limited to those explicit toolsets; default-off Home Assistant and platform-restricted Discord toolsets stay out of implicit expansion. Evidence: go test ./internal/cli -run 'TestPlatformToolsetConfig.*Composite|TestPlatformToolsetConfigMixedComposite' -count=1.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:7d276bfbe hermes_cli/tools_config.py",
+                "note": "2026-05-09 all-topic parity weakness sweep found current Hermes fixed persisted platform_toolsets lists that mix a composite with configurable opt-ins; Gormes should express the same behavior in the existing pure Go platform status helper."
               }
             },
             {
