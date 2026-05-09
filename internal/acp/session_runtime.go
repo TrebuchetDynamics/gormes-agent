@@ -65,6 +65,7 @@ type ACPContentBlock struct {
 type RuntimePromptRequest struct {
 	SessionID string
 	Text      string
+	CWD       string
 	Blocks    []ACPContentBlock
 }
 
@@ -290,10 +291,11 @@ func (r *SessionRuntime) promptText(ctx context.Context, sessionID, text string,
 	state.running = true
 	state.cancelled = false
 	state.history = append(state.history, RuntimeMessage{Role: "user", Content: text})
+	cwd := state.CWD
 	r.mu.Unlock()
 
 	streamed := false
-	result, err := r.runner.RunPrompt(ctx, RuntimePromptRequest{SessionID: sessionID, Text: text, Blocks: blocks}, func(event PromptEvent) {
+	result, err := r.runner.RunPrompt(ctx, RuntimePromptRequest{SessionID: sessionID, Text: text, CWD: cwd, Blocks: blocks}, func(event PromptEvent) {
 		if event.Kind == PromptEventAgentMessageChunk && event.Text != "" {
 			streamed = true
 		}

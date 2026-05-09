@@ -26785,12 +26785,77 @@
                 "upstream_ref": "hermes:b816fd4e2 acp_adapter/entry.py",
                 "note": "Hermes suppresses noisy ACP client health-probe tracebacks while preserving stdout JSON-RPC framing. Gormes now ports the behavior in the native ACP JSON-RPC server and Cobra entrypoint without starting an editor client or provider."
               }
+            },
+            {
+              "name": "ACP session CWD propagation into prompt runners",
+              "priority": "P0",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' ACP task-cwd propagation fix by carrying the translated ACP session CWD into every RuntimePromptRequest handed to the prompt runner, including new, loaded/resumed, and queued prompt turns. Foreground terminal/file tools can then default to the editor task workspace, while explicit tool workdir arguments remain tool-local and continue to override the session CWD.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing or blank ACP session cwd leaves RuntimePromptRequest.CWD empty rather than inventing a process cwd; the runner can still use its own safe default, and no live terminal command or provider call is required for this slice.",
+              "fixture": "internal/acp/session_runtime_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/terminal_tool.py@b349ae1e4:terminal_tool",
+                "./hermes-agent/tests/tools/test_terminal_task_cwd.py@b349ae1e4",
+                "./hermes-agent/acp_adapter/session.py@b816fd4e2",
+                "internal/acp/session_runtime.go",
+                "internal/acp/session_runtime_test.go",
+                "internal/tools/terminal_tool.go"
+              ],
+              "ready_when": [
+                "ACP JSON-RPC stdio session/prompt closeout is complete, so RuntimePromptRequest is the native seam for prompt execution.",
+                "The worker can test with an injected PromptRunner and in-memory sessions only; no editor client, live terminal command, provider, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice starts a shell command or rewrites terminal tool workdir resolution instead of only carrying the ACP session cwd through the prompt boundary.",
+                "Queued prompts, load, or resume lose the session cwd and fall back to process cwd silently.",
+                "Explicit tool-level workdir override semantics are changed."
+              ],
+              "blocked_by": [
+                "ACP JSON-RPC stdio session/prompt closeout"
+              ],
+              "acceptance": [
+                "TestACPJSONRPCPromptCarriesSessionCWD proves a new ACP session prompt passes the translated session cwd to the PromptRunner.",
+                "TestACPJSONRPCQueuedPromptCarriesSessionCWD proves queued prompt drains preserve the same session cwd through recursive prompt execution.",
+                "TestACPJSONRPCLoadResumeUpdatesPromptCWD proves load/resume refresh the stored cwd before the next prompt reaches the runner."
+              ],
+              "write_scope": [
+                "internal/acp/session_runtime.go",
+                "internal/acp/session_runtime_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1",
+                "go test ./internal/acp -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "ACP runtime fixtures prove new, queued, loaded, and resumed prompts carry the translated session CWD into the prompt runner without shelling out."
+              ],
+              "note": "Complete: the 2026-05-09 Hermes parity sweep refreshed Hermes to 0bcc327ca and found b349ae1e4's ACP task-cwd fix. TDD added RuntimePromptRequest.CWD and session-runtime fixtures proving new, queued, loaded, and resumed ACP prompts pass the translated session cwd to the prompt runner. The slice does not start terminal commands, change explicit tool workdir overrides, call providers, or shell out to Hermes Python.",
+              "evidence": [
+                "RED: go test ./internal/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1 failed because RuntimePromptRequest had no CWD field.",
+                "GREEN: go test ./internal/acp -run 'TestACPJSONRPC.*CWD|TestACPLoadResumeUpdatesPromptCWD' -count=1 passed after threading session CWD into RuntimePromptRequest.",
+                "ROW: go test ./internal/acp -count=1 passed."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:b349ae1e4 tools/terminal_tool.py + tests/tools/test_terminal_task_cwd.py",
+                "note": "Hermes fixed ACP foreground terminal commands by honoring the task/session cwd when no explicit workdir is supplied. Gormes' native ACP seam must carry that cwd to the prompt/tool runtime before terminal bindings can rely on it."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-05T00:00:00Z",
-            "origin_decision": "Hermes b816fd4e2 ACP tests remain the source of truth for editor interoperability. Gormes has ACP manifest classification and local client bridge rows, but the 2026-05-05 parity sweep found no live stdio JSON-RPC server/session/prompt/permission/multimodal closeout behavior. That gap is now tracked as `ACP JSON-RPC stdio session/prompt closeout` without treating the manifest row as full ACP parity."
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Hermes 0bcc327ca is current for this sweep. Existing Gormes ACP rows cover manifest, client bridge, JSON-RPC stdio session/prompt closeout, and benign probe suppression, and the 2026-05-09 builder pass now ports b349ae1e4's ACP task-cwd propagation fix through RuntimePromptRequest.CWD. Broader OpenRouter Pareto routing, gateway transcript replay metadata, and Teams lazy-import deltas remain separate source-backed findings for future cycles rather than expanding this pass beyond one row."
           }
         },
         "5.I": {

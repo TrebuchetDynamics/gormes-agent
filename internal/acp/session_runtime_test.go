@@ -5,7 +5,114 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 )
+
+func TestACPJSONRPCPromptCarriesSessionCWD(t *testing.T) {
+	var got []string
+	runtime := NewSessionRuntime(SessionRuntimeConfig{
+		IDGenerator: func() string {
+			return "cwd-session"
+		},
+		Runner: PromptRunnerFunc(func(ctx context.Context, req RuntimePromptRequest, emit func(PromptEvent)) (PromptResult, error) {
+			got = append(got, req.CWD)
+			return PromptResult{Final: "ok", StopReason: "end_turn"}, nil
+		}),
+	})
+	sess, err := runtime.NewSession(context.Background(), "C:\\Workspace\\Paperclip")
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+
+	if _, err := runtime.Prompt(context.Background(), RuntimePromptRequest{
+		SessionID: sess.ID,
+		Text:      "pwd",
+	}, func(PromptEvent) {}); err != nil {
+		t.Fatalf("Prompt: %v", err)
+	}
+
+	if !reflect.DeepEqual(got, []string{"/mnt/c/Workspace/Paperclip"}) {
+		t.Fatalf("runner CWDs = %v, want translated ACP cwd", got)
+	}
+}
+
+func TestACPJSONRPCQueuedPromptCarriesSessionCWD(t *testing.T) {
+	var got []string
+	runtime := NewSessionRuntime(SessionRuntimeConfig{
+		IDGenerator: func() string {
+			return "queue-cwd-session"
+		},
+		Runner: PromptRunnerFunc(func(ctx context.Context, req RuntimePromptRequest, emit func(PromptEvent)) (PromptResult, error) {
+			got = append(got, req.Text+"@"+req.CWD)
+			return PromptResult{Final: "ran:" + req.Text, StopReason: "end_turn"}, nil
+		}),
+	})
+	sess, err := runtime.NewSession(context.Background(), "/repo/acp")
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+
+	if _, err := runtime.Prompt(context.Background(), RuntimePromptRequest{
+		SessionID: sess.ID,
+		Text:      "/queue second",
+	}, func(PromptEvent) {}); err != nil {
+		t.Fatalf("queue Prompt: %v", err)
+	}
+	if _, err := runtime.Prompt(context.Background(), RuntimePromptRequest{
+		SessionID: sess.ID,
+		Text:      "first",
+	}, func(PromptEvent) {}); err != nil {
+		t.Fatalf("first Prompt: %v", err)
+	}
+
+	want := []string{"first@/repo/acp", "second@/repo/acp"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("runner prompts/CWDs = %v, want %v", got, want)
+	}
+}
+
+func TestACPLoadResumeUpdatesPromptCWD(t *testing.T) {
+	var got []string
+	sessions := session.NewMemMap()
+	runtime := NewSessionRuntime(SessionRuntimeConfig{
+		SessionMap: sessions,
+		IDGenerator: func() string {
+			return "load-cwd-session"
+		},
+		Runner: PromptRunnerFunc(func(ctx context.Context, req RuntimePromptRequest, emit func(PromptEvent)) (PromptResult, error) {
+			got = append(got, req.Text+"@"+req.CWD)
+			return PromptResult{Final: "ok", StopReason: "end_turn"}, nil
+		}),
+	})
+	sess, err := runtime.NewSession(context.Background(), "/initial")
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	if _, err := runtime.LoadSession(context.Background(), sess.ID, "/loaded"); err != nil {
+		t.Fatalf("LoadSession: %v", err)
+	}
+	if _, err := runtime.Prompt(context.Background(), RuntimePromptRequest{
+		SessionID: sess.ID,
+		Text:      "after load",
+	}, func(PromptEvent) {}); err != nil {
+		t.Fatalf("load Prompt: %v", err)
+	}
+	if _, err := runtime.ResumeSession(context.Background(), sess.ID, "D:\\Resume\\Repo"); err != nil {
+		t.Fatalf("ResumeSession: %v", err)
+	}
+	if _, err := runtime.Prompt(context.Background(), RuntimePromptRequest{
+		SessionID: sess.ID,
+		Text:      "after resume",
+	}, func(PromptEvent) {}); err != nil {
+		t.Fatalf("resume Prompt: %v", err)
+	}
+
+	want := []string{"after load@/loaded", "after resume@/mnt/d/Resume/Repo"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("runner prompts/CWDs = %v, want %v", got, want)
+	}
+}
 
 func TestACPJSONRPCSlashSteerAndQueue(t *testing.T) {
 	var prompts []string

@@ -784,6 +784,7 @@ classification and row-backed implementation queue.
 - [x] ACP Client Bridge Mode
 - [x] ACP JSON-RPC stdio session/prompt closeout
 - [x] ACP stdio benign ping/probe suppression
+- [x] ACP session CWD propagation into prompt runners
 
 ### 5.I — Plugins Architecture ✅
 
