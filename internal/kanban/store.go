@@ -1250,10 +1250,27 @@ func (s *Store) ensureColumn(ctx context.Context, table, name, definition string
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("scan kanban %s schema: %w", table, err)
 	}
-	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, definition)); err != nil {
+	if err := s.addColumnIfMissing(ctx, table, name, definition); err != nil {
 		return fmt.Errorf("migrate kanban %s.%s: %w", table, name, err)
 	}
 	return nil
+}
+
+func (s *Store) addColumnIfMissing(ctx context.Context, table, name, definition string) error {
+	if _, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, name, definition)); err != nil {
+		if isDuplicateColumnMigrationError(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func isDuplicateColumnMigrationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "duplicate column name")
 }
 
 func validWorkspaceKind(kind WorkspaceKind) bool {

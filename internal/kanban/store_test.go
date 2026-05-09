@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -50,6 +51,39 @@ func TestKanbanStorePromotesChildAfterParentCompletes(t *testing.T) {
 	}
 	if got.Status != StatusReady {
 		t.Fatalf("child after parent complete Status = %q, want %q", got.Status, StatusReady)
+	}
+}
+
+func TestKanbanStoreAddColumnIfMissingIgnoresDuplicateColumnRace(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	if err := store.addColumnIfMissing(ctx, "tasks", "spawn_failures", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		t.Fatalf("addColumnIfMissing duplicate column error = %v, want nil", err)
+	}
+
+	if err := store.addColumnIfMissing(ctx, "tasks", "race_optional", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		t.Fatalf("addColumnIfMissing new column error = %v", err)
+	}
+	rows, err := store.db.QueryContext(ctx, `SELECT race_optional FROM tasks LIMIT 0`)
+	if err != nil {
+		t.Fatalf("race_optional column not queryable after migration: %v", err)
+	}
+	rows.Close()
+
+	if err := store.addColumnIfMissing(ctx, "tasks", "race_optional", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		t.Fatalf("addColumnIfMissing repeated duplicate error = %v, want nil", err)
+	}
+	err = store.ensureColumn(ctx, "missing_table", "race_optional", "TEXT")
+	if err == nil {
+		t.Fatal("addColumnIfMissing missing table error = nil, want non-duplicate migration failure")
+	}
+	if !strings.Contains(err.Error(), "migrate kanban missing_table.race_optional") {
+		t.Fatalf("missing table error = %v, want table/column migrate evidence", err)
 	}
 }
 
