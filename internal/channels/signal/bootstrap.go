@@ -315,8 +315,8 @@ func (b *Bootstrap) healthCheck(ctx context.Context) error {
 // ---------------------------------------------------------------------------
 
 func (b *Bootstrap) sseListener(ctx context.Context, release func()) {
-	defer release()
 	defer close(b.done)
+	defer release()
 
 	accountEncoded := url.QueryEscape(b.cfg.Account)
 	sseURL := fmt.Sprintf("%s/api/v1/events?account=%s", b.cfg.HTTPURL, accountEncoded)
@@ -410,10 +410,10 @@ func (b *Bootstrap) handleEventEnvelope(dataStr string) {
 func (b *Bootstrap) parseDataMessage(envelope json.RawMessage) *InboundMessage {
 	var env struct {
 		Envelope struct {
-			Source       string `json:"source"`
-			SourceName   string `json:"sourceName"`
-			SourceUUID   string `json:"sourceUuid"`
-			DataMessage  *struct {
+			Source      string `json:"source"`
+			SourceName  string `json:"sourceName"`
+			SourceUUID  string `json:"sourceUuid"`
+			DataMessage *struct {
 				Message   string `json:"message"`
 				GroupInfo *struct {
 					GroupID   string `json:"groupId"`
@@ -654,8 +654,8 @@ func (b *Bootstrap) send(ctx context.Context, recipientID string, groupID *strin
 
 	plainText, bodyRanges := MarkdownToSignal(text)
 	params := sendParams{
-		Account:   b.cfg.Account,
-		Message:   plainText,
+		Account:    b.cfg.Account,
+		Message:    plainText,
 		TextStyles: buildTextStyles(bodyRanges),
 	}
 
