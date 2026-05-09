@@ -698,6 +698,7 @@ classification and row-backed implementation queue.
 - [x] go-browser-harness Chromedp action backend
 - [ ] Rod
 - [x] Browser provider bridge + Firecrawl fallback
+- [x] Camofox REST browser mode and managed identity bridge
 - [x] Browser Use cloud + Go browser harness bridge
 - [x] Go browser-harness Hermes browser_* tool wrappers
 - [x] Go-native Hermes web_search/web_extract tool wrappers

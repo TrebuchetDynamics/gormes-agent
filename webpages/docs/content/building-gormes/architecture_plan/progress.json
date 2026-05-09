@@ -21768,6 +21768,106 @@
               }
             },
             {
+              "name": "Camofox REST browser mode and managed identity bridge",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes ports Hermes' Camofox browser mode as a fakeable REST backend seam without starting a browser: CAMOFOX_URL enables the Camofox path only when BROWSER_CDP_URL is blank, managed persistence derives stable profile-scoped user_id and task-scoped session_key values with Hermes' uuid5 namespace contract, first-session creation POSTs /tabs with userId/sessionKey/url through an injected HTTP client, soft cleanup drops local state without DELETE when managed persistence is enabled, and hard close DELETEs /sessions/{user_id} with bounded redacted evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing CAMOFOX_URL, explicit BROWSER_CDP_URL override, malformed tab-create responses, and close failures return typed browser_provider evidence without live browser startup, DNS, Camofox calls, raw profile paths, cookies, or unbounded response bodies.",
+              "fixture": "internal/tools/browser_camofox_bridge_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/browser_camofox.py:is_camofox_mode",
+                "./hermes-agent/tools/browser_camofox.py:_get_session",
+                "./hermes-agent/tools/browser_camofox.py:_ensure_tab",
+                "./hermes-agent/tools/browser_camofox.py:camofox_close",
+                "./hermes-agent/tools/browser_camofox.py:camofox_soft_cleanup",
+                "./hermes-agent/tools/browser_camofox_state.py:get_camofox_identity",
+                "./hermes-agent/tests/tools/test_browser_camofox.py:TestCamofoxMode",
+                "./hermes-agent/tests/tools/test_browser_camofox_persistence.py:TestManagedPersistenceMode",
+                "./hermes-agent/tests/tools/test_browser_camofox_persistence.py:TestCamofoxSoftCleanup",
+                "internal/tools/browser_provider_bridge.go",
+                "internal/tools/browser_hybrid_routing.go",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json"
+              ],
+              "ready_when": [
+                "Browser action contract, Browser Use/go-browser-harness bridge, Browserbase/Firecrawl provider bridge, and Camofox private-URL override semantics are validated.",
+                "Tests can inject fake HTTP clients, fake profile roots, and synthetic task IDs; no Camofox server, browser, CDP socket, DNS, Browserbase, Firecrawl, Browser Use, Python import, or live profile directory is required.",
+                "The slice is limited to Camofox mode/config/session identity and cleanup semantics; browser action routing remains on the existing gormes.browser.action.v1 contract."
+              ],
+              "not_ready_when": [
+                "The slice starts Camofox, Chrome, Rod, chromedp, Browser Use, Browserbase, Firecrawl, or any live browser service in required tests.",
+                "The implementation reads Hermes homes, copies browser profiles/cookies, or treats BROWSER_CDP_URL as lower priority than CAMOFOX_URL.",
+                "The bridge sends private/LAN URLs to a cloud provider instead of preserving the existing local-sidecar and Camofox-mode guard behavior."
+              ],
+              "blocked_by": [
+                "Browser action contract + event transcript",
+                "Browser provider bridge + Firecrawl fallback",
+                "Browser hybrid private-URL local sidecar routing"
+              ],
+              "unblocks": [
+                "Browser action runtime provider selection",
+                "Browser provider status reporting",
+                "Browser-harness optional live smoke docs"
+              ],
+              "acceptance": [
+                "TestCamofoxConfigMode proves CAMOFOX_URL enables Camofox, blank BROWSER_CDP_URL does not suppress it, nonblank BROWSER_CDP_URL suppresses it, and missing CAMOFOX_URL returns browser_provider_unconfigured without HTTP calls.",
+                "TestCamofoxManagedIdentityMatchesHermesUUID5 proves a fixed state root produces Hermes-compatible user_id/session_key values and that the same profile reuses user_id while task IDs change session_key.",
+                "TestCamofoxCreateSessionPostsTabWithIdentity proves fake HTTP receives POST /tabs with userId, sessionKey, and about:blank; the result records browser-camofox provider, tab id, compatibility session id, managed flag, and no CDP URL.",
+                "TestCamofoxSoftCleanupAndClose prove managed soft cleanup drops local state without HTTP DELETE, unmanaged soft cleanup returns skipped, and close DELETEs /sessions/{user_id} through the fake client with redacted cleanup evidence.",
+                "TestCamofoxCreateSessionErrorsRedacted proves create failures keep bounded Camofox failure context while redacting base URLs and profile-state roots."
+              ],
+              "note": "Complete 2026-05-09: TDD landed internal/tools/browser_camofox_bridge.go and browser_camofox_bridge_test.go. Gormes now has a fakeable Camofox REST backend seam with CAMOFOX_URL/BROWSER_CDP_URL mode priority, Hermes-compatible uuid5 managed identity, POST /tabs session creation through injected HTTP, REST-only provider-neutral session mapping, local-only managed soft cleanup, hard close DELETE /sessions/{user_id}, and bounded/redacted degraded evidence. Tests use fake HTTP and never start Camofox, Chrome, Rod, chromedp, Browser Use, Browserbase, Firecrawl, DNS, Python imports, or live profile directories.",
+              "outputs": [
+                "internal/tools/browser_camofox_bridge.go",
+                "internal/tools/browser_camofox_bridge_test.go"
+              ],
+              "write_scope": [
+                "internal/tools/browser_camofox_bridge.go",
+                "internal/tools/browser_camofox_bridge_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run '^TestCamofox' -count=1",
+                "go test ./internal/tools -run 'TestBrowserProvider|TestBrowserUse|TestBrowserHarness|TestCamofox' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Camofox bridge fixtures prove mode priority, Hermes-compatible managed identity, fake /tabs creation, soft cleanup, hard close, and redacted degraded evidence without live browser or Camofox calls."
+              ],
+              "evidence": [
+                "TestCamofoxConfigMode proves CAMOFOX_URL enables Camofox, blank BROWSER_CDP_URL does not suppress it, nonblank BROWSER_CDP_URL suppresses it, and missing config returns browser_provider_unconfigured without HTTP calls.",
+                "TestCamofoxManagedIdentityMatchesHermesUUID5 proves Gormes matches Hermes' uuid5 namespace contract for user_id and session_key values.",
+                "TestCamofoxCreateSessionPostsTabWithIdentity proves fake POST /tabs carries userId/sessionKey/about:blank and maps the tab response into a REST-only browser-camofox session.",
+                "TestCamofoxSoftCleanupAndClose proves managed soft cleanup is local-only, unmanaged soft cleanup is skipped, and hard close DELETEs the Camofox user session through the fake client.",
+                "TestCamofoxCreateSessionErrorsRedacted proves create-failure evidence is bounded and redacts the Camofox base URL and profile state root."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-09T00:00:00Z",
+                "last_success": "2026-05-09T00:00:00Z",
+                "backends_tried": [
+                  "codex"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:tools/browser_camofox.py",
+                  "hermes:tools/browser_camofox_state.py",
+                  "hermes:tests/tools/test_browser_camofox.py",
+                  "hermes:tests/tools/test_browser_camofox_persistence.py"
+                ],
+                "note": "Parity sweep 2026-05-09 found Camofox exposed in Hermes browser tools and Gormes manifests but missing a builder-ready REST/session bridge row."
+              }
+            },
+            {
               "name": "Browser Use cloud + Go browser harness bridge",
               "status": "complete",
               "contract": "Fakeable Browser Use provider and Go browser harness command bridge implements Hermes' BrowserUseProvider session shape and browser operator workflow without starting a live browser: config detects direct BROWSER_USE_API_KEY or managed gateway state, CreateSession records id, cdpUrl/connectUrl, liveUrl, feature flags, timeout/proxy/profile inputs, and external_call_id with redacted evidence; Stop/Cleanup PATCHes action=stop; the default command runner builds argv as go-browser-harness --action-json gormes.browser.action.v1 plus a sanitized BU_NAME environment, while browser-harness -c remains explicit legacy compatibility only; harness stdout/stderr and screenshot/text outputs normalize into BrowserResultEnvelope with artifact budgeting.",
