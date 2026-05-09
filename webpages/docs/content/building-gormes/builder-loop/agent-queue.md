@@ -90,24 +90,4 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Built-with-Gormes page scaffold
-
-- Phase: 8 / 8.G
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: A page at gormes.ai/built-with (or equivalent path on the docs site) lists real production deployments of Gormes, even if there is initially only one entry (the operator's own). The page has a documented submission process (PR-based) and a template entry shape. The point is to make the slot exist so it can be filled, not to fake usage.
-- Trust class: operator
-- Ready when: Landing page exists., An entry template (yaml or md) is decided.
-- Not ready when: Entries are fabricated., The submission process is unwritten.
-- Degraded mode: Without the page, even genuine outside users have no place to land their name; reputation compounds through visibility.
-- Fixture: `webpages/landing/src/pages/built-with.astro (or equivalent)`
-- Write scope: `webpages/landing/src/`, `CONTRIBUTING.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `(cd webpages/landing && npm run test:e2e)`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Public page live with at least one truthful entry; submission process documented.
-- Acceptance: /built-with (or chosen path) is reachable on the public landing site., The page renders at least one real entry (operator's own deployment, with truthful description)., A submission template + PR-based process is documented either inline on the page or in CONTRIBUTING.md.
-- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
 <!-- PROGRESS:END -->

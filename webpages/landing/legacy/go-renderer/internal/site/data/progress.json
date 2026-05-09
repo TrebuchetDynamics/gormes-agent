@@ -50536,26 +50536,28 @@
             {
               "name": "Built-with-Gormes page scaffold",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
-              "contract": "A page at gormes.ai/built-with (or equivalent path on the docs site) lists real production deployments of Gormes, even if there is initially only one entry (the operator's own). The page has a documented submission process (PR-based) and a template entry shape. The point is to make the slot exist so it can be filled, not to fake usage.",
-              "contract_status": "draft",
+              "contract": "A page at gormes.ai/built-with lists real deployments or self-hosted uses of Gormes from a repo-owned entry template. The initial page may contain only TrebuchetDynamics' own operator deployment, but it must label that truthfully, avoid fabricated users, and document the PR-based submission process plus the required entry fields inline.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
                 "operator"
               ],
               "degraded_mode": "Without the page, even genuine outside users have no place to land their name; reputation compounds through visibility.",
-              "fixture": "webpages/landing/src/pages/built-with.astro (or equivalent)",
+              "fixture": "webpages/landing/src/data/builtWith.js + webpages/landing/src/pages/built-with.astro + webpages/landing/tests/home.spec.mjs",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
-                "webpages/landing/"
+                "webpages/landing/README.md",
+                "webpages/landing/src/pages/index.astro",
+                "webpages/landing/tests/home.spec.mjs"
               ],
               "ready_when": [
                 "Landing page exists.",
-                "An entry template (yaml or md) is decided."
+                "Entry template is decided as the exported field shape in `webpages/landing/src/data/builtWith.js`: name, href, operator, status, summary, proof, stack, and submissionContact."
               ],
               "not_ready_when": [
                 "Entries are fabricated.",
@@ -50568,11 +50570,14 @@
                 "A submission template + PR-based process is documented either inline on the page or in CONTRIBUTING.md."
               ],
               "write_scope": [
-                "webpages/landing/src/",
-                "CONTRIBUTING.md",
+                "webpages/landing/src/data/landing.js",
+                "webpages/landing/src/data/builtWith.js",
+                "webpages/landing/src/pages/built-with.astro",
+                "webpages/landing/tests/home.spec.mjs",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
+                "(cd webpages/landing && npm run build)",
                 "(cd webpages/landing && npm run test:e2e)",
                 "go run ./cmd/progress validate",
                 "git diff --check"
@@ -50580,7 +50585,21 @@
               "done_signal": [
                 "Public page live with at least one truthful entry; submission process documented."
               ],
-              "note": "Source: success-plan.md Q3 community surface."
+              "note": "Source: success-plan.md Q3 community surface. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing runtime parity gaps were complete or row-backed, while public community proof remained a vague planned row. Planner sharpened this existing row instead of adding a new row: the entry template is a repo-owned JS data shape, the page is `/built-with`, the first allowed entry is TrebuchetDynamics' own operator deployment, and Playwright owns reachability/submission-process coverage. Complete 2026-05-09: `/built-with` is a static Astro page with one truthful TrebuchetDynamics operator-loop entry, inline required-field submission guidance, and a homepage Explore link.",
+              "evidence": {
+                "implementation": [
+                  "webpages/landing/src/data/builtWith.js defines the entry template fields and the initial truthful TrebuchetDynamics operator-loop entry.",
+                  "webpages/landing/src/pages/built-with.astro renders `/built-with`, the deployment entry, proof/stack fields, and inline PR submission rules.",
+                  "webpages/landing/src/data/landing.js links the page from the Explore section.",
+                  "webpages/landing/tests/home.spec.mjs covers route reachability, truthful entry copy, submission template fields, and no fabricated example customers."
+                ],
+                "verification": [
+                  "RED: `timeout 20m sh -c 'cd webpages/landing && npx playwright test tests/home.spec.mjs --project=chromium --grep \"built-with page\"'` failed with 404: Not Found before the route existed.",
+                  "GREEN: focused built-with Playwright test passed after implementation.",
+                  "`timeout 20m sh -c 'cd webpages/landing && npm run build'` passed and generated `/built-with/index.html`.",
+                  "`timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'` passed 6 Playwright tests."
+                ]
+              }
             }
           ]
         }

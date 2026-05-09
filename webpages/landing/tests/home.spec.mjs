@@ -141,6 +141,24 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('button.copy-btn')).toHaveCount(2);
 });
 
+test('built-with page lists truthful deployments and submission template', async ({ page }) => {
+  await page.goto('/built-with');
+
+  await expect(page).toHaveTitle('Built with Gormes — Real Deployments and Self-Hosted Uses');
+  await expect(page.getByRole('heading', { name: 'Built with Gormes' })).toBeVisible();
+  await expect(page.getByText('Real deployments only. No fabricated customer logos, no placeholder companies.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'TrebuchetDynamics operator loop' })).toBeVisible();
+  await expect(page.getByText('TrebuchetDynamics', { exact: true })).toBeVisible();
+  await expect(page.getByText('Self-hosted operator deployment')).toBeVisible();
+  await expect(page.getByText('Runs the autonomous Hermes-to-Go porting loop against the public Gormes repository.')).toBeVisible();
+  await expect(page.getByText('development branch progress.json, Go test gates, GitHub Actions release workflow')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Submit a deployment' })).toBeVisible();
+  await expect(page.getByText('Open a pull request that adds one entry to webpages/landing/src/data/builtWith.js.')).toBeVisible();
+  await expect(page.getByText('Required fields: name, href, operator, status, summary, proof, stack, submissionContact.')).toBeVisible();
+  await expect(page.locator('main')).not.toContainText('Acme');
+  await expect(page.locator('main')).not.toContainText('Example customer');
+});
+
 // Long-term bulletproof: the page must stay readable as content
 // grows (longer phase names, more ledger rows, more feature cards).
 // Parametrize over multiple mobile widths so narrow viewports catch

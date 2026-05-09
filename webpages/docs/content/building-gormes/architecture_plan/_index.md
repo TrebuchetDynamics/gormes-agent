@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 86/100 subphases shipped · 10 in progress · 4 planned
+**Overall:** 87/100 subphases shipped · 10 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -98,7 +98,7 @@ classification and row-backed implementation queue.
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 
 ---
 
@@ -1276,9 +1276,9 @@ classification and row-backed implementation queue.
 
 - [x] Loop $/iteration cost metric in status file
 
-### 8.G — Community & External Contributions ⏳
+### 8.G — Community & External Contributions ✅
 
-- [ ] Built-with-Gormes page scaffold
+- [x] Built-with-Gormes page scaffold
 
 <!-- PROGRESS:END -->
 
