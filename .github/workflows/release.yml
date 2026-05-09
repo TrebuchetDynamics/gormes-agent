@@ -197,12 +197,37 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Stage install scripts as release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Bundle install.sh and install.ps1 alongside the platform
+          # tarballs so the canonical release URL pattern works:
+          #   curl -fsSL https://github.com/.../releases/download/${TAG}/install.sh
+          # Without this, users following the natural release URL hit
+          # 404 and have to know about https://gormes.ai/install.sh —
+          # which is the same file but undocumented from the GitHub
+          # release page.
+          cp install.sh dist/install.sh
+          cp scripts/install.ps1 dist/install.ps1
+
       - name: Build release notes
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
           {
             echo "## Install"
+            echo '```bash'
+            echo "# Linux/macOS/WSL2 (downloads release binary)"
+            echo "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/download/${GITHUB_REF_NAME}/install.sh | sh"
+            echo '```'
+            echo '```powershell'
+            echo "# Native Windows"
+            echo "irm https://github.com/TrebuchetDynamics/gormes-agent/releases/download/${GITHUB_REF_NAME}/install.ps1 -OutFile install.ps1"
+            echo "powershell -ExecutionPolicy Bypass -File .\\install.ps1"
+            echo '```'
+            echo ""
+            echo "Or download a platform tarball directly:"
             echo '```bash'
             echo "# Linux amd64"
             echo "curl -LO https://github.com/TrebuchetDynamics/gormes-agent/releases/download/${GITHUB_REF_NAME}/gormes-${version}-linux-amd64.tar.gz"
@@ -234,4 +259,6 @@ jobs:
             dist/*.tar.gz
             dist/*.sha256
             dist/*.sbom.json
+            dist/install.sh
+            dist/install.ps1
           body_path: release-notes.md

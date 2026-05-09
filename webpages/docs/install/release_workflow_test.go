@@ -181,6 +181,51 @@ func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
 	)
 }
 
+// TestReleaseWorkflowPublishesInstallScripts pins the regression
+// observed during the v0.2.0 fresh-install probe: a curl following
+// the natural URL pattern
+//
+//	https://github.com/.../releases/download/v0.2.0/install.sh
+//
+// hit 404. install.sh and install.ps1 were not GitHub release assets;
+// users had to know the canonical landing-served path
+// (https://gormes.ai/install.sh) to bootstrap from a tagged release.
+//
+// Contract: every tagged release MUST carry install.sh and
+// install.ps1 alongside the platform tarballs. The publish step
+// copies them out of the source checkout into dist/ before the
+// softprops upload, and surfaces them in the release notes "Install"
+// block so the URL pattern is discoverable without reading the
+// landing site.
+func TestReleaseWorkflowPublishesInstallScripts(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v2")
+
+	wantInUploadGlob := []string{
+		"install.sh",
+		"install.ps1",
+	}
+	for _, want := range wantInUploadGlob {
+		if !strings.Contains(publishStep, want) {
+			t.Errorf("softprops publish step must upload %q as a release asset; current step:\n%s", want, publishStep)
+		}
+	}
+
+	// Surface in release notes so the GitHub release page itself
+	// documents the canonical curl URL — operators don't need to
+	// already know about gormes.ai/install.sh to bootstrap.
+	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
+	wantInNotes := []string{
+		"install.sh",
+		"install.ps1",
+	}
+	for _, want := range wantInNotes {
+		if !strings.Contains(notesStep, want) {
+			t.Errorf("release notes step must reference %q so the GitHub release page documents the install URL; current step:\n%s", want, notesStep)
+		}
+	}
+}
+
 func readRepoFileRelease(t *testing.T, rel string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))
