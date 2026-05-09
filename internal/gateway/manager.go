@@ -739,7 +739,8 @@ func (m *Manager) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			cancel()
-			wg.Wait()
+			m.safeChannelDisconnectAll(context.Background(), channels, "during shutdown")
+			m.waitForChannelWorkers(&wg, DefaultChannelDisconnectTimeoutFromEnv(), "shutdown")
 			zero := 0
 			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 				GatewayState: GatewayStateStopped,
@@ -747,7 +748,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			})
 			return nil
 		case failure := <-failures:
-			m.safeChannelDisconnect(ctx, failure.channel)
+			m.safeChannelDisconnect(ctx, failure.channel, "after failed startup")
 			if firstFailure == nil {
 				firstFailure = failure.err
 			}
@@ -777,12 +778,18 @@ func (m *Manager) Run(ctx context.Context) error {
 	}
 }
 
-func (m *Manager) safeChannelDisconnect(ctx context.Context, ch Channel) {
+func (m *Manager) safeChannelDisconnectAll(ctx context.Context, channels []Channel, scope string) {
+	for _, ch := range channels {
+		m.safeChannelDisconnect(ctx, ch, scope)
+	}
+}
+
+func (m *Manager) safeChannelDisconnect(ctx context.Context, ch Channel, scope string) {
 	if disconnecter, ok := ch.(DisconnectCapable); ok {
 		timeout := DefaultChannelDisconnectTimeoutFromEnv()
 		if timeout <= 0 {
 			if err := disconnecter.Disconnect(ctx); err != nil {
-				m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", err)
+				m.log.Debug("defensive channel disconnect "+scope+" raised", "channel", ch.Name(), "err", err)
 			}
 			return
 		}
@@ -797,15 +804,34 @@ func (m *Manager) safeChannelDisconnect(ctx context.Context, ch Channel) {
 		select {
 		case err := <-done:
 			if err != nil {
-				m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", err)
+				m.log.Debug("defensive channel disconnect "+scope+" raised", "channel", ch.Name(), "err", err)
 			}
 		case <-disconnectCtx.Done():
 			if errors.Is(disconnectCtx.Err(), context.DeadlineExceeded) {
-				m.log.Warn("defensive channel disconnect timed out", "channel", ch.Name(), "timeout", timeout)
+				m.log.Warn("defensive channel disconnect "+scope+" timed out", "channel", ch.Name(), "timeout", timeout)
 				return
 			}
-			m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", disconnectCtx.Err())
+			m.log.Debug("defensive channel disconnect "+scope+" raised", "channel", ch.Name(), "err", disconnectCtx.Err())
 		}
+	}
+}
+
+func (m *Manager) waitForChannelWorkers(wg *sync.WaitGroup, timeout time.Duration, scope string) {
+	if timeout <= 0 {
+		wg.Wait()
+		return
+	}
+	done := make(chan struct{}, 1)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+		m.log.Warn("gateway channel workers did not stop before timeout", "scope", scope, "timeout", timeout)
 	}
 }
 

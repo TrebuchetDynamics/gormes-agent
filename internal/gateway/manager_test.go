@@ -1446,7 +1446,7 @@ func TestManager_RunChannelDisconnectTimeoutReturnsStartupFailure(t *testing.T) 
 		t.Fatalf("disconnect count = %d, want 1", got)
 	}
 	gotLogs := logs.String()
-	if !strings.Contains(gotLogs, "defensive channel disconnect timed out") ||
+	if !strings.Contains(gotLogs, "defensive channel disconnect after failed startup timed out") ||
 		!strings.Contains(gotLogs, "discord") {
 		t.Fatalf("disconnect timeout log = %q, want channel timeout evidence", gotLogs)
 	}
@@ -1493,6 +1493,53 @@ func TestManager_RunCleansFailedStartupChannelWithoutStoppingHealthyChannels(t *
 	}
 }
 
+func TestManager_RunShutdownDisconnectTimeout(t *testing.T) {
+	t.Setenv("HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT", "0.001")
+	releaseRun := make(chan struct{})
+	releaseDisconnect := make(chan struct{})
+	defer close(releaseRun)
+	defer close(releaseDisconnect)
+
+	ch := &shutdownBlockedChannel{
+		name:              "discord",
+		releaseRun:        releaseRun,
+		releaseDisconnect: releaseDisconnect,
+		started:           make(chan struct{}),
+	}
+	var logs bytes.Buffer
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- m.Run(ctx)
+	}()
+	<-ch.started
+
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run after planned shutdown = %v, want nil", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Run did not return before shutdown disconnect timeout")
+	}
+	if got := ch.disconnectCount(); got != 1 {
+		t.Fatalf("disconnect count = %d, want 1", got)
+	}
+	gotLogs := logs.String()
+	if !strings.Contains(gotLogs, "defensive channel disconnect during shutdown timed out") ||
+		!strings.Contains(gotLogs, "discord") {
+		t.Fatalf("shutdown disconnect timeout log = %q, want shutdown channel timeout evidence", gotLogs)
+	}
+}
+
 type startupFailedChannel struct {
 	name           string
 	runErr         error
@@ -1524,6 +1571,42 @@ func (c *startupFailedChannel) Disconnect(context.Context) error {
 }
 
 func (c *startupFailedChannel) disconnectCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.disconnects
+}
+
+type shutdownBlockedChannel struct {
+	name              string
+	releaseRun        <-chan struct{}
+	releaseDisconnect <-chan struct{}
+	started           chan struct{}
+
+	mu          sync.Mutex
+	disconnects int
+}
+
+func (c *shutdownBlockedChannel) Name() string { return c.name }
+
+func (c *shutdownBlockedChannel) Run(context.Context, chan<- InboundEvent) error {
+	close(c.started)
+	<-c.releaseRun
+	return nil
+}
+
+func (c *shutdownBlockedChannel) Send(context.Context, string, string) (string, error) {
+	return "", errors.New("shutdown blocked channel cannot send")
+}
+
+func (c *shutdownBlockedChannel) Disconnect(context.Context) error {
+	c.mu.Lock()
+	c.disconnects++
+	c.mu.Unlock()
+	<-c.releaseDisconnect
+	return nil
+}
+
+func (c *shutdownBlockedChannel) disconnectCount() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.disconnects
