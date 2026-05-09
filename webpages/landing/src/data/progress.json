@@ -21214,7 +21214,7 @@
             },
             {
               "name": "Daytona",
-              "status": "planned",
+              "status": "complete",
               "note": "TDD: port Daytona workspace lifecycle with fake API clients, proving create/reuse/delete decisions and workspace path mapping before live credentials are required.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -29421,7 +29421,7 @@
               "priority": "P2",
               "status": "planned",
               "contract": "Gormes extends the default Kanban core to Hermes multi-board and workspace semantics: board registry/list/create/switch/rename/remove, per-board database roots, scratch/worktree/dir workspace allocation, comments/events/runs/log retention, notification subscriptions, stats/watch/tail views, and garbage collection policies.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -47835,7 +47835,71 @@
               "done_signal": [
                 "A test tag push produces all seven release artifacts; install.sh fetches and verifies each on a matching host."
               ],
-              "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed."
+              "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure."
+            },
+            {
+              "name": "Release archive 30 MB size gate",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The release workflow enforces the v1 differentiator's single 30 MB binary promise before release artifacts are uploaded: every built archive is checked against a 31,457,280-byte cap after packaging and checksum generation, and any oversize archive fails the build with a clear target-specific message.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If an archive exceeds the cap, the release matrix fails before upload or publication; operators keep source-build installs rather than receiving an oversized prebuilt binary.",
+              "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowEnforcesMaxArchiveSize",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim",
+                "docs/content/building-gormes/strategy/success-plan.md:sharp v1.0 differentiator and install-size benchmark",
+                ".github/workflows/release.yml:Build static binary archive",
+                "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowContract"
+              ],
+              "ready_when": [
+                "Sharp v1.0 differentiator decision is complete.",
+                "Release workflow already builds tar.gz archives for the seven supported targets and writes SHA-256 checksums."
+              ],
+              "not_ready_when": [
+                "The slice requires a live GitHub tag push, real release publication, or changing installer selection logic.",
+                "The workflow checks repository size, source tree size, or SBOM size instead of the per-target binary archive size.",
+                "Oversize failures happen after upload-artifact or GitHub release publication."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleaseWorkflowEnforcesMaxArchiveSize fails before the workflow contains an explicit 31,457,280-byte archive cap and passes after the release workflow checks each tar.gz before artifact upload.",
+                "The size check runs in the build job after `sha256sum` has generated the archive checksum and before `actions/upload-artifact@v4`.",
+                "The workflow failure message includes the target archive name and both observed and maximum byte counts.",
+                "The existing release workflow contract test stays green for all seven target slugs, SHA-256 files, SBOM generation, artifact upload, and tag-only publication."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|EnforcesMaxArchiveSize)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release workflow, release workflow test, and progress evidence prove every prebuilt archive is capped at 30 MiB before upload."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows were operator-blocked, the broad release pipeline row remained too large to execute as one slice, and this P1 release/operator gap was the highest builder-ready closure because the public v1 differentiator promises a 30 MB Go binary while the release workflow only built, checksummed, SBOMed, attested, and uploaded archives without a size gate. TDD added a portable pre-upload archive byte-count gate and workflow tests that pin the 31,457,280-byte cap after checksum generation and before artifact upload.",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/release.yml: Build static binary archive now assigns archive=\"dist/${target}.tar.gz\", writes the checksum beside it, checks max_archive_bytes=31457280 using portable wc -c, and fails before upload with archive name plus bytes/max evidence.",
+                  "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowEnforcesMaxArchiveSize pins the cap, portable byte-count command, failure message, and checksum-before-size-before-upload ordering while TestReleaseWorkflowContract tracks the variable-based archive/checksum shape."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|EnforcesMaxArchiveSize)' -count=1 failed because the workflow lacked archive variable, 31,457,280-byte cap, portable byte count, failure message, and ordering proof.",
+                  "GREEN: go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|EnforcesMaxArchiveSize)' -count=1 passed after workflow and contract-test updates."
+                ]
+              }
             },
             {
               "name": "Termux android/arm64 release artifact and installer selector",

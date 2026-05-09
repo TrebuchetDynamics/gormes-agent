@@ -34,8 +34,9 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"GIT_DIRTY=false",
 		"GIT_DIRTY=true",
 		"gormes-${VERSION}-${GOOS}-${GOARCH}",
-		"tar -C dist -czf \"dist/${target}.tar.gz\"",
-		"sha256sum \"dist/${target}.tar.gz\"",
+		"archive=\"dist/${target}.tar.gz\"",
+		"tar -C dist -czf \"$archive\"",
+		"sha256sum \"$archive\"",
 		"actions/upload-artifact@v4",
 		"actions/download-artifact@v4",
 		"softprops/action-gh-release@v2",
@@ -95,6 +96,38 @@ func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) 
 	}
 }
 
+func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
+
+	wantAll := []string{
+		"archive=\"dist/${target}.tar.gz\"",
+		"tar -C dist -czf \"$archive\" \"${target}\"",
+		"sha256sum \"$archive\" > \"${archive}.sha256\"",
+		"max_archive_bytes=31457280",
+		"actual_archive_bytes=$(wc -c < \"$archive\" | tr -d '[:space:]')",
+		"if [ \"$actual_archive_bytes\" -gt \"$max_archive_bytes\" ]; then",
+		"archive exceeds 30 MiB",
+		"bytes=${actual_archive_bytes}",
+		"max=${max_archive_bytes}",
+		"exit 1",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(buildStep, want) {
+			t.Errorf("Build static binary archive step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, workflow,
+		"sha256sum \"$archive\" > \"${archive}.sha256\"",
+		"max_archive_bytes=31457280",
+	)
+	assertWorkflowOrder(t, workflow,
+		"max_archive_bytes=31457280",
+		"actions/upload-artifact@v4",
+	)
+}
+
 func readRepoFileRelease(t *testing.T, rel string) string {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))
@@ -116,4 +149,19 @@ func workflowStepBlock(t *testing.T, workflow, stepName string) string {
 		return workflow[start:]
 	}
 	return workflow[start : start+len(stepName)+end]
+}
+
+func assertWorkflowOrder(t *testing.T, workflow, before, after string) {
+	t.Helper()
+	beforeIndex := strings.Index(workflow, before)
+	if beforeIndex < 0 {
+		t.Fatalf("workflow missing earlier fragment %q", before)
+	}
+	afterIndex := strings.Index(workflow, after)
+	if afterIndex < 0 {
+		t.Fatalf("workflow missing later fragment %q", after)
+	}
+	if beforeIndex >= afterIndex {
+		t.Fatalf("workflow fragment %q must appear before %q", before, after)
+	}
 }

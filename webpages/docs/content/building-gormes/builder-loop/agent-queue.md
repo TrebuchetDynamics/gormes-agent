@@ -69,27 +69,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Hermes Kanban multi-board, workspace, and run-history parity
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `large`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Gormes extends the default Kanban core to Hermes multi-board and workspace semantics: board registry/list/create/switch/rename/remove, per-board database roots, scratch/worktree/dir workspace allocation, comments/events/runs/log retention, notification subscriptions, stats/watch/tail views, and garbage collection policies.
-- Trust class: operator, child-agent, gateway, system
-- Ready when: Hermes Kanban durable board core is complete., Dispatcher and worker-tool rows define run/log/heartbeat data that board views should expose., A Gormes-owned board namespace policy exists and rejects Hermes env aliases outside migrate commands.
-- Not ready when: Board switching reads HERMES_KANBAN_BOARD or ~/.hermes board files as live config., Workspace allocation creates git worktrees in tests or deletes real operator directories., GC can delete active-task logs, workspaces, or board databases without explicit archived/retention checks.
-- Degraded mode: Unsupported board names, workspace collisions, missing log files, invalid notification subscriptions, and GC denial return typed evidence without deleting active task state or crossing into Hermes home directories.
-- Fixture: `internal/kanban/boards_test.go; internal/kanban/workspaces_test.go; cmd/gormes/kanban_command_test.go`
-- Write scope: `internal/kanban/`, `cmd/gormes/kanban.go`, `internal/gateway/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/kanban -run 'TestKanban(Board\|Workspace\|Run\|Notification\|GC)' -count=1`, `go test ./cmd/gormes -run TestKanbanCommand -count=1`, `go run ./cmd/progress validate`
-- Done signal: Gormes Kanban supports Gormes-owned board namespaces, workspaces, comments/events/runs/logs, notifications, stats/watch/tail, and safe GC without live Hermes config.
-- Acceptance: Board fixtures prove list/create/switch/rename/remove behavior under temp GORMES_KANBAN_HOME roots with no Hermes state reads., Workspace fixtures prove scratch, worktree, and dir metadata resolution without creating real git worktrees in unit tests., Runs/log/event fixtures prove show/context/tail/watch/stats expose deterministic read models., Notification fixtures prove subscribe/list/unsubscribe records are scoped to Gormes gateway sources., GC fixtures prove archived-task workspaces, old events, and old logs are pruned only under explicit retention rules.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py@54e78cadb:boards/workspace/log/runs/gc commands, ../hermes-agent/hermes_cli/kanban_db.py@54e78cadb:board registry and workspace helpers, ../hermes-agent/tests/hermes_cli/test_kanban_db.py@54e78cadb:tenant/board/workspace tests, ../hermes-agent/tests/hermes_cli/test_kanban_cli.py@54e78cadb:context/tenant/json tests
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Behavioral pattern extraction from session logs
+## 3. Behavioral pattern extraction from session logs
 
 - Phase: 6 / 6.K
 - Owner: `orchestrator`
@@ -107,6 +87,26 @@ selection.
 - Done signal: Pattern extractor tests prove successful and failed patterns are correctly identified from log data
 - Acceptance: Pattern extractor identifies tool sequences with >80% success rate, Identifies tool sequences with <30% success rate (anti-patterns), Extracts reasoning patterns preceding successful tool calls, Patterns stored in Goncho as structured behavioral knowledge, Pattern extraction is offline (does not run during agent turns)
 - Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 4. Release archive 30 MB size gate
+
+- Phase: 8 / 8.D
+- Owner: `tools`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: The release workflow enforces the v1 differentiator's single 30 MB binary promise before release artifacts are uploaded: every built archive is checked against a 31,457,280-byte cap after packaging and checksum generation, and any oversize archive fails the build with a clear target-specific message.
+- Trust class: operator, system
+- Ready when: Sharp v1.0 differentiator decision is complete., Release workflow already builds tar.gz archives for the seven supported targets and writes SHA-256 checksums.
+- Not ready when: The slice requires a live GitHub tag push, real release publication, or changing installer selection logic., The workflow checks repository size, source tree size, or SBOM size instead of the per-target binary archive size., Oversize failures happen after upload-artifact or GitHub release publication.
+- Degraded mode: If an archive exceeds the cap, the release matrix fails before upload or publication; operators keep source-build installs rather than receiving an oversized prebuilt binary.
+- Fixture: `webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowEnforcesMaxArchiveSize`
+- Write scope: `.github/workflows/release.yml`, `webpages/docs/install/release_workflow_test.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract\|EnforcesMaxArchiveSize)' -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: Release workflow, release workflow test, and progress evidence prove every prebuilt archive is capped at 30 MiB before upload.
+- Acceptance: TestReleaseWorkflowEnforcesMaxArchiveSize fails before the workflow contains an explicit 31,457,280-byte archive cap and passes after the release workflow checks each tar.gz before artifact upload., The size check runs in the build job after `sha256sum` has generated the archive checksum and before `actions/upload-artifact@v4`., The workflow failure message includes the target archive name and both observed and maximum byte counts., The existing release workflow contract test stays green for all seven target slugs, SHA-256 files, SBOM generation, artifact upload, and tag-only publication.
+- Source refs: docs/content/building-gormes/strategy/v1-differentiator.md:30 MB Go binary claim, docs/content/building-gormes/strategy/success-plan.md:sharp v1.0 differentiator and install-size benchmark, .github/workflows/release.yml:Build static binary archive, webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowContract
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 5. Agentic-porting-kit repo scaffold
