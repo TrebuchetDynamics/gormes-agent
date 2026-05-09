@@ -53,7 +53,36 @@ func executeRootCommand(root *cobra.Command, args ...string) error {
 	if len(args) > 0 {
 		root.SetArgs(args)
 	}
-	return root.Execute()
+	err := root.Execute()
+	// Catch cobra's `Find()`/`findSuggestions` short-circuit:
+	// `gormes config gat --json` produces an `unknown command "gat"
+	// for "gormes config"; did you mean "get"?` error returned
+	// directly from Find(), bypassing the parent's RunE guard
+	// installed by installParentUnknownSubcommandGuards. When --json
+	// is in args, escalate that error into a structured JSON
+	// document on stdout so fleet automation sees the same
+	// `{build, action: "unknown_subcommand", error}` shape it gets
+	// for the no-suggestion case.
+	//
+	// Skip when the error is already an exitCodeError — that means
+	// some inner RunE (mcp parent guard, the recursive
+	// installParentUnknownSubcommandGuards) already emitted a JSON
+	// document; double-emitting would corrupt the stdout stream.
+	if err != nil && argsIncludeJSONFlag(args) && isCobraUnknownCommandError(err) && !errors.As(err, new(exitCodeError)) {
+		return emitJSONInputError(root, "unknown_subcommand", err.Error())
+	}
+	return err
+}
+
+// isCobraUnknownCommandError matches cobra's Find()/findSuggestions
+// `unknown command "X" for "Y"[; did you mean "Z"?]` error message
+// pattern. Cobra returns this as a plain `errors.New(...)` value with
+// no wrapped sentinel — substring match is the most stable contract.
+func isCobraUnknownCommandError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.HasPrefix(err.Error(), `unknown command "`) && strings.Contains(err.Error(), `" for "`)
 }
 
 func newRootCommand() *cobra.Command {

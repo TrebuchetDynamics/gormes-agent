@@ -377,6 +377,14 @@ func TestFreshInstallE2E_InvalidInputJSONEmitsStructuredError(t *testing.T) {
 		{name: "secrets_audit_missing_plan_flag", args: []string{"secrets", "audit", "--json"}, wantAction: "missing_flag"},
 		{name: "restore_missing_arg", args: []string{"restore", "--json"}, wantAction: "missing_argument"},
 		{name: "mcp_unknown_subcommand", args: []string{"mcp", "definitely-not-a-subcommand", "--json"}, wantAction: "unknown_subcommand"},
+		// Typo-with-suggestion paths short-circuit through cobra's
+		// built-in `Find()`/`findSuggestions` before any parent's
+		// RunE guard fires. installParentUnknownSubcommandGuards
+		// only catches the no-suggestion case; these subtests pin
+		// the conformance fence for the suggestion case too. The
+		// fix lives at executeRootCommand's error wrapper.
+		{name: "config_typo_with_suggestion", args: []string{"config", "gat", "--json"}, wantAction: "unknown_subcommand"},
+		{name: "kanban_typo_with_suggestion", args: []string{"kanban", "shor", "--json"}, wantAction: "unknown_subcommand"},
 	}
 	for _, tc := range cases {
 		tc := tc
