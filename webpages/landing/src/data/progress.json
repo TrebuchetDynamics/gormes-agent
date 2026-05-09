@@ -28501,7 +28501,7 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; the umbrella remains planned because write-capable file tools and patch parser behavior are still row-backed.",
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. The umbrella remains planned because fuzzy matching, move operations, lint hooks, checkpoint rollback linkage, and full file_operations.py parity remain row-backed.",
               "priority": "P2"
             },
             {
@@ -28920,6 +28920,93 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:69d4800d tools/file_tools.py + tools/file_operations.py + tools/terminal_tool.py",
                 "note": "Ports the first safe local-task surface after the read guard helper rows. Full checkpoint restore, syntax lint, terminal background/process registry, PTY, and shell-backed cwd tracking remain separate follow-up slices."
+              }
+            },
+            {
+              "name": "V4A patch mode for native patch tool",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes extends the existing root-confined native `patch` tool with Hermes' `mode=patch` V4A multi-file patch path: parse `*** Begin Patch` blocks, validate all referenced paths and existing-file state before mutation, then apply Add File, Update File, and Delete File operations atomically enough that validation failures leave the workspace unchanged. The first slice intentionally keeps move operations, fuzzy matching strategies, lint hooks, and checkpoint rollback linkage as follow-up file-ops work.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Malformed V4A patches, outside-root paths, stale existing-file state, missing update hunks, and unsupported move operations return structured errors without partially applying any file changes.",
+              "fixture": "internal/tools/file_read_tool_test.go::TestPatchToolV4A*",
+              "source_refs": [
+                "./hermes-agent/tools/file_tools.py@f6d45e5df:PATCH_SCHEMA mode=patch",
+                "./hermes-agent/tools/patch_parser.py@f6d45e5df:parse_v4a_patch/apply_v4a_operations",
+                "./hermes-agent/tests/tools/test_patch_parser.py@f6d45e5df",
+                "internal/tools/file_task_tools.go:PatchTool",
+                "internal/tools/patch_parser.go"
+              ],
+              "ready_when": [
+                "Native file task tool surface is complete and the default registry already exposes `patch`.",
+                "File write/patch staleness registry + cwd tracking is complete, so existing-file updates can honor read-before-edit state.",
+                "The slice can use t.TempDir fixtures and direct PatchTool calls only; no live provider, terminal backend, checkpoint restore, lint command, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice replaces replace-mode patch behavior, bypasses workspace-root validation, or edits files before validating every V4A operation.",
+                "The row implements Hermes fuzzy matching, move operations, lint hooks, checkpoint rollback, terminal backend file_operations.py, or live syntax checks in the same change.",
+                "Existing files can be updated or deleted without prior file-state evidence from the same task."
+              ],
+              "blocked_by": [
+                "Native file task tool surface",
+                "File write/patch staleness registry + cwd tracking"
+              ],
+              "unblocks": [
+                "Hermes V4A patch fuzzy matching and move operations",
+                "Patch tool checkpoint rollback linkage"
+              ],
+              "acceptance": [
+                "TestPatchToolV4AAppliesAddUpdateDelete validates a single V4A payload that updates a previously-read file, creates a new file, and deletes a previously-read file, returning files_modified/files_created/files_deleted evidence and the expected on-disk contents.",
+                "TestPatchToolV4ABlocksOutsideRoot validates an Add File path that escapes the workspace root is rejected before any file is written.",
+                "TestPatchToolV4ARejectsStaleExistingFile validates an externally-mutated previously-read file returns file_stale evidence and preserves the external content.",
+                "TestPatchToolV4ARejectsMissingUpdateHunk validates unmatched update context returns a patch validation error and leaves every file unchanged.",
+                "Existing replace-mode patch and file-state registry tests remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_tool_test.go",
+                "internal/tools/patch_parser.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "V4A patch-mode fixtures prove add/update/delete parsing, root confinement, stale-file rejection, no-change validation failures, and replace-mode regression coverage without live Hermes, terminal, lint, or checkpoint dependencies."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic Hermes weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13 before this planner pass, below the 90-row cap. Higher-priority Phase 8 publication/release rows remained operator-, tag-, or release-infra-gated; gateway/channel, provider/auth, browser, Goncho, and install/runtime deltas were already complete or row-backed. The remaining `Atomic checkpoints` umbrella still named Hermes patch_parser.py/file_tools.py V4A patch behavior while Gormes only exposed replace-mode patching, so this P2 tools slice was the highest builder-ready source-backed runtime row. TDD added `mode=patch` to PatchTool with V4A Add/Update/Delete parsing, validate-before-write root and file-state checks, stale-file/no-match validation failures, and replace-mode regression coverage. Fuzzy matching, move operations, lint hooks, checkpoint rollback, and terminal-backed file_operations.py remain row-backed by the parent.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f6d45e5df tools/file_tools.py PATCH_SCHEMA + tools/patch_parser.py",
+                "note": "Hermes defines the V4A patch-mode model-visible contract; this child row ports the first safe Go-native add/update/delete slice while leaving fuzzy/move/lint/rollback behavior row-backed."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go: PatchTool.Schema now advertises mode=replace|patch and a V4A patch field while preserving replace-mode defaults.",
+                  "internal/tools/file_task_tools.go: PatchTool.executeV4APatch parses V4A operations, validates every referenced path and existing-file state before mutation, applies Add/Update/Delete operations, and returns files_modified/files_created/files_deleted evidence.",
+                  "internal/tools/file_task_tools.go: applyV4AHunks performs exact single-match hunk replacement plus addition-only hint insertion for the first safe patch_parser.py slice."
+                ],
+                "tests": [
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4AAppliesAddUpdateDelete",
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4ABlocksOutsideRoot",
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4ARejectsStaleExistingFile",
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4ARejectsMissingUpdateHunk"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1 failed because PatchTool returned `patch currently supports replace mode only` for mode=patch.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -count=1 passed."
+                ]
               }
             },
             {
