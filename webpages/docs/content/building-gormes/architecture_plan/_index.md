@@ -990,6 +990,7 @@ classification and row-backed implementation queue.
 - [x] Oneshot final-output writer boundary
 - [x] Oneshot noninteractive safety and clarify policy
 - [x] Platform toolset config persistence + MCP sentinel
+- [x] Platform toolset mixed composite runtime expansion
 - [x] Effective toolset picker dedupes bundled plugin keys
 - [x] Gateway, platform, webhook, and cron management CLI
 - [x] WhatsApp top-level pairing wizard shell

@@ -229,6 +229,71 @@ func TestPlatformToolsetConfigYuanbaoNotInDefaultRuntimeToolsets(t *testing.T) {
 	}
 }
 
+func TestPlatformToolsetConfigMixedCompositeExpandsNativeRuntimeToolsets(t *testing.T) {
+	t.Setenv("HASS_TOKEN", "")
+	cfg, _ := parseToolsetConfigYAML(t, `
+platform_toolsets:
+  cli:
+    - hermes-cli
+    - spotify
+`)
+
+	status, err := cfg.PlatformStatus("cli")
+	if err != nil {
+		t.Fatalf("PlatformStatus(cli): %v", err)
+	}
+
+	for _, toolset := range []string{"terminal", "file", "web", "browser", "memory", "delegation", "code_execution", "todo", "session_search", "skills"} {
+		assertContains(t, status.RuntimeToolsets, toolset)
+	}
+	if got := countString(status.RuntimeToolsets, "spotify"); got != 1 {
+		t.Fatalf("runtime spotify count = %d in %v, want one", got, status.RuntimeToolsets)
+	}
+	assertNotContains(t, status.RuntimeToolsets, "homeassistant")
+	assertNotContains(t, status.RuntimeToolsets, "discord")
+	assertNotContains(t, status.RuntimeToolsets, "discord_admin")
+}
+
+func TestPlatformToolsetConfigCompositeOnlyMatchesDefaultRuntimeToolsets(t *testing.T) {
+	t.Setenv("HASS_TOKEN", "")
+	defaultCfg, _ := parseToolsetConfigYAML(t, `platform_toolsets: {}`)
+	compositeCfg, _ := parseToolsetConfigYAML(t, `
+platform_toolsets:
+  cli:
+    - hermes-cli
+`)
+
+	defaultStatus, err := defaultCfg.PlatformStatus("cli")
+	if err != nil {
+		t.Fatalf("PlatformStatus(default cli): %v", err)
+	}
+	compositeStatus, err := compositeCfg.PlatformStatus("cli")
+	if err != nil {
+		t.Fatalf("PlatformStatus(composite cli): %v", err)
+	}
+	if !reflect.DeepEqual(compositeStatus.RuntimeToolsets, defaultStatus.RuntimeToolsets) {
+		t.Fatalf("composite cli runtime toolsets = %v, want default %v", compositeStatus.RuntimeToolsets, defaultStatus.RuntimeToolsets)
+	}
+}
+
+func TestPlatformToolsetConfigConfigurableOnlyDoesNotInferComposite(t *testing.T) {
+	cfg, _ := parseToolsetConfigYAML(t, `
+platform_toolsets:
+  cli:
+    - terminal
+    - file
+`)
+
+	status, err := cfg.PlatformStatus("cli")
+	if err != nil {
+		t.Fatalf("PlatformStatus(cli): %v", err)
+	}
+	want := []string{"file", "terminal"}
+	if !reflect.DeepEqual(status.RuntimeToolsets, want) {
+		t.Fatalf("configurable-only runtime toolsets = %v, want %v", status.RuntimeToolsets, want)
+	}
+}
+
 func parseToolsetConfigYAML(t *testing.T, body string) (PlatformToolsetConfig, PlatformToolsetReport) {
 	t.Helper()
 	var raw any

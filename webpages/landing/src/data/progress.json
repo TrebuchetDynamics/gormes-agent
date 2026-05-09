@@ -39681,6 +39681,66 @@
               }
             },
             {
+              "name": "Platform toolset mixed composite runtime expansion",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "When a persisted platform_toolsets entry mixes a Hermes platform-default composite such as hermes-cli with explicit configurable opt-ins such as spotify, Gormes expands the composite into its native runtime toolsets while preserving the explicit opt-in and without resurrecting default-off or platform-restricted toolsets.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "Unknown composite names remain passthrough/MCP candidates with existing restricted-toolset evidence; explicit empty platform selections still stay empty; platform-default supersets are still stripped before persistence.",
+              "fixture": "internal/cli/toolset_config_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/tools_config.py@7d276bfbe:_get_platform_tools",
+                "./hermes-agent/tests/hermes_cli/test_tools_config.py@7d276bfbe:test_get_platform_tools_expands_composite_when_mixed_with_configurable",
+                "./hermes-agent/tests/hermes_cli/test_tools_config.py@7d276bfbe:test_get_platform_tools_mixed_does_not_resurrect_default_off",
+                "internal/cli/toolset_config.go",
+                "internal/cli/toolset_config_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
+              ],
+              "ready_when": [
+                "Platform toolset config persistence + MCP sentinel is validated, so PlatformStatus already has the pure helper seam for persisted platform_toolsets.",
+                "Effective toolset picker dedupes bundled plugin keys is validated, so built-in spotify metadata and duplicate runtime toolset handling are already covered."
+              ],
+              "not_ready_when": [
+                "The slice launches interactive setup/tools UI, executes plugin code, refreshes the embedded tool parity manifest, or changes SavePlatformSelection persistence semantics.",
+                "The slice widens platform-restricted toolsets such as discord, discord_admin, teams, or yuanbao onto CLI/cron/Telegram platforms."
+              ],
+              "blocked_by": [
+                "Platform toolset config persistence + MCP sentinel",
+                "Effective toolset picker dedupes bundled plugin keys"
+              ],
+              "acceptance": [
+                "A CLI platform config containing hermes-cli plus spotify returns the normal Gormes runtime toolsets such as terminal, file, web, browser, memory, delegation, code_execution, todo, session_search, skills, and the explicit spotify opt-in exactly once.",
+                "A composite-only hermes-cli config still expands to the default CLI runtime toolset set, while an explicit empty platform_toolsets list remains empty.",
+                "A configurable-only list such as terminal,file does not infer unrelated toolsets such as web.",
+                "Implicit expansion never enables default-off Home Assistant without HASS_TOKEN or platform-restricted toolsets outside their allowed platform."
+              ],
+              "write_scope": [
+                "internal/cli/toolset_config.go",
+                "internal/cli/toolset_config_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cli -run 'TestPlatformToolsetConfig.*Composite|TestPlatformToolsetConfigMixedComposite' -count=1",
+                "go test ./internal/cli ./internal/tools -run 'TestPlatformToolset|TestEffectiveToolset' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "PlatformStatus fixtures prove mixed composite+configurable expansion, composite-only expansion, configurable-only non-expansion, explicit-empty preservation, and no default-off or platform-restricted resurrection."
+              ],
+              "note": "Complete 2026-05-09: TDD added PlatformStatus composite expansion only for configured platform-default supersets. `platform_toolsets.cli=[hermes-cli, spotify]` now expands hermes-cli back into the native CLI runtime toolsets while preserving explicit spotify exactly once; composite-only hermes-cli matches default CLI runtime toolsets; configurable-only terminal/file stays limited to those explicit toolsets; default-off Home Assistant and platform-restricted Discord toolsets stay out of implicit expansion. Evidence: go test ./internal/cli -run 'TestPlatformToolsetConfig.*Composite|TestPlatformToolsetConfigMixedComposite' -count=1.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:7d276bfbe hermes_cli/tools_config.py",
+                "note": "2026-05-09 all-topic parity weakness sweep found current Hermes fixed persisted platform_toolsets lists that mix a composite with configurable opt-ins; Gormes should express the same behavior in the existing pure Go platform status helper."
+              }
+            },
+            {
               "name": "Effective toolset picker dedupes bundled plugin keys",
               "priority": "P2",
               "status": "complete",

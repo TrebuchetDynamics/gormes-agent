@@ -196,6 +196,9 @@ func (cfg PlatformToolsetConfig) PlatformStatus(platform string) (PlatformToolse
 			}
 		}
 	}
+	if configured {
+		selected = expandMixedCompositeRuntimeToolsets(manifest, platform, selected)
+	}
 
 	runtime := make(map[string]struct{})
 	suppressMCP := false
@@ -238,6 +241,57 @@ func (cfg PlatformToolsetConfig) PlatformStatus(platform string) (PlatformToolse
 
 	report.RuntimeToolsets = sortedKeys(runtime)
 	return report, nil
+}
+
+func expandMixedCompositeRuntimeToolsets(manifest tools.UpstreamToolParityManifest, platform string, selected []string) []string {
+	if len(selected) == 0 {
+		return selected
+	}
+	compositeTools := make(map[string]struct{})
+	for _, name := range selected {
+		if !isPlatformDefaultSuperset(name) {
+			continue
+		}
+		row, ok := manifest.Toolset(name)
+		if !ok {
+			continue
+		}
+		for _, tool := range row.ResolvedTools {
+			compositeTools[tool] = struct{}{}
+		}
+	}
+	if len(compositeTools) == 0 {
+		return selected
+	}
+
+	expanded := make([]string, 0, len(defaultRuntimeToolsets))
+	for _, candidate := range defaultRuntimeToolsets {
+		if !toolsetAllowedForPlatform(manifest, candidate, platform) {
+			continue
+		}
+		row, ok := manifest.Toolset(candidate)
+		if !ok || len(row.ResolvedTools) == 0 {
+			continue
+		}
+		if toolsetToolsSubset(row.ResolvedTools, compositeTools) {
+			expanded = append(expanded, candidate)
+		}
+	}
+	if len(expanded) == 0 {
+		return selected
+	}
+	out := append([]string(nil), selected...)
+	out = append(out, expanded...)
+	return out
+}
+
+func toolsetToolsSubset(tools []string, universe map[string]struct{}) bool {
+	for _, tool := range tools {
+		if _, ok := universe[tool]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // SavePlatformSelection persists one platform's selected toolsets while
