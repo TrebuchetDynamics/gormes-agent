@@ -28,6 +28,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanCreateCommand(),
 		newKanbanListCommand(),
 		newKanbanShowCommand(),
+		newKanbanRunsCommand(),
 		newKanbanSpecifyCommand(),
 		newKanbanCompleteCommand(),
 		newKanbanClaimCommand(),
@@ -218,6 +219,40 @@ func newKanbanShowCommand() *cobra.Command {
 				})
 			}
 			return writeKanbanTaskText(cmd, task)
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanRunsCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "runs <task-id>",
+		Short: "Show Kanban task run history",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			taskID := args[0]
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			runs, err := store.ListRuns(cmd.Context(), taskID)
+			if err != nil {
+				return err
+			}
+			if jsonOut {
+				if runs == nil {
+					runs = []kanban.TaskRun{}
+				}
+				return writeKanbanJSON(cmd, kanbanRunsReportJSON{
+					Build:  newBuildProvenance(),
+					TaskID: taskID,
+					Runs:   runs,
+				})
+			}
+			return writeKanbanRunsText(cmd, taskID, runs)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
@@ -498,6 +533,12 @@ type kanbanClaimReportJSON struct {
 	Claimed bool                `json:"claimed"`
 }
 
+type kanbanRunsReportJSON struct {
+	Build  buildProvenanceJSON `json:"build"`
+	TaskID string              `json:"task_id"`
+	Runs   []kanban.TaskRun    `json:"runs"`
+}
+
 // kanbanTaskReportJSON wraps a single kanban.Task with build
 // provenance for `kanban create --json` and `kanban show --json`.
 // Fleet automation orchestrating Kanban state across machines parses
@@ -538,6 +579,87 @@ func writeKanbanLifecycleJSON(cmd *cobra.Command, report kanbanLifecycleReportJS
 	encoder := json.NewEncoder(cmd.OutOrStdout())
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(report)
+}
+
+func writeKanbanRunsText(cmd *cobra.Command, taskID string, runs []kanban.TaskRun) error {
+	if len(runs) == 0 {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "(no runs yet for %s)\n", taskID)
+		return err
+	}
+	if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%-3s  %-14s  %8s  %s\n", "#", "OUTCOME", "ELAPSED", "STARTED"); err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	for i, run := range runs {
+		outcome := strings.TrimSpace(string(run.Outcome))
+		if outcome == "" {
+			outcome = "unknown"
+			if run.EndedAt.IsZero() {
+				outcome = "running"
+			}
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%3d  %-14s  %8s  %s\n",
+			i+1,
+			outcome,
+			formatKanbanRunElapsed(run.StartedAt, run.EndedAt, now),
+			formatKanbanRunStarted(run.StartedAt),
+		); err != nil {
+			return err
+		}
+		if summary := kanbanRunFirstLine(run.Summary, 100); summary != "" {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "     summary: %s\n", summary); err != nil {
+				return err
+			}
+		}
+		if message := kanbanRunFirstLine(run.Error, 100); message != "" {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "     error: %s\n", message); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func formatKanbanRunStarted(start time.Time) string {
+	if start.IsZero() {
+		return "-"
+	}
+	return start.UTC().Format(time.RFC3339)
+}
+
+func formatKanbanRunElapsed(start, end, fallbackEnd time.Time) string {
+	if start.IsZero() {
+		return "-"
+	}
+	if end.IsZero() {
+		end = fallbackEnd
+	}
+	if end.Before(start) {
+		return "0s"
+	}
+	elapsed := end.Sub(start).Round(time.Second)
+	if elapsed < time.Minute {
+		return fmt.Sprintf("%ds", int(elapsed.Seconds()))
+	}
+	if elapsed < time.Hour {
+		return fmt.Sprintf("%dm", int(elapsed.Minutes()))
+	}
+	return fmt.Sprintf("%.1fh", elapsed.Hours())
+}
+
+func kanbanRunFirstLine(value string, max int) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	line := strings.SplitN(trimmed, "\n", 2)[0]
+	if len(line) <= max {
+		return line
+	}
+	if max <= 0 {
+		return ""
+	}
+	return line[:max]
 }
 
 func openKanbanStore(ctx context.Context) (*kanban.Store, error) {

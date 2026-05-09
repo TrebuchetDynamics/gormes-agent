@@ -29846,6 +29846,89 @@
               }
             },
             {
+              "name": "Kanban task run history command",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' `kanban runs <task-id>` operator read model over the existing native run ledger: the command lists the task's run attempts in start order, supports `--json` with build provenance and an empty `runs: []` array for tasks with no attempts, emits compact human output with outcome/elapsed/summary/error hints, and routes through the selected Gormes current board without reading Hermes env or home state.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unknown task IDs, tasks with no runs, empty metadata, and unfinished run timestamps return parseable CLI evidence without starting workers, reading worker log files, or crossing board databases.",
+              "fixture": "cmd/gormes/kanban_runs_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:_cmd_runs",
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:p_runs parser",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:list_runs",
+                "internal/kanban/store.go:ListRuns",
+                "cmd/gormes/kanban.go:openKanbanStore"
+              ],
+              "ready_when": [
+                "internal/kanban.Store.ListRuns is complete and fixture-backed by dispatcher/worker lifecycle tests.",
+                "Kanban current-board task command routing is complete so CLI commands already open the selected Gormes board database.",
+                "The slice can seed run rows through existing public CLI/store operations; no live dispatcher, worker subprocess, gateway, or Hermes state is required."
+              ],
+              "not_ready_when": [
+                "The slice implements tail/watch/stats/log/notification/GC behavior instead of the task-run read model.",
+                "The command reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live config.",
+                "JSON output omits build provenance or emits null instead of an empty runs array for tasks with no attempts.",
+                "The implementation starts a worker, tails log files, or mutates task status only to show history."
+              ],
+              "blocked_by": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "TestKanbanRunsCommand_JSONListsCompletedRunWithBuild proves `gormes kanban runs <task-id> --json` emits build provenance, task_id, and run records with outcome, summary, metadata, started_at, and ended_at.",
+                "TestKanbanRunsCommand_JSONEmptyRunsArray proves a task with no attempts emits `runs: []` rather than null.",
+                "TestKanbanRunsCommand_TextShowsOutcomeSummaryAndError proves human output includes the compact run table plus summary/error hints without exposing raw metadata.",
+                "The command follows the already-selected Gormes current board and does not read Hermes env or home state."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 24 before this planner pass, below the 90-row cap, so adding one source-backed P2 child row was allowed. The sweep reconciled the stale P1 goal-interrupt row to complete, found Phase 8 P1 publication rows still operator-blocked, and left the broad P2 Kanban parent too large for a bounded builder pass. Hermes exposes `_cmd_runs` as a first-class Kanban operator command, while Gormes already had the native run ledger but no CLI read model. TDD added `gormes kanban runs <task-id>` with JSON build provenance, `runs: []` empty-history output, and compact human outcome/elapsed/summary/error output over the selected Gormes board.",
+              "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_runs_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run TestKanbanRunsCommand -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban runs CLI fixtures prove JSON and human run-history output over the native ledger, with empty-array JSON, build provenance, current-board routing, and no live worker/Hermes state."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py:_cmd_runs + hermes_cli/kanban_db.py:list_runs",
+                "note": "Hermes defines the operator read model; Gormes adapts it to the native run ledger and Gormes-owned board routing."
+              },
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/kanban.go registers `kanban runs <task-id>` and renders run history from internal/kanban.Store.ListRuns without starting workers or reading logs.",
+                  "cmd/gormes/kanban.go emits JSON as {build, task_id, runs} and normalizes empty histories to `runs: []`.",
+                  "cmd/gormes/kanban.go renders human output with outcome, elapsed time, RFC3339 start time, and bounded summary/error hints while hiding raw metadata JSON."
+                ],
+                "tests": [
+                  "cmd/gormes/kanban_runs_test.go:TestKanbanRunsCommand_JSONListsCompletedRunWithBuild",
+                  "cmd/gormes/kanban_runs_test.go:TestKanbanRunsCommand_JSONEmptyRunsArray",
+                  "cmd/gormes/kanban_runs_test.go:TestKanbanRunsCommand_TextShowsOutcomeSummaryAndError"
+                ],
+                "red_green": [
+                  "RED: go test ./cmd/gormes -run TestKanbanRunsCommand -count=1 failed because `runs` was an unknown kanban subcommand.",
+                  "GREEN: go test ./cmd/gormes -run TestKanbanRunsCommand -count=1 passed after wiring the read-only command and renderers."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run TestKanbanRunsCommand -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanCommand -count=1 -> ok"
+                ]
+              }
+            },
+            {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
               "status": "complete",
@@ -39314,7 +39397,7 @@
           "rows": [
             {
               "name": "Goal loop Ctrl+C auto-pause parity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "slice_size": "small",
               "execution_owner": "gateway",
@@ -39360,7 +39443,8 @@
                 "verification": [
                   "RED: go test ./internal/gateway -run TestGatewayGoalInterruptAutoPauses -count=1 failed because the interrupted goal stayed active.",
                   "GREEN: go test ./internal/gateway -run TestGatewayGoalInterruptAutoPauses -count=1 passed.",
-                  "GREEN: go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1 passed."
+                  "GREEN: go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1 passed.",
+                  "RECONCILED 2026-05-09: go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1 passed before changing stale planned status to complete."
                 ]
               }
             }

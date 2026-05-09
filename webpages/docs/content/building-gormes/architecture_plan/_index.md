@@ -844,6 +844,7 @@ classification and row-backed implementation queue.
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 - [x] Kanban current-board task command routing
+- [x] Kanban task run history command
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
 - [x] Hermes Kanban specify triage parity
 
