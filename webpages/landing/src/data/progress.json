@@ -48812,6 +48812,92 @@
               }
             },
             {
+              "name": "Feishu native update prompt cards",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Gormes ports Hermes' Feishu gateway update-prompt card behavior before live SDK binding: detached update prompts render as native interactive Yes/No cards, store prompt state by prompt_id, resolve exactly once, persist the selected answer through an injected writer, and return a resolved-state card without falling back to plain-text prompt replies.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If the card cannot be posted or resolved, Feishu update prompts degrade to typed feishu_update_prompt_unavailable evidence without reading live homes, opening Feishu network connections, or leaking prompt response paths.",
+              "fixture": "internal/channels/feishu/bootstrap_test.go::TestFeishuUpdatePrompt",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/feishu.py@7e578f02c:_build_update_prompt_card",
+                "./hermes-agent/gateway/platforms/feishu.py@7e578f02c:send_update_prompt",
+                "./hermes-agent/gateway/platforms/feishu.py@7e578f02c:_handle_update_prompt_card_action",
+                "./hermes-agent/gateway/platforms/feishu.py@7e578f02c:_resolve_update_prompt",
+                "./hermes-agent/tests/gateway/test_feishu_approval_buttons.py@7e578f02c:TestFeishuUpdatePrompt",
+                "./hermes-agent/gateway/run.py@f6d45e5df:_watch_update_prompt",
+                "internal/channels/feishu/bootstrap.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Gateway, Channels, Cron, API, TUI, And CLI"
+              ],
+              "ready_when": [
+                "Feishu transport/bootstrap layer is complete and provides SDK-neutral card-action registration plus fake send clients.",
+                "Tests can build card payloads, store prompt state, and inject a response writer without live Feishu credentials, websocket, HTTP server, or a real GORMES_HOME.",
+                "The slice remains Feishu-channel local and does not implement the detached update watcher itself."
+              ],
+              "not_ready_when": [
+                "The slice reads or writes a real operator home such as ~/.hermes or ~/.gormes instead of an injected writer.",
+                "Invalid, missing, unauthorized, or already-resolved prompt actions can write an answer or return a resolved card.",
+                "The row expands into live Feishu SDK transport, update command lifecycle, generic approval buttons, or other channel adapters."
+              ],
+              "blocked_by": [
+                "Feishu transport/bootstrap layer"
+              ],
+              "unblocks": [
+                "Feishu live SDK binding",
+                "Gateway update prompt watcher parity"
+              ],
+              "acceptance": [
+                "TestFeishuUpdatePromptCardBuildsYesNoActions proves the interactive card includes prompt text, optional default hint, orange header, and y/n actions with hermes_update_prompt_action plus update_prompt_id values.",
+                "TestFeishuUpdatePromptResolveWritesOnce proves stored prompt state resolves exactly once, writes only y/n answers through an injected writer, and returns a green/red resolved card with the actor name.",
+                "TestFeishuUpdatePromptRejectsInvalidActions proves missing IDs, unknown IDs, invalid answers, and unauthorized actors do not write response data or return a resolved card.",
+                "Existing Feishu bootstrap and shared-chassis tests remain green."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes f6d45e5df and Honcho e659b6b. Recent upstream runtime deltas for Telegram streaming edits, Google Chat relay sender_type, delegate_task JSON-string batches, Kanban comment author hardening, browser/runtime loop handling, release metadata, and public surfaces were already complete or row-backed. Feishu native update prompt cards from Hermes 7e578f02c were the highest-priority unrowed source-backed channel gap after P1 publication/release rows remained operator-gated or umbrella-sized, so this new P2 child row was the single added row for the cycle. TDD added SDK-neutral Feishu update-prompt card payload helpers, prompt-state storage, one-shot injected response resolution, invalid-action rejection, and resolved-card rendering without live Feishu or home-state access.",
+              "write_scope": [
+                "internal/channels/feishu/bootstrap.go",
+                "internal/channels/feishu/bootstrap_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/feishu -run TestFeishuUpdatePrompt -count=1",
+                "go test ./internal/channels/feishu -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Feishu update-prompt fixtures prove native Yes/No card payloads, prompt-state storage, one-shot injected response writes, invalid-action rejection, resolved card rendering, and no live Feishu/home-state dependency."
+              ],
+              "evidence": {
+                "completed_at": "2026-05-09T00:00:00Z",
+                "implementation": [
+                  "internal/channels/feishu/bootstrap.go: BuildUpdatePromptCard renders Hermes-shaped Feishu interactive cards with prompt/default text and y/n hermes_update_prompt_action values.",
+                  "internal/channels/feishu/bootstrap.go: UpdatePromptStore stores prompt_id records and resolves authorized y/n actions exactly once through an injected writer.",
+                  "internal/channels/feishu/bootstrap.go: BuildResolvedUpdatePromptCard renders green Yes and red No resolved-state cards with the actor name."
+                ],
+                "tests": [
+                  "internal/channels/feishu/bootstrap_test.go: TestFeishuUpdatePromptCardBuildsYesNoActions",
+                  "internal/channels/feishu/bootstrap_test.go: TestFeishuUpdatePromptResolveWritesOnce",
+                  "internal/channels/feishu/bootstrap_test.go: TestFeishuUpdatePromptRejectsInvalidActions"
+                ],
+                "verification": [
+                  "RED: go test ./internal/channels/feishu -run TestFeishuUpdatePrompt -count=1 failed on missing BuildUpdatePromptCard, NewUpdatePromptStore, UpdatePromptRecord, and UpdatePromptAction.",
+                  "GREEN: go test ./internal/channels/feishu -run TestFeishuUpdatePrompt -count=1 passed.",
+                  "GREEN: go test ./internal/channels/feishu -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:7e578f02c gateway/platforms/feishu.py",
+                "note": "Hermes defines the Feishu update-prompt card contract; Gormes keeps the first slice SDK-neutral and fake-writer based."
+              }
+            },
+            {
               "name": "Feishu drive-comment rule + pairing seam",
               "status": "complete",
               "contract": "Gormes ports Hermes Feishu drive-comment rule resolution before comment replies can invoke an agent: config loads comments policy and per-document rules, exact document rules beat wiki rules, wiki rules beat wildcard/top defaults when supplied, each enabled/policy/allow_from field falls back independently, explicit empty allow_from does not fall through, invalid policies default to pairing, and pairing add/remove/list uses an atomic temp-root store.",

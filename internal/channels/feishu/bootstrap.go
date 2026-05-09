@@ -276,6 +276,162 @@ type DeliveryResult struct {
 	Error     string
 }
 
+type UpdatePromptRecord struct {
+	SessionKey string
+	MessageID  string
+	ChatID     string
+}
+
+type UpdatePromptAction struct {
+	PromptID   int
+	Answer     string
+	ActorID    string
+	ActorName  string
+	Authorized bool
+}
+
+type UpdatePromptResolution struct {
+	Record UpdatePromptRecord
+	Card   map[string]any
+}
+
+type UpdatePromptStore struct {
+	mu      sync.Mutex
+	records map[int]UpdatePromptRecord
+}
+
+func NewUpdatePromptStore() *UpdatePromptStore {
+	return &UpdatePromptStore{records: map[int]UpdatePromptRecord{}}
+}
+
+func (s *UpdatePromptStore) Store(promptID int, record UpdatePromptRecord) {
+	if s == nil || promptID <= 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.records == nil {
+		s.records = map[int]UpdatePromptRecord{}
+	}
+	s.records[promptID] = record
+}
+
+func (s *UpdatePromptStore) Resolve(action UpdatePromptAction, writeAnswer func(string) error) (UpdatePromptResolution, bool, error) {
+	answer, ok := normalizeUpdatePromptAnswer(action.Answer)
+	if s == nil || action.PromptID <= 0 || !ok || !action.Authorized {
+		return UpdatePromptResolution{}, false, nil
+	}
+	if writeAnswer == nil {
+		return UpdatePromptResolution{}, false, fmt.Errorf("feishu update prompt writer is nil")
+	}
+
+	s.mu.Lock()
+	record, ok := s.records[action.PromptID]
+	if ok {
+		delete(s.records, action.PromptID)
+	}
+	s.mu.Unlock()
+	if !ok {
+		return UpdatePromptResolution{}, false, nil
+	}
+
+	if err := writeAnswer(answer); err != nil {
+		return UpdatePromptResolution{Record: record}, true, err
+	}
+	return UpdatePromptResolution{
+		Record: record,
+		Card:   BuildResolvedUpdatePromptCard(answer, updatePromptActorName(action)),
+	}, true, nil
+}
+
+func BuildUpdatePromptCard(prompt, defaultAnswer string, promptID int) map[string]any {
+	content := strings.TrimSpace(prompt)
+	if content == "" {
+		content = "Continue update?"
+	}
+	if defaultAnswer = strings.TrimSpace(defaultAnswer); defaultAnswer != "" {
+		content += "\n\nDefault: `" + defaultAnswer + "`"
+	}
+	return map[string]any{
+		"config": map[string]any{"wide_screen_mode": true},
+		"header": map[string]any{
+			"title":    map[string]any{"content": "Update Needs Your Input", "tag": "plain_text"},
+			"template": "orange",
+		},
+		"elements": []map[string]any{
+			{"tag": "markdown", "content": content},
+			{
+				"tag": "action",
+				"actions": []map[string]any{
+					updatePromptButton("Yes", "y", "primary", promptID),
+					updatePromptButton("No", "n", "danger", promptID),
+				},
+			},
+		},
+	}
+}
+
+func BuildResolvedUpdatePromptCard(answer, actorName string) map[string]any {
+	normalized, ok := normalizeUpdatePromptAnswer(answer)
+	if !ok {
+		normalized = "n"
+	}
+	yes := normalized == "y"
+	label := "No"
+	template := "red"
+	if yes {
+		label = "Yes"
+		template = "green"
+	}
+	actor := strings.TrimSpace(actorName)
+	if actor == "" {
+		actor = "User"
+	}
+	return map[string]any{
+		"config": map[string]any{"wide_screen_mode": true},
+		"header": map[string]any{
+			"title":    map[string]any{"content": "Update prompt answered: " + label, "tag": "plain_text"},
+			"template": template,
+		},
+		"elements": []map[string]any{
+			{"tag": "markdown", "content": "Answered by **" + actor + "**"},
+		},
+	}
+}
+
+func updatePromptButton(label, answer, buttonType string, promptID int) map[string]any {
+	return map[string]any{
+		"tag":  "button",
+		"text": map[string]any{"tag": "plain_text", "content": label},
+		"type": buttonType,
+		"value": map[string]any{
+			"hermes_update_prompt_action": answer,
+			"update_prompt_id":            promptID,
+		},
+	}
+}
+
+func normalizeUpdatePromptAnswer(answer string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y":
+		return "y", true
+	case "n":
+		return "n", true
+	default:
+		return "", false
+	}
+}
+
+func updatePromptActorName(action UpdatePromptAction) string {
+	if name := strings.TrimSpace(action.ActorName); name != "" {
+		return name
+	}
+	if id := strings.TrimSpace(action.ActorID); id != "" {
+		return id
+	}
+	return "User"
+}
+
 func SendRichTextWithEvidence(ctx context.Context, client Client, chatID, text string, opts SendOptions) DeliveryResult {
 	if client == nil {
 		return DeliveryResult{Evidence: FeishuEvidenceSendFailed, Error: "Feishu send client is unavailable"}

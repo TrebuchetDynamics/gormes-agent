@@ -1223,6 +1223,7 @@ classification and row-backed implementation queue.
 - [x] DingTalk shared-chassis bot seam
 - [x] QQ Bot shared-chassis bot seam
 - [x] Feishu transport/bootstrap layer
+- [x] Feishu native update prompt cards
 - [x] Feishu drive-comment rule + pairing seam
 - [x] Feishu drive-comment reply workflow
 - [x] DingTalk transport/bootstrap layer
