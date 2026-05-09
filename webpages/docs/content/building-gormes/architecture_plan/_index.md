@@ -750,6 +750,14 @@ classification and row-backed implementation queue.
 - [x] Voice record-key config binding for native TUI
 - [x] Telegram voice STT HTTP-provider fallback
 - [ ] Pure-Go STT exploration
+- [ ] wazero WASI smoke harness
+- [ ] whisper.cpp WASI module discovery
+- [ ] Pure-Go Whisper transcribe one WAV
+- [ ] Wire Pure-Go Whisper into Telegram resolver
+- [ ] Audio preprocessing and chunking pipeline
+- [ ] Whisper benchmark harness + perf budget
+- [ ] Go-native audio decoding (ffmpeg replacement)
+- [ ] Pure-Go TTS path scoping
 
 ### 5.F — Skills System (Remaining) ✅
 
@@ -941,7 +949,6 @@ classification and row-backed implementation queue.
 
 - [x] 49-file CLI tree port
 - [x] Hermes CLI command-tree parity manifest
-- [x] Gormes shell completion command generator
 - [x] Hermes CLI nested parser inventory refresh
 - [x] Hermes auth command-tree manifest refresh
 - [x] Hermes auth credential-pool command surface

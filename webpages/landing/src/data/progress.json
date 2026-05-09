@@ -25112,7 +25112,478 @@
               "done_signal": [
                 "Row is closed with a note recording (a) which architectural path was selected, (b) the date, (c) the spawned implementation row IDs (if any), and (d) the rationale for choosing that path over the other three."
               ],
-              "note": "Filed 2026-05-09. Research evidence collected via web search same day:\n\nPath #1 — Stay status quo. Local CLI (whisper/whisper-cli on PATH) + cloud HTTP fallback (Groq free tier, OpenAI). User installs local binary OR accepts cloud. Currently shipped.\n\nPath #2 — Take the cgo hit. Switch to a build-tag-gated STT path (e.g. stt_cgo) that integrates sherpa-onnx-go-linux (best engineered option). Single-static-binary promise becomes 'single static binary except STT-using builds.' Loses the Termux/Windows-without-extra-tooling appeal but gains real local STT.\n\nPath #3 — Bet on WASI. Productionize the whisper.cpp → WASI → wazero path. Pure Go, stays in binary. ~5x slower than native (90s vs 17s for the same audio), needs model file distribution (~75MB-1.5GB), no thread support in wazero. Months of work, untested in production by anyone in the Go ecosystem today.\n\nPath #4 — Wait + monitor. Track Go STT ecosystem; revisit when a real pure-Go option lands. Document the constraint publicly so users understand the tradeoff.\n\nGroq free tier (path #1 sub-option) was wired 2026-05-09 in the row 'Telegram voice STT HTTP-provider fallback' so users have a no-install option today even without resolving this row."
+              "note": "Filed 2026-05-09. Research evidence collected via web search same day:\n\nPath #1 — Stay status quo. Local CLI (whisper/whisper-cli on PATH) + cloud HTTP fallback (Groq free tier, OpenAI). User installs local binary OR accepts cloud. Currently shipped.\n\nPath #2 — Take the cgo hit. Switch to a build-tag-gated STT path (e.g. stt_cgo) that integrates sherpa-onnx-go-linux (best engineered option). Single-static-binary promise becomes 'single static binary except STT-using builds.' Loses the Termux/Windows-without-extra-tooling appeal but gains real local STT.\n\nPath #3 — Bet on WASI. Productionize the whisper.cpp → WASI → wazero path. Pure Go, stays in binary. ~5x slower than native (90s vs 17s for the same audio), needs model file distribution (~75MB-1.5GB), no thread support in wazero. Months of work, untested in production by anyone in the Go ecosystem today.\n\nPath #4 — Wait + monitor. Track Go STT ecosystem; revisit when a real pure-Go option lands. Document the constraint publicly so users understand the tradeoff.\n\nGroq free tier (path #1 sub-option) was wired 2026-05-09 in the row 'Telegram voice STT HTTP-provider fallback' so users have a no-install option today even without resolving this row.\n\n---\n\nDECISION 2026-05-09: Path #3 (WASI productionization) selected.\n\nRationale (stakeholder): wazero gives the cleanest pure-Go deployment path; CGO_ENABLED=0 stays preserved end-to-end; the perf gap vs native whisper.cpp is acknowledged and accepted as the tradeoff for keeping the single-static-binary promise.\n\nSpawned rows (all in phase 5 / 5.E TTS / Voice / Transcription):\n- Row A — wazero WASI smoke harness (P1, small, builder-ready)\n- Row B — whisper.cpp WASI module discovery (P1, small, blocked_by Row A)\n- Row C — Pure-Go Whisper transcribe one WAV (P1, medium, blocked_by Row B)\n- Row D — Wire Pure-Go Whisper into Telegram resolver (P1, small, blocked_by Row C)\n- Row E — Audio preprocessing and chunking pipeline (P2, medium, blocked_by Row D)\n- Row F — Whisper benchmark harness + perf budget (P2, small, blocked_by Row C)\n- Row G — Go-native audio decoding (ffmpeg replacement) (P3, large, planned)\n- Row H — Pure-Go TTS path scoping (P3, large, planned, separate exploration)\n\nThis row resolves to `complete` only after Row D ships (in-binary WASI Whisper visible to operators via the Telegram resolver) AND benchmarks from Row F prove the perf gap is within an acceptable budget. Until then, Row D is the load-bearing milestone.\n\nGroq HTTP fallback (the path #1 sub-option already wired 2026-05-09 in the row \"Telegram voice STT HTTP-provider fallback\") stays as the third-priority cloud option in the resolver indefinitely. Operators without a model file still get transcription via Groq."
+            },
+            {
+              "name": "wazero WASI smoke harness",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from Pure-Go STT exploration row's path #3 (WASI productionization) decision. No Hermes parity equivalent."
+              },
+              "contract": "Establish a hermetic Go test harness that loads a trivial WASI hello-world module via wazero and reads its stdout. Pins a specific wazero release in go.mod, proves the runtime instantiates inside Gormes' CGO_ENABLED=0 build, and creates the internal/wasi package as the home for all subsequent WASI work (Whisper, future audio modules).",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If wazero fails to instantiate the module, the harness reports a typed degraded marker (wasi_runtime_unavailable) so callers can fall back without crashing.",
+              "fixture": "internal/wasi/smoke_test.go and internal/wasi/testdata/hello.wasm",
+              "source_refs": [
+                "https://github.com/tetratelabs/wazero (zero-dependency Go WASM runtime)",
+                "https://github.com/tetratelabs/wazero/releases (pin a specific minor in go.mod)",
+                "Makefile (CGO_ENABLED=0 single-static-binary stance)",
+                "internal/repoctl/bench.go (benchmarks build flags reference)",
+                "docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10] decision)"
+              ],
+              "ready_when": [
+                "Stakeholder decision recorded on the Pure-Go STT exploration row (done 2026-05-09).",
+                "wazero release picked and pinned in go.mod (builder picks based on most recent stable; record release tag in source_refs)."
+              ],
+              "not_ready_when": [
+                "The slice imports wazero without pinning a specific minor version in go.mod.",
+                "The slice introduces any cgo dependency (would defeat the whole point of path #3).",
+                "Test loads a non-trivial WASM module beyond hello-world (whisper.wasm belongs in Row B, not here)."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "whisper.cpp WASI module discovery"
+              ],
+              "acceptance": [
+                "internal/wasi/ package created with a single smoke_test.go and testdata/hello.wasm (committed binary, ~1KB).",
+                "TestWASIRuntime_RunsHelloWorld instantiates a wazero runtime, loads the hello.wasm module via WASI, runs it, and asserts captured stdout contains the expected greeting.",
+                "wazero version pinned in go.mod with the exact release tag noted in a source_refs entry on this row.",
+                "CGO_ENABLED=0 go build ./... still passes after the wazero import lands.",
+                "CGO_ENABLED=0 go test ./internal/wasi -count=1 passes."
+              ],
+              "write_scope": [
+                "internal/wasi/",
+                "go.mod",
+                "go.sum",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go build ./...",
+                "CGO_ENABLED=0 go test ./internal/wasi -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Hello-world WASM module round-trips through wazero in a hermetic Go test, with CGO_ENABLED=0 enforced; internal/wasi/ exists as the home for whisper.wasm work."
+              ],
+              "note": "First wazero import. Builder must pick the wazero release at the time of the slice (latest stable minor) and record the exact tag in source_refs. The hello.wasm fixture should be tiny (<5KB) — write a one-line C/Rust/Zig program or use an existing wazero example fixture and commit it under testdata/."
+            },
+            {
+              "name": "whisper.cpp WASI module discovery",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from path #3 (WASI productionization). Hermes uses Python+faster-whisper which Gormes deliberately rejects."
+              },
+              "contract": "Vendor a known-good whisper.cpp WASI/WASM build under internal/wasi/whisper/testdata/, instantiate it via wazero, query its WASI exports, and prove it responds to --help (or equivalent argv probe). This row does not yet transcribe audio — it proves the binary loads and is callable from Go.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If the whisper.wasm binary fails to instantiate (incompatible WASI version, missing imports), the discovery test reports a typed degraded marker naming the missing import so the next row can address it.",
+              "fixture": "internal/wasi/whisper/discovery_test.go and internal/wasi/whisper/testdata/whisper.wasm",
+              "source_refs": [
+                "https://github.com/ggml-org/whisper.cpp (canonical whisper.cpp upstream, MIT)",
+                "https://github.com/ggml-org/whisper.cpp/tree/master/examples/whisper.wasm (whisper.cpp WASM example — port to WASI)",
+                "https://github.com/agnivade/whisper-wasi (prototype reference — read for patterns, do NOT depend on)",
+                "internal/wasi/ (Row A's package home)"
+              ],
+              "ready_when": [
+                "Row A 'wazero WASI smoke harness' is complete; wazero is in go.mod with a pinned release."
+              ],
+              "not_ready_when": [
+                "The slice attempts to transcribe real audio (that's Row C).",
+                "whisper.wasm is fetched at test time over the network (must be vendored under testdata).",
+                "The slice modifies whisper.cpp source — vendor a known-good prebuilt artifact instead and record its source/sha256."
+              ],
+              "blocked_by": [
+                "wazero WASI smoke harness"
+              ],
+              "unblocks": [
+                "Pure-Go Whisper transcribe one WAV"
+              ],
+              "acceptance": [
+                "internal/wasi/whisper/testdata/whisper.wasm committed (file size and SHA-256 noted in row note for reproducibility).",
+                "Build provenance documented in internal/wasi/whisper/testdata/README.md: upstream whisper.cpp commit, build command, build environment.",
+                "TestWhisperWASM_LoadsAndExposesExports loads whisper.wasm via wazero, lists exported functions, asserts the expected entrypoint(s) are present.",
+                "TestWhisperWASM_RespondsToHelp invokes the module with --help (or equivalent) argv and captures non-empty stdout.",
+                "CGO_ENABLED=0 go build ./... and CGO_ENABLED=0 go test ./internal/wasi/whisper -count=1 both pass."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go build ./...",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "whisper.wasm vendored under testdata, loads via wazero, exposes its expected exports, and responds to --help — proven by hermetic tests with CGO_ENABLED=0."
+              ],
+              "note": "Vendoring choice: prefer committing a single prebuilt whisper.wasm artifact (~1-3 MB stripped) to avoid per-developer wasm-toolchain dependencies. Document the upstream commit + build command in testdata/README.md so anyone can rebuild deterministically. wazero lacks WASM thread support — confirm whisper.cpp's WASI build does not require pthreads (the WASM/WASI variant historically does not, but verify on the chosen build)."
+            },
+            {
+              "name": "Pure-Go Whisper transcribe one WAV",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from path #3 (WASI productionization). Scaffolds the user-defined Transcriber API shape from Phase 2 of the stakeholder plan."
+              },
+              "contract": "Transcribe a small fixture WAV file end-to-end through wazero+whisper.wasm, returning a non-empty transcript string. Define and implement the public Transcriber API (NewTranscriber/TranscribeWAV/Close) named in the stakeholder plan, with WASI filesystem mounting for /models and /audio. This is the first row that actually performs inference.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If model file is missing or corrupted, NewTranscriber returns a typed error (model_unavailable) without panicking. If TranscribeWAV's WASI invocation hangs or errors, returns a typed error (wasi_inference_failed) with the underlying wazero diagnostic redacted of any test-fixture paths.",
+              "fixture": "internal/wasi/whisper/transcribe_test.go and internal/wasi/whisper/testdata/{whisper.wasm,ggml-tiny.en.bin,sample.wav}",
+              "source_refs": [
+                "https://huggingface.co/ggerganov/whisper.cpp (ggml-tiny.en.bin canonical source — MIT-equivalent ggml license)",
+                "internal/wasi/whisper/ (Row B's package home)",
+                "Stakeholder plan Phase 2 Transcriber API shape (recorded on Pure-Go STT exploration row note)"
+              ],
+              "ready_when": [
+                "Row B 'whisper.cpp WASI module discovery' is complete; whisper.wasm loads via wazero.",
+                "ggml-tiny.en.bin model file is decided: either committed under testdata (~75 MB — acceptable for a one-time vendoring) or fetched in CI from a known SHA-256 (test-only, never in the runtime binary)."
+              ],
+              "not_ready_when": [
+                "The slice ships an audio preprocessing pipeline (that's Row E).",
+                "The slice wires the resolver in cmd/gormes (that's Row D).",
+                "ggml-tiny.en.bin is downloaded at runtime by Gormes itself (model distribution is a runtime decision; tests must use a vendored or CI-fetched copy with a checksum)."
+              ],
+              "blocked_by": [
+                "whisper.cpp WASI module discovery"
+              ],
+              "unblocks": [
+                "Wire Pure-Go Whisper into Telegram resolver",
+                "Whisper benchmark harness + perf budget"
+              ],
+              "acceptance": [
+                "Public API exists: type Transcriber struct, NewTranscriber(ctx, modelPath string) (*Transcriber, error), (*Transcriber).TranscribeWAV(ctx, path string) (string, error), (*Transcriber).Close(ctx) error.",
+                "WASI filesystem mounts /models/model.bin and /audio/input.wav; output captured from stdout or /output/result.txt per the chosen whisper.wasm CLI shape.",
+                "TestTranscriber_TranscribeFixtureWAV transcribes a 2-3 second sample.wav using ggml-tiny.en.bin and asserts an expected substring (case-insensitive) in the returned transcript.",
+                "CGO_ENABLED=0 go build ./... still passes after this row.",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper -count=1 -timeout=5m passes (timeout buffers the ~5x WASI slowdown vs native).",
+                "Concurrent calls to TranscribeWAV are serialized internally OR explicitly documented as not supported — wazero lacks WASM thread support, so the contract must be honest about parallelism."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go build ./...",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper -count=1 -timeout=5m",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Hermetic test transcribes a fixture WAV through wazero+whisper.wasm+ggml-tiny.en.bin and asserts a substring; Transcriber API shipped; CGO_ENABLED=0 invariant preserved."
+              ],
+              "note": "Model file decision is the largest risk for this row. Two viable approaches: (1) commit ggml-tiny.en.bin (~75 MB) under testdata — bloats repo but makes tests fully hermetic; (2) fetch in CI from an HTTPS URL with SHA-256 verification, .gitignore the cached file. Recommend approach (2) so the repo size doesn't jump 75 MB. Either way, the runtime binary itself does NOT embed the model — that's a separate operator-installed artifact tracked under Row D's user-facing acceptance."
+            },
+            {
+              "name": "Wire Pure-Go Whisper into Telegram resolver",
+              "priority": "P1",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from path #3 (WASI productionization). Closes Phase 2 of the stakeholder plan by making the in-binary WASI Whisper visible to operators."
+              },
+              "contract": "Extend cmd/gormes/telegram_transcriber.go's resolveTelegramAudioTranscriber with the in-binary WASI Whisper as a third candidate, slotted between local CLI (free, fastest) and HTTP cloud fallback (Groq/OpenAI). Final priority: local CLI → in-binary WASI Whisper → HTTP cloud → nil. The WASI candidate is constructed only when GORMES_WASI_WHISPER_MODEL points to an existing model file; it gracefully returns nil when the env var is unset or the file is missing.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If GORMES_WASI_WHISPER_MODEL is unset or points at a missing file, the WASI candidate constructor returns nil and the resolver falls through to HTTP cloud — same UX as today.",
+              "fixture": "cmd/gormes/telegram_transcriber_test.go (extended)",
+              "source_refs": [
+                "internal/wasi/whisper/ (Row C's Transcriber API)",
+                "cmd/gormes/telegram_transcriber.go (existing resolver — extend, do not rewrite)",
+                "internal/channels/telegram/transcriber.go (AudioTranscriber interface — unchanged)"
+              ],
+              "ready_when": [
+                "Row C 'Pure-Go Whisper transcribe one WAV' is complete; Transcriber API is stable."
+              ],
+              "not_ready_when": [
+                "The slice changes the AudioTranscriber interface in internal/channels/telegram/ (no breaking changes to the channel seam).",
+                "The slice removes the local CLI or HTTP cloud candidates from the resolver (all three paths must coexist).",
+                "Model file path is hardcoded — must come from env (GORMES_WASI_WHISPER_MODEL) or future config.toml field."
+              ],
+              "blocked_by": [
+                "Pure-Go Whisper transcribe one WAV"
+              ],
+              "unblocks": [
+                "Audio preprocessing and chunking pipeline"
+              ],
+              "acceptance": [
+                "newWASIWhisperTranscriberFromEnv() returns a non-nil AudioTranscriber when GORMES_WASI_WHISPER_MODEL points at a real model file; returns nil otherwise.",
+                "resolveTelegramAudioTranscriber priority order is: local CLI → WASI Whisper → HTTP cloud → nil. Tests prove each candidate is selected when the others are absent and the higher-priority ones win when present.",
+                "wasiWhisperAudioTranscriber adapter writes audio bytes to a tempfile (Telegram delivers OGG; the adapter is responsible for handing the right format into the Transcriber — this row may shell to ffmpeg as a temporary measure since Row E covers the proper pipeline).",
+                "Existing TestResolveTelegramAudioTranscriber_* tests in cmd/gormes/telegram_transcriber_test.go remain green; new tests cover the WASI priority case.",
+                "CGO_ENABLED=0 go build ./... and CGO_ENABLED=0 go test ./cmd/gormes ./internal/channels/telegram ./internal/wasi/whisper -count=1 all pass."
+              ],
+              "write_scope": [
+                "cmd/gormes/telegram_transcriber.go",
+                "cmd/gormes/telegram_transcriber_test.go",
+                "cmd/gormes/telegram_transcriber_slim.go (slim build stub stays local-only — no wasi import in slim)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go build ./...",
+                "CGO_ENABLED=0 go build -tags slim ./...",
+                "CGO_ENABLED=0 go test ./cmd/gormes -run 'TestResolveTelegramAudio|TestWASIWhisper' -count=1",
+                "CGO_ENABLED=0 go test ./cmd/gormes ./internal/channels/telegram -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Operator sets GORMES_WASI_WHISPER_MODEL=/path/to/ggml-tiny.en.bin in ~/.gormes/.env, restarts gateway, sends a Telegram voice message, and the bot replies using a transcript produced by the in-binary WASI Whisper (not Groq/OpenAI). HTTP cloud fallback remains intact for operators who do not install a model."
+              ],
+              "note": "This row is the load-bearing milestone for closing the Pure-Go STT exploration row. Until this lands, the WASI work in Rows A/B/C is invisible to operators. After this lands, the exploration row resolves to complete (with a note pointing here) once Row F's benchmarks confirm the perf gap is within budget."
+            },
+            {
+              "name": "Audio preprocessing and chunking pipeline",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from path #3 (WASI productionization), Phase 3 of the stakeholder plan."
+              },
+              "contract": "Convert arbitrary inbound audio (Telegram OGG/Opus, WAV, MP3) to 16kHz mono PCM that whisper.wasm consumes, optionally chunk by VAD or fixed window, and stitch the per-chunk transcripts back together. Initial implementation may shell to ffmpeg when present and report a typed degraded marker when ffmpeg is absent; Go-native decoding is Row G.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "When ffmpeg is not on PATH, the preprocessor returns a typed degraded marker (audio_preprocess_unavailable) and the channel surfaces 'audio decoding requires ffmpeg' attachment-marker fallback rather than panicking. This degraded state is operator-actionable.",
+              "fixture": "internal/wasi/whisper/audio/{preprocess_test.go,chunker_test.go} with vendored OGG/MP3/WAV fixtures",
+              "source_refs": [
+                "internal/wasi/whisper/ (Row C's Transcriber)",
+                "cmd/gormes/telegram_transcriber.go (Row D's resolver wiring)",
+                "../hermes-agent/tools/transcription_tools.py (audio handling reference; Hermes does the same conversion)"
+              ],
+              "ready_when": [
+                "Row D 'Wire Pure-Go Whisper into Telegram resolver' is complete; the resolver is sending OGG bytes to a tempfile and Row E supplies the decoder/chunker that lives between."
+              ],
+              "not_ready_when": [
+                "The slice replaces ffmpeg with a Go-native decoder (that's Row G).",
+                "The slice introduces real-time streaming (out of scope for this phase; chunking here is offline batched).",
+                "Telegram channel-side parsing is rewritten — preprocessing is library-only; the channel keeps calling Transcribe with bytes."
+              ],
+              "blocked_by": [
+                "Wire Pure-Go Whisper into Telegram resolver"
+              ],
+              "unblocks": [
+                "Go-native audio decoding (ffmpeg replacement)"
+              ],
+              "acceptance": [
+                "Preprocess(ctx, audioBytes, mediaType) ([]byte, error) returns 16kHz mono PCM (or another whisper-friendly format) when ffmpeg is available.",
+                "When ffmpeg is absent, Preprocess returns a typed error (audio_preprocess_unavailable) without panicking; tests prove both branches.",
+                "ChunkPCM(samples []int16, sampleRate int, maxChunk time.Duration) [][]int16 splits long PCM into bounded chunks; unit tests cover edge cases (silent input, single short chunk, multiple equal chunks, ragged tail).",
+                "Optional VAD is implemented as a thin wrapper that the chunker can consume; when VAD is unavailable, falls back to fixed-window chunking and reports the choice in degraded_mode evidence.",
+                "TestPreprocess_ConvertsOGGToPCMWhenFFmpegAvailable and TestPreprocess_ReturnsDegradedWhenFFmpegMissing both pass under CGO_ENABLED=0.",
+                "Whole-pipeline integration test transcribes a Telegram-shaped OGG fixture end-to-end via Row D's resolver and Row E's preprocessor + chunker, asserting a substring in the joined transcript."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/audio/",
+                "internal/wasi/whisper/transcriber.go (extension only — accept the new preprocessed input)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go build ./...",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio ./internal/wasi/whisper -count=1 -timeout=10m",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Telegram OGG voice message → in-binary WASI Whisper transcript works end-to-end on this PC after Row D + Row E land. ffmpeg-absent operators see actionable degraded evidence rather than a silent fallback to attachment markers."
+              ],
+              "note": "ffmpeg is shipped with most desktop Linux distributions, macOS via brew, and Termux via `pkg install ffmpeg`. The dependency is acceptable as a stopgap because it is widely available; Row G replaces it with pure-Go decoding to honor the static-binary promise on platforms where ffmpeg is awkward (Windows-without-extra-tooling, locked-down corp Linux). VAD library choice is open — github.com/maxhawkins/go-webrtcvad is one option but uses cgo; consider a pure-Go fixed-window chunker as the v1 and treat VAD as a separate spike."
+            },
+            {
+              "name": "Whisper benchmark harness + perf budget",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from path #3 (WASI productionization), Phase 4 of the stakeholder plan. Confirms whether WASI Whisper meets the realtime/budget bar before declaring path #3 a success."
+              },
+              "contract": "Build a benchmark harness that measures realtime factor (audio duration / inference duration), peak memory, model load time, and binary-size delta across ggml-tiny.en, ggml-base.en, and ggml-small models running through the Row C Transcriber. Output goes to benchmarks.json so the README rollup picks it up. Establishes the perf budget that decides whether WASI Whisper graduates from experimental to default in the resolver.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If a benchmarked model file is unavailable (CI cache miss), the harness skips that model and records skip evidence in benchmarks.json without failing the suite.",
+              "fixture": "internal/wasi/whisper/benchmarks_test.go and benchmarks.json",
+              "source_refs": [
+                "benchmarks.json (existing binary/code rollup; extend with stt section)",
+                "internal/repoctl/bench.go (benchmark generator pattern)",
+                "internal/wasi/whisper/ (Row C's Transcriber)",
+                "https://agniva.me/wasi/2023/12/09/whisper-wasi.html (~5x slowdown vs native baseline — confirm or refute)"
+              ],
+              "ready_when": [
+                "Row C 'Pure-Go Whisper transcribe one WAV' is complete; Transcriber API is stable."
+              ],
+              "not_ready_when": [
+                "The slice runs benchmarks against live cloud STT providers (out of scope; this row measures the in-binary path only).",
+                "The slice changes the Transcriber API to expose timing — instrumentation should live in the test/benchmark harness, not in the production type."
+              ],
+              "blocked_by": [
+                "Pure-Go Whisper transcribe one WAV"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "internal/wasi/whisper/benchmarks_test.go runs `go test -bench=BenchmarkWhisperWASI -benchtime=...` and emits per-model rows with realtime_factor, peak_memory_mb, model_load_ms, transcript_chars.",
+                "benchmarks.json gains an `stt` section with at least: per-model realtime factor, binary-size delta vs the pre-WASI baseline (commit-pinned), and the wazero version measured.",
+                "README rollup (regenerated by `cmd/progress write` or `make build`) surfaces a single line summarizing the WASI STT realtime factor, so operators see the perf cost at a glance.",
+                "Recorded baseline: with current ~28 MB binary (commit 2e54a1a60 pre-STT-wiring) and current ~44 MB binary (commit d42a77042 post-Groq-wiring), benchmark records the new size after wazero+whisper.wasm vendoring lands.",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper -bench=BenchmarkWhisperWASI -benchtime=10x -count=1 -timeout=30m completes; the long timeout buffers WASI's ~5x native slowdown."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/benchmarks_test.go",
+                "internal/repoctl/bench.go (extend the benchmarks emitter to include the stt section)",
+                "benchmarks.json",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper -bench=BenchmarkWhisperWASI -benchtime=10x -count=1 -timeout=30m",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "benchmarks.json carries an stt section with realtime factor for tiny/base (and small if it fits in budget); README rollup line surfaces it; the operator can see at a glance whether WASI STT is fast enough to default to over Groq cloud fallback."
+              ],
+              "note": "Stakeholder accepted the perf gap upfront, but the budget needs a concrete threshold. Suggested: realtime factor < 1.0 on a typical laptop CPU for tiny.en is the bar to make WASI the in-binary default; > 1.0 means it stays opt-in via env var and Groq remains the recommended path for casual use. Binary size already grew 28→44 MB with HTTP STT wiring; the WASI path will likely add another 1-3 MB for whisper.wasm itself (model files stay external)."
+            },
+            {
+              "name": "Go-native audio decoding (ffmpeg replacement)",
+              "priority": "P3",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from path #3 (WASI productionization), Phase 3 'replace with Go-native decoding later if needed'. Honors the static-binary promise on platforms where ffmpeg is awkward (Termux, Windows-without-extra-tooling, locked-down corp Linux)."
+              },
+              "contract": "Replace Row E's ffmpeg shim with pure-Go audio decoding for the formats the Telegram channel actually delivers (OGG/Opus primarily; WAV and MP3 secondarily). After this row, the WASI STT path runs end-to-end on a fresh CGO_ENABLED=0 build with no external binary dependencies.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Per-format degradation: if a particular codec (e.g. MP3) lacks a pure-Go decoder available under a compatible license, the preprocessor reports a typed degraded marker naming the codec and the resolver falls through to HTTP cloud for that single message — better than the all-or-nothing ffmpeg dependency.",
+              "fixture": "internal/wasi/whisper/audio/decode_test.go with vendored fixtures per codec",
+              "source_refs": [
+                "internal/wasi/whisper/audio/ (Row E's package home)",
+                "https://github.com/hraban/opus (cgo — ruled out by the static-binary stance)",
+                "https://github.com/jfreymuth/oggvorbis (pure Go OGG/Vorbis demux+decode)",
+                "https://github.com/pion/opus (pure Go Opus decoder, used by pion/webrtc — most likely candidate)",
+                "https://github.com/hajimehoshi/go-mp3 (pure Go MP3 decoder)"
+              ],
+              "ready_when": [
+                "Row E 'Audio preprocessing and chunking pipeline' is complete and shipping ffmpeg-based preprocessing.",
+                "Operator feedback or telemetry shows ffmpeg-absence is a real blocker on a target platform (Termux, Windows-portable, etc.)."
+              ],
+              "not_ready_when": [
+                "Stakeholder has not selected a specific codec library set — this row needs a quick spike to pick OGG/Opus/MP3/WAV decoders before becoming builder-ready.",
+                "The slice depends on cgo-based audio libraries (would defeat path #3's whole point)."
+              ],
+              "blocked_by": [
+                "Audio preprocessing and chunking pipeline"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "Per-codec pure-Go decoders selected and pinned in go.mod; license compatibility documented in row note.",
+                "Preprocess() implementation in Row E updated to prefer Go-native decoders, with ffmpeg shim retained as an explicit secondary path (not removed).",
+                "Hermetic per-codec tests with vendored fixtures (small clips under 100 KB each) prove decode correctness.",
+                "End-to-end test: Telegram OGG/Opus voice fixture → pure-Go decode → 16kHz mono PCM → WASI Whisper → transcript, all under CGO_ENABLED=0 with no external binaries on PATH (test runs with PATH=/nonexistent for that subtest).",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio ./internal/wasi/whisper ./cmd/gormes -count=1 passes."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/audio/",
+                "go.mod",
+                "go.sum",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go build ./...",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1 -timeout=5m",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "WASI STT path runs end-to-end on a CGO_ENABLED=0 build with PATH=/nonexistent (no ffmpeg, no whisper-cli, no external binaries) — proven by an integration test. Static-binary promise honored on every supported platform."
+              ],
+              "note": "License audit is mandatory before merging — pion/opus is Apache-2.0 (compatible with Gormes MIT), jfreymuth/oggvorbis is BSD-3 (compatible), hajimehoshi/go-mp3 is Apache-2.0 (compatible). All clear if those are the picks, but record the pinned versions and license summary in row note when builder picks them."
+            },
+            {
+              "name": "Pure-Go TTS path scoping",
+              "priority": "P3",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Spawned 2026-05-09 from path #3 (WASI productionization), Phase 5 of the stakeholder plan. Mirrors the Pure-Go STT exploration row's shape — research/decision row, not a builder slice."
+              },
+              "contract": "Track the parallel architectural question for outbound TTS: how should Gormes ship local text-to-speech given pure-Go TTS is even less mature than pure-Go STT? Document the three candidate paths (external TTS API / Piper sidecar process / experimental Piper or Kokoro WASM) with their tradeoffs so future planners and stakeholders have a clear decision surface.",
+              "contract_status": "draft",
+              "slice_size": "large",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without resolution, Gormes' local TTS story stays at: existing TTS providers in internal/tools (edge-tts default, OpenAI/Google/etc. cloud) — same as today.",
+              "fixture": "(no fixture — research/decision row)",
+              "source_refs": [
+                "internal/tools/tts_providers.go (current cloud TTS clients)",
+                "https://github.com/rhasspy/piper (Piper TTS upstream — neural, ONNX-based)",
+                "https://github.com/hexgrad/kokoro (Kokoro TTS — newer, also ONNX)",
+                "Stakeholder plan Phase 5 + milestones 7-8 (recorded on Pure-Go STT exploration row note)",
+                "docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10])"
+              ],
+              "ready_when": [
+                "Row D 'Wire Pure-Go Whisper into Telegram resolver' is shipped (validates the wazero+ggml-style WASI pipeline pattern works for STT before betting it works for TTS), AND",
+                "Stakeholder explicitly requests local TTS work (today the cloud TTS clients in internal/tools satisfy operator demand)."
+              ],
+              "not_ready_when": [
+                "Assigned as one combined builder slice (this is an exploration that resolves into one of three sub-rows).",
+                "A planner attempts to mark complete without naming which architectural choice was selected."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "acceptance": [
+                "When a stakeholder selects path #1 (external TTS API): row closes with a note pointing at existing cloud TTS rows; no new code rows spawn.",
+                "When a stakeholder selects path #2 (Piper sidecar): row spawns a builder-ready row 'Add Piper sidecar process orchestration' with concrete write_scope, lifecycle ownership, and tests.",
+                "When a stakeholder selects path #3 (Piper/Kokoro WASM): row spawns a planner pass to scope the wazero+piper.wasm productionization, then a builder row mirroring the STT path Rows A-D shape."
+              ],
+              "write_scope": [
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [],
+              "no_test_required": "Research and architectural-decision row; no Go code is written by this row directly. Each of the three downstream paths spawns its own builder/test rows.",
+              "done_signal": [
+                "Row is closed with a note recording (a) which architectural path was selected, (b) the date, (c) the spawned implementation row IDs (if any), and (d) the rationale."
+              ],
+              "note": "Filed 2026-05-09 alongside Rows A-G as the TTS counterpart to the STT exploration. Path #1 (external TTS API) is the lowest-risk default and matches Gormes' current cloud TTS stance. Path #3 (WASM) is the cleanest pure-Go option but TTS WASM modules are larger than STT and have weaker prior art than whisper.cpp's WASM build. Recommend deferring this row until Row D ships and the WASI pipeline pattern has been proven in production for STT."
             }
           ],
           "drift_state": {
@@ -36403,80 +36874,6 @@
                 "tests": "go test ./cmd/gormes -run 'TestHermesCLIParityManifest|TestHermesCLIParityManifestNoUnknowns' -count=1; go run ./cmd/progress validate; git diff --check",
                 "note": "Manifest classifies upstream Hermes top-level/nested commands, gateway handlers, slash registry aliases, dynamic plugin commands, Gormes-owned divergences, and typo suggestion evidence before handler ports."
               }
-            },
-            {
-              "name": "Gormes shell completion command generator",
-              "status": "complete",
-              "priority": "P1",
-              "contract": "`gormes completion {bash,zsh,fish,powershell}` emits shell completion scripts from the native Cobra command tree without starting the TUI, gateway, provider runtime, browser, or credential flows; zsh output must use valid `_arguments` exclusion syntax and must not reintroduce Hermes' stale `(-h --help)` / `(-V --version)` patterns.",
-              "contract_status": "validated",
-              "slice_size": "small",
-              "execution_owner": "tools",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Unsupported shells fail fast with a command-line error and no runtime side effects; generated scripts are best-effort snapshots of the native Cobra tree rather than hand-maintained shell code.",
-              "fixture": "cmd/gormes/completion_test.go::TestCompletionCommand_*",
-              "source_refs": [
-                "./hermes-agent/hermes_cli/main.py:completion",
-                "./hermes-agent/hermes_cli/completion.py@fe61d95b4:generate_zsh",
-                "./hermes-agent/tests/hermes_cli/test_completion.py",
-                "cmd/gormes/main.go:newRootCommandWithRuntime",
-                "cmd/gormes/hermes_cli_parity.go:hermesCLIParityManifest"
-              ],
-              "ready_when": [
-                "Hermes CLI command-tree parity manifest already classifies `completion` as a current top-level Hermes command.",
-                "cmd/gormes already owns a Cobra root command whose generated completion scripts can be tested in-process.",
-                "No provider credentials, gateway process, TUI program, browser automation, network, or install root is required to generate completion scripts."
-              ],
-              "not_ready_when": [
-                "The slice rewrites the root command layout, changes command behavior outside completion generation, starts live runtime services, or hand-maintains a separate command inventory.",
-                "The zsh script contains invalid `_arguments` exclusion groups such as `(-h --help)` or `(-V --version)`.",
-                "The manifest continues to report `completion` as row-backed after the command is implemented."
-              ],
-              "blocked_by": [
-                "Hermes CLI command-tree parity manifest"
-              ],
-              "unblocks": [
-                "CLI setup/onboard/help text fidelity matrix",
-                "Hermes CLI alias and suggestion fidelity matrix"
-              ],
-              "acceptance": [
-                "Focused tests prove `gormes completion zsh` returns a non-empty script containing the native command tree and no invalid `(-h --help)` / `(-V --version)` exclusion groups.",
-                "Focused tests prove bash, fish, and powershell completion generation return non-empty scripts without touching runtime services.",
-                "Focused tests prove an unsupported shell returns a deterministic command-line error.",
-                "The Hermes CLI parity manifest marks top-level `completion` implemented with source refs and no row-backed residual.",
-                "Existing root command, typo suggestion, and manifest tests remain green."
-              ],
-              "note": "Complete 2026-05-09: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 15, so adding one P1 source-backed row was allowed. Recent provider/auth, gateway/channel, browser, Kanban, docs/public, and release/operator drifts were already complete, owned, row-backed, or operator-gated; existing P1 publication/release rows are blocked or parent-sized. Hermes fe61d95b4 fixed a real zsh completion syntax bug while Gormes still only classified top-level `completion` as row-backed, making this the highest-priority bounded builder-ready runtime row for this cycle. TDD replaced Cobra's auto-injected help-shaped completion command with an explicit `completion {bash,zsh,fish,powershell}` command, locked zsh output against invalid `_arguments` exclusion groups, proved supported shells generate scripts without invoking TUI/oneshot runtime hooks, proved unsupported shells error deterministically, and marked top-level `completion` implemented in the Hermes CLI parity manifest.",
-              "write_scope": [
-                "cmd/gormes/completion.go",
-                "cmd/gormes/completion_test.go",
-                "cmd/gormes/main.go",
-                "cmd/gormes/hermes_cli_parity.go",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./cmd/gormes -run 'TestCompletionCommand|TestHermesCLIParityManifest' -count=1",
-                "go test ./cmd/gormes -count=1",
-                "go run ./cmd/progress validate",
-                "git diff --check"
-              ],
-              "done_signal": [
-                "Native shell completion tests pass for bash, zsh, fish, powershell, and unsupported-shell handling; the CLI parity manifest marks `completion` implemented instead of row-backed."
-              ],
-              "provenance": {
-                "origin_type": "hybrid",
-                "upstream_ref": "hermes:hermes_cli/completion.py@fe61d95b4 and hermes_cli/main.py completion parser",
-                "note": "Hermes defines the user-visible command and the zsh regression; Gormes owns native Cobra completion generation over its Go command tree."
-              },
-              "evidence": {
-                "implementation": "cmd/gormes/completion.go, cmd/gormes/completion_test.go, cmd/gormes/main.go, cmd/gormes/hermes_cli_parity.go",
-                "tests": "go test ./cmd/gormes -run 'TestCompletionCommand|TestHermesCLIParityManifestCompletionImplemented|TestHermesCLIParityManifest' -count=1 -> ok",
-                "note": "The explicit command overrides Cobra's default completion-help shape, accepts the Hermes-style shell argument, emits Cobra-generated bash/zsh/fish/powershell scripts, rejects unsupported shells, and keeps zsh output free of the stale `(-h --help)` / `(-V --version)` patterns."
-              },
-              "completed_at": "2026-05-09T23:29:12Z"
             },
             {
               "name": "Hermes CLI nested parser inventory refresh",

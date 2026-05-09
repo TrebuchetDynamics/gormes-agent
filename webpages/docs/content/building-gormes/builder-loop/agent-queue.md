@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. TD engineering blog scaffolded and live
+## 1. wazero WASI smoke harness
+
+- Phase: 5 / 5.E
+- Owner: `provider`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Establish a hermetic Go test harness that loads a trivial WASI hello-world module via wazero and reads its stdout. Pins a specific wazero release in go.mod, proves the runtime instantiates inside Gormes' CGO_ENABLED=0 build, and creates the internal/wasi package as the home for all subsequent WASI work (Whisper, future audio modules).
+- Trust class: operator, system
+- Ready when: Stakeholder decision recorded on the Pure-Go STT exploration row (done 2026-05-09)., wazero release picked and pinned in go.mod (builder picks based on most recent stable; record release tag in source_refs).
+- Not ready when: The slice imports wazero without pinning a specific minor version in go.mod., The slice introduces any cgo dependency (would defeat the whole point of path #3)., Test loads a non-trivial WASM module beyond hello-world (whisper.wasm belongs in Row B, not here).
+- Degraded mode: If wazero fails to instantiate the module, the harness reports a typed degraded marker (wasi_runtime_unavailable) so callers can fall back without crashing.
+- Fixture: `internal/wasi/smoke_test.go and internal/wasi/testdata/hello.wasm`
+- Write scope: `internal/wasi/`, `go.mod`, `go.sum`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `CGO_ENABLED=0 go build ./...`, `CGO_ENABLED=0 go test ./internal/wasi -count=1`, `go run ./cmd/progress validate`
+- Done signal: Hello-world WASM module round-trips through wazero in a hermetic Go test, with CGO_ENABLED=0 enforced; internal/wasi/ exists as the home for whisper.wasm work.
+- Acceptance: internal/wasi/ package created with a single smoke_test.go and testdata/hello.wasm (committed binary, ~1KB)., TestWASIRuntime_RunsHelloWorld instantiates a wazero runtime, loads the hello.wasm module via WASI, runs it, and asserts captured stdout contains the expected greeting., wazero version pinned in go.mod with the exact release tag noted in a source_refs entry on this row., CGO_ENABLED=0 go build ./... still passes after the wazero import lands., CGO_ENABLED=0 go test ./internal/wasi -count=1 passes.
+- Source refs: https://github.com/tetratelabs/wazero (zero-dependency Go WASM runtime), https://github.com/tetratelabs/wazero/releases (pin a specific minor in go.mod), Makefile (CGO_ENABLED=0 single-static-binary stance), internal/repoctl/bench.go (benchmarks build flags reference), docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10] decision)
+- Unblocks: whisper.cpp WASI module discovery
+- Why now: Unblocks whisper.cpp WASI module discovery.
+
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -49,7 +70,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 2. Pure-Go STT exploration
+## 3. Pure-Go STT exploration
 
 - Phase: 5 / 5.E
 - Owner: `provider`
@@ -70,7 +91,28 @@ selection.
 - Source refs: Makefile (CGO_ENABLED=0 single-static-binary stance), internal/channels/telegram/transcriber.go (current local-CLI shim), internal/tools/transcription_providers.go (current HTTP provider clients), cmd/gormes/telegram_transcriber.go (resolver wiring local + Groq + OpenAI), github.com/ggerganov/whisper.cpp/bindings/go (cgo, MIT, active 2026-05-02), github.com/kardianos/whisper.cpp (cgo fork, MIT), github.com/mutablelogic/go-whisper (cgo HTTP server wrapper, Apache-2.0, active 2026-01-27), github.com/xPrimeTime/go-whisper-ct2 (cgo + CTranslate2 + libsndfile + libsamplerate + openblas from source, MIT, 0 stars 2026-01-10), github.com/k2-fsa/sherpa-onnx-go-linux (cgo + onnxruntime native lib, Apache-2.0, v1.13.1 2026-05-09 — most production-grade cgo option), github.com/agnivade/whisper-wasi (pure Go via wazero+WASI, MIT, 5 commits/2 stars — prototype, ~5x slower than native, no thread support in wazero), https://agniva.me/wasi/2023/12/09/whisper-wasi.html (author's writeup of the WASI approach + perf numbers), ../hermes-agent/tools/transcription_tools.py (Hermes' Python+faster-whisper local default — the path Gormes deliberately rejects)
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Agentic-porting-kit repo scaffold
+## 4. Pure-Go TTS path scoping
+
+- Phase: 5 / 5.E
+- Owner: `provider`
+- Size: `large`
+- Status: `planned`
+- Priority: `P3`
+- Contract: Track the parallel architectural question for outbound TTS: how should Gormes ship local text-to-speech given pure-Go TTS is even less mature than pure-Go STT? Document the three candidate paths (external TTS API / Piper sidecar process / experimental Piper or Kokoro WASM) with their tradeoffs so future planners and stakeholders have a clear decision surface.
+- Trust class: operator, system
+- Ready when: Row D 'Wire Pure-Go Whisper into Telegram resolver' is shipped (validates the wazero+ggml-style WASI pipeline pattern works for STT before betting it works for TTS), AND, Stakeholder explicitly requests local TTS work (today the cloud TTS clients in internal/tools satisfy operator demand).
+- Not ready when: Assigned as one combined builder slice (this is an exploration that resolves into one of three sub-rows)., A planner attempts to mark complete without naming which architectural choice was selected.
+- Degraded mode: Without resolution, Gormes' local TTS story stays at: existing TTS providers in internal/tools (edge-tts default, OpenAI/Google/etc. cloud) — same as today.
+- Fixture: `(no fixture — research/decision row)`
+- Write scope: `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Research and architectural-decision row; no Go code is written by this row directly. Each of the three downstream paths spawns its own builder/test rows.
+- Done signal: Row is closed with a note recording (a) which architectural path was selected, (b) the date, (c) the spawned implementation row IDs (if any), and (d) the rationale.
+- Acceptance: When a stakeholder selects path #1 (external TTS API): row closes with a note pointing at existing cloud TTS rows; no new code rows spawn., When a stakeholder selects path #2 (Piper sidecar): row spawns a builder-ready row 'Add Piper sidecar process orchestration' with concrete write_scope, lifecycle ownership, and tests., When a stakeholder selects path #3 (Piper/Kokoro WASM): row spawns a planner pass to scope the wazero+piper.wasm productionization, then a builder row mirroring the STT path Rows A-D shape.
+- Source refs: internal/tools/tts_providers.go (current cloud TTS clients), https://github.com/rhasspy/piper (Piper TTS upstream — neural, ONNX-based), https://github.com/hexgrad/kokoro (Kokoro TTS — newer, also ONNX), Stakeholder plan Phase 5 + milestones 7-8 (recorded on Pure-Go STT exploration row note), docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10])
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 5. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
