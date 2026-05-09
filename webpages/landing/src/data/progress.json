@@ -17144,29 +17144,30 @@
             {
               "name": "Provider-default model resolution at config load",
               "priority": "P1",
-              "status": "planned",
-              "contract": "When hermes.provider is set and hermes.model is empty or still equals the upstream Hermes-fleet placeholder 'hermes-agent', Gormes resolves the effective model from the provider's catalog instead of sending 'hermes-agent' to the provider. Resolution mirrors Hermes' get_default_model_for_provider(provider) — first entry in the provider's curated/live model list. For openai-codex this means consulting the live ChatGPT picker (with curated fallback when offline) so the default tracks account entitlements (e.g. gpt-5-codex on typical ChatGPT accounts, gpt-5.5 on entitled accounts) instead of the parity placeholder.",
-              "contract_status": "draft",
+              "status": "complete",
+              "contract": "When hermes.provider is set and hermes.model is empty or still equals the upstream Hermes-fleet placeholder 'hermes-agent', Gormes resolves the effective model from the provider's catalog instead of sending 'hermes-agent' to the provider. Resolution mirrors Hermes' get_default_model_for_provider(provider) — first entry in the provider's best-known model list. For openai-codex, config load stays offline: prefer the operator's Codex CLI default model, then the local Codex model cache ordered by picker priority, then the curated DEFAULT_CODEX_MODELS fallback from Hermes.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
                 "operator",
                 "system"
               ],
-              "degraded_mode": "When the live provider picker is unreachable, fall back to the curated catalog and surface the fallback choice in gormes doctor --offline and gormes auth list <provider> --json evidence so operators see why a particular default was selected.",
-              "fixture": "internal/hermes/provider_default_model_test.go",
+              "degraded_mode": "When no local Codex model preference or cache is available, fall back to the curated catalog and surface the fallback choice in gormes doctor --offline evidence so operators see why a particular default was selected.",
+              "fixture": "internal/hermes/provider_default_model_test.go; internal/config/provider_default_model_test.go; cmd/gormes/gateway_default_model_test.go; cmd/gormes/doctor_default_model_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/models.py:get_default_model_for_provider",
-                "../hermes-agent/hermes_cli/models.py:provider_model_ids (openai-codex live-picker branch)",
-                "../hermes-agent/hermes_cli/codex_models.py:DEFAULT_CODEX_MODELS",
-                "../hermes-agent/hermes_cli/auth.py:5308 (default_model written at auth-add time — Nous example)",
+                "./hermes-agent/hermes_cli/models.py@dcff23a25:get_default_model_for_provider",
+                "./hermes-agent/hermes_cli/models.py@dcff23a25:provider_model_ids (openai-codex branch)",
+                "./hermes-agent/hermes_cli/codex_models.py@dcff23a25:get_codex_model_ids and DEFAULT_CODEX_MODELS",
+                "./hermes-agent/hermes_cli/auth.py@dcff23a25:_update_config_for_provider(default_model)",
                 "internal/config/config.go:575 (Model: \"hermes-agent\" inside defaults())",
                 "internal/hermes/model_routing.go (existing per-turn selector — provider default feeds in here)",
                 "docs/content/building-gormes/architecture_plan/phase-4-brain-transplant.md"
               ],
               "ready_when": [
-                "Routing policy and fallback selector is validated and serves as the single resolution path the new step plugs into.",
-                "Provider catalog metadata (codex curated list, etc.) is available offline so config load and tests do not require network access."
+                "Routing policy and fallback selector is complete and validated, so the provider default can feed the existing startup/gateway model path without introducing another router.",
+                "OpenAI Codex provider catalog metadata is available offline through local Codex config/cache fixtures plus the Hermes-curated DEFAULT_CODEX_MODELS fallback.",
+                "Tests use isolated GORMES_HOME and CODEX_HOME fixtures and never read live operator home directories."
               ],
               "not_ready_when": [
                 "The slice silently flips the on-disk default in defaults() to a single hardcoded provider's model (e.g. unconditionally changing 'hermes-agent' to 'gpt-5-codex'), which would break Hermes-friendly endpoints that do answer to 'hermes-agent'.",
@@ -17177,10 +17178,10 @@
                 "Routing policy and fallback selector"
               ],
               "acceptance": [
-                "Config load with hermes.provider = \"openai-codex\" and hermes.model = \"\" or \"hermes-agent\" resolves to the first entry in the openai-codex catalog (curated default when offline, live picker first entry when an OAuth token is available).",
+                "Config load with hermes.provider = \"openai-codex\" and hermes.model = \"\" or \"hermes-agent\" resolves to the first offline OpenAI Codex catalog entry: Codex CLI default model, then local Codex cache priority order, then Hermes-curated DEFAULT_CODEX_MODELS.",
                 "An explicit hermes.model = \"gpt-5-codex\" (or any provider-allowlisted model) is preserved unchanged.",
                 "The literal string 'hermes-agent' is never sent to a provider whose catalog does not contain it; provider request fixtures assert this.",
-                "gormes doctor --offline reports the resolved default model and whether it came from live picker, curated fallback, or explicit operator config.",
+                "gormes doctor --offline reports the resolved default model and whether it came from Codex CLI default config, Codex local cache, curated fallback, or explicit operator config.",
                 "Fresh-install path `gormes auth add openai-codex --type oauth` followed by `gormes gateway` boots without hand-editing ~/.gormes/config.toml and the gateway sends a Codex-allowlisted model on the first turn (regression test)."
               ],
               "write_scope": [
@@ -17192,13 +17193,33 @@
               "test_commands": [
                 "go test ./internal/hermes -run TestProviderDefaultModel -count=1",
                 "go test ./internal/config -run TestProviderDefaultModelResolved -count=1",
-                "go test ./cmd/gormes -run TestGatewayBoot_OpenAICodexProvider_DefaultsModel -count=1",
+                "go test ./cmd/gormes -run 'Test(GatewayBoot_OpenAICodexProvider_DefaultsModel|DoctorOfflineReportsResolvedProviderDefaultModel)' -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Fresh-install regression test proves `gormes auth add openai-codex --type oauth` then `gormes gateway` boots and sends a Codex-allowlisted model on the first turn without hand-editing config.toml; provider request fixtures assert 'hermes-agent' never reaches a provider whose catalog excludes it; gormes doctor --offline surfaces the resolution provenance."
+                "Fresh-install regression test proves `gormes auth add openai-codex --type oauth` writes provider/model config and the gateway sends a Codex-allowlisted model on the first turn without hand-editing config.toml; provider request fixtures assert 'hermes-agent' never reaches OpenAI Codex; gormes doctor --offline surfaces the resolution provenance."
               ],
-              "note": "Filed 2026-05-09 from a live regression: after `gormes auth add openai-codex --type oauth` succeeded on this PC, `gormes gateway` boot failed at the first user turn with 'Bad Request: The hermes-agent model is not supported when using Codex with a ChatGPT account.' Hermes ships with hermes_cli/models.py:get_default_model_for_provider precisely so a user who configures a provider but never picks a model still sends a provider-valid model on the first request. Gormes inherits the parity default 'hermes-agent' (internal/config/config.go:575) but lacks the resolution step. Workaround applied locally: hand-set hermes.model = \"gpt-5-codex\" in ~/.gormes/config.toml.",
+              "completed_at": "2026-05-09T20:29:23Z",
+              "note": "Complete 2026-05-09: planner-sharpened after a bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 14, below the 90-row cap, so no new row was needed. This row was the highest ready closure because its blocker `Routing policy and fallback selector` was complete and the refreshed Hermes source at dcff23a25 still defines provider defaults through hermes_cli/models.py plus codex_models.py. TDD added an offline OpenAI Codex default resolver, config-load placeholder replacement with provenance, auth-add config writing, doctor provenance output, and a provider request fixture proving OpenAI Codex never receives `hermes-agent` on the first gateway turn.",
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/provider_default_model.go resolves OpenAI Codex defaults offline from Codex CLI config, local model cache priority order, then Hermes-curated DEFAULT_CODEX_MODELS.",
+                  "internal/config/config.go resolves empty or `hermes-agent` model placeholders when a provider is configured while preserving explicit operator models.",
+                  "cmd/gormes/auth.go updates config.toml after successful `auth add openai-codex --type oauth`, including provider, endpoint, and provider-default model.",
+                  "cmd/gormes/doctor.go reports the resolved model and model_resolution_source in `doctor --offline` custom-endpoint readiness."
+                ],
+                "tests": [
+                  "internal/hermes/provider_default_model_test.go covers Codex config, local cache priority, and curated fallback.",
+                  "internal/config/provider_default_model_test.go covers config-load placeholder/empty-model resolution and explicit model preservation.",
+                  "cmd/gormes/gateway_default_model_test.go covers fresh auth-add config writing plus first provider request model.",
+                  "cmd/gormes/doctor_default_model_test.go covers doctor offline provenance output."
+                ],
+                "verification": [
+                  "go test ./internal/hermes -run TestProviderDefaultModel -count=1 -> pass",
+                  "go test ./internal/config -run TestProviderDefaultModelResolved -count=1 -> pass",
+                  "go test ./cmd/gormes -run 'Test(GatewayBoot_OpenAICodexProvider_DefaultsModel|DoctorOfflineReportsResolvedProviderDefaultModel)' -count=1 -> pass"
+                ]
+              },
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes hermes_cli/models.py:get_default_model_for_provider",

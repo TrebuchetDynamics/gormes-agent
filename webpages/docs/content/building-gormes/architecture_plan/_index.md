@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 87/100 subphases shipped · 10 in progress · 3 planned
+**Overall:** 88/100 subphases shipped · 9 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
@@ -501,7 +501,7 @@ classification and row-backed implementation queue.
 - [x] Goncho Honcho SDK compatibility e2e harness
 - [x] Goncho memory integration into normal agent turn
 
-## Phase 4 — The Brain Transplant 🔨
+## Phase 4 — The Brain Transplant ✅
 
 *Native Go agent orchestrator + prompt builder*
 
@@ -576,7 +576,7 @@ classification and row-backed implementation queue.
 - [x] Native full prompt assembly
 - [x] Ephemeral prefill messages file injection
 
-### 4.D — Smart Model Routing 🔨
+### 4.D — Smart Model Routing ✅
 
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
@@ -586,7 +586,7 @@ classification and row-backed implementation queue.
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
-- [ ] Provider-default model resolution at config load
+- [x] Provider-default model resolution at config load
 
 ### 4.E — Trajectory + Insights ✅
 
