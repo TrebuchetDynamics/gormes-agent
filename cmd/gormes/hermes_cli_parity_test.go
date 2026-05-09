@@ -256,6 +256,17 @@ func TestHermesCLIParityManifestClassifiesDynamicPluginsAndGormesDivergences(t *
 	}
 }
 
+func TestHermesCLIParityManifestClawCleanupImplemented(t *testing.T) {
+	cleanup := requireHermesCLIEntry(t, []string{"claw", "cleanup"})
+	if cleanup.Status != hermesCLIImplemented || cleanup.Target != "cmd/gormes claw cleanup" {
+		t.Fatalf("claw cleanup entry = %+v, want implemented cmd/gormes claw cleanup target", cleanup)
+	}
+	clean := requireHermesCLIEntry(t, []string{"claw", "clean"})
+	if clean.Status != hermesCLIImplemented || !reflect.DeepEqual(clean.AliasFor, []string{"claw", "cleanup"}) {
+		t.Fatalf("claw clean entry = %+v, want implemented alias for claw cleanup", clean)
+	}
+}
+
 func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
 	login := requireHermesCLIEntry(t, []string{"login"})
 	if login.Status != hermesCLIExcluded || !strings.Contains(strings.ToLower(login.Residual), "removed") {

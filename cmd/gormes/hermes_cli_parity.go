@@ -73,7 +73,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesImplementedCommand("sessions", "hermes_cli/main.py:sessions", "cmd/gormes session"),
 		hermesRowCommand("insights", "hermes_cli/main.py:insights", "Self-monitoring telemetry", "insights rollup command remains row-backed"),
 		hermesCommandSet("kanban", "hermes_cli/kanban.py:build_parser", "durable board core is implemented in cmd/gormes; multi-board, dispatcher, worker-tool, notification, slash/gateway, and dashboard surfaces remain row-backed", "Hermes Kanban durable board core"),
-		hermesCommandSet("claw", "hermes_cli/claw.py", "`claw migrate` compatibility is implemented; cleanup remains row-backed", "OpenClaw migration dry-run manifest"),
+		hermesCommandSet("claw", "hermes_cli/claw.py", "`claw migrate` and `claw cleanup` compatibility spellings are implemented over the Gormes-native OpenClaw migration engine", "OpenClaw migration dry-run manifest"),
 		hermesImplementedCommand("version", "hermes_cli/main.py:version", "cmd/gormes version"),
 		hermesImplementedCommand("curator", "hermes_cli/main.py:curator", "cmd/gormes curator"),
 		hermesImplementedCommand("retry", "gateway/run.py:_handle_retry_command", "internal/gateway retry"),
@@ -219,9 +219,13 @@ func hermesClawCommands() []hermesCLIParityEntry {
 	}
 	markHermesCLIEntryFlags(&migrate)
 
-	cleanup := hermesRowPath([]string{"claw", "cleanup"}, hermesCLICommand, "hermes_cli/main.py:claw_subparsers:cleanup", "OpenClaw migration writer and cleanup command", "`gormes migrate openclaw cleanup` is implemented; exact `gormes claw cleanup` spelling remains row-backed")
+	cleanup := hermesRowPath([]string{"claw", "cleanup"}, hermesCLICommand, "hermes_cli/main.py:claw_subparsers:cleanup", "OpenClaw migration writer and cleanup command", "`gormes claw cleanup` delegates to the Gormes-native OpenClaw cleanup engine")
+	cleanup.Status = hermesCLIImplemented
+	cleanup.Target = "cmd/gormes claw cleanup"
 	markHermesCLIEntryFlags(&cleanup)
 	clean := hermesNestedAlias("claw", "clean", "cleanup", "hermes_cli/main.py:claw_subparsers:cleanup aliases", "OpenClaw migration writer and cleanup command")
+	clean.Status = hermesCLIImplemented
+	clean.Target = "cmd/gormes claw cleanup"
 	return []hermesCLIParityEntry{migrate, cleanup, clean}
 }
 

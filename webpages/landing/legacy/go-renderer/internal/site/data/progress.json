@@ -38519,7 +38519,7 @@
             {
               "name": "OpenClaw migration writer and cleanup command",
               "status": "complete",
-              "contract": "`gormes migrate openclaw --yes` applies the validated OpenClaw manifest into Gormes config, dotenv, memories, skills, and archive report directories with backups and conflict policies; `gormes migrate openclaw cleanup` archives leftover OpenClaw directories after warning about running processes.",
+              "contract": "`gormes migrate openclaw --yes` applies the validated OpenClaw manifest into Gormes config, dotenv, memories, skills, and archive report directories with backups and conflict policies; `gormes migrate openclaw cleanup` archives leftover OpenClaw directories after warning about running processes. The Hermes-compatible spellings `gormes claw cleanup` and alias `gormes claw clean` delegate to the same cleanup engine, preserve JSON build provenance, and do not shell out to Hermes or OpenClaw Python.",
               "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
@@ -38528,10 +38528,13 @@
                 "system"
               ],
               "degraded_mode": "Running OpenClaw or active Gormes gateway channels produce warnings and require --yes before token-bearing migrations; cleanup refuses noninteractive destructive renames without --yes.",
-              "fixture": "internal/migrate/openclaw/apply_test.go; cmd/gormes/migrate_openclaw_apply_test.go",
+              "fixture": "internal/migrate/openclaw/apply_test.go; cmd/gormes/migrate_openclaw_apply_test.go; cmd/gormes/hermes_cli_parity_test.go",
               "source_refs": [
                 "internal/migrate/openclaw/manifest.go",
                 "../hermes-agent/hermes_cli/claw.py:_detect_openclaw_processes,_warn_if_openclaw_running,_cmd_cleanup",
+                "../hermes-agent/hermes_cli/main.py:claw_subparsers cleanup aliases=[clean]",
+                "cmd/gormes/migrate.go:newClawCleanupCommand",
+                "cmd/gormes/hermes_cli_parity.go:hermesClawCommands",
                 "../hermes-agent/optional-skills/migration/openclaw-migration/scripts/openclaw_to_hermes.py:Migrator.migrate,generate_migration_notes",
                 "../hermes-agent/website/docs/guides/migrate-from-openclaw.md:After migration,Troubleshooting"
               ],
@@ -38555,24 +38558,42 @@
                 "Conflicts are skipped by default, overwritten only with --overwrite, and all backups are recorded.",
                 "Secrets migrate only with explicit secret opt-in and are redacted in reports.",
                 "cleanup --dry-run previews archive names; cleanup --yes renames .openclaw/.clawdbot/.moltbot to .pre-migration variants without deleting data.",
+                "`gormes claw cleanup --dry-run` and `gormes claw clean --dry-run` emit the same build-provenance JSON cleanup envelope as `gormes migrate openclaw cleanup --dry-run`.",
+                "The Hermes CLI parity manifest marks `claw cleanup` implemented and `claw clean` as an implemented alias instead of a row-backed residual.",
                 "Running-process warnings are testable through injected detectors, not live pgrep/systemctl calls."
               ],
-              "note": "feat(migrate): ApplyManifest writes config/dotenv/memory/skills + XDG report dir; PerformCleanup renames .openclaw/.clawdbot/.moltbot to .pre-migration with injected ProcessDetector (no os/exec)",
+              "note": "Complete 2026-05-09: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 14, below the 90-row cap. Existing P1 docs/public rows were operator-blocked and the P1 release parent was too broad, so the highest safe builder target was this stale complete Phase 5.O row: current Hermes exposes `hermes claw cleanup` with alias `clean`, while Gormes only exposed `gormes migrate openclaw cleanup` and the CLI parity manifest still marked the exact claw spelling row-backed. TDD wired `gormes claw cleanup` and `gormes claw clean` to the same Gormes-native cleanup engine and updated the manifest to implemented.",
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/migrate.go registers `claw cleanup` plus alias `clean` over the shared OpenClaw cleanup command factory, preserving `--dry-run`, `--yes`, error labels, and build-provenance JSON.",
+                  "cmd/gormes/hermes_cli_parity.go marks `claw cleanup` implemented with target `cmd/gormes claw cleanup` and `claw clean` as an implemented alias for the same target.",
+                  "cmd/gormes/migrate_openclaw_apply_test.go verifies both compatibility spellings emit the same JSON cleanup envelope as the existing migration cleanup path."
+                ],
+                "verification": [
+                  "RED: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifestClawCleanupImplemented' -count=1` failed because `gormes claw cleanup` and `gormes claw clean` were unknown commands and the manifest row was row_backed.",
+                  "GREEN: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifestClawCleanupImplemented' -count=1` passed after command wiring and manifest update.",
+                  "GREEN: `timeout 10m go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1` passed.",
+                  "GREEN: `timeout 5m go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifest' -count=1` passed."
+                ]
+              },
               "write_scope": [
                 "cmd/gormes/migrate.go",
                 "cmd/gormes/migrate_openclaw_apply_test.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
                 "internal/migrate/openclaw/apply.go",
                 "internal/migrate/openclaw/apply_test.go",
                 "internal/config/writer.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
+                "go test ./cmd/gormes -run 'TestClawCleanup|TestHermesCLIParityManifest' -count=1",
                 "go test ./internal/migrate/openclaw ./cmd/gormes ./internal/config -run 'TestOpenClawMigrationApply|TestMigrateOpenClawApply|TestOpenClawCleanup|TestConfigWriter' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "OpenClaw apply/cleanup fixtures prove manifest-only writes, backup/conflict policy, secret opt-in, explicit archive reports, cleanup dry-run/apply behavior, and injected running-process warnings."
+                "OpenClaw apply/cleanup fixtures prove manifest-only writes, backup/conflict policy, secret opt-in, explicit archive reports, migrate and claw cleanup dry-run/apply behavior, and injected running-process warnings."
               ],
               "health": {
                 "attempt_count": 1,

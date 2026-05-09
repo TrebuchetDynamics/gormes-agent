@@ -209,3 +209,47 @@ func TestMigrateOpenClawCleanup_DryRunCommandWiring(t *testing.T) {
 		}
 	}
 }
+
+func TestClawCleanupDryRunCompatibilityJSON(t *testing.T) {
+	root := setupMigrateOpenClawEnv(t)
+	home := filepath.Join(root, "fake-home")
+	for _, dir := range []string{".openclaw", ".clawdbot", ".moltbot"} {
+		if err := os.MkdirAll(filepath.Join(home, dir), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	for _, args := range [][]string{
+		{"claw", "cleanup", "--dry-run"},
+		{"claw", "clean", "--dry-run"},
+	} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), args...)
+			if err != nil {
+				t.Fatalf("%s: %v\nstdout=%s\nstderr=%s", strings.Join(args, " "), err, stdout, stderr)
+			}
+			var doc struct {
+				Build struct {
+					Version string `json:"version"`
+				} `json:"build"`
+				Renamed []struct {
+					From string `json:"from"`
+					To   string `json:"to"`
+				} `json:"renamed"`
+				DryRun bool `json:"dry_run"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+				t.Fatalf("stdout is not JSON: %v\nstdout=%s", err, stdout)
+			}
+			if doc.Build.Version != Version {
+				t.Errorf("build.version = %q, want %q", doc.Build.Version, Version)
+			}
+			if !doc.DryRun {
+				t.Fatalf("dry_run = false, want true: %+v", doc)
+			}
+			if len(doc.Renamed) != 3 {
+				t.Fatalf("expected 3 renames previewed, got %d: %+v", len(doc.Renamed), doc.Renamed)
+			}
+		})
+	}
+}
