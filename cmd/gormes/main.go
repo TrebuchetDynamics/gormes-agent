@@ -68,8 +68,30 @@ func executeRootCommand(root *cobra.Command, args ...string) error {
 	// some inner RunE (mcp parent guard, the recursive
 	// installParentUnknownSubcommandGuards) already emitted a JSON
 	// document; double-emitting would corrupt the stdout stream.
-	if err != nil && argsIncludeJSONFlag(args) && isCobraUnknownCommandError(err) && !errors.As(err, new(exitCodeError)) {
-		return emitJSONInputError(root, "unknown_subcommand", err.Error())
+	if err != nil && argsIncludeJSONFlag(args) && !errors.As(err, new(exitCodeError)) {
+		// Cobra Find()/findSuggestions short-circuit:
+		// `gormes config gat --json` produces an
+		// `unknown command "gat" for "gormes config"; did you
+		// mean "get"?` error returned directly from Find(),
+		// bypassing the parent's RunE guard installed by
+		// installParentUnknownSubcommandGuards.
+		if isCobraUnknownCommandError(err) {
+			return emitJSONInputError(root, "unknown_subcommand", err.Error())
+		}
+		// Cobra flag-parser rejection by a parent that consumed
+		// the path before subcommand routing:
+		// `gormes gateway xyz --json` reaches gateway's flag
+		// parser (gateway parent has its own RunE), which
+		// rejects `--json` as "unknown flag: --json" because
+		// gateway parent doesn't register a --json flag. The
+		// user's intent — "I asked for JSON output of an
+		// invocation with --json" — must still produce JSON.
+		// Treat as unknown_subcommand: the only way --json gets
+		// rejected here is when the operator typed a nonsense
+		// subcommand under a parent with its own RunE.
+		if isCobraUnknownJSONFlagError(err) {
+			return emitJSONInputError(root, "unknown_subcommand", err.Error())
+		}
 	}
 	return err
 }
@@ -83,6 +105,21 @@ func isCobraUnknownCommandError(err error) bool {
 		return false
 	}
 	return strings.HasPrefix(err.Error(), `unknown command "`) && strings.Contains(err.Error(), `" for "`)
+}
+
+// isCobraUnknownJSONFlagError matches cobra's flag parser rejection
+// of `--json` by a parent that consumed the command path before
+// subcommand routing (e.g. gateway parent has its own RunE, so
+// `gormes gateway xyz --json` reaches gateway's flag parser before
+// any subcommand match attempt). Cobra emits `unknown flag: --json`
+// as a plain pflag error — substring match keeps the discriminator
+// stable across pflag versions.
+func isCobraUnknownJSONFlagError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "unknown flag: --json") || strings.Contains(msg, `unknown flag "--json"`)
 }
 
 func newRootCommand() *cobra.Command {

@@ -385,6 +385,16 @@ func TestFreshInstallE2E_InvalidInputJSONEmitsStructuredError(t *testing.T) {
 		// fix lives at executeRootCommand's error wrapper.
 		{name: "config_typo_with_suggestion", args: []string{"config", "gat", "--json"}, wantAction: "unknown_subcommand"},
 		{name: "kanban_typo_with_suggestion", args: []string{"kanban", "shor", "--json"}, wantAction: "unknown_subcommand"},
+		// Gateway parent has its own RunE (`runGateway`) that runs
+		// the actual gateway when no subcommand matches. cobra
+		// parses `--json` BEFORE the RunE fires and rejects it as
+		// "unknown flag --json" because gateway parent doesn't
+		// register a --json flag. The conformance fence wraps this
+		// at the parent level so `gateway <bad-subcommand> --json`
+		// emits the same `unknown_subcommand` document as every
+		// other parent. Same intent: the user typed an invocation
+		// containing --json; conformance demands JSON on stdout.
+		{name: "gateway_unknown_subcommand_json", args: []string{"gateway", "definitely-not-a-subcommand", "--json"}, wantAction: "unknown_subcommand"},
 	}
 	for _, tc := range cases {
 		tc := tc
