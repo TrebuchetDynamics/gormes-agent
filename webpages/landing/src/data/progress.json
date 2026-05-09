@@ -30422,7 +30422,7 @@
                 "Remaining child rows, if any, must be one behavior each and cite exact Hermes Kanban functions/tests plus Gormes write scope.",
                 "The parent remains non-selectable until every child row is complete and progress evidence can close the broad surface honestly."
               ],
-              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py.",
+              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py. 2026-05-09 refresh against Hermes f6d45e5df and Honcho e659b6b found recent upstream deltas for Telegram edit safety, profile clone-all exclusions, Feishu update prompts, Google Chat sender_type filtering, provider argument coercion, browser async-loop handling, release metadata, and public surfaces already complete or row-backed. Planned rows are 14, below the 90-row cap. The remaining unimplemented source-backed Kanban operator atom is `kanban stats`: Hermes exposes per-status, per-assignee, and oldest-ready-age board summaries through hermes_cli/kanban.py:_cmd_stats and hermes_cli/kanban_db.py:board_stats; the new child row `Kanban stats command and board summary` owns that small CLI/store slice before watch/tail/notification work.",
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
@@ -30434,6 +30434,87 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py + hermes_cli/kanban_db.py",
                 "note": "Hermes supplies the expanded Kanban operator contract; Gormes ports it through Gormes-owned, child-row slices rather than one broad row."
+              }
+            },
+            {
+              "name": "Kanban stats command and board summary",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes `kanban stats`: the native Kanban store exposes a board summary with non-archived counts by status, nested counts by assignee/status, oldest ready task age in seconds, and the current stats timestamp; `gormes kanban stats` renders the same operator text and `--json` emits a build-attributed machine-readable document.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Empty boards return empty maps and null oldest_ready_age_seconds; archived tasks are excluded; store/query errors return normal command errors without reading Hermes homes, starting dispatchers, following watch loops, or mutating task state.",
+              "fixture": "internal/kanban/stats_test.go; cmd/gormes/kanban_stats_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@f6d45e5df:_cmd_stats",
+                "./hermes-agent/hermes_cli/kanban_db.py@f6d45e5df:board_stats",
+                "cmd/gormes/kanban.go",
+                "internal/kanban/store.go"
+              ],
+              "ready_when": [
+                "Kanban durable board core, current-board routing, named-board paths, and task run history are complete.",
+                "The store already persists task status, assignee, created_at, and archived state needed for stats.",
+                "The slice can use temp SQLite stores and Cobra command fixtures only; no live gateway, worker dispatcher, watch loop, Hermes home, or provider is required."
+              ],
+              "not_ready_when": [
+                "The slice implements `kanban watch`, `kanban tail`, notification subscriptions, dispatcher polling, or live gateway delivery.",
+                "Archived tasks are included in by_status or by_assignee counts.",
+                "The command reads HERMES_KANBAN_DB, HERMES_KANBAN_BOARD, ~/.hermes, or profile paths instead of using Gormes-owned current board resolution.",
+                "JSON output omits build attribution or emits nil maps for empty boards."
+              ],
+              "blocked_by": [
+                "Hermes Kanban durable board core",
+                "Kanban current-board task command routing",
+                "Kanban named-board workspace and log roots"
+              ],
+              "unblocks": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "Store fixtures prove BoardStats excludes archived tasks, counts triage/todo/ready/running/blocked/done by status, nests counts by non-empty assignee and status, and computes oldest_ready_age_seconds from the oldest ready task using the store clock.",
+                "Empty-board fixtures prove by_status and by_assignee serialize as empty objects and oldest_ready_age_seconds is null.",
+                "CLI fixtures prove `gormes kanban stats` text renders By status, By assignee, and Oldest ready task age lines matching Hermes' operator shape.",
+                "CLI JSON fixtures prove `gormes kanban stats --json` emits {build, by_status, by_assignee, oldest_ready_age_seconds, now} without mutating tasks or starting a dispatcher."
+              ],
+              "write_scope": [
+                "internal/kanban/stats.go",
+                "internal/kanban/stats_test.go",
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_stats_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run TestBoardStats -count=1",
+                "go test ./cmd/gormes -run TestKanbanStats -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban stats fixtures prove Gormes exposes Hermes-compatible board summary text/JSON with archived-task exclusion, assignee/status aggregation, oldest-ready age, and build attribution."
+              ],
+              "note": "Complete 2026-05-09: TDD ported Hermes `kanban stats` into the native Gormes Kanban store and CLI. The implementation keeps the slice bounded to board-summary reads: non-archived status counts, assignee/status aggregation, oldest ready task age from the store clock, text rendering with Hermes' operator shape, and JSON output with build attribution. It does not start dispatchers, mutate tasks, read Hermes homes, or add watch/tail/notification behavior.",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/stats.go adds Store.BoardStats with initialized maps, archived-task exclusion, per-status counts, per-assignee/status counts, and oldest_ready_age_seconds from created_at.",
+                  "cmd/gormes/kanban.go registers `gormes kanban stats`, renders By status / By assignee / Oldest ready task age text, and emits build-attributed JSON for --json."
+                ],
+                "verification": [
+                  "RED: go test ./internal/kanban -run TestBoardStats -count=1 failed while Store.BoardStats was undefined.",
+                  "RED: go test ./cmd/gormes -run TestKanbanStats -count=1 failed while `gormes kanban stats` was not registered.",
+                  "GREEN: go test ./internal/kanban -run TestBoardStats -count=1 passed.",
+                  "GREEN: go test ./cmd/gormes -run TestKanbanStats -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f6d45e5df hermes_cli/kanban.py:_cmd_stats + hermes_cli/kanban_db.py:board_stats",
+                "note": "2026-05-09 bounded all-topic parity sweep selected this small source-backed Kanban operator atom after current CLI/TUI, provider/auth, gateway/channel, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public, and release/operator deltas were complete or already row-backed."
               }
             },
             {

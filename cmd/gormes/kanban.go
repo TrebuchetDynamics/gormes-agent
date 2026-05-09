@@ -44,6 +44,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanListCommand(),
 		newKanbanShowCommand(),
 		newKanbanRunsCommand(),
+		newKanbanStatsCommand(),
 		newKanbanGCCommand(),
 		newKanbanSpecifyCommand(),
 		newKanbanCompleteCommand(),
@@ -271,6 +272,35 @@ func newKanbanRunsCommand() *cobra.Command {
 				})
 			}
 			return writeKanbanRunsText(cmd, taskID, runs)
+		},
+	}
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
+	return cmd
+}
+
+func newKanbanStatsCommand() *cobra.Command {
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "stats",
+		Short: "Show Kanban board status and assignee counts",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			stats, err := store.BoardStats(cmd.Context())
+			if err != nil {
+				return err
+			}
+			if jsonOut {
+				return writeKanbanJSON(cmd, kanbanStatsReportJSON{
+					Build:      newBuildProvenance(),
+					BoardStats: stats,
+				})
+			}
+			return writeKanbanStatsText(cmd, stats)
 		},
 	}
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "emit JSON")
@@ -606,6 +636,11 @@ type kanbanRunsReportJSON struct {
 	Runs   []kanban.TaskRun    `json:"runs"`
 }
 
+type kanbanStatsReportJSON struct {
+	Build buildProvenanceJSON `json:"build"`
+	kanban.BoardStats
+}
+
 type kanbanGCReportJSON struct {
 	Build              buildProvenanceJSON `json:"build"`
 	Action             string              `json:"action"`
@@ -691,6 +726,55 @@ func writeKanbanRunsText(cmd *cobra.Command, taskID string, runs []kanban.TaskRu
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "     error: %s\n", message); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func writeKanbanStatsText(cmd *cobra.Command, stats kanban.BoardStats) error {
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), "By status:"); err != nil {
+		return err
+	}
+	for _, status := range []kanban.Status{
+		kanban.StatusTriage,
+		kanban.StatusTodo,
+		kanban.StatusReady,
+		kanban.StatusRunning,
+		kanban.StatusBlocked,
+		kanban.StatusDone,
+	} {
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  %-8s  %d\n", status, stats.ByStatus[string(status)]); err != nil {
+			return err
+		}
+	}
+	if len(stats.ByAssignee) > 0 {
+		if _, err := fmt.Fprintln(cmd.OutOrStdout(), "\nBy assignee:"); err != nil {
+			return err
+		}
+		assignees := make([]string, 0, len(stats.ByAssignee))
+		for assignee := range stats.ByAssignee {
+			assignees = append(assignees, assignee)
+		}
+		sort.Strings(assignees)
+		for _, assignee := range assignees {
+			counts := stats.ByAssignee[assignee]
+			statuses := make([]string, 0, len(counts))
+			for status := range counts {
+				statuses = append(statuses, status)
+			}
+			sort.Strings(statuses)
+			parts := make([]string, 0, len(statuses))
+			for _, status := range statuses {
+				parts = append(parts, fmt.Sprintf("%s=%d", status, counts[status]))
+			}
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  %-20s  %s\n", assignee, strings.Join(parts, ", ")); err != nil {
+				return err
+			}
+		}
+	}
+	if stats.OldestReadyAgeSeconds != nil {
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "\nOldest ready task age: %ds\n", *stats.OldestReadyAgeSeconds); err != nil {
+			return err
 		}
 	}
 	return nil
