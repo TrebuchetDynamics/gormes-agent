@@ -1412,6 +1412,46 @@ func TestManager_RunLogsCleanupErrorWithoutMaskingStartupFailure(t *testing.T) {
 	}
 }
 
+func TestManager_RunChannelDisconnectTimeoutReturnsStartupFailure(t *testing.T) {
+	t.Setenv("HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT", "0.001")
+	startupErr := errors.New("discord: open session: denied")
+	releaseDisconnect := make(chan struct{})
+	defer close(releaseDisconnect)
+	ch := &startupFailedChannel{name: "discord", runErr: startupErr, disconnectWait: releaseDisconnect}
+	var logs bytes.Buffer
+
+	m := NewManagerWithSubmitter(ManagerConfig{}, &fakeKernel{}, slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})))
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- m.Run(ctx)
+	}()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, startupErr) {
+			t.Fatalf("Run error = %v, want startup error %v", err, startupErr)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Run did not return before channel disconnect timeout")
+	}
+	if got := ch.disconnectCount(); got != 1 {
+		t.Fatalf("disconnect count = %d, want 1", got)
+	}
+	gotLogs := logs.String()
+	if !strings.Contains(gotLogs, "defensive channel disconnect timed out") ||
+		!strings.Contains(gotLogs, "discord") {
+		t.Fatalf("disconnect timeout log = %q, want channel timeout evidence", gotLogs)
+	}
+}
+
 func TestManager_RunCleansFailedStartupChannelWithoutStoppingHealthyChannels(t *testing.T) {
 	startupErr := errors.New("discord: open session: denied")
 	failed := &startupFailedChannel{name: "discord", runErr: startupErr}
@@ -1454,9 +1494,10 @@ func TestManager_RunCleansFailedStartupChannelWithoutStoppingHealthyChannels(t *
 }
 
 type startupFailedChannel struct {
-	name          string
-	runErr        error
-	disconnectErr error
+	name           string
+	runErr         error
+	disconnectErr  error
+	disconnectWait <-chan struct{}
 
 	mu          sync.Mutex
 	disconnects int
@@ -1476,6 +1517,9 @@ func (c *startupFailedChannel) Disconnect(context.Context) error {
 	c.mu.Lock()
 	c.disconnects++
 	c.mu.Unlock()
+	if c.disconnectWait != nil {
+		<-c.disconnectWait
+	}
 	return c.disconnectErr
 }
 

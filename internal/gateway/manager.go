@@ -779,8 +779,32 @@ func (m *Manager) Run(ctx context.Context) error {
 
 func (m *Manager) safeChannelDisconnect(ctx context.Context, ch Channel) {
 	if disconnecter, ok := ch.(DisconnectCapable); ok {
-		if err := disconnecter.Disconnect(ctx); err != nil {
-			m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", err)
+		timeout := DefaultChannelDisconnectTimeoutFromEnv()
+		if timeout <= 0 {
+			if err := disconnecter.Disconnect(ctx); err != nil {
+				m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", err)
+			}
+			return
+		}
+
+		disconnectCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		done := make(chan error, 1)
+		go func() {
+			done <- disconnecter.Disconnect(disconnectCtx)
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", err)
+			}
+		case <-disconnectCtx.Done():
+			if errors.Is(disconnectCtx.Err(), context.DeadlineExceeded) {
+				m.log.Warn("defensive channel disconnect timed out", "channel", ch.Name(), "timeout", timeout)
+				return
+			}
+			m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", disconnectCtx.Err())
 		}
 	}
 }

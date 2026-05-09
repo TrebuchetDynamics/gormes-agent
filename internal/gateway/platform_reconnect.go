@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const defaultPlatformReconnectDelay = 30 * time.Second
+const (
+	defaultPlatformReconnectDelay   = 30 * time.Second
+	defaultChannelDisconnectTimeout = 5 * time.Second
+)
 
 // RuntimeStatusWriterFunc adapts a function into RuntimeStatusWriter for
 // lifecycle tests and small command seams.
@@ -195,6 +198,28 @@ func PlatformConnectTimeoutFromEnv(lookup func(string) string) time.Duration {
 	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
 		return 30 * time.Second
+	}
+	if value < 0 {
+		value = 0
+	}
+	return time.Duration(value * float64(time.Second))
+}
+
+func DefaultChannelDisconnectTimeoutFromEnv() time.Duration {
+	return ChannelDisconnectTimeoutFromEnv(os.Getenv)
+}
+
+func ChannelDisconnectTimeoutFromEnv(lookup func(string) string) time.Duration {
+	if lookup == nil {
+		lookup = func(string) string { return "" }
+	}
+	raw := strings.TrimSpace(lookup("HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT"))
+	if raw == "" {
+		return defaultChannelDisconnectTimeout
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return defaultChannelDisconnectTimeout
 	}
 	if value < 0 {
 		value = 0

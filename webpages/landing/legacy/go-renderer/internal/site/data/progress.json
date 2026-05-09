@@ -8216,7 +8216,83 @@
             {
               "name": "Adapter startup failure cleanup contract",
               "status": "complete",
-              "note": "TDD landed: gateway Manager.Run now treats channel startup Run errors as startup failures, defensively calls Disconnect on partially-started adapters, logs cleanup errors without masking the original failure, and Discord startup-open failures close their session through that contract."
+              "note": "TDD landed: gateway Manager.Run now treats channel startup Run errors as startup failures, defensively calls Disconnect on partially-started adapters, logs cleanup errors without masking the original failure, and Discord startup-open failures close their session through that contract. 2026-05-09 parity sweep found stale upstream drift after Hermes 78b0008f4: Hermes now bounds failed-startup adapter disconnects so a wedged adapter cannot block shutdown. Child row `Gateway channel disconnect timeout on failed startup` owns that closure."
+            },
+            {
+              "name": "Gateway channel disconnect timeout on failed startup",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes mirrors Hermes' failed-startup adapter cleanup hardening: when a channel Run exits with a startup error, Manager.Run still attempts Disconnect on partially initialized adapters, but that cleanup is bounded by HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT (default 5s, negative disables) so one wedged adapter cannot block gateway shutdown or mask the original startup failure.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "If Disconnect times out, Manager.Run logs timeout evidence and continues with the original startup failure; invalid timeout env values fall back to the 5s default.",
+              "fixture": "internal/gateway/manager_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py@78b0008f4:GatewayRunner._safe_adapter_disconnect",
+                "../hermes-agent/tests/gateway/test_safe_adapter_disconnect.py@78b0008f4:test_safe_disconnect_times_out_and_continues",
+                "../hermes-agent/hermes_cli/gateway.py@78b0008f4:systemd_stop/systemd_restart TimeoutExpired guidance",
+                "internal/gateway/manager.go:safeChannelDisconnect",
+                "internal/gateway/manager_test.go:TestManager_RunCleansStartupFailedChannelAndReturnsOriginalError",
+                "internal/gateway/platform_reconnect.go:ChannelDisconnectTimeoutFromEnv"
+              ],
+              "ready_when": [
+                "Adapter startup failure cleanup contract is complete.",
+                "The slice can use fake channels and fake logs; no live gateway, platform SDK, provider, systemd, or operator home is required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites normal shutdown drain semantics, platform reconnect, service manager restart, PID validation, or channel SDK disconnect implementations.",
+                "The implementation lets a timed-out Disconnect mask the original startup failure."
+              ],
+              "blocked_by": [
+                "Adapter startup failure cleanup contract"
+              ],
+              "acceptance": [
+                "A fake startup-failed channel whose Disconnect blocks longer than HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT does not prevent Manager.Run from returning the original startup error.",
+                "Timeout evidence names the channel and continues shutdown without waiting for the blocked Disconnect to finish.",
+                "ChannelDisconnectTimeoutFromEnv mirrors Hermes seconds parsing: default 5s, fractional seconds, invalid default, and negative disables the timeout."
+              ],
+              "note": "2026-05-09 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 25, below the 90-row cap. The only fresh source-backed upstream delta between Hermes 524cbabd8 and 78b0008f4 was gateway lifecycle hardening: bounded adapter disconnect during failed startup plus friendly stop/restart timeout guidance. Gormes owns non-Windows service-manager lifecycle differently, but its completed adapter cleanup row still lacked the bounded disconnect guard. TDD landed the bounded channel disconnect path and timeout env parser without changing normal shutdown, platform reconnect, service manager restart, PID validation, or channel SDK disconnect implementations.",
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_test.go",
+                "internal/gateway/platform_reconnect.go",
+                "internal/gateway/platform_reconnect_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestManager_RunCleansStartupFailedChannel|TestManager_ChannelDisconnectTimeout' -count=1",
+                "go test ./internal/gateway -run 'TestPlatformReconnectLifecycle_.*Timeout|TestManager_RunCleansStartupFailedChannel' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "The fake blocked Disconnect fixture returns the original startup error within the configured timeout, logs timeout evidence, and timeout env parsing fixtures cover default, fractional, invalid, and disabled values."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/platform_reconnect.go:ChannelDisconnectTimeoutFromEnv parses HERMES_GATEWAY_ADAPTER_DISCONNECT_TIMEOUT with Hermes-compatible seconds, fractional seconds, invalid-default, and negative-disabled behavior.",
+                  "internal/gateway/platform_reconnect.go:DefaultChannelDisconnectTimeoutFromEnv binds the parser to os.Getenv for production manager use.",
+                  "internal/gateway/manager.go:safeChannelDisconnect wraps DisconnectCapable cleanup in a timeout goroutine, logs timeout evidence, and preserves the original startup failure return path."
+                ],
+                "tests": [
+                  "internal/gateway/manager_test.go:TestManager_RunChannelDisconnectTimeoutReturnsStartupFailure",
+                  "internal/gateway/platform_reconnect_test.go:TestManager_ChannelDisconnectTimeoutFromEnv"
+                ],
+                "verification": [
+                  "go test ./internal/gateway -run 'TestManager_RunCleansStartupFailedChannel|TestManager_ChannelDisconnectTimeout' -count=1 -> ok",
+                  "go test ./internal/gateway -run 'TestPlatformReconnectLifecycle_.*Timeout|TestManager_RunCleansStartupFailedChannel' -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:78b0008f4 gateway/run.py + tests/gateway/test_safe_adapter_disconnect.py",
+                "note": "Hermes added a bounded adapter disconnect timeout after gateway lifecycle operations could otherwise wedge during shutdown. Gormes ports the channel-manager part into its native gateway cleanup path while keeping service-manager lifecycle behavior Gormes-owned."
+              }
             },
             {
               "name": "Active-turn follow-up queue + late-arrival drain policy",
@@ -8894,8 +8970,8 @@
           ],
           "drift_state": {
             "status": "converged",
-            "last_upstream_check": "2026-04-25T22:23:30Z",
-            "origin_decision": "Hermes restart, pairing, status, and session-expiry finalization donor behavior is now represented by validated Go gateway/session rows. Recent Hermes edc78e25 drift is TUI-focused, not gateway-lifecycle drift, so future restart/session-expiry drift should become new small 2.F.3 rows only when upstream changes this surface again."
+            "last_upstream_check": "2026-05-09T00:00:00Z",
+            "origin_decision": "Hermes restart, pairing, status, session-expiry finalization, and failed-startup adapter cleanup timeout behavior are now represented by validated Go gateway/session rows. The 2026-05-09 sweep against Hermes 78b0008f4 found failed-startup adapter disconnect timeout drift; the child row `Gateway channel disconnect timeout on failed startup` completed the small remaining 2.F.3 port."
           }
         },
         "2.F.4": {

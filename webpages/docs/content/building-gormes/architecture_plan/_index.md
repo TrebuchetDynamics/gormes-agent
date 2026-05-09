@@ -336,6 +336,7 @@ classification and row-backed implementation queue.
 
 - [x] Graceful restart drain + managed shutdown
 - [x] Adapter startup failure cleanup contract
+- [x] Gateway channel disconnect timeout on failed startup
 - [x] Active-turn follow-up queue + late-arrival drain policy
 - [x] Drain-timeout resume_pending recovery
 - [x] Pairing read-model schema + atomic persistence
