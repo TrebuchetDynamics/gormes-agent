@@ -69,27 +69,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Behavioral pattern extraction from session logs
-
-- Phase: 6 / 6.K
-- Owner: `orchestrator`
-- Size: `large`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Mine session logs and tool execution audits for behavioral patterns: which tool sequences succeed vs fail, which reasoning patterns precede good outcomes, which response styles correlate with user satisfaction. Patterns feed into the self-evolution loop as candidate mutations.
-- Trust class: operator
-- Ready when: Session logs are structured and queryable, Tool execution audit log exists (Phase 3.E.2)
-- Not ready when: No structured session data available, Tool audit log not yet implemented
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/pattern_extractor.go`, `internal/hermes/pattern_extractor_test.go`
-- Test commands: `go test ./internal/hermes -run TestPatternExtractor -count=1`
-- Done signal: Pattern extractor tests prove successful and failed patterns are correctly identified from log data
-- Acceptance: Pattern extractor identifies tool sequences with >80% success rate, Identifies tool sequences with <30% success rate (anti-patterns), Extracts reasoning patterns preceding successful tool calls, Patterns stored in Goncho as structured behavioral knowledge, Pattern extraction is offline (does not run during agent turns)
-- Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Agentic-porting-kit repo scaffold
+## 3. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -110,7 +90,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Built-with-Gormes page scaffold
+## 4. Built-with-Gormes page scaffold
 
 - Phase: 8 / 8.G
 - Owner: `docs`

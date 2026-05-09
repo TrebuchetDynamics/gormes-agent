@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 85/100 subphases shipped · 11 in progress · 4 planned
+**Overall:** 86/100 subphases shipped · 10 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -96,7 +96,7 @@ classification and row-backed implementation queue.
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
 
@@ -1170,11 +1170,11 @@ classification and row-backed implementation queue.
 - [x] Agent-controlled memory retention with importance scoring
 - [x] Cross-session memory continuity
 
-### 6.K — Self-Evolution Engine (GEPA) 🔨
+### 6.K — Self-Evolution Engine (GEPA) ✅
 
 - [x] Prompt evaluation harness
 - [x] Iterative prompt mutation and scoring loop
-- [ ] Behavioral pattern extraction from session logs
+- [x] Behavioral pattern extraction from session logs
 
 ### 6.L — Composable Skill Execution (Voyager) ✅
 

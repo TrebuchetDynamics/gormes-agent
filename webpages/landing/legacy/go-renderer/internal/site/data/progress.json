@@ -47602,11 +47602,11 @@
             },
             {
               "name": "Behavioral pattern extraction from session logs",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "Mine session logs and tool execution audits for behavioral patterns: which tool sequences succeed vs fail, which reasoning patterns precede good outcomes, which response styles correlate with user satisfaction. Patterns feed into the self-evolution loop as candidate mutations.",
-              "contract_status": "draft",
-              "slice_size": "large",
+              "contract_status": "validated",
+              "slice_size": "medium",
               "execution_owner": "orchestrator",
               "trust_class": [
                 "operator"
@@ -47615,8 +47615,10 @@
                 "docs/content/papers/agentic-os-design.md",
                 "Hermes Agent GEPA engine",
                 "Generative Agents reflection mechanism (Park et al. 2023)",
-                "internal/goncho/extractor.go",
-                "internal/hermes/turn.go"
+                "internal/audit/jsonl.go",
+                "internal/kernel/toolexec.go",
+                "internal/hermes/pattern_extractor.go",
+                "internal/hermes/pattern_extractor_test.go"
               ],
               "ready_when": [
                 "Session logs are structured and queryable",
@@ -47640,10 +47642,16 @@
               "test_commands": [
                 "go test ./internal/hermes -run TestPatternExtractor -count=1"
               ],
+              "implementation": [
+                "internal/hermes/pattern_extractor.go aggregates normalized tool-sequence observations across success and failure outcomes, computes success rates, preserves session-count evidence, and records reasoning fingerprints only from successful observations.",
+                "internal/hermes/pattern_extractor.go exports GonchoKnowledge records with stable kind/source/tags/content/tools/rate/count/evidence fields so the self-evolution loop can ingest structured behavioral knowledge offline.",
+                "internal/hermes/pattern_extractor_test.go locks the >80% success pattern threshold, <30% anti-pattern threshold, successful-reasoning extraction, and structured knowledge output."
+              ],
               "done_signal": [
                 "Pattern extractor tests prove successful and failed patterns are correctly identified from log data"
               ],
-              "note": "Research-driven (GEPA + Generative Agents reflection). The agent learns from its own history. Patterns that work are reinforced; patterns that fail are flagged for mutation. This closes the feedback loop."
+              "note": "Complete 2026-05-09: bounded all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 17, below the 90-row cap, but higher-priority P1 rows were operator/release-infrastructure blocked and P2 rows were inventory-only umbrella parents or already represented by child work. This row was the first concrete builder-ready planned row with local write scope and tests. TDD upgraded the existing placeholder counter into an offline behavioral pattern extractor that computes >80% successful sequences, <30% anti-patterns, successful reasoning fingerprints, and Goncho-ready structured knowledge records from session/tool observations.",
+              "completed_at": "2026-05-09T00:00:00Z"
             }
           ]
         },
