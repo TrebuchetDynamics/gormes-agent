@@ -142,41 +142,67 @@ func TestUpdateReadmeSyncsReleaseAndBenchmarkMetadata(t *testing.T) {
 	}
 }
 
-func TestREADMEStartsWithMethodology(t *testing.T) {
+// TestREADMELeadsWithRuntime pins the runtime-first hero contract.
+// Earlier drafts led with "autonomous-porting methodology" — the
+// 2026-05-09 README rebalance walked that back: README opens with
+// the runtime story, methodology lives in a dedicated section near
+// the bottom as supporting evidence. The site/landing copy may
+// still lead with methodology; this assertion is README-only.
+func TestREADMELeadsWithRuntime(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
 	lead := firstReadmeBodyParagraph(raw)
-	if !strings.Contains(lead, "autonomous-porting methodology") {
-		t.Fatalf("README lead should start with the autonomous-porting methodology, got %q", lead)
+	leadLower := strings.ToLower(lead)
+	for _, banned := range []string{"go port"} {
+		if strings.Contains(leadLower, banned) {
+			t.Fatalf("README lead should not frame Gormes as a Go port: %q", lead)
+		}
 	}
-	if strings.Contains(strings.ToLower(lead), "go port") {
-		t.Fatalf("README lead should not frame Gormes as a Go port: %q", lead)
+	if !strings.Contains(leadLower, "go binary") && !strings.Contains(leadLower, "go-native") {
+		t.Fatalf("README lead must anchor on the Go-native runtime story; got %q", lead)
+	}
+	// Methodology must still appear somewhere — just not in the
+	// lead. The dedicated section lives further down.
+	if !strings.Contains(raw, "autonomous-porting methodology") {
+		t.Fatalf("README must still mention the autonomous-porting methodology somewhere (relocated to its own section, not the lead)")
 	}
 }
 
+// TestREADMEMentionsDifferentiator asserts the v1 differentiator
+// spec lands in the README's hero block (within the first 80 words):
+// the 30 most-used Hermes skills running on Termux,
+// Windows-without-Python, and locked-down corp Linux. Previously
+// this also required "single 30 MB Go binary" in the first 50
+// words — the rebalance moved binary-size into the Status section
+// to keep the hero focused on portability + skill count.
 func TestREADMEMentionsDifferentiator(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
-	firstWords := firstNWords(markdownWords(raw), 50)
+	firstWords := firstNWords(markdownWords(raw), 80)
 	wants := []string{
 		"30 most-used Hermes skills",
-		"single 30 MB Go binary",
 		"Termux",
 		"Windows-without-Python",
 		"locked-down corp Linux",
 	}
 	for _, want := range wants {
 		if !strings.Contains(firstWords, want) {
-			t.Fatalf("README first 50 words should include %q; got %q", want, firstWords)
+			t.Fatalf("README first 80 words should include %q; got %q", want, firstWords)
 		}
 	}
 }
 
+// TestREADMEPreservesOperatorSections asserts the runtime-first
+// sections operators rely on. Section names tracked here: Quick
+// Install (entry point), First Proof (the rebalanced "First Run" —
+// renamed to lean into doctor/--offline as the proof), Status (the
+// release/CI summary). The two install-script invocations and the
+// two offline-proof commands round out the contract.
 func TestREADMEPreservesOperatorSections(t *testing.T) {
 	raw := readRepoFile(t, "README.md")
 	wants := []string{
 		"## Quick Install",
-		"## First Run",
+		"## First Proof",
 		"## Status",
-		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash",
+		"curl -fsSL https://gormes.ai/install.sh | sh",
 		"irm https://gormes.ai/install.ps1 | iex",
 		"gormes doctor --offline",
 		"gormes --offline",
