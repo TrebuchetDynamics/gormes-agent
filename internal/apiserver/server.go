@@ -100,6 +100,7 @@ type BuildInfo struct {
 type KanbanStore interface {
 	ListTasks(ctx context.Context, filter kanban.ListFilter) ([]kanban.Task, error)
 	GetTask(ctx context.Context, id string) (kanban.Task, error)
+	ListRuns(ctx context.Context, taskID string) ([]kanban.TaskRun, error)
 }
 
 // KanbanDispatchOptions carries the dashboard quick-dispatch parameters.

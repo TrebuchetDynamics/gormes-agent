@@ -842,6 +842,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI /kanban slash command binding over gormes kanban
 - [x] Gateway /kanban shared command-runner binding
 - [x] Kanban dashboard dispatch quick path
+- [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
 - [x] Kanban named-board workspace and log roots

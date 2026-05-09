@@ -29697,6 +29697,91 @@
               }
             },
             {
+              "name": "Kanban dashboard task run history endpoint",
+              "priority": "P2",
+              "status": "complete",
+              "completed_at": "2026-05-09T00:00:00Z",
+              "contract": "The authenticated Gormes dashboard exposes per-task Kanban run history matching Hermes' dashboard drawer and `kanban runs <task-id>` read model: `GET /api/kanban/tasks/{id}/runs` requires the active dashboard session token, validates the task exists, returns build attribution plus `task_id` and ordered `runs`, emits `runs: []` for tasks with no attempts, and reports typed store/not-found evidence without reading live Hermes state or mutating tasks.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing Kanban storage, missing task IDs, or run ledger read failures return kanban_store_unavailable, kanban_task_not_found, or kanban_runs_error without opening Hermes config, starting a dispatcher, spawning workers, or leaking local paths.",
+              "fixture": "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_TaskRuns",
+              "source_refs": [
+                "./hermes-agent/plugins/kanban/dashboard/plugin_api.py@a7e7921db:task detail includes runs",
+                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:_cmd_runs",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:list_runs",
+                "internal/kanban/store.go:ListRuns",
+                "internal/apiserver/dashboard.go:handleDashboardKanbanTaskByID"
+              ],
+              "ready_when": [
+                "Kanban task run history command is complete over the native run ledger.",
+                "Kanban dashboard read routes already require the dashboard session token.",
+                "The slice can use an injected fake Kanban store; no live gateway, provider, worker subprocess, or Hermes home is required."
+              ],
+              "not_ready_when": [
+                "The endpoint returns run history without the active dashboard session token.",
+                "The implementation reads HERMES_HOME, HERMES_KANBAN_DB, ~/.hermes, or live Hermes dashboard state.",
+                "The slice expands into dashboard mutations, dispatcher nudges, worker spawning, watch/tail streams, stats, or GC behavior."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "acceptance": [
+                "Dashboard fixtures prove `GET /api/kanban/tasks/{id}/runs` requires the active dashboard session token.",
+                "A fake store fixture proves successful responses include build attribution, the requested task_id, and runs ordered by store order with summary/error/metadata preserved.",
+                "An empty-history fixture proves the endpoint returns `runs: []` rather than null for tasks with no attempts.",
+                "Missing task and failing ledger fixtures prove typed degraded errors without mutating Kanban tasks or starting a dispatcher."
+              ],
+              "write_scope": [
+                "internal/apiserver/server.go",
+                "internal/apiserver/dashboard.go",
+                "internal/apiserver/dashboard_kanban_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/apiserver -run TestDashboardKanban_TaskRuns -count=1",
+                "go test ./internal/apiserver -run TestDashboardKanban -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Authenticated dashboard Kanban run-history fixtures prove task existence checks, ordered run output, build attribution, empty-array behavior, and typed degraded errors."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a7e7921db plugins/kanban/dashboard/plugin_api.py task detail runs + hermes_cli/kanban.py:_cmd_runs",
+                "note": "Hermes exposes per-task run history in both CLI and dashboard. Gormes already has the native run ledger and CLI command, so this row ports the missing authenticated dashboard read endpoint only."
+              },
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 21 before this planner pass, below the 90-row cap, so adding one source-backed P2 child row was allowed. P1 public/release rows remain operator- or infra-blocked, browser/provider/auth/memory surfaces are row-backed or complete, and the active Kanban parent still named dashboard worker runs while Gormes only exposed task lanes, filters, detail, and dispatch. TDD added an authenticated `/api/kanban/tasks/{id}/runs` endpoint over the native run ledger with task existence checks, ordered run output, empty-array history, build attribution, and typed degraded errors.",
+              "evidence": {
+                "implementation": [
+                  "internal/apiserver/server.go: KanbanStore now includes ListRuns so the dashboard facade can read the native run ledger.",
+                  "internal/apiserver/dashboard.go: handleDashboardKanbanTaskByID routes `/runs` suffixes to handleDashboardKanbanTaskRuns without changing existing task-detail behavior.",
+                  "internal/apiserver/dashboard.go: handleDashboardKanbanTaskRuns enforces GET plus dashboard auth, validates the task with GetTask, returns build-attributed {task_id,runs}, normalizes empty histories to [], and reports kanban_task_not_found / kanban_runs_error."
+                ],
+                "tests": [
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_TaskRuns/requires_dashboard_session_token",
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_TaskRuns/returns_ordered_runs_with_build_attribution",
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_TaskRuns/empty_history_is_an_empty_array",
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_TaskRuns/missing_task_returns_typed_not_found",
+                  "internal/apiserver/dashboard_kanban_test.go:TestDashboardKanban_TaskRuns/run_ledger_failure_returns_typed_error"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/apiserver -run TestDashboardKanban_TaskRuns -count=1 failed because `/api/kanban/tasks/{id}/runs` was treated as a task id and returned kanban_task_not_found.",
+                  "GREEN: go test ./internal/apiserver -run TestDashboardKanban_TaskRuns -count=1 passed after adding the ListRuns facade and dashboard run-history handler."
+                ],
+                "verification": [
+                  "go test ./internal/apiserver -run TestDashboardKanban_TaskRuns -count=1 -> ok",
+                  "go test ./internal/apiserver -run TestDashboardKanban -count=1 -> ok"
+                ]
+              }
+            },
+            {
               "name": "Kanban dispatcher status in gateway /status",
               "priority": "P2",
               "status": "complete",
