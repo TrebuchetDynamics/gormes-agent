@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -355,11 +356,12 @@ func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
 }
 
 type HermesCfg struct {
-	Endpoint  string     `toml:"endpoint" yaml:"endpoint"`
-	APIKey    string     `toml:"api_key" yaml:"api_key"`
-	APIKeyRef *SecretRef `toml:"api_key_ref" yaml:"api_key_ref" json:"api_key_ref,omitempty"`
-	Model     string     `toml:"model" yaml:"model"`
-	Provider  string     `toml:"provider" yaml:"provider"`
+	Endpoint              string     `toml:"endpoint" yaml:"endpoint"`
+	APIKey                string     `toml:"api_key" yaml:"api_key"`
+	APIKeyRef             *SecretRef `toml:"api_key_ref" yaml:"api_key_ref" json:"api_key_ref,omitempty"`
+	Model                 string     `toml:"model" yaml:"model"`
+	Provider              string     `toml:"provider" yaml:"provider"`
+	ModelResolutionSource string     `toml:"-" yaml:"-" json:"model_resolution_source,omitempty"`
 }
 
 type AuxiliaryCfg struct {
@@ -458,6 +460,7 @@ type InferenceResolution struct {
 	Provider                   string
 	ProviderSource             InferenceValueSource
 	ProviderAutoDetectRequired bool
+	ModelResolutionSource      string
 }
 
 type OneshotInferenceResolution = InferenceResolution
@@ -506,7 +509,45 @@ func ResolveInference(req InferenceRequest) (InferenceResolution, error) {
 		return resolution, providerRequiresExplicitModelError(req.CommandLabel, providerSource)
 	}
 	resolution.ProviderAutoDetectRequired = explicitModel && providerSource == InferenceValueSourceUnset
+	resolveInferenceProviderDefaultModel(&resolution)
 	return resolution, nil
+}
+
+func resolveProviderDefaultModel(cfg *Config) {
+	if !shouldResolveProviderDefaultModel(cfg.Hermes.Provider, cfg.Hermes.Model) {
+		if strings.TrimSpace(cfg.Hermes.Provider) != "" && strings.TrimSpace(cfg.Hermes.Model) != "" {
+			cfg.Hermes.ModelResolutionSource = "explicit_operator_config"
+		}
+		return
+	}
+	resolution := hermes.ResolveProviderDefaultModel(cfg.Hermes.Provider, hermes.ProviderDefaultModelOptions{})
+	if strings.TrimSpace(resolution.Model) == "" {
+		return
+	}
+	cfg.Hermes.Provider = resolution.Provider
+	cfg.Hermes.Model = resolution.Model
+	cfg.Hermes.ModelResolutionSource = string(resolution.Source)
+}
+
+func resolveInferenceProviderDefaultModel(resolution *InferenceResolution) {
+	if resolution == nil || !shouldResolveProviderDefaultModel(resolution.Provider, resolution.Model) {
+		return
+	}
+	defaultModel := hermes.ResolveProviderDefaultModel(resolution.Provider, hermes.ProviderDefaultModelOptions{})
+	if strings.TrimSpace(defaultModel.Model) == "" {
+		return
+	}
+	resolution.Provider = defaultModel.Provider
+	resolution.Model = defaultModel.Model
+	resolution.ModelResolutionSource = string(defaultModel.Source)
+}
+
+func shouldResolveProviderDefaultModel(provider, model string) bool {
+	if strings.TrimSpace(provider) == "" {
+		return false
+	}
+	model = strings.TrimSpace(model)
+	return model == "" || strings.EqualFold(model, "hermes-agent")
 }
 
 type inferenceCandidate struct {
@@ -565,6 +606,7 @@ func Load(args []string) (Config, error) {
 	if err := validateConfig(&cfg); err != nil {
 		return cfg, err
 	}
+	resolveProviderDefaultModel(&cfg)
 	return cfg, nil
 }
 
