@@ -8,6 +8,74 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-05-09
+
+Date alias: `v2026.5.9`.
+
+> **Closes 13 v0.2.0 fresh-install probe issues.** A nuke + reinstall +
+> probe sweep against v0.2.0 surfaced one critical, two cleanup-completeness,
+> one release-distribution, and nine `--json` conformance-fence escapes.
+> All thirteen are fixed and verified end-to-end against a dev binary
+> overlay; the conformance fence now covers eight batteries with no
+> escape paths in the surface that was probed.
+
+### Critical
+- **`gormes update` mutates the install's managed checkout, not cwd.**
+  Previously, running `gormes update` from inside the gormes-agent dev tree
+  walked up cwd to find a git checkout, switched its branch from
+  `development` to `main`, and ran a web build there — mutating the
+  user's source instead of the install. New `resolveManagedCheckoutDir()`
+  mirrors install.sh's `managed_checkout_dir()`: `GORMES_INSTALL_DIR` →
+  `$GORMES_INSTALL_HOME/gormes-agent` → `$HOME/.gormes/gormes-agent`. Never
+  falls back to cwd.
+
+### Uninstall lifecycle
+- **Removes the install.sh-published PATH symlink.** `gormes uninstall --yes`
+  used to nuke `~/.gormes/bin/gormes` but leave `~/.local/bin/gormes`
+  dangling. New `published-binary` artifact group enumerates symlinks
+  pointing into the gormes home (only — never touches a real binary at
+  the same path).
+- **`gormes-home` group surfaces the home-tree wildcard honestly.** The
+  preview previously listed `<home>/` under "logs" because
+  `config.CrashLogDir()` returns `GormesHome()`. Renamed split: "logs"
+  enumerates explicit log files only; "gormes-home" lists the home
+  wildcard so operators see the wholesale-removal scope unambiguously.
+- **`install.sh --uninstall` applies by default.** Without flags it now
+  runs `gormes uninstall --yes --dry-run=false`, matching `install.sh`'s
+  default-to-apply UX. `install.sh --uninstall --dry-run` still previews
+  (caller intent wins).
+
+### Release distribution
+- **`install.sh` and `install.ps1` are first-class GitHub release assets.**
+  The natural URL pattern
+  `https://github.com/.../releases/download/<tag>/install.sh` returned 404
+  in v0.2.0 — the publish step uploaded only platform tarballs + checksums
+  + SBOMs. Release notes now also document the canonical curl/irm install
+  one-liners.
+
+### `--json` conformance fence — 9 new structured-error paths
+Five commands paired with `--json` previously emitted cobra errors to
+stderr with empty stdout, breaking the wire-shape contract fleet
+automation depends on. New shared helper `emitJSONInputError` ships
+`{build, action, error}` documents on stdout, exits 1, with `action`
+discriminating the failure kind:
+
+  - `auth status --json` (missing required `<provider>` arg) → `missing_argument`
+  - `logs --json` (no log file exists yet) → `no_logs`
+  - `secrets audit --json` (missing required `--plan` flag) → `missing_flag`
+  - `restore --json` (missing `--list`/`--latest`/`--path`) → `missing_argument`
+  - `<parent> <typo> --json` (every parent: mcp, config, kanban, session,
+    agent, root) → `unknown_subcommand`
+  - `<parent> <typo-with-suggestion> --json` (cobra's "did you mean" path
+    short-circuited Find() before the parent guard fired) → `unknown_subcommand`
+  - `gateway xyz --json` (gateway parent has its own RunE, so cobra
+    rejected `--json` as "unknown flag" before subcommand routing) →
+    `unknown_subcommand`
+
+A seventh fresh-install conformance battery
+(`TestFreshInstallE2E_InvalidInputJSONEmitsStructuredError`) pins all
+nine cases.
+
 ## [0.2.0] - 2026-05-08
 
 Date alias: `v2026.5.8`.
