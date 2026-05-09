@@ -47,6 +47,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries := []hermesCLIParityEntry{
 		hermesImplementedCommand("chat", "hermes_cli/main.py:chat", "cmd/gormes root TUI/oneshot"),
 		hermesImplementedCommand("model", "hermes_cli/main.py:model_command", "internal/gateway model handler"),
+		hermesImplementedCommand("fallback", "hermes_cli/main.py:fallback", "cmd/gormes fallback"),
 		hermesCommandSet("gateway", "hermes_cli/main.py:gateway", "gateway lifecycle subcommands are partly implemented; missing mutating/service commands remain row-backed", "Gateway, platform, webhook, and cron management CLI"),
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
 		{Path: []string{"whatsapp"}, Kind: hermesCLICommand, Status: hermesCLIImplemented, SourceRef: "hermes_cli/main.py:whatsapp", Target: "cmd/gormes whatsapp", Row: "WhatsApp top-level pairing wizard shell", Residual: "top-level WhatsApp wizard shell and plan output are implemented; bundling/running the live Baileys QR bridge remains row-backed"},
@@ -98,6 +99,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 
 	entries = append(entries, hermesGatewayNestedCommands()...)
 	entries = append(entries, hermesNestedCommands("slack", "hermes_cli/main.py:slack_sub", "Gateway, platform, webhook, and cron management CLI", []string{"manifest"})...)
+	entries = append(entries, hermesFallbackCommands()...)
 	entries = append(entries, hermesProviderAuthCommands()...)
 	entries = append(entries, hermesNestedCommands("cron", "hermes_cli/main.py:cron_subparsers", "Gateway, platform, webhook, and cron management CLI", []string{"list", "create", "edit", "pause", "resume", "run", "remove", "status", "tick"})...)
 	entries = append(entries,
@@ -178,6 +180,19 @@ func hermesOwnedPath(path []string, sourceRef, residual string) hermesCLIParityE
 	return hermesCLIParityEntry{Path: slices.Clone(path), Kind: hermesCLICommand, Status: hermesCLIOwned, SourceRef: sourceRef, Target: "cmd/gormes " + strings.Join(path, " "), Residual: residual}
 }
 
+func hermesImplementedPath(path []string, kind hermesCLIParityKind, sourceRef, target, residual string) hermesCLIParityEntry {
+	entry := hermesCLIParityEntry{
+		Path:      slices.Clone(path),
+		Kind:      kind,
+		Status:    hermesCLIImplemented,
+		SourceRef: sourceRef,
+		Target:    target,
+		Residual:  residual,
+	}
+	markHermesCLIEntryFlags(&entry)
+	return entry
+}
+
 func hermesExcludedCommand(name, sourceRef, residual string) hermesCLIParityEntry {
 	return hermesCLIParityEntry{Path: []string{name}, Kind: hermesCLICommand, Status: hermesCLIExcluded, SourceRef: sourceRef, Residual: residual}
 }
@@ -205,6 +220,17 @@ func hermesNestedCommands(group, sourceRef, row string, commands []string) []her
 		out = append(out, entry)
 	}
 	return out
+}
+
+func hermesFallbackCommands() []hermesCLIParityEntry {
+	return []hermesCLIParityEntry{
+		hermesImplementedPath([]string{"fallback", "list"}, hermesCLICommand, "hermes_cli/main.py:fallback_subparsers:list", "cmd/gormes fallback list", "lists the local fallback provider chain from Gormes config"),
+		hermesImplementedPath([]string{"fallback", "ls"}, hermesCLIAlias, "hermes_cli/main.py:fallback_subparsers:list aliases", "cmd/gormes fallback list", "fallback ls alias resolves to fallback list"),
+		hermesImplementedPath([]string{"fallback", "add"}, hermesCLICommand, "hermes_cli/fallback_cmd.py:cmd_fallback_add", "cmd/gormes fallback add", "appends a provider/model selected through the model picker without changing the primary model"),
+		hermesImplementedPath([]string{"fallback", "remove"}, hermesCLICommand, "hermes_cli/fallback_cmd.py:cmd_fallback_remove", "cmd/gormes fallback remove", "removes a selected fallback entry from the local chain"),
+		hermesImplementedPath([]string{"fallback", "rm"}, hermesCLIAlias, "hermes_cli/main.py:fallback_subparsers:remove aliases", "cmd/gormes fallback remove", "fallback rm alias resolves to fallback remove"),
+		hermesImplementedPath([]string{"fallback", "clear"}, hermesCLICommand, "hermes_cli/fallback_cmd.py:cmd_fallback_clear", "cmd/gormes fallback clear", "clears the local fallback chain after confirmation"),
+	}
 }
 
 func hermesClawCommands() []hermesCLIParityEntry {
@@ -327,6 +353,7 @@ func markHermesCLIEntryFlags(entry *hermesCLIParityEntry) {
 		"claw cleanup", "claw clean",
 		"cron remove", "cron rm", "cron delete",
 		"curator archive", "curator prune", "curator rollback", "curator restore",
+		"fallback remove", "fallback rm", "fallback clear",
 		"hooks revoke", "hooks remove", "hooks rm",
 		"kanban archive", "kanban gc",
 		"mcp remove", "mcp rm",

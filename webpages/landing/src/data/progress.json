@@ -38147,7 +38147,7 @@
               "name": "Hermes fallback provider chain CLI commands",
               "status": "complete",
               "priority": "P1",
-              "contract": "Current Hermes CLI parity does not include a `fallback` top-level parser or nested fallback provider chain commands. Gormes must omit the stale `fallback` command set from `cmd/gormes` parity inventory rather than implementing non-upstream `fallback_providers` CLI behavior.",
+              "contract": "Gormes must restore current Hermes' `fallback` top-level command and nested `list`/`ls`, `add`, `remove`/`rm`, and `clear` provider-chain commands. The command reads and writes a Gormes-native TOML fallback chain compatible with Hermes' top-level `fallback_providers` list and legacy `fallback_model` shape, preserves the current primary model/provider when adding a fallback through the existing model picker, and redacts all credential-adjacent state by never reading provider tokens.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -38155,46 +38155,53 @@
                 "operator",
                 "system"
               ],
-              "degraded_mode": "If future upstream Hermes reintroduces a fallback provider chain, the CLI parity manifest test fails until a fresh source-backed row with current parser refs is added; no provider credentials, model picker, or config mutation are touched by this retirement slice.",
-              "fixture": "cmd/gormes/hermes_cli_parity_test.go::TestHermesCLIParityManifestOmitsRetiredFallbackCommands",
+              "degraded_mode": "If the picker is unavailable or stdin is non-TTY, `gormes fallback add` fails with the same typed model-picker error used by `gormes model`; list/remove/clear still operate on the local config file and do not contact providers.",
+              "fixture": "cmd/gormes/fallback_test.go",
               "source_refs": [
-                "/home/xel/.hermes/hermes-agent/hermes_cli/main.py (searched: no fallback parser)",
-                "/home/xel/.hermes/hermes-agent/hermes_cli/ (searched: no fallback_cmd.py)",
+                "./hermes-agent/hermes_cli/main.py@f6d45e5df:fallback parser registration",
+                "./hermes-agent/hermes_cli/fallback_cmd.py@f6d45e5df:_read_chain,_write_chain,cmd_fallback_list,cmd_fallback_add,cmd_fallback_remove,cmd_fallback_clear",
                 "cmd/gormes/hermes_cli_parity.go:hermesCLIParityManifest",
-                "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifestOmitsRetiredFallbackCommands"
+                "internal/hermes/model_routing.go:NormalizeFallbackModelConfig",
+                "internal/kernel/provider_fallback.go"
               ],
               "ready_when": [
-                "Hermes source inspection confirms `hermes_cli/main.py` contains no fallback parser and `hermes_cli/fallback_cmd.py` is absent in the active upstream checkout.",
-                "The parity manifest has a regression test proving stale fallback entries are omitted."
+                "Hermes source inspection confirms `hermes_cli/main.py` registers the fallback parser and `hermes_cli/fallback_cmd.py` is present in the active upstream checkout.",
+                "Gormes already has runtime fallback activation and model picker seams, so this slice is limited to the CLI/config binding."
               ],
               "not_ready_when": [
-                "A current upstream Hermes checkout contains `fallback` parser or `hermes_cli/fallback_cmd.py` symbols that need a real Gormes command row.",
-                "The manifest leaves any `fallback` top-level or nested entry that would advertise a non-upstream command."
+                "The slice changes kernel fallback activation, provider transports, auth/token vaults, or model metadata.",
+                "The command reads real provider credentials, contacts a provider, or mutates the primary model/provider while adding a fallback.",
+                "The row is broadened into fallback runtime retry behavior instead of staying on the CLI/config surface."
               ],
               "blocked_by": [],
               "unblocks": [],
               "acceptance": [
-                "TestHermesCLIParityManifestOmitsRetiredFallbackCommands proves the top-level `fallback` command and stale nested `list/ls/add/remove/rm/clear/show/set` entries are absent from the current Hermes CLI parity manifest.",
-                "TestHermesCLIParityManifest and TestHermesCLIParityManifestNestedParserInventoryMatchesHermes remain green with the retired fallback command set removed."
+                "`gormes fallback` and `gormes fallback list` render an empty-chain message or the configured primary plus ordered fallback entries from `fallback_providers` or legacy `fallback_model`.",
+                "`gormes fallback add` uses the existing model picker seam to append a provider/model to `fallback_providers`, refuses exact duplicates, and leaves `[hermes].provider` / `[hermes].model` unchanged.",
+                "`gormes fallback remove` removes the selected numbered entry and `gormes fallback clear` clears the chain only after confirmation, both deleting legacy `fallback_model` on write.",
+                "The Hermes CLI parity manifest includes the current fallback parser and nested aliases while excluding stale `show`/`set` entries."
               ],
-              "note": "Reconciles a stale builder-ready row: the active upstream Hermes checkout no longer ships `hermes_cli/fallback_cmd.py` or a `fallback` parser in `hermes_cli/main.py`, so implementing `gormes fallback` would create a Gormes-only command while claiming Hermes parity. The manifest now treats fallback as retired by omission, and the row is closed with source-inspection evidence rather than runtime command code.",
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 14, below the 90-row ceiling, and this completed P1 row was stale against active Hermes f6d45e5df: `hermes_cli/main.py` now registers `fallback` and `hermes_cli/fallback_cmd.py` defines list/add/remove/clear. TDD restored `gormes fallback` over the existing model picker and runtime fallback activation: list reads `fallback_providers` or legacy `fallback_model`, add appends without changing `[hermes]`, duplicate adds are skipped, remove/rm deletes a selected numbered entry, clear confirms before rewriting the canonical chain, and the CLI parity manifest now includes current fallback parser entries while excluding stale `show`/`set`. Evidence: `go test ./cmd/gormes -run 'TestFallbackCommand|TestHermesCLIParityManifest.*Fallback|TestHermesCLIParityManifest$|TestHermesCLIParityManifestNestedParserInventoryMatchesHermes' -count=1`.",
               "write_scope": [
+                "cmd/gormes/fallback.go",
+                "cmd/gormes/fallback_test.go",
+                "cmd/gormes/main.go",
                 "cmd/gormes/hermes_cli_parity.go",
                 "cmd/gormes/hermes_cli_parity_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run 'TestHermesCLIParityManifestOmitsRetiredFallbackCommands|TestHermesCLIParityManifest$|TestHermesCLIParityManifestNestedParserInventoryMatchesHermes' -count=1",
+                "go test ./cmd/gormes -run 'TestFallbackCommand|TestHermesCLIParityManifest.*Fallback|TestHermesCLIParityManifest$|TestHermesCLIParityManifestNestedParserInventoryMatchesHermes' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "done_signal": [
-                "CLI parity manifest omits the retired fallback command set and progress no longer offers `gormes fallback` as a builder-ready Hermes-parity slice."
+                "Fallback CLI/config fixtures pass, the manifest classifies the current fallback command set, and the row evidence records current Hermes f6d45e5df source refs."
               ],
               "provenance": {
                 "origin_type": "upstream_reconciliation",
-                "upstream_ref": "hermes:hermes_cli/main.py current parser inventory; hermes_cli/fallback_cmd.py absent",
-                "note": "Earlier progress evidence referenced stale fallback source paths. Current source inspection found no fallback parser or fallback_cmd.py, so the parity-safe action is to retire the row and remove manifest entries."
+                "upstream_ref": "hermes:f6d45e5df hermes_cli/main.py fallback parser; hermes_cli/fallback_cmd.py fallback provider chain handlers",
+                "note": "Earlier progress evidence was stale and claimed the fallback parser was absent. Current source inspection found the parser and handler module, so the parity-safe action is to restore the Gormes CLI binding while reusing the shipped runtime fallback activation."
               }
             },
             {
