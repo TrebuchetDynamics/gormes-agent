@@ -2236,6 +2236,92 @@
               }
             },
             {
+              "name": "Hermes MEMORY_GUIDANCE stale-artifact exclusion refresh",
+              "status": "complete",
+              "priority": "P1",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system",
+                "operator"
+              ],
+              "contract": "Refresh Gormes' pure-data `internal/hermes.MemoryGuidance` constant to byte-match current Hermes `MEMORY_GUIDANCE` after upstream commit 6e5489c9f adds explicit examples of ephemeral PR, issue, commit SHA, completed-work, phase, file-count, and 7-day-stale artifacts that must not be written to durable memory. The slice is data-only: no live-turn prompt wiring, gateway behavior, provider routing, memory store mutation, or channel rendering changes.",
+              "contract_status": "validated",
+              "degraded_mode": "If the constant drifts, `TestGuidanceConstants_MemoryGuidance_ByteEquivalent` fails before any runtime path changes; operators keep the previous guidance until this data-only refresh lands.",
+              "fixture": "internal/hermes/guidance_constants_test.go::TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
+              "source_refs": [
+                "./hermes-agent/agent/prompt_builder.py@6e5489c9f:MEMORY_GUIDANCE",
+                "./hermes-agent/tests/run_agent/test_memory_nudge_counter_hydration.py@e612c3d6f (adjacent memory prompt/runtime nudge drift evidence)",
+                "internal/hermes/guidance_constants.go:MemoryGuidance",
+                "internal/hermes/guidance_constants_test.go:TestGuidanceConstants_MemoryGuidance_ByteEquivalent",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md#prompt-context-compression-and-skills-in-prompt"
+              ],
+              "ready_when": [
+                "The in-repo Hermes submodule is refreshed to e612c3d6f or newer and includes commit 6e5489c9f.",
+                "`go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails only because Gormes' MemoryGuidance is missing the stale-artifact exclusion sentence.",
+                "No live provider, gateway, or private memory directory is required."
+              ],
+              "not_ready_when": [
+                "The change edits `internal/gateway`, `internal/kernel`, `internal/memory`, channel adapters, or prompt assembly wiring instead of the pure guidance constant.",
+                "The Go constant is paraphrased, rebranded, or normalized instead of byte-matching the upstream Python concatenated string.",
+                "The slice attempts to implement relevance-based memory retrieval or memory-nudge counter hydration; those are separate runtime surfaces."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated)"
+              ],
+              "acceptance": [
+                "RED: `go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails before implementation with the missing upstream stale-artifact exclusion text.",
+                "GREEN: the same focused test passes after `internal/hermes.MemoryGuidance` includes the upstream PR/issue/SHA/7-day-stale exclusion sentence byte-for-byte.",
+                "`go test ./internal/hermes -run GuidanceConstants -count=1` passes so the refresh did not drift any sibling guidance constant.",
+                "`go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1` passes with the memory-backed provider prompt golden updated to the new guidance text.",
+                "No runtime wiring files are touched; only the guidance constant, memory-backed e2e golden fixture, progress row, generated progress surfaces, and the Hermes submodule pin may change."
+              ],
+              "write_scope": [
+                "internal/hermes/guidance_constants.go",
+                "internal/e2e/testdata/normal_turn/memory_backed.json",
+                "docs/content/building-gormes/architecture_plan/progress.json",
+                "docs/content/building-gormes/",
+                "webpages/landing/src/data/progress.json",
+                "webpages/landing/legacy/go-renderer/internal/site/data/progress.json",
+                "hermes-agent"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1",
+                "go test ./internal/hermes -run GuidanceConstants -count=1",
+                "go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "MemoryGuidance byte-equivalence is green against Hermes e612c3d6f, progress evidence records the 2026-05-09 stale-artifact exclusion refresh, and no prompt wiring or memory runtime code changed."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/guidance_constants.go:MemoryGuidance now includes Hermes' PR/issue/SHA/7-day-stale artifact exclusion sentence byte-for-byte.",
+                  "internal/hermes/guidance_constants.go upstream pin updated to e612c3d6f00624868ce3f73bb6beaacfea36337f.",
+                  "internal/e2e/testdata/normal_turn/memory_backed.json regenerates the provider-visible memory-backed system prompt with the refreshed guidance text.",
+                  "hermes-agent submodule refreshed from e90aa7f28 to e612c3d6f."
+                ],
+                "tests": [
+                  "RED: go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1 failed before implementation because MemoryGuidance missed the stale-artifact exclusion text.",
+                  "GREEN: go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1 -> ok.",
+                  "GREEN: go test ./internal/hermes -run GuidanceConstants -count=1 -> ok.",
+                  "GREEN: GORMES_UPDATE_GOLDEN_TRANSCRIPTS=1 go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1 -> ok.",
+                  "GREEN: go test ./internal/e2e -run 'TestNormalTurnGoldenTranscripts/memory_backed' -count=1 -> ok."
+                ],
+                "verification": [
+                  "go run ./cmd/progress write -> regenerated progress docs and site progress data.",
+                  "go run ./cmd/progress validate -> ok."
+                ]
+              },
+              "provenance": {
+                "origin_type": "stale-upstream-refresh",
+                "upstream_ref": "hermes:agent/prompt_builder.py MEMORY_GUIDANCE commit 6e5489c9f",
+                "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current runtime deltas were complete, row-backed, or operator-blocked except this source-backed memory prompt drift: Hermes tightened durable memory guidance against ephemeral PR/issue/SHA and stale completed-work facts while the existing Gormes byte-equivalence fixture failed against the refreshed submodule. Planned rows were 15, below the 90-row cap, so one P1 stale-upstream refresh row was allowed. TDD updated the pure guidance constant only; no prompt wiring, memory runtime, provider, gateway, or channel code changed."
+              }
+            },
+            {
               "name": "Live-turn metadata production wiring (cmd/gormes -> Manager seams)",
               "status": "complete",
               "priority": "P1",

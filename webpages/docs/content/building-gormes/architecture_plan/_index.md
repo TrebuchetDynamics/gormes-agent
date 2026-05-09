@@ -191,6 +191,7 @@ classification and row-backed implementation queue.
 - [x] Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)
 - [x] Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)
 - [x] Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
+- [x] Hermes MEMORY_GUIDANCE stale-artifact exclusion refresh
 - [x] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
 - [x] BlueBubbles iMessage session-context prompt guidance
 - [x] Telegram production live-turn provider payload golden
