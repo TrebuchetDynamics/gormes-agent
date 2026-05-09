@@ -617,6 +617,7 @@ classification and row-backed implementation queue.
 - [x] Provider rate guard + budget telemetry
 - [x] Provider rate guard — x-ratelimit header classification
 - [x] Provider rate guard — degraded-state + last-known-good evidence
+- [x] Hermes fast-mode request override serializer
 
 ### 4.I — Native Agent Turn Closure ✅
 

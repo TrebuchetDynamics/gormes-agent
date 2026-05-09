@@ -131,6 +131,7 @@ type orChatRequest struct {
 	MaxCompletionTokens int                `json:"max_completion_tokens,omitempty"`
 	Temperature         *float64           `json:"temperature,omitempty"`
 	ReasoningEffort     *ReasoningEffort   `json:"reasoning_effort,omitempty"`
+	ServiceTier         string             `json:"service_tier,omitempty"`
 	Tools               []orToolDescriptor `json:"tools,omitempty"`
 }
 
@@ -227,12 +228,22 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 		MaxCompletionTokens: maxCompletionTokens,
 		Temperature:         req.Temperature,
 		ReasoningEffort:     reasoningEffort,
+		ServiceTier:         normalizeServiceTier(req.RequestOverrides.ServiceTier),
 		Tools:               tools,
 	})
 	if err != nil {
 		return nil, nil, err
 	}
 	return body, descriptors, nil
+}
+
+func normalizeServiceTier(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "priority":
+		return "priority"
+	default:
+		return ""
+	}
 }
 
 func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatRequest) (Stream, error) {

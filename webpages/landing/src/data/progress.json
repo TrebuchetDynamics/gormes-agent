@@ -18234,6 +18234,89 @@
                 "upstream_ref": "hermes:0824ba6a agent/nous_rate_guard.py:record_nous_rate_limit",
                 "note": "Hermes records cross-session rate state in Python; Gormes first lands a pure last-known-class state transition before any shared breaker or reset-window telemetry."
               }
+            },
+            {
+              "name": "Hermes fast-mode request override serializer",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports the provider-bound portion of Hermes fast mode: a pure internal/hermes resolver classifies eligible OpenAI flagship and Claude Opus 4.6 models, returns typed request overrides, and the native provider transports serialize only supported overrides (`service_tier=priority` for OpenAI-compatible/Codex Responses payloads, `speed=fast` plus the Anthropic fast-mode beta for eligible native Anthropic requests) without wiring the `/fast` command or live config persistence in this slice.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Unsupported models return no override evidence, explicit unsupported speed/service_tier values are omitted from provider payloads, and callers can leave `/fast` unavailable until the command/config binding row lands.",
+              "fixture": "internal/hermes/fast_mode_request_overrides_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/models.py@524cbabd8:resolve_fast_mode_overrides",
+                "./hermes-agent/hermes_cli/models.py@524cbabd8:model_supports_fast_mode",
+                "./hermes-agent/gateway/run.py@524cbabd8:_handle_fast_command",
+                "./hermes-agent/tui_gateway/server.py@524cbabd8:fast mode request_overrides",
+                "./hermes-agent/agent/transports/chat_completions.py@524cbabd8:request_overrides",
+                "./hermes-agent/agent/codex_responses_adapter.py@524cbabd8:service_tier passthrough",
+                "./hermes-agent/agent/anthropic_adapter.py@524cbabd8:_supports_fast_mode"
+              ],
+              "ready_when": [
+                "internal/hermes owns ChatRequest and provider request serialization for OpenAI-compatible, Codex Responses, and Anthropic Messages transports.",
+                "Tests can inspect serialized fake request bodies and headers without live provider credentials, gateway processes, or config writes.",
+                "The row stays provider-only; `/fast` command/config persistence remains a separate CLI/gateway binding slice."
+              ],
+              "not_ready_when": [
+                "The slice changes command registry behavior, gateway `/fast` output, TUI slash dispatch, or config writer semantics.",
+                "The slice sends `service_tier` to Codex-family models from the fast-mode resolver or sends `speed=fast` to non-Opus-4.6 Claude models.",
+                "The tests require live OpenAI, Codex, Anthropic, or gateway credentials."
+              ],
+              "acceptance": [
+                "TestResolveFastModeRequestOverrides covers OpenAI flagship prefixes, vendor prefixes, Codex exclusions, Claude Opus 4.6 support, and unsupported Claude/Gemini/Kimi/empty models.",
+                "TestOpenAICompatibleChatRequestSerializesServiceTier proves service_tier is present only when explicitly supplied through ChatRequest overrides.",
+                "TestCodexResponsesPayloadSerializesServiceTier proves Codex Responses payload normalization preserves explicit service_tier while the resolver never emits it for Codex-series models.",
+                "TestAnthropicFastModeSerializesOnlyEligibleSpeed proves speed=fast and the fast-mode beta header appear for Opus 4.6 and are omitted for Opus 4.7/Sonnet/third-party-style unsupported models.",
+                "Existing reasoning_effort, temperature retry, max_tokens retry, and Anthropic request fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/hermes/client.go",
+                "internal/hermes/http_client.go",
+                "internal/hermes/codex_responses_adapter.go",
+                "internal/hermes/anthropic_client.go",
+                "internal/hermes/fast_mode_request_overrides_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestResolveFastModeRequestOverrides|TestOpenAICompatibleChatRequestSerializesServiceTier|TestCodexResponsesPayloadSerializesServiceTier|TestAnthropicFastModeSerializesOnlyEligibleSpeed' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Provider fixtures prove Hermes fast-mode request overrides resolve and serialize at the native Gormes provider boundary without enabling the `/fast` command yet."
+              ],
+              "note": "Completed 2026-05-09: TDD added typed RequestOverrides, ResolveFastModeRequestOverrides, OpenAI-compatible service_tier serialization, Codex Responses service_tier passthrough, and Anthropic Opus 4.6 speed=fast serialization with the fast-mode beta header. The bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 27, so adding one P1 source-backed row was allowed; this closes the smallest missing provider/control slice behind the existing `/fast` unavailable command stub while leaving command/config persistence to a later row.",
+              "completed_at": "2026-05-09T00:25:06Z",
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/client.go defines RequestOverrides and ResolveFastModeRequestOverrides with OpenAI flagship, Codex exclusion, and Claude Opus 4.6 eligibility rules from Hermes.",
+                  "internal/hermes/http_client.go serializes service_tier for OpenAI-compatible chat-completions requests only when the typed override is priority.",
+                  "internal/hermes/codex_responses_adapter.go preserves explicit service_tier in Codex Responses payloads while the resolver excludes Codex-series models.",
+                  "internal/hermes/anthropic_client.go serializes speed=fast only for eligible Opus 4.6 models and appends the fast-mode Anthropic beta header."
+                ],
+                "tests": [
+                  "internal/hermes/fast_mode_request_overrides_test.go covers resolver, OpenAI-compatible payload, Codex Responses payload, and Anthropic request/header behavior.",
+                  "go test ./internal/hermes -run 'TestResolveFastModeRequestOverrides|TestOpenAICompatibleChatRequestSerializesServiceTier|TestCodexResponsesPayloadSerializesServiceTier|TestAnthropicFastModeSerializesOnlyEligibleSpeed' -count=1 -> ok",
+                  "go test ./internal/hermes -count=1 -> ok"
+                ],
+                "red_green": [
+                  "RED failed because RequestOverrides, ResolveFastModeRequestOverrides, and ChatRequest.RequestOverrides did not exist.",
+                  "GREEN passed after adding typed overrides and provider serialization without enabling the /fast command."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:524cbabd8 hermes_cli/models.py + gateway/run.py + tui_gateway/server.py",
+                "note": "Hermes already routes `agent.service_tier` and `/fast` through request_overrides; Gormes needs the provider-bound serializer before the UI/config binding can be safely enabled."
+              }
             }
           ],
           "drift_state": {

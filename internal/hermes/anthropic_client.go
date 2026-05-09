@@ -15,6 +15,7 @@ import (
 
 const (
 	anthropicVersion             = "2023-06-01"
+	anthropicFastModeBeta        = "fast-mode-2026-02-01"
 	defaultAnthropicMessagesPath = "/v1/messages"
 	defaultAnthropicModelsPath   = "/v1/models"
 	defaultAnthropicMaxTokens    = 1024
@@ -49,6 +50,7 @@ type anthropicRequest struct {
 	Model     string             `json:"model"`
 	MaxTokens int                `json:"max_tokens"`
 	Stream    bool               `json:"stream"`
+	Speed     string             `json:"speed,omitempty"`
 	System    any                `json:"system,omitempty"`
 	Messages  []anthropicMessage `json:"messages"`
 	Tools     []anthropicTool    `json:"tools,omitempty"`
@@ -155,6 +157,9 @@ func (c *anthropicClient) OpenStream(ctx context.Context, req ChatRequest) (Stre
 	httpReq.Header.Set("Accept", "text/event-stream")
 	httpReq.Header.Set("anthropic-version", anthropicVersion)
 	c.applyAuth(httpReq)
+	if payload.Speed == "fast" {
+		appendAnthropicBeta(httpReq, anthropicFastModeBeta)
+	}
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {
@@ -211,6 +216,23 @@ func (c *anthropicClient) applyAuth(req *http.Request) {
 		return
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+}
+
+func appendAnthropicBeta(req *http.Request, beta string) {
+	if req == nil || beta == "" {
+		return
+	}
+	current := strings.TrimSpace(req.Header.Get("anthropic-beta"))
+	if current == "" {
+		req.Header.Set("anthropic-beta", beta)
+		return
+	}
+	for _, part := range strings.Split(current, ",") {
+		if strings.TrimSpace(part) == beta {
+			return
+		}
+	}
+	req.Header.Set("anthropic-beta", current+","+beta)
 }
 
 func (c *anthropicClient) endpoint(path string) (string, error) {
@@ -316,10 +338,21 @@ func buildAnthropicRequest(req ChatRequest) (anthropicRequest, error) {
 		Model:     req.Model,
 		MaxTokens: maxTokens,
 		Stream:    true,
+		Speed:     normalizeAnthropicSpeedOverride(req.Model, req.RequestOverrides.Speed),
 		System:    system,
 		Messages:  messages,
 		Tools:     tools,
 	}, nil
+}
+
+func normalizeAnthropicSpeedOverride(model, raw string) string {
+	if strings.ToLower(strings.TrimSpace(raw)) != "fast" {
+		return ""
+	}
+	if !modelSupportsAnthropicFastMode(model) {
+		return ""
+	}
+	return "fast"
 }
 
 func convertAnthropicMessages(messages []Message) (any, []anthropicMessage, error) {
