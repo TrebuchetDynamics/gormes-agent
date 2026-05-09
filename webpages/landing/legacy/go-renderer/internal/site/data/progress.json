@@ -26833,7 +26833,7 @@
             {
               "name": "Dangerous action gating",
               "status": "planned",
-              "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, and policy-integration tasks below before dangerous terminal/file/code tools become available. 2026-05-07 parity sweep: Hermes approval.py (1195+ lines) has smart-approve LLM, tirith security integration, gateway blocking queues, per-session allowlist persistence, and plugin hooks \u2014 all absent from Gormes' 139-line approval.go.",
+              "note": "Umbrella only: do not execute as one slice. Use the detector, approval-mode, cron-mode, gateway queue, and policy-integration tasks below before dangerous terminal/file/code tools become available. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes 93e25ceb1 and Honcho e659b6b. Planned leaf rows are 18, below the 90-row cap. The selected source-backed weakness is Hermes' FIFO gateway approval queue: Gormes has Slack/Telegram approval buttons and an ApprovalResolver interface, but no shared gateway queue helper that stores pending entries, reports blocking state, resolves oldest/all entries, and clears a session boundary.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
               "not_ready_when": [
@@ -26841,14 +26841,101 @@
               ],
               "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
               "source_refs": [
-                "../hermes-agent/tools/approval.py",
-                "../hermes-agent/tools/tirith/",
-                "../hermes-agent/gateway/approval.py"
+                "./hermes-agent/tools/approval.py@93e25ceb1:_ApprovalEntry,_gateway_queues,resolve_gateway_approval,has_blocking_approval,clear_session",
+                "./hermes-agent/tools/tirith_security.py@93e25ceb1",
+                "./hermes-agent/tests/tools/test_approval.py@93e25ceb1",
+                "./hermes-agent/tests/tools/test_cron_approval_mode.py@93e25ceb1",
+                "./hermes-agent/tests/gateway/test_telegram_approval_buttons.py@93e25ceb1"
               ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows covering smart-approve LLM, tirith security integration, gateway blocking queues, and per-session allowlist persistence."
+                "A future planner split replaces this inventory placeholder with one or more builder-ready rows covering smart-approve LLM, tirith security integration, gateway blocking queues, and per-session allowlist persistence; the gateway FIFO queue child row owns the blocking-queue slice."
               ],
               "priority": "P2"
+            },
+            {
+              "name": "Gateway approval FIFO queue resolver",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Gormes exposes a thread-safe gateway approval queue that mirrors Hermes tools.approval: pending approval entries are stored per session, HasBlockingApproval reports waiting entries, ResolveGatewayApproval resolves the oldest FIFO entry while ResolveAllGatewayApprovals resolves every pending entry for a session, and ClearGatewayApprovalSession cancels all queued entries on session boundary without leaking stale approvals to the next run.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Empty session keys, invalid approval choices, and missing pending entries return typed no-op or not-pending evidence; the helper performs no channel sends, sleeps, goroutines, stdin prompts, shell execution, or live network calls.",
+              "fixture": "internal/gateway/approval_queue_test.go::TestApprovalQueue*",
+              "source_refs": [
+                "./hermes-agent/tools/approval.py@93e25ceb1:_ApprovalEntry",
+                "./hermes-agent/tools/approval.py@93e25ceb1:_gateway_queues",
+                "./hermes-agent/tools/approval.py@93e25ceb1:resolve_gateway_approval",
+                "./hermes-agent/tools/approval.py@93e25ceb1:has_blocking_approval",
+                "./hermes-agent/tools/approval.py@93e25ceb1:clear_session",
+                "./hermes-agent/tests/gateway/test_telegram_approval_buttons.py@93e25ceb1:resolve_gateway_approval callback expectation",
+                "internal/gateway/hook_consent.go:ApprovalChoice,ApprovalResolution,ApprovalResolver"
+              ],
+              "ready_when": [
+                "ApprovalChoice, ApprovalResolution, ApprovalResolver, and ParseApprovalChoice are already validated in internal/gateway/hook_consent.go.",
+                "Slack and Telegram approval-button fixtures already pass choices into the gateway resolver interface, so this slice only lands the shared queue state helper.",
+                "Tests can submit synthetic requests and resolve them without live adapters, kernel turns, terminal prompts, or dangerous command execution."
+              ],
+              "not_ready_when": [
+                "The slice wires live Slack/Telegram/Teams adapters, terminal execution, kernel turns, approval prompting, or smart-approval LLM calls.",
+                "The implementation changes existing channel approval button payloads or callback authorization behavior.",
+                "Queue resolution is not FIFO, ResolveAll leaves pending entries behind, or ClearGatewayApprovalSession lets a later run observe an old pending approval."
+              ],
+              "blocked_by": [
+                "Telegram inline approval buttons + callback auth",
+                "Slack Block Kit approval buttons + action callback",
+                "Approval mode config normalization",
+                "Recoverable dangerous patterns + blocked-result schema"
+              ],
+              "unblocks": [
+                "Dangerous action gating",
+                "Tirith, path, URL, and website policy integration"
+              ],
+              "acceptance": [
+                "TestApprovalQueueSubmitAndHasBlocking proves SubmitGatewayApproval stores a per-session request and HasBlockingApproval reports only that session.",
+                "TestApprovalQueueResolveOldestFIFO proves ResolveGatewayApproval resolves the oldest pending request first and leaves later requests blocking.",
+                "TestApprovalQueueResolveAll proves ResolveAllGatewayApprovals resolves every pending request for one session without affecting another session.",
+                "TestApprovalQueueClearSessionCancelsPending proves ClearGatewayApprovalSession removes queued entries and records canceled outcomes so stale approvals cannot leak into the next run.",
+                "TestApprovalQueueInvalidChoiceAndEmptySessionFailClosed proves invalid choices, empty session keys, and missing pending entries produce typed errors or zero counts without mutating unrelated queues."
+              ],
+              "write_scope": [
+                "internal/gateway/approval_queue.go",
+                "internal/gateway/approval_queue_test.go",
+                "internal/gateway/hook_consent.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestApprovalQueue' -count=1",
+                "go test ./internal/gateway -run 'TestGatewayApprovalChoiceParser|TestGatewayApprovalResolverFunc' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Gateway approval queue fixtures prove per-session blocking state, FIFO single resolution, resolve-all, session-boundary cancellation, and fail-closed invalid input without changing channel adapters or terminal execution."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:93e25ceb1 tools/approval.py gateway approval queue",
+                "note": "Hermes defines a per-session FIFO approval queue for blocking gateway approvals; Gormes lands the shared Go queue helper before wiring live dangerous-command waits through it."
+              },
+              "note": "Complete 2026-05-09: TDD landed internal/gateway/approval_queue.go with GatewayApprovalQueue, GatewayApprovalRequest, GatewayApprovalTicket, GatewayApprovalOutcome, typed empty-session/invalid-choice/not-pending errors, SubmitGatewayApproval, HasBlockingApproval, ResolveGatewayApproval, ResolveAllGatewayApprovals, ClearGatewayApprovalSession, and GatewayApprovalOutcome. The helper is mutex-protected, per-session, FIFO for single resolution, resolve-all for one session only, cancel-on-clear with deny outcomes, and implements the existing ApprovalResolver interface without adapter, terminal, kernel, prompt, goroutine, sleep, shell, or network wiring.",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/approval_queue.go: GatewayApprovalQueue stores per-session FIFO approval entries and records resolved/canceled outcomes.",
+                  "internal/gateway/approval_queue.go: ResolveGatewayApproval resolves the oldest queued entry through the existing ApprovalResolver interface.",
+                  "internal/gateway/approval_queue.go: ResolveAllGatewayApprovals resolves every pending entry for one session without touching other sessions.",
+                  "internal/gateway/approval_queue.go: ClearGatewayApprovalSession removes queued entries and records canceled deny outcomes."
+                ],
+                "verification": [
+                  "RED: go test ./internal/gateway -run 'TestApprovalQueue' -count=1 failed on undefined NewGatewayApprovalQueue/GatewayApprovalRequest/GatewayApprovalTicket.",
+                  "GREEN: go test ./internal/gateway -run 'TestApprovalQueue' -count=1 passed.",
+                  "GREEN: go test ./internal/gateway -run 'TestGatewayApprovalChoiceParser|TestGatewayApprovalResolverFunc' -count=1 passed."
+                ]
+              }
             },
             {
               "name": "Hardline command pattern table + DetectHardline function",
@@ -28277,7 +28364,7 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (planned). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py).",
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; the umbrella remains planned because write-capable file tools and patch parser behavior are still row-backed.",
               "priority": "P2"
             },
             {
@@ -41149,17 +41236,18 @@
           "items": [
             {
               "name": "Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)",
-              "status": "planned",
+              "status": "complete",
               "slice_size": "umbrella",
               "execution_owner": "gateway",
               "not_ready_when": [
                 "The row is assigned as one combined tui_gateway helper migration instead of the two pure-helper slices below."
               ],
               "unblocks": [
-                "TUI gateway progress/completion helpers",
+                "TUI gateway tool-progress mode normalizer",
+                "TUI gateway completion path normalizer",
                 "TUI gateway image/personality/platform-event helpers"
               ],
-              "note": "Umbrella only: repeated worker attempts showed this combined helper surface was too broad. Execute through `TUI gateway progress/completion helpers` first, then `TUI gateway image/personality/platform-event helpers`; no HTTP, SSE, JSON-RPC, or Bubble Tea program belongs in this umbrella row.",
+              "note": "Complete 2026-05-09 planner closeout: repeated worker attempts showed this combined helper surface was too broad, so it executed through child rows. Completed children now cover tool-progress mode normalization, completion path normalization, image metadata/token estimation, personality prompt validation, and platform-event structs. No HTTP, SSE, JSON-RPC, or Bubble Tea program landed in this umbrella row.",
               "priority": "P2"
             },
             {

@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 84/100 subphases shipped · 12 in progress · 4 planned
+**Overall:** 85/100 subphases shipped · 11 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
@@ -794,6 +794,7 @@ classification and row-backed implementation queue.
 ### 5.J — Approval / Security Guards 🔨
 
 - [ ] Dangerous action gating
+- [x] Gateway approval FIFO queue resolver
 - [x] Hardline command pattern table + DetectHardline function
 - [x] Recoverable dangerous patterns + blocked-result schema
 - [x] Approval mode config normalization
@@ -1019,9 +1020,9 @@ classification and row-backed implementation queue.
 - [x] Install isolation: skip system service install when sandbox bin dir is set
 - [x] Install: prefer pre-built release binary over source build by default
 
-### 5.Q — API Server + TUI Gateway Streaming 🔨
+### 5.Q — API Server + TUI Gateway Streaming ✅
 
-- [ ] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
+- [x] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [x] TUI gateway tool-progress mode normalizer
 - [x] TUI gateway completion path normalizer
 - [x] TUI gateway tool summary formatter
