@@ -50134,6 +50134,81 @@
               }
             },
             {
+              "name": "Landing release metadata date-alias sync",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The public landing release metadata mirrors the operator-facing semver tag together with the Hermes-style date alias from cmd/gormes/version.go. sync-assets.mjs must parse VersionDateAlias into webpages/landing/src/data/release.json, and the landing release label must display the paired alias so public install surfaces, release metadata, and `gormes version --json` agree.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without date_alias in landing release metadata, public install/trust surfaces show only v<semver> while `gormes version --json` and release documentation claim a paired Hermes-style vYYYY.M.D alias.",
+              "fixture": "webpages/docs/install/release_metadata_test.go::TestLandingReleaseMetadataCarriesDateAlias",
+              "source_refs": [
+                "cmd/gormes/version.go:VersionDateAlias",
+                "cmd/gormes/version_test.go:TestVersionCommand_JSONIncludesSemverAndDateAlias",
+                "webpages/landing/scripts/sync-assets.mjs:writeReleaseData",
+                "webpages/landing/src/data/release.json",
+                "webpages/landing/src/data/landing.js"
+              ],
+              "ready_when": [
+                "`gormes version --json` already emits date_alias from VersionDateAlias.",
+                "webpages/landing/scripts/sync-assets.mjs already mirrors Version into release.json.",
+                "Landing homepage tests already derive the displayed release label from release.json."
+              ],
+              "not_ready_when": [
+                "The slice changes the semver tag or release version.",
+                "The landing label hard-codes the current date alias instead of reading release.json.",
+                "The change requires a live GitHub release, tag push, or hosted www.gormes.ai deployment."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestLandingReleaseMetadataCarriesDateAlias fails before release.json contains date_alias and passes after sync-assets parses VersionDateAlias from cmd/gormes/version.go.",
+                "The landing release label displays the semver tag paired with the date alias, derived from release.json rather than duplicated constants.",
+                "node webpages/landing/scripts/sync-assets.mjs regenerates release.json with version, tag, date_alias, url, and source.",
+                "Existing release workflow and landing homepage tests remain green."
+              ],
+              "write_scope": [
+                "webpages/landing/scripts/sync-assets.mjs",
+                "webpages/landing/src/data/release.json",
+                "webpages/landing/src/data/landing.js",
+                "webpages/landing/tests/home.spec.mjs",
+                "webpages/docs/install/release_metadata_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run TestLandingReleaseMetadataCarriesDateAlias -count=1",
+                "node webpages/landing/scripts/sync-assets.mjs",
+                "timeout 20m sh -c 'cd webpages/landing && npm run build'",
+                "timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "release.json, landing data, and homepage tests prove public release labels show the current semver tag paired with VersionDateAlias."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Focused drift gates for CLI command parity, provider registry/tool parsers, gateway platform registry, tool parity, Goncho OpenAPI, and upstream docs coverage were green. Planned rows were 15 before this planner pass, below the 90-row cap, so adding one source-backed P1 row was allowed. Higher-priority publication rows remain operator-blocked and the broad release parent remains too large to assign directly. The concrete public-surface gap was that cmd/gormes/version.go said the semver tag is paired with VersionDateAlias in release.json and release surfaces, but sync-assets.mjs wrote only version/tag/url/source and the landing label showed only the semver tag. TDD added a release metadata fixture, sync-assets VersionDateAlias parsing, generated date_alias in release.json, and a landing label that displays the semver tag paired with the date alias.",
+              "evidence": {
+                "implementation": [
+                  "webpages/landing/scripts/sync-assets.mjs parses VersionDateAlias from cmd/gormes/version.go and writes date_alias into release.json beside version, tag, url, and source.",
+                  "webpages/landing/src/data/landing.js derives the current scout release label from release.tag plus release.date_alias, with a semver-only fallback for older metadata.",
+                  "webpages/landing/tests/home.spec.mjs derives the expected homepage/footer release label from release.json so Playwright coverage follows the public data file.",
+                  "webpages/docs/install/release_metadata_test.go pins the Go Version/VersionDateAlias source, generated release.json, sync script, and landing data contract."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run TestLandingReleaseMetadataCarriesDateAlias -count=1 failed because release.json date_alias was empty while cmd/gormes/version.go declared VersionDateAlias=v2026.5.8.",
+                  "GREEN: node webpages/landing/scripts/sync-assets.mjs regenerated release.json with date_alias.",
+                  "GREEN: go test ./webpages/docs/install -run TestLandingReleaseMetadataCarriesDateAlias -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Release notes artifact size table",
               "priority": "P1",
               "status": "complete",

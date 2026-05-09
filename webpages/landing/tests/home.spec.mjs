@@ -6,7 +6,9 @@ const landingBenchmarks = JSON.parse(readFileSync(new URL('../src/data/benchmark
 const rootBenchmarks = JSON.parse(readFileSync(new URL('../../../benchmarks.json', import.meta.url), 'utf8'));
 const logoSvg = readFileSync(new URL('../public/static/gormes-agent-logo-blue.svg', import.meta.url), 'utf8');
 const releaseTag = release.tag || `v${release.version}`;
-const releaseLabel = `Current scout release: ${releaseTag}`;
+const releaseLabel = release.date_alias
+  ? `Current scout release: ${releaseTag} (${release.date_alias})`
+  : `Current scout release: ${releaseTag}`;
 const releaseLabelPattern = new RegExp(escapeRegExp(releaseLabel));
 
 function escapeRegExp(value) {

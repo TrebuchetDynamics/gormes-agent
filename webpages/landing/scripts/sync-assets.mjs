@@ -59,11 +59,17 @@ async function writeReleaseData() {
   if (!match) {
     throw new Error(`could not read Version from ${versionFile}`);
   }
+  const aliasMatch = raw.match(/var\s+VersionDateAlias\s*=\s*"([^"]+)"/);
+  if (!aliasMatch) {
+    throw new Error(`could not read VersionDateAlias from ${versionFile}`);
+  }
 
   const version = match[1];
+  const dateAlias = aliasMatch[1];
   const release = {
     version,
     tag: `v${version}`,
+    date_alias: dateAlias,
     url: `https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v${version}`,
     source: 'cmd/gormes/version.go',
   };
