@@ -66,6 +66,13 @@ func newSecretsAuditCommand() *cobra.Command {
 		Short: "Audit plaintext secrets, unresolved refs, and snapshot precedence drift",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if strings.TrimSpace(planPath) == "" {
+				const msg = `secrets audit: required flag "--plan <file>" not set`
+				if jsonOut {
+					return emitJSONInputError(cmd, "missing_flag", msg)
+				}
+				return fmt.Errorf("%s", msg)
+			}
 			planFile, err := loadSecretsPlanFile(planPath)
 			if err != nil {
 				return err
@@ -88,7 +95,6 @@ func newSecretsAuditCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&planPath, "plan", "", "JSON plan containing SecretRef targets")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON")
-	_ = cmd.MarkFlagRequired("plan")
 	return cmd
 }
 

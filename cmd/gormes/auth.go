@@ -146,9 +146,16 @@ func newAuthStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "status <provider>",
 		Short:        "Show redacted provider auth status",
-		Args:         cobra.ExactArgs(1),
+		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				const msg = "auth status: missing required <provider> argument"
+				if asJSON {
+					return emitJSONInputError(cmd, "missing_argument", msg)
+				}
+				return fmt.Errorf("%s", msg)
+			}
 			return runAuthStatusCommand(cmd, args[0], asJSON)
 		},
 	}

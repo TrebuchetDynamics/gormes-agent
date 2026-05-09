@@ -254,10 +254,16 @@ func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
+			var msg string
 			if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
-				return fmt.Errorf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
+				msg = fmt.Sprintf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
+			} else {
+				msg = fmt.Sprintf("unknown command %q for %q", args[0], cmd.CommandPath())
 			}
-			return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			if argsIncludeJSONFlag(args) {
+				return emitJSONInputError(cmd, "unknown_subcommand", msg)
+			}
+			return fmt.Errorf("%s", msg)
 		}
 		return cmd.Help()
 	}

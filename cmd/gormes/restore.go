@@ -56,7 +56,11 @@ func newRestoreCommandWithSeams(seams restoreCommandSeams) *cobra.Command {
 				resolvedPath = resolved
 			}
 			if resolvedPath == "" {
-				return fmt.Errorf("restore: pass --list to enumerate backups, --latest for the newest, or --path <zip> for a specific one")
+				const msg = "restore: pass --list to enumerate backups, --latest for the newest, or --path <zip> for a specific one"
+				if asJSON {
+					return emitJSONInputError(cmd, "missing_argument", msg)
+				}
+				return fmt.Errorf("%s", msg)
 			}
 			home := seams.HomeDir()
 			if home == "" {
