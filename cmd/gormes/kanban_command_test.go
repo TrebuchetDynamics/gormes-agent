@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
@@ -151,6 +153,216 @@ func TestKanbanCommandListJSONFiltersByStatus(t *testing.T) {
 	}
 	if !containsKanbanString(titles, ready.Title) || !containsKanbanString(titles, parent.Title) || containsKanbanString(titles, "Todo child") {
 		t.Fatalf("ready titles = %v, want ready+parent and no todo child", titles)
+	}
+}
+
+func TestKanbanTaskCommandsUseCurrentBoard(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+
+	defaultTask := runKanbanJSONTask(t, "create", "default board task", "--json")
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "create", "alpha"); err != nil {
+		t.Fatalf("kanban boards create alpha: %v\nstderr=%s", err, stderr)
+	}
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "switch", "alpha"); err != nil {
+		t.Fatalf("kanban boards switch alpha: %v\nstderr=%s", err, stderr)
+	}
+
+	alphaTask := runKanbanJSONTask(t, "create", "alpha board task", "--json")
+	alphaTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(alphaTasks, alphaTask.Title) {
+		t.Fatalf("alpha board tasks = %+v, want %q", alphaTasks, alphaTask.Title)
+	}
+	if containsKanbanTaskTitle(alphaTasks, defaultTask.Title) {
+		t.Fatalf("alpha board tasks = %+v, should not include default-board task %q", alphaTasks, defaultTask.Title)
+	}
+
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "switch", "default"); err != nil {
+		t.Fatalf("kanban boards switch default: %v\nstderr=%s", err, stderr)
+	}
+	defaultTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(defaultTasks, defaultTask.Title) {
+		t.Fatalf("default board tasks = %+v, want %q", defaultTasks, defaultTask.Title)
+	}
+	if containsKanbanTaskTitle(defaultTasks, alphaTask.Title) {
+		t.Fatalf("default board tasks = %+v, should not include alpha-board task %q", defaultTasks, alphaTask.Title)
+	}
+}
+
+func TestKanbanCommandBoardFlagRoutesWithoutSwitchingCurrent(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", root)
+
+	defaultTask := runKanbanJSONTask(t, "create", "default current task", "--json")
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "create", "alpha"); err != nil {
+		t.Fatalf("kanban boards create alpha: %v\nstderr=%s", err, stderr)
+	}
+
+	alphaTask := runKanbanJSONTask(t, "--board", "alpha", "create", "alpha one-off task", "--json")
+	alphaTasks := runKanbanJSONTasks(t, "--board", "alpha", "list", "--json")
+	if !containsKanbanTaskTitle(alphaTasks, alphaTask.Title) {
+		t.Fatalf("--board alpha tasks = %+v, want %q", alphaTasks, alphaTask.Title)
+	}
+	if containsKanbanTaskTitle(alphaTasks, defaultTask.Title) {
+		t.Fatalf("--board alpha tasks = %+v, should not include default-board task %q", alphaTasks, defaultTask.Title)
+	}
+
+	defaultTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(defaultTasks, defaultTask.Title) {
+		t.Fatalf("default/current board tasks = %+v, want %q", defaultTasks, defaultTask.Title)
+	}
+	if containsKanbanTaskTitle(defaultTasks, alphaTask.Title) {
+		t.Fatalf("default/current board tasks = %+v, should not include --board alpha task %q", defaultTasks, alphaTask.Title)
+	}
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "current", "--json")
+	if err != nil {
+		t.Fatalf("kanban boards current --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var current struct {
+		Current string `json:"current"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &current); err != nil {
+		t.Fatalf("current JSON decode: %v\nstdout=%s", err, stdout)
+	}
+	if current.Current != "default" {
+		t.Fatalf("current board = %q, want default after one-off --board", current.Current)
+	}
+}
+
+func TestKanbanCommandBoardFlagRejectsMissingBoardWithoutMutation(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", root)
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "--board", "missing", "list", "--json")
+	if err == nil {
+		t.Fatalf("kanban --board missing list error = nil\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	combined := stdout + stderr + err.Error()
+	if !strings.Contains(combined, `board "missing" does not exist`) {
+		t.Fatalf("missing-board output missing not-found evidence:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "kanban", "boards", "missing")); !os.IsNotExist(err) {
+		t.Fatalf("--board missing created board directory, stat err = %v", err)
+	}
+}
+
+func TestKanbanCommandPreservesExplicitDBPin(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", filepath.Join(root, "home"))
+
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "create", "alpha"); err != nil {
+		t.Fatalf("kanban boards create alpha: %v\nstderr=%s", err, stderr)
+	}
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "boards", "switch", "alpha"); err != nil {
+		t.Fatalf("kanban boards switch alpha: %v\nstderr=%s", err, stderr)
+	}
+
+	pinnedPath := filepath.Join(root, "pinned", "kanban.db")
+	t.Setenv("GORMES_KANBAN_DB", pinnedPath)
+	pinnedTask := runKanbanJSONTask(t, "create", "pinned db task", "--json")
+	pinnedTasks := runKanbanJSONTasks(t, "list", "--json")
+	if !containsKanbanTaskTitle(pinnedTasks, pinnedTask.Title) {
+		t.Fatalf("pinned DB tasks = %+v, want %q", pinnedTasks, pinnedTask.Title)
+	}
+	if _, err := os.Stat(pinnedPath); err != nil {
+		t.Fatalf("explicit GORMES_KANBAN_DB path was not used: %v", err)
+	}
+
+	if _, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "--board", "alpha", "create", "still pinned", "--json"); err != nil {
+		t.Fatalf("kanban --board alpha create with pinned DB: %v\nstderr=%s", err, stderr)
+	}
+	pinnedTasks = runKanbanJSONTasks(t, "--board", "alpha", "list", "--json")
+	if !containsKanbanTaskTitle(pinnedTasks, "still pinned") {
+		t.Fatalf("pinned DB tasks with --board alpha = %+v, want still pinned task", pinnedTasks)
+	}
+}
+
+func TestKanbanGCCommand_JSONReportsCountsAndRetention(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", root)
+
+	task := runKanbanJSONTask(t, "create", "Done task with old event", "--json")
+	if stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "complete", task.ID, "--result", "done"); err != nil {
+		t.Fatalf("kanban complete: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	old := time.Now().UTC().Add(-45 * 24 * time.Hour)
+	ageKanbanTaskEvent(t, config.KanbanDBPath(), task.ID, "completed", old)
+	oldLog := writeKanbanCommandLogFixture(t, filepath.Join(root, "kanban", "logs"), "old-worker.log", old)
+
+	stdout, stderr, err := executeRootCommandForTest(
+		newRootCommandWithRuntime(rootRuntime{}),
+		"kanban", "gc",
+		"--event-retention-days", "30",
+		"--log-retention-days", "30",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("kanban gc --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action             string `json:"action"`
+		EventRetentionDays int    `json:"event_retention_days"`
+		LogRetentionDays   int    `json:"log_retention_days"`
+		EventsDeleted      int64  `json:"events_deleted"`
+		LogsDeleted        int    `json:"logs_deleted"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("gc JSON decode: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Errorf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if got.Action != "gc" {
+		t.Errorf("action = %q, want gc", got.Action)
+	}
+	if got.EventRetentionDays != 30 || got.LogRetentionDays != 30 {
+		t.Errorf("retention days = (%d, %d), want (30, 30)", got.EventRetentionDays, got.LogRetentionDays)
+	}
+	if got.EventsDeleted != 1 || got.LogsDeleted != 1 {
+		t.Fatalf("deleted counts = events %d logs %d, want 1 and 1", got.EventsDeleted, got.LogsDeleted)
+	}
+	if count := countKanbanTaskEvents(t, config.KanbanDBPath(), task.ID, "completed"); count != 0 {
+		t.Fatalf("completed events after gc = %d, want 0", count)
+	}
+	if _, err := os.Stat(oldLog); !os.IsNotExist(err) {
+		t.Fatalf("old worker log still exists or stat failed: %v", err)
+	}
+}
+
+func TestKanbanGCCommand_RejectsNegativeRetention(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("GORMES_HOME", root)
+
+	task := runKanbanJSONTask(t, "create", "Done task with protected event", "--json")
+	if stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "kanban", "complete", task.ID, "--result", "done"); err != nil {
+		t.Fatalf("kanban complete: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	old := time.Now().UTC().Add(-45 * 24 * time.Hour)
+	ageKanbanTaskEvent(t, config.KanbanDBPath(), task.ID, "completed", old)
+	oldLog := writeKanbanCommandLogFixture(t, filepath.Join(root, "kanban", "logs"), "old-worker.log", old)
+
+	stdout, stderr, err := executeRootCommandForTest(
+		newRootCommandWithRuntime(rootRuntime{}),
+		"kanban", "gc",
+		"--event-retention-days=-1",
+		"--log-retention-days", "30",
+		"--json",
+	)
+	if err == nil {
+		t.Fatalf("kanban gc accepted negative retention\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	combined := stdout + stderr + err.Error()
+	if !strings.Contains(combined, "event retention days must be >= 0") {
+		t.Fatalf("negative retention output = %q, want validation evidence", combined)
+	}
+	if count := countKanbanTaskEvents(t, config.KanbanDBPath(), task.ID, "completed"); count != 1 {
+		t.Fatalf("completed events after rejected gc = %d, want 1", count)
+	}
+	if _, err := os.Stat(oldLog); err != nil {
+		t.Fatalf("worker log changed after rejected gc: %v", err)
 	}
 }
 
@@ -390,6 +602,30 @@ func runKanbanJSONTask(t *testing.T, args ...string) kanban.Task {
 	return task
 }
 
+func runKanbanJSONTasks(t *testing.T, args ...string) []kanban.Task {
+	t.Helper()
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), append([]string{"kanban"}, args...)...)
+	if err != nil {
+		t.Fatalf("gormes kanban %v error = %v\nstdout=%s\nstderr=%s", args, err, stdout, stderr)
+	}
+	var list struct {
+		Tasks []kanban.Task `json:"tasks"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &list); err != nil {
+		t.Fatalf("gormes kanban %v JSON decode error = %v\nstdout=%s", args, err, stdout)
+	}
+	return list.Tasks
+}
+
+func containsKanbanTaskTitle(tasks []kanban.Task, title string) bool {
+	for _, task := range tasks {
+		if task.Title == title {
+			return true
+		}
+	}
+	return false
+}
+
 func containsKanbanString(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
@@ -417,4 +653,60 @@ func stubKanbanTriageSpecifier(specifier kanban.TriageSpecifier) func() {
 	return func() {
 		newKanbanTriageSpecifier = previous
 	}
+}
+
+func ageKanbanTaskEvent(t *testing.T, dbPath, taskID, kind string, at time.Time) {
+	t.Helper()
+	db := openKanbanCommandTestDB(t, dbPath)
+	defer db.Close()
+	result, err := db.Exec(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND kind = ?`, at.UTC().UnixMilli(), taskID, kind)
+	if err != nil {
+		t.Fatalf("age kanban task event: %v", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		t.Fatalf("read aged event count: %v", err)
+	}
+	if changed == 0 {
+		t.Fatalf("no kanban task event %q found for %s", kind, taskID)
+	}
+}
+
+func countKanbanTaskEvents(t *testing.T, dbPath, taskID, kind string) int {
+	t.Helper()
+	db := openKanbanCommandTestDB(t, dbPath)
+	defer db.Close()
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM task_events WHERE task_id = ? AND kind = ?`, taskID, kind).Scan(&count); err != nil {
+		t.Fatalf("count kanban task events: %v", err)
+	}
+	return count
+}
+
+func openKanbanCommandTestDB(t *testing.T, dbPath string) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open kanban test db: %v", err)
+	}
+	if _, err := db.Exec(`PRAGMA busy_timeout=5000;`); err != nil {
+		db.Close()
+		t.Fatalf("set kanban test db busy timeout: %v", err)
+	}
+	return db
+}
+
+func writeKanbanCommandLogFixture(t *testing.T, root, name string, modTime time.Time) string {
+	t.Helper()
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatalf("create command log root: %v", err)
+	}
+	path := filepath.Join(root, name)
+	if err := os.WriteFile(path, []byte("log\n"), 0o644); err != nil {
+		t.Fatalf("write command log fixture: %v", err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatalf("age command log fixture: %v", err)
+	}
+	return path
 }

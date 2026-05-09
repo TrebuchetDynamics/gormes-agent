@@ -130,7 +130,7 @@ case "$1" in
     target=
     for arg in "$@"; do target=$arg; done
     mkdir -p "$target/.git" "$target/cmd/gormes"
-    printf 'module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.25.0\n' > "$target/go.mod"
+    printf 'module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.26.0\n' > "$target/go.mod"
     ;;
   status)
     if [ "${2:-}" = "--porcelain" ]; then
@@ -247,7 +247,7 @@ func writeFakeUnixToolchain(t *testing.T, root string) (string, string) {
 
 	linkBasicUnixTools(t, bin)
 	writeExecutable(t, filepath.Join(bin, "git"), fakeGitScript())
-	writeExecutable(t, filepath.Join(bin, "go"), fakeGoScript("go", "go1.25.0"))
+	writeExecutable(t, filepath.Join(bin, "go"), fakeGoScript("go", "go1.26.0"))
 	writeVersionTool(t, filepath.Join(bin, "node"), "v22.22.0")
 	writeVersionTool(t, filepath.Join(bin, "rg"), "ripgrep 14.1.1")
 	writeVersionTool(t, filepath.Join(bin, "ffmpeg"), "ffmpeg version 7.1.1 Copyright")
@@ -533,7 +533,7 @@ func writeBootstrapTemplates(t *testing.T, root string, systemGoVersion string) 
 	managedGoTemplate := filepath.Join(root, "managed-go.template")
 	writeExecutable(t, gitTemplate, fakeGitScript())
 	writeExecutable(t, goTemplate, fakeGoScript("go", systemGoVersion))
-	writeExecutable(t, managedGoTemplate, fakeGoScript("managed-go", "go1.25.0"))
+	writeExecutable(t, managedGoTemplate, fakeGoScript("managed-go", "go1.26.0"))
 	return gitTemplate, goTemplate, managedGoTemplate
 }
 
@@ -685,7 +685,7 @@ func TestInstallSH_DefaultInstallNarratesHermesStyleExperience(t *testing.T) {
 		"An open source AI agent",
 		"✓ Detected: linux (fedora)",
 		"→ Checking Go",
-		"✓ Go go1.25.0 found",
+		"✓ Go go1.26.0 found",
 		"→ Checking Git",
 		"✓ Git 2.53.0 found",
 		"→ Checking Node.js (for browser tools)",
@@ -1014,7 +1014,7 @@ func TestInstallSH_RerunUpdatesPersistentManagedCheckout(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(checkout, "cmd", "gormes"), 0o755); err != nil {
 		t.Fatalf("mkdir cmd/gormes: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(checkout, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.25.0\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(checkout, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.26.0\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	fakebin, logPath := writeFakeUnixToolchain(t, root)
@@ -1064,7 +1064,7 @@ func TestInstallSH_RerunRestartsLiveGatewayWithPublishedBinary(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(checkout, "cmd", "gormes"), 0o755); err != nil {
 		t.Fatalf("mkdir cmd/gormes: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(checkout, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.25.0\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(checkout, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.26.0\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	activeBin := filepath.Join(root, "activebin")
@@ -1374,7 +1374,7 @@ func TestInstallSH_ManagedGoDownloadVerifiesExpectedSHA256(t *testing.T) {
 	linkBasicUnixTools(t, fakebin)
 	writeExecutable(t, filepath.Join(fakebin, "git"), fakeGitScript())
 	writeFakeDownloadTools(t, fakebin)
-	_, _, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.25.0")
+	_, _, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.26.0")
 	expected := fmt.Sprintf("%x", sha256.Sum256([]byte("fake go tarball\n")))
 
 	out, err := runInstallScript(t,
@@ -1406,7 +1406,7 @@ func writeMinimalGoModule(t *testing.T, dir string) {
 	if err := os.MkdirAll(filepath.Join(dir, "cmd", "gormes"), 0o755); err != nil {
 		t.Fatalf("mkdir cmd/gormes: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.25.0\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module github.com/TrebuchetDynamics/gormes-agent\n\ngo 1.26.0\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 }
@@ -1430,7 +1430,7 @@ func TestInstallSH_TermuxInstallsMissingGitAndGo(t *testing.T) {
 		t.Fatalf("mkdir fakebin: %v", err)
 	}
 	linkBasicUnixTools(t, fakebin)
-	gitTemplate, goTemplate, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.25.0")
+	gitTemplate, goTemplate, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.26.0")
 	writeFakePackageManager(t, fakebin, "pkg")
 
 	out, err := runInstallScript(t,
@@ -1476,7 +1476,7 @@ func TestInstallSH_InstallsManagedGoWhenGoIsMissing(t *testing.T) {
 		t.Fatalf("mkdir fakebin: %v", err)
 	}
 	linkBasicUnixTools(t, fakebin)
-	_, _, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.25.0")
+	_, _, managedGoTemplate := writeBootstrapTemplates(t, root, "go1.26.0")
 	writeExecutable(t, filepath.Join(fakebin, "git"), fakeGitScript())
 	writeFakeDownloadTools(t, fakebin)
 

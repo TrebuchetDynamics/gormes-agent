@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestUsageLoggerAppendsOneJSONLRecordPerSkill(t *testing.T) {
@@ -79,5 +80,61 @@ func TestSkillUsageAgentCreatedPinnedPatchAndForget(t *testing.T) {
 	}
 	if _, err := GetUsageRecord(root, "agent-skill"); !errors.Is(err, ErrUsageRecordNotFound) {
 		t.Fatalf("GetUsageRecord after forget err = %v, want ErrUsageRecordNotFound", err)
+	}
+}
+
+func TestArchiveAgentCreatedSkillAndListArchivedNames(t *testing.T) {
+	root := t.TempDir()
+	active := filepath.Join(root, "active")
+	for _, name := range []string{"agent-skill", "pinned-skill", "manual-skill"} {
+		dir := filepath.Join(active, name)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", name, err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("---\nname: "+name+"\n---\n# "+name+"\n"), 0o600); err != nil {
+			t.Fatalf("write %s SKILL.md: %v", name, err)
+		}
+	}
+	if err := MarkAgentCreated(root, "agent-skill"); err != nil {
+		t.Fatalf("MarkAgentCreated agent-skill: %v", err)
+	}
+	if err := MarkAgentCreated(root, "pinned-skill"); err != nil {
+		t.Fatalf("MarkAgentCreated pinned-skill: %v", err)
+	}
+	if err := SetPinned(root, "pinned-skill", true); err != nil {
+		t.Fatalf("SetPinned pinned-skill: %v", err)
+	}
+
+	if _, err := ArchiveAgentCreatedSkill(root, "pinned-skill", time.Now().UTC()); err == nil || !strings.Contains(err.Error(), "pinned") {
+		t.Fatalf("ArchiveAgentCreatedSkill pinned err = %v, want pinned refusal", err)
+	}
+	if _, err := ArchiveAgentCreatedSkill(root, "manual-skill", time.Now().UTC()); err == nil || !strings.Contains(err.Error(), "bundled or hub-installed") {
+		t.Fatalf("ArchiveAgentCreatedSkill manual err = %v, want provenance refusal", err)
+	}
+
+	archivedAt := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	dest, err := ArchiveAgentCreatedSkill(root, "agent-skill", archivedAt)
+	if err != nil {
+		t.Fatalf("ArchiveAgentCreatedSkill agent-skill: %v", err)
+	}
+	if !strings.HasSuffix(filepath.ToSlash(dest), "active/.archive/agent-skill") {
+		t.Fatalf("archive dest = %q, want active/.archive/agent-skill", dest)
+	}
+	if _, err := os.Stat(filepath.Join(active, ".archive", "agent-skill", "SKILL.md")); err != nil {
+		t.Fatalf("archived skill missing on disk: %v", err)
+	}
+	rec, err := GetUsageRecord(root, "agent-skill")
+	if err != nil {
+		t.Fatalf("GetUsageRecord agent-skill: %v", err)
+	}
+	if rec.State != SkillStateArchived || !rec.ArchivedAt.Equal(archivedAt) {
+		t.Fatalf("usage record = %+v, want archived at %s", rec, archivedAt)
+	}
+	names, err := ListArchivedSkillNames(root)
+	if err != nil {
+		t.Fatalf("ListArchivedSkillNames: %v", err)
+	}
+	if len(names) != 1 || names[0] != "agent-skill" {
+		t.Fatalf("archived names = %v, want [agent-skill]", names)
 	}
 }

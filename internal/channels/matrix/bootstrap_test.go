@@ -186,7 +186,7 @@ func TestMatrixBootstrapMediaAndE2EEHooksAreInjectable(t *testing.T) {
 			mediaCalled = true
 			return MatrixMediaResult{URI: "mxc://example.org/file"}, nil
 		}),
-		E2EE: MatrixE2EEHookFunc(func(context.Context, MatrixClient, Config) MatrixHookEvidence {
+		E2EE: MatrixE2EEHookFunc(func(context.Context, MatrixE2EEBootstrap) MatrixHookEvidence {
 			e2eeCalled = true
 			return MatrixHookEvidence{}
 		}),
@@ -198,6 +198,98 @@ func TestMatrixBootstrapMediaAndE2EEHooksAreInjectable(t *testing.T) {
 	upload, evidence := b.UploadMedia(context.Background(), MatrixMediaUpload{Name: "a.txt", ContentType: "text/plain"})
 	if evidence.Evidence != "" || upload.URI != "mxc://example.org/file" || !mediaCalled || !e2eeCalled {
 		t.Fatalf("hook results upload=%+v evidence=%+v mediaCalled=%v e2eeCalled=%v", upload, evidence, mediaCalled, e2eeCalled)
+	}
+}
+
+func TestMatrixBootstrapE2EEUsesResolvedDeviceIDBeforeInitialSync(t *testing.T) {
+	client := newFakeMatrixClient()
+	client.whoamiResp = MatrixIdentity{UserID: "@bot:example.org", DeviceID: "WHOAMI_DEV"}
+	client.initialSync = MatrixSyncData{NextBatch: "s0"}
+
+	var got MatrixE2EEBootstrap
+	result := NewBootstrap(Config{
+		Homeserver:  "https://matrix.example.org",
+		AccessToken: "syt",
+		Encryption:  true,
+	}, func(Config) (MatrixClient, error) {
+		return client, nil
+	}, WithBootstrapHooks(BootstrapHooks{
+		E2EE: MatrixE2EEHookFunc(func(_ context.Context, input MatrixE2EEBootstrap) MatrixHookEvidence {
+			got = input
+			client.order = append(client.order, "e2ee:"+input.DeviceID)
+			return MatrixHookEvidence{}
+		}),
+	})).Start(context.Background())
+
+	if !result.Ready {
+		t.Fatalf("Start = %+v", result)
+	}
+	if got.DeviceID != "WHOAMI_DEV" || got.UserID != "@bot:example.org" || got.Client != client {
+		t.Fatalf("E2EE input = %+v, want resolved whoami identity and client", got)
+	}
+	order := strings.Join(client.order, ",")
+	if strings.Index(order, "e2ee:WHOAMI_DEV") > strings.Index(order, "sync:initial") {
+		t.Fatalf("E2EE bootstrap ran after initial sync: %s", order)
+	}
+}
+
+func TestMatrixBootstrapE2EEConfiguredDeviceIDOverridesWhoami(t *testing.T) {
+	client := newFakeMatrixClient()
+	client.whoamiResp = MatrixIdentity{UserID: "@bot:example.org", DeviceID: "WHOAMI_DEV"}
+	client.initialSync = MatrixSyncData{NextBatch: "s0"}
+
+	var gotDeviceID string
+	result := NewBootstrap(Config{
+		Homeserver:  "https://matrix.example.org",
+		AccessToken: "syt",
+		DeviceID:    "CONFIG_DEV",
+		Encryption:  true,
+	}, func(Config) (MatrixClient, error) {
+		return client, nil
+	}, WithBootstrapHooks(BootstrapHooks{
+		E2EE: MatrixE2EEHookFunc(func(_ context.Context, input MatrixE2EEBootstrap) MatrixHookEvidence {
+			gotDeviceID = input.DeviceID
+			return MatrixHookEvidence{}
+		}),
+	})).Start(context.Background())
+
+	if !result.Ready {
+		t.Fatalf("Start = %+v", result)
+	}
+	if gotDeviceID != "CONFIG_DEV" || result.DeviceID != "CONFIG_DEV" {
+		t.Fatalf("device id hook=%q result=%q, want CONFIG_DEV", gotDeviceID, result.DeviceID)
+	}
+}
+
+func TestMatrixBootstrapE2EEMissingDeviceIDDegradesBeforeSync(t *testing.T) {
+	client := newFakeMatrixClient()
+	client.whoamiResp = MatrixIdentity{UserID: "@bot:example.org"}
+	var hookCalled bool
+
+	result := NewBootstrap(Config{
+		Homeserver:  "https://matrix.example.org",
+		AccessToken: "syt",
+		Encryption:  true,
+	}, func(Config) (MatrixClient, error) {
+		return client, nil
+	}, WithBootstrapHooks(BootstrapHooks{
+		E2EE: MatrixE2EEHookFunc(func(context.Context, MatrixE2EEBootstrap) MatrixHookEvidence {
+			hookCalled = true
+			return MatrixHookEvidence{}
+		}),
+	})).Start(context.Background())
+
+	if result.Ready || result.Evidence != MatrixEvidenceE2EEUnavailable {
+		t.Fatalf("Start missing E2EE device_id = %+v, want unavailable", result)
+	}
+	if !strings.Contains(result.Error, "device_id") {
+		t.Fatalf("missing-device error = %q, want device_id guidance", result.Error)
+	}
+	if hookCalled {
+		t.Fatal("E2EE hook must not run without a resolved runtime device_id")
+	}
+	if order := strings.Join(client.order, ","); strings.Contains(order, "sync:initial") {
+		t.Fatalf("initial sync ran despite missing E2EE device_id: %s", order)
 	}
 }
 

@@ -26,6 +26,7 @@ type profileCommandSeams struct {
 	ValidateProfileName      cli.ValidateProfileNameFunc
 	ResolveProfileRoot       cli.ResolveProfileRootFunc
 	WriteActiveProfile       func(name string) error
+	CreateProfile            func(name string, cloneAll bool) (cli.ProfileCreateResult, error)
 	ListKnownProfiles        func() ([]string, error)
 	ReadDistributionManifest func(root string) (cli.ProfileDistributionManifest, bool, error)
 }
@@ -62,6 +63,7 @@ func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
 	}
 	cmd.AddCommand(newProfileShowCommand(seams))
 	cmd.AddCommand(newProfileSetCommand(seams))
+	cmd.AddCommand(newProfileCreateCommand(seams))
 	cmd.AddCommand(newProfileListCommand(seams))
 	cmd.AddCommand(newProfileInfoCommand(seams))
 	return cmd
@@ -105,6 +107,31 @@ type profileSetReportJSON struct {
 	Action string              `json:"action"`
 	Active string              `json:"active"`
 	Root   string              `json:"root"`
+}
+
+func newProfileCreateCommand(seams profileCommandSeams) *cobra.Command {
+	var cloneAll bool
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:          "create <name>",
+		Short:        "Create a named Gormes profile",
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runProfileCreateCommand(cmd, seams, args[0], cloneAll, asJSON)
+		},
+	}
+	cmd.Flags().BoolVar(&cloneAll, "clone-all", false, "copy the default profile minus infrastructure and runtime files")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON: `{build, action, name, root, clone_all}` with a redacted root")
+	return cmd
+}
+
+type profileCreateReportJSON struct {
+	Build    buildProvenanceJSON `json:"build"`
+	Action   string              `json:"action"`
+	Name     string              `json:"name"`
+	Root     string              `json:"root"`
+	CloneAll bool                `json:"clone_all"`
 }
 
 func newProfileInfoCommand(seams profileCommandSeams) *cobra.Command {
@@ -242,6 +269,38 @@ func runProfileSetCommand(cmd *cobra.Command, seams profileCommandSeams, rawName
 		return err
 	}
 	writeProfileSummary(cmd, name, root)
+	return nil
+}
+
+func runProfileCreateCommand(cmd *cobra.Command, seams profileCommandSeams, rawName string, cloneAll bool, asJSON bool) error {
+	name := strings.TrimSpace(rawName)
+	if seams.CreateProfile == nil {
+		return fmt.Errorf("gormes profile create: %w", cli.ErrSelectorHelperUnavailable)
+	}
+	result, err := seams.CreateProfile(name, cloneAll)
+	if err != nil {
+		return fmt.Errorf("gormes profile create %q: %w", name, err)
+	}
+	redactedRoot := redactProfileRootPath(result.Root)
+	if asJSON {
+		body, marshalErr := json.MarshalIndent(profileCreateReportJSON{
+			Build:    newBuildProvenance(),
+			Action:   "created",
+			Name:     result.Name,
+			Root:     redactedRoot,
+			CloneAll: result.CloneAll,
+		}, "", "  ")
+		if marshalErr != nil {
+			return marshalErr
+		}
+		_, err = fmt.Fprintln(cmd.OutOrStdout(), string(body))
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "created profile: %s\n", result.Name)
+	fmt.Fprintf(cmd.OutOrStdout(), "root: %s\n", redactedRoot)
+	if result.CloneAll {
+		fmt.Fprintln(cmd.OutOrStdout(), "clone_all: true")
+	}
 	return nil
 }
 
@@ -516,6 +575,13 @@ func defaultProfileCommandSeams() profileCommandSeams {
 		},
 		WriteActiveProfile: func(name string) error {
 			return cli.WriteActiveProfile(activePath, name)
+		},
+		CreateProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
+			return cli.CreateProfile(cli.ProfileCreateOptions{
+				Name:          name,
+				XDGConfigHome: xdgRoot,
+				CloneAll:      cloneAll,
+			})
 		},
 		ListKnownProfiles: func() ([]string, error) {
 			return defaultListKnownProfiles()

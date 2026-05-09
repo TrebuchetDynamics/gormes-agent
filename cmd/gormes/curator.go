@@ -49,6 +49,9 @@ func newCuratorCommandWithDeps(deps curatorCommandDeps) *cobra.Command {
 		newCuratorBackupCommand(deps),
 		newCuratorRollbackCommand(deps),
 		newCuratorRestoreCommand(deps),
+		newCuratorListArchivedCommand(deps),
+		newCuratorArchiveCommand(deps),
+		newCuratorPruneCommand(deps),
 	)
 	return cmd
 }
@@ -120,10 +123,10 @@ func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
 // `defaults` documents the build-baked thresholds; `skills.rows` lets
 // dashboards sort by activity, identify stale skills, and feed alerts.
 type curatorStatusReportJSON struct {
-	Build    buildProvenanceJSON       `json:"build"`
-	State    curatorStateJSON          `json:"state"`
-	Defaults curatorDefaultsJSON       `json:"defaults"`
-	Skills   curatorSkillsJSON         `json:"skills"`
+	Build    buildProvenanceJSON `json:"build"`
+	State    curatorStateJSON    `json:"state"`
+	Defaults curatorDefaultsJSON `json:"defaults"`
+	Skills   curatorSkillsJSON   `json:"skills"`
 }
 
 type curatorStateJSON struct {
@@ -142,7 +145,7 @@ type curatorDefaultsJSON struct {
 }
 
 type curatorSkillsJSON struct {
-	Total int                 `json:"total"`
+	Total int                   `json:"total"`
 	Rows  []curatorSkillRowJSON `json:"rows"`
 }
 
@@ -279,14 +282,14 @@ func newCuratorRunCommand(deps curatorCommandDeps) *cobra.Command {
 // to audit per-machine activity. The internal CuratorReport already
 // has json tags; this wrapper just inlines build provenance.
 type curatorRunReportJSON struct {
-	Build          buildProvenanceJSON           `json:"build"`
-	DryRun         bool                          `json:"dry_run"`
-	Summary        string                        `json:"summary,omitempty"`
+	Build          buildProvenanceJSON            `json:"build"`
+	DryRun         bool                           `json:"dry_run"`
+	Summary        string                         `json:"summary,omitempty"`
 	AutoCounts     skills.CuratorTransitionCounts `json:"auto_counts"`
-	BeforeNames    []string                      `json:"before_names"`
-	AfterNames     []string                      `json:"after_names,omitempty"`
-	LastReportPath string                        `json:"last_report_path,omitempty"`
-	BackupID       string                        `json:"backup_id,omitempty"`
+	BeforeNames    []string                       `json:"before_names"`
+	AfterNames     []string                       `json:"after_names,omitempty"`
+	LastReportPath string                         `json:"last_report_path,omitempty"`
+	BackupID       string                         `json:"backup_id,omitempty"`
 }
 
 func newCuratorPauseCommand(deps curatorCommandDeps) *cobra.Command {
@@ -576,6 +579,167 @@ func newCuratorRestoreCommand(deps curatorCommandDeps) *cobra.Command {
 	}
 	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action: 'restored', skill}`")
 	return cmd
+}
+
+func newCuratorListArchivedCommand(deps curatorCommandDeps) *cobra.Command {
+	return &cobra.Command{
+		Use:   "list-archived",
+		Short: "List archived curator skills",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			names, err := skills.ListArchivedSkillNames(resolveCuratorSkillsRoot(deps))
+			if err != nil {
+				return err
+			}
+			if len(names) == 0 {
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), "curator: no archived skills")
+				return err
+			}
+			for _, name := range names {
+				if _, err := fmt.Fprintln(cmd.OutOrStdout(), name); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+}
+
+func newCuratorArchiveCommand(deps curatorCommandDeps) *cobra.Command {
+	return &cobra.Command{
+		Use:   "archive <skill>",
+		Short: "Archive one agent-created skill",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dest, err := skills.ArchiveAgentCreatedSkill(resolveCuratorSkillsRoot(deps), args[0], curatorNow(deps))
+			if err != nil {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "curator: %v\n", err)
+				return newExitCodeError(1, err)
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "curator: archived to %s\n", dest)
+			return err
+		},
+	}
+}
+
+func newCuratorPruneCommand(deps curatorCommandDeps) *cobra.Command {
+	var days int
+	var dryRun bool
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "prune",
+		Short: "Archive idle agent-created skills",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runCuratorPrune(cmd, deps, days, dryRun, yes)
+		},
+	}
+	cmd.Flags().IntVar(&days, "days", 90, "Archive skills idle for at least N days")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be archived without doing it")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip the confirmation prompt")
+	return cmd
+}
+
+func runCuratorPrune(cmd *cobra.Command, deps curatorCommandDeps, days int, dryRun, yes bool) error {
+	if days < 1 {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "curator: --days must be >= 1 (got %d)\n", days)
+		return newExitCodeError(2, fmt.Errorf("curator_prune_invalid_days"))
+	}
+	root := resolveCuratorSkillsRoot(deps)
+	rows, err := skills.ListAgentCreatedSkillUsage(root)
+	if err != nil {
+		return err
+	}
+	now := curatorNow(deps)
+	candidates := curatorPruneCandidates(rows, now, days)
+	out := cmd.OutOrStdout()
+	if len(candidates) == 0 {
+		_, err := fmt.Fprintf(out, "curator: nothing to prune (no unpinned skills idle >= %dd)\n", days)
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "curator: %d skill(s) idle >= %dd:\n", len(candidates), days); err != nil {
+		return err
+	}
+	for _, candidate := range candidates {
+		if _, err := fmt.Fprintf(out, "  %-40s idle %dd\n", candidate.name, candidate.idleDays); err != nil {
+			return err
+		}
+	}
+	if dryRun {
+		_, err := fmt.Fprintln(out, "\n(dry run - no changes made)")
+		return err
+	}
+	if !yes {
+		if _, err := fmt.Fprintf(out, "\nArchive %d skill(s)? [y/N] ", len(candidates)); err != nil {
+			return err
+		}
+		answer, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
+		answer = strings.ToLower(strings.TrimSpace(answer))
+		if answer != "y" && answer != "yes" {
+			_, _ = fmt.Fprintln(out, "curator: aborted")
+			return newExitCodeError(1, fmt.Errorf("curator_prune_cancelled"))
+		}
+	}
+	archived := 0
+	var failures []string
+	for _, candidate := range candidates {
+		if _, err := skills.ArchiveAgentCreatedSkill(root, candidate.name, now); err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", candidate.name, err))
+			continue
+		}
+		archived++
+	}
+	if _, err := fmt.Fprintf(out, "\ncurator: archived %d/%d\n", archived, len(candidates)); err != nil {
+		return err
+	}
+	if len(failures) > 0 {
+		if _, err := fmt.Fprintln(out, "failures:"); err != nil {
+			return err
+		}
+		for _, failure := range failures {
+			if _, err := fmt.Fprintf(out, "  %s\n", failure); err != nil {
+				return err
+			}
+		}
+		return newExitCodeError(1, fmt.Errorf("curator_prune_failed"))
+	}
+	return nil
+}
+
+type curatorPruneCandidate struct {
+	name     string
+	idleDays int
+}
+
+func curatorPruneCandidates(rows []skills.AgentCreatedSkillUsage, now time.Time, days int) []curatorPruneCandidate {
+	var candidates []curatorPruneCandidate
+	for _, row := range rows {
+		if row.Record.Pinned || row.Record.State == skills.SkillStateArchived {
+			continue
+		}
+		anchor := row.LastActivityAt
+		if anchor.IsZero() {
+			anchor = row.Record.CreatedAt
+		}
+		if anchor.IsZero() {
+			continue
+		}
+		idleDays := int(now.Sub(anchor).Hours() / 24)
+		if idleDays < 0 {
+			idleDays = 0
+		}
+		if idleDays < days {
+			continue
+		}
+		candidates = append(candidates, curatorPruneCandidate{name: row.Name, idleDays: idleDays})
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].idleDays != candidates[j].idleDays {
+			return candidates[i].idleDays > candidates[j].idleDays
+		}
+		return candidates[i].name < candidates[j].name
+	})
+	return candidates
 }
 
 // curatorRestoreReportJSON is the wire shape for `curator restore --json`.

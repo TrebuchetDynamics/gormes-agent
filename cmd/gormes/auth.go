@@ -146,9 +146,16 @@ func newAuthStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "status <provider>",
 		Short:        "Show redacted provider auth status",
-		Args:         cobra.ExactArgs(1),
+		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				const msg = "auth status: missing required <provider> argument"
+				if asJSON {
+					return emitJSONInputError(cmd, "missing_argument", msg)
+				}
+				return fmt.Errorf("%s", msg)
+			}
 			return runAuthStatusCommand(cmd, args[0], asJSON)
 		},
 	}
@@ -745,10 +752,10 @@ func runAuthListCommand(cmd *cobra.Command, providerInput string, asJSON bool) e
 // secrets. Credentials carry exactly the fields the human row already
 // prints, with secrets pre-redacted upstream by RedactedStatus.
 type authListReportJSON struct {
-	Build       buildProvenanceJSON       `json:"build"`
-	Provider    string                    `json:"provider"`
-	Redacted    bool                      `json:"redacted"`
-	Credentials []authListCredentialJSON  `json:"credentials"`
+	Build       buildProvenanceJSON      `json:"build"`
+	Provider    string                   `json:"provider"`
+	Redacted    bool                     `json:"redacted"`
+	Credentials []authListCredentialJSON `json:"credentials"`
 }
 
 type authListCredentialJSON struct {
@@ -976,6 +983,8 @@ func normalizeAuthProvider(provider string) string {
 	switch normalized {
 	case "or", "open-router":
 		return "openrouter"
+	case "minimax-global", "minimax-portal", "minimax-oauth":
+		return "minimax-oauth"
 	default:
 		return normalized
 	}
@@ -997,7 +1006,7 @@ func normalizeAuthType(authType, provider string) string {
 
 func authProviderDefaultsToOAuth(provider string) bool {
 	switch provider {
-	case "anthropic", "nous", config.CodexOAuthProvider, "qwen-oauth", "google-gemini-cli":
+	case "anthropic", "nous", config.CodexOAuthProvider, "qwen-oauth", "google-gemini-cli", "minimax-oauth":
 		return true
 	default:
 		return false

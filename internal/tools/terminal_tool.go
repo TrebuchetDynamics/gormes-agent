@@ -76,22 +76,32 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 		})
 	}
 
-	approvalMode := strings.TrimSpace(t.cfg.ApprovalMode)
-	if approvalMode == "" {
-		approvalMode = ApprovalModeManual
+	var guard BlockedResult
+	if cronMode, ok := CronApprovalModeFromContext(ctx); ok {
+		guard = GuardCronCommand(in.Command, cronMode)
+	} else {
+		approvalMode := strings.TrimSpace(t.cfg.ApprovalMode)
+		if approvalMode == "" {
+			approvalMode = ApprovalModeManual
+		}
+		guard = GuardCommandWithApproval(ctx, "terminal", in.Command, approvalMode)
 	}
-	guard := GuardCommandWithApproval(ctx, "terminal", in.Command, approvalMode)
 	if guard.Description != "" && !guard.Approved {
 		status := "blocked"
 		if guard.ApprovalRequired {
 			status = "approval_required"
 		}
+		errText := guard.Message
+		if errText == "" {
+			errText = fmt.Sprintf("Command denied: %s", guard.Description)
+		}
 		return marshalToolPayload(terminalResult{
 			Status:      status,
 			ExitCode:    -1,
-			Error:       fmt.Sprintf("Command denied: %s", guard.Description),
+			Error:       errText,
 			Command:     in.Command,
 			Description: guard.Description,
+			Evidence:    cloneStringMap(guard.Evidence),
 		})
 	}
 
@@ -156,20 +166,21 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 }
 
 type terminalResult struct {
-	Status       string `json:"status"`
-	Command      string `json:"command,omitempty"`
-	Workdir      string `json:"workdir,omitempty"`
-	Output       string `json:"output,omitempty"`
-	Stdout       string `json:"stdout,omitempty"`
-	Stderr       string `json:"stderr,omitempty"`
-	ExitCode     int    `json:"exit_code"`
-	Error        string `json:"error,omitempty"`
-	Description  string `json:"description,omitempty"`
-	DurationMs   int64  `json:"duration_ms,omitempty"`
-	Truncated    bool   `json:"truncated,omitempty"`
-	PTYNote      string `json:"pty_note,omitempty"`
-	CWDRecovered bool   `json:"cwd_recovered,omitempty"`
-	CWDRecovery  string `json:"cwd_recovery,omitempty"`
+	Status       string            `json:"status"`
+	Command      string            `json:"command,omitempty"`
+	Workdir      string            `json:"workdir,omitempty"`
+	Output       string            `json:"output,omitempty"`
+	Stdout       string            `json:"stdout,omitempty"`
+	Stderr       string            `json:"stderr,omitempty"`
+	ExitCode     int               `json:"exit_code"`
+	Error        string            `json:"error,omitempty"`
+	Description  string            `json:"description,omitempty"`
+	Evidence     map[string]string `json:"evidence,omitempty"`
+	DurationMs   int64             `json:"duration_ms,omitempty"`
+	Truncated    bool              `json:"truncated,omitempty"`
+	PTYNote      string            `json:"pty_note,omitempty"`
+	CWDRecovered bool              `json:"cwd_recovered,omitempty"`
+	CWDRecovery  string            `json:"cwd_recovery,omitempty"`
 }
 
 type terminalWorkdirResult struct {

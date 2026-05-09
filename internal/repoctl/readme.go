@@ -28,7 +28,8 @@ func UpdateReadme(opts ReadmeOptions) error {
 	}
 	var data struct {
 		Binary struct {
-			SizeMB json.RawMessage `json:"size_mb"`
+			SizeMB       json.RawMessage `json:"size_mb"`
+			LastMeasured string          `json:"last_measured"`
 		} `json:"binary"`
 		Code struct {
 			TestCount    json.RawMessage `json:"test_count"`
@@ -73,7 +74,73 @@ func UpdateReadme(opts ReadmeOptions) error {
 		content = re.ReplaceAllString(content, fmt.Sprintf("%d dependencies", deps))
 	}
 
+	release := readReleaseMetadata(opts.Root)
+	if release.Tag != "" {
+		content = updateReleaseMetadata(content, release, data.Binary.SizeMB, data.Binary.LastMeasured)
+	}
+
 	return os.WriteFile(readmePath, []byte(content), 0o644)
+}
+
+type releaseMetadata struct {
+	Tag string
+	URL string
+}
+
+func readReleaseMetadata(root string) releaseMetadata {
+	raw, err := os.ReadFile(filepath.Join(root, "webpages", "landing", "src", "data", "release.json"))
+	if err == nil {
+		var data struct {
+			Version string `json:"version"`
+			Tag     string `json:"tag"`
+			URL     string `json:"url"`
+		}
+		if json.Unmarshal(raw, &data) == nil {
+			tag := data.Tag
+			if tag == "" && data.Version != "" {
+				tag = "v" + data.Version
+			}
+			if tag != "" {
+				url := data.URL
+				if url == "" {
+					url = "https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/" + tag
+				}
+				return releaseMetadata{Tag: tag, URL: url}
+			}
+		}
+	}
+
+	raw, err = os.ReadFile(filepath.Join(root, "cmd", "gormes", "version.go"))
+	if err != nil {
+		return releaseMetadata{}
+	}
+	match := regexp.MustCompile(`var\s+Version\s*=\s*"([^"]+)"`).FindStringSubmatch(string(raw))
+	if len(match) != 2 {
+		return releaseMetadata{}
+	}
+	tag := "v" + match[1]
+	return releaseMetadata{
+		Tag: tag,
+		URL: "https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/" + tag,
+	}
+}
+
+func updateReleaseMetadata(content string, release releaseMetadata, sizeRaw json.RawMessage, measured string) string {
+	latest := regexp.MustCompile(`Latest public release: \[[^\]]+\]\([^)]+\)\.`)
+	content = latest.ReplaceAllString(content, fmt.Sprintf("Latest public release: [%s](%s).", release.Tag, release.URL))
+
+	devHead := regexp.MustCompile("Current `development` head after `[^`]+`")
+	content = devHead.ReplaceAllString(content, fmt.Sprintf("Current `development` head after `%s`", release.Tag))
+
+	size, err := benchmarkSizeMB(sizeRaw)
+	if err != nil || size == "" || measured == "" {
+		return content
+	}
+
+	summary := fmt.Sprintf("Release %s publishes static Go binaries for Linux, macOS, Windows, and Termux/Android across the supported release matrix. The current benchmark mirror reports a Linux build at ~%s MB (`benchmarks.json`, %s).",
+		release.Tag, size, measured)
+	releaseSummary := regexp.MustCompile("Release v[0-9][^\\n]+?\\. The current benchmark mirror reports a Linux build at ~[0-9.]+ MB \\(`benchmarks\\.json`, [0-9-]+\\)\\.")
+	return releaseSummary.ReplaceAllString(content, summary)
 }
 
 func benchmarkSizeMB(raw json.RawMessage) (string, error) {

@@ -344,6 +344,95 @@ func TestFreshInstallE2E_NotFoundJSONEmitsStructuredDocument(t *testing.T) {
 	}
 }
 
+// TestFreshInstallE2E_InvalidInputJSONEmitsStructuredError extends
+// the conformance fence to the missing-arg / missing-required-flag /
+// unknown-subcommand axes that slipped through in v0.2.0. Each
+// command paired with `--json` must emit a parseable JSON document
+// on stdout — never just a cobra error to stderr — so fleet
+// automation can distinguish "user mistake" (missing arg) from
+// "command crashed" (empty stdout, exit 1) the same way the
+// not-found battery already does for kanban lookups.
+//
+// Cases:
+//
+//	auth status --json                  → missing required <provider> arg
+//	logs --json                         → no log file exists yet
+//	secrets audit --json                → missing required --plan flag
+//	restore --json                      → missing required --list/--latest/--path
+//	mcp <bad-subcommand> --json         → unknown subcommand under parent
+//
+// Contract: each must (1) exit non-zero, (2) write a parseable JSON
+// document to stdout carrying at minimum `{build, action, error}`,
+// (3) leave stderr free to mirror the human-readable error if
+// useful. Same convention as the kanban not-found battery
+// (TestFreshInstallE2E_NotFoundJSONEmitsStructuredDocument).
+func TestFreshInstallE2E_InvalidInputJSONEmitsStructuredError(t *testing.T) {
+	cases := []struct {
+		name       string
+		args       []string
+		wantAction string
+	}{
+		{name: "auth_status_missing_arg", args: []string{"auth", "status", "--json"}, wantAction: "missing_argument"},
+		{name: "logs_no_log_file", args: []string{"logs", "--json"}, wantAction: "no_logs"},
+		{name: "secrets_audit_missing_plan_flag", args: []string{"secrets", "audit", "--json"}, wantAction: "missing_flag"},
+		{name: "restore_missing_arg", args: []string{"restore", "--json"}, wantAction: "missing_argument"},
+		{name: "mcp_unknown_subcommand", args: []string{"mcp", "definitely-not-a-subcommand", "--json"}, wantAction: "unknown_subcommand"},
+		// Typo-with-suggestion paths short-circuit through cobra's
+		// built-in `Find()`/`findSuggestions` before any parent's
+		// RunE guard fires. installParentUnknownSubcommandGuards
+		// only catches the no-suggestion case; these subtests pin
+		// the conformance fence for the suggestion case too. The
+		// fix lives at executeRootCommand's error wrapper.
+		{name: "config_typo_with_suggestion", args: []string{"config", "gat", "--json"}, wantAction: "unknown_subcommand"},
+		{name: "kanban_typo_with_suggestion", args: []string{"kanban", "shor", "--json"}, wantAction: "unknown_subcommand"},
+		// Gateway parent has its own RunE (`runGateway`) that runs
+		// the actual gateway when no subcommand matches. cobra
+		// parses `--json` BEFORE the RunE fires and rejects it as
+		// "unknown flag --json" because gateway parent doesn't
+		// register a --json flag. The conformance fence wraps this
+		// at the parent level so `gateway <bad-subcommand> --json`
+		// emits the same `unknown_subcommand` document as every
+		// other parent. Same intent: the user typed an invocation
+		// containing --json; conformance demands JSON on stdout.
+		{name: "gateway_unknown_subcommand_json", args: []string{"gateway", "definitely-not-a-subcommand", "--json"}, wantAction: "unknown_subcommand"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			freshInstallE2EHome(t)
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, tc.args...)
+			if err == nil {
+				t.Fatalf("`gormes %s` must error on invalid input; stdout=%q stderr=%q",
+					strings.Join(tc.args, " "), stdout, stderr)
+			}
+			if strings.TrimSpace(stdout) == "" {
+				t.Fatalf("`gormes %s` --json must emit JSON on stdout even on invalid input; got empty stdout. stderr=%s",
+					strings.Join(tc.args, " "), stderr)
+			}
+			var parsed map[string]any
+			if jsonErr := json.Unmarshal([]byte(stdout), &parsed); jsonErr != nil {
+				t.Fatalf("`gormes %s` stdout must be parseable JSON: %v\nstdout=%s",
+					strings.Join(tc.args, " "), jsonErr, stdout)
+			}
+			action, _ := parsed["action"].(string)
+			if action != tc.wantAction {
+				t.Errorf("`gormes %s` action = %q, want %q",
+					strings.Join(tc.args, " "), action, tc.wantAction)
+			}
+			build, _ := parsed["build"].(map[string]any)
+			if build == nil {
+				t.Errorf("`gormes %s` --json must include build provenance; got=%v",
+					strings.Join(tc.args, " "), parsed)
+			}
+			if errStr, _ := parsed["error"].(string); strings.TrimSpace(errStr) == "" {
+				t.Errorf("`gormes %s` --json must include a human-readable `error` field; got=%v",
+					strings.Join(tc.args, " "), parsed)
+			}
+		})
+	}
+}
+
 // freshInstallE2EHome sets up a synthetic GORMES_HOME the way a
 // fresh install looks: empty directory, no DBs, no auth, no
 // gateway state. Returns the root for tests that want to construct

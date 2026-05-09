@@ -152,7 +152,7 @@ func TestCommandRegistryCuratorCommandAvailableOnCLISurface(t *testing.T) {
 	if !cmd.Ported {
 		t.Fatal("/curator Ported = false, want true after curator CLI surface landed")
 	}
-	want := []string{"status", "run", "pause", "resume", "pin", "unpin", "backup", "rollback", "restore"}
+	want := []string{"status", "run", "pause", "resume", "pin", "unpin", "backup", "rollback", "restore", "archive", "list-archived", "prune"}
 	if len(cmd.Subcommands) != len(want) {
 		t.Fatalf("/curator Subcommands = %v, want %v", cmd.Subcommands, want)
 	}

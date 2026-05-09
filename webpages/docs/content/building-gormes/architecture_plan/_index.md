@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 80/100 subphases shipped · 16 in progress · 4 planned
+**Overall:** 88/100 subphases shipped · 9 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,10 +95,10 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 14/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 
 ---
 
@@ -184,6 +184,7 @@ classification and row-backed implementation queue.
 - [x] Gateway session store + SessionSource parity
 - [x] Gateway manual reset session-boundary hooks
 - [x] Gateway session reset notification parity
+- [x] Gateway slash-confirm session-boundary cleanup
 - [x] SessionContext prompt injection
 - [x] Hermes live-turn prompt assembly parity (channel-neutral)
 - [x] Live-turn SOUL.md and project context wiring (channel-neutral)
@@ -252,7 +253,10 @@ classification and row-backed implementation queue.
 - [x] Telegram entity-only mention boundary closeout
 - [x] Telegram thread-aware outbound text + typing seam
 - [x] Telegram forum thread fallback + send retry safety
+- [x] Telegram DM topic reply-fallback routing
 - [x] Telegram semantic MarkdownV2 formatter + table rewrite
+- [x] Telegram Markdown table row-label bullet suppression
+- [x] Telegram streaming edit Markdown safety
 - [x] Gateway platform reconnect isolation + channel health limits
 
 ### 2.B.10 — WeChat Adapter ✅
@@ -336,6 +340,8 @@ classification and row-backed implementation queue.
 
 - [x] Graceful restart drain + managed shutdown
 - [x] Adapter startup failure cleanup contract
+- [x] Gateway channel disconnect timeout on failed startup
+- [x] Gateway shutdown capped adapter disconnect
 - [x] Active-turn follow-up queue + late-arrival drain policy
 - [x] Drain-timeout resume_pending recovery
 - [x] Pairing read-model schema + atomic persistence
@@ -597,6 +603,7 @@ classification and row-backed implementation queue.
 - [x] Multi-account auth
 - [x] Credential non-ASCII sanitizer + one-shot warning
 - [x] Google OAuth flow + refresh seam
+- [x] MiniMax OAuth provider registry and default auth routing
 - [x] GitHub Copilot token exchange + Responses mode selector
 
 ### 4.H — Rate / Retry / Caching ✅
@@ -664,6 +671,7 @@ classification and row-backed implementation queue.
 
 - [x] 61-tool registry port
 - [x] Tool registry inventory + schema parity harness
+- [x] Tool-call JSON-string array/object coercion parity
 - [x] Tool parity manifest refresh for Hermes b35d692f
 - [x] Tool parity manifest refresh for Hermes ea86714 computer_use
 - [x] Tool parity manifest refresh for Hermes 524cbabd patch schema
@@ -678,7 +686,7 @@ classification and row-backed implementation queue.
 - [x] Tool output budget persisted artifact pointer
 - [x] Tool descriptor layer (OperationSpec)
 
-### 5.B — Sandboxing Backends 🔨
+### 5.B — Sandboxing Backends ✅
 
 - [x] Environment interface + file sync contract
 - [x] Terminal snapshot source stdout suppression guard
@@ -688,15 +696,16 @@ classification and row-backed implementation queue.
 - [x] Docker backend top-level container reuse semantics
 - [x] Modal
 - [x] Daytona
-- [ ] Singularity
+- [x] Singularity command/preflight contract
 - [x] Sandbox Policy Explain
 
-### 5.C — Browser Automation 🔨
+### 5.C — Browser Automation ✅
 
 - [x] Browser action contract + event transcript
 - [x] go-browser-harness Chromedp action backend
-- [ ] Rod
+- [x] Rod
 - [x] Browser provider bridge + Firecrawl fallback
+- [x] Camofox REST browser mode and managed identity bridge
 - [x] Browser Use cloud + Go browser harness bridge
 - [x] Go browser-harness Hermes browser_* tool wrappers
 - [x] Go-native Hermes web_search/web_extract tool wrappers
@@ -721,16 +730,16 @@ classification and row-backed implementation queue.
 - [x] Image generation provider registry + plugin dispatch
 - [x] Native video_analyze tool contract
 
-### 5.E — TTS / Voice / Transcription 🔨
+### 5.E — TTS / Voice / Transcription ✅
 
-- [ ] Voice mode port
+- [x] Voice mode port
 - [x] Voice mode environment detector + audio provider seam
 - [x] Transcription tool contract
 - [x] Telegram voice/audio STT ingress hook
 - [x] TTS tool contract + media delivery seam
 - [x] MiniMax TTS v1 text_to_speech raw-audio compatibility
 - [x] TTS provider matrix + dotenv/command-provider resolution
-- [ ] TTS synthesis + voice-mode state
+- [x] TTS synthesis + voice-mode state
 - [x] Voice record-key config binding for native TUI
 
 ### 5.F — Skills System (Remaining) ✅
@@ -770,12 +779,12 @@ classification and row-backed implementation queue.
 - [x] ACP JSON-RPC stdio session/prompt closeout
 - [x] ACP stdio benign ping/probe suppression
 
-### 5.I — Plugins Architecture 🔨
+### 5.I — Plugins Architecture ✅
 
 - [x] Plugin SDK
 - [x] Dashboard theme/plugin extension status contract
 - [x] Dashboard page-scoped plugin slot inventory
-- [ ] Third-party extensions
+- [x] Third-party extensions
 - [x] Hermes plugin CLI lifecycle parity
 - [x] Teams pipeline plugin CLI metadata + disabled runtime inventory
 - [x] Goncho Honcho plugin session config + async write compatibility
@@ -789,15 +798,17 @@ classification and row-backed implementation queue.
 
 ### 5.J — Approval / Security Guards 🔨
 
-- [ ] Dangerous action gating
+- [x] Dangerous action gating
+- [x] Gateway approval FIFO queue resolver
 - [x] Hardline command pattern table + DetectHardline function
 - [x] Recoverable dangerous patterns + blocked-result schema
 - [x] Approval mode config normalization
 - [x] Gateway hook auto-accept strict parser
+- [x] delegate_task batch JSON-string task recovery
 - [x] Subagent dangerous-command non-interactive approval policy
 - [x] Concurrent tool approval callback propagation
 - [x] Background review toolset restriction
-- [ ] Cron dangerous-command approval mode
+- [x] Cron dangerous-command approval mode
 - [x] Cron approval mode config normalizer
 - [ ] Tirith, path, URL, and website policy integration
 - [x] Shell blocklist (36+ dangerous patterns)
@@ -822,11 +833,14 @@ classification and row-backed implementation queue.
 - [x] File read dedup cache invalidation and wrapper guard
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
+- [x] V4A patch mode for native patch tool
+- [x] V4A move operation for native patch tool
 - [x] Symlink-preserving atomic writer helper
 - [x] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge
 - [x] Terminal deleted-cwd recovery
 - [x] search_files hidden-root and context-line parsing drift
+- [x] Structured lint delta for native write/patch tools
 
 ### 5.M — Mixture of Agents 🔨
 
@@ -835,12 +849,22 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban dispatcher and worker spawn loop
 - [x] Hermes Kanban production worker process binding
 - [x] Hermes Kanban worker tools and prompt gating
-- [ ] Hermes Kanban slash/gateway/dashboard surfaces
+- [x] Kanban comment author hardening and cross-task handoff policy
+- [x] Hermes Kanban slash/gateway/dashboard surfaces
 - [x] Native TUI /kanban slash command binding over gormes kanban
 - [x] Gateway /kanban shared command-runner binding
 - [x] Kanban dashboard dispatch quick path
+- [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [x] Kanban notify subscription store and CLI
+- [x] Kanban stats command and board summary
+- [x] Kanban named-board workspace and log roots
+- [x] Kanban current-board task command routing
+- [x] Kanban task run history command
+- [x] Kanban boards list/show task-count read model
+- [x] Kanban global --board task command override
+- [x] Kanban GC terminal event and worker-log retention
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
 - [x] Hermes Kanban specify triage parity
 
@@ -868,6 +892,7 @@ classification and row-backed implementation queue.
 - [x] Cron prompt/script safety + pre-run script contract (deprecated umbrella)
 - [x] Cron multi-target delivery + media/live-adapter fallback
 - [x] Cron deliver=all routing intent expansion
+- [x] Plugin standalone sender cron delivery fallback
 - [x] Goncho serialized write queue + relation candidates
 - [x] Blocker Policy Integration
 - [x] OpenClaw SecretRef core resolver
@@ -889,8 +914,11 @@ classification and row-backed implementation queue.
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
 - [x] Cron env-ref expansion + parallel run state serialization
+- [x] Cron origin delivery isolation from session identity
 - [x] Cron script/workdir/inactivity execution binding
 - [x] Cron no-agent script-only watchdog mode
+- [x] Cron partial legacy job read-model normalization
+- [x] Cron dashboard partial-record page
 - [x] Navivox host setup apply with transient sudo
 - [x] Gateway auto-resume on restart
 
@@ -928,8 +956,10 @@ classification and row-backed implementation queue.
 - [x] Gormes auth add bedrock open-question planning note
 - [x] Gormes profile command binding
 - [x] Gormes profile distribution metadata readout
+- [x] Gormes profile create clone-all infrastructure exclusion
 - [x] Model and profile selector seam (Cobra + gateway)
 - [x] Gormes top-level logout provider shortcut
+- [x] Top-level logout configured-provider fallback
 - [x] Gormes login removed-command typo suggestion contract
 - [x] Gormes model interactive provider/model picker
 - [x] Gormes setup minimal sectioned wizard slice
@@ -993,6 +1023,7 @@ classification and row-backed implementation queue.
 
 - [x] OCI image
 - [x] Homebrew
+- [x] Nix flake package and NixOS module contract
 - [x] Unix installer (install.sh) source-backed update flow
 - [x] Unix installer root/FHS layout policy
 - [x] Windows installer (install.ps1 + install.cmd) parity
@@ -1002,9 +1033,9 @@ classification and row-backed implementation queue.
 - [x] Install isolation: skip system service install when sandbox bin dir is set
 - [x] Install: prefer pre-built release binary over source build by default
 
-### 5.Q — API Server + TUI Gateway Streaming 🔨
+### 5.Q — API Server + TUI Gateway Streaming ✅
 
-- [ ] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
+- [x] Deterministic helper-file ports (tool-progress/image/completion-path/personality/platform-event)
 - [x] TUI gateway tool-progress mode normalizer
 - [x] TUI gateway completion path normalizer
 - [x] TUI gateway tool summary formatter
@@ -1037,6 +1068,7 @@ classification and row-backed implementation queue.
 - [x] Native TUI /quit local exit binding
 - [x] Native TUI Hermes tool progress + modal panel renderers
 - [x] Native TUI Ink behavioral transcript golden matrix
+- [x] Native TUI markdown soft-wrap boundary trim
 - [x] Channel/TUI iteration-limit finalization transcript fixture
 - [x] SSE streaming to Bubble Tea TUI
 - [x] TUI websocket attach transport
@@ -1129,6 +1161,7 @@ classification and row-backed implementation queue.
 
 - [x] Hermes skill_manage support-file and curator intent actions
 - [x] Hermes curator command surface
+- [x] Hermes curator archive/list/prune CLI catch-up
 - [ ] TUI + Telegram browsing
 - [x] Native skills list/view tool surface
 
@@ -1150,11 +1183,11 @@ classification and row-backed implementation queue.
 - [x] Agent-controlled memory retention with importance scoring
 - [x] Cross-session memory continuity
 
-### 6.K — Self-Evolution Engine (GEPA) 🔨
+### 6.K — Self-Evolution Engine (GEPA) ✅
 
 - [x] Prompt evaluation harness
 - [x] Iterative prompt mutation and scoring loop
-- [ ] Behavioral pattern extraction from session logs
+- [x] Behavioral pattern extraction from session logs
 
 ### 6.L — Composable Skill Execution (Voyager) ✅
 
@@ -1178,14 +1211,14 @@ classification and row-backed implementation queue.
 - [x] Email ingress + outbound delivery contract
 - [x] SMS ingress + outbound delivery contract
 
-### 7.C — Matrix + Mattermost Adapters 🔨
+### 7.C — Matrix + Mattermost Adapters ✅
 
 - [x] Threaded text adapter contract suite
 - [x] Matrix shared-chassis bot seam
 - [x] Matrix self/bridge sender drop helper
 - [x] Mattermost shared-chassis bot seam
 - [x] Matrix real client/bootstrap layer
-- [ ] Matrix E2EE device-id crypto-store binding
+- [x] Matrix E2EE device-id crypto-store binding
 - [x] Mattermost REST/WS bootstrap layer
 
 ### 7.D — Webhook + Trigger Ingress ✅
@@ -1201,6 +1234,7 @@ classification and row-backed implementation queue.
 - [x] DingTalk shared-chassis bot seam
 - [x] QQ Bot shared-chassis bot seam
 - [x] Feishu transport/bootstrap layer
+- [x] Feishu native update prompt cards
 - [x] Feishu drive-comment rule + pairing seam
 - [x] Feishu drive-comment reply workflow
 - [x] DingTalk transport/bootstrap layer
@@ -1212,8 +1246,10 @@ classification and row-backed implementation queue.
 - [x] Yuanbao media/sticker attachment normalization
 - [x] Yuanbao gateway runtime + toolset registration
 - [x] Microsoft Teams adapter plugin seam
-- [ ] QQ Bot transport/bootstrap layer
+- [x] QQ Bot transport/bootstrap layer
 - [x] Google Chat shared-chassis platform adapter seam
+- [x] Google Chat relay sender-type self-filter
+- [x] Google Chat standalone cron sender
 
 ## Phase 8 — Reputation & Publication 🔨
 
@@ -1227,6 +1263,7 @@ classification and row-backed implementation queue.
 ### 8.B — Repository Messaging ✅
 
 - [x] README rewrite to methodology-first positioning
+- [x] README release and benchmark metadata sync
 - [x] gormes.ai landing page positioning audit
 
 ### 8.C — Engineering Writeups ⏳
@@ -1237,7 +1274,15 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
+- [x] CI and installer Go toolchain floor sync
+- [x] Release prep guide target matrix sync
+- [x] Windows install.ps1 release binary fetch selector
+- [x] OCI image PR build and arm64 smoke workflow
+- [x] Release build-date provenance injection
+- [x] Landing release metadata date-alias sync
 - [x] Release notes artifact size table
+- [x] Release SBOM attestation binding
+- [x] Release build provenance attest action contract
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
 
@@ -1249,9 +1294,9 @@ classification and row-backed implementation queue.
 
 - [x] Loop $/iteration cost metric in status file
 
-### 8.G — Community & External Contributions ⏳
+### 8.G — Community & External Contributions ✅
 
-- [ ] Built-with-Gormes page scaffold
+- [x] Built-with-Gormes page scaffold
 
 <!-- PROGRESS:END -->
 

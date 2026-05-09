@@ -133,6 +133,23 @@ type Event struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type NotifySubscriptionInput struct {
+	Platform string
+	ChatID   string
+	ThreadID string
+	UserID   string
+}
+
+type NotifySubscription struct {
+	TaskID      string    `json:"task_id"`
+	Platform    string    `json:"platform"`
+	ChatID      string    `json:"chat_id"`
+	ThreadID    string    `json:"thread_id,omitempty"`
+	UserID      string    `json:"user_id,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	LastEventID int64     `json:"last_event_id"`
+}
+
 type Store struct {
 	db     *sql.DB
 	dbPath string
@@ -575,6 +592,236 @@ func (s *Store) ListEvents(ctx context.Context, taskID string) ([]Event, error) 
 	return events, nil
 }
 
+func (s *Store) AddNotifySubscription(ctx context.Context, taskID string, input NotifySubscriptionInput) (NotifySubscription, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return NotifySubscription{}, errors.New("kanban task id is required")
+	}
+	normalized, err := normalizeNotifySubscriptionInput(input)
+	if err != nil {
+		return NotifySubscription{}, err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return NotifySubscription{}, fmt.Errorf("begin kanban notify subscription: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := getTask(ctx, tx, taskID); err != nil {
+		return NotifySubscription{}, err
+	}
+	now := s.now().UTC()
+	if _, err := tx.ExecContext(ctx, `
+INSERT OR IGNORE INTO kanban_notify_subs (
+	task_id, platform, chat_id, thread_id, user_id, created_at, last_event_id
+) VALUES (?, ?, ?, ?, ?, ?, 0)`,
+		taskID, normalized.Platform, normalized.ChatID, normalized.ThreadID, normalized.UserID, now.UnixMilli(),
+	); err != nil {
+		return NotifySubscription{}, fmt.Errorf("insert kanban notify subscription: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return NotifySubscription{}, fmt.Errorf("commit kanban notify subscription: %w", err)
+	}
+	return s.getNotifySubscription(ctx, taskID, normalized)
+}
+
+func (s *Store) ListNotifySubscriptions(ctx context.Context, taskID string) ([]NotifySubscription, error) {
+	query := `SELECT task_id, platform, chat_id, thread_id, user_id, created_at, last_event_id FROM kanban_notify_subs`
+	var args []any
+	taskID = strings.TrimSpace(taskID)
+	if taskID != "" {
+		query += ` WHERE task_id = ?`
+		args = append(args, taskID)
+	}
+	query += ` ORDER BY task_id ASC, platform ASC, chat_id ASC, thread_id ASC`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list kanban notify subscriptions: %w", err)
+	}
+	defer rows.Close()
+	var subscriptions []NotifySubscription
+	for rows.Next() {
+		sub, err := scanNotifySubscription(rows)
+		if err != nil {
+			return nil, err
+		}
+		subscriptions = append(subscriptions, sub)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("scan kanban notify subscriptions: %w", err)
+	}
+	return subscriptions, nil
+}
+
+func (s *Store) RemoveNotifySubscription(ctx context.Context, taskID string, input NotifySubscriptionInput) (bool, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return false, errors.New("kanban task id is required")
+	}
+	normalized, err := normalizeNotifySubscriptionInput(input)
+	if err != nil {
+		return false, err
+	}
+	result, err := s.db.ExecContext(ctx, `
+DELETE FROM kanban_notify_subs
+WHERE task_id = ? AND platform = ? AND chat_id = ? AND thread_id = ?`,
+		taskID, normalized.Platform, normalized.ChatID, normalized.ThreadID,
+	)
+	if err != nil {
+		return false, fmt.Errorf("remove kanban notify subscription: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("read kanban notify subscription removal count: %w", err)
+	}
+	return changed > 0, nil
+}
+
+func (s *Store) UnseenEventsForSubscription(ctx context.Context, taskID string, input NotifySubscriptionInput, kinds []string) (int64, []Event, error) {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return 0, nil, errors.New("kanban task id is required")
+	}
+	normalized, err := normalizeNotifySubscriptionInput(input)
+	if err != nil {
+		return 0, nil, err
+	}
+	sub, ok, err := s.findNotifySubscription(ctx, taskID, normalized)
+	if err != nil {
+		return 0, nil, err
+	}
+	if !ok {
+		return 0, []Event{}, nil
+	}
+
+	query := `SELECT id, task_id, kind, payload, created_at FROM task_events WHERE task_id = ? AND id > ?`
+	args := []any{taskID, sub.LastEventID}
+	kinds = normalizeNotifyKinds(kinds)
+	if len(kinds) > 0 {
+		placeholders := make([]string, 0, len(kinds))
+		for _, kind := range kinds {
+			placeholders = append(placeholders, "?")
+			args = append(args, kind)
+		}
+		query += ` AND kind IN (` + strings.Join(placeholders, ",") + `)`
+	}
+	query += ` ORDER BY id ASC`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return 0, nil, fmt.Errorf("list kanban notify events: %w", err)
+	}
+	defer rows.Close()
+
+	cursor := sub.LastEventID
+	var events []Event
+	for rows.Next() {
+		var event Event
+		var createdAt int64
+		if err := rows.Scan(&event.ID, &event.TaskID, &event.Kind, &event.Payload, &createdAt); err != nil {
+			return 0, nil, fmt.Errorf("scan kanban notify event: %w", err)
+		}
+		event.CreatedAt = millisToTime(createdAt)
+		if event.ID > cursor {
+			cursor = event.ID
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, nil, fmt.Errorf("scan kanban notify events: %w", err)
+	}
+	return cursor, events, nil
+}
+
+func (s *Store) AdvanceNotifyCursor(ctx context.Context, taskID string, input NotifySubscriptionInput, cursor int64) error {
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" {
+		return errors.New("kanban task id is required")
+	}
+	normalized, err := normalizeNotifySubscriptionInput(input)
+	if err != nil {
+		return err
+	}
+	result, err := s.db.ExecContext(ctx, `
+UPDATE kanban_notify_subs
+SET last_event_id = ?
+WHERE task_id = ? AND platform = ? AND chat_id = ? AND thread_id = ?`,
+		cursor, taskID, normalized.Platform, normalized.ChatID, normalized.ThreadID,
+	)
+	if err != nil {
+		return fmt.Errorf("advance kanban notify cursor: %w", err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read kanban notify cursor update count: %w", err)
+	}
+	if changed == 0 {
+		return fmt.Errorf("kanban notify subscription for %s %s:%s not found", taskID, normalized.Platform, normalized.ChatID)
+	}
+	return nil
+}
+
+func (s *Store) PruneTerminalEvents(ctx context.Context, olderThan time.Duration) (int64, error) {
+	if olderThan < 0 {
+		return 0, errors.New("event retention must be >= 0")
+	}
+	cutoff := s.now().UTC().Add(-olderThan).UnixMilli()
+	result, err := s.db.ExecContext(ctx, `
+DELETE FROM task_events
+WHERE created_at < ?
+  AND task_id IN (
+    SELECT id FROM tasks WHERE status IN (?, ?)
+  )`,
+		cutoff, string(StatusDone), string(StatusArchived),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("prune kanban terminal events: %w", err)
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("count pruned kanban terminal events: %w", err)
+	}
+	return deleted, nil
+}
+
+func (s *Store) PruneWorkerLogs(olderThan time.Duration) (int, error) {
+	if olderThan < 0 {
+		return 0, errors.New("log retention must be >= 0")
+	}
+	logRoot := kanbanWorkerLogRootForDBPath(s.dbPath)
+	entries, err := os.ReadDir(logRoot)
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read kanban worker log root: %w", err)
+	}
+
+	cutoff := s.now().UTC().Add(-olderThan)
+	deleted := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if !info.Mode().IsRegular() || !info.ModTime().Before(cutoff) {
+			continue
+		}
+		path := filepath.Join(logRoot, entry.Name())
+		if err := os.Remove(path); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return deleted, fmt.Errorf("remove kanban worker log %s: %w", path, err)
+		}
+		deleted++
+	}
+	return deleted, nil
+}
+
 func (s *Store) BuildWorkerContext(ctx context.Context, taskID string) (string, error) {
 	task, err := s.GetTask(ctx, taskID)
 	if err != nil {
@@ -875,6 +1122,82 @@ func insertEvent(ctx context.Context, tx *sql.Tx, taskID, kind, payload string) 
 	return nil
 }
 
+func normalizeNotifySubscriptionInput(input NotifySubscriptionInput) (NotifySubscriptionInput, error) {
+	normalized := NotifySubscriptionInput{
+		Platform: strings.TrimSpace(input.Platform),
+		ChatID:   strings.TrimSpace(input.ChatID),
+		ThreadID: strings.TrimSpace(input.ThreadID),
+		UserID:   strings.TrimSpace(input.UserID),
+	}
+	if normalized.Platform == "" {
+		return NotifySubscriptionInput{}, errors.New("notify platform is required")
+	}
+	if normalized.ChatID == "" {
+		return NotifySubscriptionInput{}, errors.New("notify chat id is required")
+	}
+	return normalized, nil
+}
+
+func normalizeNotifyKinds(kinds []string) []string {
+	if len(kinds) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(kinds))
+	out := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
+		kind = strings.TrimSpace(kind)
+		if kind == "" {
+			continue
+		}
+		if _, ok := seen[kind]; ok {
+			continue
+		}
+		seen[kind] = struct{}{}
+		out = append(out, kind)
+	}
+	return out
+}
+
+func (s *Store) getNotifySubscription(ctx context.Context, taskID string, input NotifySubscriptionInput) (NotifySubscription, error) {
+	sub, ok, err := s.findNotifySubscription(ctx, taskID, input)
+	if err != nil {
+		return NotifySubscription{}, err
+	}
+	if !ok {
+		return NotifySubscription{}, fmt.Errorf("kanban notify subscription for %s %s:%s not found", taskID, input.Platform, input.ChatID)
+	}
+	return sub, nil
+}
+
+func (s *Store) findNotifySubscription(ctx context.Context, taskID string, input NotifySubscriptionInput) (NotifySubscription, bool, error) {
+	row := s.db.QueryRowContext(ctx, `
+SELECT task_id, platform, chat_id, thread_id, user_id, created_at, last_event_id
+FROM kanban_notify_subs
+WHERE task_id = ? AND platform = ? AND chat_id = ? AND thread_id = ?`,
+		taskID, input.Platform, input.ChatID, input.ThreadID,
+	)
+	sub, err := scanNotifySubscription(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return NotifySubscription{}, false, nil
+	}
+	if err != nil {
+		return NotifySubscription{}, false, err
+	}
+	return sub, true, nil
+}
+
+func scanNotifySubscription(scanner interface {
+	Scan(dest ...any) error
+}) (NotifySubscription, error) {
+	var sub NotifySubscription
+	var createdAt int64
+	if err := scanner.Scan(&sub.TaskID, &sub.Platform, &sub.ChatID, &sub.ThreadID, &sub.UserID, &createdAt, &sub.LastEventID); err != nil {
+		return NotifySubscription{}, err
+	}
+	sub.CreatedAt = millisToTime(createdAt)
+	return sub, nil
+}
+
 func (s *Store) migrateSchema(ctx context.Context) error {
 	if err := s.ensureTaskColumn(ctx, "spawn_failures", "INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return err
@@ -1019,6 +1342,19 @@ CREATE TABLE IF NOT EXISTS task_runs (
 	started_at INTEGER NOT NULL,
 	ended_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS kanban_notify_subs (
+	task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+	platform TEXT NOT NULL,
+	chat_id TEXT NOT NULL,
+	thread_id TEXT NOT NULL DEFAULT '',
+	user_id TEXT NOT NULL DEFAULT '',
+	created_at INTEGER NOT NULL,
+	last_event_id INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY(task_id, platform, chat_id, thread_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notify_task ON kanban_notify_subs(task_id);
 `
 
 func marshalTaskRunMetadata(metadata map[string]any) (json.RawMessage, error) {

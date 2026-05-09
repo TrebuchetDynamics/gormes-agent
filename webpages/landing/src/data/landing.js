@@ -7,7 +7,11 @@ const goFiles = benchmarks?.code?.go_files || '';
 const goLines = benchmarks?.code?.go_lines || '';
 const testCount = benchmarks?.code?.test_count || '';
 const releaseVersion = release?.version || '0.1.01';
-const releaseLabel = `Current scout release: v${releaseVersion}`;
+const releaseTag = release?.tag || `v${releaseVersion}`;
+const releaseDateAlias = release?.date_alias || '';
+const releaseLabel = releaseDateAlias
+  ? `Current scout release: ${releaseTag} (${releaseDateAlias})`
+  : `Current scout release: ${releaseTag}`;
 const binaryMeasureLabel = binarySizeMB
   ? `Current measured Linux build: ~${binarySizeMB} MB${binaryMeasuredAt ? ` (${binaryMeasuredAt})` : ''}`
   : 'Current Linux build measured during release prep';
@@ -258,6 +262,7 @@ export const page = {
     { label: 'Install', href: 'https://docs.gormes.ai/using-gormes/install/' },
     { label: 'Configuration', href: 'https://docs.gormes.ai/using-gormes/configuration/' },
     { label: 'Architecture', href: 'https://docs.gormes.ai/building-gormes/architecture_plan/' },
+    { label: 'Built with', href: '/built-with' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
   finalCtaHeadline: 'Prove the runtime locally before you ever spend a token.',

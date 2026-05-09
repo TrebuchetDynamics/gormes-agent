@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"bytes"
 	"path/filepath"
 	"testing"
 
@@ -106,5 +107,77 @@ func TestStore_CreateRejectsDuplicateName(t *testing.T) {
 	}
 	if err != ErrJobNameTaken {
 		t.Errorf("err = %v, want ErrJobNameTaken", err)
+	}
+}
+
+func TestStore_ListNormalizesPartialLegacyRecords(t *testing.T) {
+	s, done := newTestStore(t)
+	defer done()
+
+	key := "abc123deadbe"
+	raw := []byte(`{"name":null,"prompt":null,"schedule":null,"paused":false}`)
+	seedRawCronJob(t, s, key, raw)
+
+	got, err := s.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len = %d, want 1", len(got))
+	}
+	if got[0].ID != key {
+		t.Fatalf("ID = %q, want bucket key %q", got[0].ID, key)
+	}
+	if got[0].Name != key {
+		t.Fatalf("Name = %q, want fallback to id %q", got[0].Name, key)
+	}
+	if got[0].Prompt != "" {
+		t.Fatalf("Prompt = %q, want empty string", got[0].Prompt)
+	}
+	if got[0].Schedule != "?" {
+		t.Fatalf("Schedule = %q, want ?", got[0].Schedule)
+	}
+	assertRawCronJobUnchanged(t, s, key, raw)
+}
+
+func TestStore_GetNormalizesPartialLegacyRecord(t *testing.T) {
+	s, done := newTestStore(t)
+	defer done()
+
+	key := "abc123deadbe"
+	raw := []byte(`{"name":null,"prompt":null,"schedule":null,"paused":true}`)
+	seedRawCronJob(t, s, key, raw)
+
+	got, err := s.Get(key)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.ID != key || got.Name != key || got.Prompt != "" || got.Schedule != "?" || !got.Paused {
+		t.Fatalf("normalized job = %+v, want id/name=%q prompt empty schedule ? paused", got, key)
+	}
+	assertRawCronJobUnchanged(t, s, key, raw)
+}
+
+func seedRawCronJob(t *testing.T, s *Store, key string, raw []byte) {
+	t.Helper()
+	if err := s.db.Update(func(tx *bbolt.Tx) error {
+		return tx.Bucket([]byte(cronJobsBucket)).Put([]byte(key), raw)
+	}); err != nil {
+		t.Fatalf("seed raw cron job: %v", err)
+	}
+}
+
+func assertRawCronJobUnchanged(t *testing.T, s *Store, key string, want []byte) {
+	t.Helper()
+	var got []byte
+	if err := s.db.View(func(tx *bbolt.Tx) error {
+		blob := tx.Bucket([]byte(cronJobsBucket)).Get([]byte(key))
+		got = append([]byte(nil), blob...)
+		return nil
+	}); err != nil {
+		t.Fatalf("read raw cron job: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("raw cron job changed\n got: %s\nwant: %s", got, want)
 	}
 }

@@ -53,7 +53,73 @@ func executeRootCommand(root *cobra.Command, args ...string) error {
 	if len(args) > 0 {
 		root.SetArgs(args)
 	}
-	return root.Execute()
+	err := root.Execute()
+	// Catch cobra's `Find()`/`findSuggestions` short-circuit:
+	// `gormes config gat --json` produces an `unknown command "gat"
+	// for "gormes config"; did you mean "get"?` error returned
+	// directly from Find(), bypassing the parent's RunE guard
+	// installed by installParentUnknownSubcommandGuards. When --json
+	// is in args, escalate that error into a structured JSON
+	// document on stdout so fleet automation sees the same
+	// `{build, action: "unknown_subcommand", error}` shape it gets
+	// for the no-suggestion case.
+	//
+	// Skip when the error is already an exitCodeError — that means
+	// some inner RunE (mcp parent guard, the recursive
+	// installParentUnknownSubcommandGuards) already emitted a JSON
+	// document; double-emitting would corrupt the stdout stream.
+	if err != nil && argsIncludeJSONFlag(args) && !errors.As(err, new(exitCodeError)) {
+		// Cobra Find()/findSuggestions short-circuit:
+		// `gormes config gat --json` produces an
+		// `unknown command "gat" for "gormes config"; did you
+		// mean "get"?` error returned directly from Find(),
+		// bypassing the parent's RunE guard installed by
+		// installParentUnknownSubcommandGuards.
+		if isCobraUnknownCommandError(err) {
+			return emitJSONInputError(root, "unknown_subcommand", err.Error())
+		}
+		// Cobra flag-parser rejection by a parent that consumed
+		// the path before subcommand routing:
+		// `gormes gateway xyz --json` reaches gateway's flag
+		// parser (gateway parent has its own RunE), which
+		// rejects `--json` as "unknown flag: --json" because
+		// gateway parent doesn't register a --json flag. The
+		// user's intent — "I asked for JSON output of an
+		// invocation with --json" — must still produce JSON.
+		// Treat as unknown_subcommand: the only way --json gets
+		// rejected here is when the operator typed a nonsense
+		// subcommand under a parent with its own RunE.
+		if isCobraUnknownJSONFlagError(err) {
+			return emitJSONInputError(root, "unknown_subcommand", err.Error())
+		}
+	}
+	return err
+}
+
+// isCobraUnknownCommandError matches cobra's Find()/findSuggestions
+// `unknown command "X" for "Y"[; did you mean "Z"?]` error message
+// pattern. Cobra returns this as a plain `errors.New(...)` value with
+// no wrapped sentinel — substring match is the most stable contract.
+func isCobraUnknownCommandError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.HasPrefix(err.Error(), `unknown command "`) && strings.Contains(err.Error(), `" for "`)
+}
+
+// isCobraUnknownJSONFlagError matches cobra's flag parser rejection
+// of `--json` by a parent that consumed the command path before
+// subcommand routing (e.g. gateway parent has its own RunE, so
+// `gormes gateway xyz --json` reaches gateway's flag parser before
+// any subcommand match attempt). Cobra emits `unknown flag: --json`
+// as a plain pflag error — substring match keeps the discriminator
+// stable across pflag versions.
+func isCobraUnknownJSONFlagError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "unknown flag: --json") || strings.Contains(msg, `unknown flag "--json"`)
 }
 
 func newRootCommand() *cobra.Command {
@@ -224,7 +290,7 @@ Docs: https://docs.gormes.ai`,
 		flag.NoOptDefVal = "last"
 	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSlackCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand())
+	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSlackCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newFallbackCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand())
 	installParentUnknownSubcommandGuards(root)
 	return root
 }
@@ -254,10 +320,16 @@ func installParentUnknownSubcommandGuards(cmd *cobra.Command) {
 	}
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
+			var msg string
 			if suggestions := cmd.SuggestionsFor(args[0]); len(suggestions) > 0 {
-				return fmt.Errorf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
+				msg = fmt.Sprintf("unknown command %q for %q; did you mean %q?", args[0], cmd.CommandPath(), suggestions[0])
+			} else {
+				msg = fmt.Sprintf("unknown command %q for %q", args[0], cmd.CommandPath())
 			}
-			return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+			if argsIncludeJSONFlag(args) {
+				return emitJSONInputError(cmd, "unknown_subcommand", msg)
+			}
+			return fmt.Errorf("%s", msg)
 		}
 		return cmd.Help()
 	}

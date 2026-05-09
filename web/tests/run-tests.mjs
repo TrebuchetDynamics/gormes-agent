@@ -2,8 +2,9 @@ import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(import.meta.dirname, '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const expectedRoutes = [
   ['dashboard', '/'],
@@ -48,6 +49,7 @@ async function DashboardFrontendScaffoldBuildManifest() {
 
 async function DashboardFrontendScaffoldPageFallbacks() {
   for (const [id] of expectedRoutes) {
+    if (id === 'cron') continue;
     const pageName = id === 'dashboard' ? 'DashboardPage.tsx' : `${id[0].toUpperCase()}${id.slice(1)}Page.tsx`;
     const source = await read(`src/pages/${pageName}`);
     assert.match(source, /UnavailablePanel/, `${pageName} renders an explicit unavailable panel`);
@@ -55,10 +57,34 @@ async function DashboardFrontendScaffoldPageFallbacks() {
   }
 }
 
+async function CronDashboardPageRendersPartialJobsAndActions() {
+  const source = await read('src/pages/CronPage.tsx');
+  assert.doesNotMatch(source, /UnavailablePanel/, 'CronPage is now a concrete dashboard page');
+
+  for (const helper of ['getJobTitle', 'getJobScheduleDisplay', 'getJobState']) {
+    assert.match(source, new RegExp(`function\\s+${helper}\\b`), `${helper} helper is present`);
+  }
+
+  assert.match(source, /fetch\(['"]\/v1\/admin\/cron\/jobs['"]\)/, 'CronPage loads native cron admin jobs');
+  assert.match(source, /\/pause[`'"]/, 'CronPage can pause jobs');
+  assert.match(source, /\/resume[`'"]/, 'CronPage can resume jobs');
+  assert.match(source, /\/trigger[`'"]/, 'CronPage can trigger jobs');
+  assert.match(source, /getJobState\(job\)\s*===\s*['"]paused['"]/, 'pause/resume uses normalized state helper');
+
+  for (const fallbackToken of ['schedule_display', 'schedule?.display', 'schedule?.expr', 'job.paused === true', 'job.enabled === false', 'scheduled']) {
+    assert.match(source, new RegExp(fallbackToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `partial-record fallback ${fallbackToken} is present`);
+  }
+
+  for (const visibleState of ['Loading cron jobs', 'No cron jobs scheduled', 'Failed to load cron jobs', 'Retry']) {
+    assert.match(source, new RegExp(visibleState), `visible state ${visibleState} is rendered`);
+  }
+}
+
 const tests = {
   DashboardFrontendScaffoldDefinesRoutes,
   DashboardFrontendScaffoldBuildManifest,
   DashboardFrontendScaffoldPageFallbacks,
+  CronDashboardPageRendersPartialJobsAndActions,
 };
 
 const runArgIndex = process.argv.indexOf('--run');

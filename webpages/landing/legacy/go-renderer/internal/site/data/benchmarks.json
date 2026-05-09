@@ -1,17 +1,65 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "6aa4139ae",
-    "go_version": "1.25+",
-    "last_measured": "2026-05-01",
+    "commit": "c4555423c",
+    "go_version": "1.26+",
+    "last_measured": "2026-05-09",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 23064738,
-    "size_mb": "22.0",
+    "size_bytes": 29311138,
+    "size_mb": "28.0",
     "stripped": true
   },
+  "code": {
+    "dependencies": 145,
+    "go_files": 797,
+    "go_lines": 206443,
+    "test_count": 5402
+  },
   "history": [
+    {
+      "commit": "2e54a1a60",
+      "date": "2026-05-09",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 29311138,
+      "size_mb": 28
+    },
+    {
+      "commit": "a7116c11e",
+      "date": "2026-05-07",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 41056660,
+      "size_mb": 39.2
+    },
+    {
+      "commit": "96e31bda0",
+      "date": "2026-05-06",
+      "phase": "Phase 2 — The Gateway",
+      "size_bytes": 41056660,
+      "size_mb": 39.2
+    },
+    {
+      "commit": "960dcfdc0",
+      "date": "2026-05-05",
+      "phase": "Phase 4 — The Brain Transplant",
+      "size_bytes": 40954746,
+      "size_mb": 39.1
+    },
+    {
+      "commit": "649c65af2",
+      "date": "2026-05-04",
+      "phase": "Phase 4 — The Brain Transplant",
+      "size_bytes": 39870030,
+      "size_mb": 38
+    },
+    {
+      "commit": "3d3c5857f",
+      "date": "2026-05-02",
+      "phase": "Phase 4 — The Brain Transplant",
+      "size_bytes": 23277730,
+      "size_mb": 22.2
+    },
     {
       "commit": "5172cbf33",
       "date": "2026-05-01",
@@ -65,7 +113,10 @@
       "linux/amd64",
       "linux/arm64",
       "darwin/amd64",
-      "darwin/arm64"
+      "darwin/arm64",
+      "windows/amd64",
+      "windows/arm64",
+      "android/arm64"
     ]
   }
 }

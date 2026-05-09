@@ -363,6 +363,132 @@ func TestCuratorCommand_BackupRollbackRestore(t *testing.T) {
 	}
 }
 
+func TestCuratorCommand_ArchiveListArchivedPrune(t *testing.T) {
+	root := setupCuratorCommandHome(t)
+	old := time.Now().UTC().AddDate(0, 0, -120)
+	recent := time.Now().UTC().AddDate(0, 0, -2)
+
+	for _, name := range []string{"manual", "pinned", "archive-now", "old-prune", "pinned-prune", "recent-prune"} {
+		writeCuratorCommandSkill(t, root, name)
+	}
+	writeCuratorCommandUsage(t, root, map[string]skills.SkillUsageRecord{
+		"pinned": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			Pinned:       true,
+			State:        skills.SkillStateActive,
+			CreatedAt:    old,
+			LastUsedAt:   old,
+		},
+		"archive-now": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			State:        skills.SkillStateActive,
+			CreatedAt:    old,
+			LastUsedAt:   old,
+		},
+		"old-prune": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			State:        skills.SkillStateActive,
+			CreatedAt:    old,
+			LastUsedAt:   old,
+		},
+		"pinned-prune": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			Pinned:       true,
+			State:        skills.SkillStateActive,
+			CreatedAt:    old,
+			LastUsedAt:   old,
+		},
+		"recent-prune": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			State:        skills.SkillStateActive,
+			CreatedAt:    recent,
+			LastUsedAt:   recent,
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "archive", "pinned")
+	if err == nil {
+		t.Fatalf("curator archive pinned err = nil\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout+stderr+err.Error(), "pinned") || !strings.Contains(stdout+stderr+err.Error(), "unpin") {
+		t.Fatalf("curator archive pinned output missing pinned refusal:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+	}
+
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "archive", "manual")
+	if err == nil {
+		t.Fatalf("curator archive manual err = nil\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout+stderr+err.Error(), "bundled or hub-installed") {
+		t.Fatalf("curator archive manual output missing provenance refusal:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+	}
+
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "archive", "archive-now")
+	if err != nil {
+		t.Fatalf("curator archive archive-now: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "curator: archived") {
+		t.Fatalf("curator archive stdout = %q, want archived evidence", stdout)
+	}
+	if _, err := os.Stat(filepath.Join(root, "active", ".archive", "archive-now", "SKILL.md")); err != nil {
+		t.Fatalf("archive-now not archived: %v", err)
+	}
+	rec, err := skills.GetUsageRecord(root, "archive-now")
+	if err != nil {
+		t.Fatalf("GetUsageRecord archive-now: %v", err)
+	}
+	if rec.State != skills.SkillStateArchived || rec.ArchivedAt.IsZero() {
+		t.Fatalf("archive-now record = %+v, want archived state with timestamp", rec)
+	}
+
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "list-archived")
+	if err != nil {
+		t.Fatalf("curator list-archived: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "archive-now") {
+		t.Fatalf("list-archived stdout missing archive-now:\n%s", stdout)
+	}
+
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "prune", "--days", "0")
+	if err == nil {
+		t.Fatalf("curator prune --days 0 err = nil\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(stdout+stderr+err.Error(), "--days must be >= 1") {
+		t.Fatalf("curator prune invalid days output missing validation:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+	}
+
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "prune", "--days", "90", "--dry-run")
+	if err != nil {
+		t.Fatalf("curator prune dry-run: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "old-prune") || !strings.Contains(stdout, "dry run") {
+		t.Fatalf("curator prune dry-run stdout missing preview:\n%s", stdout)
+	}
+	if _, err := os.Stat(filepath.Join(root, "active", "old-prune", "SKILL.md")); err != nil {
+		t.Fatalf("old-prune mutated during dry-run: %v", err)
+	}
+
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "prune", "--days", "90", "--yes")
+	if err != nil {
+		t.Fatalf("curator prune --yes: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "curator: archived 1/1") {
+		t.Fatalf("curator prune stdout = %q, want archived 1/1", stdout)
+	}
+	if _, err := os.Stat(filepath.Join(root, "active", ".archive", "old-prune", "SKILL.md")); err != nil {
+		t.Fatalf("old-prune not archived by prune: %v", err)
+	}
+	for _, name := range []string{"pinned-prune", "recent-prune"} {
+		if _, err := os.Stat(filepath.Join(root, "active", name, "SKILL.md")); err != nil {
+			t.Fatalf("%s should remain active after prune: %v", name, err)
+		}
+	}
+}
+
 // TestCuratorCommand_RollbackJSONEmitsStructuredOutcome proves
 // `gormes curator rollback --id X --yes --json` returns
 // `{build, action, restored_backup_id, pre_rollback_backup_id}` so
@@ -718,6 +844,18 @@ func writeCuratorCommandSkill(t *testing.T, root, name string) {
 	body := "---\nname: " + name + "\ndescription: test\n---\n# " + name + "\n"
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(body), 0o600); err != nil {
 		t.Fatalf("write SKILL.md %s: %v", name, err)
+	}
+}
+
+func writeCuratorCommandUsage(t *testing.T, root string, state map[string]skills.SkillUsageRecord) {
+	t.Helper()
+	raw, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal usage state: %v", err)
+	}
+	raw = append(raw, '\n')
+	if err := os.WriteFile(filepath.Join(root, ".usage.json"), raw, 0o600); err != nil {
+		t.Fatalf("write usage state: %v", err)
 	}
 }
 

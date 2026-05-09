@@ -235,9 +235,9 @@ In progress:
 - More channels and gateway hardening
 - Deeper learning-loop, MCP/plugin, voice/TTS, and release-distribution work
 
-Latest public release: [v0.1.05](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.1.05).
+Latest public release: [v0.2.0](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.0).
 
-Current `development` head after `v0.1.05` also includes fixture-backed work
+Current `development` head after `v0.2.0` also includes fixture-backed work
 for the OpenClaw-compatible `gormes migrate claw` alias, cron `no_agent`
 script-only watchdog jobs, planned gateway-stop markers, WSL-safe service PATH
 handling, and Navivox SSH/admin/key-import/tool-approval groundwork. Those
@@ -254,15 +254,15 @@ after the normal release lane.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 14/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 3/5 subphases |
-| Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
+| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
+| Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 <!-- PROGRESS:END -->
 
 </details>
 
-Release v0.1.05 publishes static Go binaries for Linux, macOS, and Windows on amd64/arm64. The current benchmark mirror reports a Linux build at ~39.1 MB (`benchmarks.json`, 2026-05-05). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
+Release v0.2.0 publishes static Go binaries for Linux, macOS, Windows, and Termux/Android across the supported release matrix. The current benchmark mirror reports a Linux build at ~28.0 MB (`benchmarks.json`, 2026-05-09). CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. See [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
 
 ---
 

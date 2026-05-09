@@ -40,6 +40,9 @@ func (m *Manager) maybeSendTypingAction(ctx context.Context, ch Channel, phase k
 	if !ok {
 		return
 	}
+	if telegramDMTopicReplyFallbackLane(ch.Name(), chatID, threadID) {
+		return
+	}
 
 	key := ch.Name() + "\x00" + chatID + "\x00" + threadID
 	now := m.now()

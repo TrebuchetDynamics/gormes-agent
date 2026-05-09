@@ -61,7 +61,11 @@ func runLogs(cmd *cobra.Command, _ []string) error {
 		path := config.LogPath()
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("no gateway running and no log file found: %w", err)
+			msg := fmt.Sprintf("no gateway running and no log file found: %v", err)
+			if asJSON {
+				return emitJSONInputError(cmd, "no_logs", msg)
+			}
+			return fmt.Errorf("%s", msg)
 		}
 		if asJSON {
 			body, marshalErr := json.MarshalIndent(logsReportJSON{

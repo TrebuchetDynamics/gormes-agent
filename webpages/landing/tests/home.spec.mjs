@@ -6,7 +6,9 @@ const landingBenchmarks = JSON.parse(readFileSync(new URL('../src/data/benchmark
 const rootBenchmarks = JSON.parse(readFileSync(new URL('../../../benchmarks.json', import.meta.url), 'utf8'));
 const logoSvg = readFileSync(new URL('../public/static/gormes-agent-logo-blue.svg', import.meta.url), 'utf8');
 const releaseTag = release.tag || `v${release.version}`;
-const releaseLabel = `Current scout release: ${releaseTag}`;
+const releaseLabel = release.date_alias
+  ? `Current scout release: ${releaseTag} (${release.date_alias})`
+  : `Current scout release: ${releaseTag}`;
 const releaseLabelPattern = new RegExp(escapeRegExp(releaseLabel));
 
 function escapeRegExp(value) {
@@ -139,6 +141,24 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
   // Copy buttons require a tiny inline clipboard script — bounded to the two install methods.
   await expect(page.locator('button.copy-btn')).toHaveCount(2);
+});
+
+test('built-with page lists truthful deployments and submission template', async ({ page }) => {
+  await page.goto('/built-with');
+
+  await expect(page).toHaveTitle('Built with Gormes — Real Deployments and Self-Hosted Uses');
+  await expect(page.getByRole('heading', { name: 'Built with Gormes' })).toBeVisible();
+  await expect(page.getByText('Real deployments only. No fabricated customer logos, no placeholder companies.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'TrebuchetDynamics operator loop' })).toBeVisible();
+  await expect(page.getByText('TrebuchetDynamics', { exact: true })).toBeVisible();
+  await expect(page.getByText('Self-hosted operator deployment')).toBeVisible();
+  await expect(page.getByText('Runs the autonomous Hermes-to-Go porting loop against the public Gormes repository.')).toBeVisible();
+  await expect(page.getByText('development branch progress.json, Go test gates, GitHub Actions release workflow')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Submit a deployment' })).toBeVisible();
+  await expect(page.getByText('Open a pull request that adds one entry to webpages/landing/src/data/builtWith.js.')).toBeVisible();
+  await expect(page.getByText('Required fields: name, href, operator, status, summary, proof, stack, submissionContact.')).toBeVisible();
+  await expect(page.locator('main')).not.toContainText('Acme');
+  await expect(page.locator('main')).not.toContainText('Example customer');
 });
 
 // Long-term bulletproof: the page must stay readable as content

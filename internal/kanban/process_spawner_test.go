@@ -91,6 +91,46 @@ func TestKanbanProcessSpawnerBuildsNativeWorkerCommandAndRotatesLogs(t *testing.
 	}
 }
 
+func TestKanbanProcessSpawnerNamedBoardLogRoot(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	workspace := t.TempDir()
+	now := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	starter := &recordingProcessStarter{
+		result: ProcessStartResult{PID: 5150, StartedAt: now},
+	}
+	spawner := ProcessSpawner{
+		Starter: starter,
+		Now:     func() time.Time { return now },
+	}
+
+	_, err := spawner.SpawnKanbanWorker(ctx, SpawnRequest{
+		Task: Task{
+			ID:       "t_named",
+			Title:    "Named board log root",
+			Assignee: "coder",
+		},
+		WorkspacePath: workspace,
+		Env: map[string]string{
+			"GORMES_KANBAN_DB": filepath.Join(root, "kanban", "boards", "alpha", "kanban.db"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("SpawnKanbanWorker() error = %v", err)
+	}
+	if len(starter.requests) != 1 {
+		t.Fatalf("starter requests = %d, want 1", len(starter.requests))
+	}
+	want := filepath.Join(root, "kanban", "boards", "alpha", "logs", "t_named.log")
+	req := starter.requests[0]
+	if req.StdoutPath != want || req.StderrPath != want {
+		t.Fatalf("stdout/stderr paths = %q/%q, want %q", req.StdoutPath, req.StderrPath, want)
+	}
+	if _, err := os.Stat(want); err != nil {
+		t.Fatalf("log path missing: %v", err)
+	}
+}
+
 type recordingProcessStarter struct {
 	requests []ProcessStartRequest
 	result   ProcessStartResult

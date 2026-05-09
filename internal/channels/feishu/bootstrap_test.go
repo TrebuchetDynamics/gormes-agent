@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"strings"
@@ -134,6 +135,139 @@ func TestFeishuBootstrapRichTextSendFailureEvidence(t *testing.T) {
 	}
 	if len(mc.richSent) != 1 || mc.richSent[0].Options.ReplyToMessageID != "msg-1" {
 		t.Fatalf("rich send call = %#v", mc.richSent)
+	}
+}
+
+func TestFeishuUpdatePromptCardBuildsYesNoActions(t *testing.T) {
+	card := BuildUpdatePromptCard("Restore stashed changes after update?", "y", 17)
+	payload, err := json.Marshal(card)
+	if err != nil {
+		t.Fatalf("marshal card: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(payload, &got); err != nil {
+		t.Fatalf("unmarshal card: %v", err)
+	}
+
+	header := got["header"].(map[string]any)
+	if header["template"] != "orange" {
+		t.Fatalf("header template = %q, want orange", header["template"])
+	}
+	elements := got["elements"].([]any)
+	content := elements[0].(map[string]any)["content"].(string)
+	if !strings.Contains(content, "Restore stashed changes after update?") || !strings.Contains(content, "Default: `y`") {
+		t.Fatalf("card content = %q", content)
+	}
+	actions := elements[1].(map[string]any)["actions"].([]any)
+	if len(actions) != 2 {
+		t.Fatalf("actions = %d, want 2", len(actions))
+	}
+	for i, want := range []string{"y", "n"} {
+		value := actions[i].(map[string]any)["value"].(map[string]any)
+		if value["hermes_update_prompt_action"] != want {
+			t.Fatalf("action %d answer = %q, want %q", i, value["hermes_update_prompt_action"], want)
+		}
+		if value["update_prompt_id"].(float64) != 17 {
+			t.Fatalf("action %d prompt id = %#v, want 17", i, value["update_prompt_id"])
+		}
+	}
+}
+
+func TestFeishuUpdatePromptResolveWritesOnce(t *testing.T) {
+	store := NewUpdatePromptStore()
+	store.Store(3, UpdatePromptRecord{
+		SessionKey: "agent:main:feishu:group:oc_12345",
+		MessageID:  "msg-up-1",
+		ChatID:     "oc_12345",
+	})
+	var writes []string
+	resolved, ok, err := store.Resolve(UpdatePromptAction{
+		PromptID:   3,
+		Answer:     "y",
+		ActorName:  "Alice",
+		Authorized: true,
+	}, func(answer string) error {
+		writes = append(writes, answer)
+		return nil
+	})
+	if err != nil || !ok {
+		t.Fatalf("Resolve = %+v, %v, %v; want ok nil", resolved, ok, err)
+	}
+	if !reflect.DeepEqual(writes, []string{"y"}) {
+		t.Fatalf("writes = %#v, want [y]", writes)
+	}
+	if resolved.Record.SessionKey != "agent:main:feishu:group:oc_12345" || resolved.Record.MessageID != "msg-up-1" {
+		t.Fatalf("resolved record = %+v", resolved.Record)
+	}
+	cardPayload, err := json.Marshal(resolved.Card)
+	if err != nil {
+		t.Fatalf("marshal resolved card: %v", err)
+	}
+	var card map[string]any
+	if err := json.Unmarshal(cardPayload, &card); err != nil {
+		t.Fatalf("unmarshal resolved card: %v", err)
+	}
+	if got := card["header"].(map[string]any)["template"]; got != "green" {
+		t.Fatalf("resolved template = %q, want green", got)
+	}
+	if content := card["elements"].([]any)[0].(map[string]any)["content"].(string); !strings.Contains(content, "Alice") {
+		t.Fatalf("resolved card content = %q, want actor", content)
+	}
+
+	_, ok, err = store.Resolve(UpdatePromptAction{PromptID: 3, Answer: "n", ActorName: "Bob", Authorized: true}, func(answer string) error {
+		writes = append(writes, answer)
+		return nil
+	})
+	if err != nil || ok {
+		t.Fatalf("second Resolve ok=%v err=%v, want already resolved", ok, err)
+	}
+	if !reflect.DeepEqual(writes, []string{"y"}) {
+		t.Fatalf("writes after second resolve = %#v, want [y]", writes)
+	}
+
+	redCard := BuildResolvedUpdatePromptCard("n", "Bob")
+	redPayload, err := json.Marshal(redCard)
+	if err != nil {
+		t.Fatalf("marshal red card: %v", err)
+	}
+	var red map[string]any
+	if err := json.Unmarshal(redPayload, &red); err != nil {
+		t.Fatalf("unmarshal red card: %v", err)
+	}
+	if got := red["header"].(map[string]any)["template"]; got != "red" {
+		t.Fatalf("no card template = %q, want red", got)
+	}
+}
+
+func TestFeishuUpdatePromptRejectsInvalidActions(t *testing.T) {
+	store := NewUpdatePromptStore()
+	store.Store(5, UpdatePromptRecord{SessionKey: "s", MessageID: "m", ChatID: "c"})
+	var writes []string
+	for _, action := range []UpdatePromptAction{
+		{PromptID: 0, Answer: "y", ActorName: "Alice", Authorized: true},
+		{PromptID: 99, Answer: "y", ActorName: "Alice", Authorized: true},
+		{PromptID: 5, Answer: "maybe", ActorName: "Alice", Authorized: true},
+		{PromptID: 5, Answer: "y", ActorName: "Mallory", Authorized: false},
+	} {
+		resolved, ok, err := store.Resolve(action, func(answer string) error {
+			writes = append(writes, answer)
+			return nil
+		})
+		if err != nil || ok || resolved.Card != nil {
+			t.Fatalf("Resolve(%+v) = %+v, %v, %v; want rejected", action, resolved, ok, err)
+		}
+	}
+	if len(writes) != 0 {
+		t.Fatalf("writes = %#v, want none", writes)
+	}
+	if _, ok, err := store.Resolve(UpdatePromptAction{PromptID: 5, Answer: "n", ActorID: "ou_1", Authorized: true}, func(answer string) error {
+		writes = append(writes, answer)
+		return nil
+	}); err != nil || !ok {
+		t.Fatalf("valid action after rejected actions ok=%v err=%v, want resolved", ok, err)
+	}
+	if !reflect.DeepEqual(writes, []string{"n"}) {
+		t.Fatalf("writes after valid action = %#v, want [n]", writes)
 	}
 }
 

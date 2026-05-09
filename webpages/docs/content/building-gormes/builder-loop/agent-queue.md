@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Hermes Kanban slash/gateway/dashboard surfaces
-
-- Phase: 5 / 5.M
-- Owner: `gateway`
-- Size: `large`
-- Status: `in_progress`
-- Priority: `P2`
-- Contract: Gormes ports the operator surfaces around Kanban: /kanban routes in TUI/gateway use the same parser/output as gormes kanban, gateway status exposes dispatcher state and nudge capability, and the dashboard shows live Kanban tasks, lanes, filters, worker runs, and dispatcher nudges over authenticated Gormes dashboard routes.
-- Trust class: operator, gateway, system
-- Ready when: Hermes Kanban durable board core is complete., Dispatcher and worker-tool rows define the status/read-model events the dashboard should render., Dashboard authentication and WebSocket/event-stream patterns are validated for existing Gormes dashboard routes.
-- Not ready when: Slash commands duplicate CLI parsing and diverge from gormes kanban output., Dashboard endpoints expose Kanban data without the active Gormes dashboard session token., The dashboard implies live dispatcher/worker features before the dispatcher row is complete.
-- Degraded mode: When the dispatcher or dashboard stream is unavailable, operators see kanban_dispatcher_unavailable or kanban_dashboard_unavailable evidence; /kanban remains recognized and unavailable rather than leaking to the model.
-- Fixture: `internal/apiserver/dashboard_kanban_test.go; internal/gateway/kanban_command.go; internal/kanbantools/kanban_tools_test.go`
-- Write scope: `internal/cli/`, `internal/gateway/`, `internal/tui/`, `internal/dashboard/`, `web/`, `cmd/gormes/kanban.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/apiserver -run TestDashboardKanban -count=1`, `go test ./internal/kanbantools -run TestKanbanTools -count=1`, `go run ./cmd/progress validate`
-- Done signal: /kanban, gateway status/nudge, and dashboard Kanban lanes are authenticated, share CLI output semantics, and surface unavailable dispatcher evidence clearly.
-- Acceptance: Slash fixtures prove /kanban create/list/show/complete uses the same command implementation as gormes kanban and no slash text reaches the model., Gateway fixtures prove /kanban output is formatted for platform messages and respects active-turn policy., Dashboard route fixtures prove tasks, lanes, filters, runs, and dispatcher nudge endpoints require authentication and stream bounded updates., Status fixtures prove dispatcher state is operator-visible without reading live Hermes config.
-- Source refs: ../hermes-agent/hermes_cli/commands.py@54e78cadb:CommandDef('kanban'), ../hermes-agent/hermes_cli/kanban.py@54e78cadb:run_slash, ../hermes-agent/gateway/run.py@54e78cadb:_handle_kanban_command, ../hermes-agent/plugins/kanban/dashboard@54e78cadb, ../hermes-agent/hermes_cli/kanban_specify.py@24d48ffb8:specify triage fleshing, ../hermes-agent/hermes_cli/kanban_diagnostics.py@7d66d30d7:tooltips + docs link
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. TD engineering blog scaffolded and live
+## 1. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -69,27 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Behavioral pattern extraction from session logs
-
-- Phase: 6 / 6.K
-- Owner: `orchestrator`
-- Size: `large`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Mine session logs and tool execution audits for behavioral patterns: which tool sequences succeed vs fail, which reasoning patterns precede good outcomes, which response styles correlate with user satisfaction. Patterns feed into the self-evolution loop as candidate mutations.
-- Trust class: operator
-- Ready when: Session logs are structured and queryable, Tool execution audit log exists (Phase 3.E.2)
-- Not ready when: No structured session data available, Tool audit log not yet implemented
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/hermes/pattern_extractor.go`, `internal/hermes/pattern_extractor_test.go`
-- Test commands: `go test ./internal/hermes -run TestPatternExtractor -count=1`
-- Done signal: Pattern extractor tests prove successful and failed patterns are correctly identified from log data
-- Acceptance: Pattern extractor identifies tool sequences with >80% success rate, Identifies tool sequences with <30% success rate (anti-patterns), Extracts reasoning patterns preceding successful tool calls, Patterns stored in Goncho as structured behavioral knowledge, Pattern extraction is offline (does not run during agent turns)
-- Source refs: docs/content/papers/agentic-os-design.md, Hermes Agent GEPA engine, Generative Agents reflection mechanism (Park et al. 2023), internal/goncho/extractor.go, internal/hermes/turn.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Agentic-porting-kit repo scaffold
+## 2. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -108,26 +68,6 @@ selection.
 - Done signal: Repo URL recorded in success-plan.md and README.md; star count tracked monthly.
 - Acceptance: Public repo TrebuchetDynamics/agentic-porting-kit exists with the listed skills., Repo README explains the kit independent of Gormes/Hermes., A worked example demonstrates the kit on a non-Hermes target (any small Python project being ported to Go)., Skills can be loaded into a fresh Codex or Claude Code session and successfully plan-and-execute one row in the example target.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Built-with-Gormes page scaffold
-
-- Phase: 8 / 8.G
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: A page at gormes.ai/built-with (or equivalent path on the docs site) lists real production deployments of Gormes, even if there is initially only one entry (the operator's own). The page has a documented submission process (PR-based) and a template entry shape. The point is to make the slot exist so it can be filled, not to fake usage.
-- Trust class: operator
-- Ready when: Landing page exists., An entry template (yaml or md) is decided.
-- Not ready when: Entries are fabricated., The submission process is unwritten.
-- Degraded mode: Without the page, even genuine outside users have no place to land their name; reputation compounds through visibility.
-- Fixture: `webpages/landing/src/pages/built-with.astro (or equivalent)`
-- Write scope: `webpages/landing/src/`, `CONTRIBUTING.md`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `(cd webpages/landing && npm run test:e2e)`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Public page live with at least one truthful entry; submission process documented.
-- Acceptance: /built-with (or chosen path) is reachable on the public landing site., The page renders at least one real entry (operator's own deployment, with truthful description)., A submission template + PR-based process is documented either inline on the page or in CONTRIBUTING.md.
-- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

@@ -30,10 +30,18 @@ type profileCommandFakeSeams struct {
 	writeActiveProfile      func(name string) error
 	writeActiveProfileCalls []string
 
+	createProfile      func(name string, cloneAll bool) (cli.ProfileCreateResult, error)
+	createProfileCalls []profileCreateCall
+
 	knownProfiles []string
 
 	distributionByRoot map[string]cli.ProfileDistributionManifest
 	distributionErr    error
+}
+
+type profileCreateCall struct {
+	name     string
+	cloneAll bool
 }
 
 func (f *profileCommandFakeSeams) defaults() profileCommandSeams {
@@ -47,6 +55,15 @@ func (f *profileCommandFakeSeams) defaults() profileCommandSeams {
 	}
 	if f.writeActiveProfile == nil {
 		f.writeActiveProfile = func(name string) error { return nil }
+	}
+	if f.createProfile == nil {
+		f.createProfile = func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
+			return cli.ProfileCreateResult{
+				Name:     name,
+				Root:     "/tmp/gormes-test-home/profiles/" + name,
+				CloneAll: cloneAll,
+			}, nil
+		}
 	}
 	return profileCommandSeams{
 		ReadActiveProfileName: func() (string, error) {
@@ -66,6 +83,10 @@ func (f *profileCommandFakeSeams) defaults() profileCommandSeams {
 		WriteActiveProfile: func(name string) error {
 			f.writeActiveProfileCalls = append(f.writeActiveProfileCalls, name)
 			return f.writeActiveProfile(name)
+		},
+		CreateProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
+			f.createProfileCalls = append(f.createProfileCalls, profileCreateCall{name: name, cloneAll: cloneAll})
+			return f.createProfile(name, cloneAll)
 		},
 		ListKnownProfiles: func() ([]string, error) {
 			return append([]string(nil), f.knownProfiles...), nil
@@ -273,6 +294,75 @@ func TestGormesProfileSet_JSONEmitsStructuredOutcome(t *testing.T) {
 	}
 	if len(fake.writeActiveProfileCalls) != 1 || fake.writeActiveProfileCalls[0] != "work" {
 		t.Errorf("writeActiveProfile calls = %v, want exactly one with 'work'", fake.writeActiveProfileCalls)
+	}
+}
+
+func TestGormesProfileCreateCloneAllCommand(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		createProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
+			if name != "cloned" {
+				t.Fatalf("CreateProfile name = %q, want cloned", name)
+			}
+			if !cloneAll {
+				t.Fatal("CreateProfile cloneAll = false, want true")
+			}
+			return cli.ProfileCreateResult{
+				Name:     name,
+				Root:     "/home/operator-secret/.config/gormes/profiles/cloned",
+				CloneAll: cloneAll,
+			}, nil
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "create", "cloned", "--clone-all", "--json")
+	if err != nil {
+		t.Fatalf("profile create --clone-all --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(fake.createProfileCalls) != 1 || fake.createProfileCalls[0] != (profileCreateCall{name: "cloned", cloneAll: true}) {
+		t.Fatalf("createProfileCalls = %+v, want cloned clone_all=true", fake.createProfileCalls)
+	}
+	if strings.Contains(stdout+stderr, "/home/operator-secret") {
+		t.Fatalf("profile create leaked raw home path:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Action   string `json:"action"`
+		Name     string `json:"name"`
+		Root     string `json:"root"`
+		CloneAll bool   `json:"clone_all"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", err, stdout)
+	}
+	if got.Build.Version != Version || got.Action != "created" || got.Name != "cloned" || !got.CloneAll {
+		t.Fatalf("unexpected profile create JSON: %+v", got)
+	}
+	if got.Root != ".../cloned" {
+		t.Fatalf("root = %q, want redacted .../cloned", got.Root)
+	}
+}
+
+func TestGormesProfileCreateRejectsDefaultAndExistingTargets(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		createProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
+			switch name {
+			case "default":
+				return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
+			case "work":
+				return cli.ProfileCreateResult{}, cli.ErrProfileCreateTargetExists
+			default:
+				return cli.ProfileCreateResult{}, nil
+			}
+		},
+	}
+	_, _, err := runProfileTestCommand(t, fake.defaults(), "create", "default", "--clone-all")
+	if !errors.Is(err, cli.ErrProfileCreateDefaultReserved) {
+		t.Fatalf("profile create default err = %v, want ErrProfileCreateDefaultReserved", err)
+	}
+	_, _, err = runProfileTestCommand(t, fake.defaults(), "create", "work", "--clone-all")
+	if !errors.Is(err, cli.ErrProfileCreateTargetExists) {
+		t.Fatalf("profile create existing err = %v, want ErrProfileCreateTargetExists", err)
 	}
 }
 

@@ -237,11 +237,12 @@ func runTelegram(cmd *cobra.Command, _ []string) error {
 		sink := newTelegramDeliverySink(bot, cfg.Telegram.AllowedChatID)
 
 		cronExec := cron.NewExecutor(cron.ExecutorConfig{
-			Kernel:      k,
-			JobStore:    cronStore,
-			RunStore:    cronRunStore,
-			Sink:        sink,
-			CallTimeout: cfg.Cron.CallTimeout,
+			Kernel:           k,
+			JobStore:         cronStore,
+			RunStore:         cronRunStore,
+			Sink:             sink,
+			CallTimeout:      cfg.Cron.CallTimeout,
+			CronApprovalMode: cfg.Approvals.CronMode,
 		}, slog.Default())
 
 		cronSched := cron.NewScheduler(cron.SchedulerConfig{

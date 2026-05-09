@@ -37,6 +37,7 @@ type Config struct {
 	Display       DisplayCfg        `toml:"display" yaml:"display"`
 	TUI           TUICfg            `toml:"tui" yaml:"tui"`
 	Input         InputCfg          `toml:"input" yaml:"input"`
+	Approvals     ApprovalsCfg      `toml:"approvals" yaml:"approvals"`
 	Voice         VoiceCfg          `toml:"voice" yaml:"voice"`
 	Auxiliary     AuxiliaryCfg      `toml:"auxiliary" yaml:"auxiliary"`
 	Curator       CuratorCfg        `toml:"curator" yaml:"curator"`
@@ -225,6 +226,12 @@ type CronCfg struct {
 	CallTimeout    time.Duration `toml:"call_timeout" yaml:"call_timeout"`
 	MirrorInterval time.Duration `toml:"mirror_interval" yaml:"mirror_interval"`
 	MirrorPath     string        `toml:"mirror_path" yaml:"mirror_path"`
+}
+
+// ApprovalsCfg mirrors Hermes' approval policy settings that affect native
+// Go tools.
+type ApprovalsCfg struct {
+	CronMode string `toml:"cron_mode" yaml:"cron_mode"`
 }
 
 // WebCfg mirrors Hermes config.yaml's web.backend and web.use_gateway fields.
@@ -645,6 +652,9 @@ func defaults() Config {
 			CallTimeout:    60 * time.Second,
 			MirrorInterval: 30 * time.Second,
 			MirrorPath:     "",
+		},
+		Approvals: ApprovalsCfg{
+			CronMode: "deny",
 		},
 		Skills: SkillsCfg{
 			SelectionCap:     3,

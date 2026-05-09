@@ -3,6 +3,7 @@ package tui
 import (
 	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -48,17 +49,17 @@ var (
 			MarginLeft(2)
 
 	orderedListStyle = lipgloss.NewStyle().
-			MarginLeft(2)
+				MarginLeft(2)
 
 	hrStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240"))
 
 	tableBorderStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240"))
+				Foreground(lipgloss.Color("240"))
 
 	tableHeaderStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("75"))
+				Bold(true).
+				Foreground(lipgloss.Color("75"))
 
 	tableCellStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("252"))
@@ -233,6 +234,80 @@ func findStableBoundary(text string) int {
 		return lastFence
 	}
 	return -1
+}
+
+// RenderMarkdownSoftWrapTrim wraps prose using Hermes Ink's soft-boundary
+// trimming rule: remove exactly one whitespace character introduced at each
+// soft-wrap boundary while preserving source-line indentation and extra spaces.
+func RenderMarkdownSoftWrapTrim(text string, width int) string {
+	if text == "" || width <= 0 {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		lines[i] = wrapLineSoftTrim(line, width)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func wrapLineSoftTrim(line string, width int) string {
+	if line == "" || lipgloss.Width(line) <= width {
+		return line
+	}
+
+	rest := []rune(line)
+	var wrapped []string
+	for len(rest) > 0 && runesWidth(rest) > width {
+		if breakAt := lastWhitespaceBreak(rest, width); breakAt > 0 {
+			wrapped = append(wrapped, string(rest[:breakAt]))
+			rest = rest[breakAt+1:]
+			continue
+		}
+
+		end := runeCountForWidth(rest, width)
+		if end <= 0 || end > len(rest) {
+			end = 1
+		}
+		wrapped = append(wrapped, string(rest[:end]))
+		rest = rest[end:]
+		if len(rest) > 0 && unicode.IsSpace(rest[0]) {
+			rest = rest[1:]
+		}
+	}
+	wrapped = append(wrapped, string(rest))
+	return strings.Join(wrapped, "\n")
+}
+
+func lastWhitespaceBreak(runes []rune, width int) int {
+	used := 0
+	last := -1
+	for i, r := range runes {
+		if unicode.IsSpace(r) && used <= width {
+			last = i
+		}
+		next := used + lipgloss.Width(string(r))
+		if next > width {
+			break
+		}
+		used = next
+	}
+	return last
+}
+
+func runeCountForWidth(runes []rune, width int) int {
+	used := 0
+	for i, r := range runes {
+		next := used + lipgloss.Width(string(r))
+		if next > width {
+			return i
+		}
+		used = next
+	}
+	return len(runes)
+}
+
+func runesWidth(runes []rune) int {
+	return lipgloss.Width(string(runes))
 }
 
 // isHorizontalRule checks if a line is a horizontal rule.

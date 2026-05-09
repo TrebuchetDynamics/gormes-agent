@@ -248,10 +248,10 @@ func TestUpdateCommandFailureReturnsOperatorEvidence(t *testing.T) {
 // surface defaultBackupWriterFor reads to size the post-write prune.
 func TestResolveBackupKeep(t *testing.T) {
 	cases := []struct {
-		name       string
-		tomlBody   string
-		wantKeep   int
-		writeFile  bool
+		name      string
+		tomlBody  string
+		wantKeep  int
+		writeFile bool
 	}{
 		{name: "no config file", tomlBody: "", wantKeep: 5, writeFile: false},
 		{name: "missing updates section", tomlBody: "[hermes]\nmodel = \"x\"\n", wantKeep: 5, writeFile: true},
@@ -340,5 +340,75 @@ func TestUpdateCommandCheckModeSkipsMutation(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "update_check") {
 		t.Fatalf("stdout missing check evidence:\n%s", stdout)
+	}
+}
+
+// TestUpdateCommand_DefaultCheckoutDirHonorsGormesInstallDir pins the
+// safety guarantee that `gormes update` (with no seam override) targets
+// the install's managed source clone, NOT whatever cwd happens to be a
+// git worktree. Regression observed during a v0.2.0 fresh-install
+// probe: running `gormes update` from inside the gormes-agent dev tree
+// switched that tree's branch from `development` to `main` and ran a
+// web build there — because the default CheckoutDir was `os.Getwd`.
+//
+// install.sh exposes the managed checkout location via
+// `GORMES_INSTALL_DIR`. The default resolver MUST honor it so the
+// runtime updates the install, not whatever directory the operator
+// invoked the command from.
+func TestUpdateCommand_DefaultCheckoutDirHonorsGormesInstallDir(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	expected := t.TempDir()
+	t.Setenv("GORMES_INSTALL_DIR", expected)
+
+	var got cli.UpdateLifecycleOptions
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		// Intentionally leave CheckoutDir nil so the production
+		// resolver fires.
+		RunLifecycle: func(_ context.Context, opts cli.UpdateLifecycleOptions) cli.UpdateReport {
+			got = opts
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(command, "--check")
+	if err != nil {
+		t.Fatalf("update --check: %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got.CheckoutDir != expected {
+		t.Fatalf("CheckoutDir = %q, want %q (must come from GORMES_INSTALL_DIR, not os.Getwd())", got.CheckoutDir, expected)
+	}
+}
+
+// TestUpdateCommand_DefaultCheckoutDirFallsBackToManagedHomeNotCwd
+// pins the same safety guarantee for the no-env-var path: when
+// GORMES_INSTALL_DIR is unset, the resolver returns
+// `$GORMES_INSTALL_HOME/gormes-agent` (mirror of install.sh's
+// managed_checkout_dir() default). Critical: cwd may be an unrelated
+// git checkout (the developer's source tree, a CI workspace) — `gormes
+// update` must never mutate it.
+func TestUpdateCommand_DefaultCheckoutDirFallsBackToManagedHomeNotCwd(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	if err := os.Unsetenv("GORMES_INSTALL_DIR"); err != nil {
+		t.Fatalf("unset GORMES_INSTALL_DIR: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Unsetenv("GORMES_INSTALL_DIR") })
+	installHome := t.TempDir()
+	t.Setenv("GORMES_INSTALL_HOME", installHome)
+	expected := filepath.Join(installHome, "gormes-agent")
+
+	var got cli.UpdateLifecycleOptions
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		RunLifecycle: func(_ context.Context, opts cli.UpdateLifecycleOptions) cli.UpdateReport {
+			got = opts
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(command, "--check")
+	if err != nil {
+		t.Fatalf("update --check: %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got.CheckoutDir != expected {
+		t.Fatalf("CheckoutDir = %q, want %q (managed default `$GORMES_INSTALL_HOME/gormes-agent`, not os.Getwd())", got.CheckoutDir, expected)
 	}
 }

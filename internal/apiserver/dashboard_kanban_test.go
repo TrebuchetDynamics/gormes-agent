@@ -14,8 +14,10 @@ import (
 
 type fakeKanbanStore struct {
 	tasks   []kanban.Task
+	runs    map[string][]kanban.TaskRun
 	listErr error
 	getErr  error
+	runsErr error
 }
 
 type fakeKanbanDispatcher struct {
@@ -58,6 +60,13 @@ func (f *fakeKanbanStore) GetTask(_ context.Context, id string) (kanban.Task, er
 		}
 	}
 	return kanban.Task{}, errors.New("task not found")
+}
+
+func (f *fakeKanbanStore) ListRuns(_ context.Context, taskID string) ([]kanban.TaskRun, error) {
+	if f.runsErr != nil {
+		return nil, f.runsErr
+	}
+	return append([]kanban.TaskRun(nil), f.runs[taskID]...), nil
 }
 
 func TestDashboardKanban_Unauthorized(t *testing.T) {
@@ -355,6 +364,121 @@ func TestDashboardKanban_TaskByID(t *testing.T) {
 		rec := getJSON(t, h, "/api/kanban/tasks/nonexistent", auth)
 		if rec.Code != http.StatusNotFound {
 			t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestDashboardKanban_TaskRuns(t *testing.T) {
+	auth := map[string]string{"X-Hermes-Session-Token": "fixture-token"}
+
+	t.Run("requires dashboard session token", func(t *testing.T) {
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanStore: &fakeKanbanStore{
+				tasks: []kanban.Task{{ID: "t1", Title: "task one", Status: kanban.StatusDone}},
+			},
+		})
+		rec := getJSON(t, srv.Handler(), "/api/kanban/tasks/t1/runs", nil)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("returns ordered runs with build attribution", func(t *testing.T) {
+		store := &fakeKanbanStore{
+			tasks: []kanban.Task{{ID: "t1", Title: "task one", Status: kanban.StatusDone}},
+			runs: map[string][]kanban.TaskRun{
+				"t1": {
+					{ID: 1, TaskID: "t1", Outcome: kanban.RunOutcomeSpawned},
+					{ID: 2, TaskID: "t1", Outcome: kanban.RunOutcomeCompleted, Summary: "implemented run history", Error: "transient warning", Metadata: json.RawMessage(`{"tests":["unit"]}`)},
+				},
+			},
+		}
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanStore:           store,
+			BuildInfo: BuildInfo{
+				Version:   "test-version-9.9.9",
+				GitCommit: "feedface",
+			},
+		})
+		rec := getJSON(t, srv.Handler(), "/api/kanban/tasks/t1/runs", auth)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+		}
+		var got struct {
+			Build struct {
+				Version   string `json:"version"`
+				GitCommit string `json:"git_commit"`
+			} `json:"build"`
+			TaskID string           `json:"task_id"`
+			Runs   []kanban.TaskRun `json:"runs"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode runs response: %v\nbody=%s", err, rec.Body.String())
+		}
+		if got.Build.Version != "test-version-9.9.9" || got.Build.GitCommit != "feedface" {
+			t.Fatalf("build = %+v, want version and commit attribution", got.Build)
+		}
+		if got.TaskID != "t1" {
+			t.Fatalf("task_id = %q, want t1", got.TaskID)
+		}
+		if len(got.Runs) != 2 || got.Runs[0].ID != 1 || got.Runs[1].ID != 2 {
+			t.Fatalf("runs = %+v, want ordered IDs 1,2", got.Runs)
+		}
+		if got.Runs[1].Summary != "implemented run history" || got.Runs[1].Error != "transient warning" {
+			t.Fatalf("run detail = %+v, want summary and error preserved", got.Runs[1])
+		}
+		if string(got.Runs[1].Metadata) != `{"tests":["unit"]}` {
+			t.Fatalf("metadata = %s, want preserved JSON object", got.Runs[1].Metadata)
+		}
+	})
+
+	t.Run("empty history is an empty array", func(t *testing.T) {
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanStore: &fakeKanbanStore{
+				tasks: []kanban.Task{{ID: "t-empty", Title: "empty task", Status: kanban.StatusTodo}},
+				runs:  map[string][]kanban.TaskRun{},
+			},
+		})
+		rec := getJSON(t, srv.Handler(), "/api/kanban/tasks/t-empty/runs", auth)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), `"runs":[]`) {
+			t.Fatalf("body = %s, want runs: [] not null", rec.Body.String())
+		}
+	})
+
+	t.Run("missing task returns typed not found", func(t *testing.T) {
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanStore:           &fakeKanbanStore{},
+		})
+		rec := getJSON(t, srv.Handler(), "/api/kanban/tasks/missing/runs", auth)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "kanban_task_not_found") {
+			t.Fatalf("body missing kanban_task_not_found: %s", rec.Body.String())
+		}
+	})
+
+	t.Run("run ledger failure returns typed error", func(t *testing.T) {
+		srv := NewServer(Config{
+			DashboardSessionToken: "fixture-token",
+			KanbanStore: &fakeKanbanStore{
+				tasks:   []kanban.Task{{ID: "t1", Title: "task one", Status: kanban.StatusDone}},
+				runsErr: errors.New("ledger locked"),
+			},
+		})
+		rec := getJSON(t, srv.Handler(), "/api/kanban/tasks/t1/runs", auth)
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want 500; body=%s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "kanban_runs_error") {
+			t.Fatalf("body missing kanban_runs_error: %s", rec.Body.String())
 		}
 	})
 }

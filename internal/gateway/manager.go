@@ -180,6 +180,9 @@ type ManagerConfig struct {
 	// implementation used by the local CLI/TUI. Nil consumes /kanban with
 	// unavailable evidence instead of submitting it to the model.
 	KanbanSlashRunner KanbanSlashRunner
+	// SlashConfirmations stores confirmable slash-command prompts by session.
+	// Reset boundaries clear only the target session's pending confirmation.
+	SlashConfirmations *SlashConfirmationQueue
 	// ReloadConfig returns a freshly loaded manager config for reloadable
 	// runtime fields. Errors keep the last-good manager config active.
 	ReloadConfig func(context.Context) (ManagerConfig, error)
@@ -506,6 +509,9 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 	if cfg.AllowDiscovery == nil {
 		cfg.AllowDiscovery = map[string]bool{}
 	}
+	if cfg.SlashConfirmations == nil {
+		cfg.SlashConfirmations = NewSlashConfirmationQueue()
+	}
 	seams := defaultLiveTurnPromptSeams()
 	explicitProfile := strings.TrimSpace(cfg.ContextFilesProfile) != ""
 	if dir := strings.TrimSpace(cfg.ContextFilesProfile); dir != "" {
@@ -584,6 +590,13 @@ func (m *Manager) DispatchReasoning(sessionKey string, args []string) (Reasoning
 	newState, reply := ApplyReasoningCommand(state, cmd, persist)
 	m.reasoningState[sessionKey] = newState
 	return reply, nil
+}
+
+func (m *Manager) clearSessionBoundaryControlState(sessionKey string) {
+	if m == nil || m.cfg.SlashConfirmations == nil {
+		return
+	}
+	m.cfg.SlashConfirmations.ClearSlashConfirmationSession(sessionKey)
 }
 
 func (m *Manager) now() time.Time {
@@ -739,7 +752,8 @@ func (m *Manager) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			cancel()
-			wg.Wait()
+			m.safeChannelDisconnectAll(context.Background(), channels, "during shutdown")
+			m.waitForChannelWorkers(&wg, DefaultChannelDisconnectTimeoutFromEnv(), "shutdown")
 			zero := 0
 			m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{
 				GatewayState: GatewayStateStopped,
@@ -747,7 +761,7 @@ func (m *Manager) Run(ctx context.Context) error {
 			})
 			return nil
 		case failure := <-failures:
-			m.safeChannelDisconnect(ctx, failure.channel)
+			m.safeChannelDisconnect(ctx, failure.channel, "after failed startup")
 			if firstFailure == nil {
 				firstFailure = failure.err
 			}
@@ -777,11 +791,60 @@ func (m *Manager) Run(ctx context.Context) error {
 	}
 }
 
-func (m *Manager) safeChannelDisconnect(ctx context.Context, ch Channel) {
+func (m *Manager) safeChannelDisconnectAll(ctx context.Context, channels []Channel, scope string) {
+	for _, ch := range channels {
+		m.safeChannelDisconnect(ctx, ch, scope)
+	}
+}
+
+func (m *Manager) safeChannelDisconnect(ctx context.Context, ch Channel, scope string) {
 	if disconnecter, ok := ch.(DisconnectCapable); ok {
-		if err := disconnecter.Disconnect(ctx); err != nil {
-			m.log.Debug("defensive channel disconnect after failed startup raised", "channel", ch.Name(), "err", err)
+		timeout := DefaultChannelDisconnectTimeoutFromEnv()
+		if timeout <= 0 {
+			if err := disconnecter.Disconnect(ctx); err != nil {
+				m.log.Debug("defensive channel disconnect "+scope+" raised", "channel", ch.Name(), "err", err)
+			}
+			return
 		}
+
+		disconnectCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		done := make(chan error, 1)
+		go func() {
+			done <- disconnecter.Disconnect(disconnectCtx)
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				m.log.Debug("defensive channel disconnect "+scope+" raised", "channel", ch.Name(), "err", err)
+			}
+		case <-disconnectCtx.Done():
+			if errors.Is(disconnectCtx.Err(), context.DeadlineExceeded) {
+				m.log.Warn("defensive channel disconnect "+scope+" timed out", "channel", ch.Name(), "timeout", timeout)
+				return
+			}
+			m.log.Debug("defensive channel disconnect "+scope+" raised", "channel", ch.Name(), "err", disconnectCtx.Err())
+		}
+	}
+}
+
+func (m *Manager) waitForChannelWorkers(wg *sync.WaitGroup, timeout time.Duration, scope string) {
+	if timeout <= 0 {
+		wg.Wait()
+		return
+	}
+	done := make(chan struct{}, 1)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+		m.log.Warn("gateway channel workers did not stop before timeout", "scope", scope, "timeout", timeout)
 	}
 }
 
@@ -886,8 +949,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 			}
 			return nil
 		}
+		key := m.sessionKeyForInbound(ev)
+		m.clearSessionBoundaryControlState(key)
 		if m.cfg.SessionMap != nil {
-			key := m.sessionKeyForInbound(ev)
 			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
 				m.log.Warn("clear session mapping", "key", key, "err", err)
 			}
@@ -1040,8 +1104,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 			}
 			return true
 		}
+		key := m.sessionKeyForInbound(ev)
+		m.clearSessionBoundaryControlState(key)
 		if m.cfg.SessionMap != nil {
-			key := m.sessionKeyForInbound(ev)
 			if err := m.cfg.SessionMap.Put(ctx, key, ""); err != nil {
 				m.log.Warn("clear session mapping", "key", key, "err", err)
 			}
@@ -1409,6 +1474,14 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			if f.Phase == kernel.PhaseIdle {
 				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 				m.handleGoalPostTurnContinuation(ctx, ch, f)
+			} else if f.Phase == kernel.PhaseFailed || f.Phase == kernel.PhaseCancelling {
+				m.pauseInterruptedGoal(ctx, ch, activeTurnSnapshot{
+					Platform:  platform,
+					ChatID:    chatID,
+					MsgID:     msgID,
+					SessionID: sessionID,
+					Cancelled: cancelled,
+				})
 			}
 			m.drainNextFollowUp(ctx)
 		}
@@ -1423,7 +1496,7 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			(*coCancel)()
 			*co = nil
 			*coCancel = nil
-			m.sendFinalPages(ctx, ch, chatID, threadID, "", finalPages[1:])
+			m.sendRemainingFinalPages(ctx, ch, chatID, threadID, replyToMsgID, finalPages[1:])
 		} else {
 			m.sendFinalPages(ctx, ch, chatID, threadID, "", finalPages)
 		}
@@ -1446,6 +1519,13 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		}
 		m.clearToolProgress()
 		m.completeProcessingReaction(ctx, ch, processingOutcomeForFrame(f.Phase, cancelled))
+		m.pauseInterruptedGoal(ctx, ch, activeTurnSnapshot{
+			Platform:  platform,
+			ChatID:    chatID,
+			MsgID:     msgID,
+			SessionID: sessionID,
+			Cancelled: cancelled,
+		})
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
 		text := m.formatStream(platform, f)
@@ -1548,8 +1628,17 @@ func (m *Manager) sendWithHooksThread(ctx context.Context, ch Channel, chatID, t
 }
 
 func (m *Manager) sendFinalPages(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID string, pages []string) {
+	m.sendFinalPagesWithReplyPolicy(ctx, ch, chatID, threadID, replyToMsgID, pages, true)
+}
+
+func (m *Manager) sendRemainingFinalPages(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID string, pages []string) {
+	m.sendFinalPagesWithReplyPolicy(ctx, ch, chatID, threadID, replyToMsgID, pages, false)
+}
+
+func (m *Manager) sendFinalPagesWithReplyPolicy(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID string, pages []string, replyFirstPage bool) {
+	replyEveryPage := telegramDMTopicReplyFallbackLane(ch.Name(), chatID, threadID) && strings.TrimSpace(replyToMsgID) != ""
 	for i, page := range pages {
-		if i == 0 {
+		if replyEveryPage || (replyFirstPage && i == 0) {
 			_, _ = m.sendWithHooksReplyThread(ctx, ch, chatID, threadID, replyToMsgID, page)
 			continue
 		}
@@ -1564,6 +1653,9 @@ func (m *Manager) sendWithHooksReply(ctx context.Context, ch Channel, chatID, re
 func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chatID, threadID, replyToMsgID, text string) (string, error) {
 	if ch == nil {
 		return "", nil
+	}
+	if telegramDMTopicReplyFallbackLane(ch.Name(), chatID, threadID) && strings.TrimSpace(replyToMsgID) == "" {
+		threadID = ""
 	}
 	ev := HookEvent{
 		Point:            HookBeforeSend,
@@ -1636,6 +1728,20 @@ func (m *Manager) sendWithHooksReplyThread(ctx context.Context, ch Channel, chat
 		Text:             text,
 	})
 	return msgID, nil
+}
+
+func telegramDMTopicReplyFallbackLane(platform, chatID, threadID string) bool {
+	if !strings.EqualFold(strings.TrimSpace(platform), "telegram") {
+		return false
+	}
+	if strings.TrimSpace(threadID) == "" {
+		return false
+	}
+	chatID = strings.TrimSpace(chatID)
+	if chatID == "" {
+		return false
+	}
+	return !strings.HasPrefix(chatID, "-")
 }
 
 func (m *Manager) fireHook(ctx context.Context, ev HookEvent) {

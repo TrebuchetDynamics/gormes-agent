@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 func TestRenderMarkdown_FencedCodeBlocks(t *testing.T) {
@@ -370,5 +372,36 @@ func TestRenderMarkdown_CombinedElements(t *testing.T) {
 	}
 	if !strings.Contains(result, "Column") {
 		t.Error("missing table")
+	}
+}
+
+func TestRenderMarkdownSoftWrapTrim_RemovesSingleBoundarySpace(t *testing.T) {
+	got := RenderMarkdownSoftWrapTrim("Let me", 5)
+	if got != "Let\nme" {
+		t.Fatalf("RenderMarkdownSoftWrapTrim() = %q, want %q", got, "Let\nme")
+	}
+}
+
+func TestRenderMarkdownSoftWrapTrim_PreservesExtraBoundarySpacing(t *testing.T) {
+	got := RenderMarkdownSoftWrapTrim("foo  bar", 5)
+	if got != "foo \nbar" {
+		t.Fatalf("RenderMarkdownSoftWrapTrim() = %q, want %q", got, "foo \nbar")
+	}
+}
+
+func TestRenderMarkdownSoftWrapTrim_PreservesLeadingIndentation(t *testing.T) {
+	got := RenderMarkdownSoftWrapTrim("  indented", 20)
+	if got != "  indented" {
+		t.Fatalf("RenderMarkdownSoftWrapTrim() = %q, want leading indentation preserved", got)
+	}
+}
+
+func TestConversationMessageBlock_UsesSoftWrapTrim(t *testing.T) {
+	got := conversationMessageBlock(hermes.Message{Role: "assistant", Content: "Let me"}, 5, false)
+	if strings.Contains(got, "\n me") {
+		t.Fatalf("conversationMessageBlock() kept a boundary space on continuation line: %q", got)
+	}
+	if !strings.Contains(got, "\nme") {
+		t.Fatalf("conversationMessageBlock() = %q, want continuation line without leading boundary space", got)
 	}
 }

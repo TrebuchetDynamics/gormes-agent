@@ -589,6 +589,42 @@ func TestGormesAuthAddQwenOAuthMissingAndExpiredAreRedacted(t *testing.T) {
 	}
 }
 
+func TestGormesAuthAddMiniMaxOAuthDefaultsToOAuthPlannedEvidence(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	for _, provider := range []string{"minimax-oauth", "minimax-portal"} {
+		t.Run(provider, func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeOneshotFlagCommand(cmd, "auth", "add", provider)
+			combined := stdout + stderr
+			if err == nil {
+				t.Fatalf("auth add %s err = nil, want row-backed OAuth planned evidence", provider)
+			}
+			if strings.Contains(err.Error(), "auth_api_key_missing") {
+				t.Fatalf("auth add %s defaulted to API-key path: err=%v stdout=%s stderr=%s", provider, err, stdout, stderr)
+			}
+			for _, want := range []string{"gormes auth add minimax-oauth --type oauth", "provider OAuth adapters are planned"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("auth add %s err = %v, want %q", provider, err, want)
+				}
+			}
+			for _, leak := range []string{"access_token", "refresh_token", "group_id"} {
+				if strings.Contains(err.Error()+combined, leak) {
+					t.Fatalf("auth add %s leaked MiniMax OAuth detail %q:\nstdout=%s\nstderr=%s\nerr=%v", provider, leak, stdout, stderr, err)
+				}
+			}
+		})
+	}
+
+	pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: "minimax-oauth"})
+	if err != nil {
+		t.Fatalf("LoadCredentialPool: %v", err)
+	}
+	if entries := pool.Entries(); len(entries) != 0 {
+		t.Fatalf("minimax-oauth credential pool entries = %#v, want none before OAuth adapter is ported", entries)
+	}
+}
+
 func TestGormesAuthOAuthErrorsAreAtomic(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	seed := []config.PooledCredential{{

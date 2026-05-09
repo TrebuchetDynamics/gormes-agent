@@ -29,9 +29,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
           cache: true
 
       - uses: actions/setup-node@v4
@@ -101,9 +101,9 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
           cache: true
 
       - name: Resolve version
@@ -144,8 +144,9 @@ jobs:
           else
             GIT_DIRTY=true
           fi
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
-            go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY}" \
+            go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY} -X main.BuildDate=${BUILD_DATE}" \
               -o "dist/${target}/${exe}" ./cmd/gormes
           archive="dist/${target}.tar.gz"
           tar -C dist -czf "$archive" "${target}"
@@ -166,6 +167,17 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
 
+      - name: Attest SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+          sbom-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.sbom.json
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz
+
       - uses: actions/upload-artifact@v4
         with:
           name: gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}
@@ -174,12 +186,6 @@ jobs:
             dist/*.sha256
             dist/*.sbom.json
           if-no-files-found: error
-
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-path: |
-            dist/*.tar.gz
 
   publish:
     name: publish GitHub release
@@ -196,12 +202,37 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Stage install scripts as release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Bundle install.sh and install.ps1 alongside the platform
+          # tarballs so the canonical release URL pattern works:
+          #   curl -fsSL https://github.com/.../releases/download/${TAG}/install.sh
+          # Without this, users following the natural release URL hit
+          # 404 and have to know about https://gormes.ai/install.sh —
+          # which is the same file but undocumented from the GitHub
+          # release page.
+          cp install.sh dist/install.sh
+          cp scripts/install.ps1 dist/install.ps1
+
       - name: Build release notes
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
           {
             echo "## Install"
+            echo '```bash'
+            echo "# Linux/macOS/WSL2 (downloads release binary)"
+            echo "curl -fsSL https://github.com/TrebuchetDynamics/gormes-agent/releases/download/${GITHUB_REF_NAME}/install.sh | sh"
+            echo '```'
+            echo '```powershell'
+            echo "# Native Windows"
+            echo "irm https://github.com/TrebuchetDynamics/gormes-agent/releases/download/${GITHUB_REF_NAME}/install.ps1 -OutFile install.ps1"
+            echo "powershell -ExecutionPolicy Bypass -File .\\install.ps1"
+            echo '```'
+            echo ""
+            echo "Or download a platform tarball directly:"
             echo '```bash'
             echo "# Linux amd64"
             echo "curl -LO https://github.com/TrebuchetDynamics/gormes-agent/releases/download/${GITHUB_REF_NAME}/gormes-${version}-linux-amd64.tar.gz"
@@ -233,4 +264,6 @@ jobs:
             dist/*.tar.gz
             dist/*.sha256
             dist/*.sbom.json
+            dist/install.sh
+            dist/install.ps1
           body_path: release-notes.md

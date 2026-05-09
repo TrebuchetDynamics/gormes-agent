@@ -84,6 +84,31 @@ func (l *fakeLock) Acquire(ctx context.Context, kind, key, label string) (func()
 	}, true
 }
 
+type blockingReleaseLock struct {
+	acquireCh       chan struct{}
+	releaseStarted  chan struct{}
+	releaseContinue chan struct{}
+	released        chan struct{}
+}
+
+func newBlockingReleaseLock() *blockingReleaseLock {
+	return &blockingReleaseLock{
+		acquireCh:       make(chan struct{}, 1),
+		releaseStarted:  make(chan struct{}),
+		releaseContinue: make(chan struct{}),
+		released:        make(chan struct{}),
+	}
+}
+
+func (l *blockingReleaseLock) Acquire(context.Context, string, string, string) (func(), bool) {
+	l.acquireCh <- struct{}{}
+	return func() {
+		close(l.releaseStarted)
+		<-l.releaseContinue
+		close(l.released)
+	}, true
+}
+
 type fakeSSEReader struct {
 	events []sseEvent
 	pos    int
@@ -165,6 +190,78 @@ func TestSignalBootstrapConfigAndHealth(t *testing.T) {
 	}
 }
 
+func TestSignalCloseWaitsForPlatformLockRelease(t *testing.T) {
+	rt := newFakeRoundTripper()
+	rt.handle("GET", "/api/v1/check", func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("")),
+			Header:     http.Header{},
+		}, nil
+	})
+
+	lock := newBlockingReleaseLock()
+	dialStarted := make(chan struct{})
+	cfg := BootstrapConfig{HTTPURL: "http://127.0.0.1:8080", Account: "+15551234567"}
+	b := NewBootstrap(cfg,
+		WithBootstrapHTTPClient(rt),
+		WithBootstrapLock(lock),
+		WithBootstrapSSEDial(func(ctx context.Context, url string) (*sseReader, error) {
+			close(dialStarted)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := b.Connect(ctx); err != nil {
+		t.Fatalf("Connect() error = %v, want nil", err)
+	}
+	select {
+	case <-lock.acquireCh:
+	case <-time.After(time.Second):
+		t.Fatal("lock was not acquired")
+	}
+	select {
+	case <-dialStarted:
+	case <-time.After(time.Second):
+		t.Fatal("SSE dial did not start")
+	}
+
+	closeErr := make(chan error, 1)
+	go func() {
+		closeErr <- b.Close()
+	}()
+
+	select {
+	case <-lock.releaseStarted:
+	case <-time.After(time.Second):
+		t.Fatal("lock release did not start")
+	}
+	select {
+	case err := <-closeErr:
+		t.Fatalf("Close returned before platform lock release completed: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(lock.releaseContinue)
+	select {
+	case err := <-closeErr:
+		if err != nil {
+			t.Fatalf("Close() error = %v, want nil", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close did not return after platform lock release")
+	}
+	select {
+	case <-lock.released:
+	default:
+		t.Fatal("platform lock release did not complete")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // 2. TestSignalSSEListenerAccountEncodingAndLiveness
 // ---------------------------------------------------------------------------
@@ -233,8 +330,8 @@ func (s *fakeSSEScanner) Scan() bool {
 	return true
 }
 
-func (s *fakeSSEScanner) Text() string  { return string(s.buf) }
-func (s *fakeSSEScanner) Err() error    { return nil }
+func (s *fakeSSEScanner) Text() string { return string(s.buf) }
+func (s *fakeSSEScanner) Err() error   { return nil }
 
 func envelopeForDirect(t *testing.T, name, senderID, senderUUID, text string) string {
 	t.Helper()

@@ -101,6 +101,13 @@ type MatrixHookEvidence struct {
 	Error    string
 }
 
+type MatrixE2EEBootstrap struct {
+	Client   MatrixClient
+	Config   Config
+	UserID   string
+	DeviceID string
+}
+
 type MatrixMediaUpload struct {
 	Name        string
 	ContentType string
@@ -121,13 +128,40 @@ func (f MatrixMediaHookFunc) UploadMatrixMedia(ctx context.Context, upload Matri
 }
 
 type MatrixE2EEHook interface {
-	BootstrapMatrixE2EE(context.Context, MatrixClient, Config) MatrixHookEvidence
+	BootstrapMatrixE2EE(context.Context, MatrixE2EEBootstrap) MatrixHookEvidence
 }
 
-type MatrixE2EEHookFunc func(context.Context, MatrixClient, Config) MatrixHookEvidence
+type MatrixE2EEHookFunc func(context.Context, MatrixE2EEBootstrap) MatrixHookEvidence
 
-func (f MatrixE2EEHookFunc) BootstrapMatrixE2EE(ctx context.Context, client MatrixClient, cfg Config) MatrixHookEvidence {
-	return f(ctx, client, cfg)
+func (f MatrixE2EEHookFunc) BootstrapMatrixE2EE(ctx context.Context, input MatrixE2EEBootstrap) MatrixHookEvidence {
+	return f(ctx, input)
+}
+
+type MatrixCryptoStore interface {
+	PutDeviceID(context.Context, string) error
+}
+
+func BindMatrixCryptoStoreDeviceID(ctx context.Context, store MatrixCryptoStore, deviceID string) MatrixHookEvidence {
+	deviceID = strings.TrimSpace(deviceID)
+	if deviceID == "" {
+		return MatrixHookEvidence{
+			Evidence: MatrixEvidenceE2EEUnavailable,
+			Error:    "Matrix E2EE requires a resolved device_id before encrypted sync can start",
+		}
+	}
+	if store == nil {
+		return MatrixHookEvidence{
+			Evidence: MatrixEvidenceE2EEUnavailable,
+			Error:    "Matrix E2EE crypto store is not configured",
+		}
+	}
+	if err := store.PutDeviceID(ctx, deviceID); err != nil {
+		return MatrixHookEvidence{
+			Evidence: MatrixEvidenceE2EEUnavailable,
+			Error:    "Matrix E2EE crypto store device_id binding failed: " + sanitizeMatrixError(err),
+		}
+	}
+	return MatrixHookEvidence{}
 }
 
 func WithBootstrapHooks(hooks BootstrapHooks) BootstrapOption {
@@ -194,10 +228,18 @@ func (b *Bootstrap) Start(ctx context.Context) BootstrapResult {
 	b.deviceID = firstMatrixNonEmpty(b.cfg.DeviceID, identity.DeviceID)
 
 	if b.cfg.Encryption {
+		if b.deviceID == "" {
+			return BootstrapResult{Evidence: MatrixEvidenceE2EEUnavailable, Error: "Matrix E2EE requires a resolved device_id before encrypted sync can start", UserID: b.userID}
+		}
 		if b.hooks.E2EE == nil {
 			return BootstrapResult{Evidence: MatrixEvidenceE2EEUnavailable, Error: "Matrix E2EE hook is not configured"}
 		}
-		if evidence := b.hooks.E2EE.BootstrapMatrixE2EE(ctx, client, b.cfg); evidence.Evidence != "" {
+		if evidence := b.hooks.E2EE.BootstrapMatrixE2EE(ctx, MatrixE2EEBootstrap{
+			Client:   client,
+			Config:   b.cfg,
+			UserID:   b.userID,
+			DeviceID: b.deviceID,
+		}); evidence.Evidence != "" {
 			return BootstrapResult{Evidence: evidence.Evidence, Error: evidence.Error}
 		}
 	}

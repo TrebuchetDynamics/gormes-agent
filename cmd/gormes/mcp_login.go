@@ -33,10 +33,29 @@ func newMCPCommand() *cobra.Command {
 }
 
 func newMCPCommandWithRuntime(runtime mcpLoginRuntime) *cobra.Command {
+	var asJSON bool
 	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "Manage Hermes-compatible MCP servers",
+		// Accept arbitrary args so cobra delegates to RunE instead of
+		// emitting a default "unknown command" error to stderr. RunE
+		// then routes: no args → help; one+ arg → structured
+		// unknown-subcommand response (JSON when --json is set, else
+		// the human-readable cobra-style message).
+		Args:         cobra.ArbitraryArgs,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			msg := fmt.Sprintf("unknown command %q for %q", args[0], cmd.CommandPath())
+			if asJSON {
+				return emitJSONInputError(cmd, "unknown_subcommand", msg)
+			}
+			return fmt.Errorf("%s", msg)
+		},
 	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON on invalid invocation: {build, action: 'unknown_subcommand', error}")
 	cmd.AddCommand(newMCPLoginCommand(runtime))
 	return cmd
 }

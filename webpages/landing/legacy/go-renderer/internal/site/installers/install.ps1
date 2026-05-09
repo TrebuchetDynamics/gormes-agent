@@ -1,4 +1,4 @@
-# install.ps1 - source-backed Windows installer for Gormes.
+# install.ps1 - release-first Windows installer for Gormes, with source fallback.
 #
 # Usage:
 #   Invoke-WebRequest https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
@@ -10,11 +10,15 @@
 #   GORMES_INSTALL_HOME  managed install home (default: $env:LOCALAPPDATA\gormes)
 #   GORMES_INSTALL_DIR   managed checkout directory (default: $InstallHome\gormes-agent)
 #   GORMES_BIN_DIR       published command directory (default: $InstallHome\bin)
-#   GORMES_GO_VERSION    managed Go fallback version (default: 1.25.0)
+#   GORMES_GO_VERSION    managed Go fallback version (default: 1.26.0)
 #   GORMES_RESTART_GATEWAY restart policy: auto, always, never (default: auto)
 #   GORMES_GO_SHA256     optional expected SHA-256 for managed Go download
+#   GORMES_INSTALL_FROM_SOURCE set to 1/true/yes/on to force source build
+#   GORMES_RELEASES_API_URL optional releases API override
+#   GORMES_RELEASES_DOWNLOAD_BASE optional release asset download base override
 #
 # This installer mirrors the Unix install.sh contract on Windows:
+#   * release binary fetch by default on supported main-branch hosts
 #   * managed checkout under the Gormes install home
 #   * rerun-as-update with autostash for local edits
 #   * stable global gormes.exe under the published bin directory
@@ -30,6 +34,7 @@ param(
     [string]$InstallDir,
     [string]$BinDir,
     [switch]$Local,
+    [switch]$FromSource,
     [switch]$DryRun,
     [ValidateSet('auto', 'always', 'never')]
     [string]$RestartGateway,
@@ -46,18 +51,24 @@ try {
 }
 
 $Script:GormesBranch      = if ($Branch) { $Branch } elseif ($env:GORMES_BRANCH) { $env:GORMES_BRANCH } else { 'main' }
-$Script:GormesGoVersion   = if ($env:GORMES_GO_VERSION) { $env:GORMES_GO_VERSION } else { '1.25.0' }
+$Script:GormesGoVersion   = if ($env:GORMES_GO_VERSION) { $env:GORMES_GO_VERSION } else { '1.26.0' }
 $Script:GormesRepoHttps   = if ($env:GORMES_REPO_URL_HTTPS) { $env:GORMES_REPO_URL_HTTPS } else { 'https://github.com/TrebuchetDynamics/gormes-agent.git' }
+$Script:GormesReleasesApiUrl = if ($env:GORMES_RELEASES_API_URL) { $env:GORMES_RELEASES_API_URL } else { 'https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest' }
+$Script:GormesReleasesDownloadBase = if ($env:GORMES_RELEASES_DOWNLOAD_BASE) { $env:GORMES_RELEASES_DOWNLOAD_BASE } else { 'https://github.com/TrebuchetDynamics/gormes-agent/releases/download' }
 $Script:GormesInstallHome = if ($InstallHome) { $InstallHome } elseif ($env:GORMES_INSTALL_HOME) { $env:GORMES_INSTALL_HOME } else { Join-Path $env:LOCALAPPDATA 'gormes' }
 $Script:GormesInstallDir  = if ($InstallDir) { $InstallDir } elseif ($env:GORMES_INSTALL_DIR) { $env:GORMES_INSTALL_DIR } else { Join-Path $Script:GormesInstallHome 'gormes-agent' }
 $Script:GormesBinDir      = if ($BinDir) { $BinDir } elseif ($env:GORMES_BIN_DIR) { $env:GORMES_BIN_DIR } else { Join-Path $Script:GormesInstallHome 'bin' }
 $Script:GormesGoSha256    = if ($env:GORMES_GO_SHA256) { $env:GORMES_GO_SHA256.ToLowerInvariant() } else { '' }
+$Script:GormesInstallFromSource = [bool]$FromSource -or ($env:GORMES_INSTALL_FROM_SOURCE -match '^(1|true|yes|on)$')
 $Script:RestartGateway    = if ($NoRestart) { 'never' } elseif ($RestartGateway) { $RestartGateway } elseif ($env:GORMES_RESTART_GATEWAY) { $env:GORMES_RESTART_GATEWAY } else { 'auto' }
 $Script:DryRun            = [bool]$DryRun
 $Script:LocalSourceDir    = if ($Local) { (Get-Location).Path } else { '' }
 $Script:InstallLockDir    = ''
 $Script:OldBuildTag       = ''
 $Script:BuildTag          = ''
+$Script:InstallMethod     = ''
+$Script:InstallMethodDetail = ''
+$Script:ReleaseArch       = ''
 $Script:PreviousGatewayPid = $null
 $Script:NewGatewayPid      = $null
 
@@ -140,6 +151,51 @@ function Get-AllCommandPaths {
     return $paths
 }
 
+function Get-ReleaseArch {
+    switch -Wildcard ($env:PROCESSOR_ARCHITECTURE) {
+        'AMD64' { 'windows-amd64' }
+        'ARM64' { 'windows-arm64' }
+        default { '' }
+    }
+}
+
+function Resolve-InstallMethod {
+    $Script:ReleaseArch = Get-ReleaseArch
+
+    if ($Script:LocalSourceDir) {
+        $Script:InstallMethod = 'source-build'
+        $Script:InstallMethodDetail = '-Local source checkout selected'
+        return
+    }
+    if ($Script:GormesInstallFromSource) {
+        $Script:InstallMethod = 'source-build'
+        $Script:InstallMethodDetail = '-FromSource flag or GORMES_INSTALL_FROM_SOURCE set'
+        return
+    }
+    if ($Script:GormesBranch -ne 'main') {
+        $Script:InstallMethod = 'source-build'
+        $Script:InstallMethodDetail = 'release binaries are only published from main'
+        return
+    }
+    if (-not $Script:ReleaseArch) {
+        $Script:InstallMethod = 'source-build'
+        $Script:InstallMethodDetail = "no published release asset for PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE)"
+        return
+    }
+
+    $Script:InstallMethod = 'binary-fetch'
+    $Script:InstallMethodDetail = 'supported Windows release asset; no Go toolchain or git clone needed'
+}
+
+function Get-InstallSourceDescription {
+    if ($Script:InstallMethod -eq 'binary-fetch') {
+        if ($Script:BuildTag) { return "github-releases:$($Script:BuildTag):$($Script:ReleaseArch)" }
+        return "github-releases:$($Script:ReleaseArch)"
+    }
+    if ($Script:LocalSourceDir) { return $Script:LocalSourceDir }
+    return (Get-ManagedCheckoutDir)
+}
+
 function Get-GoVersionString {
     try {
         $version = (& go env GOVERSION 2>$null)
@@ -155,7 +211,7 @@ function Get-GoVersionString {
 
 function Test-GoVersionSupported([string]$Version) {
     if (-not $Version) { return $false }
-    return ($Version -match '^go1\.(2[5-9]|[3-9][0-9])') -or ($Version -match '^go[2-9]')
+    return ($Version -match '^go1\.(2[6-9]|[3-9][0-9])') -or ($Version -match '^go[2-9]')
 }
 
 function Invoke-WinGet([string[]]$Arguments) {
@@ -282,7 +338,7 @@ function Ensure-Go {
 
     $version = Get-GoVersionString
     if (-not (Test-GoVersionSupported $version)) {
-        Stop-GormesWithError "Go 1.25+ required; found $version"
+        Stop-GormesWithError "Go 1.26+ required; found $version"
     }
 }
 
@@ -303,6 +359,95 @@ function Get-BuildRoot {
         return $sub
     }
     Stop-GormesWithError "could not find a Gormes Go module under $checkout"
+}
+
+function Install-ReleaseBinary {
+    if (-not $Script:ReleaseArch) {
+        Write-GormesLog 'release binary fetch skipped: no supported Windows release arch'
+        return $false
+    }
+    if (-not (Test-CommandExists 'tar')) {
+        Write-GormesLog 'release binary fetch skipped: tar is required to extract release archives'
+        return $false
+    }
+
+    $buildBin = Get-ManagedBuildBin
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $buildBin) | Out-Null
+
+    $downloadRoot = Join-Path (Get-ManagedHome) 'release-download'
+    if (Test-Path $downloadRoot) { Remove-Item -Recurse -Force $downloadRoot }
+    New-Item -ItemType Directory -Force -Path $downloadRoot | Out-Null
+
+    try {
+        Write-GormesLog "resolving latest release from $($Script:GormesReleasesApiUrl)"
+        try {
+            $release = Invoke-RestMethod -Uri $Script:GormesReleasesApiUrl -Headers @{ Accept = 'application/vnd.github+json' } -UseBasicParsing
+        } catch {
+            Write-GormesLog "release binary fetch failed: $($_.Exception.Message)"
+            return $false
+        }
+
+        $tag = ''
+        if ($release -and $release.tag_name) { $tag = [string]$release.tag_name }
+        if (-not $tag) {
+            Write-GormesLog 'release binary fetch failed: GitHub API response did not include tag_name'
+            return $false
+        }
+
+        $version = $tag -replace '^v', ''
+        $assetName = "gormes-$version-$($Script:ReleaseArch).tar.gz"
+        $archiveUrl = "$($Script:GormesReleasesDownloadBase)/$tag/$assetName"
+        # Download the matching .tar.gz.sha256 sidecar before publishing.
+        $shaUrl = "$archiveUrl.sha256"
+        $archivePath = Join-Path $downloadRoot $assetName
+        $shaPath = "$archivePath.sha256"
+
+        Write-GormesLog "downloading $assetName"
+        try {
+            Invoke-WebRequest -Uri $archiveUrl -OutFile $archivePath -UseBasicParsing
+            Invoke-WebRequest -Uri $shaUrl -OutFile $shaPath -UseBasicParsing
+        } catch {
+            Write-GormesLog "release binary fetch failed: $($_.Exception.Message)"
+            return $false
+        }
+
+        $expectedLine = (Get-Content $shaPath -Raw).Trim()
+        $expected = ($expectedLine -split '\s+')[0].ToLowerInvariant()
+        $actual = Get-FileSha256 $archivePath
+        if (-not $expected -or -not $actual) {
+            Write-GormesLog 'release binary fetch failed: could not compute SHA-256'
+            return $false
+        }
+        if ($expected -ne $actual) {
+            Write-GormesLog "SHA-256 mismatch for $assetName`: expected $expected, got $actual"
+            return $false
+        }
+
+        $extractDir = Join-Path $downloadRoot 'extract'
+        New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
+        & tar -xzf $archivePath -C $extractDir
+        if ($LASTEXITCODE -ne 0) {
+            Write-GormesLog 'release binary fetch failed: tar extraction failed'
+            return $false
+        }
+
+        $found = Get-ChildItem -Path $extractDir -Recurse -Filter 'gormes.exe' | Select-Object -First 1
+        if (-not $found) {
+            Write-GormesLog 'release binary fetch failed: archive did not contain gormes.exe'
+            return $false
+        }
+        $extractedBin = $found.FullName
+
+        $Script:OldBuildTag = if (Test-Path "$buildBin.build-tag") { Get-Content "$buildBin.build-tag" -Raw } else { '' }
+        $Script:OldBuildTag = $Script:OldBuildTag.Trim()
+        $Script:BuildTag = $tag
+        Copy-Item -Path $extractedBin -Destination $buildBin -Force
+        Set-Content -Path "$buildBin.build-tag" -Value $Script:BuildTag -Encoding ASCII
+        Write-GormesLog "installed release binary $assetName"
+        return $true
+    } finally {
+        if (Test-Path $downloadRoot) { Remove-Item -Recurse -Force $downloadRoot }
+    }
 }
 
 function Install-Repository {
@@ -596,8 +741,9 @@ function Append-InstallLedger {
     $entry = [ordered]@{
         event = 'install'
         timestamp = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-        source = (Get-BuildRoot)
+        source = (Get-InstallSourceDescription)
         branch = $Script:GormesBranch
+        install_method = $Script:InstallMethod
         old_commit = $Script:OldBuildTag
         new_commit = $Script:BuildTag
         binary_sha256 = $hash
@@ -614,7 +760,7 @@ function Show-InstallSummary([bool]$PathUpdated) {
     $binDir = Get-PublishedBinDir
     $publishedBin = Join-Path $binDir 'gormes.exe'
     Write-GormesLog 'Core install: succeeded'
-    Write-GormesLog "Source: $(Get-BuildRoot)"
+    Write-GormesLog "Source: $(Get-InstallSourceDescription)"
     Write-GormesLog "Published command: $publishedBin"
     Write-GormesLog 'Verification: succeeded'
 
@@ -631,12 +777,21 @@ function Show-InstallSummary([bool]$PathUpdated) {
 }
 
 function Show-DryRun {
+    Resolve-InstallMethod
     Write-GormesLog 'dry run'
     Write-GormesLog "  branch: $($Script:GormesBranch)"
+    Write-GormesLog "  install_method: $($Script:InstallMethod)"
+    Write-GormesLog "  install_method_reason: $($Script:InstallMethodDetail)"
+    if ($Script:InstallMethod -eq 'binary-fetch') {
+        Write-GormesLog "  release_arch: $($Script:ReleaseArch)"
+        Write-GormesLog "  release_api: $($Script:GormesReleasesApiUrl)"
+    }
     if ($Script:LocalSourceDir) {
         Write-GormesLog "  source: $($Script:LocalSourceDir)"
-    } else {
+    } elseif ($Script:InstallMethod -eq 'source-build') {
         Write-GormesLog "  source: $(Get-ManagedCheckoutDir)"
+    } else {
+        Write-GormesLog "  source: github-releases"
     }
     Write-GormesLog "  install_home: $(Get-ManagedHome)"
     Write-GormesLog "  managed_binary: $(Get-ManagedBuildBin)"
@@ -674,10 +829,20 @@ function Invoke-Main {
     Acquire-InstallLock
     try {
         $Script:PreviousGatewayPid = Get-RunningGatewayPid
-        Ensure-Git
-        Ensure-Go
-        Install-Repository
-        Build-Gormes
+        Resolve-InstallMethod
+        if ($Script:InstallMethod -eq 'binary-fetch') {
+            if (-not (Install-ReleaseBinary)) {
+                Write-GormesLog 'binary-fetch failed; falling back to source build'
+                $Script:InstallMethod = 'source-build'
+                $Script:InstallMethodDetail = 'binary-fetch failed at runtime; fallback to source build'
+            }
+        }
+        if ($Script:InstallMethod -eq 'source-build') {
+            Ensure-Git
+            Ensure-Go
+            Install-Repository
+            Build-Gormes
+        }
         Publish-Gormes
         Update-ActiveCommand
         $pathUpdated = Ensure-UserPathContainsBin

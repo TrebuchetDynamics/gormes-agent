@@ -356,3 +356,165 @@ func TestUninstallCommand_ExecuteJSONEmitsStructuredOutcome(t *testing.T) {
 		t.Errorf("apply must remove config.toml; stat err=%v", err)
 	}
 }
+
+// TestUninstall_RemovesPublishedBinarySymlink pins the cleanup
+// completeness gap observed during a v0.2.0 fresh-install probe:
+// `gormes uninstall --yes` removed `~/.gormes/` (including
+// `~/.gormes/bin/gormes`) but left the install.sh-published PATH
+// symlink at `~/.local/bin/gormes` dangling. After uninstall, `which
+// gormes` returns empty, but the broken symlink persists and confuses
+// reinstalls and shell completions.
+//
+// Contract: when the published-binary symlink lives at the install.sh
+// default location AND points to a path inside the gormes home (the
+// install.sh-managed binary), uninstall must remove the symlink too.
+// We resolve the binary location via GORMES_BIN_DIR (install.sh's
+// override env var) so the check works for any install.sh layout, not
+// just the $HOME/.local/bin default.
+//
+// Safety: only the symlink is removed, never an unrelated `gormes`
+// command (e.g., one built from source, installed via package manager,
+// or shadowing on PATH). The "is it a symlink whose target is inside
+// the gormes home" predicate keeps the cleanup surgical.
+func TestUninstall_RemovesPublishedBinarySymlink(t *testing.T) {
+	home := t.TempDir()
+	binDir := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_BIN_DIR", binDir)
+
+	managedBinary := filepath.Join(home, "bin", "gormes")
+	if err := os.MkdirAll(filepath.Dir(managedBinary), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(managedBinary, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	publishedSymlink := filepath.Join(binDir, "gormes")
+	if err := os.Symlink(managedBinary, publishedSymlink); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newUninstallCommand()
+	var stdout, stderr strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"--dry-run=false", "--yes", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall --yes --json: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+
+	// The published-binary symlink MUST be gone. Use Lstat so a broken
+	// symlink (target deleted but link itself survived — the actual
+	// regression) is also caught.
+	if _, err := os.Lstat(publishedSymlink); !os.IsNotExist(err) {
+		t.Fatalf("uninstall must remove published-binary symlink at %s; Lstat err=%v", publishedSymlink, err)
+	}
+
+	// Must surface the path under a published-binary group in the JSON
+	// outcome so fleet automation can audit it.
+	var got struct {
+		Groups []struct {
+			Name  string   `json:"name"`
+			Paths []string `json:"paths"`
+		} `json:"groups"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout.String()), &got); jsonErr != nil {
+		t.Fatalf("uninstall --yes --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	var found bool
+	for _, g := range got.Groups {
+		if g.Name == "published-binary" {
+			for _, p := range g.Paths {
+				if p == publishedSymlink {
+					found = true
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("published-binary group must list %s in JSON groups; got groups=%+v", publishedSymlink, got.Groups)
+	}
+}
+
+// TestUninstall_HomeDirWildcardIsNotMisclassifiedAsLogs pins the
+// regression observed during the v0.2.0 fresh-install probe: the
+// preview JSON listed `<home>/` under the "logs" group because
+// `config.CrashLogDir()` returns `GormesHome()`. Fleet automation
+// reading
+//
+//	{"name": "logs", "paths": ["/home/xel/.gormes/"]}
+//
+// reasonably interpreted that as "removes log files," but
+// `os.RemoveAll("/home/xel/.gormes/")` actually nukes the entire
+// home tree (config, sessions, skills, subagents, kanban DB, the
+// managed binary subdirectory — everything).
+//
+// Contract: the wholesale home-tree removal must surface under a
+// dedicated "gormes-home" group with the home directory as its
+// only path. The "logs" group is reserved for explicit log files
+// (gormes.log) — never the home wildcard. Operators reading the
+// preview see the scope honestly.
+func TestUninstall_HomeDirWildcardIsNotMisclassifiedAsLogs(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	groups := collectArtifacts(home)
+	for _, g := range groups {
+		for _, p := range g.Paths {
+			isHomeWildcard := strings.TrimSuffix(p, "/") == strings.TrimSuffix(home, "/")
+			if isHomeWildcard && g.Name == "logs" {
+				t.Fatalf("home-dir wildcard %q must not be classified as `logs` — that misleads operators about scope. Found in group=%q", p, g.Name)
+			}
+		}
+	}
+
+	var found bool
+	for _, g := range groups {
+		if g.Name != "gormes-home" {
+			continue
+		}
+		for _, p := range g.Paths {
+			if strings.TrimSuffix(p, "/") == strings.TrimSuffix(home, "/") {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("home-dir wildcard %q must appear under a dedicated `gormes-home` group; got groups=%+v", home, groups)
+	}
+}
+
+// TestUninstall_LeavesUnrelatedGormesBinaryAlone proves the cleanup is
+// surgical: a `gormes` command on PATH that is NOT a symlink into the
+// gormes home (e.g., a binary built from source, installed via apt, or
+// shadowing on PATH) MUST NOT be touched. The published-binary group
+// only enumerates entries we know we put there.
+func TestUninstall_LeavesUnrelatedGormesBinaryAlone(t *testing.T) {
+	home := t.TempDir()
+	binDir := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_BIN_DIR", binDir)
+
+	// A real file at the bin path, NOT a symlink. Could be a
+	// dev-built binary an operator dropped there manually.
+	unrelated := filepath.Join(binDir, "gormes")
+	if err := os.WriteFile(unrelated, []byte("#!/bin/sh\necho hi\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newUninstallCommand()
+	var stdout, stderr strings.Builder
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"--dry-run=false", "--yes"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("uninstall: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+
+	if _, err := os.Stat(unrelated); err != nil {
+		t.Fatalf("uninstall must not remove a non-symlink binary at %s; got err=%v", unrelated, err)
+	}
+}

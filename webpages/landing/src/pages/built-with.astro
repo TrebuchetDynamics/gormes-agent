@@ -1,0 +1,137 @@
+---
+import '../styles/global.css';
+import { builtWithPage } from '../data/builtWith.js';
+
+const sectionShell = 'mx-auto max-w-5xl px-5 sm:px-7';
+const sectionPad = 'py-14 sm:py-16';
+const cardShell = 'rounded-lg border border-white/10 bg-white/[0.035] p-5 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]';
+const buttonBase = 'inline-flex min-h-11 items-center justify-center rounded-md px-4 py-2 text-sm font-bold transition hover:border-transparent focus-visible:rounded-md';
+const buttonPrimary = `${buttonBase} bg-[#f0c84b] text-[#171000] hover:bg-[#ffd968]`;
+const buttonSecondary = `${buttonBase} border border-white/15 bg-white/[0.035] text-[#eeece5] hover:border-[#f0c84b]/70 hover:text-[#f0c84b]`;
+---
+
+<!doctype html>
+<html lang="en" data-site-runtime="astro-tailwind">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{builtWithPage.title}</title>
+    <meta name="description" content={builtWithPage.description} />
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Gormes" />
+    <meta property="og:title" content={builtWithPage.title} />
+    <meta property="og:description" content={builtWithPage.description} />
+    <meta property="og:url" content="https://gormes.ai/built-with" />
+    <meta property="og:image" content="https://gormes.ai/static/social-card.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={builtWithPage.title} />
+    <meta name="twitter:description" content={builtWithPage.description} />
+    <meta name="twitter:image" content="https://gormes.ai/static/social-card.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    />
+  </head>
+  <body class="min-h-screen overflow-x-hidden bg-[#090b0f] text-[#eeece5]">
+    <header class="topbar border-b border-white/10">
+      <div class={`${sectionShell} flex items-center justify-between gap-5 py-4`}>
+        <a class="inline-flex min-w-0 items-center border-0 hover:opacity-90" href="/" aria-label="GORMES-AGENT home">
+          <img
+            class="h-auto w-[168px] max-w-[44vw] sm:w-[220px]"
+            src="/static/gormes-agent-logo-blue.svg"
+            alt=""
+            aria-hidden="true"
+          />
+        </a>
+        <nav class="flex flex-wrap justify-end gap-4 text-xs font-bold uppercase text-[#eeece5]/65" aria-label="Built with page">
+          <a class="border-0 hover:text-[#eeece5]" href="/">Home</a>
+          <a class="border-0 hover:text-[#eeece5]" href="/#install">Install</a>
+          <a class="border-0 hover:text-[#eeece5]" href="https://github.com/TrebuchetDynamics/gormes-agent">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class={`border-b border-white/10 bg-[#10141b] ${sectionPad}`}>
+        <div class={sectionShell}>
+          <p class="mb-3 text-xs font-bold uppercase text-[#73cedd]">Community Proof</p>
+          <h1 class="max-w-3xl font-serif text-[clamp(2.25rem,8vw,4.5rem)] font-black leading-[0.98] text-white">
+            Built with Gormes
+          </h1>
+          <p class="mt-5 max-w-3xl text-base leading-7 text-[#eeece5]/74 sm:text-lg">
+            {builtWithPage.intro}
+          </p>
+          <div class="mt-7 flex flex-col gap-3 sm:flex-row">
+            <a class={buttonPrimary} href="#deployments">View deployments</a>
+            <a class={buttonSecondary} href="#submit">Submit a deployment</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="deployments" class={`border-b border-white/10 ${sectionPad}`}>
+        <div class={sectionShell}>
+          <div class="grid gap-4">
+            {builtWithPage.entries.map((entry) => (
+              <article class={`${cardShell} deployment-entry`}>
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p class="font-mono text-xs font-bold uppercase text-[#73cedd]">{entry.status}</p>
+                    <h2 class="mt-2 text-2xl font-bold text-[#eeece5]">{entry.name}</h2>
+                    <p class="mt-1 text-sm font-bold text-[#f0c84b]">{entry.operator}</p>
+                  </div>
+                  <a class="text-sm font-bold text-[#f0c84b] hover:text-[#ffd968]" href={entry.href}>Repository proof</a>
+                </div>
+                <p class="mt-4 max-w-3xl text-sm leading-6 text-[#eeece5]/72">{entry.summary}</p>
+                <dl class="mt-5 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <dt class="font-mono text-xs font-bold uppercase text-[#eeece5]/50">Proof</dt>
+                    <dd class="mt-2 text-sm leading-6 text-[#eeece5]/72">{entry.proof}</dd>
+                  </div>
+                  <div>
+                    <dt class="font-mono text-xs font-bold uppercase text-[#eeece5]/50">Stack</dt>
+                    <dd class="mt-2 flex flex-wrap gap-2">
+                      {entry.stack.map((item) => (
+                        <span class="rounded-full border border-white/10 bg-[#090b0f]/70 px-3 py-1 text-xs font-bold text-[#eeece5]/72">{item}</span>
+                      ))}
+                    </dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="submit" class={sectionPad}>
+        <div class={sectionShell}>
+          <div class="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <p class="mb-3 text-xs font-bold uppercase text-[#73cedd]">Pull Requests</p>
+              <h2 class="text-2xl font-bold text-[#eeece5]">{builtWithPage.submission.heading}</h2>
+              <p class="mt-4 text-sm leading-6 text-[#eeece5]/72">{builtWithPage.submission.body}</p>
+              <p class="mt-3 text-sm leading-6 text-[#eeece5]/72">{builtWithPage.submission.requiredFields}</p>
+            </div>
+            <ul class={`${cardShell} space-y-3`}>
+              {builtWithPage.submission.rules.map((rule) => (
+                <li class="border-l-2 border-[#73cedd] pl-4 text-sm leading-6 text-[#eeece5]/72">{rule}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-white/10 bg-[#05070a]">
+      <div class={`${sectionShell} flex flex-col gap-3 py-8 text-sm text-[#eeece5]/55 sm:flex-row sm:items-center sm:justify-between`}>
+        <p>Gormes public deployments · MIT License</p>
+        <a class="font-bold text-[#f0c84b] hover:text-[#ffd968]" href="/">Back to gormes.ai</a>
+      </div>
+    </footer>
+  </body>
+</html>

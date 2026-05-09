@@ -19,6 +19,118 @@ var echoToolDescriptor = ToolDescriptor{
 	Schema:      json.RawMessage(`{"type":"object","properties":{"text":{"type":"string"}},"required":["text"],"additionalProperties":false}`),
 }
 
+var arrayObjectCoercionToolDescriptor = ToolDescriptor{
+	Name:        "coerce_args",
+	Description: "exercise schema-guided provider argument coercion",
+	Schema: json.RawMessage(`{
+		"type":"object",
+		"properties":{
+			"urls":{"type":"array","items":{"type":"string"}},
+			"config":{"type":"object","properties":{"max":{"type":"integer"}},"additionalProperties":false},
+			"stages":{"type":"array","items":{"type":"object"},"nullable":true}
+		},
+		"additionalProperties":false
+	}`),
+}
+
+var integerArrayCoercionToolDescriptor = ToolDescriptor{
+	Name:        "coerce_ids",
+	Description: "exercise malformed array-string validation",
+	Schema:      json.RawMessage(`{"type":"object","properties":{"ids":{"type":"array","items":{"type":"integer"}}},"required":["ids"],"additionalProperties":false}`),
+}
+
+func TestRepairToolCalls_ToolCallArgumentsStringifiedArrayCoercedAgainstSchema(t *testing.T) {
+	repaired := repairSingleToolCall(t, arrayObjectCoercionToolDescriptor, ToolCall{
+		ID:        "call_urls",
+		Name:      "coerce_args",
+		Arguments: json.RawMessage(`{"urls":"[\"https://a.test\",\"https://b.test\"]"}`),
+	})
+
+	var got struct {
+		URLs []string `json:"urls"`
+	}
+	if err := json.Unmarshal(repaired.Arguments, &got); err != nil {
+		t.Fatalf("repaired arguments are invalid JSON: %v: %s", err, repaired.Arguments)
+	}
+	want := []string{"https://a.test", "https://b.test"}
+	if len(got.URLs) != len(want) {
+		t.Fatalf("urls len = %d, want %d: %s", len(got.URLs), len(want), repaired.Arguments)
+	}
+	for i := range want {
+		if got.URLs[i] != want[i] {
+			t.Fatalf("urls[%d] = %q, want %q (all=%v)", i, got.URLs[i], want[i], got.URLs)
+		}
+	}
+}
+
+func TestRepairToolCalls_ToolCallArgumentsStringifiedObjectCoercedAgainstSchema(t *testing.T) {
+	repaired := repairSingleToolCall(t, arrayObjectCoercionToolDescriptor, ToolCall{
+		ID:        "call_config",
+		Name:      "coerce_args",
+		Arguments: json.RawMessage(`{"config":"{\"max\":50}"}`),
+	})
+
+	var got struct {
+		Config struct {
+			Max int `json:"max"`
+		} `json:"config"`
+	}
+	if err := json.Unmarshal(repaired.Arguments, &got); err != nil {
+		t.Fatalf("repaired arguments are invalid JSON: %v: %s", err, repaired.Arguments)
+	}
+	if got.Config.Max != 50 {
+		t.Fatalf("config.max = %d, want 50: %s", got.Config.Max, repaired.Arguments)
+	}
+}
+
+func TestRepairToolCalls_ToolCallArgumentsNullableStringNullCoercedAgainstSchema(t *testing.T) {
+	repaired := repairSingleToolCall(t, arrayObjectCoercionToolDescriptor, ToolCall{
+		ID:        "call_null",
+		Name:      "coerce_args",
+		Arguments: json.RawMessage(`{"stages":"null"}`),
+	})
+
+	var got map[string]any
+	if err := json.Unmarshal(repaired.Arguments, &got); err != nil {
+		t.Fatalf("repaired arguments are invalid JSON: %v: %s", err, repaired.Arguments)
+	}
+	if value, ok := got["stages"]; !ok || value != nil {
+		t.Fatalf("stages = %#v (present=%v), want explicit null: %s", value, ok, repaired.Arguments)
+	}
+}
+
+func TestRepairToolCalls_ToolCallArgumentsMalformedArrayStringWrapsWhenItemSchemaAllowsString(t *testing.T) {
+	repaired := repairSingleToolCall(t, arrayObjectCoercionToolDescriptor, ToolCall{
+		ID:        "call_malformed_array",
+		Name:      "coerce_args",
+		Arguments: json.RawMessage(`{"urls":"[not-json"}`),
+	})
+
+	var got struct {
+		URLs []string `json:"urls"`
+	}
+	if err := json.Unmarshal(repaired.Arguments, &got); err != nil {
+		t.Fatalf("repaired arguments are invalid JSON: %v: %s", err, repaired.Arguments)
+	}
+	if len(got.URLs) != 1 || got.URLs[0] != "[not-json" {
+		t.Fatalf("urls = %#v, want single malformed string fallback: %s", got.URLs, repaired.Arguments)
+	}
+}
+
+func TestRepairToolCalls_ToolCallArgumentsMalformedArrayStringStillValidatesWrappedItem(t *testing.T) {
+	_, err := RepairToolCalls([]ToolCall{{
+		ID:        "call_ids",
+		Name:      "coerce_ids",
+		Arguments: json.RawMessage(`{"ids":"[not-json"}`),
+	}}, []ToolDescriptor{integerArrayCoercionToolDescriptor})
+	if err == nil {
+		t.Fatal("RepairToolCalls() error = nil, want item-schema validation failure")
+	}
+	if !strings.Contains(err.Error(), `argument "ids[0]" must be an integer`) {
+		t.Fatalf("error = %q, want wrapped item validation evidence", err.Error())
+	}
+}
+
 func TestStream_ToolCallArgumentsRepairDeterministicAgainstAdvertisedSchema(t *testing.T) {
 	final, err := runToolCallRepairStream(t, []ToolDescriptor{echoToolDescriptor}, `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_echo","type":"function","function":{"name":"echo","arguments":"{\"text\":\"hi\","}}]}}]}
 
@@ -44,6 +156,18 @@ data: [DONE]
 	if got["text"] != "hi" {
 		t.Fatalf("repaired arguments = %s, want text=hi", call.Arguments)
 	}
+}
+
+func repairSingleToolCall(t *testing.T, descriptor ToolDescriptor, call ToolCall) ToolCall {
+	t.Helper()
+	repaired, err := RepairToolCalls([]ToolCall{call}, []ToolDescriptor{descriptor})
+	if err != nil {
+		t.Fatalf("RepairToolCalls() error = %v", err)
+	}
+	if len(repaired) != 1 {
+		t.Fatalf("repaired len = %d, want 1", len(repaired))
+	}
+	return repaired[0]
 }
 
 func TestStream_ToolCallArgumentsRejectImpossibleRepairBeforeExecution(t *testing.T) {

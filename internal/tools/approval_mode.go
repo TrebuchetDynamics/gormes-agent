@@ -1,6 +1,9 @@
 package tools
 
-import "strings"
+import (
+	"context"
+	"strings"
+)
 
 const (
 	ApprovalModeManual = "manual"
@@ -18,6 +21,32 @@ type ApprovalMode struct {
 	Mode      string
 	Defaulted bool
 	Evidence  map[string]string
+}
+
+type cronApprovalModeContextKey struct{}
+
+// WithCronApprovalMode marks a tool execution context as a noninteractive
+// cron turn governed by approvals.cron_mode instead of the interactive
+// terminal approval path.
+func WithCronApprovalMode(ctx context.Context, value any) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	mode := NormalizeCronApprovalMode(value)
+	return context.WithValue(ctx, cronApprovalModeContextKey{}, mode.Mode)
+}
+
+// CronApprovalModeFromContext returns the normalized cron approval mode when
+// the caller explicitly scoped this tool execution to a cron turn.
+func CronApprovalModeFromContext(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	raw, ok := ctx.Value(cronApprovalModeContextKey{}).(string)
+	if !ok {
+		return "", false
+	}
+	return NormalizeCronApprovalMode(raw).Mode, true
 }
 
 // NormalizeApprovalMode ports Hermes' approval mode parsing semantics for

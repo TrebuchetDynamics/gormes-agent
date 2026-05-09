@@ -72,6 +72,95 @@ func TestGoogleChatNormalizePubSubMessage(t *testing.T) {
 	}
 }
 
+func TestGoogleChatNativeChatAPIPubSubMessage(t *testing.T) {
+	payload := []byte(`{
+		"type": "MESSAGE",
+		"space": {"name": "spaces/BBB", "spaceType": "GROUP_CHAT"},
+		"message": {
+			"name": "spaces/BBB/messages/msg-2",
+			"text": "native chat event",
+			"sender": {
+				"name": "users/native",
+				"email": "native@example.com",
+				"displayName": "Native User",
+				"type": "HUMAN"
+			},
+			"thread": {"name": "spaces/BBB/threads/thread-2"}
+		}
+	}`)
+
+	ch := NewChannel(Config{}, nil, nil)
+	ev, ok := ch.NormalizePubSubMessage(payload)
+	if !ok {
+		t.Fatal("NormalizePubSubMessage ok = false, want true")
+	}
+	if ev.ChatID != "spaces/BBB" || ev.ThreadID != "spaces/BBB/threads/thread-2" || ev.ChatType != "group" {
+		t.Fatalf("native chat identity = %+v", ev)
+	}
+	if ev.UserID != "users/native" || ev.AccountID != "native@example.com" || ev.Text != "native chat event" {
+		t.Fatalf("native sender/body = %+v", ev)
+	}
+}
+
+func TestGoogleChatRelayFlatSenderTypeSelfFilter(t *testing.T) {
+	payload := []byte(`{
+		"event_type": "MESSAGE",
+		"sender_email": "ada@example.com",
+		"sender_display_name": "Ada Relay",
+		"sender_type": "HUMAN",
+		"text": "hello from relay",
+		"space_name": "spaces/CCC",
+		"space_type": "DIRECT_MESSAGE",
+		"thread_name": "spaces/CCC/threads/thread-3",
+		"message_name": "spaces/CCC/messages/msg-3"
+	}`)
+
+	ch := NewChannel(Config{}, nil, nil)
+	ev, ok := ch.NormalizePubSubMessage(payload)
+	if !ok {
+		t.Fatal("NormalizePubSubMessage ok = false, want relay HUMAN event")
+	}
+	if ev.UserID != "users/relay-ada_at_example_com" || ev.UserName != "Ada Relay" || ev.AccountID != "ada@example.com" {
+		t.Fatalf("relay sender = %+v", ev)
+	}
+	if ev.ChatID != "spaces/CCC" || ev.ThreadID != "spaces/CCC/threads/thread-3" || ev.MsgID != "spaces/CCC/messages/msg-3" {
+		t.Fatalf("relay message identity = %+v", ev)
+	}
+	if ev.ChatType != "dm" || ev.Text != "hello from relay" {
+		t.Fatalf("relay body = %+v", ev)
+	}
+
+	botPayload := []byte(`{
+		"event_type": "MESSAGE",
+		"sender_email": "bot@example.com",
+		"sender_display_name": "Relay Bot",
+		"sender_type": "BOT",
+		"text": "loop me",
+		"space_name": "spaces/CCC",
+		"message_name": "spaces/CCC/messages/msg-bot"
+	}`)
+	if ev, ok := ch.NormalizePubSubMessage(botPayload); ok {
+		t.Fatalf("relay BOT normalized as event = %+v, want self-filter drop", ev)
+	}
+
+	unknownTypePayload := []byte(`{
+		"event_type": "MESSAGE",
+		"sender_email": "service@example.com",
+		"sender_display_name": "Service Relay",
+		"sender_type": "SERVICE",
+		"text": "fallback human",
+		"space_name": "spaces/DDD",
+		"message_name": "spaces/DDD/messages/msg-4"
+	}`)
+	ev, ok = ch.NormalizePubSubMessage(unknownTypePayload)
+	if !ok {
+		t.Fatal("NormalizePubSubMessage ok = false, want unknown sender_type to default to HUMAN")
+	}
+	if ev.UserID != "users/relay-service_at_example_com" || ev.Text != "fallback human" {
+		t.Fatalf("unknown sender_type fallback = %+v", ev)
+	}
+}
+
 func TestGoogleChatDeliveryWithoutTransport(t *testing.T) {
 	ch := NewChannel(Config{}, nil, nil)
 	if _, err := ch.Send(context.Background(), "spaces/AAA", "hello"); err == nil || err.Error() != "googlechat_transport_not_configured" {

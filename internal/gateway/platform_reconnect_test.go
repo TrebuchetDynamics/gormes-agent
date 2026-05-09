@@ -82,6 +82,21 @@ func TestPlatformReconnectLifecycle_ConnectTimeoutFromEnv(t *testing.T) {
 	}
 }
 
+func TestManager_ChannelDisconnectTimeoutFromEnv(t *testing.T) {
+	if got := ChannelDisconnectTimeoutFromEnv(func(string) string { return "" }); got != 5*time.Second {
+		t.Fatalf("default timeout = %s, want 5s", got)
+	}
+	if got := ChannelDisconnectTimeoutFromEnv(func(string) string { return "0.001" }); got != time.Millisecond {
+		t.Fatalf("override timeout = %s, want 1ms", got)
+	}
+	if got := ChannelDisconnectTimeoutFromEnv(func(string) string { return "-2" }); got != 0 {
+		t.Fatalf("negative override timeout = %s, want disabled timeout", got)
+	}
+	if got := ChannelDisconnectTimeoutFromEnv(func(string) string { return "not-a-number" }); got != 5*time.Second {
+		t.Fatalf("invalid override timeout = %s, want 5s", got)
+	}
+}
+
 func TestPlatformReconnectLifecycle_ReconnectSuccessClearsFailure(t *testing.T) {
 	now := time.Date(2026, 5, 7, 2, 0, 0, 0, time.UTC)
 	failures := map[string]PlatformFailure{

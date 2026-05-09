@@ -255,6 +255,10 @@ func (b *Bot) runOutbound(ctx context.Context, wg *sync.WaitGroup) {
 					if err := c.flushImmediate(formatFinal(f)); err != nil {
 						b.log.Warn("discord final delivery failed", "channel_id", channelID, "err", err)
 					}
+				} else {
+					if _, err := b.client.Send(channelID, formatFinal(f)); err != nil {
+						b.log.Warn("discord final send failed", "channel_id", channelID, "err", err)
+					}
 				}
 				stopTurn()
 			case kernel.PhaseFailed, kernel.PhaseCancelling:

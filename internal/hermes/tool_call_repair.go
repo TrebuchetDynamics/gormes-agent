@@ -75,6 +75,12 @@ func RepairToolCalls(calls []ToolCall, descriptors []ToolDescriptor) ([]ToolCall
 		if err != nil {
 			return nil, &ToolCallRepairError{ToolCallID: call.ID, ToolName: call.Name, Reason: err.Error()}
 		}
+		if coerceArgumentsAgainstSchema(values, schema) {
+			args, err = json.Marshal(values)
+			if err != nil {
+				return nil, &ToolCallRepairError{ToolCallID: call.ID, ToolName: call.Name, Reason: err.Error()}
+			}
+		}
 		if err := validateArgumentsAgainstSchema(values, schema); err != nil {
 			return nil, &ToolCallRepairError{ToolCallID: call.ID, ToolName: call.Name, Reason: err.Error()}
 		}
@@ -297,6 +303,110 @@ func parseJSONObject(raw string) (json.RawMessage, map[string]any, error) {
 		return nil, nil, err
 	}
 	return canonical, obj, nil
+}
+
+func coerceArgumentsAgainstSchema(args map[string]any, schema map[string]any) bool {
+	props, _ := schema["properties"].(map[string]any)
+	if len(props) == 0 {
+		return false
+	}
+	changed := false
+	for name, value := range args {
+		prop, ok := props[name]
+		if !ok {
+			continue
+		}
+		propSchema, _ := prop.(map[string]any)
+		coerced, ok := coerceArgumentValueAgainstSchema(value, propSchema)
+		if !ok {
+			continue
+		}
+		args[name] = coerced
+		changed = true
+	}
+	return changed
+}
+
+func coerceArgumentValueAgainstSchema(value any, schema map[string]any) (any, bool) {
+	if len(schema) == 0 || value == nil {
+		return value, false
+	}
+	text, isString := value.(string)
+	if isString && schemaAllowsNull(schema) && strings.EqualFold(strings.TrimSpace(text), "null") {
+		return nil, true
+	}
+	switch schemaType(schema) {
+	case "array":
+		if items, ok := value.([]any); ok {
+			return items, false
+		}
+		if isString {
+			if parsed, ok := parseJSONValue(text); ok {
+				if items, ok := parsed.([]any); ok {
+					return items, true
+				}
+				return value, false
+			}
+			return []any{text}, true
+		}
+		return []any{value}, true
+	case "object":
+		if obj, ok := value.(map[string]any); ok {
+			return obj, false
+		}
+		if !isString {
+			return value, false
+		}
+		parsed, ok := parseJSONValue(text)
+		if !ok {
+			return value, false
+		}
+		obj, ok := parsed.(map[string]any)
+		if !ok {
+			return value, false
+		}
+		return obj, true
+	default:
+		return value, false
+	}
+}
+
+func parseJSONValue(raw string) (any, bool) {
+	dec := json.NewDecoder(strings.NewReader(raw))
+	dec.UseNumber()
+	var value any
+	if err := dec.Decode(&value); err != nil {
+		return nil, false
+	}
+	var extra any
+	if err := dec.Decode(&extra); err != io.EOF {
+		return nil, false
+	}
+	return value, true
+}
+
+func schemaType(schema map[string]any) string {
+	typ, _ := schema["type"].(string)
+	return typ
+}
+
+func schemaAllowsNull(schema map[string]any) bool {
+	if nullable, _ := schema["nullable"].(bool); nullable {
+		return true
+	}
+	if typ, _ := schema["type"].(string); typ == "null" {
+		return true
+	}
+	for _, unionKey := range []string{"anyOf", "oneOf"} {
+		variants, _ := schema[unionKey].([]any)
+		for _, variant := range variants {
+			child, _ := variant.(map[string]any)
+			if typ, _ := child["type"].(string); typ == "null" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func normalizeJSONDelimiters(raw string) (string, bool) {

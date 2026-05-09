@@ -16,6 +16,9 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/pelletier/go-toml/v2"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -25,6 +28,7 @@ const (
 	defaultSearchFilesLimit  = 50
 	defaultSearchFilesMax    = 500
 	defaultWriteFileFileMode = 0o644
+	maxStructuredLintOutput  = 2000
 )
 
 // FileTaskToolConfig constrains local file tools to a workspace root.
@@ -35,6 +39,12 @@ type FileTaskToolConfig struct {
 	TaskID        string
 	CWDResolver   func() string
 	MaxReadChars  int
+}
+
+type structuredLintResult struct {
+	Success bool   `json:"success"`
+	Output  string `json:"output,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type ReadFileToolConfig = FileTaskToolConfig
@@ -515,6 +525,13 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if isFileReadGuardStatusText([]byte(in.Content)) {
 		return marshalToolPayload(map[string]any{"path": rel, "error": ErrFileReadGuardStatusContent.Error()})
 	}
+	var preContent *string
+	if supportsStructuredLint(rel) {
+		if raw, err := os.ReadFile(resolved); err == nil {
+			pre := string(raw)
+			preContent = &pre
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(resolved), 0o755); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "create parent directories: " + err.Error()})
 	}
@@ -526,6 +543,9 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 		"path":          rel,
 		"bytes_written": len([]byte(in.Content)),
 		"status":        "ok",
+	}
+	if lint, ok := structuredLintDelta(rel, in.Content, preContent); ok {
+		payload["lint"] = lint
 	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
 		payload["file_state"] = statePayload
@@ -549,7 +569,7 @@ func (*PatchTool) Description() string {
 }
 
 func (*PatchTool) Schema() json.RawMessage {
-	return json.RawMessage(`{"type":"object","properties":{"mode":{"type":"string","enum":["replace"],"default":"replace"},"path":{"type":"string","description":"File path to edit."},"old_string":{"type":"string","description":"Text to find. Must be unique unless replace_all=true."},"new_string":{"type":"string","description":"Replacement text. Can be empty."},"replace_all":{"type":"boolean","default":false}},"required":["path","old_string","new_string"]}`)
+	return json.RawMessage(`{"type":"object","properties":{"mode":{"type":"string","enum":["replace","patch"],"default":"replace"},"path":{"type":"string","description":"File path to edit when mode=replace."},"old_string":{"type":"string","description":"Text to find when mode=replace. Must be unique unless replace_all=true."},"new_string":{"type":"string","description":"Replacement text when mode=replace. Can be empty."},"replace_all":{"type":"boolean","default":false},"patch":{"type":"string","description":"V4A patch content when mode=patch."}},"required":["mode"]}`)
 }
 
 func (*PatchTool) Timeout() time.Duration { return 5 * time.Second }
@@ -562,6 +582,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		OldString  string `json:"old_string"`
 		NewString  string `json:"new_string"`
 		ReplaceAll bool   `json:"replace_all"`
+		Patch      string `json:"patch"`
 	}
 	if err := json.Unmarshal(defaultJSONArgs(args), &in); err != nil {
 		return marshalToolPayload(map[string]any{"error": "invalid patch args: " + err.Error()})
@@ -569,6 +590,9 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	mode := strings.TrimSpace(in.Mode)
 	if mode == "" {
 		mode = "replace"
+	}
+	if mode == "patch" {
+		return t.executeV4APatch(in.Patch)
 	}
 	if mode != "replace" {
 		return marshalToolPayload(map[string]any{"error": "patch currently supports replace mode only"})
@@ -616,10 +640,486 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		"replacements": replacements,
 		"status":       "ok",
 	}
+	if lint, ok := structuredLintDelta(rel, updated, &content); ok {
+		payload["lint"] = lint
+	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
 		payload["file_state"] = statePayload
 	}
 	return marshalToolPayload(payload)
+}
+
+func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
+	ops, err := parseV4APatch(patchText)
+	if err != nil {
+		return marshalPatchValidationError(err.Error())
+	}
+	if len(ops) == 0 {
+		return marshalPatchValidationError("patch contains no operations")
+	}
+	actions := make([]v4aPatchAction, 0, len(ops))
+	for _, op := range ops {
+		action, check, err := t.validateV4AOperation(op)
+		if check != nil {
+			return marshalToolPayload(fileStateErrorPayload(action.rel, check))
+		}
+		if err != nil {
+			return marshalPatchValidationError(err.Error())
+		}
+		actions = append(actions, action)
+	}
+
+	var modified, created, deleted []string
+	lintResults := map[string]structuredLintResult{}
+	registry := fileTaskStateRegistry(t.cfg)
+	for _, action := range actions {
+		switch action.kind {
+		case v4aOperationAdd:
+			if err := os.MkdirAll(filepath.Dir(action.abs), 0o755); err != nil {
+				return marshalPatchApplyError(action.rel, "create parent directories: "+err.Error(), modified, created, deleted)
+			}
+			if err := os.WriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
+				return marshalPatchApplyError(action.rel, "write added file: "+err.Error(), modified, created, deleted)
+			}
+			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
+			created = append(created, action.rel)
+			if lint, ok := structuredLintDelta(action.rel, action.content, nil); ok {
+				lintResults[action.rel] = lint
+			}
+		case v4aOperationUpdate:
+			if err := os.WriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
+				return marshalPatchApplyError(action.rel, "write patched file: "+err.Error(), modified, created, deleted)
+			}
+			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
+			modified = append(modified, action.rel)
+			if lint, ok := structuredLintDelta(action.rel, action.content, action.preContent); ok {
+				lintResults[action.rel] = lint
+			}
+		case v4aOperationDelete:
+			if err := os.Remove(action.abs); err != nil {
+				return marshalPatchApplyError(action.rel, "delete file: "+err.Error(), modified, created, deleted)
+			}
+			deleted = append(deleted, action.rel)
+		case v4aOperationMove:
+			if err := os.MkdirAll(filepath.Dir(action.newAbs), 0o755); err != nil {
+				return marshalPatchApplyError(action.rel, "create move parent directories: "+err.Error(), modified, created, deleted)
+			}
+			if err := os.Rename(action.abs, action.newAbs); err != nil {
+				return marshalPatchApplyError(action.rel, "move file: "+err.Error(), modified, created, deleted)
+			}
+			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
+			modified = append(modified, action.rel+" -> "+action.newRel)
+		}
+	}
+	payload := map[string]any{
+		"status":         "ok",
+		"success":        true,
+		"operations":     len(actions),
+		"files_modified": modified,
+		"files_created":  created,
+		"files_deleted":  deleted,
+	}
+	if len(lintResults) > 0 {
+		payload["lint"] = lintResults
+	}
+	return marshalToolPayload(payload)
+}
+
+func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, *fileStateCheck, error) {
+	action := v4aPatchAction{kind: op.kind}
+	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, op.path)
+	action.abs, action.rel, action.root, action.cwd = resolved, rel, root, cwd
+	if err != nil {
+		return action, nil, err
+	}
+
+	registry := fileTaskStateRegistry(t.cfg)
+	switch op.kind {
+	case v4aOperationAdd:
+		if _, err := os.Stat(resolved); err == nil {
+			return action, nil, fmt.Errorf("add file %s: file already exists", rel)
+		} else if !os.IsNotExist(err) {
+			return action, nil, fmt.Errorf("add file %s: stat target: %w", rel, err)
+		}
+		action.content = v4aAddContent(op)
+	case v4aOperationUpdate:
+		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+			return action, check, nil
+		}
+		raw, err := os.ReadFile(resolved)
+		if err != nil {
+			return action, nil, fmt.Errorf("update file %s: read file: %w", rel, err)
+		}
+		if binaryLike(raw) {
+			return action, nil, fmt.Errorf("update file %s: patch cannot edit binary files", rel)
+		}
+		updated, err := applyV4AHunks(string(raw), op.hunks)
+		if err != nil {
+			return action, nil, fmt.Errorf("update file %s: %w", rel, err)
+		}
+		pre := string(raw)
+		action.preContent = &pre
+		action.content = updated
+	case v4aOperationDelete:
+		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+			return action, check, nil
+		}
+		info, err := os.Stat(resolved)
+		if err != nil {
+			return action, nil, fmt.Errorf("delete file %s: stat target: %w", rel, err)
+		}
+		if info.IsDir() {
+			return action, nil, fmt.Errorf("delete file %s: expected a file, got a directory", rel)
+		}
+	case v4aOperationMove:
+		if strings.TrimSpace(op.newPath) == "" {
+			return action, nil, fmt.Errorf("move file %s: destination path is required", rel)
+		}
+		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+			return action, check, nil
+		}
+		info, err := os.Stat(resolved)
+		if err != nil {
+			return action, nil, fmt.Errorf("move file %s: stat source: %w", rel, err)
+		}
+		if info.IsDir() {
+			return action, nil, fmt.Errorf("move file %s: expected a file, got a directory", rel)
+		}
+		newAbs, newRel, newRoot, newCWD, err := resolveFileTaskPath(t.cfg, op.newPath)
+		if err != nil {
+			return action, nil, err
+		}
+		action.newAbs, action.newRel, action.newRoot, action.newCWD = newAbs, newRel, newRoot, newCWD
+		if _, err := os.Stat(newAbs); err == nil {
+			return action, nil, fmt.Errorf("move file %s -> %s: destination already exists", rel, newRel)
+		} else if !os.IsNotExist(err) {
+			return action, nil, fmt.Errorf("move file %s -> %s: stat destination: %w", rel, newRel, err)
+		}
+	default:
+		return action, nil, fmt.Errorf("unsupported V4A operation for %s", rel)
+	}
+	return action, nil, nil
+}
+
+func marshalPatchValidationError(message string) (json.RawMessage, error) {
+	return marshalToolPayload(map[string]any{
+		"status":  "patch_validation_failed",
+		"success": false,
+		"error":   message,
+	})
+}
+
+func marshalPatchApplyError(path, message string, modified, created, deleted []string) (json.RawMessage, error) {
+	return marshalToolPayload(map[string]any{
+		"path":           path,
+		"status":         "patch_apply_failed",
+		"success":        false,
+		"error":          message,
+		"files_modified": modified,
+		"files_created":  created,
+		"files_deleted":  deleted,
+	})
+}
+
+type v4aOperationKind string
+
+const (
+	v4aOperationAdd    v4aOperationKind = "add"
+	v4aOperationUpdate v4aOperationKind = "update"
+	v4aOperationDelete v4aOperationKind = "delete"
+	v4aOperationMove   v4aOperationKind = "move"
+)
+
+type v4aPatchOperation struct {
+	kind    v4aOperationKind
+	path    string
+	newPath string
+	hunks   []v4aPatchHunk
+}
+
+type v4aPatchHunk struct {
+	contextHint string
+	lines       []v4aPatchLine
+}
+
+type v4aPatchLine struct {
+	prefix byte
+	text   string
+}
+
+type v4aPatchAction struct {
+	kind       v4aOperationKind
+	rel        string
+	abs        string
+	root       string
+	cwd        string
+	newRel     string
+	newAbs     string
+	newRoot    string
+	newCWD     string
+	content    string
+	preContent *string
+}
+
+func parseV4APatch(patchText string) ([]v4aPatchOperation, error) {
+	lines := strings.Split(strings.ReplaceAll(patchText, "\r\n", "\n"), "\n")
+	start, end := -1, len(lines)
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "*** Begin Patch" || trimmed == "***Begin Patch" {
+			start = i
+		}
+		if trimmed == "*** End Patch" || trimmed == "***End Patch" {
+			end = i
+			break
+		}
+	}
+
+	var ops []v4aPatchOperation
+	var current *v4aPatchOperation
+	var currentHunk *v4aPatchHunk
+	flushHunk := func() {
+		if current != nil && currentHunk != nil && len(currentHunk.lines) > 0 {
+			current.hunks = append(current.hunks, *currentHunk)
+		}
+		currentHunk = nil
+	}
+	flushOp := func() {
+		if current != nil {
+			flushHunk()
+			ops = append(ops, *current)
+		}
+		current = nil
+	}
+
+	for i := start + 1; i < end; i++ {
+		line := lines[i]
+		switch {
+		case strings.HasPrefix(line, "*** Update File:"):
+			flushOp()
+			current = &v4aPatchOperation{kind: v4aOperationUpdate, path: strings.TrimSpace(strings.TrimPrefix(line, "*** Update File:"))}
+		case strings.HasPrefix(line, "*** Add File:"):
+			flushOp()
+			current = &v4aPatchOperation{kind: v4aOperationAdd, path: strings.TrimSpace(strings.TrimPrefix(line, "*** Add File:"))}
+			currentHunk = &v4aPatchHunk{}
+		case strings.HasPrefix(line, "*** Delete File:"):
+			flushOp()
+			ops = append(ops, v4aPatchOperation{kind: v4aOperationDelete, path: strings.TrimSpace(strings.TrimPrefix(line, "*** Delete File:"))})
+		case strings.HasPrefix(line, "*** Move File:"):
+			flushOp()
+			spec := strings.TrimSpace(strings.TrimPrefix(line, "*** Move File:"))
+			parts := strings.SplitN(spec, "->", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("move operation %q missing destination (expected 'src -> dst')", spec)
+			}
+			ops = append(ops, v4aPatchOperation{kind: v4aOperationMove, path: strings.TrimSpace(parts[0]), newPath: strings.TrimSpace(parts[1])})
+		case strings.HasPrefix(line, "@@"):
+			if current == nil {
+				return nil, fmt.Errorf("hunk marker appears before a file operation")
+			}
+			flushHunk()
+			currentHunk = &v4aPatchHunk{contextHint: parseV4AContextHint(line)}
+		case current != nil:
+			if currentHunk == nil {
+				currentHunk = &v4aPatchHunk{}
+			}
+			if strings.HasPrefix(line, "\\") {
+				continue
+			}
+			if line == "" {
+				currentHunk.lines = append(currentHunk.lines, v4aPatchLine{prefix: ' ', text: ""})
+				continue
+			}
+			switch line[0] {
+			case '+', '-', ' ':
+				currentHunk.lines = append(currentHunk.lines, v4aPatchLine{prefix: line[0], text: line[1:]})
+			default:
+				currentHunk.lines = append(currentHunk.lines, v4aPatchLine{prefix: ' ', text: line})
+			}
+		case strings.TrimSpace(line) == "":
+			continue
+		default:
+			return nil, fmt.Errorf("unexpected patch line before file operation: %q", line)
+		}
+	}
+	flushOp()
+
+	for _, op := range ops {
+		if strings.TrimSpace(op.path) == "" {
+			return nil, fmt.Errorf("%s operation has empty file path", op.kind)
+		}
+		if op.kind == v4aOperationUpdate && len(op.hunks) == 0 {
+			return nil, fmt.Errorf("update %s: no hunks found", op.path)
+		}
+	}
+	return ops, nil
+}
+
+func parseV4AContextHint(line string) string {
+	hint := strings.TrimSpace(strings.TrimPrefix(line, "@@"))
+	hint = strings.TrimSpace(strings.TrimSuffix(hint, "@@"))
+	return hint
+}
+
+func v4aAddContent(op v4aPatchOperation) string {
+	var lines []string
+	for _, hunk := range op.hunks {
+		for _, line := range hunk.lines {
+			if line.prefix == '+' {
+				lines = append(lines, line.text)
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func applyV4AHunks(content string, hunks []v4aPatchHunk) (string, error) {
+	updated := content
+	for _, hunk := range hunks {
+		var searchLines, replaceLines []string
+		for _, line := range hunk.lines {
+			switch line.prefix {
+			case ' ':
+				searchLines = append(searchLines, line.text)
+				replaceLines = append(replaceLines, line.text)
+			case '-':
+				searchLines = append(searchLines, line.text)
+			case '+':
+				replaceLines = append(replaceLines, line.text)
+			}
+		}
+		if len(searchLines) == 0 {
+			var err error
+			updated, err = applyV4AAdditionOnlyHunk(updated, hunk.contextHint, strings.Join(replaceLines, "\n"))
+			if err != nil {
+				return "", err
+			}
+			continue
+		}
+		search := strings.Join(searchLines, "\n")
+		replacement := strings.Join(replaceLines, "\n")
+		count := strings.Count(updated, search)
+		if count == 0 {
+			return "", fmt.Errorf("could not apply hunk: context not found")
+		}
+		if count > 1 {
+			return "", fmt.Errorf("could not apply hunk: context matched %d times", count)
+		}
+		updated = strings.Replace(updated, search, replacement, 1)
+	}
+	return updated, nil
+}
+
+func applyV4AAdditionOnlyHunk(content, hint, insertText string) (string, error) {
+	if hint == "" {
+		return appendV4AText(content, insertText), nil
+	}
+	count := strings.Count(content, hint)
+	if count == 0 {
+		return appendV4AText(content, insertText), nil
+	}
+	if count > 1 {
+		return "", fmt.Errorf("addition-only hunk: context hint %q is ambiguous (%d occurrences)", hint, count)
+	}
+	pos := strings.Index(content, hint)
+	eol := strings.Index(content[pos:], "\n")
+	if eol == -1 {
+		if strings.HasSuffix(content, "\n") {
+			return content + insertText, nil
+		}
+		return content + "\n" + insertText, nil
+	}
+	insertAt := pos + eol + 1
+	return content[:insertAt] + insertText + "\n" + content[insertAt:], nil
+}
+
+func appendV4AText(content, insertText string) string {
+	if content == "" {
+		return insertText
+	}
+	return strings.TrimRight(content, "\n") + "\n" + insertText + "\n"
+}
+
+func supportsStructuredLint(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".json", ".yaml", ".yml", ".toml":
+		return true
+	default:
+		return false
+	}
+}
+
+func structuredLintDelta(path, postContent string, preContent *string) (structuredLintResult, bool) {
+	post, ok := runStructuredLint(path, postContent)
+	if !ok {
+		return structuredLintResult{}, false
+	}
+	if post.Success || preContent == nil {
+		return post, true
+	}
+	pre, ok := runStructuredLint(path, *preContent)
+	if !ok || pre.Success || strings.TrimSpace(pre.Output) == "" {
+		return post, true
+	}
+	preLines := lintOutputLineSet(pre.Output)
+	var newLines []string
+	for _, line := range strings.Split(post.Output, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if _, existed := preLines[trimmed]; !existed {
+			newLines = append(newLines, line)
+		}
+	}
+	if len(newLines) == 0 {
+		post.Message = "Pre-existing lint errors - this edit didn't introduce new ones but the file is still broken."
+		return post, true
+	}
+	post.Output = boundStructuredLintOutput("New lint errors introduced by this edit (pre-existing errors filtered out):\n" + strings.Join(newLines, "\n"))
+	return post, true
+}
+
+func runStructuredLint(path, content string) (structuredLintResult, bool) {
+	var err error
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".json":
+		var decoded any
+		err = json.Unmarshal([]byte(content), &decoded)
+	case ".yaml", ".yml":
+		var decoded any
+		err = yaml.Unmarshal([]byte(content), &decoded)
+	case ".toml":
+		var decoded map[string]any
+		err = toml.Unmarshal([]byte(content), &decoded)
+	default:
+		return structuredLintResult{}, false
+	}
+	if err != nil {
+		return structuredLintResult{Success: false, Output: boundStructuredLintOutput(err.Error())}, true
+	}
+	return structuredLintResult{Success: true}, true
+}
+
+func lintOutputLineSet(output string) map[string]struct{} {
+	lines := map[string]struct{}{}
+	for _, line := range strings.Split(output, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			lines[trimmed] = struct{}{}
+		}
+	}
+	return lines
+}
+
+func boundStructuredLintOutput(output string) string {
+	output = strings.TrimSpace(output)
+	if len(output) <= maxStructuredLintOutput {
+		return output
+	}
+	if maxStructuredLintOutput <= len("...") {
+		return output[:maxStructuredLintOutput]
+	}
+	return output[:maxStructuredLintOutput-len("...")] + "..."
 }
 
 func resolveWorkspaceFile(root, rawPath string) (string, string, error) {

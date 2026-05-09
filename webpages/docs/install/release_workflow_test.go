@@ -20,7 +20,8 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"- 'v*'",
 		"workflow_dispatch:",
 		"contents: write",
-		"go-version: '1.25'",
+		"actions/setup-go@v6",
+		"go-version-file: go.mod",
 		"linux",
 		"darwin",
 		"windows",
@@ -29,10 +30,11 @@ func TestReleaseWorkflowContract(t *testing.T) {
 		"arm64",
 		"CGO_ENABLED=0",
 		"go build -trimpath",
-		"-ldflags=\"-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY}\"",
+		"-ldflags=\"-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY} -X main.BuildDate=${BUILD_DATE}\"",
 		"GIT_COMMIT=\"$(git rev-parse --short HEAD 2>/dev/null || echo unknown)\"",
 		"GIT_DIRTY=false",
 		"GIT_DIRTY=true",
+		"BUILD_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
 		"gormes-${VERSION}-${GOOS}-${GOARCH}",
 		"archive=\"dist/${target}.tar.gz\"",
 		"tar -C dist -czf \"$archive\"",
@@ -78,6 +80,30 @@ func TestReleaseWorkflowContract(t *testing.T) {
 	}
 }
 
+func TestReleaseWorkflowInjectsBuildDateProvenance(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
+
+	wantAll := []string{
+		"BUILD_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+		"-X main.BuildDate=${BUILD_DATE}",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(buildStep, want) {
+			t.Errorf("Build static binary archive step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, buildStep,
+		"BUILD_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+		"go build -trimpath",
+	)
+	assertWorkflowOrder(t, buildStep,
+		"-X main.GitDirty=${GIT_DIRTY}",
+		"-X main.BuildDate=${BUILD_DATE}",
+	)
+}
+
 func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
 	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")
@@ -94,6 +120,48 @@ func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) 
 			t.Errorf("Generate SBOM step missing %q", want)
 		}
 	}
+}
+
+func TestReleaseWorkflowAttestsSBOMsForArchives(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")
+	attestStep := workflowStepBlock(t, workflow, "- name: Attest SBOM")
+
+	wantAll := []string{
+		"uses: actions/attest@v4",
+		"subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz",
+		"sbom-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.sbom.json",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(attestStep, want) {
+			t.Errorf("Attest SBOM step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, workflow, "- name: Generate SBOM", "- name: Attest SBOM")
+	assertWorkflowOrder(t, workflow, "- name: Attest SBOM", "actions/upload-artifact@v4")
+	assertWorkflowOrder(t, workflow, sbomStep, attestStep)
+}
+
+func TestReleaseWorkflowAttestsBuildProvenanceForArchives(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	provenanceStep := workflowStepBlock(t, workflow, "- name: Attest build provenance")
+
+	wantAll := []string{
+		"uses: actions/attest@v4",
+		"subject-path: dist/gormes-${{ steps.version.outputs.version }}-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(provenanceStep, want) {
+			t.Errorf("Attest build provenance step missing %q\nstep body:\n%s", want, provenanceStep)
+		}
+	}
+	if strings.Contains(provenanceStep, "sbom-path:") {
+		t.Errorf("build provenance attestation must not use sbom-path; current step:\n%s", provenanceStep)
+	}
+
+	assertWorkflowOrder(t, workflow, "- name: Attest SBOM", "- name: Attest build provenance")
+	assertWorkflowOrder(t, workflow, "- name: Attest build provenance", "actions/upload-artifact@v4")
 }
 
 func TestReleaseWorkflowEnforcesMaxArchiveSize(t *testing.T) {
@@ -154,6 +222,101 @@ func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
 		"echo \"| Platform | Archive | Size | SHA-256 |\"",
 		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
 	)
+}
+
+// TestReleaseWorkflowPublishesInstallScripts pins the regression
+// observed during the v0.2.0 fresh-install probe: a curl following
+// the natural URL pattern
+//
+//	https://github.com/.../releases/download/v0.2.0/install.sh
+//
+// hit 404. install.sh and install.ps1 were not GitHub release assets;
+// users had to know the canonical landing-served path
+// (https://gormes.ai/install.sh) to bootstrap from a tagged release.
+//
+// Contract: every tagged release MUST carry install.sh and
+// install.ps1 alongside the platform tarballs. The publish step
+// copies them out of the source checkout into dist/ before the
+// softprops upload, and surfaces them in the release notes "Install"
+// block so the URL pattern is discoverable without reading the
+// landing site.
+func TestReleaseWorkflowPublishesInstallScripts(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v2")
+
+	wantInUploadGlob := []string{
+		"install.sh",
+		"install.ps1",
+	}
+	for _, want := range wantInUploadGlob {
+		if !strings.Contains(publishStep, want) {
+			t.Errorf("softprops publish step must upload %q as a release asset; current step:\n%s", want, publishStep)
+		}
+	}
+
+	// Surface in release notes so the GitHub release page itself
+	// documents the canonical curl URL — operators don't need to
+	// already know about gormes.ai/install.sh to bootstrap.
+	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
+	wantInNotes := []string{
+		"install.sh",
+		"install.ps1",
+	}
+	for _, want := range wantInNotes {
+		if !strings.Contains(notesStep, want) {
+			t.Errorf("release notes step must reference %q so the GitHub release page documents the install URL; current step:\n%s", want, notesStep)
+		}
+	}
+}
+
+func TestReleasePrepGuideTargetMatrixMatchesWorkflow(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	raw, err := os.ReadFile("v0.1.0-release-prep.md")
+	if err != nil {
+		t.Fatalf("read release prep guide: %v", err)
+	}
+	guide := string(raw)
+
+	targets := []struct {
+		slug   string
+		goos   string
+		goarch string
+	}{
+		{slug: "linux-amd64", goos: "linux", goarch: "amd64"},
+		{slug: "linux-arm64", goos: "linux", goarch: "arm64"},
+		{slug: "darwin-amd64", goos: "darwin", goarch: "amd64"},
+		{slug: "darwin-arm64", goos: "darwin", goarch: "arm64"},
+		{slug: "windows-amd64", goos: "windows", goarch: "amd64"},
+		{slug: "windows-arm64", goos: "windows", goarch: "arm64"},
+		{slug: "android-arm64", goos: "android", goarch: "arm64"},
+	}
+	for _, target := range targets {
+		if !strings.Contains(workflow, "goos: "+target.goos) ||
+			!strings.Contains(workflow, "goarch: "+target.goarch) {
+			t.Fatalf("release workflow missing target %s", target.slug)
+		}
+		if !strings.Contains(guide, target.slug) {
+			t.Errorf("release prep guide missing target slug %s", target.slug)
+		}
+	}
+
+	wantGuide := []string{
+		"Release workflow still only publishes GitHub Releases from `v*` tags.",
+		"Do not create or push `v0.1.0` unless",
+		"SHA-256 sidecars",
+		"SPDX SBOMs",
+		"GitHub SBOM and build-provenance attestations",
+		"android-arm64 (Termux)",
+	}
+	for _, want := range wantGuide {
+		if !strings.Contains(guide, want) {
+			t.Errorf("release prep guide missing %q", want)
+		}
+	}
+
+	if strings.Contains(guide, "will build Linux, macOS, and Windows static archives") {
+		t.Errorf("release prep guide still contains stale Linux/macOS/Windows summary")
+	}
 }
 
 func readRepoFileRelease(t *testing.T, rel string) string {

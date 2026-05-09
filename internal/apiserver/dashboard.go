@@ -575,6 +575,12 @@ type dashboardKanbanTaskResponse struct {
 	kanban.Task
 }
 
+type dashboardKanbanTaskRunsResponse struct {
+	Build  BuildInfo        `json:"build"`
+	TaskID string           `json:"task_id"`
+	Runs   []kanban.TaskRun `json:"runs"`
+}
+
 type DashboardKanbanLane struct {
 	Status string `json:"status"`
 	Count  int    `json:"count"`
@@ -689,12 +695,13 @@ func (s *Server) handleDashboardKanbanTaskByID(w http.ResponseWriter, r *http.Re
 		writeOpenAIError(w, http.StatusServiceUnavailable, "Kanban store is not configured", "server_error", "", "kanban_store_unavailable")
 		return
 	}
-	taskID := strings.TrimPrefix(r.URL.Path, "/api/kanban/tasks/")
-	if decoded, err := url.PathUnescape(taskID); err == nil {
-		taskID = decoded
+	rawTaskID := strings.TrimPrefix(r.URL.Path, "/api/kanban/tasks/")
+	if strings.HasSuffix(rawTaskID, "/runs") {
+		s.handleDashboardKanbanTaskRuns(w, r, strings.TrimSuffix(rawTaskID, "/runs"))
+		return
 	}
-	taskID = strings.TrimSpace(taskID)
-	if taskID == "" || strings.Contains(taskID, "/") {
+	taskID, ok := parseDashboardKanbanTaskID(rawTaskID)
+	if !ok {
 		writeOpenAIError(w, http.StatusNotFound, "Task not found", "invalid_request_error", "", "kanban_task_not_found")
 		return
 	}
@@ -712,6 +719,47 @@ func (s *Server) handleDashboardKanbanTaskByID(w http.ResponseWriter, r *http.Re
 	default:
 		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
 	}
+}
+
+func (s *Server) handleDashboardKanbanTaskRuns(w http.ResponseWriter, r *http.Request, rawTaskID string) {
+	if r.Method != http.MethodGet {
+		writeOpenAIError(w, http.StatusMethodNotAllowed, "Method not allowed", "invalid_request_error", "", "method_not_allowed")
+		return
+	}
+	taskID, ok := parseDashboardKanbanTaskID(rawTaskID)
+	if !ok {
+		writeOpenAIError(w, http.StatusNotFound, "Task not found", "invalid_request_error", "", "kanban_task_not_found")
+		return
+	}
+	if _, err := s.kanbanStore.GetTask(r.Context(), taskID); err != nil {
+		writeOpenAIError(w, http.StatusNotFound, "Task not found: "+taskID, "invalid_request_error", "", "kanban_task_not_found")
+		return
+	}
+	runs, err := s.kanbanStore.ListRuns(r.Context(), taskID)
+	if err != nil {
+		writeOpenAIError(w, http.StatusInternalServerError, "Kanban run history error: "+err.Error(), "server_error", "", "kanban_runs_error")
+		return
+	}
+	if runs == nil {
+		runs = []kanban.TaskRun{}
+	}
+	writeJSON(w, http.StatusOK, dashboardKanbanTaskRunsResponse{
+		Build:  s.buildInfo,
+		TaskID: taskID,
+		Runs:   runs,
+	})
+}
+
+func parseDashboardKanbanTaskID(raw string) (string, bool) {
+	taskID := raw
+	if decoded, err := url.PathUnescape(taskID); err == nil {
+		taskID = decoded
+	}
+	taskID = strings.TrimSpace(taskID)
+	if taskID == "" || strings.Contains(taskID, "/") {
+		return "", false
+	}
+	return taskID, true
 }
 
 func kanbanLaneOrder() []kanban.Status {

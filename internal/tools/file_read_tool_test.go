@@ -186,6 +186,305 @@ func TestWriteFileAndPatchTools_EditInsideRoot(t *testing.T) {
 	}
 }
 
+func TestPatchToolV4AAppliesAddUpdateDelete(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "src"), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "src", "app.txt"), []byte("alpha\nbeta\nomega\n"), 0o644); err != nil {
+		t.Fatalf("write app fixture: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "src", "delete.txt"), []byte("remove me\n"), 0o644); err != nil {
+		t.Fatalf("write delete fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/app.txt"}`)
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/delete.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/app.txt",
+		"@@",
+		" alpha",
+		"-beta",
+		"+gamma",
+		" omega",
+		"*** Add File: src/new.txt",
+		"+created",
+		"+file",
+		"*** Delete File: src/delete.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "ok" || out["operations"] != float64(3) {
+		t.Fatalf("patch result = %#v, want ok with 3 operations", out)
+	}
+	assertStringListContains(t, out["files_modified"], "src/app.txt")
+	assertStringListContains(t, out["files_created"], "src/new.txt")
+	assertStringListContains(t, out["files_deleted"], "src/delete.txt")
+	assertFileContent(t, filepath.Join(root, "src", "app.txt"), "alpha\ngamma\nomega\n")
+	assertFileContent(t, filepath.Join(root, "src", "new.txt"), "created\nfile")
+	if _, err := os.Stat(filepath.Join(root, "src", "delete.txt")); !os.IsNotExist(err) {
+		t.Fatalf("delete.txt stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4AMoveRenamesReadFile(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("move me\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "ok" || out["operations"] != float64(1) {
+		t.Fatalf("patch result = %#v, want ok with 1 operation", out)
+	}
+	assertStringListContains(t, out["files_modified"], "src/old.txt -> dst/new.txt")
+	assertFileContent(t, filepath.Join(root, "dst", "new.txt"), "move me\n")
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Fatalf("source stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4AMoveRejectsExistingDestination(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	dst := filepath.Join(root, "dst", "new.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir source fixture: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatalf("mkdir destination fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	if err := os.WriteFile(dst, []byte("destination\n"), 0o644); err != nil {
+		t.Fatalf("write destination fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "destination already exists") {
+		t.Fatalf("error = %v, want destination exists message", out["error"])
+	}
+	assertFileContent(t, src, "source\n")
+	assertFileContent(t, dst, "destination\n")
+}
+
+func TestPatchToolV4AMoveBlocksOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	outside := filepath.Join(filepath.Dir(root), "escape.txt")
+	_ = os.Remove(outside)
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> ../escape.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "outside workspace root") {
+		t.Fatalf("error = %v, want outside-root denial", out["error"])
+	}
+	assertFileContent(t, src, "source\n")
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		t.Fatalf("outside file stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4AMoveRejectsStaleSource(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+	if err := os.WriteFile(src, []byte("external change\n"), 0o644); err != nil {
+		t.Fatalf("external write: %v", err)
+	}
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != fileStateStatusStale {
+		t.Fatalf("status = %v, want %q: %#v", out["status"], fileStateStatusStale, out)
+	}
+	assertFileContent(t, src, "external change\n")
+	if _, err := os.Stat(filepath.Join(root, "dst", "new.txt")); !os.IsNotExist(err) {
+		t.Fatalf("destination stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4AMoveValidatesBeforeAnyMutation(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	dst := filepath.Join(root, "dst", "new.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir source fixture: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatalf("mkdir destination fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	if err := os.WriteFile(dst, []byte("destination\n"), 0o644); err != nil {
+		t.Fatalf("write destination fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Add File: src/created.txt",
+		"+should not exist",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	assertFileContent(t, src, "source\n")
+	assertFileContent(t, dst, "destination\n")
+	if _, err := os.Stat(filepath.Join(root, "src", "created.txt")); !os.IsNotExist(err) {
+		t.Fatalf("created.txt stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4ABlocksOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(filepath.Dir(root), "escape.txt")
+	_ = os.Remove(outside)
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Add File: ../escape.txt",
+		"+do not write",
+		"*** End Patch",
+	}, "\n")
+
+	out := executePatchTool(t, NewPatchTool(FileTaskToolConfig{Root: root}), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "outside workspace root") {
+		t.Fatalf("error = %v, want outside-root denial", out["error"])
+	}
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		t.Fatalf("outside file stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4ARejectsStaleExistingFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "app.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/app.txt"}`)
+	if err := os.WriteFile(path, []byte("external\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("external write: %v", err)
+	}
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/app.txt",
+		"@@",
+		" alpha",
+		"-beta",
+		"+gamma",
+		"*** End Patch",
+	}, "\n")
+
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != fileStateStatusStale {
+		t.Fatalf("status = %v, want %q: %#v", out["status"], fileStateStatusStale, out)
+	}
+	assertFileContent(t, path, "external\nbeta\n")
+}
+
+func TestPatchToolV4ARejectsMissingUpdateHunk(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "app.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/app.txt"}`)
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/app.txt",
+		"@@",
+		" missing",
+		"-context",
+		"+replacement",
+		"*** End Patch",
+	}, "\n")
+
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "could not apply hunk") {
+		t.Fatalf("error = %v, want hunk validation message", out["error"])
+	}
+	assertFileContent(t, path, "alpha\nbeta\n")
+}
+
 func executeReadFileTool(t *testing.T, tool *ReadFileTool, args string) map[string]any {
 	t.Helper()
 	raw, err := tool.Execute(context.Background(), json.RawMessage(args))
@@ -250,4 +549,26 @@ func quoteJSON(t *testing.T, s string) string {
 func asString(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+func assertStringListContains(t *testing.T, raw any, want string) {
+	t.Helper()
+	items, _ := raw.([]any)
+	for _, item := range items {
+		if item == want {
+			return
+		}
+	}
+	t.Fatalf("list %#v missing %q", raw, want)
+}
+
+func assertFileContent(t *testing.T, path, want string) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if got := string(raw); got != want {
+		t.Fatalf("%s content = %q, want %q", path, got, want)
+	}
 }

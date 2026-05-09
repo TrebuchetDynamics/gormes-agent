@@ -170,6 +170,31 @@ func TestVersionCommand_JSONIncludesGitDirtyField(t *testing.T) {
 	}
 }
 
+// TestVersionCommand_JSONIncludesBuildDateField proves --json carries
+// binary build-date provenance. Release CI injects this via ldflags, while
+// source builds fall back to Go VCS build-info time or "unknown".
+func TestVersionCommand_JSONIncludesBuildDateField(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	prev := BuildDate
+	BuildDate = "2026-05-09T12:34:56Z"
+	t.Cleanup(func() { BuildDate = prev })
+
+	root := newRootCommandWithRuntime(rootRuntime{})
+	stdout, _, err := executeRootCommandForTest(root, "version", "--json")
+	if err != nil {
+		t.Fatalf("version --json: %v", err)
+	}
+	var got struct {
+		BuildDate string `json:"build_date"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)
+	}
+	if got.BuildDate != BuildDate {
+		t.Fatalf("build_date = %q, want %q", got.BuildDate, BuildDate)
+	}
+}
+
 func versionMapKeys(m map[string]any) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -214,8 +239,8 @@ func TestVersionCommand_JSONIncludesSemverAndDateAlias(t *testing.T) {
 		t.Fatalf("version --json: %v", err)
 	}
 	var got struct {
-		Version    string `json:"version"`
-		DateAlias  string `json:"date_alias"`
+		Version   string `json:"version"`
+		DateAlias string `json:"date_alias"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
 		t.Fatalf("stdout must be valid JSON; got %q\nerr=%v", stdout, jsonErr)

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Gormes OCI entrypoint: bootstrap config volume and forward to the binary.
-# Pure POSIX sh so it runs on distroless static images without bash.
+# Pure POSIX sh so it runs on the minimal BusyBox runtime without bash.
 
 set -eu
 

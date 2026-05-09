@@ -60,7 +60,7 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	var asJSON bool
 
 	if seams.CheckoutDir == nil {
-		seams.CheckoutDir = os.Getwd
+		seams.CheckoutDir = resolveManagedCheckoutDir
 	}
 	if seams.RunLifecycle == nil {
 		seams.RunLifecycle = cli.RunUpdateLifecycle
@@ -82,9 +82,9 @@ func newUpdateCommandWithSeams(seams updateCommandSeams) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:           "update",
-		Short:         "Update a managed Gormes source checkout",
-		SilenceUsage:  true,
+		Use:          "update",
+		Short:        "Update a managed Gormes source checkout",
+		SilenceUsage: true,
 		Long: `Update a managed Gormes source checkout: fetch + fast-forward, sync
 bundled skills, rebuild the web UI, run a config schema migration check,
 and restart the gateway.
@@ -260,6 +260,37 @@ func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport, checkOnly bo
 	if report.OperatorRecovery != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), report.OperatorRecovery)
 	}
+}
+
+// resolveManagedCheckoutDir is the production CheckoutDir resolver for
+// `gormes update`. It mirrors install.sh's managed_checkout_dir():
+//
+//   - GORMES_INSTALL_DIR override wins outright;
+//   - otherwise the install's managed clone lives at
+//     `$GORMES_INSTALL_HOME/gormes-agent` (defaulting GORMES_INSTALL_HOME
+//     to `$HOME/.gormes`).
+//
+// Critical safety property: this function NEVER falls back to
+// `os.Getwd()`. A regression observed during a v0.2.0 fresh-install
+// probe — `gormes update` walked up from the cwd to find the
+// gormes-agent dev tree, switched its branch from `development` to
+// `main`, and ran a web build there — directly traces to the previous
+// `os.Getwd` default. The lifecycle's `update_not_managed_checkout`
+// guard correctly fails the run when the resolved path is not a git
+// worktree; honoring cwd would silently mutate the wrong tree.
+func resolveManagedCheckoutDir() (string, error) {
+	if dir := strings.TrimSpace(os.Getenv("GORMES_INSTALL_DIR")); dir != "" {
+		return dir, nil
+	}
+	home := strings.TrimSpace(os.Getenv("GORMES_INSTALL_HOME"))
+	if home == "" {
+		userHome, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve managed checkout: %w", err)
+		}
+		home = filepath.Join(userHome, ".gormes")
+	}
+	return filepath.Join(home, "gormes-agent"), nil
 }
 
 // defaultSkillSyncFor builds the production SkillSyncRunner: scan

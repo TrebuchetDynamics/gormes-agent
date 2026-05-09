@@ -17,9 +17,9 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/store"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/telemetry"
-	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
@@ -300,7 +300,11 @@ func (k *Kernel) Run(ctx context.Context) error {
 						k.cfg.ToolSafety = ComposeToolSafetyPolicies(e.ToolSafety, prevToolSafety)
 						defer func() { k.cfg.ToolSafety = prevToolSafety }()
 					}
-					k.runTurn(ctx, e.Text, e.ContentParts, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
+					turnCtx := ctx
+					if strings.TrimSpace(e.CronApprovalMode) != "" {
+						turnCtx = tools.WithCronApprovalMode(turnCtx, e.CronApprovalMode)
+					}
+					k.runTurn(turnCtx, e.Text, e.ContentParts, e.SessionContext, e.CronJobID, selectTurnModel(k.cfg.Model, e.Model), e.ReasoningEffort)
 				}()
 			case PlatformEventCancel:
 				// No active turn; ignore (cancel during a turn is handled

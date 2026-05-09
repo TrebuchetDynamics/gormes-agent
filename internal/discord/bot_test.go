@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -73,6 +74,66 @@ func TestBot_SubmitsMentionedGuildMessage(t *testing.T) {
 		time.Sleep(25 * time.Millisecond)
 	}
 	t.Fatalf("last sent text = %q, want streamed reply containing roger", mc.lastSentText())
+}
+
+func TestBot_DeliversFinalIdleWhenStreamFramesWereDropped(t *testing.T) {
+	mc := newMockClient("bot-1")
+	hc := hermes.NewMockClient()
+	hc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "fast", TokensOut: 1},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 1, TokensOut: 1},
+	}, "sess-fast-discord")
+
+	turnDone := make(chan struct{})
+	var closeOnce sync.Once
+	k := kernel.New(kernel.Config{
+		Model:             "hermes-agent",
+		Endpoint:          "http://mock",
+		Admission:         kernel.Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		MaxToolIterations: 10,
+		MaxToolDuration:   5 * time.Second,
+		AgentLifecycleHook: func(_ context.Context, ev kernel.AgentLifecycleEvent) {
+			if ev.Point == kernel.AgentLifecycleEnd {
+				closeOnce.Do(func() { close(turnDone) })
+			}
+		},
+	}, hc, store.NewNoop(), telemetry.New(), nil)
+
+	b := New(Config{CoalesceMs: 50}, mc, k, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+
+	if ticket := b.reserveTurn("chan-fast"); ticket == 0 {
+		t.Fatal("reserveTurn returned 0, want non-zero ticket")
+	}
+	if err := k.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "hi"}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	select {
+	case <-turnDone:
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for kernel turn completion")
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go b.runOutbound(ctx, &wg)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(mc.lastSentText(), "fast") {
+			cancel()
+			wg.Wait()
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	cancel()
+	wg.Wait()
+	t.Fatalf("last sent text = %q, want final idle reply containing fast", mc.lastSentText())
 }
 
 func TestBot_RejectsGuildMessageWithoutMention(t *testing.T) {

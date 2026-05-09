@@ -251,17 +251,11 @@ func (t *kanbanTool) comment(ctx context.Context, in map[string]any) json.RawMes
 	if taskID == "" {
 		return kanbanError(EvidenceInvalidArgs, "task_id is required")
 	}
-	if err := t.enforceWorkerTaskOwnership(taskID); err != nil {
-		return kanbanError(EvidenceOwnershipDenied, err.Error())
-	}
 	body := strings.TrimSpace(stringValue(in["body"]))
 	if body == "" {
 		return kanbanError(EvidenceInvalidArgs, "body is required")
 	}
-	author := strings.TrimSpace(stringValue(in["author"]))
-	if author == "" {
-		author = t.cfg.Profile
-	}
+	author := t.cfg.Profile
 	if author == "" {
 		author = "worker"
 	}
@@ -546,7 +540,7 @@ func kanbanDescription(name string) string {
 	case "kanban_heartbeat":
 		return "Record that the scoped Kanban worker is still alive during a long operation."
 	case "kanban_comment":
-		return "Append a durable comment to the scoped Kanban task thread."
+		return "Append a durable comment to a Kanban task thread for handoff."
 	case "kanban_create":
 		return "Create a new Kanban task, optionally linked to parent tasks for dependency-gated promotion."
 	case "kanban_link":
@@ -567,7 +561,7 @@ func kanbanSchema(name string) json.RawMessage {
 	case "kanban_heartbeat":
 		return json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string","description":"Task id. Defaults to the worker task from the environment."},"note":{"type":"string","description":"Optional short progress note."}},"required":[]}`)
 	case "kanban_comment":
-		return json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string","description":"Task id. Defaults to the worker task from the environment."},"body":{"type":"string","description":"Comment body."},"author":{"type":"string","description":"Optional author override."}},"required":["body"]}`)
+		return json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string","description":"Task id. Defaults to the worker task from the environment; may also name another task for handoff."},"body":{"type":"string","description":"Comment body."}},"required":["body"]}`)
 	case "kanban_create":
 		return json.RawMessage(`{"type":"object","properties":{"title":{"type":"string"},"assignee":{"type":"string"},"body":{"type":"string"},"parents":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}]},"parent_ids":{"type":"array","items":{"type":"string"}},"priority":{"type":"integer"},"workspace_kind":{"type":"string","enum":["scratch","dir","worktree"]},"workspace_path":{"type":"string"}},"required":["title","assignee"]}`)
 	case "kanban_link":

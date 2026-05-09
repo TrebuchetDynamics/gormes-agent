@@ -46,7 +46,7 @@ func newClawCommand() *cobra.Command {
 		SilenceUsage: true,
 		Args:         cobra.NoArgs,
 	}
-	cmd.AddCommand(newClawMigrateCommand())
+	cmd.AddCommand(newClawMigrateCommand(), newClawCleanupCommand())
 	return cmd
 }
 
@@ -81,6 +81,10 @@ func newClawMigrateCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&overwrite, "overwrite", false, "overwrite existing destination keys flagged as conflict in the manifest")
 	cmd.Flags().BoolVar(&migrateSecrets, "migrate-secrets", false, "import secret env values; without this flag, secret rows are reported as secret_skipped")
 	return cmd
+}
+
+func newClawCleanupCommand() *cobra.Command {
+	return newOpenClawCleanupCommand("gormes claw cleanup", []string{"clean"})
 }
 
 func newMigrateHermesCommand() *cobra.Command {
@@ -352,20 +356,25 @@ type migrateOpenClawCleanupReportJSON struct {
 }
 
 func newMigrateOpenClawCleanupCommand() *cobra.Command {
+	return newOpenClawCleanupCommand("gormes migrate openclaw cleanup", nil)
+}
+
+func newOpenClawCleanupCommand(commandLabel string, aliases []string) *cobra.Command {
 	var (
 		dryRun bool
 		yes    bool
 	)
 	cmd := &cobra.Command{
 		Use:          "cleanup",
+		Aliases:      aliases,
 		Short:        "Archive leftover OpenClaw directories under HOME by renaming them to .pre-migration variants",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if dryRun && yes {
-				return newExitCodeError(2, errors.New("gormes migrate openclaw cleanup: --dry-run and --yes are mutually exclusive"))
+				return newExitCodeError(2, fmt.Errorf("%s: --dry-run and --yes are mutually exclusive", commandLabel))
 			}
 			if !dryRun && !yes {
-				return newExitCodeError(2, errors.New("gormes migrate openclaw cleanup: use --yes to apply or --dry-run to inspect"))
+				return newExitCodeError(2, fmt.Errorf("%s: use --yes to apply or --dry-run to inspect", commandLabel))
 			}
 			home, _ := os.UserHomeDir()
 			out, err := openclawmigrate.PerformCleanup(openclawmigrate.CleanupRequest{
@@ -373,7 +382,7 @@ func newMigrateOpenClawCleanupCommand() *cobra.Command {
 				DryRun:  dryRun,
 			})
 			if err != nil {
-				return newExitCodeError(2, fmt.Errorf("gormes migrate openclaw cleanup: %w", err))
+				return newExitCodeError(2, fmt.Errorf("%s: %w", commandLabel, err))
 			}
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
@@ -381,7 +390,7 @@ func newMigrateOpenClawCleanupCommand() *cobra.Command {
 				Build:          newBuildProvenance(),
 				CleanupOutcome: out,
 			}); err != nil {
-				return fmt.Errorf("gormes migrate openclaw cleanup: encode outcome: %w", err)
+				return fmt.Errorf("%s: encode outcome: %w", commandLabel, err)
 			}
 			return nil
 		},

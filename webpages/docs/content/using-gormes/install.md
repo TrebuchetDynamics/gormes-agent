@@ -24,7 +24,7 @@ tree, build the command locally, put the fresh build first on `PATH`, then
 verify the offline runtime and Goncho memory diagnostics before adding provider
 credentials.
 
-Requires Go 1.25+.
+Requires Go 1.26+.
 
 ## Method 2: install.sh
 

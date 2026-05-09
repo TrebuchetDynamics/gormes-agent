@@ -175,11 +175,94 @@ func collectArtifacts(home string) []artifactGroup {
 			filepath.Join(home, "gateway-locks"), filepath.Join(home, "gateway.pid"),
 			filepath.Join(home, "channel_directory_sources.json"))},
 		{Name: "memory", Paths: sortedExisting(config.MemoryDBPath(), filepath.Join(home, "memory"))},
-		{Name: "logs", Paths: sortedExisting(config.LogPath(), config.CrashLogDir())},
+		// "logs" enumerates explicit log files only. The home-dir
+		// wildcard (which used to ride here because
+		// config.CrashLogDir() returns GormesHome()) now lives in
+		// the dedicated `gormes-home` group below — surfacing the
+		// scope honestly to operators reading the preview.
+		{Name: "logs", Paths: sortedExisting(config.LogPath())},
 		{Name: "cron", Paths: sortedExisting(filepath.Join(home, "CRON.md"))},
 		{Name: "mcp-oauth", Paths: sortedExisting(filepath.Join(home, "mcp_oauth.json"))},
 		{Name: "legacy-xdg", Paths: sortedExisting(legacyXDGGormesDir())},
+		{Name: "published-binary", Paths: collectPublishedBinaryPaths(home)},
+		// `gormes-home` removes the entire managed home directory
+		// tree — the catch-all for everything not named above
+		// (skills/, subagents/, kanban.db, install.log.jsonl, the
+		// managed binary at bin/gormes, crash-*.log files, etc.).
+		// Listed last so the explicit per-feature groups appear
+		// first in the preview; operators see the wildcard with a
+		// truthful name and immediately understand the blast radius.
+		{Name: "gormes-home", Paths: sortedExisting(home)},
 	}
+}
+
+// collectPublishedBinaryPaths enumerates the install.sh-published PATH
+// symlinks at `<bin_dir>/gormes` that point back into the gormes home.
+// Without this, `gormes uninstall` removed the managed binary under
+// `<home>/bin/gormes` but left the symlink at e.g. `~/.local/bin/gormes`
+// dangling — the operator was greeted by a broken `gormes` command on
+// the next login, and reinstalls had to step around the stale link.
+//
+// Discovery mirrors install.sh's pick_bin_dir() candidates:
+//
+//   - $GORMES_BIN_DIR (operator override; install.sh exports this)
+//   - $GORMES_PREFIX/bin (compatibility prefix)
+//   - $HOME/.local/bin (non-root default)
+//   - /usr/local/bin (root linux default)
+//
+// Safety: only entries that are SYMLINKS whose target resolves into the
+// gormes home are returned. A real binary at the same path (built from
+// source, package-managed, manually placed) is never touched.
+func collectPublishedBinaryPaths(home string) []string {
+	if home == "" {
+		return nil
+	}
+	candidates := publishedBinaryCandidates()
+	homeAbs, _ := filepath.Abs(home)
+	out := make([]string, 0, len(candidates))
+	seen := make(map[string]bool)
+	for _, path := range candidates {
+		if path == "" || seen[path] {
+			continue
+		}
+		seen[path] = true
+		info, err := os.Lstat(path)
+		if err != nil || info.Mode()&os.ModeSymlink == 0 {
+			continue
+		}
+		target, err := os.Readlink(path)
+		if err != nil {
+			continue
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+		targetAbs, err := filepath.Abs(target)
+		if err != nil {
+			continue
+		}
+		if homeAbs != "" && (targetAbs == homeAbs || strings.HasPrefix(targetAbs, homeAbs+string(os.PathSeparator))) {
+			out = append(out, path)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func publishedBinaryCandidates() []string {
+	const exe = "gormes"
+	candidates := make([]string, 0, 4)
+	if dir := strings.TrimSpace(os.Getenv("GORMES_BIN_DIR")); dir != "" {
+		candidates = append(candidates, filepath.Join(dir, exe))
+	}
+	if prefix := strings.TrimSpace(os.Getenv("GORMES_PREFIX")); prefix != "" {
+		candidates = append(candidates, filepath.Join(prefix, "bin", exe))
+	}
+	if userHome, err := os.UserHomeDir(); err == nil && userHome != "" {
+		candidates = append(candidates, filepath.Join(userHome, ".local", "bin", exe))
+	}
+	candidates = append(candidates, filepath.Join("/usr", "local", "bin", exe))
+	return candidates
 }
 
 // legacyXDGGormesDir returns the pre-Apr-29 runtime-state directory

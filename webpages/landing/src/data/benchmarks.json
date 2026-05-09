@@ -1,23 +1,30 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "a7116c11e",
-    "go_version": "1.25+",
-    "last_measured": "2026-05-07",
+    "commit": "c4555423c",
+    "go_version": "1.26+",
+    "last_measured": "2026-05-09",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 41056660,
-    "size_mb": "39.2",
+    "size_bytes": 29311138,
+    "size_mb": "28.0",
     "stripped": true
   },
   "code": {
-    "dependencies": 139,
-    "go_files": 748,
-    "go_lines": 185311,
-    "test_count": 4603
+    "dependencies": 145,
+    "go_files": 797,
+    "go_lines": 206443,
+    "test_count": 5402
   },
   "history": [
+    {
+      "commit": "2e54a1a60",
+      "date": "2026-05-09",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 29311138,
+      "size_mb": 28
+    },
     {
       "commit": "a7116c11e",
       "date": "2026-05-07",
@@ -106,7 +113,10 @@
       "linux/amd64",
       "linux/arm64",
       "darwin/amd64",
-      "darwin/arm64"
+      "darwin/arm64",
+      "windows/amd64",
+      "windows/arm64",
+      "android/arm64"
     ]
   }
 }
