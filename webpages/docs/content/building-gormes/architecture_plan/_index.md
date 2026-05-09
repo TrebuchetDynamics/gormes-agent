@@ -750,7 +750,7 @@ classification and row-backed implementation queue.
 - [x] Voice record-key config binding for native TUI
 - [x] Telegram voice STT HTTP-provider fallback
 - [ ] Pure-Go STT exploration
-- [ ] wazero WASI smoke harness
+- [x] wazero WASI smoke harness
 - [ ] whisper.cpp WASI module discovery
 - [ ] Pure-Go Whisper transcribe one WAV
 - [ ] Wire Pure-Go Whisper into Telegram resolver

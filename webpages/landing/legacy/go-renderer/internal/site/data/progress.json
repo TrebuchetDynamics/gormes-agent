@@ -25117,13 +25117,13 @@
             {
               "name": "wazero WASI smoke harness",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Spawned 2026-05-09 from Pure-Go STT exploration row's path #3 (WASI productionization) decision. No Hermes parity equivalent."
               },
               "contract": "Establish a hermetic Go test harness that loads a trivial WASI hello-world module via wazero and reads its stdout. Pins a specific wazero release in go.mod, proves the runtime instantiates inside Gormes' CGO_ENABLED=0 build, and creates the internal/wasi package as the home for all subsequent WASI work (Whisper, future audio modules).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -25134,14 +25134,15 @@
               "fixture": "internal/wasi/smoke_test.go and internal/wasi/testdata/hello.wasm",
               "source_refs": [
                 "https://github.com/tetratelabs/wazero (zero-dependency Go WASM runtime)",
-                "https://github.com/tetratelabs/wazero/releases (pin a specific minor in go.mod)",
+                "github.com/tetratelabs/wazero v1.11.0 (selected 2026-05-09 via `go list -m -versions github.com/tetratelabs/wazero`; pin this exact tag in go.mod)",
+                "Context7 /tetratelabs/wazero docs: wazero.NewRuntime, wasi_snapshot_preview1.MustInstantiate, InstantiateWithConfig, and ModuleConfig.WithStdout",
                 "Makefile (CGO_ENABLED=0 single-static-binary stance)",
                 "internal/repoctl/bench.go (benchmarks build flags reference)",
                 "docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10] decision)"
               ],
               "ready_when": [
                 "Stakeholder decision recorded on the Pure-Go STT exploration row (done 2026-05-09).",
-                "wazero release picked and pinned in go.mod (builder picks based on most recent stable; record release tag in source_refs)."
+                "wazero release selected as v1.11.0 for this slice; builder pins that exact minor in go.mod and keeps the tag recorded in source_refs."
               ],
               "not_ready_when": [
                 "The slice imports wazero without pinning a specific minor version in go.mod.",
@@ -25173,7 +25174,7 @@
               "done_signal": [
                 "Hello-world WASM module round-trips through wazero in a hermetic Go test, with CGO_ENABLED=0 enforced; internal/wasi/ exists as the home for whisper.wasm work."
               ],
-              "note": "First wazero import. Builder must pick the wazero release at the time of the slice (latest stable minor) and record the exact tag in source_refs. The hello.wasm fixture should be tiny (<5KB) — write a one-line C/Rust/Zig program or use an existing wazero example fixture and commit it under testdata/."
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes fef1a4124 and Honcho e659b6b. Current planned item count was 22, below the 90-row cap; no new row was needed. Recent CLI/auth/gateway/Goncho/browser/install/release deltas were complete or row-backed, while this existing P1 provider row was the top unblocked builder-ready slice because it closes the first pure-Go WASI prerequisite spawned from the selected STT path. Planner sharpened the row by selecting github.com/tetratelabs/wazero v1.11.0 via `go list -m -versions github.com/tetratelabs/wazero`; Context7 /tetratelabs/wazero docs confirmed the current WASI test shape: create a wazero runtime, instantiate wasi_snapshot_preview1, pass stdout via ModuleConfig, and InstantiateWithConfig. RED: `CGO_ENABLED=0 go test ./internal/wasi -count=1` failed on missing Run and IsRuntimeUnavailable APIs. GREEN: internal/wasi now wraps wazero with a typed `wasi_runtime_unavailable` degraded marker, pins wazero v1.11.0, and proves a 145-byte hello.wasm fixture writes `hello from gormes wasi` through WASI stdout under CGO_ENABLED=0. Row gates passed: `CGO_ENABLED=0 go test ./internal/wasi -count=1`, `CGO_ENABLED=0 go build ./...`, and `go run ./cmd/progress validate`."
             },
             {
               "name": "whisper.cpp WASI module discovery",
