@@ -258,6 +258,85 @@ func TestCronDeliveryPlan_LiveAdapterFallback(t *testing.T) {
 	})
 }
 
+func TestCronDeliveryPlan_StandaloneSenderFallbackUsesRegisteredSender(t *testing.T) {
+	plan := PlanCronDelivery(DeliveryPlanOptions{Deliver: "google_chat:spaces/AAA:spaces/AAA/threads/thread-1"})
+	content := PrepareCronDeliveryContent("standalone cron response [MEDIA:outputs/report.txt]")
+	standalone := &fakeCronStandaloneSender{}
+	fallback := &fakeCronDeliverySink{}
+
+	outcome := DeliverCronDeliveryPlanWithStandalone(context.Background(), plan, content, nil, standalone, fallback)
+
+	if !outcome.Delivered || outcome.Err != nil {
+		t.Fatalf("outcome = %+v, want delivered by standalone sender", outcome)
+	}
+	if got, want := len(standalone.calls), 1; got != want {
+		t.Fatalf("standalone calls = %d, want %d", got, want)
+	}
+	call := standalone.calls[0]
+	if call.target.Normalized() != "google_chat:spaces/AAA:spaces/AAA/threads/thread-1" {
+		t.Fatalf("standalone target = %q", call.target.Normalized())
+	}
+	if call.text != "standalone cron response" {
+		t.Fatalf("standalone text = %q", call.text)
+	}
+	if got, want := mediaPaths(call.media), []string{"outputs/report.txt"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("standalone media = %#v, want %#v", got, want)
+	}
+	if len(fallback.deliveries) != 0 {
+		t.Fatalf("fallback deliveries = %#v, want none", fallback.deliveries)
+	}
+	assertDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceLiveAdapterUnavailable)
+	assertDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceStandaloneSenderUsed)
+	assertNoDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceFallbackSinkUsed)
+}
+
+func TestCronDeliveryPlan_StandaloneSenderFallbackPreservesLiveAdapterFirst(t *testing.T) {
+	plan := PlanCronDelivery(DeliveryPlanOptions{Deliver: "teams:conversation-1"})
+	content := PrepareCronDeliveryContent("live response")
+	live := &fakeCronLiveAdapter{}
+	standalone := &fakeCronStandaloneSender{}
+	fallback := &fakeCronDeliverySink{}
+
+	outcome := DeliverCronDeliveryPlanWithStandalone(context.Background(), plan, content, live, standalone, fallback)
+
+	if !outcome.Delivered || outcome.Err != nil {
+		t.Fatalf("outcome = %+v, want delivered by live adapter", outcome)
+	}
+	if got := len(live.calls); got != 1 {
+		t.Fatalf("live calls = %d, want 1", got)
+	}
+	if got := len(standalone.calls); got != 0 {
+		t.Fatalf("standalone calls = %d, want 0", got)
+	}
+	if got := len(fallback.deliveries); got != 0 {
+		t.Fatalf("fallback deliveries = %d, want 0", got)
+	}
+	assertNoDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceStandaloneSenderUsed)
+	assertNoDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceFallbackSinkUsed)
+}
+
+func TestCronDeliveryPlan_StandaloneSenderFallbackFailureFallsBack(t *testing.T) {
+	plan := PlanCronDelivery(DeliveryPlanOptions{Deliver: "irc:#ops"})
+	content := PrepareCronDeliveryContent("fallback response")
+	standalone := &fakeCronStandaloneSender{err: errors.New("irc dial failed")}
+	fallback := &fakeCronDeliverySink{}
+
+	outcome := DeliverCronDeliveryPlanWithStandalone(context.Background(), plan, content, nil, standalone, fallback)
+
+	if !outcome.Delivered || outcome.Err != nil {
+		t.Fatalf("outcome = %+v, want delivered by fallback after standalone failure", outcome)
+	}
+	if got := len(standalone.calls); got != 1 {
+		t.Fatalf("standalone calls = %d, want 1", got)
+	}
+	if got, want := fallback.deliveries, []string{"fallback response"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("fallback deliveries = %#v, want %#v", got, want)
+	}
+	assertDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceLiveAdapterUnavailable)
+	assertDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceStandaloneSenderFailed)
+	assertDeliveryEvidence(t, outcome.Evidence, DeliveryEvidenceFallbackSinkUsed)
+}
+
 type staticDeliveryDirectory struct {
 	targets map[string]DeliveryTarget
 }
@@ -307,6 +386,27 @@ type fakeCronDeliverySink struct {
 func (s *fakeCronDeliverySink) Deliver(ctx context.Context, text string) error {
 	_ = ctx
 	s.deliveries = append(s.deliveries, text)
+	return s.err
+}
+
+type fakeCronStandaloneSender struct {
+	err   error
+	calls []fakeCronStandaloneCall
+}
+
+type fakeCronStandaloneCall struct {
+	target DeliveryTarget
+	text   string
+	media  []MediaAttachment
+}
+
+func (s *fakeCronStandaloneSender) DeliverCronStandalone(ctx context.Context, target DeliveryTarget, text string, media []MediaAttachment) error {
+	_ = ctx
+	s.calls = append(s.calls, fakeCronStandaloneCall{
+		target: target,
+		text:   text,
+		media:  append([]MediaAttachment(nil), media...),
+	})
 	return s.err
 }
 

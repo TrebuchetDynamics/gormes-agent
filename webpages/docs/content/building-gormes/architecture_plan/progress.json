@@ -32433,6 +32433,84 @@
               }
             },
             {
+              "name": "Plugin standalone sender cron delivery fallback",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' plugin-platform standalone sender fallback at the cron delivery boundary: when a non-local delivery target has no live gateway adapter, an injected standalone sender registry may deliver through an ephemeral per-platform sender before the legacy text-only DeliverySink fallback runs. The seam is fakeable, per target, preserves live-adapter-first behavior, reports standalone_sender_used / standalone_sender_failed evidence, and never opens live IRC, Teams, Google Chat, Telegram, Discord, Slack, or other network clients in unit tests.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If no standalone sender is registered for a target, existing live_adapter_unavailable plus fallback_sink_used evidence is preserved. If a standalone sender fails, cron records standalone_sender_failed and then falls back through DeliverySink so the run audit remains recoverable.",
+              "fixture": "internal/cron/delivery_plan_test.go::TestCronDeliveryPlan_StandaloneSenderFallback",
+              "source_refs": [
+                "./hermes-agent/gateway/platform_registry.py@93e25ceb1:PlatformEntry.standalone_sender_fn",
+                "./hermes-agent/tools/send_message_tool.py@93e25ceb1:_send_via_adapter",
+                "./hermes-agent/tests/tools/test_send_message_tool.py@93e25ceb1:standalone sender fallback",
+                "./hermes-agent/plugins/platforms/google_chat/adapter.py@93e25ceb1:standalone sender registration",
+                "./hermes-agent/plugins/platforms/teams/adapter.py@93e25ceb1:standalone sender registration",
+                "./hermes-agent/plugins/platforms/irc/adapter.py@93e25ceb1:standalone sender registration",
+                "internal/cron/delivery_plan.go",
+                "internal/cron/delivery_plan_test.go"
+              ],
+              "ready_when": [
+                "Cron multi-target delivery + media/live-adapter fallback and deliver=all routing are complete.",
+                "The implementation can use fake standalone senders in tests; no live plugin platform credentials, gateway runner, or network clients are required.",
+                "The seam stays at the cron delivery boundary and does not broaden into full Google Chat, Teams, or IRC live transport binding."
+              ],
+              "not_ready_when": [
+                "The slice sends live platform messages in tests or reads live platform credentials.",
+                "Standalone sender delivery runs before a healthy live adapter.",
+                "A standalone sender failure drops the existing DeliverySink recovery path or hides typed degraded evidence."
+              ],
+              "acceptance": [
+                "TestCronDeliveryPlan_StandaloneSenderFallbackUsesRegisteredSender proves a non-local target with no live adapter uses the matching fake standalone sender and does not invoke DeliverySink.",
+                "TestCronDeliveryPlan_StandaloneSenderFallbackPreservesLiveAdapterFirst proves a healthy live adapter still wins over standalone senders.",
+                "TestCronDeliveryPlan_StandaloneSenderFallbackFailureFallsBack proves standalone sender errors append standalone_sender_failed evidence and then use the existing DeliverySink fallback.",
+                "Existing CronDeliveryPlan live-adapter fallback and deliver=all fixtures remain green."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to 93e25ceb1 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 18, below the 90-row cap. P1 publication/release rows remain operator- or release-infra-gated; existing Google Chat, Teams, Feishu, Kanban, provider/auth, browser, Goncho, install/runtime, docs/public, and release child rows are complete, blocked, or row-backed. The fresh source-backed gap is Hermes' optional `standalone_sender_fn` hook for plugin platforms so out-of-process cron delivery can send through IRC, Teams, or Google Chat without a live gateway runner. TDD added the generic Gormes cron delivery seam only: live adapters still win first, a fakeable StandaloneDeliveryAdapter can deliver non-local targets before DeliverySink fallback, standalone sender failures emit typed evidence and then recover through DeliverySink, and platform-specific live clients remain separate rows.",
+              "write_scope": [
+                "internal/cron/delivery_plan.go",
+                "internal/cron/delivery_plan_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1",
+                "go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Cron delivery-plan fixtures prove live-adapter-first delivery, standalone sender fallback, failed-standalone degraded evidence, and DeliverySink recovery without live network sends."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/cron/delivery_plan.go: adds DeliveryEvidenceStandaloneSenderUsed and DeliveryEvidenceStandaloneSenderFailed.",
+                  "internal/cron/delivery_plan.go: adds StandaloneDeliveryAdapter plus DeliverCronDeliveryPlanWithStandalone while preserving the existing DeliverCronDeliveryPlan nil-standalone path.",
+                  "internal/cron/delivery_plan.go: deliverCronTarget keeps live-adapter-first behavior, invokes standalone sender only after live adapter absence/failure, treats ErrStandaloneSenderUnavailable as no registered sender, and falls back through DeliverySink after failed standalone sends."
+                ],
+                "tests": [
+                  "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackUsesRegisteredSender",
+                  "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackPreservesLiveAdapterFirst",
+                  "internal/cron/delivery_plan_test.go: TestCronDeliveryPlan_StandaloneSenderFallbackFailureFallsBack"
+                ],
+                "verification": [
+                  "RED: go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 failed on undefined standalone API and evidence constants.",
+                  "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_StandaloneSenderFallback' -count=1 passed.",
+                  "GREEN: go test ./internal/cron -run '^TestCronDeliveryPlan_' -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:93e25ceb1 gateway/platform_registry.py + tools/send_message_tool.py",
+                "note": "Hermes adds optional plugin standalone senders for out-of-process cron delivery; Gormes adapts this as a fakeable cron delivery boundary before live platform bindings."
+              }
+            },
+            {
               "name": "Goncho serialized write queue + relation candidates",
               "priority": "P1",
               "status": "complete",

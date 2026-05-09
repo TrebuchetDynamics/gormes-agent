@@ -19,10 +19,13 @@ const (
 	DeliveryEvidenceChannelDirectoryMissing = "channel_directory_missing"
 	DeliveryEvidenceMediaIgnored            = "media_ignored"
 	DeliveryEvidenceLiveAdapterUnavailable  = "live_adapter_unavailable"
+	DeliveryEvidenceStandaloneSenderUsed    = "standalone_sender_used"
+	DeliveryEvidenceStandaloneSenderFailed  = "standalone_sender_failed"
 	DeliveryEvidenceFallbackSinkUsed        = "fallback_sink_used"
 )
 
 var ErrLiveAdapterUnavailable = errors.New("cron: live adapter unavailable")
+var ErrStandaloneSenderUnavailable = errors.New("cron: standalone sender unavailable")
 
 type DeliveryOrigin struct {
 	Platform string
@@ -92,6 +95,10 @@ type DeliveryEvidence struct {
 
 type LiveDeliveryAdapter interface {
 	DeliverCron(ctx context.Context, target DeliveryTarget, text string, media []MediaAttachment) error
+}
+
+type StandaloneDeliveryAdapter interface {
+	DeliverCronStandalone(ctx context.Context, target DeliveryTarget, text string, media []MediaAttachment) error
 }
 
 type DeliveryOutcome struct {
@@ -342,6 +349,10 @@ func trimDeliveryText(text string) string {
 }
 
 func DeliverCronDeliveryPlan(ctx context.Context, plan DeliveryPlan, content DeliveryContent, live LiveDeliveryAdapter, fallback DeliverySink) DeliveryOutcome {
+	return DeliverCronDeliveryPlanWithStandalone(ctx, plan, content, live, nil, fallback)
+}
+
+func DeliverCronDeliveryPlanWithStandalone(ctx context.Context, plan DeliveryPlan, content DeliveryContent, live LiveDeliveryAdapter, standalone StandaloneDeliveryAdapter, fallback DeliverySink) DeliveryOutcome {
 	evidence := append([]DeliveryEvidence{}, plan.Evidence...)
 	evidence = append(evidence, content.Evidence...)
 
@@ -356,7 +367,7 @@ func DeliverCronDeliveryPlan(ctx context.Context, plan DeliveryPlan, content Del
 	delivered := true
 	var errs []error
 	for _, target := range plan.Targets {
-		ok, targetEvidence, err := deliverCronTarget(ctx, target, content, live, fallback)
+		ok, targetEvidence, err := deliverCronTarget(ctx, target, content, live, standalone, fallback)
 		evidence = append(evidence, targetEvidence...)
 		if !ok {
 			delivered = false
@@ -373,7 +384,7 @@ func DeliverCronDeliveryPlan(ctx context.Context, plan DeliveryPlan, content Del
 	}
 }
 
-func deliverCronTarget(ctx context.Context, target DeliveryTarget, content DeliveryContent, live LiveDeliveryAdapter, fallback DeliverySink) (bool, []DeliveryEvidence, error) {
+func deliverCronTarget(ctx context.Context, target DeliveryTarget, content DeliveryContent, live LiveDeliveryAdapter, standalone StandaloneDeliveryAdapter, fallback DeliverySink) (bool, []DeliveryEvidence, error) {
 	if target.Normalized() != "local" {
 		if live != nil {
 			if err := live.DeliverCron(ctx, target, content.Text, content.Media); err == nil {
@@ -383,8 +394,24 @@ func deliverCronTarget(ctx context.Context, target DeliveryTarget, content Deliv
 		evidence := []DeliveryEvidence{{
 			Code:   DeliveryEvidenceLiveAdapterUnavailable,
 			Target: target.Normalized(),
-			Detail: "falling back to delivery sink",
+			Detail: "live adapter unavailable",
 		}}
+		if standalone != nil {
+			if err := standalone.DeliverCronStandalone(ctx, target, content.Text, content.Media); err == nil {
+				evidence = append(evidence, DeliveryEvidence{
+					Code:   DeliveryEvidenceStandaloneSenderUsed,
+					Target: target.Normalized(),
+					Detail: "standalone sender used",
+				})
+				return true, evidence, nil
+			} else if !errors.Is(err, ErrStandaloneSenderUnavailable) {
+				evidence = append(evidence, DeliveryEvidence{
+					Code:   DeliveryEvidenceStandaloneSenderFailed,
+					Target: target.Normalized(),
+					Detail: "standalone sender failed",
+				})
+			}
+		}
 		ok, fallbackEvidence, err := deliverViaFallbackSink(ctx, target, content, fallback, true)
 		evidence = append(evidence, fallbackEvidence...)
 		return ok, evidence, err
