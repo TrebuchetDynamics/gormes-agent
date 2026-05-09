@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-09T00:37:03Z",
+    "last_updated": "2026-05-09T13:51:42Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -29869,7 +29869,7 @@
             {
               "name": "Hermes Kanban slash/gateway/dashboard surfaces",
               "priority": "P2",
-              "status": "in_progress",
+              "status": "complete",
               "contract": "Gormes ports the operator surfaces around Kanban: /kanban routes in TUI/gateway use the same parser/output as gormes kanban, gateway status exposes dispatcher state and nudge capability, and the dashboard shows live Kanban tasks, lanes, filters, worker runs, and dispatcher nudges over authenticated Gormes dashboard routes.",
               "contract_status": "validated",
               "slice_size": "large",
@@ -29905,7 +29905,8 @@
                 "Dashboard route fixtures prove tasks, lanes, filters, runs, and dispatcher nudge endpoints require authentication and stream bounded updates.",
                 "Status fixtures prove dispatcher state is operator-visible without reading live Hermes config."
               ],
-              "note": "Gateway /kanban slash command implemented 2026-05-08. Kanban dashboard API routes landed 2026-05-08: GET /api/kanban (lane summary), GET /api/kanban/tasks (with ?status=&assignee= filters), GET /api/kanban/tasks/{id} (single task), kanban panel in /api/status. DashboardPage.tsx shows live kanban board. TUI wiring remains for follow-up slices. Build provenance (version, git_commit, git_dirty, go_version) added to dashboard status and kanban responses 2026-05-08 for fleet-automation attribution. Fixture paths corrected 2026-05-08: removed phantom internal/gateway/kanban_command_test.go, internal/tui/kanban_slash_test.go, internal/dashboard/ (dir does not exist); pointed at real test files internal/apiserver/dashboard_kanban_test.go and internal/kanbantools/kanban_tools_test.go. 2026-05-08 all-topic parity sweep split native TUI `/kanban` dispatch into child row `Native TUI /kanban slash command binding over gormes kanban`; child is now complete. 2026-05-08 follow-up sweep split gateway `/kanban` shared-runner parity into child row `Gateway /kanban shared command-runner binding` so the parent no longer asks builders to finish gateway, TUI, and dashboard in one slice. 2026-05-08 bounded parity sweep against Hermes 508959668 found the dashboard dispatch quick path still row-backed: upstream `plugins/kanban/dashboard/plugin_api.py:/dispatch` runs one immediate dispatcher pass so the UI need not wait for the 60s gateway tick. Child row `Kanban dashboard dispatch quick path` now owns and completes that authenticated API slice.",
+              "note": "Gateway /kanban slash command implemented 2026-05-08. Kanban dashboard API routes landed 2026-05-08: GET /api/kanban (lane summary), GET /api/kanban/tasks (with ?status=&assignee= filters), GET /api/kanban/tasks/{id} (single task), kanban panel in /api/status. DashboardPage.tsx shows live kanban board. Build provenance (version, git_commit, git_dirty, go_version) added to dashboard status and kanban responses 2026-05-08 for fleet-automation attribution. Fixture paths corrected 2026-05-08: removed phantom internal/gateway/kanban_command_test.go, internal/tui/kanban_slash_test.go, internal/dashboard/ (dir does not exist); pointed at real test files internal/apiserver/dashboard_kanban_test.go and internal/kanbantools/kanban_tools_test.go. 2026-05-08 all-topic parity sweep split native TUI `/kanban` dispatch into child row `Native TUI /kanban slash command binding over gormes kanban`; child is now complete. 2026-05-08 follow-up sweep split gateway `/kanban` shared-runner parity into child row `Gateway /kanban shared command-runner binding` so the parent no longer asks builders to finish gateway, TUI, and dashboard in one slice. 2026-05-08 bounded parity sweep against Hermes 508959668 found the dashboard dispatch quick path still row-backed: upstream `plugins/kanban/dashboard/plugin_api.py:/dispatch` runs one immediate dispatcher pass so the UI need not wait for the 60s gateway tick. Child row `Kanban dashboard dispatch quick path` now owns and completes that authenticated API slice. Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against checked-in Hermes f6d45e5df and Honcho e659b6b. Planned-row count was 15, below the 90-row cap, but no new row was added because recent Hermes deltas for Telegram streaming edit safety, Feishu update prompt cards, Google Chat relay sender_type filtering, plugin standalone cron delivery, profile clone-all infrastructure exclusions, provider argument coercion, Kanban comment hardening, browser/runtime loop handling, public docs, and release/operator metadata are already complete, blocked, owned, or row-backed. The parent now closes from child evidence: native TUI /kanban dispatch, gateway shared command-runner binding, dashboard lanes/tasks, task run history, dispatcher status, and authenticated dispatch nudge are all complete.",
+              "completed_at": "2026-05-09T13:51:42Z",
               "write_scope": [
                 "internal/cli/",
                 "internal/gateway/",
@@ -29954,7 +29955,8 @@
                   "git diff --check -> ok",
                   "Dashboard kanban tests: all 10 subtests pass (unauth guard, store-unavailable, panel enabled/disabled, lane summary, task list with filters, task by ID)",
                   "Dashboard build provenance tests: TestDashboardStatus_BuildAttribution + TestDashboardKanban_BuildAttribution prove fleet-attribution-ready JSON contract",
-                  "Native TUI Kanban child tests pass: go test ./internal/tui -run 'TestKanbanSlash|TestHermesSlashDispatchBehavior' -count=1; go test ./cmd/gormes -run TestTUIKanbanSlash -count=1"
+                  "Native TUI Kanban child tests pass: go test ./internal/tui -run 'TestKanbanSlash|TestHermesSlashDispatchBehavior' -count=1; go test ./cmd/gormes -run TestTUIKanbanSlash -count=1",
+                  "2026-05-09 parent closeout passed: go test ./internal/apiserver -run TestDashboardKanban -count=1; go test ./internal/kanbantools -run TestKanbanTools -count=1; go test ./internal/tui -run 'TestKanbanSlash|TestHermesSlashDispatchBehavior' -count=1; go test ./cmd/gormes -run 'TestTUIKanbanSlash|TestKanbanDashboard|TestKanbanRuns|TestKanbanCommand' -count=1; go run ./cmd/progress validate"
                 ]
               }
             },
