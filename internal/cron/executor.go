@@ -19,6 +19,7 @@ import (
 	hermesclient "github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
 // KernelAPI is the narrow slice of *kernel.Kernel the Executor needs.
@@ -47,6 +48,9 @@ type ExecutorConfig struct {
 	LiveDelivery  LiveDeliveryAdapter
 	Directory     DeliveryTargetDirectory
 	CallTimeout   time.Duration // default 60s when zero
+	// CronApprovalMode is the Hermes approvals.cron_mode value applied to
+	// tool execution for cron-fired kernel turns. Empty defaults to deny.
+	CronApprovalMode string
 
 	// SubprocessKiller is the optional reaper used by the per-run release
 	// ledger to terminate tool subprocesses registered during the kernel
@@ -83,6 +87,9 @@ type ExecutorConfig struct {
 func (c *ExecutorConfig) withDefaults() {
 	if c.CallTimeout <= 0 {
 		c.CallTimeout = 60 * time.Second
+	}
+	if strings.TrimSpace(c.CronApprovalMode) == "" {
+		c.CronApprovalMode = tools.CronApprovalModeDeny
 	}
 	if c.ScriptTimeout <= 0 {
 		c.ScriptTimeout = 30 * time.Second
@@ -211,11 +218,12 @@ func (e *Executor) runOneTurn(ctx context.Context, job Job) error {
 
 	// Submit.
 	event := kernel.PlatformEvent{
-		Kind:      kernel.PlatformEventSubmit,
-		Text:      e.buildPromptForJob(ctx, runtimeJob),
-		SessionID: sessionID,
-		Model:     runtimeJob.Model,
-		CronJobID: job.ID,
+		Kind:             kernel.PlatformEventSubmit,
+		Text:             e.buildPromptForJob(ctx, runtimeJob),
+		SessionID:        sessionID,
+		Model:            runtimeJob.Model,
+		CronJobID:        job.ID,
+		CronApprovalMode: e.cfg.CronApprovalMode,
 	}
 	submitErr := e.submitCronEvent(callCtx, runtimeJob, event)
 	if submitErr != nil {

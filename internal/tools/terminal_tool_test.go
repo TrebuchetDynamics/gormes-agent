@@ -52,6 +52,46 @@ func TestTerminalToolHardBlocksPythonRuntimeEvenWhenApprovalsOff(t *testing.T) {
 	}
 }
 
+func TestTerminalToolCronApprovalModeDenyBlocksWithoutPrompt(t *testing.T) {
+	workdir := t.TempDir()
+	ranPath := filepath.Join(workdir, "cron-deny-ran")
+	tool := NewTerminalTool(TerminalToolConfig{Workdir: workdir, DefaultTimeout: 5 * time.Second})
+	ctx := WithCronApprovalMode(context.Background(), CronApprovalModeDeny)
+
+	out := executeTerminalToolWithContext(t, ctx, tool, `{"command":"bash -c 'printf denied > cron-deny-ran'"}`)
+
+	if out["status"] != "blocked" {
+		t.Fatalf("status = %v, want blocked: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "cron_mode") {
+		t.Fatalf("error = %v, want cron_mode guidance", out["error"])
+	}
+	evidence, ok := out["evidence"].(map[string]any)
+	if !ok {
+		t.Fatalf("evidence = %#v, want object", out["evidence"])
+	}
+	if evidence["cron_approval_mode"] != "deny" {
+		t.Fatalf("cron_approval_mode evidence = %v, want deny: %#v", evidence["cron_approval_mode"], evidence)
+	}
+	if _, err := os.Stat(ranPath); !os.IsNotExist(err) {
+		t.Fatalf("blocked cron command created %s, stat err=%v", ranPath, err)
+	}
+}
+
+func TestTerminalToolCronApprovalModeApproveAllowsRecoverableDangerous(t *testing.T) {
+	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir(), DefaultTimeout: 5 * time.Second})
+	ctx := WithCronApprovalMode(context.Background(), CronApprovalModeApprove)
+
+	out := executeTerminalToolWithContext(t, ctx, tool, `{"command":"bash -c 'printf cron-ok'"}`)
+
+	if out["status"] != "completed" {
+		t.Fatalf("status = %v, want completed: %#v", out["status"], out)
+	}
+	if out["output"] != "cron-ok" {
+		t.Fatalf("output = %q, want cron-ok", out["output"])
+	}
+}
+
 func TestTerminalToolRejectsBackgroundUntilProcessRegistryPort(t *testing.T) {
 	tool := NewTerminalTool(TerminalToolConfig{Workdir: t.TempDir()})
 	out := executeTerminalTool(t, tool, `{"command":"sleep 10","background":true}`)
@@ -166,7 +206,12 @@ func TestTerminalToolExplicitMissingWorkdirStillErrors(t *testing.T) {
 
 func executeTerminalTool(t *testing.T, tool *TerminalTool, args string) map[string]any {
 	t.Helper()
-	raw, err := tool.Execute(context.Background(), json.RawMessage(args))
+	return executeTerminalToolWithContext(t, context.Background(), tool, args)
+}
+
+func executeTerminalToolWithContext(t *testing.T, ctx context.Context, tool *TerminalTool, args string) map[string]any {
+	t.Helper()
+	raw, err := tool.Execute(ctx, json.RawMessage(args))
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}

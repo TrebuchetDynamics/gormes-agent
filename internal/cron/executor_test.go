@@ -128,6 +128,47 @@ func TestExecutor_NormalResponseDelivers(t *testing.T) {
 	}
 }
 
+func TestCronExecutorSubmitsCronApprovalMode(t *testing.T) {
+	t.Run("default deny", func(t *testing.T) {
+		fk := newFakeKernel("ok", 0)
+		e, _, cleanup := newTestExecutorEnv(t, fk)
+		defer cleanup()
+		job := NewJob("default-approval", "@daily", "p")
+		_ = e.cfg.JobStore.Create(job)
+
+		e.Run(context.Background(), job)
+
+		fk.mu.Lock()
+		defer fk.mu.Unlock()
+		if len(fk.events) != 1 {
+			t.Fatalf("events = %d, want 1", len(fk.events))
+		}
+		if got := fk.events[0].CronApprovalMode; got != "deny" {
+			t.Fatalf("CronApprovalMode = %q, want deny", got)
+		}
+	})
+
+	t.Run("configured approve", func(t *testing.T) {
+		fk := newFakeKernel("ok", 0)
+		e, _, cleanup := newTestExecutorEnv(t, fk)
+		defer cleanup()
+		e.cfg.CronApprovalMode = "approve"
+		job := NewJob("approve-approval", "@daily", "p")
+		_ = e.cfg.JobStore.Create(job)
+
+		e.Run(context.Background(), job)
+
+		fk.mu.Lock()
+		defer fk.mu.Unlock()
+		if len(fk.events) != 1 {
+			t.Fatalf("events = %d, want 1", len(fk.events))
+		}
+		if got := fk.events[0].CronApprovalMode; got != "approve" {
+			t.Fatalf("CronApprovalMode = %q, want approve", got)
+		}
+	})
+}
+
 func TestExecutor_SilentResponseSuppresses(t *testing.T) {
 	fk := newFakeKernel("[SILENT]", 0)
 	e, deliveries, cleanup := newTestExecutorEnv(t, fk)

@@ -1,6 +1,9 @@
 package tools
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNormalizeApprovalModeYAMLBooleanOff(t *testing.T) {
 	mode := NormalizeApprovalMode(false)
@@ -103,6 +106,64 @@ func TestCronApprovalModeApproveDoesNotBypassHardline(t *testing.T) {
 	}
 	if result.ApprovalRequired {
 		t.Fatalf("GuardCommand hardline/%s approval required = true, want false: %#v", mode.Mode, result)
+	}
+}
+
+func TestGuardCronCommand_DenyModeBlocksRecoverableDangerous(t *testing.T) {
+	result := GuardCronCommand("git reset --hard", "deny")
+	if result.Approved {
+		t.Fatalf("GuardCronCommand recoverable/deny approved = true, want false: %#v", result)
+	}
+	if result.Hardline {
+		t.Fatalf("GuardCronCommand recoverable/deny hardline = true, want false: %#v", result)
+	}
+	if result.ApprovalRequired {
+		t.Fatalf("GuardCronCommand recoverable/deny approval required = true, want noninteractive block: %#v", result)
+	}
+	if got := result.Evidence["cron_approval_mode"]; got != "deny" {
+		t.Fatalf("cron_approval_mode evidence = %q, want deny: %#v", got, result.Evidence)
+	}
+	if !strings.Contains(result.Message, "cron_mode") {
+		t.Fatalf("message = %q, want cron_mode guidance", result.Message)
+	}
+}
+
+func TestGuardCronCommand_ApproveModeAllowsRecoverableDangerous(t *testing.T) {
+	for _, input := range []string{"approve", "off", "allow", "yes"} {
+		t.Run(input, func(t *testing.T) {
+			result := GuardCronCommand("git reset --hard", input)
+			if !result.Approved {
+				t.Fatalf("GuardCronCommand recoverable/%s approved = false, want true: %#v", input, result)
+			}
+			if result.ApprovalRequired {
+				t.Fatalf("GuardCronCommand recoverable/%s approval required = true, want false: %#v", input, result)
+			}
+			if result.Hardline {
+				t.Fatalf("GuardCronCommand recoverable/%s hardline = true, want false: %#v", input, result)
+			}
+			if got := result.Evidence["cron_approval_mode"]; got != "approve" {
+				t.Fatalf("cron_approval_mode evidence = %q, want approve: %#v", got, result.Evidence)
+			}
+			if got := result.Evidence["detector"]; got != "dangerous" {
+				t.Fatalf("detector evidence = %q, want dangerous: %#v", got, result.Evidence)
+			}
+		})
+	}
+}
+
+func TestGuardCronCommand_ApproveModeDoesNotBypassHardline(t *testing.T) {
+	result := GuardCronCommand("rm -rf /", "approve")
+	if result.Approved {
+		t.Fatalf("GuardCronCommand hardline/approve approved = true, want false: %#v", result)
+	}
+	if !result.Hardline {
+		t.Fatalf("GuardCronCommand hardline/approve hardline = false, want true: %#v", result)
+	}
+	if result.ApprovalRequired {
+		t.Fatalf("GuardCronCommand hardline/approve approval required = true, want false: %#v", result)
+	}
+	if got := result.Evidence["cron_approval_mode"]; got != "approve" {
+		t.Fatalf("cron_approval_mode evidence = %q, want approve: %#v", got, result.Evidence)
 	}
 }
 

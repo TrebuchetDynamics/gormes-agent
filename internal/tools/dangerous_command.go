@@ -79,6 +79,7 @@ type BlockedResult struct {
 	Hardline         bool
 	ApprovalRequired bool
 	Description      string
+	Message          string
 	Operator         string
 	Command          string
 	Evidence         map[string]string
@@ -149,6 +150,24 @@ func GuardCommand(cmd, mode string) BlockedResult {
 	return BlockedResult{}
 }
 
+// GuardCronCommand applies Hermes' approvals.cron_mode contract for
+// noninteractive cron turns. It never requests interactive approval: deny mode
+// blocks recoverable dangerous commands with cron-mode evidence, approve mode
+// allows recoverable dangerous commands, and hardline commands always block.
+func GuardCronCommand(cmd string, mode any) BlockedResult {
+	cronMode := NormalizeCronApprovalMode(mode)
+	if matched, description := DetectHardline(cmd); matched {
+		return blockedCronResult(cmd, cronMode.Mode, description, "hardline", true)
+	}
+	if matched, description := DetectDangerous(cmd); matched {
+		if cronMode.Mode == CronApprovalModeApprove {
+			return approvedCronRecoverableResult(cmd, cronMode.Mode, description)
+		}
+		return blockedCronResult(cmd, cronMode.Mode, description, "dangerous", false)
+	}
+	return BlockedResult{}
+}
+
 func approvedRecoverableResult(cmd, mode, description string) BlockedResult {
 	return BlockedResult{
 		Approved:         true,
@@ -164,6 +183,48 @@ func approvedRecoverableResult(cmd, mode, description string) BlockedResult {
 			"pattern_description": description,
 		},
 	}
+}
+
+func approvedCronRecoverableResult(cmd, mode, description string) BlockedResult {
+	return BlockedResult{
+		Approved:         true,
+		Hardline:         false,
+		ApprovalRequired: false,
+		Description:      description,
+		Operator:         mode,
+		Command:          cmd,
+		Evidence: map[string]string{
+			"cron_approval_mode":  mode,
+			"command":             cmd,
+			"detector":            "dangerous",
+			"pattern_description": description,
+		},
+	}
+}
+
+func blockedCronResult(cmd, mode, description, detector string, hardline bool) BlockedResult {
+	return BlockedResult{
+		Approved:         false,
+		Hardline:         hardline,
+		ApprovalRequired: false,
+		Description:      description,
+		Message:          cronBlockMessage(description, hardline),
+		Operator:         mode,
+		Command:          cmd,
+		Evidence: map[string]string{
+			"cron_approval_mode":  mode,
+			"command":             cmd,
+			"detector":            detector,
+			"pattern_description": description,
+		},
+	}
+}
+
+func cronBlockMessage(description string, hardline bool) string {
+	if hardline {
+		return "BLOCKED (hardline): " + description + ". This command is on the unconditional blocklist and cannot be executed via the agent — not even with --yolo, /yolo, approvals.mode=off, or cron approve mode."
+	}
+	return "BLOCKED: Command flagged as dangerous (" + description + ") but cron jobs run without a user present to approve it. Find an alternative approach that avoids this command. To allow dangerous commands in cron jobs, set approvals.cron_mode: approve in config.toml."
 }
 
 func blockedResult(cmd, mode, description, detector string, hardline, approvalRequired bool) BlockedResult {

@@ -27230,18 +27230,104 @@
             },
             {
               "name": "Cron dangerous-command approval mode",
-              "status": "planned",
-              "note": "TDD: track upstream approvals.cron_mode drift by marking cron-fired turns as non-interactive and default-denying dangerous commands with an adaptive blocked message, while allowing an explicit approve mode to preserve old auto-approve behavior.",
-              "slice_size": "umbrella",
-              "execution_owner": "docs",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Cron-fired Gormes turns apply Hermes' `approvals.cron_mode` contract to terminal tool execution: cron mode defaults to deny, recoverable dangerous commands return a noninteractive `cron_mode` block message without prompting or submitting a gateway approval, explicit approve/off/allow/yes permits recoverable dangerous commands, and hardline commands remain blocked even in approve mode.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "A dangerous cron terminal command in deny mode returns stable blocked tool JSON naming cron_mode and the dangerous pattern description; it never waits for stdin, gateway /approve, or a provider retry. Missing or invalid config falls back to deny.",
+              "fixture": "internal/tools/terminal_tool_test.go::TestTerminalToolCronApprovalMode*",
+              "source_refs": [
+                "./hermes-agent/tools/approval.py@a7e7921db:_get_cron_approval_mode",
+                "./hermes-agent/tools/approval.py@a7e7921db:check_dangerous_command cron session branch",
+                "./hermes-agent/tools/approval.py@a7e7921db:check_all_command_guards cron session branch",
+                "./hermes-agent/tests/tools/test_cron_approval_mode.py@a7e7921db",
+                "internal/tools/approval_mode.go",
+                "internal/tools/dangerous_command.go",
+                "internal/tools/terminal_tool.go",
+                "internal/cron/executor.go",
+                "internal/kernel/frame.go",
+                "internal/kernel/kernel.go",
+                "internal/config/config.go",
+                "cmd/gormes/telegram.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Approval and security policy"
+              ],
+              "ready_when": [
+                "Cron approval mode config normalizer is complete.",
+                "Recoverable dangerous patterns + blocked-result schema and hardline detection are complete.",
+                "Cron executor submits kernel PlatformEvents and can carry per-turn execution metadata without changing the global resident tool registry."
+              ],
               "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+                "The implementation changes non-cron interactive terminal approval behavior, gateway /approve behavior, or global terminal approval mode.",
+                "Approve mode bypasses hardline commands such as rm -rf /, mkfs, raw disk writes, shutdown/reboot, fork bombs, or kill -1.",
+                "Cron deny mode returns approval_required, submits a pending gateway approval, waits on stdin, or retries the same dangerous command."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "blocked_by": [
+                "Cron approval mode config normalizer",
+                "Recoverable dangerous patterns + blocked-result schema"
+              ],
+              "acceptance": [
+                "TestGuardCronCommand_DenyModeBlocksRecoverableDangerous proves cron deny blocks recoverable dangerous commands with cron_approval_mode=deny evidence and a cron_mode message.",
+                "TestGuardCronCommand_ApproveModeAllowsRecoverableDangerous proves approve/off/allow/yes allow recoverable dangerous commands while preserving detector evidence.",
+                "TestGuardCronCommand_ApproveModeDoesNotBypassHardline proves approve mode cannot bypass hardline blocks.",
+                "TestTerminalToolCronApprovalModeDenyBlocksWithoutPrompt proves a cron-scoped terminal execution returns blocked JSON with cron_mode evidence and no callback/prompt path.",
+                "TestTerminalToolCronApprovalModeApproveAllowsRecoverableDangerous proves a cron-scoped terminal execution can run a recoverable dangerous command when approve mode is explicit.",
+                "TestCronExecutorSubmitsCronApprovalMode proves cron PlatformEvents carry the configured cron approval mode, defaulting to deny.",
+                "TestLoad_ApprovalsDefaults proves the loaded config defaults approvals.cron_mode to deny."
+              ],
+              "write_scope": [
+                "internal/tools/approval_mode.go",
+                "internal/tools/approval_mode_test.go",
+                "internal/tools/dangerous_command.go",
+                "internal/tools/terminal_tool.go",
+                "internal/tools/terminal_tool_test.go",
+                "internal/kernel/frame.go",
+                "internal/kernel/kernel.go",
+                "internal/cron/executor.go",
+                "internal/cron/executor_test.go",
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "cmd/gormes/telegram.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestGuardCronCommand|TestTerminalToolCronApprovalMode|TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1",
+                "go test ./internal/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1",
+                "go test ./internal/config -run TestLoad_ApprovalsDefaults -count=1",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Cron terminal execution honors approvals.cron_mode with deny-by-default noninteractive blocking, explicit approve-mode recoverable execution, hardline non-bypass, and per-cron PlatformEvent wiring from config."
               ],
-              "priority": "P2"
+              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Planned rows are below the 90-row cap. Existing P1 publication/release rows are operator-blocked or covered by child release rows; core runtime surfaces are mostly complete or row-backed. The source-backed weakness selected for this cycle was the remaining half of Hermes' cron approval contract: Gormes had `NormalizeCronApprovalMode`, but cron-fired terminal execution still lacked the per-turn deny/approve guard path. Complete 2026-05-09: TDD landed a cron-scoped terminal approval context, GuardCronCommand, terminal blocked JSON evidence, config defaulting, PlatformEvent CronApprovalMode wiring, and cron executor config propagation without changing non-cron terminal approval behavior.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a7e7921db tools/approval.py approvals.cron_mode + tests/tools/test_cron_approval_mode.py",
+                "note": "Hermes defines cron approvals as deny-by-default noninteractive terminal guards with explicit approve/off/allow/yes recoverable-command opt-in and hardline non-bypass."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/approval_mode.go: WithCronApprovalMode and CronApprovalModeFromContext scope terminal execution to normalized approvals.cron_mode.",
+                  "internal/tools/dangerous_command.go: GuardCronCommand denies recoverable dangerous commands in cron deny mode, allows recoverable commands in approve mode, and blocks hardline commands in all modes.",
+                  "internal/tools/terminal_tool.go: TerminalTool uses the cron guard when the execution context carries cron approval mode and returns blocked JSON with evidence instead of approval_required.",
+                  "internal/kernel/frame.go and internal/kernel/kernel.go: PlatformEvent carries CronApprovalMode and wraps the turn context without mutating resident tool configuration.",
+                  "internal/cron/executor.go and cmd/gormes/telegram.go: cron jobs submit the configured approvals.cron_mode to the kernel, defaulting to deny through config."
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestGuardCronCommand|TestTerminalToolCronApprovalMode|TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 failed on undefined GuardCronCommand and WithCronApprovalMode.",
+                  "RED: go test ./internal/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1 failed on missing PlatformEvent.CronApprovalMode and ExecutorConfig.CronApprovalMode.",
+                  "RED: go test ./internal/config -run TestLoad_ApprovalsDefaults -count=1 failed on missing Config.Approvals.",
+                  "GREEN: go test ./internal/tools -run 'TestGuardCronCommand|TestTerminalToolCronApprovalMode|TestNormalizeCronApprovalMode|TestCronApprovalMode' -count=1 passed.",
+                  "GREEN: go test ./internal/cron -run TestCronExecutorSubmitsCronApprovalMode -count=1 passed.",
+                  "GREEN: go test ./internal/config -run TestLoad_ApprovalsDefaults -count=1 passed.",
+                  "GREEN: go test ./internal/tools -count=1 passed.",
+                  "GREEN: go test ./internal/cron ./internal/config ./internal/kernel -count=1 passed."
+                ]
+              }
             },
             {
               "name": "Cron approval mode config normalizer",

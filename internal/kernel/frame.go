@@ -145,6 +145,10 @@ type PlatformEvent struct {
 	// user representations. Opaque to the kernel — just passed through
 	// to the store.Command payload.
 	CronJobID string
+	// CronApprovalMode, when non-empty, scopes tool execution for this turn to
+	// Hermes' noninteractive approvals.cron_mode contract. It is used by cron
+	// turns only and does not mutate the resident terminal tool configuration.
+	CronApprovalMode string
 	// ack is an unexported synchronous result channel used by
 	// ResetSession. External callers constructing PlatformEvents for
 	// Submit() cannot set this field, which is the desired API — the

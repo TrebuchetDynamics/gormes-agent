@@ -800,7 +800,7 @@ classification and row-backed implementation queue.
 - [x] Subagent dangerous-command non-interactive approval policy
 - [x] Concurrent tool approval callback propagation
 - [x] Background review toolset restriction
-- [ ] Cron dangerous-command approval mode
+- [x] Cron dangerous-command approval mode
 - [x] Cron approval mode config normalizer
 - [ ] Tirith, path, URL, and website policy integration
 - [x] Shell blocklist (36+ dangerous patterns)

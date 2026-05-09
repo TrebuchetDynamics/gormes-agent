@@ -1384,3 +1384,14 @@ func TestLoad_CronDefaults(t *testing.T) {
 		t.Errorf("Cron.MirrorPath default = %q, want empty (caller resolves XDG)", cfg.Cron.MirrorPath)
 	}
 }
+
+func TestLoad_ApprovalsDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Approvals.CronMode != "deny" {
+		t.Errorf("Approvals.CronMode default = %q, want deny", cfg.Approvals.CronMode)
+	}
+}
