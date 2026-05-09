@@ -46723,10 +46723,10 @@
             },
             {
               "name": "Matrix E2EE device-id crypto-store binding",
-              "status": "planned",
-              "priority": "P3",
+              "status": "complete",
+              "priority": "P2",
               "contract": "Matrix E2EE bootstrap binds the configured runtime device_id into the crypto store before account writes so Olm/megolm identity lookups stay device-scoped",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -46736,13 +46736,16 @@
               "degraded_mode": "Matrix status reports E2EE unavailable or stale device identity instead of starting encrypted sync with a blank or mismatched device_id.",
               "fixture": "internal/channels/matrix/crypto_store_test.go",
               "source_refs": [
-                "../hermes-agent/gateway/platforms/matrix.py@e5647d78",
-                "../hermes-agent/tests/gateway/test_matrix.py@e5647d78",
+                "../hermes-agent/gateway/platforms/matrix.py@3cf13747b:put_device_id before OlmMachine load",
+                "../hermes-agent/tests/gateway/test_matrix.py@2182de55b:PgCryptoStore.put_device_id fake",
                 "docs/content/upstream-hermes/user-guide/messaging/matrix.md",
-                "docs/content/building-gormes/gateway-donor-map/matrix.md"
+                "docs/content/building-gormes/gateway-donor-map/matrix.md",
+                "internal/channels/matrix/bootstrap.go",
+                "internal/channels/matrix/bootstrap_test.go"
               ],
               "ready_when": [
-                "Matrix real client/bootstrap layer has auth, sync/invite handling, room-kind policy, and a fakeable E2EE bootstrap seam."
+                "Matrix real client/bootstrap layer has auth, sync/invite handling, room-kind policy, and a fakeable E2EE bootstrap seam.",
+                "The slice stays inside the fakeable Matrix bootstrap seam and does not bind a live mautrix SDK."
               ],
               "not_ready_when": [
                 "The slice starts a live Matrix sync, stores real keys in tests, or tries to solve cross-signing/recovery-key UX."
@@ -46755,18 +46758,44 @@
                 "Blank or missing device_id degrades visibly and does not claim encrypted-room readiness.",
                 "Existing thread/session identity rules from internal/channels/threadtext are not changed by E2EE bootstrap."
               ],
-              "note": "Hermes e5647d78 fixed a Matrix PgCryptoStore blank-device trap that broke downstream Olm/megolm operations. Keep this as a separate paused Phase 7 slice so the future Go Matrix adapter does not bury E2EE device identity inside transport startup.",
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 25, below the 90-row cap, and no new row was needed. Fresh gateway disconnect hardening was already row-backed and complete; higher-priority P1/P2 docs/release rows are blocked, operator-owned, or umbrella-sized. This row was sharpened from stale e5647d78 refs to the actual Hermes Matrix device-id fix at 3cf13747b plus test-fake follow-up 2182de55b, and raised to P2 because the Matrix real client/bootstrap prerequisite is now complete. TDD added a fakeable MatrixE2EEBootstrap input carrying the resolved runtime device_id into the E2EE hook before initial sync, BindMatrixCryptoStoreDeviceID for store-level put_device_id binding, configured-device override coverage, and missing-device degradation before encrypted sync.",
               "write_scope": [
                 "internal/channels/matrix/",
-                "internal/config/",
+                "internal/progress/progress_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/channels/matrix ./internal/config -count=1"
+                "go test ./internal/channels/matrix -run 'TestMatrixBootstrap(E2EE|Crypto|Whoami|Password)' -count=1",
+                "go test ./internal/channels/matrix -count=1",
+                "go test ./internal/progress -run TestLoad_RealFile_Phase2ExecutionQueue -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
               ],
               "done_signal": [
                 "Matrix crypto-store fixtures prove configured device_id is bound before account writes and missing/stale identity degrades visibly."
-              ]
+              ],
+              "evidence": {
+                "completed_at": "2026-05-09T00:00:00Z",
+                "implementation": [
+                  "internal/channels/matrix/bootstrap.go: MatrixE2EEBootstrap carries Client, Config, UserID, and resolved DeviceID into the fakeable E2EE hook before handler registration or initial sync.",
+                  "internal/channels/matrix/bootstrap.go: Start returns matrix_e2ee_unavailable when encryption is enabled but no runtime device_id is resolved.",
+                  "internal/channels/matrix/bootstrap.go: BindMatrixCryptoStoreDeviceID binds device_id through MatrixCryptoStore.PutDeviceID before account writes can continue.",
+                  "internal/progress/progress_test.go: Phase 7.C now expects complete after the final Matrix E2EE planned row shipped and asserts the completed row remains source-backed."
+                ],
+                "tests": [
+                  "internal/channels/matrix/bootstrap_test.go: TestMatrixBootstrapE2EEUsesResolvedDeviceIDBeforeInitialSync",
+                  "internal/channels/matrix/bootstrap_test.go: TestMatrixBootstrapE2EEConfiguredDeviceIDOverridesWhoami",
+                  "internal/channels/matrix/bootstrap_test.go: TestMatrixBootstrapE2EEMissingDeviceIDDegradesBeforeSync",
+                  "internal/channels/matrix/crypto_store_test.go: TestMatrixCryptoStoreDeviceIDBindingBeforeAccountPut",
+                  "internal/progress/progress_test.go: TestLoad_RealFile_Phase2ExecutionQueue"
+                ],
+                "verification": [
+                  "RED: go test ./internal/channels/matrix -run 'TestMatrixBootstrap(E2EE|Crypto|Whoami|Password)' -count=1 failed on missing MatrixE2EEBootstrap and BindMatrixCryptoStoreDeviceID.",
+                  "GREEN: go test ./internal/channels/matrix -run 'TestMatrixBootstrap(E2EE|Crypto|Whoami|Password)' -count=1 passed.",
+                  "GREEN: go test ./internal/channels/matrix -count=1 passed.",
+                  "GREEN: go test ./internal/progress -run TestLoad_RealFile_Phase2ExecutionQueue -count=1 passed after updating the real-file invariant from Phase 7.C in_progress to complete."
+                ]
+              }
             },
             {
               "name": "Mattermost REST/WS bootstrap layer",

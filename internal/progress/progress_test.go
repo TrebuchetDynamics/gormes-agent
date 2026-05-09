@@ -632,8 +632,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if matrixMattermost.Priority != "P4" {
 		t.Fatalf("Phase 7.C priority = %q, want P4", matrixMattermost.Priority)
 	}
-	if got := matrixMattermost.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 7.C = %q, want in_progress", got)
+	if got := matrixMattermost.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 7.C = %q, want complete", got)
 	}
 	matrixItems := itemsByName(matrixMattermost.Items)
 	threadedText := matrixItems["Threaded text adapter contract suite"]
@@ -669,6 +669,16 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	}
 	if !strings.Contains(matrixBootstrap.Note, "SDK-free Matrix bootstrap boundary") || !containsString(matrixBootstrap.SourceRefs, "./hermes-agent/gateway/platforms/matrix.py@1997b3baf:MatrixAdapter.connect") {
 		t.Fatalf("Phase 7.C matrix bootstrap refs=%v note=%q, want active Hermes bootstrap evidence", matrixBootstrap.SourceRefs, matrixBootstrap.Note)
+	}
+	matrixE2EE := matrixItems["Matrix E2EE device-id crypto-store binding"]
+	if matrixE2EE.Status != StatusComplete {
+		t.Fatalf("Phase 7.C matrix e2ee status = %q, want complete", matrixE2EE.Status)
+	}
+	if matrixE2EE.ContractStatus != ContractStatusValidated || len(matrixE2EE.WriteScope) == 0 || len(matrixE2EE.TestCommands) == 0 {
+		t.Fatalf("Phase 7.C matrix e2ee readiness = contract_status %q scope=%d tests=%d, want validated completed row", matrixE2EE.ContractStatus, len(matrixE2EE.WriteScope), len(matrixE2EE.TestCommands))
+	}
+	if !containsString(matrixE2EE.SourceRefs, "../hermes-agent/gateway/platforms/matrix.py@3cf13747b:put_device_id before OlmMachine load") || !strings.Contains(matrixE2EE.Note, "MatrixE2EEBootstrap") {
+		t.Fatalf("Phase 7.C matrix e2ee refs=%v note=%q, want device-id binding evidence", matrixE2EE.SourceRefs, matrixE2EE.Note)
 	}
 	mattermostBootstrap := matrixItems["Mattermost REST/WS bootstrap layer"]
 	if mattermostBootstrap.Status != StatusComplete {
