@@ -6695,6 +6695,67 @@
               "note": "Complete 2026-05-07: TDD added Telegram final-message table rewriting in internal/gateway/render.go before MarkdownV2 rendering, preserving fenced code tables while converting GFM pipe tables into mobile-readable bold row headings and bullet fields. The Telegram renderer now preserves MarkdownV2 strikethrough, spoiler, and blockquote constructs with escaped content and still escapes mid-line greater-than text. internal/channels/telegram/format.go now mirrors Hermes _strip_mdv2 for parse-error plaintext fallback, preserving snake_case while removing MarkdownV2 escapes and formatting markers; Bot.Send and EditMessage use it only after MarkdownV2 parse failures. Verification: go test ./internal/channels/telegram -run 'TestTelegram(Format|Markdown|Table|Chunk)' -count=1; go test ./internal/gateway ./internal/channels/telegram -run 'Telegram|MarkdownV2|Format' -count=1."
             },
             {
+              "name": "Telegram Markdown table row-label bullet suppression",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Telegram final-message table rewriting mirrors Hermes' row-label column handling: when a Markdown table has one more data cell than header cell, the first data cell is rendered only as the bold row heading and the remaining cells align with the headers. The row-label cell must not also appear as a duplicate bullet item under the first header, while ordinary same-width tables keep the existing first-cell heading plus bullet rows.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway"
+              ],
+              "degraded_mode": "Without the row-label guard, Telegram users see duplicated row labels in table rewrites, such as a bold row heading followed by a redundant first bullet for the same label.",
+              "fixture": "internal/gateway/render_telegram_format_test.go::TestFormatFinalTelegramText_TableRowLabelDoesNotDuplicateAsBullet",
+              "source_refs": [
+                "./hermes-agent/gateway/platforms/telegram.py@8fdaf4d3d:_render_table_block_for_telegram",
+                "./hermes-agent/gateway/platforms/telegram.py@f1f42a7b9",
+                "internal/gateway/render.go:renderTelegramMarkdownTable",
+                "internal/gateway/render_telegram_format_test.go:TestFormatFinalTelegramText_RewritesMarkdownTablesAsBulletRows",
+                "docs/content/building-gormes/architecture_plan/progress.json:Telegram semantic MarkdownV2 formatter + table rewrite"
+              ],
+              "ready_when": [
+                "Telegram semantic MarkdownV2 formatter + table rewrite is complete and owns the pure table-rewrite helper.",
+                "Hermes has the source-backed row-label fix in gateway/platforms/telegram.py and no live Telegram network is needed to test it."
+              ],
+              "not_ready_when": [
+                "The slice rewrites Bot.Send, parse-mode fallback, streaming edit safety, or generic Slack/Discord rendering.",
+                "The fix changes ordinary same-width table output instead of only detecting the row-label-column shape."
+              ],
+              "blocked_by": [
+                "Telegram semantic MarkdownV2 formatter + table rewrite"
+              ],
+              "acceptance": [
+                "A pure formatter fixture fails before the fix because `| 2026-05-09 | good | bad |` under `| Pass | Fail |` renders `• Pass: 2026-05-09`, then passes after the first cell is used only as `*2026\\-05\\-09*`.",
+                "The same fixture proves `• Pass: good` and `• Fail: bad` are still rendered in MarkdownV2-safe form.",
+                "Existing ordinary table rewrite fixtures remain green, preserving same-width table behavior and fenced-table false-positive protection."
+              ],
+              "write_scope": [
+                "internal/gateway/render.go",
+                "internal/gateway/render_telegram_format_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestFormatFinalTelegramText_(TableRowLabelDoesNotDuplicateAsBullet|RewritesMarkdownTablesAsBulletRows|DoesNotRewriteFencedTables)' -count=1",
+                "go test ./internal/gateway ./internal/channels/telegram -run 'Telegram|MarkdownV2|Format' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Telegram formatter fixtures prove row-label tables use the first data cell only as the row heading, ordinary tables keep existing output, and the source-backed Hermes f1f42a7b9 table fix is represented in Gormes."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_refs": [
+                  "hermes:8fdaf4d3d gateway/platforms/telegram.py",
+                  "hermes:f1f42a7b9 merge #22610"
+                ],
+                "note": "2026-05-09 bounded all-topic weakness sweep refreshed Hermes to f1f42a7b9 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 14, below the 90-row cap. Higher-priority publication rows remain operator-blocked, the release parent is non-selectable, and existing runtime parity gates are complete or row-backed. The only fresh upstream delta was this Telegram table row-label rendering fix, so one P1 source-backed gateway row was added."
+              },
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f1f42a7b9 and found one fresh channel-visible delta: Hermes 8fdaf4d3d detects Markdown table row-label columns so the first data cell becomes only the row heading, not a duplicate bullet. RED: go test ./internal/gateway -run 'TestFormatFinalTelegramText_TableRowLabelDoesNotDuplicateAsBullet' -count=1 failed because Gormes rendered `• Pass: 2026-05-09` and shifted `good` under `Fail`. GREEN: renderTelegramMarkdownTable now detects len(first_data_row)==len(headers)+1, uses the first data cell as the heading, aligns remaining cells to headers, and preserves ordinary same-width table behavior. Verified with go test ./internal/gateway -run 'TestFormatFinalTelegramText_(TableRowLabelDoesNotDuplicateAsBullet|RewritesMarkdownTablesAsBulletRows|DoesNotRewriteFencedTables)' -count=1 and go test ./internal/gateway ./internal/channels/telegram -run 'Telegram|MarkdownV2|Format' -count=1."
+            },
+            {
               "name": "Telegram streaming edit Markdown safety",
               "status": "complete",
               "priority": "P0",

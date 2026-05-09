@@ -28,6 +28,30 @@ func TestFormatFinalTelegramText_RewritesMarkdownTablesAsBulletRows(t *testing.T
 	}
 }
 
+func TestFormatFinalTelegramText_TableRowLabelDoesNotDuplicateAsBullet(t *testing.T) {
+	input := "Daily results:\n\n| Pass | Fail |\n|------|------|\n| 2026-05-09 | good | bad |\n\nEnd."
+
+	got := FormatFinalTelegramText(input)
+
+	for _, want := range []string{
+		`*2026\-05\-09*`,
+		`• Pass: good`,
+		`• Fail: bad`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("FormatFinalTelegramText missing %q in:\n%s", want, got)
+		}
+	}
+	for _, forbidden := range []string{
+		`• Pass: 2026\-05\-09`,
+		`• Fail: good`,
+	} {
+		if strings.Contains(got, forbidden) {
+			t.Fatalf("FormatFinalTelegramText duplicated row-label cell as bullet %q in:\n%s", forbidden, got)
+		}
+	}
+}
+
 func TestFormatFinalTelegramText_DoesNotRewriteFencedTables(t *testing.T) {
 	input := "```\n| A | B |\n|---|---|\n| 1 | 2 |\n```"
 

@@ -312,25 +312,43 @@ func renderTelegramMarkdownTable(block []string) string {
 	if len(headers) < 2 {
 		return strings.Join(block, "\n")
 	}
+	firstDataRow := []string(nil)
+	if len(block) > 2 {
+		firstDataRow = splitTelegramMarkdownTableRow(block[2])
+	}
+	hasRowLabelColumn := len(firstDataRow) == len(headers)+1
 	var rows []string
 	for index, line := range block[2:] {
 		cells := splitTelegramMarkdownTableRow(line)
-		for len(cells) < len(headers) {
-			cells = append(cells, "")
-		}
-		if len(cells) > len(headers) {
-			cells = cells[:len(headers)]
-		}
 		heading := fmt.Sprintf("Row %d", index+1)
-		for _, cell := range cells {
-			if strings.TrimSpace(cell) != "" {
-				heading = cell
-				break
+		dataCells := cells
+		if hasRowLabelColumn {
+			if len(cells) > 0 && strings.TrimSpace(cells[0]) != "" {
+				heading = cells[0]
+			}
+			if len(cells) > 1 {
+				dataCells = cells[1:]
+			} else {
+				dataCells = nil
+			}
+		} else {
+			for _, cell := range cells {
+				if strings.TrimSpace(cell) != "" {
+					heading = cell
+					break
+				}
 			}
 		}
+		for len(dataCells) < len(headers) {
+			dataCells = append(dataCells, "")
+		}
+		if len(dataCells) > len(headers) {
+			dataCells = dataCells[:len(headers)]
+		}
+
 		lines := []string{"**" + heading + "**"}
 		for i, header := range headers {
-			lines = append(lines, "• "+header+": "+cells[i])
+			lines = append(lines, "• "+header+": "+dataCells[i])
 		}
 		rows = append(rows, strings.Join(lines, "\n"))
 	}
