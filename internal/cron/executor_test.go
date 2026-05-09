@@ -128,6 +128,62 @@ func TestExecutor_NormalResponseDelivers(t *testing.T) {
 	}
 }
 
+func TestCronExecutorDoesNotUseDeliveryOriginAsSessionIdentity(t *testing.T) {
+	fk := newFakeKernel("Origin-routed cron output.", 0)
+	e, deliveries, cleanup := newTestExecutorEnv(t, fk)
+	defer cleanup()
+	live := &fakeCronLiveAdapter{}
+	e.cfg.LiveDelivery = live
+
+	job := NewJob("origin-delivery", "@daily", "Summarize queue state.")
+	job.Deliver = "origin"
+	job.Origin = &DeliveryOrigin{
+		Platform: "telegram",
+		ChatID:   "-100777",
+		ThreadID: "99",
+	}
+	if err := e.cfg.JobStore.Create(job); err != nil {
+		t.Fatalf("Create job: %v", err)
+	}
+
+	e.Run(context.Background(), job)
+
+	fk.mu.Lock()
+	events := append([]kernel.PlatformEvent(nil), fk.events...)
+	fk.mu.Unlock()
+	if len(events) != 1 {
+		t.Fatalf("events = %d, want 1", len(events))
+	}
+	if got := events[0].SessionContext; got != "" {
+		t.Fatalf("SessionContext = %q, want empty cron-internal context", got)
+	}
+	for _, leaked := range []string{"telegram", "-100777", "99"} {
+		if strings.Contains(events[0].Text, leaked) {
+			t.Fatalf("cron prompt leaked delivery origin %q in %q", leaked, events[0].Text)
+		}
+	}
+	if events[0].CronJobID != job.ID {
+		t.Fatalf("CronJobID = %q, want %q", events[0].CronJobID, job.ID)
+	}
+
+	if got := deliveries.Load().([]string); len(got) != 0 {
+		t.Fatalf("fallback deliveries = %d, want live origin delivery only: %#v", len(got), got)
+	}
+	if len(live.calls) != 1 {
+		t.Fatalf("live deliveries = %d, want 1", len(live.calls))
+	}
+	call := live.calls[0]
+	if got, want := call.target.Normalized(), "telegram:-100777:99"; got != want {
+		t.Fatalf("live delivery target = %q, want %q", got, want)
+	}
+	if !call.target.Origin {
+		t.Fatal("live delivery target Origin = false, want true")
+	}
+	if call.text != "Origin-routed cron output." {
+		t.Fatalf("live delivery text = %q, want final assistant output", call.text)
+	}
+}
+
 func TestCronExecutorSubmitsCronApprovalMode(t *testing.T) {
 	t.Run("default deny", func(t *testing.T) {
 		fk := newFakeKernel("ok", 0)

@@ -899,6 +899,7 @@ classification and row-backed implementation queue.
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
 - [x] Cron env-ref expansion + parallel run state serialization
+- [x] Cron origin delivery isolation from session identity
 - [x] Cron script/workdir/inactivity execution binding
 - [x] Cron no-agent script-only watchdog mode
 - [x] Navivox host setup apply with transient sudo
