@@ -509,6 +509,7 @@ classification and row-backed implementation queue.
 
 - [x] Provider interface + stream fixture harness
 - [x] Hermes provider registry and alias manifest
+- [x] OpenRouter Pareto router request plugin
 - [x] Tool-call normalization + continuation contract
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] DeepSeek/Kimi cross-provider reasoning isolation

@@ -12941,6 +12941,73 @@
               }
             },
             {
+              "name": "OpenRouter Pareto router request plugin",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes' OpenAI-compatible provider request serializer ports Hermes' OpenRouter Pareto Code router plugin boundary: when the selected OpenRouter model is exactly `openrouter/pareto-code` and the operator supplies a valid min-coding-score knob, the request body includes `extra_body.plugins = [{\"id\":\"pareto-router\",\"min_coding_score\": score}]`; all other models, providers, unset scores, and invalid scores omit the plugin block.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Invalid or out-of-range Pareto scores are dropped before provider I/O, matching Hermes' safe omission behavior; no live OpenRouter credentials, model catalog calls, or provider network access are required to prove the request-shaping contract.",
+              "fixture": "internal/hermes/openrouter_pareto_test.go",
+              "source_refs": [
+                "./hermes-agent/plugins/model-providers/openrouter/__init__.py@c7f0aab94:OpenRouterProfile.build_extra_body",
+                "./hermes-agent/agent/transports/chat_completions.py@c7f0aab94:ChatCompletionsTransport.build_kwargs",
+                "./hermes-agent/tests/providers/test_provider_profiles.py@c7f0aab94:TestOpenRouterProfile",
+                "./hermes-agent/tests/agent/transports/test_chat_completions.py@c7f0aab94:TestChatCompletionsBuildKwargs",
+                "./hermes-agent/hermes_cli/config.py@c7f0aab94:DEFAULT_CONFIG openrouter.min_coding_score",
+                "./hermes-agent/hermes_cli/models.py@c7f0aab94:OPENROUTER_MODELS openrouter/pareto-code",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Providers, Models, And Credentials / OpenRouter/OpenAI-compatible models"
+              ],
+              "ready_when": [
+                "Provider interface + stream fixture harness and OpenRouter attribution/request serialization are complete.",
+                "The builder can prove the behavior through hermetic JSON request-body tests; no live OpenRouter API key or catalog fetch is needed.",
+                "This slice is limited to the provider-boundary request plugin. Config/default/model-picker propagation can remain a follow-up if this request seam is not yet wired into all entrypoints."
+              ],
+              "not_ready_when": [
+                "The slice tries to implement live OpenRouter routing, model-catalog fetching, pricing, account usage, or fallback policy.",
+                "The plugin block is serialized for non-OpenRouter routes, non-`openrouter/pareto-code` models, unset scores, invalid strings, NaN/Inf, or scores outside 0.0 through 1.0.",
+                "The implementation logs or reports provider credentials, calls the live OpenRouter API, or treats an invalid local score as a provider error."
+              ],
+              "unblocks": [
+                "Gormes model interactive provider/model picker",
+                "Provider auth selection for native gateway turns",
+                "OpenRouter/OpenAI-compatible model routing parity"
+              ],
+              "acceptance": [
+                "A focused request-body fixture proves `openrouter/pareto-code` on an OpenRouter route emits `extra_body.plugins[0].id = pareto-router` and the exact numeric `min_coding_score`.",
+                "Unset, blank, invalid, NaN/Inf, negative, and greater-than-one scores omit the plugin block without changing the rest of the request body.",
+                "The same valid score is ignored for non-`openrouter/pareto-code` models and for non-OpenRouter providers/base URLs.",
+                "Existing service-tier, reasoning, tool descriptor, OpenRouter attribution, and prompt-cache tests remain green."
+              ],
+              "note": "Complete 2026-05-09: TDD added `RequestOverrides.OpenRouterMinCodingScore`, `orChatRequest.extra_body`, and `internal/hermes/openrouter_pareto_test.go`. OpenRouter request serialization now emits the Pareto router plugin only for provider/base-url routes classified as OpenRouter plus exact model `openrouter/pareto-code` and a finite score from 0.0 through 1.0. Unset, invalid, NaN/Inf, negative, greater-than-one, non-Pareto model, and non-OpenRouter route fixtures omit the plugin block without provider I/O. Added after a bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap, so adding one source-backed P1 provider row was allowed. Runtime parity lanes were mostly complete or row-backed, higher-priority TD publication rows remain operator-blocked, broad release/operator and browser rows were not builder-ready, and upstream Hermes c7f0aab94 introduced a concrete OpenRouter model-routing request-shaping gap that Gormes did not yet track (`rg pareto|min_coding_score` found no Gormes code or row).",
+              "write_scope": [
+                "internal/hermes/client.go",
+                "internal/hermes/http_client.go",
+                "internal/hermes/openrouter_compatible.go",
+                "internal/hermes/openrouter_pareto_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestOpenRouterPareto' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "OpenRouter Pareto request fixtures prove model-gated plugin serialization and safe omission for invalid or out-of-scope scores without live provider access."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:c7f0aab94 OpenRouter Pareto Code router",
+                "note": "Ports the provider request-body plugin boundary first; later CLI/config/model-picker propagation should consume this typed request override rather than rebuild provider-specific JSON outside internal/hermes."
+              }
+            },
+            {
               "name": "Tool-call normalization + continuation contract",
               "status": "complete",
               "contract": "Cross-provider tool-call continuation contract",

@@ -132,6 +132,7 @@ type orChatRequest struct {
 	Temperature         *float64           `json:"temperature,omitempty"`
 	ReasoningEffort     *ReasoningEffort   `json:"reasoning_effort,omitempty"`
 	ServiceTier         string             `json:"service_tier,omitempty"`
+	ExtraBody           map[string]any     `json:"extra_body,omitempty"`
 	Tools               []orToolDescriptor `json:"tools,omitempty"`
 }
 
@@ -229,6 +230,7 @@ func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]by
 		Temperature:         req.Temperature,
 		ReasoningEffort:     reasoningEffort,
 		ServiceTier:         normalizeServiceTier(req.RequestOverrides.ServiceTier),
+		ExtraBody:           buildOpenRouterParetoExtraBody(c.provider, c.baseURL, req.Model, req.RequestOverrides.OpenRouterMinCodingScore),
 		Tools:               tools,
 	})
 	if err != nil {
