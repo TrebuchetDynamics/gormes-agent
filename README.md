@@ -254,7 +254,7 @@ after the normal release lane.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 15/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 16/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 2/7 subphases |

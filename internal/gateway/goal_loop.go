@@ -373,7 +373,11 @@ func (m *Manager) goalStore() (session.GoalMetadataStore, bool) {
 func (m *Manager) handleGoalPostTurnContinuation(ctx context.Context, ch Channel, f kernel.RenderFrame) {
 	state, ok := m.activeTurnSnapshot()
 	store, storeOK := m.goalStore()
-	if !ok || state.Cancelled || strings.TrimSpace(state.SessionID) == "" || !storeOK {
+	if !ok || strings.TrimSpace(state.SessionID) == "" || !storeOK {
+		return
+	}
+	if state.Cancelled {
+		m.pauseInterruptedGoal(ctx, ch, state)
 		return
 	}
 	if m.hasQueuedFollowUp() {
@@ -422,6 +426,33 @@ func (m *Manager) handleGoalPostTurnContinuation(ctx context.Context, ch Channel
 	}
 	_, _ = m.sendWithHooks(ctx, ch, state.ChatID, fmt.Sprintf("↻ Continuing toward goal (%d/%d): %s", goal.TurnsUsed, goal.MaxTurns, verdict.Reason))
 	m.queueGoalContinuation(ctx, ch, state, session.ContinuationPrompt(goal.Goal))
+}
+
+func (m *Manager) pauseInterruptedGoal(ctx context.Context, ch Channel, state activeTurnSnapshot) {
+	if !state.Cancelled || strings.TrimSpace(state.SessionID) == "" {
+		return
+	}
+	store, ok := m.goalStore()
+	if !ok {
+		return
+	}
+	goal, ok, err := session.LoadGoal(ctx, store, state.SessionID)
+	if err != nil {
+		m.log.Warn("load goal for interrupted turn", "session_id", state.SessionID, "err", err)
+		return
+	}
+	if !ok || !session.GoalIsActive(goal) {
+		return
+	}
+	paused, err := session.PauseGoal(ctx, store, state.SessionID, "interrupted by operator", m.now())
+	if err != nil {
+		m.log.Warn("pause interrupted goal", "session_id", state.SessionID, "err", err)
+		return
+	}
+	if paused == nil {
+		return
+	}
+	_, _ = m.sendWithHooks(ctx, ch, state.ChatID, "⏸ Goal paused — interrupted. Use /goal resume to keep going, or /goal clear to stop.")
 }
 
 func (m *Manager) hasQueuedFollowUp() bool {

@@ -21665,7 +21665,7 @@
             },
             {
               "name": "Rod",
-              "status": "planned",
+              "status": "complete",
               "note": "TDD: keep Rod as a second backend only after the shared contract is stable, proving backend selection and parity for core actions without diverging schemas.",
               "slice_size": "umbrella",
               "execution_owner": "docs",
@@ -39315,41 +39315,54 @@
             {
               "name": "Goal loop Ctrl+C auto-pause parity",
               "status": "planned",
-              "priority": "PP2",
-              "slice_size": "tracer-bullet",
-              "execution_owner": "gormes-builder",
-              "contract": "Hermes goal loop auto-pauses on Ctrl+C instead of terminating the goal. Gormes must port this behavior: signal handling in the goal loop runner pauses the active goal, preserves partial progress, and notifies the operator. Parity source: hermes-agent#21888 (fix(goals): Ctrl+C during /goal loop auto-pauses the goal).",
-              "contract_status": "draft",
-              "ready_when": "Goal loop runner exists in internal/subagent/runner.go with runGoalLoop. Signal handler can intercept SIGINT and set paused state.",
-              "not_ready_when": "Goal loop not yet ported to Go (check internal/subagent/runner.go for RunGoal or similar). If no goal loop exists, this row blocks until it does.",
+              "priority": "P1",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "contract": "Hermes goal continuation auto-pauses when an in-flight `/goal` turn is interrupted by Ctrl+C or `/stop`: the active per-session goal is marked paused with interrupt evidence, the judge is not called, no continuation prompt is queued, and the operator receives a goal-paused notice. Gormes must port this behavior through the existing gateway/session goal loop rather than the subagent runner.",
+              "contract_status": "validated",
+              "ready_when": "Gateway persistent goal loop + continuation judge is complete: internal/gateway/goal_loop.go, internal/gateway/goal_loop_test.go, and internal/session/goal_state.go already prove per-session `/goal` state, post-turn continuation, pause/resume, and active-turn control.",
+              "not_ready_when": "The slice tries to wire process-wide OS signal handlers, changes subagent delegation, or creates a separate goal runner instead of treating gateway EventCancel/PhaseCancelling as the testable Ctrl+C boundary.",
               "write_scope": [
-                "internal/subagent/goal_runner.go",
-                "internal/subagent/goal_signal_test.go",
-                "internal/gateway/goal_interrupt.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/goal_loop.go",
+                "internal/gateway/goal_loop_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/subagent -run 'TestGoalLoop.*CtrlC|TestGoalLoop.*Pause|TestGoalLoop.*Signal' -count=1",
-                "go test ./internal/gateway -run TestGoalInterrupt -count=1",
+                "go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1",
                 "go run ./cmd/progress validate",
                 "git diff --check"
               ],
               "acceptance": [
-                "TestGoalLoopCtrlCAutoPauses proves sending SIGINT (or fake signal) to a running goal loop sets paused state and does not terminate the goal.",
-                "TestGoalLoopCtrlCNotifiesOperator proves the gateway receives a goal.paused event with partial progress evidence.",
-                "TestGoalLoopCtrlCResumesFromPaused proves a paused goal can be resumed and continues from its last completed step.",
-                "TestGoalLoopCtrlCOnCompletedGoalIsNoop proves signal on an already-completed goal is a no-op."
+                "TestGatewayGoalInterruptAutoPauses proves cancelling an active goal turn pauses the persisted goal with interrupt evidence.",
+                "The interrupt path sends an operator-visible goal-paused notice and does not call the goal judge.",
+                "The interrupted turn does not enqueue an automatic continuation prompt.",
+                "Existing /goal pause/resume/status and post-turn continuation fixtures remain green."
               ],
               "done_signal": [
-                "Goal loop auto-pause fixtures prove Ctrl+C pauses (not terminates) the active goal, preserves partial progress, notifies operator, and resumes cleanly."
+                "Gateway goal-loop fixtures prove Ctrl+C-/stop-style cancellation pauses the active goal, skips judging, avoids continuation, and leaves the existing resume path intact."
               ],
               "source_refs": [
-                "hermes-agent@674fad148: hermes_cli/goals.py (GoalRunner._handle_signal, _pause_goal)",
-                "hermes-agent@674fad148: tests/cli/test_cli_goal_interrupt.py",
-                "hermes-agent@674fad148: gateway/run.py (goal_paused event dispatch)",
-                "internal/subagent/runner.go (existing Run/runGoalLoop if present)"
+                "./hermes-agent/tests/cli/test_cli_goal_interrupt.py@78b0008f4:TestInterruptAutoPause",
+                "./hermes-agent/hermes_cli/goals.py@78b0008f4:GoalManager.pause and continuation invariants",
+                "internal/gateway/goal_loop.go:handleGoalPostTurnContinuation",
+                "internal/gateway/manager.go:EventCancel and PhaseCancelling dispatch",
+                "internal/session/goal_state.go:PauseGoal/ResumeGoal"
               ],
-              "fixture": "Use fake signal channel and fake event bus to simulate Ctrl+C without real processes."
+              "fixture": "internal/gateway/goal_loop_test.go::TestGatewayGoalInterruptAutoPauses uses EventCancel plus a fake PhaseCancelling render frame to simulate Ctrl+C without real OS signals.",
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 25, below the 90-row cap, but no new row was added. The existing row was stale: it pointed at a nonexistent subagent goal loop even though the source-backed gateway `/goal` row is now complete in internal/gateway and internal/session. Promoted to P1 because Hermes 78b0008f4 explicitly guards Ctrl+C during goal continuation in tests/cli/test_cli_goal_interrupt.py, while Gormes EventCancel marked the turn cancelled without pausing the active goal. TDD added gateway interrupt auto-pause handling so a cancelling goal turn pauses the persisted goal, skips the judge, avoids continuation, and tells the operator how to resume or clear.",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/manager.go: PhaseFailed/PhaseCancelling dispatch now routes cancelled active turns through the goal interruption pause helper before draining follow-ups.",
+                  "internal/gateway/goal_loop.go: handleGoalPostTurnContinuation pauses cancelled goal turns on idle completion and pauseInterruptedGoal stores interrupt evidence without invoking the judge.",
+                  "internal/gateway/goal_loop_test.go: TestGatewayGoalInterruptAutoPauses covers EventCancel plus PhaseCancelling with persisted goal state, skipped judge, no continuation, and operator-visible pause notice."
+                ],
+                "verification": [
+                  "RED: go test ./internal/gateway -run TestGatewayGoalInterruptAutoPauses -count=1 failed because the interrupted goal stayed active.",
+                  "GREEN: go test ./internal/gateway -run TestGatewayGoalInterruptAutoPauses -count=1 passed.",
+                  "GREEN: go test ./internal/gateway -run 'TestGatewayGoal.*(Continuation|Interrupt|ActiveTurnPolicy)' -count=1 passed."
+                ]
+              }
             }
           ]
         },

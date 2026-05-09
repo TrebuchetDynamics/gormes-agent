@@ -1433,6 +1433,14 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 			if f.Phase == kernel.PhaseIdle {
 				m.maybeRunAutoTitle(ctx, f, sessionID, lastUserText)
 				m.handleGoalPostTurnContinuation(ctx, ch, f)
+			} else if f.Phase == kernel.PhaseFailed || f.Phase == kernel.PhaseCancelling {
+				m.pauseInterruptedGoal(ctx, ch, activeTurnSnapshot{
+					Platform:  platform,
+					ChatID:    chatID,
+					MsgID:     msgID,
+					SessionID: sessionID,
+					Cancelled: cancelled,
+				})
 			}
 			m.drainNextFollowUp(ctx)
 		}
@@ -1470,6 +1478,13 @@ func (m *Manager) dispatchFrame(ctx context.Context, f kernel.RenderFrame, co **
 		}
 		m.clearToolProgress()
 		m.completeProcessingReaction(ctx, ch, processingOutcomeForFrame(f.Phase, cancelled))
+		m.pauseInterruptedGoal(ctx, ch, activeTurnSnapshot{
+			Platform:  platform,
+			ChatID:    chatID,
+			MsgID:     msgID,
+			SessionID: sessionID,
+			Cancelled: cancelled,
+		})
 		m.drainNextFollowUp(ctx)
 	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseReconnecting, kernel.PhaseFinalizing:
 		text := m.formatStream(platform, f)

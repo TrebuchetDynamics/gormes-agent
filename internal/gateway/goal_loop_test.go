@@ -236,6 +236,52 @@ func TestGatewayGoalPostTurnContinuationBudget(t *testing.T) {
 	})
 }
 
+func TestGatewayGoalInterruptAutoPauses(t *testing.T) {
+	judge := &stubGoalJudge{
+		responses: []string{`{"done": false, "reason": "should not run"}`},
+	}
+	tg, fk, render, smap, _, cleanup := newGoalLoopHarness(t, judge, 3)
+	defer cleanup()
+
+	tg.pushInbound(goalEvent("/goal ship it", "m1"))
+	waitFor(t, 200*time.Millisecond, func() bool { return len(fk.submitsSnapshot()) == 1 })
+	first := fk.submitsSnapshot()[0]
+
+	tg.pushInbound(InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "u1",
+		MsgID:    "m-stop",
+		Kind:     EventCancel,
+	})
+	waitFor(t, 200*time.Millisecond, func() bool {
+		submits := fk.submitsSnapshot()
+		return len(submits) == 2 && submits[1].Kind == kernel.PlatformEventCancel
+	})
+
+	render <- kernel.RenderFrame{Phase: kernel.PhaseCancelling, SessionID: first.SessionID}
+
+	waitFor(t, 200*time.Millisecond, func() bool { return sentTextContains(tg, "cancelled") })
+	goal, ok, err := session.LoadGoal(context.Background(), smap, first.SessionID)
+	if err != nil || !ok {
+		t.Fatalf("LoadGoal = %+v ok=%v err=%v", goal, ok, err)
+	}
+	if goal.Status != session.GoalStatusPaused || !strings.Contains(strings.ToLower(goal.PausedReason), "interrupt") {
+		t.Fatalf("goal after interrupt = %+v, want paused with interrupt evidence", goal)
+	}
+	if judge.callCount() != 0 {
+		t.Fatalf("judge calls = %d, want interrupt to skip goal judge", judge.callCount())
+	}
+	for _, submit := range fk.submitsSnapshot() {
+		if strings.Contains(submit.Text, "[Continuing toward your standing goal]") {
+			t.Fatalf("unexpected continuation submit after interrupt: %+v", submit)
+		}
+	}
+	if !sentTextContains(tg, "Goal paused") {
+		t.Fatalf("sent messages = %+v, want operator-visible goal pause notice", tg.sentSnapshot())
+	}
+}
+
 func TestGatewayGoalActiveTurnPolicy(t *testing.T) {
 	tg := newFakeChannel("telegram")
 	fk := &fakeKernel{}
