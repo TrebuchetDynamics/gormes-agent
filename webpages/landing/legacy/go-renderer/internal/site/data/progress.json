@@ -20225,6 +20225,79 @@
                 "last_success": "2026-04-25T05:56:06Z"
               }
             },
+	            {
+	              "name": "Tool-call JSON-string array/object coercion parity",
+	              "status": "complete",
+	              "priority": "P1",
+              "contract": "Gormes revisits the completed tool-call repair boundary so provider-emitted stringified JSON arrays/objects are coerced according to the advertised tool schema before validation, while malformed JSON-array-looking strings degrade with explicit repair evidence instead of reaching tool execution silently.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system",
+                "child-agent"
+              ],
+              "degraded_mode": "When a schema-array argument is a bad JSON-array-looking string, Gormes keeps the call recoverable only as a single-element list if the item schema permits it and returns typed repair evidence otherwise; malformed required/object values still fail before execution.",
+              "fixture": "internal/hermes/tool_call_argument_repair_test.go",
+              "source_refs": [
+                "./hermes-agent/model_tools.py@7330183d0:coerce_tool_args,_coerce_value,_coerce_json",
+                "./hermes-agent/tests/run_agent/test_tool_arg_coercion.py@7330183d0:TestCoerceToolArgs",
+                "internal/hermes/tool_call_repair.go",
+                "internal/hermes/tool_call_argument_repair_test.go",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Tool registry and toolsets"
+              ],
+              "ready_when": [
+                "The completed tool-call repair + schema sanitizer row provides the provider-boundary repair seam and advertised-schema validation.",
+                "Hermetic fixtures can exercise stringified arrays/objects, nullable null strings, and malformed array-looking strings without live providers or tool execution."
+              ],
+              "not_ready_when": [
+                "The implementation executes a tool before schema repair finishes.",
+                "The slice invents missing required fields, weakens unadvertised-tool rejection, or bypasses existing malformed-fragment repair tests.",
+                "The tests require live model output, network calls, or real tool side effects."
+              ],
+              "acceptance": [
+                "A provider tool call whose schema expects an array accepts a JSON-string-encoded array and rewrites arguments to a native JSON array before EventDone.",
+                "A provider tool call whose schema expects an object accepts a JSON-string-encoded object and rewrites arguments to a native JSON object before EventDone.",
+                "A nullable array/object argument accepts the literal string \"null\" as JSON null when the advertised schema allows null.",
+	                "A malformed string beginning with [ on an array field does not silently disappear; if the item schema permits strings, it degrades to a single-element array before execution, and if the item schema rejects strings, validation reports the wrapped item path.",
+	                "Existing impossible-repair, missing-required, unadvertised-tool, and schema-sanitizer fixtures still pass."
+	              ],
+	              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f6d45e5df and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing recent deltas for TUI wrap trimming, Telegram edit/DM-topic safety, Feishu, Google Chat, Kanban author hardening, delegate_task JSON-string tasks, profile clone-all, Windows/Termux install, gateway disconnect timeout, browser Camofox, docs/public, and release rows were complete, blocked, owned, or already row-backed. Fresh provider/tools drift remained in Hermes 7330183d0: coerce_tool_args now diagnoses and recovers JSON-string array/object arguments before dispatch, while Gormes' completed repair row still validated those as wrong types. TDD added schema-guided provider-boundary coercion in internal/hermes: JSON-string arrays become native arrays, JSON-string objects become native objects, nullable string \"null\" becomes JSON null, malformed array-looking strings wrap as a single item only when item validation permits it, and wrapped invalid items report the exact item path. Existing impossible-repair, missing-required, unadvertised-tool, and schema-sanitizer fixtures remain green. The row lives under Phase 5.A tool surface rather than reopening completed Phase 4.A provider closure.",
+              "write_scope": [
+                "internal/hermes/tool_call_repair.go",
+                "internal/hermes/tool_call_argument_repair_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)|ToolCallArgumentsRepair|SanitizeToolDescriptors' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Tool-call repair fixtures prove schema-guided stringified array/object coercion, nullable null handling, explicit malformed-array evidence, and unchanged repair rejection boundaries."
+              ],
+              "blocked_by": [
+                "Tool-call argument repair + schema sanitizer"
+              ],
+	              "provenance": {
+	                "origin_type": "upstream",
+	                "upstream_ref": "hermes:7330183d0 model_tools.py coerce_tool_args",
+	                "note": "Revisits the completed provider-boundary repair row for current Hermes open-weight model JSON-array-as-string behavior."
+	              },
+	              "evidence": {
+	                "completed_at": "2026-05-09T13:15:56Z",
+	                "implementation": [
+	                  "internal/hermes/tool_call_repair.go adds schema-guided argument coercion after deterministic JSON repair and before advertised-schema validation.",
+	                  "internal/hermes/tool_call_argument_repair_test.go covers stringified arrays, stringified objects, nullable string null, malformed array-string fallback, and wrapped item-schema validation."
+	                ],
+	                "tests": [
+	                  "RED: go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)' -count=1 failed because stringified arrays/objects/null were still validated as strings.",
+	                  "GREEN: go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)' -count=1 -> ok",
+	                  "go test ./internal/hermes -run 'ToolCallArguments.*(Stringified|Nullable|MalformedArray)|ToolCallArgumentsRepair|SanitizeToolDescriptors' -count=1 -> ok"
+	                ]
+	              }
+	            },
     {
       "name": "Tool parity manifest refresh for Hermes b35d692f",
       "priority": "P1",

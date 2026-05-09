@@ -668,6 +668,7 @@ classification and row-backed implementation queue.
 
 - [x] 61-tool registry port
 - [x] Tool registry inventory + schema parity harness
+- [x] Tool-call JSON-string array/object coercion parity
 - [x] Tool parity manifest refresh for Hermes b35d692f
 - [x] Tool parity manifest refresh for Hermes ea86714 computer_use
 - [x] Tool parity manifest refresh for Hermes 524cbabd patch schema
