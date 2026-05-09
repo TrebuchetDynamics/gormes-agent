@@ -436,6 +436,57 @@ func TestUninstall_RemovesPublishedBinarySymlink(t *testing.T) {
 	}
 }
 
+// TestUninstall_HomeDirWildcardIsNotMisclassifiedAsLogs pins the
+// regression observed during the v0.2.0 fresh-install probe: the
+// preview JSON listed `<home>/` under the "logs" group because
+// `config.CrashLogDir()` returns `GormesHome()`. Fleet automation
+// reading
+//
+//	{"name": "logs", "paths": ["/home/xel/.gormes/"]}
+//
+// reasonably interpreted that as "removes log files," but
+// `os.RemoveAll("/home/xel/.gormes/")` actually nukes the entire
+// home tree (config, sessions, skills, subagents, kanban DB, the
+// managed binary subdirectory — everything).
+//
+// Contract: the wholesale home-tree removal must surface under a
+// dedicated "gormes-home" group with the home directory as its
+// only path. The "logs" group is reserved for explicit log files
+// (gormes.log) — never the home wildcard. Operators reading the
+// preview see the scope honestly.
+func TestUninstall_HomeDirWildcardIsNotMisclassifiedAsLogs(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[hermes]"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	groups := collectArtifacts(home)
+	for _, g := range groups {
+		for _, p := range g.Paths {
+			isHomeWildcard := strings.TrimSuffix(p, "/") == strings.TrimSuffix(home, "/")
+			if isHomeWildcard && g.Name == "logs" {
+				t.Fatalf("home-dir wildcard %q must not be classified as `logs` — that misleads operators about scope. Found in group=%q", p, g.Name)
+			}
+		}
+	}
+
+	var found bool
+	for _, g := range groups {
+		if g.Name != "gormes-home" {
+			continue
+		}
+		for _, p := range g.Paths {
+			if strings.TrimSuffix(p, "/") == strings.TrimSuffix(home, "/") {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("home-dir wildcard %q must appear under a dedicated `gormes-home` group; got groups=%+v", home, groups)
+	}
+}
+
 // TestUninstall_LeavesUnrelatedGormesBinaryAlone proves the cleanup is
 // surgical: a `gormes` command on PATH that is NOT a symlink into the
 // gormes home (e.g., a binary built from source, installed via apt, or

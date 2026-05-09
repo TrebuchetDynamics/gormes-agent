@@ -175,11 +175,24 @@ func collectArtifacts(home string) []artifactGroup {
 			filepath.Join(home, "gateway-locks"), filepath.Join(home, "gateway.pid"),
 			filepath.Join(home, "channel_directory_sources.json"))},
 		{Name: "memory", Paths: sortedExisting(config.MemoryDBPath(), filepath.Join(home, "memory"))},
-		{Name: "logs", Paths: sortedExisting(config.LogPath(), config.CrashLogDir())},
+		// "logs" enumerates explicit log files only. The home-dir
+		// wildcard (which used to ride here because
+		// config.CrashLogDir() returns GormesHome()) now lives in
+		// the dedicated `gormes-home` group below — surfacing the
+		// scope honestly to operators reading the preview.
+		{Name: "logs", Paths: sortedExisting(config.LogPath())},
 		{Name: "cron", Paths: sortedExisting(filepath.Join(home, "CRON.md"))},
 		{Name: "mcp-oauth", Paths: sortedExisting(filepath.Join(home, "mcp_oauth.json"))},
 		{Name: "legacy-xdg", Paths: sortedExisting(legacyXDGGormesDir())},
 		{Name: "published-binary", Paths: collectPublishedBinaryPaths(home)},
+		// `gormes-home` removes the entire managed home directory
+		// tree — the catch-all for everything not named above
+		// (skills/, subagents/, kanban.db, install.log.jsonl, the
+		// managed binary at bin/gormes, crash-*.log files, etc.).
+		// Listed last so the explicit per-feature groups appear
+		// first in the preview; operators see the wildcard with a
+		// truthful name and immediately understand the blast radius.
+		{Name: "gormes-home", Paths: sortedExisting(home)},
 	}
 }
 
