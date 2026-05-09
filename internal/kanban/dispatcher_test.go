@@ -3,6 +3,7 @@ package kanban
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -89,6 +90,91 @@ func TestKanbanDispatcherReclaimsStaleAndSpawnsReadyWithMaxCap(t *testing.T) {
 	}
 	if nextAfter.Status != StatusReady {
 		t.Fatalf("next task Status = %q, want %q because max cap held it", nextAfter.Status, StatusReady)
+	}
+}
+
+func TestKanbanDispatcherNamedBoardWorkspaceRoot(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dbPath := filepath.Join(root, "kanban", "boards", "alpha", "kanban.db")
+	store, err := Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	task, err := store.CreateTask(ctx, CreateTaskInput{
+		Title:         "Named board scratch workspace",
+		Assignee:      "worker",
+		WorkspaceKind: WorkspaceScratch,
+	})
+	if err != nil {
+		t.Fatalf("CreateTask() error = %v", err)
+	}
+
+	var requests []SpawnRequest
+	dispatcher := Dispatcher{
+		Store: store,
+		Spawner: SpawnFunc(func(_ context.Context, req SpawnRequest) (SpawnResult, error) {
+			requests = append(requests, req)
+			return SpawnResult{PID: 1234}, nil
+		}),
+	}
+	if _, err := dispatcher.RunOnce(ctx, DispatchOptions{MaxSpawn: 1}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if len(requests) != 1 {
+		t.Fatalf("spawn requests = %d, want 1", len(requests))
+	}
+	want := filepath.Join(root, "kanban", "boards", "alpha", "workspaces", task.ID)
+	if requests[0].WorkspacePath != want {
+		t.Fatalf("WorkspacePath = %q, want %q", requests[0].WorkspacePath, want)
+	}
+	if requests[0].Env["GORMES_KANBAN_WORKSPACE"] != want {
+		t.Fatalf("GORMES_KANBAN_WORKSPACE = %q, want %q", requests[0].Env["GORMES_KANBAN_WORKSPACE"], want)
+	}
+	if info, err := os.Stat(want); err != nil {
+		t.Fatalf("workspace dir missing: %v", err)
+	} else if !info.IsDir() {
+		t.Fatalf("workspace path is not a directory: %s", want)
+	}
+}
+
+func TestKanbanDispatcherDefaultBoardWorkspaceRootPreservesLegacy(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	store, err := Open(ctx, filepath.Join(root, "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	task, err := store.CreateTask(ctx, CreateTaskInput{
+		Title:         "Default board scratch workspace",
+		Assignee:      "worker",
+		WorkspaceKind: WorkspaceScratch,
+	})
+	if err != nil {
+		t.Fatalf("CreateTask() error = %v", err)
+	}
+
+	var requests []SpawnRequest
+	dispatcher := Dispatcher{
+		Store: store,
+		Spawner: SpawnFunc(func(_ context.Context, req SpawnRequest) (SpawnResult, error) {
+			requests = append(requests, req)
+			return SpawnResult{PID: 1234}, nil
+		}),
+	}
+	if _, err := dispatcher.RunOnce(ctx, DispatchOptions{MaxSpawn: 1}); err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if len(requests) != 1 {
+		t.Fatalf("spawn requests = %d, want 1", len(requests))
+	}
+	want := filepath.Join(root, "kanban", "workspaces", task.ID)
+	if requests[0].WorkspacePath != want {
+		t.Fatalf("WorkspacePath = %q, want %q", requests[0].WorkspacePath, want)
 	}
 }
 

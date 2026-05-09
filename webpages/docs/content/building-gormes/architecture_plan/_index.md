@@ -843,6 +843,7 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard dispatch quick path
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [x] Kanban named-board workspace and log roots
 - [x] Kanban current-board task command routing
 - [x] Kanban task run history command
 - [x] Kanban boards list/show task-count read model

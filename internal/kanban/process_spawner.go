@@ -51,7 +51,7 @@ func (s ProcessSpawner) SpawnKanbanWorker(ctx context.Context, req SpawnRequest)
 	}
 	logRoot := strings.TrimSpace(s.LogRoot)
 	if logRoot == "" {
-		logRoot = filepath.Join(filepath.Dir(req.Env["GORMES_KANBAN_DB"]), "kanban", "logs")
+		logRoot = kanbanWorkerLogRootForDBPath(req.Env["GORMES_KANBAN_DB"])
 	}
 	logPath := filepath.Join(logRoot, req.Task.ID+".log")
 	if err := rotateWorkerLog(logPath, s.maxLogBytes()); err != nil {

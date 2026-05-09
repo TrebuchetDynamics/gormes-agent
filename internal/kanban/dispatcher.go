@@ -244,7 +244,7 @@ ORDER BY priority DESC, created_at ASC, id ASC`, string(StatusReady))
 func (s *Store) resolveWorkspace(ctx context.Context, task Task) (string, error) {
 	switch task.WorkspaceKind {
 	case WorkspaceScratch:
-		path := filepath.Join(filepath.Dir(s.dbPath), "kanban", "workspaces", task.ID)
+		path := filepath.Join(kanbanWorkspaceRootForDBPath(s.dbPath), task.ID)
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			return "", fmt.Errorf("prepare scratch workspace: %w", err)
 		}

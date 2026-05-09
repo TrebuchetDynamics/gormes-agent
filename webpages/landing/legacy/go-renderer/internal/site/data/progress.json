@@ -29763,6 +29763,96 @@
               }
             },
             {
+              "name": "Kanban named-board workspace and log roots",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes preserves Hermes named-board filesystem isolation for worker scratch directories and logs: the default board keeps legacy `<root>/kanban/workspaces` and `<root>/kanban/logs`, while a named board whose DB is `<root>/kanban/boards/<slug>/kanban.db` uses `<root>/kanban/boards/<slug>/workspaces` and `<root>/kanban/boards/<slug>/logs` without adding an extra nested `kanban/` directory.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Malformed or direct-pinned database paths keep the existing local fallback rooted near the DB and never read Hermes env vars or home directories; worker launch still returns typed spawn/workspace errors instead of deleting board data.",
+              "fixture": "internal/kanban/dispatcher_test.go::TestKanbanDispatcherNamedBoardWorkspaceRoot and internal/kanban/process_spawner_test.go::TestKanbanProcessSpawnerNamedBoardLogRoot",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:workspaces_root",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:worker_logs_dir",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:resolve_workspace",
+                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:spawn_worker",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@a7e7921db:test_scratch_workspace_created_under_hermes_home",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@a7e7921db:shared board path and worker env fixtures",
+                "internal/kanban/dispatcher.go:resolveWorkspace",
+                "internal/kanban/process_spawner.go:SpawnKanbanWorker",
+                "internal/kanban/board.go:BoardRegistry.BoardPath"
+              ],
+              "ready_when": [
+                "Kanban current-board task command routing is complete, so named boards already open `<root>/kanban/boards/<slug>/kanban.db`.",
+                "Dispatcher and process-spawner tests can use temp roots and fake process starters; no real git worktree, worker subprocess, gateway, or Hermes state is required.",
+                "The slice only derives Gormes-owned paths from the selected Gormes DB path and does not import live `HERMES_KANBAN_*` compatibility."
+              ],
+              "not_ready_when": [
+                "The implementation reads `HERMES_KANBAN_BOARD`, `HERMES_KANBAN_WORKSPACES_ROOT`, `~/.hermes`, or Hermes profile paths as live config.",
+                "The slice implements notification subscriptions, tail/watch/stats/log commands, GC, board fan-out, or real git worktree creation.",
+                "Named-board scratch workspaces or logs are placed under `<root>/kanban/boards/<slug>/kanban/workspaces` or `<root>/kanban/boards/<slug>/kanban/logs`."
+              ],
+              "blocked_by": [
+                "Kanban current-board task command routing"
+              ],
+              "acceptance": [
+                "TestKanbanDispatcherNamedBoardWorkspaceRoot proves a scratch worker spawned from a named-board DB receives a workspace under `<root>/kanban/boards/<slug>/workspaces/<task-id>` and that directory is created.",
+                "TestKanbanDispatcherDefaultBoardWorkspaceRootPreservesLegacy proves the default DB path still resolves scratch workspaces under `<root>/kanban/workspaces/<task-id>`.",
+                "TestKanbanProcessSpawnerNamedBoardLogRoot proves the default process-spawner log path for a named-board DB is `<root>/kanban/boards/<slug>/logs/<task-id>.log`.",
+                "Existing process-spawner env filtering continues to drop `HERMES_*` keys and preserve `GORMES_KANBAN_DB`, `GORMES_KANBAN_TASK`, `GORMES_KANBAN_WORKSPACE`, and `GORMES_PROFILE`."
+              ],
+              "note": "2026-05-09 bounded all-topic parity weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db. Planned rows were 23, below the 90-row cap, so adding one P2 source-backed child row was allowed. P1 docs/release rows remain operator- or infrastructure-gated, and the broad P2 Kanban parent is too large to assign directly. The sweep found a concrete child gap: Gormes routes task commands to named-board DBs, but dispatcher scratch workspaces and default worker logs are still derived by appending `kanban/workspaces` and `kanban/logs` beside the DB, producing an extra nested directory for named boards. This row owns only that path-root parity slice.",
+              "write_scope": [
+                "internal/kanban/board_paths.go",
+                "internal/kanban/dispatcher.go",
+                "internal/kanban/dispatcher_test.go",
+                "internal/kanban/process_spawner.go",
+                "internal/kanban/process_spawner_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run 'TestKanbanDispatcher.*WorkspaceRoot|TestKanbanProcessSpawner.*LogRoot' -count=1",
+                "go test ./internal/kanban -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban dispatcher and process-spawner fixtures prove default-board roots stay legacy-compatible while named-board workspaces and logs live directly under the named board directory without live Hermes env/home reads."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/board_paths.go derives Gormes-owned board roots from the selected Kanban DB path, treating `<root>/kanban/boards/<slug>/kanban.db` as the named-board root and preserving the default-board legacy fallback.",
+                  "internal/kanban/dispatcher.go:resolveWorkspace now creates scratch workspaces under the derived board workspace root.",
+                  "internal/kanban/process_spawner.go:SpawnKanbanWorker now places default worker logs under the derived board log root while preserving explicit LogRoot overrides."
+                ],
+                "tests": [
+                  "internal/kanban/dispatcher_test.go:TestKanbanDispatcherNamedBoardWorkspaceRoot",
+                  "internal/kanban/dispatcher_test.go:TestKanbanDispatcherDefaultBoardWorkspaceRootPreservesLegacy",
+                  "internal/kanban/process_spawner_test.go:TestKanbanProcessSpawnerNamedBoardLogRoot"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/kanban -run 'TestKanbanDispatcher.*WorkspaceRoot|TestKanbanProcessSpawner.*LogRoot' -count=1 failed because named-board scratch workspaces and logs were created under an extra nested `kanban/` directory.",
+                  "GREEN: go test ./internal/kanban -run 'TestKanbanDispatcher.*WorkspaceRoot|TestKanbanProcessSpawner.*LogRoot' -count=1 passed after deriving workspace and log roots from the board DB path.",
+                  "GREEN: go test ./internal/kanban -count=1 passed."
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run 'TestKanbanDispatcher.*WorkspaceRoot|TestKanbanProcessSpawner.*LogRoot' -count=1 -> ok",
+                  "go test ./internal/kanban -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:a7e7921db hermes_cli/kanban_db.py workspaces_root + worker_logs_dir",
+                "note": "Hermes defines per-board workspace/log roots. Gormes adopts the path layout through its own BoardRegistry DB paths and excludes live Hermes env/home compatibility."
+              }
+            },
+            {
               "name": "Kanban current-board task command routing",
               "priority": "P2",
               "status": "complete",
