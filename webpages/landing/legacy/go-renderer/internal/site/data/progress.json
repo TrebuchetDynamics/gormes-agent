@@ -36405,6 +36405,80 @@
               }
             },
             {
+              "name": "Gormes shell completion command generator",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "`gormes completion {bash,zsh,fish,powershell}` emits shell completion scripts from the native Cobra command tree without starting the TUI, gateway, provider runtime, browser, or credential flows; zsh output must use valid `_arguments` exclusion syntax and must not reintroduce Hermes' stale `(-h --help)` / `(-V --version)` patterns.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Unsupported shells fail fast with a command-line error and no runtime side effects; generated scripts are best-effort snapshots of the native Cobra tree rather than hand-maintained shell code.",
+              "fixture": "cmd/gormes/completion_test.go::TestCompletionCommand_*",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/main.py:completion",
+                "./hermes-agent/hermes_cli/completion.py@fe61d95b4:generate_zsh",
+                "./hermes-agent/tests/hermes_cli/test_completion.py",
+                "cmd/gormes/main.go:newRootCommandWithRuntime",
+                "cmd/gormes/hermes_cli_parity.go:hermesCLIParityManifest"
+              ],
+              "ready_when": [
+                "Hermes CLI command-tree parity manifest already classifies `completion` as a current top-level Hermes command.",
+                "cmd/gormes already owns a Cobra root command whose generated completion scripts can be tested in-process.",
+                "No provider credentials, gateway process, TUI program, browser automation, network, or install root is required to generate completion scripts."
+              ],
+              "not_ready_when": [
+                "The slice rewrites the root command layout, changes command behavior outside completion generation, starts live runtime services, or hand-maintains a separate command inventory.",
+                "The zsh script contains invalid `_arguments` exclusion groups such as `(-h --help)` or `(-V --version)`.",
+                "The manifest continues to report `completion` as row-backed after the command is implemented."
+              ],
+              "blocked_by": [
+                "Hermes CLI command-tree parity manifest"
+              ],
+              "unblocks": [
+                "CLI setup/onboard/help text fidelity matrix",
+                "Hermes CLI alias and suggestion fidelity matrix"
+              ],
+              "acceptance": [
+                "Focused tests prove `gormes completion zsh` returns a non-empty script containing the native command tree and no invalid `(-h --help)` / `(-V --version)` exclusion groups.",
+                "Focused tests prove bash, fish, and powershell completion generation return non-empty scripts without touching runtime services.",
+                "Focused tests prove an unsupported shell returns a deterministic command-line error.",
+                "The Hermes CLI parity manifest marks top-level `completion` implemented with source refs and no row-backed residual.",
+                "Existing root command, typo suggestion, and manifest tests remain green."
+              ],
+              "note": "Complete 2026-05-09: the bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned-row count was 15, so adding one P1 source-backed row was allowed. Recent provider/auth, gateway/channel, browser, Kanban, docs/public, and release/operator drifts were already complete, owned, row-backed, or operator-gated; existing P1 publication/release rows are blocked or parent-sized. Hermes fe61d95b4 fixed a real zsh completion syntax bug while Gormes still only classified top-level `completion` as row-backed, making this the highest-priority bounded builder-ready runtime row for this cycle. TDD replaced Cobra's auto-injected help-shaped completion command with an explicit `completion {bash,zsh,fish,powershell}` command, locked zsh output against invalid `_arguments` exclusion groups, proved supported shells generate scripts without invoking TUI/oneshot runtime hooks, proved unsupported shells error deterministically, and marked top-level `completion` implemented in the Hermes CLI parity manifest.",
+              "write_scope": [
+                "cmd/gormes/completion.go",
+                "cmd/gormes/completion_test.go",
+                "cmd/gormes/main.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestCompletionCommand|TestHermesCLIParityManifest' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Native shell completion tests pass for bash, zsh, fish, powershell, and unsupported-shell handling; the CLI parity manifest marks `completion` implemented instead of row-backed."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:hermes_cli/completion.py@fe61d95b4 and hermes_cli/main.py completion parser",
+                "note": "Hermes defines the user-visible command and the zsh regression; Gormes owns native Cobra completion generation over its Go command tree."
+              },
+              "evidence": {
+                "implementation": "cmd/gormes/completion.go, cmd/gormes/completion_test.go, cmd/gormes/main.go, cmd/gormes/hermes_cli_parity.go",
+                "tests": "go test ./cmd/gormes -run 'TestCompletionCommand|TestHermesCLIParityManifestCompletionImplemented|TestHermesCLIParityManifest' -count=1 -> ok",
+                "note": "The explicit command overrides Cobra's default completion-help shape, accepts the Hermes-style shell argument, emits Cobra-generated bash/zsh/fish/powershell scripts, rejects unsupported shells, and keeps zsh output free of the stale `(-h --help)` / `(-V --version)` patterns."
+              },
+              "completed_at": "2026-05-09T23:29:12Z"
+            },
+            {
               "name": "Hermes CLI nested parser inventory refresh",
               "status": "complete",
               "priority": "P1",
