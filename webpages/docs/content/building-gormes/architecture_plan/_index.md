@@ -1008,6 +1008,7 @@ classification and row-backed implementation queue.
 - [x] Gateway management CLI read-model closeout
 - [x] Gateway mutating-subcommand unavailability stub
 - [x] Windows gateway Scheduled Task lifecycle commands
+- [x] Windows detached gateway Ctrl+C boundary
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [x] Diagnostics, backup, logs, and status CLI

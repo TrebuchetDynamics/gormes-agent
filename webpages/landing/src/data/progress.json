@@ -40933,6 +40933,84 @@
               }
             },
             {
+              "name": "Windows detached gateway Ctrl+C boundary",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes preserves the current Hermes Windows gateway control boundary: foreground `gormes gateway` remains interruptible with Ctrl+C, while Windows Scheduled Task launches mark the child gateway as detached and the runtime absorbs stray console-control interrupts instead of treating sibling CLI broadcasts as operator stops.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the detached marker is missing, a Windows Scheduled Task gateway can exit on an unrelated console Ctrl+C broadcast; if foreground handling is over-broadened, operators lose the documented Ctrl+C stop path.",
+              "fixture": "cmd/gormes/gateway_mutating_unavailable_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/gateway.py@9c26297c8:_windows_gateway_should_absorb_console_controls",
+                "./hermes-agent/hermes_cli/gateway_windows.py@9c26297c8:_build_gateway_cmd_script",
+                "./hermes-agent/hermes_cli/gateway_windows.py@9c26297c8:_build_gateway_argv",
+                "./hermes-agent/tests/hermes_cli/test_gateway.py@9c26297c8:test_run_gateway_windows_foreground_keeps_ctrl_c_enabled",
+                "./hermes-agent/tests/hermes_cli/test_gateway.py@9c26297c8:test_run_gateway_windows_detached_absorbs_console_controls",
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_mutating_unavailable_test.go"
+              ],
+              "ready_when": [
+                "Windows gateway Scheduled Task lifecycle commands are complete and fakeable without live schtasks.",
+                "Tests can fake GOOS, environment variables, and command-line rendering; no Windows host, live console-control event, Scheduled Task, or gateway process is required."
+              ],
+              "not_ready_when": [
+                "The slice shells out to schtasks, sc.exe, systemd, launchd, or runs a live gateway process.",
+                "Foreground `gormes gateway` stops subscribing to os.Interrupt.",
+                "Non-Windows signal behavior, runtime status, channel startup, or gateway stop semantics are changed."
+              ],
+              "blocked_by": [
+                "Windows gateway Scheduled Task lifecycle commands"
+              ],
+              "acceptance": [
+                "A pure signal-plan fixture proves Windows foreground gateway runs still subscribe to os.Interrupt so Ctrl+C remains the documented stop path.",
+                "A pure signal-plan fixture proves Windows detached gateway runs with GORMES_GATEWAY_DETACHED=1 omit os.Interrupt from the graceful shutdown subscription and request interrupt absorption.",
+                "A Scheduled Task command-line fixture proves the Windows task launch sets GORMES_GATEWAY_DETACHED=1 before invoking `gormes gateway`.",
+                "Existing fake Windows lifecycle fixtures keep proving install/start/restart/uninstall delegation and non-Windows unavailable guidance without opening runtime stores."
+              ],
+              "write_scope": [
+                "cmd/gormes/gateway.go",
+                "cmd/gormes/gateway_mutating_unavailable_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestGatewayWindowsScheduledTask|TestGatewayWindowsDetachedCtrlC|TestGatewayMutating' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Windows gateway fixtures prove detached Scheduled Task launches set the detached marker and absorb Ctrl+C broadcasts while foreground gateway runs remain Ctrl+C interruptible."
+              ],
+              "note": "Complete 2026-05-09: all-topic parity sweep refreshed Hermes to 840ebe063 after initial gormes-git found a clean development worktree. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned executable rows were 12, below the 90-row cap, so one P1 source-backed row was allowed. Fresh Hermes 9c26297c8 changed the Windows gateway service boundary so detached Scheduled Task launches opt into console-control absorption while foreground `gateway run` preserves Ctrl+C. Existing Gormes `Windows gateway Scheduled Task lifecycle commands` was complete but stale against this boundary; session_search lazy DB wiring was also identified as a source-backed risk but left for a later row because this gateway/runtime slice is narrower and adjacent to the stale completed row. TDD added a pure signal plan plus Scheduled Task command-line marker: foreground Windows and non-Windows gateway runs continue subscribing to os.Interrupt, detached Windows runs with GORMES_GATEWAY_DETACHED=1 request interrupt absorption and omit os.Interrupt, and Windows Scheduled Task launches set GORMES_GATEWAY_DETACHED=1 before invoking `gormes gateway`.",
+              "evidence": {
+                "completed_at": "2026-05-09T00:00:00Z",
+                "implementation": [
+                  "cmd/gormes/gateway.go: windowsScheduledTaskCommandLine prefixes Scheduled Task launches with `cmd.exe /d /c set \"GORMES_GATEWAY_DETACHED=1\"&& ...`.",
+                  "cmd/gormes/gateway.go: gatewayShutdownSignalPlan keeps os.Interrupt for foreground and non-Windows runs, omits it only for Windows detached runs, and runGateway requests signal.Ignore(os.Interrupt) for that detached path."
+                ],
+                "tests": [
+                  "cmd/gormes/gateway_mutating_unavailable_test.go: TestGatewayWindowsScheduledTaskCommandLineMarksDetached",
+                  "cmd/gormes/gateway_mutating_unavailable_test.go: TestGatewayWindowsDetachedCtrlCSignalPlan",
+                  "cmd/gormes/gateway_mutating_unavailable_test.go: TestGatewayWindowsScheduledTaskLifecycleCommands"
+                ],
+                "verification": [
+                  "RED: go test ./cmd/gormes -run 'TestGatewayWindowsScheduledTask|TestGatewayWindowsDetachedCtrlC|TestGatewayMutating' -count=1 failed on undefined gatewayShutdownSignalPlan.",
+                  "GREEN: go test ./cmd/gormes -run 'TestGatewayWindowsScheduledTask|TestGatewayWindowsDetachedCtrlC|TestGatewayMutating' -count=1 passed after adding the signal plan and detached Scheduled Task marker."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:9c26297c8 fix(gateway): preserve Ctrl+C for Windows foreground runs",
+                "note": "Hermes current behavior distinguishes detached Windows service launches from foreground operator runs; Gormes should preserve that boundary without weakening non-Windows lifecycle safety."
+              }
+            },
+            {
               "name": "Service RestartSec parser helper",
               "priority": "P2",
               "status": "complete",

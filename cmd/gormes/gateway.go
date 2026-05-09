@@ -64,6 +64,8 @@ const gatewayMutatingUnavailableExitCode = 2
 
 var gatewayRuntimeGOOS = runtime.GOOS
 
+const gatewayDetachedEnvName = "GORMES_GATEWAY_DETACHED"
+
 var gatewayMutatingUnavailableSubcommands = []string{
 	"start",
 	"restart",
@@ -188,7 +190,7 @@ func windowsScheduledTaskCommandLine(cfg gatewayWindowsScheduledTaskConfig) stri
 	for _, arg := range cfg.Args {
 		parts = append(parts, quoteWindowsScheduledTaskArg(arg))
 	}
-	return strings.Join(parts, " ")
+	return `cmd.exe /d /c set "` + gatewayDetachedEnvName + `=1"&& ` + strings.Join(parts, " ")
 }
 
 func quoteWindowsScheduledTaskArg(value string) string {
@@ -268,7 +270,11 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	rootCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	signals := make(chan os.Signal, 2)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	shutdownSignals, absorbInterrupt := gatewayShutdownSignalPlan()
+	if absorbInterrupt {
+		signal.Ignore(os.Interrupt)
+	}
+	signal.Notify(signals, shutdownSignals...)
 	defer signal.Stop(signals)
 	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
@@ -989,6 +995,24 @@ func runGatewaySignalLoop(signals <-chan os.Signal, budget time.Duration, mgr gr
 
 		cancel()
 		return
+	}
+}
+
+func gatewayShutdownSignalPlan() ([]os.Signal, bool) {
+	absorbInterrupt := gatewayRuntimeGOOS == "windows" && gatewayTruthyEnv(os.Getenv(gatewayDetachedEnvName))
+	signals := []os.Signal{syscall.SIGTERM, syscall.SIGHUP}
+	if !absorbInterrupt {
+		signals = append([]os.Signal{os.Interrupt}, signals...)
+	}
+	return signals, absorbInterrupt
+}
+
+func gatewayTruthyEnv(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
 	}
 }
 
