@@ -833,6 +833,7 @@ classification and row-backed implementation queue.
 - [x] File read repeated-stub BLOCKED escalation
 - [x] Native file task tool surface
 - [x] V4A patch mode for native patch tool
+- [x] V4A move operation for native patch tool
 - [x] Symlink-preserving atomic writer helper
 - [x] File write/patch staleness registry + cwd tracking
 - [x] Terminal cwd config bridge

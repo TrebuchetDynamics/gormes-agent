@@ -28635,7 +28635,7 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. The umbrella remains planned because fuzzy matching, move operations, lint hooks, checkpoint rollback linkage, and full file_operations.py parity remain row-backed.",
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. The umbrella remains planned because fuzzy matching, lint hooks, checkpoint rollback linkage, and full file_operations.py parity remain row-backed.",
               "priority": "P2"
             },
             {
@@ -29140,6 +29140,92 @@
                   "RED: go test ./internal/tools -run 'TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1 failed because PatchTool returned `patch currently supports replace mode only` for mode=patch.",
                   "GREEN: go test ./internal/tools -run 'TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1 passed.",
                   "GREEN: go test ./internal/tools -count=1 passed."
+                ]
+              }
+            },
+            {
+              "name": "V4A move operation for native patch tool",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes completes the safe V4A move slice for the native `patch` tool: `*** Move File: old/path -> new/path` validates both source and destination inside the workspace root, requires source file-state evidence from the current task, refuses to overwrite existing destination files, applies the rename only after every operation in the patch validates, records the moved destination state, and reports the source-to-destination move in patch result evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing sources, stale source state, outside-root destinations, and existing destination files return structured patch_validation_failed or file-state errors without moving, deleting, or overwriting any file.",
+              "fixture": "internal/tools/file_read_tool_test.go::TestPatchToolV4AMove*",
+              "source_refs": [
+                "./hermes-agent/tools/patch_parser.py@f1f42a7b9:OperationType.MOVE/_validate_operations/_apply_move",
+                "./hermes-agent/tests/tools/test_patch_parser.py@f1f42a7b9:TestParseMoveFile",
+                "internal/tools/file_task_tools.go:PatchTool V4A move validation/apply",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / File Ops + Patches"
+              ],
+              "ready_when": [
+                "V4A patch mode for native patch tool is complete.",
+                "File write/patch staleness registry + cwd tracking is complete.",
+                "The slice can use t.TempDir fixtures and direct PatchTool calls only; no live provider, terminal backend, checkpoint restore, lint command, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice implements fuzzy matching, lint hooks, checkpoint rollback, terminal-backed file_operations.py, or multi-agent conflict recovery in the same change.",
+                "Move operations can overwrite existing destination files or bypass workspace-root validation.",
+                "The patch applies an earlier operation before a later invalid move operation is rejected."
+              ],
+              "blocked_by": [
+                "V4A patch mode for native patch tool",
+                "File write/patch staleness registry + cwd tracking"
+              ],
+              "unblocks": [
+                "Hermes V4A patch fuzzy matching and lint hooks",
+                "Patch tool checkpoint rollback linkage"
+              ],
+              "acceptance": [
+                "TestPatchToolV4AMoveRenamesReadFile validates a previously-read source file moves to a new path, the source disappears, the destination content is preserved, and files_modified reports `old -> new`.",
+                "TestPatchToolV4AMoveRejectsExistingDestination validates a destination that already exists returns patch_validation_failed and leaves both files unchanged.",
+                "TestPatchToolV4AMoveBlocksOutsideRoot validates an escaping destination path is rejected before any file is moved.",
+                "TestPatchToolV4AMoveRejectsStaleSource validates an externally-mutated source returns file_stale and preserves the source and destination state.",
+                "TestPatchToolV4AMoveValidatesBeforeAnyMutation validates a patch containing a valid Add plus an invalid Move rejects the whole patch and does not create the added file."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestPatchToolV4AMove|TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "V4A move fixtures prove source/destination root validation, stale-source rejection, no overwrite behavior, validate-before-mutation ordering, destination state recording, and existing V4A add/update/delete regression coverage."
+              ],
+              "note": "Complete 2026-05-09: bounded all-topic weakness sweep refreshed Hermes to f1f42a7b9 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 13, below the 90-row cap. P1 publication/release rows were blocked or already closed by child rows, recent Telegram/Google Chat/Feishu/Kanban/profile/provider/browser/install deltas were complete or row-backed, and the remaining source-backed builder-ready runtime gap was the Hermes V4A move operation: Gormes parsed `*** Move File:` but rejected it in validateV4AOperation. RED `go test ./internal/tools -run '^TestPatchToolV4AMoveRenamesReadFile$' -count=1` failed on unsupported move operations. GREEN adds source/destination root validation, source file-state checks, no-overwrite validation, mkdir+rename apply, destination state recording, and `old -> new` evidence while preserving validate-before-mutation behavior. Fuzzy matching, lint hooks, checkpoint rollback, and full terminal-backed file_operations.py parity remain row-backed by the parent.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:f1f42a7b9 tools/patch_parser.py OperationType.MOVE/_apply_move",
+                "note": "Hermes defines move as a first-class V4A patch operation; this child row ports only the safe Go-native rename behavior over the completed root/file-state guard."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go: validateV4AOperation now validates V4A move sources through the existing file-state registry, resolves destinations inside the workspace root, rejects existing destinations, and keeps validation side-effect-free.",
+                  "internal/tools/file_task_tools.go: executeV4APatch now creates destination parents, renames source to destination, records destination file_state, and reports files_modified as `old -> new`."
+                ],
+                "tests": [
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4AMoveRenamesReadFile",
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4AMoveRejectsExistingDestination",
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4AMoveBlocksOutsideRoot",
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4AMoveRejectsStaleSource",
+                  "internal/tools/file_read_tool_test.go: TestPatchToolV4AMoveValidatesBeforeAnyMutation"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run '^TestPatchToolV4AMoveRenamesReadFile$' -count=1 failed because PatchTool returned `move operations are not supported by this V4A patch slice`.",
+                  "GREEN: go test ./internal/tools -run '^TestPatchToolV4AMoveRenamesReadFile$' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run '^TestPatchToolV4AMove' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolV4AMove|TestPatchToolV4A|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1 passed."
                 ]
               }
             },

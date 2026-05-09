@@ -670,6 +670,15 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 				return marshalPatchApplyError(action.rel, "delete file: "+err.Error(), modified, created, deleted)
 			}
 			deleted = append(deleted, action.rel)
+		case v4aOperationMove:
+			if err := os.MkdirAll(filepath.Dir(action.newAbs), 0o755); err != nil {
+				return marshalPatchApplyError(action.rel, "create move parent directories: "+err.Error(), modified, created, deleted)
+			}
+			if err := os.Rename(action.abs, action.newAbs); err != nil {
+				return marshalPatchApplyError(action.rel, "move file: "+err.Error(), modified, created, deleted)
+			}
+			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
+			modified = append(modified, action.rel+" -> "+action.newRel)
 		}
 	}
 	return marshalToolPayload(map[string]any{
@@ -684,9 +693,6 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 
 func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, *fileStateCheck, error) {
 	action := v4aPatchAction{kind: op.kind}
-	if op.kind == v4aOperationMove {
-		return action, nil, fmt.Errorf("move operations are not supported by this V4A patch slice: %s -> %s", op.path, op.newPath)
-	}
 	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, op.path)
 	action.abs, action.rel, action.root, action.cwd = resolved, rel, root, cwd
 	if err != nil {
@@ -728,6 +734,30 @@ func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, 
 		}
 		if info.IsDir() {
 			return action, nil, fmt.Errorf("delete file %s: expected a file, got a directory", rel)
+		}
+	case v4aOperationMove:
+		if strings.TrimSpace(op.newPath) == "" {
+			return action, nil, fmt.Errorf("move file %s: destination path is required", rel)
+		}
+		if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
+			return action, check, nil
+		}
+		info, err := os.Stat(resolved)
+		if err != nil {
+			return action, nil, fmt.Errorf("move file %s: stat source: %w", rel, err)
+		}
+		if info.IsDir() {
+			return action, nil, fmt.Errorf("move file %s: expected a file, got a directory", rel)
+		}
+		newAbs, newRel, newRoot, newCWD, err := resolveFileTaskPath(t.cfg, op.newPath)
+		if err != nil {
+			return action, nil, err
+		}
+		action.newAbs, action.newRel, action.newRoot, action.newCWD = newAbs, newRel, newRoot, newCWD
+		if _, err := os.Stat(newAbs); err == nil {
+			return action, nil, fmt.Errorf("move file %s -> %s: destination already exists", rel, newRel)
+		} else if !os.IsNotExist(err) {
+			return action, nil, fmt.Errorf("move file %s -> %s: stat destination: %w", rel, newRel, err)
 		}
 	default:
 		return action, nil, fmt.Errorf("unsupported V4A operation for %s", rel)
@@ -787,6 +817,10 @@ type v4aPatchAction struct {
 	abs     string
 	root    string
 	cwd     string
+	newRel  string
+	newAbs  string
+	newRoot string
+	newCWD  string
 	content string
 }
 

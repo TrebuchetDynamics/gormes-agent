@@ -230,6 +230,173 @@ func TestPatchToolV4AAppliesAddUpdateDelete(t *testing.T) {
 	}
 }
 
+func TestPatchToolV4AMoveRenamesReadFile(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("move me\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "ok" || out["operations"] != float64(1) {
+		t.Fatalf("patch result = %#v, want ok with 1 operation", out)
+	}
+	assertStringListContains(t, out["files_modified"], "src/old.txt -> dst/new.txt")
+	assertFileContent(t, filepath.Join(root, "dst", "new.txt"), "move me\n")
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Fatalf("source stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4AMoveRejectsExistingDestination(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	dst := filepath.Join(root, "dst", "new.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir source fixture: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatalf("mkdir destination fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	if err := os.WriteFile(dst, []byte("destination\n"), 0o644); err != nil {
+		t.Fatalf("write destination fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "destination already exists") {
+		t.Fatalf("error = %v, want destination exists message", out["error"])
+	}
+	assertFileContent(t, src, "source\n")
+	assertFileContent(t, dst, "destination\n")
+}
+
+func TestPatchToolV4AMoveBlocksOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	outside := filepath.Join(filepath.Dir(root), "escape.txt")
+	_ = os.Remove(outside)
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> ../escape.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "outside workspace root") {
+		t.Fatalf("error = %v, want outside-root denial", out["error"])
+	}
+	assertFileContent(t, src, "source\n")
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		t.Fatalf("outside file stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4AMoveRejectsStaleSource(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+	if err := os.WriteFile(src, []byte("external change\n"), 0o644); err != nil {
+		t.Fatalf("external write: %v", err)
+	}
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != fileStateStatusStale {
+		t.Fatalf("status = %v, want %q: %#v", out["status"], fileStateStatusStale, out)
+	}
+	assertFileContent(t, src, "external change\n")
+	if _, err := os.Stat(filepath.Join(root, "dst", "new.txt")); !os.IsNotExist(err) {
+		t.Fatalf("destination stat err = %v, want not exist", err)
+	}
+}
+
+func TestPatchToolV4AMoveValidatesBeforeAnyMutation(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src", "old.txt")
+	dst := filepath.Join(root, "dst", "new.txt")
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatalf("mkdir source fixture: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatalf("mkdir destination fixture: %v", err)
+	}
+	if err := os.WriteFile(src, []byte("source\n"), 0o644); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+	if err := os.WriteFile(dst, []byte("destination\n"), 0o644); err != nil {
+		t.Fatalf("write destination fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/old.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Add File: src/created.txt",
+		"+should not exist",
+		"*** Move File: src/old.txt -> dst/new.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	assertFileContent(t, src, "source\n")
+	assertFileContent(t, dst, "destination\n")
+	if _, err := os.Stat(filepath.Join(root, "src", "created.txt")); !os.IsNotExist(err) {
+		t.Fatalf("created.txt stat err = %v, want not exist", err)
+	}
+}
+
 func TestPatchToolV4ABlocksOutsideRoot(t *testing.T) {
 	root := t.TempDir()
 	outside := filepath.Join(filepath.Dir(root), "escape.txt")
