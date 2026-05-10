@@ -31079,7 +31079,7 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. 2026-05-09 sweep against Hermes dae94fa65 found the remaining small ready lint gap: Hermes also runs `_lint_python_inproc` through the same lint-delta path for `.py` writes/patches, while Gormes still omitted lint evidence for Python files; child row `Python syntax lint delta for native write/patch tools` is now complete. 2026-05-10 all-topic sweep against Hermes fef1a4124 found the next small ready lint gap: Hermes falls back to shell linters for `.js`, `.ts`, `.go`, and `.rs` post-edit checks, while Gormes still stopped at in-process lint evidence; child row `Shell lint delta for native write/patch tools` is now complete. 2026-05-10 sweep against Hermes 44cdf555a found the next small ready patch UX gap: Hermes surfaces nearby-section hints for replace-mode `old_string` misses, while Gormes returned a bare error; child row `Patch replace no-match did-you-mean hint` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' replace mode applies core fuzzy line/whitespace/indentation/escape strategies, while Gormes still required an exact `old_string`; child row `Core fuzzy replace strategies for native patch tool` is now complete. 2026-05-10 all-topic sweep against Hermes 44cdf555a found the next small ready unicode patch gap: Hermes normalizes smart quotes, apostrophes, en/em dashes, ellipses, and non-breaking spaces before fuzzy replace matching; child row `Unicode-normalized fuzzy replace for native patch tool` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' block-anchor strategy matches same first/last lines with a similarity threshold over the middle; child row `Block-anchor fuzzy replace for native patch tool` is now complete. The umbrella remains planned because context-aware fuzzy replacement, checkpoint rollback linkage, and full file_operations.py parity remain row-backed.",
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. 2026-05-09 sweep against Hermes dae94fa65 found the remaining small ready lint gap: Hermes also runs `_lint_python_inproc` through the same lint-delta path for `.py` writes/patches, while Gormes still omitted lint evidence for Python files; child row `Python syntax lint delta for native write/patch tools` is now complete. 2026-05-10 all-topic sweep against Hermes fef1a4124 found the next small ready lint gap: Hermes falls back to shell linters for `.js`, `.ts`, `.go`, and `.rs` post-edit checks, while Gormes still stopped at in-process lint evidence; child row `Shell lint delta for native write/patch tools` is now complete. 2026-05-10 sweep against Hermes 44cdf555a found the next small ready patch UX gap: Hermes surfaces nearby-section hints for replace-mode `old_string` misses, while Gormes returned a bare error; child row `Patch replace no-match did-you-mean hint` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' replace mode applies core fuzzy line/whitespace/indentation/escape strategies, while Gormes still required an exact `old_string`; child row `Core fuzzy replace strategies for native patch tool` is now complete. 2026-05-10 all-topic sweep against Hermes 44cdf555a found the next small ready unicode patch gap: Hermes normalizes smart quotes, apostrophes, en/em dashes, ellipses, and non-breaking spaces before fuzzy replace matching; child row `Unicode-normalized fuzzy replace for native patch tool` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' block-anchor strategy matches same first/last lines with a similarity threshold over the middle; child row `Block-anchor fuzzy replace for native patch tool` is now complete. 2026-05-10 bounded all-topic sweep against Hermes 44cdf555a found the next small checkpoint gap: Hermes' file operations run behind checkpoint rollback while Gormes V4A apply errors could leave already-applied actions in place; child row `V4A patch apply rollback for native patch tool` is now complete. The umbrella remains planned because context-aware fuzzy replacement and full file_operations.py parity remain row-backed.",
               "priority": "P2"
             },
             {
@@ -32759,12 +32759,98 @@
                 "upstream_ref": "hermes:44cdf555a tools/patch_parser.py V4A fuzzy_find_and_replace update hunks",
                 "note": "Hermes uses fuzzy update-hunk matching for V4A patch mode so model-authored multi-file patches recover from whitespace, indentation, unicode, and anchored drift. Gormes should reuse its native fuzzy matcher in V4A mode before broader file_operations.py parity work."
               }
+            },
+            {
+              "name": "V4A patch apply rollback for native patch tool",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes native `patch` mode=patch snapshots the workspace after all V4A operations validate and before any filesystem mutation, then restores that snapshot if an apply-time write/delete/move step fails after earlier actions changed files. The slice preserves validate-before-mutate semantics, successful add/update/delete/move payloads, stale file-state checks, root/binary guards, fuzzy hunk matching, lint evidence, and replace-mode behavior.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If snapshot capture fails before mutation, patch returns a typed apply failure without changing files. If restore fails after an apply error, the payload includes rollback_error and the partial modified/created/deleted evidence so the operator can recover.",
+              "fixture": "internal/tools/file_read_tool_test.go::TestPatchToolV4ARollback",
+              "source_refs": [
+                "./hermes-agent/tools/patch_parser.py@44cdf555a:apply_v4a_operations",
+                "./hermes-agent/tools/checkpoint_manager.py@44cdf555a:CheckpointManager.ensure_checkpoint/restore",
+                "internal/tools/file_task_tools.go:executeV4APatch",
+                "internal/tools/snapshot.go:TakeWorkspaceSnapshot"
+              ],
+              "ready_when": [
+                "V4A fuzzy hunk matching for native patch tool is complete, so mode=patch add/update/delete/move already validates all operations before mutation.",
+                "The slice can be tested with t.TempDir fixtures and the public PatchTool JSON payload by injecting one apply-time filesystem failure; no live Hermes process, provider, terminal execution, or checkpoint CLI is required.",
+                "The row is scoped to apply-time rollback for V4A patch mode only; replace-mode rollback, terminal-backed file_operations.py behavior, context-aware fuzzy replacement, and full file_operations.py parity remain separate follow-ups."
+              ],
+              "not_ready_when": [
+                "The implementation mutates any file before every V4A operation validates.",
+                "The slice changes replace-mode matching semantics, V4A validation, add/delete/move success payloads, file-state guards, path guards, binary guards, or lint evidence outside apply-failure rollback metadata.",
+                "The implementation shells out to git or depends on the Hermes checkpoint directory instead of using Gormes' existing in-process workspace snapshot helper."
+              ],
+              "blocked_by": [
+                "V4A fuzzy hunk matching for native patch tool"
+              ],
+              "unblocks": [
+                "Full file_operations.py parity"
+              ],
+              "acceptance": [
+                "TestPatchToolV4ARollbackOnApplyFailure proves a later V4A apply failure restores an earlier updated file and returns status=patch_apply_failed with rolled_back=true.",
+                "TestPatchToolV4ARollbackRemovesCreatedFiles proves a created file from an earlier action is removed when a later apply action fails.",
+                "Existing V4A add/update/delete/move, V4A fuzzy hunk, replace-mode fuzzy, stale-state, lint, and search_files fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestPatchToolV4ARollback|TestPatchToolV4A|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "V4A PatchTool fixtures prove apply-time failures roll back updated and newly-created files while successful V4A, validation failure, stale-state, lint, and replace-mode behavior stays stable."
+              ],
+              "note": "Complete 2026-05-10: added and shipped by a bounded all-topic weakness sweep after refreshing Hermes to 44cdf555a and Honcho to e659b6b. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current planned item rows were 16, below the 90-row cap. Fresh Hermes Codex Spark, stream-drop diagnostics, Kanban slash help, vision native results, user-story docs, release trust, browser, install/runtime, and Goncho deltas are complete or row-backed; higher-priority P1 publication/release parents remain operator-blocked or too broad. TDD added V4A apply rollback by snapshotting the workspace after validation and before mutation, restoring that snapshot on apply-time failures, reporting rolled_back=true or rollback_error, and delaying file-state registry updates until the entire patch succeeds.",
+              "completed_at": "2026-05-10T12:11:16Z",
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-10T00:00:00Z",
+                "last_success": "2026-05-10T00:00:00Z"
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go adds V4A apply-time workspace snapshots via TakeWorkspaceSnapshot after all operations validate and before filesystem mutation.",
+                  "internal/tools/file_task_tools.go restores the snapshot and returns rolled_back=true when a later V4A apply action fails after earlier actions changed files.",
+                  "internal/tools/file_task_tools.go reports rollback_error if restore fails and delays file-state registry updates until every V4A action succeeds."
+                ],
+                "tests": [
+                  "internal/tools/file_read_tool_test.go:TestPatchToolV4ARollbackOnApplyFailure",
+                  "internal/tools/file_read_tool_test.go:TestPatchToolV4ARollbackRemovesCreatedFiles"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestPatchToolV4ARollback' -count=1 failed to compile because fileTaskRemove did not exist.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolV4ARollback' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolV4ARollback|TestPatchToolV4A|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchRejectsStaleAfterExternalChange' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:44cdf555a tools/patch_parser.py + tools/checkpoint_manager.py",
+                "note": "Hermes separates V4A validation from apply and runs file-mutating tools behind checkpoint rollback. Gormes owns an in-process WorkspaceSnapshot helper that can provide the same user-visible rollback guarantee for native V4A apply failures."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-10T00:00:00Z",
-            "origin_decision": "Hermes 44cdf555a plus recent file-operation rows show the remaining File Ops + Patches weaknesses are context-aware fuzzy replacement, checkpoint rollback linkage, and full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, and V4A fuzzy hunk matching validated. The 2026-05-10 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `V4A fuzzy hunk matching for native patch tool` as the next small builder-ready runtime slice."
+            "origin_decision": "Hermes 44cdf555a plus recent file-operation rows show the remaining File Ops + Patches weaknesses are context-aware fuzzy replacement and full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, V4A fuzzy hunk matching, and V4A apply rollback validated. The 2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 16 before adding the row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `V4A patch apply rollback for native patch tool` as the next small builder-ready runtime slice."
           }
         },
         "5.M": {

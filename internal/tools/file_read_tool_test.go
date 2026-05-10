@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -535,6 +536,96 @@ func TestPatchToolV4AAppliesAddUpdateDelete(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "src", "delete.txt")); !os.IsNotExist(err) {
 		t.Fatalf("delete.txt stat err = %v, want not exist", err)
 	}
+}
+
+func TestPatchToolV4ARollbackOnApplyFailure(t *testing.T) {
+	root := t.TempDir()
+	appPath := filepath.Join(root, "src", "app.txt")
+	deletePath := filepath.Join(root, "src", "delete.txt")
+	if err := os.MkdirAll(filepath.Dir(appPath), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(appPath, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write app fixture: %v", err)
+	}
+	if err := os.WriteFile(deletePath, []byte("keep me\n"), 0o644); err != nil {
+		t.Fatalf("write delete fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/app.txt"}`)
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/delete.txt"}`)
+
+	originalRemove := fileTaskRemove
+	fileTaskRemove = func(path string) error {
+		if path == deletePath {
+			return errors.New("injected delete failure")
+		}
+		return originalRemove(path)
+	}
+	defer func() { fileTaskRemove = originalRemove }()
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/app.txt",
+		"@@",
+		" alpha",
+		"-beta",
+		"+gamma",
+		"*** Delete File: src/delete.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_apply_failed" || out["rolled_back"] != true {
+		t.Fatalf("patch result = %#v, want apply failure with rolled_back=true", out)
+	}
+	if !strings.Contains(asString(out["error"]), "injected delete failure") {
+		t.Fatalf("error = %v, want injected delete failure", out["error"])
+	}
+	assertStringListContains(t, out["files_modified"], "src/app.txt")
+	assertFileContent(t, appPath, "alpha\nbeta\n")
+	assertFileContent(t, deletePath, "keep me\n")
+}
+
+func TestPatchToolV4ARollbackRemovesCreatedFiles(t *testing.T) {
+	root := t.TempDir()
+	deletePath := filepath.Join(root, "src", "delete.txt")
+	createdPath := filepath.Join(root, "src", "created.txt")
+	if err := os.MkdirAll(filepath.Dir(deletePath), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(deletePath, []byte("keep me\n"), 0o644); err != nil {
+		t.Fatalf("write delete fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/delete.txt"}`)
+
+	originalRemove := fileTaskRemove
+	fileTaskRemove = func(path string) error {
+		if path == deletePath {
+			return errors.New("injected delete failure")
+		}
+		return originalRemove(path)
+	}
+	defer func() { fileTaskRemove = originalRemove }()
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Add File: src/created.txt",
+		"+temporary",
+		"*** Delete File: src/delete.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_apply_failed" || out["rolled_back"] != true {
+		t.Fatalf("patch result = %#v, want apply failure with rolled_back=true", out)
+	}
+	assertStringListContains(t, out["files_created"], "src/created.txt")
+	if _, err := os.Stat(createdPath); !os.IsNotExist(err) {
+		t.Fatalf("created file stat err = %v, want not exist after rollback", err)
+	}
+	assertFileContent(t, deletePath, "keep me\n")
 }
 
 func TestPatchToolV4AFuzzyHunkLineTrimmedApplies(t *testing.T) {

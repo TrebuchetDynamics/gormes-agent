@@ -70,6 +70,10 @@ type fileLintCommandResult struct {
 var (
 	fileLintLookPath   = exec.LookPath
 	fileLintRunCommand = runFileLintCommand
+	fileTaskMkdirAll   = os.MkdirAll
+	fileTaskWriteFile  = os.WriteFile
+	fileTaskRemove     = os.Remove
+	fileTaskRename     = os.Rename
 )
 
 type ReadFileToolConfig = FileTaskToolConfig
@@ -1149,47 +1153,61 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 		}
 		actions = append(actions, action)
 	}
+	snapshotRoot, err := v4aPatchSnapshotRoot(actions)
+	if err != nil {
+		return marshalPatchApplyError("", "prepare rollback snapshot: "+err.Error(), nil, nil, nil)
+	}
+	rollbackSnapshot, err := TakeWorkspaceSnapshot(snapshotRoot)
+	if err != nil {
+		return marshalPatchApplyError("", "prepare rollback snapshot: "+err.Error(), nil, nil, nil)
+	}
 
 	var modified, created, deleted []string
 	lintResults := map[string]structuredLintResult{}
-	registry := fileTaskStateRegistry(t.cfg)
 	for _, action := range actions {
 		switch action.kind {
 		case v4aOperationAdd:
-			if err := os.MkdirAll(filepath.Dir(action.abs), 0o755); err != nil {
-				return marshalPatchApplyError(action.rel, "create parent directories: "+err.Error(), modified, created, deleted)
+			if err := fileTaskMkdirAll(filepath.Dir(action.abs), 0o755); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "create parent directories: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			if err := os.WriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
-				return marshalPatchApplyError(action.rel, "write added file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskWriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "write added file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			created = append(created, action.rel)
 			if lint, ok := postEditLintDelta(action.abs, action.rel, action.content, nil); ok {
 				lintResults[action.rel] = lint
 			}
 		case v4aOperationUpdate:
-			if err := os.WriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
-				return marshalPatchApplyError(action.rel, "write patched file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskWriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "write patched file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			modified = append(modified, action.rel)
 			if lint, ok := postEditLintDelta(action.abs, action.rel, action.content, action.preContent); ok {
 				lintResults[action.rel] = lint
 			}
 		case v4aOperationDelete:
-			if err := os.Remove(action.abs); err != nil {
-				return marshalPatchApplyError(action.rel, "delete file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskRemove(action.abs); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "delete file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
 			deleted = append(deleted, action.rel)
 		case v4aOperationMove:
-			if err := os.MkdirAll(filepath.Dir(action.newAbs), 0o755); err != nil {
-				return marshalPatchApplyError(action.rel, "create move parent directories: "+err.Error(), modified, created, deleted)
+			if err := fileTaskMkdirAll(filepath.Dir(action.newAbs), 0o755); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "create move parent directories: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			if err := os.Rename(action.abs, action.newAbs); err != nil {
-				return marshalPatchApplyError(action.rel, "move file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskRename(action.abs, action.newAbs); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "move file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
 			modified = append(modified, action.rel+" -> "+action.newRel)
+		}
+	}
+	_ = rollbackSnapshot.Commit()
+	registry := fileTaskStateRegistry(t.cfg)
+	for _, action := range actions {
+		switch action.kind {
+		case v4aOperationAdd, v4aOperationUpdate:
+			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
+		case v4aOperationMove:
+			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
 		}
 	}
 	payload := map[string]any{
@@ -1204,6 +1222,25 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 		payload["lint"] = lintResults
 	}
 	return marshalToolPayload(payload)
+}
+
+func v4aPatchSnapshotRoot(actions []v4aPatchAction) (string, error) {
+	if len(actions) == 0 {
+		return "", errors.New("patch contains no operations")
+	}
+	root := filepath.Clean(actions[0].root)
+	if root == "." || root == "" {
+		return "", errors.New("workspace root is required")
+	}
+	for _, action := range actions {
+		if filepath.Clean(action.root) != root {
+			return "", fmt.Errorf("operation %s uses different workspace root", action.rel)
+		}
+		if action.kind == v4aOperationMove && filepath.Clean(action.newRoot) != root {
+			return "", fmt.Errorf("move destination %s uses different workspace root", action.newRel)
+		}
+	}
+	return root, nil
 }
 
 func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, *fileStateCheck, error) {
@@ -1291,7 +1328,7 @@ func marshalPatchValidationError(message string) (json.RawMessage, error) {
 }
 
 func marshalPatchApplyError(path, message string, modified, created, deleted []string) (json.RawMessage, error) {
-	return marshalToolPayload(map[string]any{
+	payload := map[string]any{
 		"path":           path,
 		"status":         "patch_apply_failed",
 		"success":        false,
@@ -1299,7 +1336,32 @@ func marshalPatchApplyError(path, message string, modified, created, deleted []s
 		"files_modified": modified,
 		"files_created":  created,
 		"files_deleted":  deleted,
-	})
+		"rolled_back":    false,
+	}
+	return marshalToolPayload(payload)
+}
+
+func marshalPatchApplyErrorWithRollback(path, message string, modified, created, deleted []string, snapshot *WorkspaceSnapshot) (json.RawMessage, error) {
+	payload := map[string]any{
+		"path":           path,
+		"status":         "patch_apply_failed",
+		"success":        false,
+		"error":          message,
+		"files_modified": modified,
+		"files_created":  created,
+		"files_deleted":  deleted,
+	}
+	if snapshot == nil {
+		payload["rolled_back"] = false
+		return marshalToolPayload(payload)
+	}
+	if err := snapshot.Restore(); err != nil {
+		payload["rolled_back"] = false
+		payload["rollback_error"] = err.Error()
+		return marshalToolPayload(payload)
+	}
+	payload["rolled_back"] = true
+	return marshalToolPayload(payload)
 }
 
 type v4aOperationKind string
