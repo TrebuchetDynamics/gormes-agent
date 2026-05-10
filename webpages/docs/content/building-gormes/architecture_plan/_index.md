@@ -890,6 +890,7 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban dispatcher and worker spawn loop
 - [x] Hermes Kanban production worker process binding
 - [x] Hermes Kanban worker tools and prompt gating
+- [x] Kanban orchestrator board-routing tools
 - [x] Kanban comment author hardening and cross-task handoff policy
 - [x] Hermes Kanban slash/gateway/dashboard surfaces
 - [x] Native TUI /kanban slash command binding over gormes kanban

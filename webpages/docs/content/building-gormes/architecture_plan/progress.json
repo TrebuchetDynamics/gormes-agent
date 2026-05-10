@@ -33399,6 +33399,101 @@
               }
             },
             {
+              "name": "Kanban orchestrator board-routing tools",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Refresh the completed Kanban worker-tool surface for current Hermes: orchestrator profiles with the kanban toolset see `kanban_list` and `kanban_unblock` in addition to lifecycle tools, dispatcher-spawned task workers never see board-routing tools even if their profile has the kanban toolset, and model-facing Kanban tool args parse string booleans for `include_archived` and `triage` instead of treating non-empty strings as truthy.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "child-agent",
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If board-routing tools leak into worker schemas, a scoped child agent can enumerate or unblock board work outside its assigned task; if string booleans are not parsed explicitly, model-supplied `\"false\"` can archive-list or triage tasks unexpectedly.",
+              "fixture": "internal/kanbantools/kanban_tools_test.go; cmd/gormes/registry_kanban_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/kanban_tools.py@ce374bc1b:_check_kanban_orchestrator_mode",
+                "./hermes-agent/tools/kanban_tools.py@ce374bc1b:_handle_list",
+                "./hermes-agent/tools/kanban_tools.py@ce374bc1b:_handle_unblock",
+                "./hermes-agent/tools/kanban_tools.py@ce374bc1b:_parse_bool_arg",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@ce374bc1b:test_worker_with_kanban_toolset_still_hides_board_routing",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@ce374bc1b:test_kanban_tools_visible_with_toolset_config",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@ce374bc1b:test_list_parses_include_archived_string_false",
+                "./hermes-agent/tests/tools/test_kanban_tools.py@ce374bc1b:test_create_parses_triage_string_false",
+                "internal/kanbantools/kanban_tools.go",
+                "internal/kanban/store.go",
+                "cmd/gormes/registry.go"
+              ],
+              "ready_when": [
+                "Hermes Kanban worker tools and prompt gating is complete.",
+                "Gormes Kanban durable board core supports list, unblock, triage create, and blocked-task readiness recomputation.",
+                "Tests can use temp Gormes Kanban stores and explicit Config values; no live dispatcher, gateway, profile config, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice changes dashboard, dispatcher, CLI board commands, or worker process behavior instead of only refreshing the model-visible Kanban tool surface.",
+                "`kanban_list` or `kanban_unblock` are registered for a scoped worker task.",
+                "The implementation reads live profile/home config outside explicit env/config test fixtures."
+              ],
+              "unblocks": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "Worker-context fixtures prove `kanban_list` and `kanban_unblock` are absent when GORMES_KANBAN_TASK or HERMES_KANBAN_TASK scopes the agent to one task, even if the kanban toolset is enabled.",
+                "Orchestrator-toolset fixtures prove `kanban_list` and `kanban_unblock` are registered with the lifecycle tools when no worker task is scoped and kanban is enabled.",
+                "List fixtures prove assignee/status filters, default limit, max limit, truncation metadata, archived exclusion by default, and explicit string `include_archived` parsing over the native Gormes store.",
+                "Unblock fixtures prove blocked tasks return to ready/todo through existing readiness recomputation and non-blocked or unknown task ids return bounded tool errors.",
+                "Create fixtures prove string `triage` true/false values create triage versus ready/todo tasks deterministically."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes to ce374bc1b and Honcho to e659b6b. Planned rows were 16, below the 90-row cap; existing P1 publication/release rows were operator- or parent-gated. The current upstream delta was source-backed Kanban tool drift, making this the highest-priority unblocked builder-ready slice. TDD added orchestrator-only `kanban_list` and `kanban_unblock`, kept both hidden from scoped workers even when the kanban toolset is enabled, and added explicit string boolean parsing for `include_archived` and `triage` over temp native Gormes Kanban stores.",
+              "write_scope": [
+                "internal/kanbantools/kanban_tools.go",
+                "internal/kanbantools/kanban_tools_test.go",
+                "cmd/gormes/registry_kanban_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanbantools -run 'TestKanbanTools' -count=1",
+                "go test ./cmd/gormes -run TestBuildDefaultRegistryKanban -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban tool fixtures prove orchestrator-only board routing, worker schema exclusion, explicit boolean parsing, bounded list/unblock errors, and native triage creation without live Hermes, gateway, dispatcher, or worker processes."
+              ],
+              "completed_at": "2026-05-10T13:21:38Z",
+              "evidence": {
+                "implementation": [
+                  "internal/kanbantools/kanban_tools.go:NewTools registers `kanban_list` and `kanban_unblock` only when kanban is enabled without a scoped worker task.",
+                  "internal/kanbantools/kanban_tools.go:list/unblock implement bounded orchestrator board routing over the native Gormes Kanban store with worker-context runtime guards.",
+                  "internal/kanbantools/kanban_tools.go:boolValue parses string booleans for `include_archived` and `triage`; `kanban_create` now creates triage tasks deterministically from model-supplied string args.",
+                  "cmd/gormes/registry_kanban_test.go proves the default registry hides board-routing tools from workers and exposes them for orchestrator kanban toolsets."
+                ],
+                "tests": [
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsHiddenWithoutContextAndVisibleWithWorkerContext",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsOrchestratorListFiltersAndBooleanArgs",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsOrchestratorUnblockRecomputesReadiness",
+                  "internal/kanbantools/kanban_tools_test.go:TestKanbanToolsCreateParsesTriageStringBooleans",
+                  "cmd/gormes/registry_kanban_test.go:TestBuildDefaultRegistryKanbanOrchestratorToolsetIncludesBoardRouting"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/kanbantools -run 'TestKanbanTools' -count=1 failed because orchestrator toolsets still returned seven tools, `kanban_list`/`kanban_unblock` were missing, and `triage:\"true\"` created a ready task.",
+                  "RED: go test ./cmd/gormes -run TestBuildDefaultRegistryKanban -count=1 failed because the default registry did not expose `kanban_list` for an orchestrator kanban toolset.",
+                  "GREEN: the same focused selectors passed after adding orchestrator-only board-routing tools and explicit boolean parsing."
+                ],
+                "verification": [
+                  "go test ./internal/kanbantools -run 'TestKanbanTools' -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestBuildDefaultRegistryKanban -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:ce374bc1b tools/kanban_tools.py + tests/tools/test_kanban_tools.py",
+                "note": "Hermes current HEAD split task lifecycle tools from orchestrator board-routing tools and added explicit boolean parsing for model-supplied Kanban tool args."
+              }
+            },
+            {
               "name": "Kanban comment author hardening and cross-task handoff policy",
               "priority": "P1",
               "status": "complete",
