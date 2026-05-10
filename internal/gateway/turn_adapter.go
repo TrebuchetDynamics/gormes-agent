@@ -2,7 +2,11 @@ package gateway
 
 import (
 	"context"
+	"encoding/base64"
+	"os"
+	"strings"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 )
 
@@ -90,6 +94,7 @@ func (a *TurnAdapter) Dispatch(ctx context.Context, req TurnRequest) error {
 	err := a.Submitter.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           req.SubmitText,
+		ContentParts:   imageContentPartsFromAttachments(req.Attachments),
 		SessionID:      req.ResolvedSessionID,
 		SessionContext: req.SessionContext,
 	})
@@ -119,3 +124,39 @@ func SafeExternalChannelError(_ error) string {
 // emitted by the gateway when the kernel submit path fails. Reusing this
 // vocabulary keeps Hermes/Honcho channel parity stable.
 const externalChannelSafeBusyReply = "Busy — try again in a second."
+
+// imageContentPartsFromAttachments materializes channel-cached photo bytes
+// into multimodal image_url content parts that providers with native image
+// support consume directly. Unreadable files are silently dropped here so the
+// existing text-marker fallback in the submit text remains the user-visible
+// signal; the kernel never receives a broken image_url. Non-photo
+// attachments (voice, document) are skipped — voice has its own transcriber
+// resolver and documents lack a defined multimodal contract today.
+func imageContentPartsFromAttachments(attachments []Attachment) []hermes.MessageContentPart {
+	if len(attachments) == 0 {
+		return nil
+	}
+	var parts []hermes.MessageContentPart
+	for _, att := range attachments {
+		if !strings.EqualFold(strings.TrimSpace(att.Kind), "photo") {
+			continue
+		}
+		path := strings.TrimSpace(att.URL)
+		if path == "" {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || len(data) == 0 {
+			continue
+		}
+		mediaType := strings.TrimSpace(att.MediaType)
+		if mediaType == "" {
+			mediaType = "image/jpeg"
+		}
+		parts = append(parts, hermes.MessageContentPart{
+			Type:     "image_url",
+			ImageURL: "data:" + mediaType + ";base64," + base64.StdEncoding.EncodeToString(data),
+		})
+	}
+	return parts
+}
