@@ -618,6 +618,7 @@ classification and row-backed implementation queue.
 
 - [x] Provider-side resilience
 - [x] Classified provider-error taxonomy
+- [x] Generic provider timeout message classifier
 - [x] Provider image-too-large error classification
 - [x] Unsupported temperature retry + Codex no-temperature guard
 - [x] Codex Responses temperature guard after flush removal

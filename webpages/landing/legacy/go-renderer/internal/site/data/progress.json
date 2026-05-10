@@ -18548,6 +18548,75 @@
               ]
             },
             {
+              "name": "Generic provider timeout message classifier",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Provider errors with timeout-shaped plain messages classify as timeout retryable/fallback failures even when the concrete Go error type is generic, matching Hermes' generic exception timeout handling for local provider shims.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "system"
+              ],
+              "degraded_mode": "Plain provider-shim timeout messages remain unknown and can be reported as empty/opaque model failures instead of retrying or falling back deterministically.",
+              "fixture": "internal/hermes/errors_test.go::TestClassifyProviderError_GenericTimeoutMessages",
+              "source_refs": [
+                "./hermes-agent/agent/error_classifier.py@4f8d8ad91:_TIMEOUT_MESSAGE_PATTERNS",
+                "./hermes-agent/agent/error_classifier.py@4f8d8ad91:_classify_by_message",
+                "./hermes-agent/tests/agent/test_error_classifier.py@4f8d8ad91",
+                "internal/hermes/errors.go:ClassifyProviderError",
+                "internal/hermes/error_classifier.go:DefaultChainErrorClassifier",
+                "internal/hermes/errors_test.go"
+              ],
+              "ready_when": [
+                "Classified provider-error taxonomy is validated and ProviderErrorTimeout already exists as a stable kind.",
+                "The slice stays classification-only: use synthetic errors and no live provider credentials, network calls, or retry timing changes.",
+                "The chain classifier can map timeout to the existing retry-then-fallback decision without changing auth, context, rate-limit, image, or non-retryable behavior."
+              ],
+              "not_ready_when": [
+                "The implementation rewrites fallback chain selection, provider request timeouts, Retry-After handling, or kernel retry budgets.",
+                "Generic unknown provider errors are broadly reclassified without one of the upstream timeout message patterns.",
+                "Auth, context, image-size, or rate-limit messages lose precedence over timeout message matching."
+              ],
+              "blocked_by": [
+                "Classified provider-error taxonomy"
+              ],
+              "unblocks": [
+                "OpenAI-compatible local provider shim resilience",
+                "Fallback chain timeout parity"
+              ],
+              "acceptance": [
+                "Generic errors containing turn timed out, request timed out, deadline exceeded, operation timed out, upstream timed out, or timed out classify as ProviderErrorTimeout, ClassRetryable, Retryable=true, and ShouldFallback=true.",
+                "DefaultChainErrorClassifier retries timeout classifications until MaxRetriesPerProvider is reached, then falls back.",
+                "Existing auth, context, image-too-large, rate-limit, retryable, non-retryable, and unknown provider taxonomy fixtures stay green."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes b67ea7ff4 and Honcho e659b6b. Planned rows were 20, below the 90-row cap. Recent CLI chat -q banner behavior was already covered by `Profile + skills flags before one-shot chat config load`; gateway disconnect timeout rows were complete; docs/public and release rows remained operator blocked or already row-backed. The fresh builder-ready provider gap was Hermes 4f8d8ad91: generic RuntimeError-style timeout strings now classify as FailoverReason.timeout, while Gormes only recognized net.Error timeouts and let plain `deadline exceeded`/`turn timed out` messages fall to unknown. RED: `go test ./internal/hermes -run 'TestClassifyProviderError_GenericTimeoutMessages|TestDefaultChainErrorClassifierTimeoutRetriesThenFallback' -count=1` failed with generic messages classified as unknown and timeout chain decisions falling back immediately. GREEN: generic timeout message patterns now classify as ProviderErrorTimeout/ClassRetryable with ShouldFallback=true, DefaultChainErrorClassifier retries timeout kind before fallback, and the focused plus full internal/hermes tests pass without changing provider request timeouts, Retry-After handling, kernel retry budgets, auth/context/rate-limit/image precedence, or broad unknown-error behavior.",
+              "write_scope": [
+                "internal/hermes/errors.go",
+                "internal/hermes/error_classifier.go",
+                "internal/hermes/errors_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestClassifyProviderError_GenericTimeoutMessages|TestDefaultChainErrorClassifierTimeoutRetriesThenFallback' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Timeout-message fixtures prove generic provider-shim timeout messages classify as timeout retryable/fallback failures and chain decisions retry then fall back without broadening unknown-error classification."
+              ],
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-10T01:32:57Z",
+                "last_success": "2026-05-10T01:32:57Z"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:4f8d8ad91 agent/error_classifier.py",
+                "note": "Hermes fixed generic-typed provider-shim timeout messages after plain RuntimeError timeouts were misreported as unknown/empty responses."
+              }
+            },
+            {
               "name": "Provider image-too-large error classification",
               "priority": "P2",
               "status": "complete",

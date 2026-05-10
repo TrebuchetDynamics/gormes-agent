@@ -34,7 +34,7 @@ func NewDefaultChainErrorClassifier() *DefaultChainErrorClassifier {
 // Rules:
 //   - Fatal/auth errors → abort (no point trying other providers with same creds)
 //   - Context too large → abort (other providers will also reject)
-//   - Rate limit / retryable → retry up to MaxRetriesPerProvider, then fallback
+//   - Rate limit / timeout / retryable → retry up to MaxRetriesPerProvider, then fallback
 //   - Image too large → fallback (different provider may accept)
 //   - Non-retryable 4xx → fallback
 //   - Unknown → fallback
@@ -49,7 +49,7 @@ func (c *DefaultChainErrorClassifier) Decide(classification ProviderErrorClassif
 			return ChainDecisionRetry
 		}
 		return ChainDecisionFallback
-	case ProviderErrorRetryable:
+	case ProviderErrorTimeout, ProviderErrorRetryable:
 		if attemptNumber < c.MaxRetriesPerProvider {
 			return ChainDecisionRetry
 		}
