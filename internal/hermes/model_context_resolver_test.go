@@ -25,6 +25,33 @@ func TestResolveDisplayContextLengthUsesDefaultProviderCaps(t *testing.T) {
 	}
 }
 
+func TestResolveDisplayContextLengthCodexSpark(t *testing.T) {
+	spark := ResolveDisplayContextLength(ModelContextQuery{
+		Provider: "openai-codex",
+		Model:    "gpt-5.3-codex-spark",
+		ModelInfo: ModelContextMetadata{
+			ContextWindow: 400_000,
+		},
+	})
+	if spark.ContextLength != 128_000 {
+		t.Fatalf("Spark ContextLength = %d, want 128000", spark.ContextLength)
+	}
+	if spark.Source != ModelContextSourceProviderCap {
+		t.Fatalf("Spark Source = %q, want %q", spark.Source, ModelContextSourceProviderCap)
+	}
+
+	codex := ResolveDisplayContextLength(ModelContextQuery{
+		Provider: "openai-codex",
+		Model:    "gpt-5.3-codex",
+		ModelInfo: ModelContextMetadata{
+			ContextWindow: 400_000,
+		},
+	})
+	if codex.ContextLength != 272_000 {
+		t.Fatalf("Codex ContextLength = %d, want 272000", codex.ContextLength)
+	}
+}
+
 func TestModelContextResolverPrefersProviderCapsOverModelInfo(t *testing.T) {
 	resolver := NewModelContextResolver(StaticModelContextCaps{
 		ModelContextKey{Provider: "openai-codex", Model: "gpt-5.5"}:             272_000,

@@ -9553,6 +9553,78 @@
               }
             },
             {
+              "name": "Gateway restart notification opt-out",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' per-platform gateway_restart_notification opt-out for restart takeover notifications: restart command acknowledgements still send, but post-restart comeback pings are skipped for platforms whose gateway notification flag is false, and the marker is consumed so operators are not spammed on every startup.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the flag is absent, Gormes preserves the existing default of sending the one-shot restart notification. If the flag is false, startup records marker evidence and marks the marker consumed without sending live channel traffic.",
+              "fixture": "internal/gateway/restart_command_test.go + internal/config/config_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/config.py@3800972dd:PlatformConfig.gateway_restart_notification",
+                "./hermes-agent/tests/gateway/test_config.py@3800972dd:test_gateway_restart_notification_defaults_true/test_gateway_restart_notification_roundtrip_false",
+                "./hermes-agent/tests/gateway/test_restart_notification.py@3800972dd:test_send_restart_notification_skipped_when_flag_disabled",
+                "./hermes-agent/gateway/run.py@3800972dd:GatewayRunner._send_restart_notification",
+                "internal/gateway/manager.go:ConsumeRestartTakeoverMarker",
+                "internal/config/config.go:GatewayCfg"
+              ],
+              "ready_when": [
+                "Gateway /restart command + takeover markers is complete and ConsumeRestartTakeoverMarker is the only startup notification path.",
+                "The config parser can load native Gormes TOML without reading live Hermes homes or channel credentials."
+              ],
+              "not_ready_when": [
+                "The slice changes restart service-manager control, active-turn drain policy, channel SDK delivery, or live channel credentials.",
+                "The slice mutes the immediate /restart acknowledgement instead of only the startup comeback notification."
+              ],
+              "blocked_by": [
+                "Gateway /restart command + takeover markers"
+              ],
+              "acceptance": [
+                "Config defaults gateway restart notifications to enabled when no platform override is present.",
+                "Native TOML [gateway.platforms.telegram].gateway_restart_notification=false decodes as a false platform override without importing Hermes config.yaml.",
+                "ConsumeRestartTakeoverMarker sends the existing one-shot restart notification by default.",
+                "When the source platform has restart notifications disabled, ConsumeRestartTakeoverMarker sends nothing, records marker evidence, and marks the marker consumed so the next startup does not retry it."
+              ],
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/restart.go",
+                "internal/gateway/restart_command_test.go",
+                "cmd/gormes/gateway.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run 'GatewayRestartNotification|Load_HermesConfigYAMLDoesNotOverrideNativeGormes' -count=1",
+                "go test ./internal/gateway -run 'TestGatewayRestartCommand_TakeoverStartupNotification' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Restart takeover fixtures prove default notification delivery and per-platform opt-out consumption; config fixtures prove the native TOML override defaults to true and decodes false."
+              ],
+              "note": "Complete 2026-05-10: planned and shipped by the bounded all-topic weakness sweep after refreshing Hermes to 3800972dd and checking CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing P1 publication/release rows are operator- or umbrella-gated, Pure-Go Whisper is blocked on the WASI model fixture decision, and recent provider/auth, Kanban, Google Chat, browser, install, docs/public, and release deltas are complete or row-backed. Hermes' current gateway restart tests expose one small unrowed operator-control delta: per-platform gateway_restart_notification=false suppresses restart comeback pings without disabling the restart command itself. TDD added native [gateway.platforms.<platform>] gateway_restart_notification parsing, passed explicit false overrides into the shared gateway manager, and made ConsumeRestartTakeoverMarker mark disabled-platform markers consumed without sending live channel traffic.",
+              "evidence": {
+                "implementation": [
+                  "internal/config/config.go: GatewayCfg now carries per-platform GatewayRestartNotification overrides with default-true helpers.",
+                  "cmd/gormes/gateway.go passes cfg.GatewayRestartNotifications() into gateway.ManagerConfig.",
+                  "internal/gateway/manager.go suppresses restart comeback sends when the source platform override is false and still marks the marker consumed."
+                ],
+                "verification": [
+                  "RED: go test ./internal/config -run 'GatewayRestartNotification|Load_BuiltinDefaults' -count=1 failed because Config.GatewayRestartNotificationEnabled was missing.",
+                  "RED: go test ./internal/gateway -run 'TestGatewayRestartCommand_TakeoverStartupNotification' -count=1 failed because ManagerConfig had no RestartNotifications field.",
+                  "GREEN: go test ./internal/config -run 'GatewayRestartNotification|Load_BuiltinDefaults|Load_HermesConfigYAMLDoesNotOverrideNativeGormes' -count=1 passed.",
+                  "GREEN: go test ./internal/gateway -run 'TestGatewayRestartCommand_TakeoverStartupNotification' -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Session expiry finalized-flag migration",
               "priority": "P2",
               "status": "complete",
@@ -17645,16 +17717,112 @@
               }
             },
             {
-              "name": "Image input mode resolver + vision_analyze text fallback",
-              "priority": "P2",
-              "status": "planned",
+              "name": "OpenAI Codex Spark catalog and context parity",
+              "priority": "P1",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes agent/image_routing.py:decide_image_input_mode + gateway/run.py:6275",
-                "note": "Hermes resolves auto/native/text per turn based on model vision capability and auxiliary.vision config. Gormes already ships the helper (internal/hermes/image_routing.go:DecideImageInputMode) but it has zero non-test callers — Manager.submitPinned unconditionally emits image_url parts regardless of model capability. This is dead-code closure plus the missing text-mode path."
+                "upstream_ref": "hermes:44cdf555a hermes_cli/codex_models.py + agent/model_metadata.py",
+                "note": "Planner sweep 2026-05-10 refreshed Hermes from e5af1dd63 to 44cdf555a and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No fresh source delta appeared outside provider/model catalog parity. Planned rows were 19, below the 90-row cap, so this one P1 row records the new source-backed Spark drift instead of adding lower-priority backlog."
               },
-              "contract": "Manager.submitPinned consults DecideImageInputMode before calling imageContentPartsFromAttachments. When mode resolves to 'native' (vision-capable model + no auxiliary.vision override), behavior is unchanged. When mode resolves to 'text' (text-only model OR explicit auxiliary.vision config OR explicit image_input_mode=text), Gormes runs an image-to-text pre-pass via a vision_analyze tool/seam and prepends the description to SubmitText instead of emitting image_url parts. The active model's vision capability is read from internal/hermes model metadata (internal/hermes/model_metadata.go).",
-              "contract_status": "draft",
+              "contract": "Gormes mirrors Hermes OpenAI Codex model catalog behavior for `gpt-5.3-codex-spark`: curated Codex fallbacks include Spark, local Codex model-cache selection keeps Codex CLI-only entries even when `supported_in_api` is false, model picker suggestions expose Spark for `openai-codex`, and provider-aware context resolution reports Spark's 128k Codex OAuth window instead of substring-matching `gpt-5.3-codex` to 272k.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If Spark is absent from the operator's local Codex cache or account entitlement, Gormes still lists it only as a curated/offline Codex candidate and leaves runtime provider rejection to the existing provider error path; no live Codex API call or entitlement probe is introduced.",
+              "fixture": "internal/hermes/provider_default_model_test.go; internal/hermes/model_catalog_test.go; internal/hermes/model_context_resolver_test.go; internal/hermes/model_registry_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/codex_models.py@44cdf555a:DEFAULT_CODEX_MODELS",
+                "./hermes-agent/hermes_cli/codex_models.py@44cdf555a:_read_cache_models",
+                "./hermes-agent/hermes_cli/codex_models.py@44cdf555a:_add_forward_compat_models",
+                "./hermes-agent/agent/model_metadata.py@44cdf555a:DEFAULT_CONTEXT_LENGTHS",
+                "./hermes-agent/agent/model_metadata.py@44cdf555a:_CODEX_OAUTH_CONTEXT_FALLBACK",
+                "./hermes-agent/tests/hermes_cli/test_codex_models.py@44cdf555a:test_get_codex_model_ids_prioritizes_default_and_cache",
+                "./hermes-agent/tests/hermes_cli/test_codex_models.py@44cdf555a:test_fetch_from_api_keeps_supported_in_api_false_models",
+                "./hermes-agent/tests/hermes_cli/test_openai_codex_model_validation_fallback.py@44cdf555a",
+                "internal/hermes/provider_default_model.go",
+                "internal/hermes/model_context_resolver.go",
+                "internal/hermes/model_catalog.go",
+                "internal/hermes/model_registry.go"
+              ],
+              "ready_when": [
+                "Provider-default model resolution at config load is complete and already owns offline Codex config/cache/fallback order.",
+                "Model catalog cache + preferred-provider live merge is complete and already owns model picker suggestion fixtures.",
+                "Provider-enforced context-length resolver is complete and already owns provider-cap precedence."
+              ],
+              "not_ready_when": [
+                "The slice calls the live chatgpt.com Codex model API, device-code auth, or any real operator CODEX_HOME.",
+                "The slice adds Spark to the public OpenAI provider catalog instead of only the OpenAI Codex OAuth provider.",
+                "The slice changes generic provider routing, fallback dispatch, or provider error classification."
+              ],
+              "blocked_by": [
+                "Provider-default model resolution at config load",
+                "Model catalog cache + preferred-provider live merge",
+                "Provider-enforced context-length resolver"
+              ],
+              "acceptance": [
+                "OpenAI Codex curated fallback order includes `gpt-5.3-codex-spark` after `gpt-5.3-codex` and before `gpt-5.2-codex`, matching Hermes 44cdf555a.",
+                "Codex local cache fixtures do not filter `gpt-5.3-codex-spark` when `supported_in_api` is false, but still filter hidden entries.",
+                "`ProviderModelCatalogSuggestions(\"openai-codex\", nil)` includes Spark while the public `openai` provider suggestions do not.",
+                "OpenAI Codex context resolution for `gpt-5.3-codex-spark` returns 128000 from provider caps, while `gpt-5.3-codex` remains 272000.",
+                "Model registry lookup reports Spark as an `openai-codex` model with explicit unknown pricing and known capability flags."
+              ],
+              "write_scope": [
+                "internal/hermes/provider_default_model.go",
+                "internal/hermes/provider_default_model_test.go",
+                "internal/hermes/model_catalog.go",
+                "internal/hermes/model_catalog_test.go",
+                "internal/hermes/model_context_resolver.go",
+                "internal/hermes/model_context_resolver_test.go",
+                "internal/hermes/model_registry.go",
+                "internal/hermes/model_registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestProviderDefaultModel_OpenAICodexKeepsCLIOnlyCacheModel|TestOpenAICodexModelCatalogSuggestions|TestResolveDisplayContextLengthCodexSpark|TestModelRegistryExposesOpenAICodexSpark' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Internal Hermes fixtures prove Spark is visible only through OpenAI Codex catalog paths, local cache handling preserves CLI-only models, and context budgeting uses Spark's 128k Codex OAuth cap without live credentials."
+              ],
+              "completed_at": "2026-05-10T06:42:49Z",
+              "note": "Complete 2026-05-10: TDD ported the Hermes 44cdf555a OpenAI Codex Spark catalog drift into Gormes. `gpt-5.3-codex-spark` is now present in the OpenAI Codex curated fallback and model picker suggestions, remains absent from public OpenAI suggestions, local Codex cache selection preserves visible `supported_in_api=false` CLI-only entries while still filtering hidden entries, provider-aware context resolution returns Spark's exact 128k Codex OAuth cap before the broader `gpt-5.3-codex` 272k match, and the static model registry exposes Spark with unknown pricing plus known capability flags. No live Codex API, device-code auth, generic routing, fallback dispatch, or provider error classification changed.",
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/provider_default_model.go adds Spark to the OpenAI Codex fallback order and stops treating `supported_in_api=false` as unavailable for the Codex OAuth cache.",
+                  "internal/hermes/model_catalog.go exposes Spark through `ProviderModelCatalogSuggestions(\"openai-codex\", nil)` without adding it to public OpenAI suggestions.",
+                  "internal/hermes/model_context_resolver.go adds an exact OpenAI Codex Spark 128000-token provider cap.",
+                  "internal/hermes/model_registry.go adds a static OpenAI Codex Spark metadata fixture with unknown pricing and known capability flags."
+                ],
+                "tests": [
+                  "internal/hermes/provider_default_model_test.go covers visible CLI-only Codex cache entries and preserves hidden-entry filtering.",
+                  "internal/hermes/model_catalog_test.go covers OpenAI Codex suggestion ordering and public OpenAI exclusion.",
+                  "internal/hermes/model_context_resolver_test.go covers Spark 128k and gpt-5.3-codex 272k provider caps.",
+                  "internal/hermes/model_registry_test.go covers static Spark metadata lookup."
+                ],
+                "verification": [
+                  "go test ./internal/hermes -run 'TestProviderDefaultModel_OpenAICodexKeepsCLIOnlyCacheModel|TestProviderDefaultModel_OpenAICodexUsesLocalCachePriority|TestOpenAICodexModelCatalogSuggestions|TestResolveDisplayContextLengthCodexSpark|TestModelRegistryExposesOpenAICodexSpark' -count=1 -> pass",
+                  "go test ./internal/hermes -count=1 -> pass"
+                ]
+              }
+            },
+            {
+              "name": "Image input mode resolver + vision_analyze text fallback",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-10T04:30:52Z",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes tools/vision_tools.py@3800972dd:_handle_vision_analyze + agent/image_routing.py:decide_image_input_mode",
+                "note": "Hermes resolves auto/native/text per turn based on model vision capability and auxiliary.vision config. The 3800972dd vision fast-path keeps vision_analyze image bytes native for vision-capable models, which makes Gormes' unconditional Manager.submitPinned image_url emission stale for text-only models. Gormes already ships the helper (internal/hermes/image_routing.go:DecideImageInputMode) but it has zero non-test callers. This row closes the gateway dead-code loop and ships the typed degraded text-mode marker; native multimodal tool-result bytes for vision_analyze remain out of this bounded gateway slice."
+              },
+              "contract": "Manager.submitPinned consults DecideImageInputMode before calling imageContentPartsFromAttachments. When mode resolves to 'native' (vision-capable model + no auxiliary.vision override), behavior is unchanged. When mode resolves to 'text' (text-only or unknown model OR explicit auxiliary.vision config OR explicit agent.image_input_mode=text), Gormes does not emit image_url parts; this bounded row prepends a typed vision_pre_analysis_unavailable degraded marker to SubmitText until a concrete vision_analyze backend is wired. The active model's vision capability is read from internal/hermes model metadata (internal/hermes/model_registry.go).",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -17663,11 +17831,12 @@
                 "system"
               ],
               "degraded_mode": "When mode=text is selected but no vision_analyze backend is configured, the channel reports a typed degraded marker (vision_pre_analysis_unavailable) and falls back to the existing attachment-marker text rather than silently dropping the image or sending image_url to a non-vision provider that will reject it.",
-              "fixture": "internal/gateway/manager_image_mode_test.go (planned) and internal/hermes/image_routing_test.go (existing)",
+              "fixture": "internal/gateway/manager_image_mode_test.go, internal/gateway/manager_photo_passthrough_test.go, internal/config/image_input_mode_test.go, and internal/hermes/image_routing_test.go",
               "source_refs": [
-                "../hermes-agent/agent/image_routing.py:decide_image_input_mode",
-                "../hermes-agent/gateway/run.py:6275 _decide_image_input_mode",
-                "../hermes-agent/gateway/run.py:6296 _enrich_message_with_vision (text-mode pre-pass)",
+                "./hermes-agent/agent/image_routing.py@3800972dd:decide_image_input_mode",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_handle_vision_analyze",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_vision_analyze_native",
+                "./hermes-agent/tests/tools/test_vision_native_fast_path.py@3800972dd",
                 "internal/hermes/image_routing.go:DecideImageInputMode (dead-code helper to wire)",
                 "internal/hermes/image_routing.go:BuildNativeImageContentParts (dead-code helper)",
                 "internal/gateway/manager.go:2702 submitPinned (current call site)",
@@ -17675,8 +17844,8 @@
               ],
               "ready_when": [
                 "Multimodal photo attachment passthrough (2.B.12 row 6) is complete (true at HEAD = 0a7f8d02d).",
-                "Model-capability metadata is queryable from gateway code via internal/hermes (true — model_metadata.go).",
-                "A vision_analyze tool/seam exists OR the slice ships its first concrete one (e.g. wrapping the same provider stack with a vision-capable secondary model)."
+                "Model-capability metadata is queryable from gateway code via internal/hermes (true — model_registry.go).",
+                "The row can ship a typed vision_pre_analysis_unavailable degraded marker for text mode without silently stripping images; a concrete vision_analyze backend can follow as a separate provider/tool-result slice."
               ],
               "not_ready_when": [
                 "The slice silently strips images for non-vision models without surfacing degraded-mode evidence to the operator.",
@@ -17695,26 +17864,49 @@
               "write_scope": [
                 "internal/gateway/manager.go",
                 "internal/gateway/turn_adapter.go",
+                "internal/gateway/config_reload.go",
                 "internal/gateway/manager_image_mode_test.go (new)",
+                "internal/gateway/manager_photo_passthrough_test.go",
                 "internal/hermes/image_routing.go (wire BuildNativeImageContentParts to single call site)",
                 "internal/config/config.go (image_input_mode field)",
+                "internal/config/image_input_mode_test.go (new)",
+                "cmd/gormes/gateway.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "CGO_ENABLED=0 go test ./internal/gateway -run 'TestManager.*ImageMode' -count=1",
-                "CGO_ENABLED=0 go test ./internal/gateway ./internal/hermes ./cmd/gormes -count=1",
+                "CGO_ENABLED=0 go test ./internal/gateway ./internal/hermes ./internal/config ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Operator with text-only model (e.g. local Ollama) sends a screenshot to the Telegram bot; gateway routes via vision_analyze pre-pass + text description rather than sending image_url to a model that would reject it. Operator with vision-capable model sees identical behavior to today."
+                "Operator with text-only model (e.g. local Ollama) sends a screenshot to the Telegram bot; gateway routes to text mode with a typed vision_pre_analysis_unavailable marker and preserved attachment references rather than sending image_url to a model that would reject it. Operator with vision-capable model sees identical behavior to today."
               ],
-              "note": "Filed 2026-05-09 from gormes-hermes-parity audit covering the 0a7f8d02d / 72aa8e29b multimodal slice. The DecideImageInputMode + BuildNativeImageContentParts helpers were ported from Hermes but never wired — planner row 0a7f8d02d wired only the always-native path. This row closes the dead-code loop and adds the text-mode fallback that Hermes provides via auxiliary.vision config."
+              "note": "Filed 2026-05-09 from gormes-hermes-parity audit covering the 0a7f8d02d / 72aa8e29b multimodal slice. The DecideImageInputMode + BuildNativeImageContentParts helpers were ported from Hermes but never wired — planner row 0a7f8d02d wired only the always-native path. Planner refresh 2026-05-10 covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 20, below the 90-row cap; no new row was added. Fresh Hermes 3800972dd vision_analyze native fast-path evidence raised this existing gateway row to P1 and narrowed the builder slice to model-aware gateway selection plus typed degraded text mode. Complete 2026-05-10: Manager.submitPinned now calls DecideImageInputMode through imagePayloadFromAttachments, native mode remains unchanged for known vision-capable models, explicit/auto text mode suppresses image_url parts, auxiliary.vision forces text mode, and config/reload wiring honors agent.image_input_mode plus auxiliary.vision.",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/manager.go resolves active provider/model and calls imageModeSubmitPayload before kernel Submit.",
+                  "internal/gateway/turn_adapter.go gates photo attachment content parts through hermes.DecideImageInputMode and emits vision_pre_analysis_unavailable degraded text when mode resolves to text.",
+                  "internal/config/config.go adds [agent] image_input_mode and [auxiliary.vision] parsing; cmd/gormes/gateway.go and internal/gateway/config_reload.go pass the settings into ManagerConfig."
+                ],
+                "tests": [
+                  "internal/gateway/manager_image_mode_test.go covers known vision-model native passthrough, explicit text mode, unknown/text-only model metadata, and auxiliary.vision override.",
+                  "internal/gateway/manager_photo_passthrough_test.go keeps the existing native photo regression tests explicit about a known vision-capable model.",
+                  "internal/config/image_input_mode_test.go covers config parsing and trimming for agent.image_input_mode plus auxiliary.vision."
+                ],
+                "verification": [
+                  "CGO_ENABLED=0 go test ./internal/gateway -run 'TestManager.*ImageMode' -count=1 -> pass",
+                  "CGO_ENABLED=0 go test ./internal/gateway -run 'TestManager.*ImageMode|TestManager_SubmitPinned_PhotoAttachmentBecomesImageURLContentPart|TestManager_SubmitPinned_ImageOnlyPhotoUsesDefaultPromptContentPart' -count=1 -> pass",
+                  "CGO_ENABLED=0 go test ./internal/config -run TestLoadConfigParsesAgentImageInputModeAndAuxiliaryVision -count=1 -> pass",
+                  "CGO_ENABLED=0 go test ./internal/gateway ./internal/hermes ./internal/config ./cmd/gormes -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass"
+                ]
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-06T00:00:00Z",
-            "origin_decision": "The 2026-05-06 all-topic Hermes parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Normal-turn, Goncho, CLI/auth/config, gateway, browser, installer, and TUI proof rows remain row-backed or complete; the builder-ready provider/model weakness is Hermes eadf34633 Ollama Cloud model ID normalization. Promote `Ollama Cloud models.dev suffix normalization` to P1 because duplicated or suffixed Ollama Cloud IDs break the operator model picker before broader model-catalog cache/live-merge work. Hermes b816fd4e2 model catalog tests still show the wider cache/live-merge weakness: manifest validation, stale cache fallback, AI Gateway pricing/free-model promotion, and preferred-provider models.dev merge for opencode-go/opencode-zen. That remains tracked as `Model catalog cache + preferred-provider live merge` without changing runtime routing policy."
+            "last_upstream_check": "2026-05-10T04:30:52Z",
+            "origin_decision": "The 2026-05-10 all-topic Hermes parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned rows were 20, below the 90-row cap. Fresh Hermes 3800972dd vision_analyze native fast-path evidence made the existing image input mode row the highest builder-ready weakness, so it was raised to P1, sharpened, and completed rather than adding a new row. CLI chat -q, comment-preserving config writes, generic provider auth messages, release child rows, and curator rename-map behavior were already row-backed or complete; broader native multimodal tool-result bytes remain out of this bounded gateway slice."
           }
         },
         "4.E": {
@@ -19163,6 +19355,84 @@
                 "origin_type": "hybrid",
                 "upstream_ref": "hermes:7c17accb run_agent.py",
                 "note": "Hermes exposes the retry-after-stop regression; Gormes should lock the same behavior at the Go kernel retry boundary."
+              }
+            },
+            {
+              "name": "Provider stream-drop retry diagnostics",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Kernel reconnect attempts for provider stream drops emit exactly one provider-named status frame per drop and a structured warning log with retry attempt, provider, endpoint, error kind, and error type evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Operators see a generic reconnecting frame and must inspect unstructured logs to identify which provider or stream error class caused a retry.",
+              "fixture": "internal/kernel/stream_drop_diagnostics_test.go",
+              "source_refs": [
+                "./hermes-agent/run_agent.py@68e44642c:_emit_stream_drop",
+                "./hermes-agent/run_agent.py@68e44642c:_log_stream_retry",
+                "./hermes-agent/tests/run_agent/test_stream_drop_logging.py@68e44642c",
+                "internal/kernel/kernel.go:streamInner",
+                "internal/kernel/retry.go:RetryStatus"
+              ],
+              "ready_when": [
+                "Streaming interrupt retry suppression and Kernel retry honors Retry-After hint are validated on development.",
+                "A fake hermes.Client can make OpenStream return a retryable setup error or a stream Recv error without live provider credentials.",
+                "Tests can capture the injected slog.Logger output and RenderFrame status text without starting a gateway or TUI."
+              ],
+              "not_ready_when": [
+                "The slice changes retry timing, provider fallback policy, credential rotation, or gateway channel rendering.",
+                "The implementation emits a separate reconnected status frame for the same drop.",
+                "The test depends on live provider, network, or filesystem log locations."
+              ],
+              "acceptance": [
+                "A retryable OpenStream setup failure produces one reconnect frame whose StatusText contains the provider name, stream-drop wording, error type, and retry attempt/max attempts.",
+                "The same retry writes a structured warning through the kernel logger with provider, endpoint, attempt, max_attempts, error_type, error_class, and error_kind attributes.",
+                "A retryable mid-stream Recv failure preserves the same provider-named status/log contract before retrying.",
+                "The no-drop recovery path does not invent stream-drop warnings or reconnected status frames, and existing interrupt retry suppression fixtures stay green."
+              ],
+              "note": "Complete 2026-05-10: planned by a bounded all-topic weakness sweep after refreshing Hermes from 3800972dd to e2ce89a8a. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 19, below the 90-row cap, so adding one source-backed P1 row was allowed. Fresh Hermes deltas were stream-drop retry diagnostics, Kanban watcher double-init removal, and release AUTHOR_MAP metadata; Gormes' native Kanban store/dispatcher already avoids the redundant init shape, and release author mapping is lower-impact metadata. TDD added provider-named stream-drop retry frames plus structured slog warning breadcrumbs at the Go kernel retry boundary for OpenStream setup failures and mid-stream Recv failures without changing retry timing, fallback policy, credential rotation, or gateway channel rendering. RED: `go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics' -count=1` failed because reconnecting frames were generic. GREEN: `go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1` passed.",
+              "write_scope": [
+                "internal/kernel/kernel.go",
+                "internal/kernel/stream_drop_diagnostics_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1",
+                "go test ./internal/kernel -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Kernel stream-drop fixtures prove provider-named reconnect status, structured warning diagnostics, retry recovery, and no duplicate reconnected status frames."
+              ],
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/kernel/kernel.go emits one provider-named stream-drop retry frame for retryable OpenStream setup failures and retryable mid-stream Recv failures.",
+                  "internal/kernel/kernel.go writes structured warning logs with provider, endpoint, attempt, max_attempts, error_type, error_class, error_kind, mid_stream, and redacted error text.",
+                  "internal/kernel/kernel.go preserves retry budget timing, Retry-After hints, interrupt suppression, fallback policy, and channel rendering boundaries."
+                ],
+                "tests": [
+                  "internal/kernel/stream_drop_diagnostics_test.go covers OpenStream setup drop diagnostics and mid-stream drop diagnostics with fake providers and injected slog output.",
+                  "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1 -> ok"
+                ],
+                "red_green": [
+                  "RED failed with generic StatusText=\"reconnecting\" for both setup and mid-stream retry cases.",
+                  "GREEN passed after the kernel retry boundary emitted provider-named status text and structured warning logs."
+                ]
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-10T00:00:00Z",
+                "last_success": "2026-05-10T00:00:00Z"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:68e44642c run_agent.py",
+                "note": "Hermes collapsed duplicate stream-drop UI lines and added structured provider retry breadcrumbs; Gormes should expose the same diagnostic contract at the Go kernel retry boundary."
               }
             },
             {
@@ -24539,6 +24809,101 @@
               }
             },
             {
+              "name": "vision_analyze native multimodal tool-result path",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-10T04:49:17Z",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:3800972dd tools/vision_tools.py + agent/codex_responses_adapter.py",
+                "note": "2026-05-10 bounded all-topic weakness sweep refreshed Hermes to 3800972dd and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing runtime rows were complete or row-backed except this fresh Hermes vision fast path: vision_analyze now returns native image content blocks to vision-capable main models, and Codex Responses preserves array-shaped function_call_output payloads. Planned rows were 19, below the 90-row cap, so one source-backed P1 row was added."
+              },
+              "contract": "Gormes exposes a model-callable `vision_analyze` tool that can load a local image path or file:// URL into a multimodal tool-result envelope, carries that envelope through kernel role=tool messages as content parts, and serializes those parts for Codex Responses and OpenAI-compatible providers without stringifying or dropping image bytes. The slice falls back to typed JSON errors for missing/invalid images and does not call a live auxiliary vision LLM.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing image paths, directories, unsupported schemes, and non-image payloads return redacted vision_analyze_* JSON errors; provider transports that cannot carry multimodal tool-result arrays keep the text summary rather than leaking binary bytes or blocking the tool loop.",
+              "fixture": "internal/tools/vision_analyze_test.go, internal/kernel/toolexec_multimodal_test.go, internal/hermes/codex_responses_multimodal_tool_result_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_supports_media_in_tool_results",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_vision_analyze_native",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_build_native_vision_tool_result",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_handle_vision_analyze",
+                "./hermes-agent/tests/tools/test_vision_native_fast_path.py@3800972dd",
+                "./hermes-agent/agent/codex_responses_adapter.py@3800972dd:_chat_messages_to_responses_input",
+                "./hermes-agent/tests/run_agent/test_codex_multimodal_tool_result.py@3800972dd",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json:vision_analyze",
+                "internal/hermes/client.go:MessageContentPart",
+                "internal/kernel/toolexec.go:toolResult",
+                "internal/hermes/codex_responses_adapter.go:buildCodexResponsesPayload",
+                "internal/hermes/http_client.go:openAICompatibleMessageContent"
+              ],
+              "ready_when": [
+                "Image input mode router + native content parts is complete, so Gormes already has MessageContentPart vocabulary and provider serializers for user images.",
+                "Vision-unsupported provider retry is complete, so providers that reject image content already have a bounded retry path.",
+                "The worker can use temp image fixtures, fake tool calls, and payload-builder tests only; no live provider, HTTP download, OCR, auxiliary LLM, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice calls a live vision provider, adds remote URL downloading, rewrites gateway image-mode routing, or implements auxiliary text analysis instead of the native tool-result path.",
+                "The tool returns raw base64 as ordinary text for vision-capable transports instead of content parts.",
+                "Codex Responses function_call_output.output is forced to a string when the tool result has input_text/input_image parts."
+              ],
+              "blocked_by": [
+                "Image input mode router + native content parts",
+                "Vision-unsupported provider retry (strip-images-and-resend)"
+              ],
+              "acceptance": [
+                "TestVisionAnalyzeNativeLocalFileReturnsMultimodalEnvelope proves a tiny local PNG returns `_multimodal:true`, text plus image_url content parts, and a data:image URL without live provider calls.",
+                "TestVisionAnalyzeNativeRejectsMissingAndUnsupportedSources proves missing files, directories, empty image_url, and unsupported schemes return typed JSON errors with no local path secret expansion.",
+                "TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts proves kernel tool execution parses the multimodal envelope into role=tool ContentParts while preserving a text summary for transcripts and unsupported transports.",
+                "TestCodexResponsesMultimodalToolResultArray proves Codex Responses serializes tool ContentParts as function_call_output.output arrays with input_text/input_image parts and passes string outputs through unchanged.",
+                "TestOpenAICompatibleToolResultContentParts proves OpenAI-compatible chat payloads retain image_url content arrays on role=tool messages with tool_call_id/name metadata.",
+                "cmd/gormes default registry includes vision_analyze in non-slim builds, while slim/lite builds either compile or keep the tool out via existing build-tag stubs."
+              ],
+              "write_scope": [
+                "internal/tools/vision_analyze.go",
+                "internal/tools/vision_analyze_test.go",
+                "internal/kernel/toolexec.go",
+                "internal/kernel/toolexec_multimodal_test.go",
+                "internal/hermes/codex_responses_adapter.go",
+                "internal/hermes/codex_responses_multimodal_tool_result_test.go",
+                "internal/hermes/openai_compatible_role_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestVisionAnalyze' -count=1",
+                "go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1",
+                "go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1",
+                "go test ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "A model can call vision_analyze on a local image fixture, the next provider request receives native image content parts instead of a stringified JSON blob on supported OpenAI/Codex-compatible transports, and invalid inputs degrade as typed JSON errors without live provider calls."
+              ],
+              "note": "Complete 2026-05-10: TDD added a Go-native vision_analyze tool for local paths and file:// URLs, kernel parsing for Hermes-style `_multimodal` tool-result envelopes, Codex Responses array-shaped function_call_output serialization, OpenAI-compatible tool content-part preservation, and default-registry exposure. Remote URL download and auxiliary LLM text analysis remain out of scope for this native fast-path slice.",
+              "evidence": [
+                "RED: go test ./internal/tools -run 'TestVisionAnalyze' -count=1 failed because NewVisionAnalyzeTool was missing.",
+                "RED: go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1 failed because toolResult had no ContentParts field.",
+                "RED: go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 failed because Codex Responses output was string-only.",
+                "RED: go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1 failed because vision_analyze was not registered.",
+                "GREEN: go test ./internal/tools -run 'TestVisionAnalyze' -count=1 passed.",
+                "GREEN: go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1 passed.",
+                "GREEN: go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
+                "GREEN: go test -tags slim ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
+                "GREEN: go test -tags gormes_lite ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
+                "FOCUSED: go test ./cmd/gormes ./internal/tools ./internal/kernel ./internal/hermes -count=1 passed."
+              ]
+            },
+            {
               "name": "Image-too-large shrink retry helper",
               "priority": "P2",
               "status": "complete",
@@ -25756,15 +26121,15 @@
                 "system"
               ],
               "degraded_mode": "If model file is missing or corrupted, NewTranscriber returns a typed error (model_unavailable) without panicking. If TranscribeWAV's WASI invocation hangs or errors, returns a typed error (wasi_inference_failed) with the underlying wazero diagnostic redacted of any test-fixture paths.",
-              "fixture": "internal/wasi/whisper/transcribe_test.go and internal/wasi/whisper/testdata/{whisper.wasm,ggml-tiny.en.bin,sample.wav}",
+              "fixture": "internal/wasi/whisper/transcribe_test.go, internal/wasi/whisper/testdata/{whisper.wasm,sample.wav}, and a checksum-verified ggml-tiny.en.bin cache populated by the `Whisper tiny.en model cache fetcher` row",
               "source_refs": [
-                "https://huggingface.co/ggerganov/whisper.cpp (ggml-tiny.en.bin canonical source — MIT-equivalent ggml license)",
+                "https://huggingface.co/ggerganov/whisper.cpp (ggml-tiny.en.bin canonical source — MIT-equivalent ggml license; fetched through the `Whisper tiny.en model cache fetcher` row)",
                 "internal/wasi/whisper/ (Row B's package home)",
                 "Stakeholder plan Phase 2 Transcriber API shape (recorded on Pure-Go STT exploration row note)"
               ],
               "ready_when": [
                 "Row B 'whisper.cpp WASI module discovery' is complete; whisper.wasm loads via wazero.",
-                "ggml-tiny.en.bin model file is decided: either committed under testdata (~75 MB — acceptable for a one-time vendoring) or fetched in CI from a known SHA-256 (test-only, never in the runtime binary)."
+                "`Whisper tiny.en model cache fetcher` is complete; tests can populate ggml-tiny.en.bin from a pinned URL, size, and SHA-256 without committing the 75 MB model to the repository or embedding it in the runtime binary."
               ],
               "not_ready_when": [
                 "The slice ships an audio preprocessing pipeline (that's Row E).",
@@ -25772,7 +26137,8 @@
                 "ggml-tiny.en.bin is downloaded at runtime by Gormes itself (model distribution is a runtime decision; tests must use a vendored or CI-fetched copy with a checksum)."
               ],
               "blocked_by": [
-                "whisper.cpp WASI module discovery"
+                "whisper.cpp WASI module discovery",
+                "Whisper tiny.en model cache fetcher"
               ],
               "unblocks": [
                 "Wire Pure-Go Whisper into Telegram resolver",
@@ -25798,7 +26164,80 @@
               "done_signal": [
                 "Hermetic test transcribes a fixture WAV through wazero+whisper.wasm+ggml-tiny.en.bin and asserts a substring; Transcriber API shipped; CGO_ENABLED=0 invariant preserved."
               ],
-              "note": "Model file decision is the largest risk for this row. Two viable approaches: (1) commit ggml-tiny.en.bin (~75 MB) under testdata — bloats repo but makes tests fully hermetic; (2) fetch in CI from an HTTPS URL with SHA-256 verification, .gitignore the cached file. Recommend approach (2) so the repo size doesn't jump 75 MB. Either way, the runtime binary itself does NOT embed the model — that's a separate operator-installed artifact tracked under Row D's user-facing acceptance."
+              "note": "Model file decision is resolved by the `Whisper tiny.en model cache fetcher` row: fetch the ~75 MB ggml-tiny.en.bin model in CI/local test caches from a pinned Hugging Face URL with size + SHA-256 verification, never commit it to git, and never embed it in the runtime binary. Row C should consume the verified cache path only."
+            },
+            {
+              "name": "Whisper tiny.en model cache fetcher",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Added 2026-05-10 by a bounded all-topic Hermes parity sweep after refreshing Hermes to 44cdf555a and Honcho to e659b6b. Current upstream deltas for Codex Spark, stream-drop diagnostics, Kanban slash help, chat -q, and background review transient-failure guidance are complete or row-backed. The top P1 Whisper transcription row remained blocked only by the test-model distribution decision, so this row chooses the checksum-verified cache path instead of vendoring a 75 MB model."
+              },
+              "contract": "Provide a small helper that resolves ggml-tiny.en.bin for WASI Whisper tests by verifying an existing cache file or downloading it from a pinned HTTPS URL into a caller-selected cache directory. The helper records the model filename, URL, expected byte size, and SHA-256; downloads write to a temporary partial file, verify bytes before rename, and never place the model under git-tracked testdata or embed it in the runtime binary.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing cache directories, bad HTTP status, short reads, size mismatch, checksum mismatch, and rename failures return typed model_cache_* errors with URL/path details bounded to test cache paths and without writing corrupted final model files.",
+              "fixture": "internal/wasi/whisper/model_cache_test.go with httptest-backed downloads; no live Hugging Face request in tests",
+              "source_refs": [
+                "https://huggingface.co/api/models/ggerganov/whisper.cpp/tree/main?path=ggml-tiny.en.bin: ggml-tiny.en.bin size 77704715 and LFS oid 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f",
+                "internal/wasi/whisper/testdata/README.md: whisper.wasm fixture policy",
+                "docs/content/building-gormes/architecture_plan/progress.json: Pure-Go Whisper transcribe one WAV ready_when model-file decision"
+              ],
+              "ready_when": [
+                "Row B 'whisper.cpp WASI module discovery' is complete and internal/wasi/whisper exists.",
+                "The source model URL, expected byte count, and SHA-256 are pinned from Hugging Face metadata; tests can use httptest fixtures instead of downloading the real model."
+              ],
+              "not_ready_when": [
+                "The slice commits ggml-tiny.en.bin or any other large model file to git.",
+                "The slice downloads the model at runtime for normal operators instead of only when a caller explicitly asks for a cache file.",
+                "The slice performs live network access in unit tests."
+              ],
+              "blocked_by": [
+                "whisper.cpp WASI module discovery"
+              ],
+              "unblocks": [
+                "Pure-Go Whisper transcribe one WAV"
+              ],
+              "acceptance": [
+                "TinyEnModelArtifact exposes filename ggml-tiny.en.bin, source URL, expected size 77704715, and SHA-256 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f.",
+                "EnsureModel(ctx, artifact, cacheDir, client) returns the existing cache path without network access when size and SHA-256 match.",
+                "EnsureModel downloads through an injected HTTP client, writes a .partial file, verifies size and SHA-256, atomically renames to the final path, and removes bad partial files.",
+                "Checksum, short-body, HTTP-status, and missing-cache-dir tests return typed errors and leave no final corrupted model file.",
+                "go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1 passes without a live network request."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/model_cache.go",
+                "internal/wasi/whisper/model_cache_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1",
+                "go test ./internal/wasi/whisper -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "WASI Whisper tests have a checksum-verified tiny.en model cache helper, with no vendored model file and no live network in unit tests."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes to 44cdf555a and Honcho to e659b6b. Fresh upstream deltas were already complete or row-backed; the highest unblocked P1 closure was this Gormes-owned Whisper blocker because Row C could not honestly run without a decided model-file path. TDD added a checksum-verified cache helper and httptest-only fixtures for cache hits, downloads, bad status, short bodies, checksum mismatch, cache-dir validation, atomic .partial cleanup, and no corrupted final file. This row intentionally stops before transcription. Row C consumes the cache helper to run whisper.wasm against a sample WAV. Runtime/operator model installation remains Row D's user-facing env/config behavior, not this test-cache helper.",
+              "evidence": {
+                "implementation": [
+                  "internal/wasi/whisper/model_cache.go defines ModelArtifact, TinyEnModelArtifact, ModelCacheError typed evidence, and EnsureModel(ctx, artifact, cacheDir, client).",
+                  "EnsureModel verifies existing cache files by size and SHA-256 before returning, downloads through an injected HTTP client, writes to .partial, verifies bytes, renames atomically, and removes bad partial files.",
+                  "TinyEnModelArtifact pins Hugging Face ggml-tiny.en.bin filename, URL, 77,704,715-byte size, and SHA-256/LFS oid 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f without committing the 75 MB model."
+                ],
+                "verification": [
+                  "RED: go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1 failed on missing TinyEnModelArtifact, EnsureModel, ModelArtifact, and typed cache error symbols.",
+                  "GREEN: go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1 passed.",
+                  "GREEN: go test ./internal/wasi/whisper -count=1 passed."
+                ]
+              }
             },
             {
               "name": "Wire Pure-Go Whisper into Telegram resolver",
@@ -32452,6 +32891,97 @@
                   "GREEN: go test ./internal/gateway -run 'TestKanbanCommand|TestActiveTurnCommandBypass' -count=1 passed.",
                   "GREEN: go test ./cmd/gormes -run TestGatewayKanbanSlash -count=1 passed."
                 ]
+              }
+            },
+            {
+              "name": "Kanban slash help and usage-error UX",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' current `/kanban` chat-command help behavior over the shared Cobra runner: bare `/kanban` plus `help`, `--help`, `-h`, and `?` return a curated short help block; `/kanban <subcommand> -h` returns captured subcommand help; parse/usage errors return bounded `/kanban`-branded guidance instead of raw Cobra/argparse-style noise; valid command failures such as missing task IDs still surface as command errors.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the slash runner cannot classify a usage failure, it should still consume the slash text with bounded `/kanban` usage evidence and must not submit the text to the model, mutate Kanban state, or leak home-directory paths.",
+              "fixture": "cmd/gormes/tui_kanban_slash_test.go; internal/gateway/kanban_command_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@d1fc748de:run_slash",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_bare_returns_curated_help",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_help_aliases_match_bare",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_subcommand_help_returns_help_text",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_unknown_action_friendly_error",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_missing_required_arg_friendly_error",
+                "cmd/gormes/kanban.go:runTUIKanbanSlashCommand",
+                "internal/gateway/kanban_command.go:runGatewayKanbanSlash",
+                "internal/tui/slash_kanban.go:kanbanSlashHandler"
+              ],
+              "ready_when": [
+                "Native TUI /kanban slash command binding over gormes kanban is complete.",
+                "Gateway /kanban shared command-runner binding is complete.",
+                "Hermes Kanban durable board core is complete and tests can use temp GORMES_HOME state only."
+              ],
+              "not_ready_when": [
+                "The slice changes `gormes kanban` terminal CLI help output instead of only the shared slash runner output.",
+                "The slice implements new Kanban subcommands, dashboard routes, dispatcher behavior, notifier behavior, or live channel adapters.",
+                "Usage errors become successful Kanban mutations or valid command failures such as missing task IDs are swallowed as help output."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "Slash runner fixtures prove `/kanban`, `/kanban help`, `/kanban --help`, `/kanban -h`, and `/kanban ?` all return the same curated help block under 2000 bytes with common subcommands.",
+                "Slash runner fixtures prove `/kanban show -h` returns subcommand help with `/kanban show` usage and no warning prefix.",
+                "Slash runner fixtures prove unknown actions and missing required args return bounded warning-prefixed `/kanban` usage evidence without doubled `kanban kanban`, `gormes kanban`, or `(usage error: N)` text.",
+                "Existing missing-task fixtures still return a real command error so operator state problems are not hidden as help.",
+                "Gateway fixtures prove bare `/kanban` replies with the curated help through the injected runner."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep refreshed Hermes from e2ce89a8a to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current deltas were: `126cbffb8` stream-drop timing diagnostics, already covered by `internal/kernel/stream_drop_diagnostics_test.go`; `3d2bfc502` OpenRouter/Nous model-list refresh, covered or row-backed by provider registry/model catalog rows; `e5af1dd63` background-review transient-environment guidance, covered by existing background review scaffolding and lower than a user-visible slash regression; `5a70d9b6b` author metadata, not a runtime parity gap; and `d1fc748de` `/kanban` slash help UX, which was missing in the shared Gormes slash runner. Planned rows were below the 90-row cap, so one P1 source-backed row was added and completed. TDD added a curated slash-only help block, help-alias handling, subcommand help rewriting to `/kanban`, friendly warning-prefixed usage errors for unknown actions and missing args, and preserved real command errors such as missing task IDs.",
+              "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/tui_kanban_slash_test.go",
+                "internal/gateway/kanban_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1",
+                "go test ./internal/gateway -run 'TestKanbanCommand' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Slash-runner and gateway fixtures prove curated `/kanban` help, subcommand help capture, friendly usage errors, and preserved real command errors."
+              ],
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/kanban.go keeps `gormes kanban` terminal CLI behavior unchanged while `runTUIKanbanSlashCommand` returns curated help for bare `/kanban` and help aliases.",
+                  "cmd/gormes/kanban.go rewrites captured Cobra subcommand help from `kanban ...` to `/kanban ...` for slash surfaces only.",
+                  "cmd/gormes/kanban.go classifies slash usage errors before channel/TUI rendering, returning bounded warning-prefixed `/kanban` guidance while leaving valid command failures as errors.",
+                  "internal/gateway/kanban_command_test.go proves empty gateway `/kanban` input is normalized to `/kanban` and sent through the injected runner."
+                ],
+                "tests": [
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandCuratedHelpAliases",
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandSubcommandHelpUsesSlashProg",
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandUsageErrorsAreFriendly",
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandSurfacesErrors",
+                  "internal/gateway/kanban_command_test.go:TestKanbanCommandBareInputUsesSlashHelpRunner"
+                ],
+                "red_green": [
+                  "RED: go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1 failed because bare `/kanban` emitted raw Cobra help, `/kanban show -h` used `kanban show`, unknown actions dumped root help, and missing args returned an error.",
+                  "GREEN: go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1 passed after adding slash help/usage handling.",
+                  "GREEN: go test ./internal/gateway -run 'TestKanbanCommand' -count=1 passed after adding the bare-input runner fixture."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1 -> ok",
+                  "go test ./internal/gateway -run 'TestKanbanCommand' -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:d1fc748de hermes_cli/kanban.py run_slash + tests/hermes_cli/test_kanban_cli.py",
+                "note": "Hermes defines the chat-friendly `/kanban` slash UX; Gormes adapts it to the existing Cobra-backed slash runner without changing terminal CLI behavior."
               }
             },
             {
@@ -49783,8 +50313,9 @@
           "items": [
             {
               "name": "LLM-assisted pattern distillation",
+              "priority": "P1",
               "status": "complete",
-              "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, and preserve a clear no-op escape path before any generated draft can be promoted",
+              "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, reject transient environment failures and negative tool claims as durable skill constraints, and preserve a clear no-op escape path before any generated draft can be promoted",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
@@ -49793,10 +50324,13 @@
                 "system"
               ],
               "degraded_mode": "Skill review status reports review_prompt_unavailable, overlap_detected, no_skill_to_save, or draft_requires_review instead of auto-promoting narrow one-off skills.",
-              "fixture": "internal/skills/distillation_prompt_test.go",
+              "fixture": "internal/hermes/background_review_test.go::TestBackgroundReviewFork_SkillPromptRejectsTransientEnvironmentFailures",
               "source_refs": [
-                "../hermes-agent/run_agent.py@76042f58:AIAgent._SKILL_REVIEW_PROMPT",
-                "../hermes-agent/tests/run_agent/test_review_prompt_class_first.py@76042f58",
+                "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._SKILL_REVIEW_PROMPT",
+                "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._COMBINED_REVIEW_PROMPT",
+                "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@e5af1dd63",
+                "internal/hermes/background_review.go",
+                "internal/hermes/background_review_test.go",
                 "internal/skills/store.go",
                 "internal/skills/selector.go",
                 "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
@@ -49816,26 +50350,28 @@
                 "Prompt fixtures instruct the reviewer to call skills_list and inspect likely existing skills before deciding.",
                 "Prompt fixtures explicitly prefer updating/generalizing an existing skill at the task-class level and gate new skill creation as a last resort.",
                 "Overlap evidence is captured for follow-up review when a draft resembles existing skills.",
+                "Prompt fixtures explicitly reject environment-dependent setup failures, negative claims about tools/features, resolved transient errors, and one-off task narratives as skill-worthy durable constraints.",
+                "Prompt fixtures positively reframe setup-state failures as fixes to record under existing setup/troubleshooting skills, never as standalone `tool does not work` rules.",
                 "The no-op escape phrase `Nothing to save.` remains valid and produces no draft writes."
               ],
-              "note": "Hermes 76042f58 changed skill review prompts to be class-first and update-over-create. Gormes should fixture-lock that review contract before adding any LLM-backed skill extractor.",
+              "note": "Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current upstream deltas after the last completed user-stories/docs sweep are complete, row-backed, or lower risk except this stale complete prompt contract: Hermes e5af1dd63 adds explicit anti-pattern guidance so background skill review does not persist transient environment failures or negative tool claims as durable constraints. Reopened as one P1 source-backed prompt fixture refresh; no live LLM, selector, skill install, or background worker lifecycle code is in scope. Complete 2026-05-10: TDD added background review prompt fixtures for skills-only, combined memory+skills, and memory-only prompts, then expanded the existing backgroundReviewPrompt seam so skill review forks survey skills_list/skill_view, prefer class-level updates, reject environment-dependent failures, negative tool claims, resolved transient errors, and one-off task narratives, and reframe setup failures as fixes under existing setup/troubleshooting skills. RED: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt)' -count=1` failed on the old one-line prompt. GREEN: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1` and `go test ./internal/hermes -count=1` passed.",
               "write_scope": [
-                "internal/skills/distillation_prompt.go",
-                "internal/skills/distillation_prompt_test.go",
+                "internal/hermes/background_review.go",
+                "internal/hermes/background_review_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/skills -run 'Test.*Distillation.*Prompt|Test.*Skill.*Review' -count=1",
-                "go test ./internal/skills -count=1",
+                "go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1",
+                "go test ./internal/hermes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Distillation prompt fixtures prove survey-first behavior, class-level generalization, overlap evidence, draft-review gating, and the Nothing-to-save escape path."
+                "Distillation prompt fixtures prove survey-first behavior, class-level generalization, anti-pattern rejection, positive setup-fix reframing, overlap evidence, draft-review gating, and the Nothing-to-save escape path."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:76042f58 run_agent.py",
-                "note": "Hermes defines the class-first review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
+                "upstream_ref": "hermes:e5af1dd63 run_agent.py",
+                "note": "Hermes defines the class-first and anti-transient review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
               },
               "wired": true
             }
@@ -54950,6 +55486,72 @@
                   "GREEN: focused built-with Playwright test passed after implementation.",
                   "`timeout 20m sh -c 'cd webpages/landing && npm run build'` passed and generated `/built-with/index.html`.",
                   "`timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'` passed 6 Playwright tests."
+                ]
+              }
+            },
+            {
+              "name": "Upstream Hermes user-stories static mirror",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream"
+              },
+              "contract": "The static Gormes docs mirror for upstream Hermes user stories must expose the current source-backed story count, category rollup, and fresh representative entries from `hermes-agent/website/src/data/userStories.json` instead of collapsing the page to an omitted interactive component. The mirror is intentionally a static summary, not a copied React grid or a duplicate quote database.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without the static summary, Gormes' upstream archive hides the community-proof surface that Hermes publishes publicly, so docs/public parity looks stale even when the upstream submodule is current.",
+              "fixture": "webpages/docs/upstream_user_stories_test.go::TestUpstreamHermesUserStoriesStaticMirror",
+              "source_refs": [
+                "./hermes-agent/website/src/data/userStories.json@e62250453: 99 -> 117 verified social entries",
+                "./hermes-agent/website/src/data/userStories.json@3800972dd: current upstream data file",
+                "webpages/docs/content/upstream-hermes/user-stories.md"
+              ],
+              "ready_when": [
+                "`./hermes-agent/website/src/data/userStories.json` is present in the refreshed upstream Hermes checkout.",
+                "`webpages/docs/content/upstream-hermes/user-stories.md` exists as the static mirror page.",
+                "The docs test can compare source JSON counts/categories to the static markdown without a live browser or network."
+              ],
+              "not_ready_when": [
+                "The slice copies all 117 quote bodies into the mirror instead of publishing a compact summary.",
+                "The mirror depends on the upstream React component or client-side data loader at docs build time.",
+                "The row is used to add Gormes customer claims; this is an upstream-Hermes archive mirror only."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestUpstreamHermesUserStoriesStaticMirror fails while the mirror contains only `Upstream interactive component omitted from the static mirror` and passes after the page includes the source-derived total, top category rollup, and fresh entry headlines.",
+                "The static page states it summarizes `hermes-agent/website/src/data/userStories.json` from upstream Hermes and records the current 117-story count.",
+                "The page includes at least the top five source-derived category counts and representative fresh headlines from the e62250453 addition without duplicating every quote.",
+                "The upstream archive build still emits `/upstream-hermes/user-stories/` and markdown lint/content tests stay green."
+              ],
+              "write_scope": [
+                "webpages/docs/content/upstream-hermes/user-stories.md",
+                "webpages/docs/upstream_user_stories_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs -run TestUpstreamHermesUserStoriesStaticMirror -count=1",
+                "go test ./webpages/docs -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Static upstream-Hermes user-stories mirror shows the current source-backed count/category rollup and fresh entries; focused docs test plus full docs package pass."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Runtime/tooling deltas from current Hermes 3800972dd are complete or row-backed, including native `vision_analyze`; higher-priority P1 publication and release-parent rows remain operator-blocked or too broad. Fresh upstream public-surface evidence e62250453 expanded `website/src/data/userStories.json` from 99 to 117 entries, while the Gormes upstream mirror still rendered only an omitted-component placeholder. Planned rows were 19, below the 90-row cap, so adding this one source-backed P1 docs row was allowed. TDD added a docs test that compares the upstream JSON source to the static mirror, then replaced the placeholder with a compact source-derived summary: 117-story count, top category rollup, representative fresh entries, and an explicit boundary that these are upstream Hermes stories rather than Gormes customer claims.",
+              "evidence": {
+                "implementation": [
+                  "webpages/docs/upstream_user_stories_test.go parses hermes-agent/website/src/data/userStories.json, derives the source count/category rows, and verifies fresh entry headlines/authors are mirrored without copying the full quote body.",
+                  "webpages/docs/content/upstream-hermes/user-stories.md now exposes the source data path, 117 verified upstream user stories, top five category counts, fresh representative entries, and the Gormes/Hermes claim boundary."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs -run TestUpstreamHermesUserStoriesStaticMirror -count=1 failed because the mirror still said the upstream interactive component was omitted.",
+                  "GREEN: go test ./webpages/docs -run TestUpstreamHermesUserStoriesStaticMirror -count=1 passed after the static summary landed.",
+                  "GREEN: go test ./webpages/docs -count=1 passed, including the Astro build checks for the upstream archive."
                 ]
               }
             }

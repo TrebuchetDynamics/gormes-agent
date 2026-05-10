@@ -551,6 +551,7 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		Hooks:                      hooks,
 		RuntimeStatus:              runtimeStatus,
 		Restart:                    restart,
+		RestartNotifications:       cfg.GatewayRestartNotifications(),
 		KanbanSlashRunner:          runTUIKanbanSlashCommand,
 		RememberedSourceStore:      gateway.NewChannelDirectorySourceStore(config.GormesHome()),
 		ContextFilesCWD:            gatewayContextFilesCWD(cfg),
@@ -562,6 +563,12 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 		LiveTurnActiveProvider: func() string {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway live-turn metadata"})
 			return firstUsageString(resolution.Provider, cfg.Hermes.Provider)
+		},
+		ImageInputMode: hermes.ImageInputMode(cfg.Agent.ImageInputMode),
+		AuxiliaryVision: hermes.AuxiliaryVisionConfig{
+			Provider: cfg.Auxiliary.Vision.Provider,
+			Model:    cfg.Auxiliary.Vision.Model,
+			BaseURL:  cfg.Auxiliary.Vision.BaseURL,
 		},
 		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})

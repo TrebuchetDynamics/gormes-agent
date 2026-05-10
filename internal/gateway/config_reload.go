@@ -57,6 +57,8 @@ func (m *Manager) applyReloadableConfig(ctx context.Context, next ManagerConfig)
 		m.cfg.LiveTurnActiveProvider = next.LiveTurnActiveProvider
 		m.liveTurnPromptSeams.ActiveProvider = next.LiveTurnActiveProvider
 	}
+	m.cfg.ImageInputMode = next.ImageInputMode
+	m.cfg.AuxiliaryVision = next.AuxiliaryVision
 	if next.AccountUsage != nil {
 		m.cfg.AccountUsage = next.AccountUsage
 	}

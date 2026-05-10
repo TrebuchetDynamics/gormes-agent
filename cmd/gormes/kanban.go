@@ -1080,8 +1080,15 @@ func runTUIKanbanSlashCommand(ctx context.Context, input string) (string, error)
 	if err != nil {
 		return "", err
 	}
+	if isKanbanSlashHelpAlias(args) {
+		return slashKanbanHelp, nil
+	}
 
 	cmd := newKanbanCommand()
+	if action := firstKanbanSlashAction(args); action != "" && !knownKanbanSlashAction(cmd, action) {
+		return fmt.Sprintf("⚠ /kanban usage error: unknown action %q\nRun `/kanban` for common subcommands.", action), nil
+	}
+
 	var stdout, stderr bytes.Buffer
 	cmd.SetContext(ctx)
 	cmd.SetArgs(args)
@@ -1090,9 +1097,136 @@ func runTUIKanbanSlashCommand(ctx context.Context, input string) (string, error)
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
 
+	target, _, _ := cmd.Find(args)
+	if target == nil {
+		target = cmd
+	}
 	err = cmd.Execute()
-	output := strings.TrimSpace(strings.Join(nonEmptyStrings(stdout.String(), stderr.String()), "\n"))
+	output := rewriteKanbanSlashOutput(strings.TrimSpace(strings.Join(nonEmptyStrings(stdout.String(), stderr.String()), "\n")))
+	if err != nil && isKanbanSlashUsageError(err) {
+		return formatKanbanSlashUsageError(err, output, target), nil
+	}
 	return output, err
+}
+
+const slashKanbanHelp = `**/kanban** - manage the shared task board.
+
+Common subcommands:
+  ` + "`list` (alias `ls`)   List tasks on the current board" + `
+  ` + "`show <id>`           Task details, comments, and events" + `
+  ` + "`stats`               Per-status and per-assignee counts" + `
+  ` + "`create <title>...`   Create a task" + `
+  ` + "`complete <id>...`    Mark task(s) done" + `
+  ` + "`block <id> [reason]` Mark blocked; `unblock <id>` to revive" + `
+  ` + "`link <parent> <child>` Add a dependency link" + `
+  ` + "`boards list`         Show all boards" + `
+  ` + "`specify <id>`        Flesh out a triage task" + `
+  ` + "`notify-list <id>`    Notification subscriptions" + `
+  ` + "`runs <id>`           Attempt history" + `
+  ` + "`log <id>`            Worker log" + `
+  ` + "`gc`                  Prune terminal events and old worker logs" + `
+
+Run ` + "`/kanban <subcommand> -h`" + ` for arguments. Read-only commands are safe while an agent is running.`
+
+func isKanbanSlashHelpAlias(args []string) bool {
+	if len(args) == 0 {
+		return true
+	}
+	switch strings.TrimSpace(args[0]) {
+	case "help", "--help", "-h", "?":
+		return true
+	default:
+		return false
+	}
+}
+
+func firstKanbanSlashAction(args []string) string {
+	for i := 0; i < len(args); i++ {
+		arg := strings.TrimSpace(args[i])
+		if arg == "" {
+			continue
+		}
+		if arg == "--" {
+			if i+1 < len(args) {
+				return strings.TrimSpace(args[i+1])
+			}
+			return ""
+		}
+		if arg == "--board" || arg == "-p" || arg == "--profile" || arg == "--skills" {
+			i++
+			continue
+		}
+		if strings.HasPrefix(arg, "--board=") || strings.HasPrefix(arg, "--profile=") || strings.HasPrefix(arg, "--skills=") {
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		return arg
+	}
+	return ""
+}
+
+func knownKanbanSlashAction(cmd *cobra.Command, action string) bool {
+	action = strings.TrimSpace(action)
+	if action == "" {
+		return true
+	}
+	for _, child := range cmd.Commands() {
+		if child.Name() == action {
+			return true
+		}
+		for _, alias := range child.Aliases {
+			if alias == action {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isKanbanSlashUsageError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"accepts ",
+		"unknown flag",
+		"unknown shorthand flag",
+		"required flag",
+		"requires at least",
+		"requires a subcommand",
+		"invalid argument",
+	} {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func formatKanbanSlashUsageError(err error, output string, target *cobra.Command) string {
+	body := strings.TrimSpace(output)
+	if body == "" && target != nil {
+		body = strings.TrimSpace(rewriteKanbanSlashOutput(target.UsageString()))
+	}
+	if body == "" {
+		return "⚠ /kanban usage error: " + err.Error()
+	}
+	return "⚠ /kanban usage error: " + err.Error() + "\n" + body
+}
+
+func rewriteKanbanSlashOutput(output string) string {
+	replacer := strings.NewReplacer(
+		"Usage:\n  kanban", "Usage:\n  /kanban",
+		"Usage:\n  gormes kanban", "Usage:\n  /kanban",
+		"Use \"kanban ", "Use \"/kanban ",
+		"Use \"gormes kanban ", "Use \"/kanban ",
+		"Use \"kanban", "Use \"/kanban",
+		"Use \"gormes kanban", "Use \"/kanban",
+	)
+	return replacer.Replace(output)
 }
 
 func parseTUIKanbanSlashArgs(input string) ([]string, error) {

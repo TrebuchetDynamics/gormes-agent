@@ -42,6 +42,37 @@ func TestKanbanCommandUsesInjectedRunnerAndReplies(t *testing.T) {
 	}
 }
 
+func TestKanbanCommandBareInputUsesSlashHelpRunner(t *testing.T) {
+	ch := newFakeChannel("telegram")
+	var gotInput string
+	m := NewManagerWithSubmitter(ManagerConfig{
+		KanbanSlashRunner: func(_ context.Context, input string) (string, error) {
+			gotInput = input
+			return "**/kanban** - manage the shared task board.\n\nCommon subcommands:\n  `list`", nil
+		},
+	}, &fakeKernel{}, slog.Default())
+
+	m.handleKanbanCommand(context.Background(), ch, InboundEvent{
+		Platform: "telegram",
+		ChatID:   "42",
+		UserID:   "user-1",
+		MsgID:    "msg-1",
+		Kind:     EventKanban,
+		Text:     "",
+	})
+
+	if gotInput != "/kanban" {
+		t.Fatalf("runner input = %q, want bare gateway /kanban default", gotInput)
+	}
+	sent := ch.sentSnapshot()
+	if len(sent) != 1 {
+		t.Fatalf("sent messages = %d, want 1: %#v", len(sent), sent)
+	}
+	if !strings.Contains(sent[0].Text, "**/kanban**") || !strings.Contains(sent[0].Text, "Common subcommands") {
+		t.Fatalf("sent help reply = %q, want curated help from runner", sent[0].Text)
+	}
+}
+
 func TestKanbanCommandRunnerErrorIsEvidence(t *testing.T) {
 	ch := newFakeChannel("telegram")
 	m := NewManagerWithSubmitter(ManagerConfig{

@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 86/100 subphases shipped · 11 in progress · 3 planned
+**Overall:** 87/100 subphases shipped · 10 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
@@ -356,6 +356,7 @@ classification and row-backed implementation queue.
 - [x] Runtime status JSON + PID/process validation
 - [x] Token-scoped gateway locks
 - [x] Gateway /restart command + takeover markers
+- [x] Gateway restart notification opt-out
 - [x] Session expiry finalized-flag migration
 - [x] Session expiry hook cleanup retry evidence
 - [x] Channel lifecycle writers into status model
@@ -504,7 +505,7 @@ classification and row-backed implementation queue.
 - [x] Goncho Honcho SDK compatibility e2e harness
 - [x] Goncho memory integration into normal agent turn
 
-## Phase 4 — The Brain Transplant 🔨
+## Phase 4 — The Brain Transplant ✅
 
 *Native Go agent orchestrator + prompt builder*
 
@@ -582,7 +583,7 @@ classification and row-backed implementation queue.
 - [x] Native full prompt assembly
 - [x] Ephemeral prefill messages file injection
 
-### 4.D — Smart Model Routing 🔨
+### 4.D — Smart Model Routing ✅
 
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
@@ -593,7 +594,8 @@ classification and row-backed implementation queue.
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
 - [x] Provider-default model resolution at config load
-- [ ] Image input mode resolver + vision_analyze text fallback
+- [x] OpenAI Codex Spark catalog and context parity
+- [x] Image input mode resolver + vision_analyze text fallback
 
 ### 4.E — Trajectory + Insights ✅
 
@@ -630,6 +632,7 @@ classification and row-backed implementation queue.
 - [x] Retry-After header parsing + HTTPError hint
 - [x] Kernel retry honors Retry-After hint
 - [x] Streaming interrupt retry suppression
+- [x] Provider stream-drop retry diagnostics
 - [x] Provider timeout config fail-closed helper
 - [x] Prompt-cache capability guard
 - [x] Provider account usage read model + renderer
@@ -738,6 +741,7 @@ classification and row-backed implementation queue.
 
 - [x] Multimodal in/out
 - [x] Image input mode router + native content parts
+- [x] vision_analyze native multimodal tool-result path
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch
@@ -760,6 +764,7 @@ classification and row-backed implementation queue.
 - [x] wazero WASI smoke harness
 - [x] whisper.cpp WASI module discovery
 - [ ] Pure-Go Whisper transcribe one WAV
+- [x] Whisper tiny.en model cache fetcher
 - [ ] Wire Pure-Go Whisper into Telegram resolver
 - [ ] Audio preprocessing and chunking pipeline
 - [ ] Whisper benchmark harness + perf budget
@@ -880,6 +885,7 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban slash/gateway/dashboard surfaces
 - [x] Native TUI /kanban slash command binding over gormes kanban
 - [x] Gateway /kanban shared command-runner binding
+- [x] Kanban slash help and usage-error UX
 - [x] Kanban dashboard dispatch quick path
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
@@ -1337,6 +1343,7 @@ classification and row-backed implementation queue.
 ### 8.G — Community & External Contributions ✅
 
 - [x] Built-with-Gormes page scaffold
+- [x] Upstream Hermes user-stories static mirror
 
 <!-- PROGRESS:END -->
 

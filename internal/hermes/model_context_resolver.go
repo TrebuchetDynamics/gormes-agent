@@ -139,15 +139,16 @@ func (r ModelContextResolver) Resolve(query ModelContextQuery) ModelContextResol
 
 var defaultModelContextCaps = StaticModelContextCaps{
 	// ChatGPT Codex OAuth caps these slugs below the raw OpenAI API windows.
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.1-codex-max"}:  272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.1-codex-mini"}: 272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.3-codex"}:      272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.2-codex"}:      272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.4-mini"}:       272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.5"}:            272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.4"}:            272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.2"}:            272_000,
-	ModelContextKey{Provider: "openai-codex", Model: "gpt-5"}:              272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.1-codex-max"}:   272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.1-codex-mini"}:  272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.3-codex"}:       272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.3-codex-spark"}: 128_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.2-codex"}:       272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.4-mini"}:        272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.5"}:             272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.4"}:             272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5.2"}:             272_000,
+	ModelContextKey{Provider: "openai-codex", Model: "gpt-5"}:               272_000,
 
 	// Provider-enforced fixture caps for model families whose raw vendor
 	// metadata is larger than the context actually usable through the provider.

@@ -228,6 +228,31 @@ func TestOpenRouterNousCatalogBehaviorUnchanged(t *testing.T) {
 	}
 }
 
+func TestOpenAICodexModelCatalogSuggestions(t *testing.T) {
+	got := ProviderModelCatalogSuggestions("openai-codex", nil)
+	spark := indexModelCatalogSuggestion(got, "gpt-5.3-codex-spark")
+	if spark < 0 {
+		t.Fatalf("openai-codex suggestions missing Spark: %#v", got)
+	}
+	codex53 := indexModelCatalogSuggestion(got, "gpt-5.3-codex")
+	codex52 := indexModelCatalogSuggestion(got, "gpt-5.2-codex")
+	if codex53 < 0 || codex52 < 0 || !(codex53 < spark && spark < codex52) {
+		t.Fatalf("openai-codex suggestion order = %#v, want gpt-5.3-codex before Spark before gpt-5.2-codex", got)
+	}
+	if indexModelCatalogSuggestion(ProviderModelCatalogSuggestions("openai", nil), "gpt-5.3-codex-spark") >= 0 {
+		t.Fatal("public openai suggestions exposed Codex-only Spark model")
+	}
+}
+
+func indexModelCatalogSuggestion(values []string, want string) int {
+	for i, value := range values {
+		if value == want {
+			return i
+		}
+	}
+	return -1
+}
+
 func validModelCatalogManifest() ModelCatalogManifest {
 	return ModelCatalogManifest{
 		Version:   1,

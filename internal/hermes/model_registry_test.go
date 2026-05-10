@@ -63,6 +63,35 @@ func TestDefaultModelRegistryExposesPricingCapabilitiesAndRawContext(t *testing.
 	}
 }
 
+func TestModelRegistryExposesOpenAICodexSpark(t *testing.T) {
+	got := LookupModelMetadata(ModelRegistryQuery{
+		Provider: "openai-codex",
+		Model:    "gpt-5.3-codex-spark",
+	})
+
+	if !got.Found {
+		t.Fatal("Found = false, want true")
+	}
+	if got.Provider != "openai-codex" {
+		t.Fatalf("Provider = %q, want openai-codex", got.Provider)
+	}
+	if got.ProviderFamily != "openai" {
+		t.Fatalf("ProviderFamily = %q, want openai", got.ProviderFamily)
+	}
+	if got.ModelFamily != "gpt-5.3-codex" {
+		t.Fatalf("ModelFamily = %q, want gpt-5.3-codex", got.ModelFamily)
+	}
+	if got.RawContextWindow != 128_000 {
+		t.Fatalf("RawContextWindow = %d, want 128000", got.RawContextWindow)
+	}
+	if got.Pricing.Status != ModelFactUnknown {
+		t.Fatalf("Pricing.Status = %q, want %q", got.Pricing.Status, ModelFactUnknown)
+	}
+	if got.Capabilities.Status != ModelFactKnown || got.Capabilities.Tools != ModelCapabilitySupported || got.Capabilities.Reasoning != ModelCapabilitySupported {
+		t.Fatalf("Capabilities = %#v, want known tools+reasoning support", got.Capabilities)
+	}
+}
+
 func TestModelRegistryKeepsMissingPricingAndCapabilitiesUnknown(t *testing.T) {
 	registry := NewStaticModelRegistry(ModelRegistrySnapshot{
 		Source:    ModelRegistrySourceEmbedded,

@@ -106,8 +106,11 @@ type ManagerConfig struct {
 	EventDispatcher *EventDispatcher
 	RuntimeStatus   RuntimeStatusWriter
 	Restart         RestartConfig
-	SessionExpiry   SessionExpiryConfig
-	Now             func() time.Time
+	// RestartNotifications holds per-platform restart comeback notification
+	// overrides. Missing platforms default to enabled.
+	RestartNotifications map[string]bool
+	SessionExpiry        SessionExpiryConfig
+	Now                  func() time.Time
 	// SkipAutoResume disables gateway startup auto-resume of sessions
 	// marked ResumePending. Tests use this flag to isolate ResumePending
 	// flag handling from auto-resume scheduling.
@@ -146,6 +149,13 @@ type ManagerConfig struct {
 	// the `Provider: ...` line. Nil or empty result drops the line. Only
 	// non-secret display names are exposed — never base URLs or API keys.
 	LiveTurnActiveProvider func() string
+	// ImageInputMode honors agent.image_input_mode for channel-attached images.
+	// Empty is Hermes auto mode.
+	ImageInputMode hermes.ImageInputMode
+	// AuxiliaryVision mirrors auxiliary.vision. Any explicit provider/model/base
+	// URL routes auto image input mode through text fallback instead of native
+	// image content parts.
+	AuxiliaryVision hermes.AuxiliaryVisionConfig
 	// TitleModel is the provider boundary for auto-title generation. It is
 	// called at most once per PhaseIdle frame for sessions without an existing
 	// title. Nil disables the LLM call; PerformAutoTitle surfaces
@@ -2000,10 +2010,26 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 	}
 	evidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusSeen, now)
 	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{TakeoverMarkerEvidence: &evidence})
+	if !m.restartNotificationEnabled(marker.SourcePlatform) {
+		m.log.Info("restart notification suppressed", "platform", marker.SourcePlatform, "chat_id", marker.ChatID)
+		return store.MarkNotificationSent(ctx, marker, now)
+	}
 	if _, err := m.sendWithHooks(ctx, ch, marker.ChatID, "Gateway restarted successfully. Your session continues."); err != nil {
 		return err
 	}
 	return store.MarkNotificationSent(ctx, marker, now)
+}
+
+func (m *Manager) restartNotificationEnabled(platform string) bool {
+	key := strings.ToLower(strings.TrimSpace(platform))
+	if key == "" || len(m.cfg.RestartNotifications) == 0 {
+		return true
+	}
+	enabled, ok := m.cfg.RestartNotifications[key]
+	if !ok {
+		return true
+	}
+	return enabled
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {
@@ -2699,10 +2725,11 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		return false
 	}
 	m.setPinnedTurnKernel(submitter)
+	imageSubmitText, imageContentParts := m.imageModeSubmitPayload(ev.Text, submitText, ev.Attachments, route)
 	if err := submitter.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
-		Text:           submitText,
-		ContentParts:   imageContentPartsFromAttachments(ev.Text, ev.Attachments),
+		Text:           imageSubmitText,
+		ContentParts:   imageContentParts,
 		Tools:          snapshot.Tools,
 		Skills:         snapshot.Skills,
 		ToolSafety:     snapshot.ToolSafety,
@@ -2724,6 +2751,23 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 		}
 	}
 	return true
+}
+
+func (m *Manager) imageModeSubmitPayload(userText, submitText string, attachments []Attachment, route agentRuntimeRoute) (string, []hermes.MessageContentPart) {
+	model := strings.TrimSpace(route.Decision.Model)
+	if model == "" && m.cfg.LiveTurnActiveModel != nil {
+		model = strings.TrimSpace(m.cfg.LiveTurnActiveModel())
+	}
+	provider := ""
+	if m.cfg.LiveTurnActiveProvider != nil {
+		provider = strings.TrimSpace(m.cfg.LiveTurnActiveProvider())
+	}
+	return imagePayloadFromAttachments(userText, submitText, attachments, imageInputModeOptions{
+		Mode:            m.cfg.ImageInputMode,
+		AuxiliaryVision: m.cfg.AuxiliaryVision,
+		Provider:        provider,
+		Model:           model,
+	})
 }
 
 func gormesHomeHint() string {

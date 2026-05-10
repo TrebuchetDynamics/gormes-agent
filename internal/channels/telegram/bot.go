@@ -401,7 +401,11 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 			markers = append(markers, telegramAudioTranscriptMarker("voice", transcript))
 		} else if err != nil {
 			attachment.Error = sanitizeTelegramAudioError(err)
-			b.log.Warn("telegram audio transcription unavailable", "kind", "voice", "err", attachment.Error)
+			b.log.Warn("telegram audio transcription unavailable",
+				"kind", "voice",
+				"err", attachment.Error,
+				"diagnostic", telegramAudioErrorDiagnostic(err),
+				"detail", telegramAudioErrorRedactedDetail(err))
 		}
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)
@@ -418,7 +422,11 @@ func (b *Bot) telegramInboundTextAndAttachments(ctx context.Context, msg *tgbota
 			markers = append(markers, telegramAudioTranscriptMarker("audio", transcript))
 		} else if err != nil {
 			attachment.Error = sanitizeTelegramAudioError(err)
-			b.log.Warn("telegram audio transcription unavailable", "kind", "audio", "err", attachment.Error)
+			b.log.Warn("telegram audio transcription unavailable",
+				"kind", "audio",
+				"err", attachment.Error,
+				"diagnostic", telegramAudioErrorDiagnostic(err),
+				"detail", telegramAudioErrorRedactedDetail(err))
 		}
 		markers = append(markers, marker)
 		attachments = append(attachments, attachment)

@@ -35,6 +35,7 @@ var openAICodexDefaultModels = []string{
 	"gpt-5.4-mini",
 	"gpt-5.4",
 	"gpt-5.3-codex",
+	"gpt-5.3-codex-spark",
 	"gpt-5.2-codex",
 	"gpt-5.1-codex-max",
 	"gpt-5.1-codex-mini",
@@ -140,10 +141,9 @@ func readCodexCachedDefaultModel(codexHome string) string {
 	}
 	var payload struct {
 		Models []struct {
-			Slug           string   `json:"slug"`
-			SupportedInAPI *bool    `json:"supported_in_api"`
-			Visibility     string   `json:"visibility"`
-			Priority       *float64 `json:"priority"`
+			Slug       string   `json:"slug"`
+			Visibility string   `json:"visibility"`
+			Priority   *float64 `json:"priority"`
 		} `json:"models"`
 	}
 	if err := json.Unmarshal(data, &payload); err != nil {
@@ -159,9 +159,8 @@ func readCodexCachedDefaultModel(codexHome string) string {
 		if slug == "" {
 			continue
 		}
-		if item.SupportedInAPI != nil && !*item.SupportedInAPI {
-			continue
-		}
+		// supported_in_api describes public OpenAI API availability, not
+		// Codex OAuth backend availability; visible CLI-only models still count.
 		visibility := strings.ToLower(strings.TrimSpace(item.Visibility))
 		if visibility == "hide" || visibility == "hidden" {
 			continue

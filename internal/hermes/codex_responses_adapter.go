@@ -49,7 +49,7 @@ type codexResponsesFunctionCallItem struct {
 type codexResponsesFunctionCallOutputItem struct {
 	Type   string `json:"type"`
 	CallID string `json:"call_id"`
-	Output string `json:"output"`
+	Output any    `json:"output"`
 }
 
 type codexResponsesTool struct {
@@ -149,10 +149,17 @@ func buildCodexResponsesPayload(req ChatRequest) (codexResponsesPayload, error) 
 			if callID == "" {
 				continue
 			}
+			output := any(msg.Content)
+			if len(msg.ContentParts) > 0 {
+				parts := codexResponsesContentParts("user", msg.ContentParts)
+				if len(parts) > 0 {
+					output = parts
+				}
+			}
 			input = append(input, codexResponsesFunctionCallOutputItem{
 				Type:   "function_call_output",
 				CallID: callID,
-				Output: msg.Content,
+				Output: output,
 			})
 		}
 	}

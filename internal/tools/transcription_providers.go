@@ -291,15 +291,17 @@ func (p *TranscriptionGroqProvider) Transcribe(ctx context.Context, req Transcri
 		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var result struct {
-		Text string `json:"text"`
+	// We requested response_format=text above, so the body is the raw
+	// transcript, not JSON. Reading the body as plain text matches the
+	// Content-Type Groq returns for text-format requests and avoids
+	// "invalid character ... looking for beginning of value" JSON parse
+	// errors that fire on the first non-{ character of a real transcript.
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT read response: %w", err)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("Groq STT parse response: %w", err)
-	}
-
 	return TranscriptionProviderResult{
-		Transcript: strings.TrimSpace(result.Text),
+		Transcript: strings.TrimSpace(string(bodyBytes)),
 		Provider:   ProviderNameGroq,
 		Model:      model,
 		Language:   req.Language,

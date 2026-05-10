@@ -8,6 +8,52 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-05-10
+
+Date alias: `v2026.5.10`.
+
+> **Telegram voice transcription via Groq Whisper actually works.**
+> The provider was sending `response_format=text` to Groq Whisper but
+> attempting `json.NewDecoder(...).Decode(...)` on the response body —
+> Groq honored the format and returned the raw transcript starting
+> with whatever character the user said, the JSON decoder choked on
+> the first non-`{` character, and Telegram voice messages came back
+> as `"audio transcription provider failed"`. Reading the body as
+> plain text matches the format we already requested.
+
+### Fixed — Groq Whisper STT response parsing
+
+- **`internal/tools/transcription_providers.go`**:
+  `TranscriptionGroqProvider.Transcribe` now reads the response body as
+  plain text (`io.ReadAll(resp.Body)` + `strings.TrimSpace`) instead of
+  attempting to JSON-decode it, matching the `response_format=text`
+  field already in the outgoing multipart form.
+- **Regression test**: `TestTranscriptionGroqProviderTranscribe` server
+  now returns plain text (matching real Groq behavior under
+  `response_format=text`) and asserts the outgoing request carries
+  `response_format=text`. The test fails with the old JSON-decode
+  approach and passes with the read-as-text fix.
+
+### Improved — Telegram STT diagnostics (built on 0.2.3 plumbing)
+
+- **`telegramAudioErrorDiagnostic`** now distinguishes the seven Groq
+  STT failure sites (`stt_groq_network_failure`,
+  `stt_groq_file_open_failure`, `stt_groq_request_build_failure`,
+  `stt_groq_parse_failure`, `stt_groq_copy_failure`,
+  `stt_groq_writer_close_failure`, `stt_groq_form_failure`) where the
+  previous taxonomy collapsed them all to `stt_groq_local_failure`.
+  The newly granular `stt_groq_parse_failure` is what pinpointed the
+  response-format/JSON-decode mismatch above in one round trip.
+- **New `telegramAudioErrorRedactedDetail`** returns a 256-char-bounded,
+  redacted substring of `err.Error()` suitable for the WARN log. It
+  strips Telegram bot-token-shaped substrings and Telegram getFile
+  direct URLs so log forwarders cannot leak credentials; provider-side
+  errors (Groq HTTP body, dial errors, TLS messages) pass through.
+- Both `bot.go` WARN call sites (voice + audio) now log
+  `diagnostic=<token> detail=<redacted-truncated-err>` alongside the
+  existing sanitized `err=` field, so operators can group by token or
+  read the underlying error without a rebuild cycle.
+
 ## [0.2.3] - 2026-05-09
 
 Date alias: `v2026.5.9` (third same-day patch; shared alias follows the

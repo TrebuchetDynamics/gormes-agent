@@ -62,6 +62,41 @@ func TestLoad_BuiltinDefaults(t *testing.T) {
 	if cfg.CodeExecution.Mode != "strict" {
 		t.Errorf("default CodeExecution.Mode = %q, want strict", cfg.CodeExecution.Mode)
 	}
+	if !cfg.GatewayRestartNotificationEnabled("telegram") {
+		t.Error("gateway restart notification default = false, want true")
+	}
+}
+
+func TestLoad_GatewayRestartNotificationPlatformOverride(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	dir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[gateway.platforms.telegram]
+gateway_restart_notification = false
+
+[gateway.platforms.slack]
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.GatewayRestartNotificationEnabled("telegram") {
+		t.Fatal("telegram gateway restart notification = true, want false from native TOML override")
+	}
+	if !cfg.GatewayRestartNotificationEnabled("slack") {
+		t.Fatal("slack gateway restart notification = false, want default true when platform section omits flag")
+	}
+	if !cfg.GatewayRestartNotificationEnabled("discord") {
+		t.Fatal("discord gateway restart notification = false, want default true with no platform section")
+	}
 }
 
 func TestLoad_CodeExecutionModeConfig(t *testing.T) {

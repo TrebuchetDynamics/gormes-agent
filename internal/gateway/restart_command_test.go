@@ -443,6 +443,66 @@ func TestGatewayRestartCommand_TakeoverStartupNotificationIsOnceAndExpiryClearsM
 	}
 }
 
+func TestGatewayRestartCommand_TakeoverStartupNotificationCanBeMutedPerPlatform(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC)
+	statusStore := NewRuntimeStatusStore(filepath.Join(t.TempDir(), "gateway_state.json"))
+	statusStore.now = func() time.Time { return now }
+	markerStore := NewRestartTakeoverStore(filepath.Join(t.TempDir(), "restart_takeover.json"))
+	markerStore.now = func() time.Time { return now }
+	if err := markerStore.Write(ctx, RestartTakeoverMarker{
+		SourcePlatform: "telegram",
+		ChatID:         "42",
+		UpdateID:       "update-101",
+		MessageID:      "msg-9",
+		Generation:     3,
+		RequestedAt:    now.Format(time.RFC3339Nano),
+	}); err != nil {
+		t.Fatalf("seed marker: %v", err)
+	}
+
+	ch := newFakeChannel("telegram")
+	m := NewManagerWithSubmitter(ManagerConfig{
+		AllowedChats:  map[string]string{"telegram": "42"},
+		RuntimeStatus: statusStore,
+		Restart: RestartConfig{
+			MarkerStore: markerStore,
+		},
+		RestartNotifications: map[string]bool{"telegram": false},
+		Now:                  func() time.Time { return now },
+	}, &fakeKernel{}, nil)
+	if err := m.Register(ch); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	if err := m.ConsumeRestartTakeoverMarker(ctx); err != nil {
+		t.Fatalf("ConsumeRestartTakeoverMarker: %v", err)
+	}
+	if sent := ch.sentSnapshot(); len(sent) != 0 {
+		t.Fatalf("restart notification sends = %#v, want none when disabled", sent)
+	}
+	marker, ok, expired, err := markerStore.Read(ctx)
+	if err != nil {
+		t.Fatalf("read marker: %v", err)
+	}
+	if !ok || expired || marker.NotificationSentAt == "" {
+		t.Fatalf("marker after muted notification = %+v ok=%v expired=%v, want consumed with notification_sent_at", marker, ok, expired)
+	}
+	if err := m.ConsumeRestartTakeoverMarker(ctx); err != nil {
+		t.Fatalf("ConsumeRestartTakeoverMarker second: %v", err)
+	}
+	if sent := ch.sentSnapshot(); len(sent) != 0 {
+		t.Fatalf("restart notification retried after muted consumption: %#v", sent)
+	}
+	status, err := statusStore.ReadRuntimeStatus(ctx)
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatus: %v", err)
+	}
+	if len(status.TakeoverMarkers) != 1 || status.TakeoverMarkers[0].Status != RestartTakeoverMarkerStatusSeen {
+		t.Fatalf("TakeoverMarkers = %+v, want one seen marker evidence", status.TakeoverMarkers)
+	}
+}
+
 func readRestartMarkerFixture(t *testing.T, path string) RestartTakeoverMarker {
 	t.Helper()
 	raw, err := os.ReadFile(path)

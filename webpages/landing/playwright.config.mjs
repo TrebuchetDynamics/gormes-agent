@@ -21,7 +21,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `node ../scripts/with-compatible-node.mjs astro dev --host 127.0.0.1 --port ${e2ePort} --strictPort`,
+    command: `node ../scripts/with-compatible-node.mjs ./node_modules/.bin/astro dev --host 127.0.0.1 --port ${e2ePort} --strictPort`,
     url: e2eBaseURL,
     reuseExistingServer: false,
   },
