@@ -104,6 +104,40 @@ func TestReleaseWorkflowInjectsBuildDateProvenance(t *testing.T) {
 	)
 }
 
+func TestReleaseWorkflowSmokeChecksBinaryVersionMetadata(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
+
+	wantAll := []string{
+		"binary_path=\"dist/${target}/${exe}\"",
+		"if [ \"$GOOS\" = \"$(go env GOOS)\" ] && [ \"$GOARCH\" = \"$(go env GOARCH)\" ]; then",
+		"version_json=$(\"$binary_path\" version --json)",
+		"grep \"\\\"version\\\": \\\"${VERSION}\\\"\"",
+		"grep \"\\\"git_commit\\\": \\\"${GIT_COMMIT}\\\"\"",
+		"grep \"\\\"git_dirty\\\": ${GIT_DIRTY}\"",
+		"grep \"\\\"build_date\\\": \\\"${BUILD_DATE}\\\"\"",
+		"go version -m \"$binary_path\"",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(buildStep, want) {
+			t.Errorf("Build static binary archive step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, buildStep,
+		"go build -trimpath",
+		"version_json=$(\"$binary_path\" version --json)",
+	)
+	assertWorkflowOrder(t, buildStep,
+		"go version -m \"$binary_path\"",
+		"tar -C dist -czf \"$archive\"",
+	)
+	assertWorkflowOrder(t, buildStep,
+		"version_json=$(\"$binary_path\" version --json)",
+		"tar -C dist -czf \"$archive\"",
+	)
+}
+
 func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
 	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")
@@ -251,6 +285,44 @@ func TestReleaseWorkflowReleaseNotesNameSBOMAttestations(t *testing.T) {
 	)
 }
 
+func TestReleaseWorkflowReleaseTitleCarriesDateAlias(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
+	publishStep := workflowStepBlock(t, workflow, "- uses: softprops/action-gh-release@v2")
+
+	wantInNotesStep := []string{
+		"id: release_notes",
+		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
+		"test -n \"$date_alias\"",
+		"echo \"date_alias=$date_alias\" >> \"$GITHUB_OUTPUT\"",
+		"echo \"# Gormes ${GITHUB_REF_NAME} (${date_alias})\"",
+	}
+	for _, want := range wantInNotesStep {
+		if !strings.Contains(notesStep, want) {
+			t.Errorf("Build release notes step missing %q", want)
+		}
+	}
+
+	wantInPublishStep := []string{
+		"name: Gormes ${{ github.ref_name }} (${{ steps.release_notes.outputs.date_alias }})",
+		"body_path: release-notes.md",
+	}
+	for _, want := range wantInPublishStep {
+		if !strings.Contains(publishStep, want) {
+			t.Errorf("softprops publish step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, notesStep,
+		"date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*\"\\(.*\\)\".*/\\1/')",
+		"echo \"# Gormes ${GITHUB_REF_NAME} (${date_alias})\"",
+	)
+	assertWorkflowOrder(t, notesStep,
+		"echo \"# Gormes ${GITHUB_REF_NAME} (${date_alias})\"",
+		"echo \"## Install\"",
+	)
+}
+
 // TestReleaseWorkflowPublishesInstallScripts pins the regression
 // observed during the v0.2.0 fresh-install probe: a curl following
 // the natural URL pattern
@@ -348,7 +420,7 @@ func TestReleasePrepGuideTargetMatrixMatchesWorkflow(t *testing.T) {
 
 func readRepoFileRelease(t *testing.T, rel string) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
 	if err != nil {
 		t.Fatalf("read %s: %v", rel, err)
 	}

@@ -133,6 +133,66 @@ func TestBoardStatsEmptyBoardUsesEmptyObjectsAndNullAge(t *testing.T) {
 	}
 }
 
+func TestBoardStatsSkipsCorruptReadyTimestamps(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+
+	t.Run("uses oldest valid ready timestamp", func(t *testing.T) {
+		store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+		if err != nil {
+			t.Fatalf("Open() error = %v", err)
+		}
+		defer store.Close()
+
+		store.now = func() time.Time { return now.Add(-20 * time.Minute) }
+		if _, err := store.CreateTask(ctx, CreateTaskInput{Title: "valid ready"}); err != nil {
+			t.Fatalf("CreateTask(valid ready) error = %v", err)
+		}
+		store.now = func() time.Time { return now.Add(-45 * time.Minute) }
+		corrupt, err := store.CreateTask(ctx, CreateTaskInput{Title: "corrupt ready"})
+		if err != nil {
+			t.Fatalf("CreateTask(corrupt ready) error = %v", err)
+		}
+		if _, err := store.db.ExecContext(ctx, `UPDATE tasks SET created_at = ? WHERE id = ?`, "%s", corrupt.ID); err != nil {
+			t.Fatalf("corrupt ready timestamp fixture: %v", err)
+		}
+
+		store.now = func() time.Time { return now }
+		stats, err := store.BoardStats(ctx)
+		if err != nil {
+			t.Fatalf("BoardStats() error = %v", err)
+		}
+		if stats.OldestReadyAgeSeconds == nil || *stats.OldestReadyAgeSeconds != 1200 {
+			t.Fatalf("OldestReadyAgeSeconds = %v, want 1200 from valid ready task", stats.OldestReadyAgeSeconds)
+		}
+	})
+
+	t.Run("returns null age when every ready timestamp is corrupt", func(t *testing.T) {
+		store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+		if err != nil {
+			t.Fatalf("Open() error = %v", err)
+		}
+		defer store.Close()
+
+		task, err := store.CreateTask(ctx, CreateTaskInput{Title: "corrupt only"})
+		if err != nil {
+			t.Fatalf("CreateTask(corrupt only) error = %v", err)
+		}
+		if _, err := store.db.ExecContext(ctx, `UPDATE tasks SET created_at = ? WHERE id = ?`, "%s", task.ID); err != nil {
+			t.Fatalf("corrupt ready timestamp fixture: %v", err)
+		}
+
+		store.now = func() time.Time { return now }
+		stats, err := store.BoardStats(ctx)
+		if err != nil {
+			t.Fatalf("BoardStats() error = %v", err)
+		}
+		if stats.OldestReadyAgeSeconds != nil {
+			t.Fatalf("OldestReadyAgeSeconds = %v, want nil for corrupt-only ready timestamps", *stats.OldestReadyAgeSeconds)
+		}
+	})
+}
+
 func TestBoardStatsDoesNotTouchHermesHome(t *testing.T) {
 	hermesHome := filepath.Join(t.TempDir(), "hermes")
 	t.Setenv("HERMES_HOME", hermesHome)

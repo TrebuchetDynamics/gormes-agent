@@ -8,6 +8,145 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-05-10
+
+Date alias: `v2026.5.10` (second same-day patch over v0.2.4; shared
+alias follows the v0.1.06 / v0.1.07 and v0.2.1 / v0.2.2 / v0.2.3 / v0.2.4
+precedent for back-to-back same-day releases).
+
+> **Critical install.sh data-loss fix + OpenRouter URL fix + OpenAI STT
+> companion fix.** Operators who ran `install.sh --uninstall` from a
+> sandbox in v0.2.4 or earlier could permanently delete their REAL
+> `~/.gormes/` (provider keys in `.env`, Goncho `memory.db`, `config.toml`,
+> binaries) — two independent bugs lined up to make this maximally
+> destructive. Operators who copy-pasted OpenRouter's documented base URL
+> `https://openrouter.ai/api/v1` got the cryptic
+> `"Not Found: provider returned HTML error body"` error instead of a
+> working chat completion. Both classes are fixed. Plus the OpenAI STT
+> provider had the same `response_format=text` + JSON-decode mismatch the
+> v0.2.4 Groq fix already addressed for one provider.
+
+### Critical — install.sh `--uninstall` no longer destroys operators' real `~/.gormes`
+
+- **Scope leak fixed.** `install.sh`'s `run_uninstall()` now exports
+  `GORMES_HOME="$(managed_home_dir)"` before invoking the gormes
+  `uninstall` subcommand. Without this, an operator running
+  `GORMES_INSTALL_HOME=/tmp/sandbox install.sh --uninstall` saw the
+  gormes process inherit the operator's default $HOME-derived
+  `~/.gormes` path and delete the WRONG tree. Live regression
+  2026-05-10 confirmed unrecoverable data loss of `.env`, `memory.db`,
+  `config.toml`, and PATH symlinks during a bug-hunting sandbox
+  uninstall test.
+
+- **Permanent delete → recoverable trash by default.**
+  `cmd/gormes/uninstall.go` now uses `gio trash` when available
+  (freedesktop trash, recoverable from any file manager's trash UI)
+  instead of `os.RemoveAll`. Operators who legitimately need permanent
+  deletion (CI cleanup, container teardown, secure wipe) can opt in
+  via `GORMES_UNINSTALL_FORCE_PURGE=1`. On hosts without `gio` the
+  fallback is permanent delete with an explicit label that names the
+  missing dependency (`"gio not available; install glib2-tools for
+  recoverable trash"`).
+
+- **Removal mode is surfaced.** Stdout now prints
+  `removal mode: <label>` before the per-group report, and
+  `--json` output includes `removal_mode: "..."` so fleet automation
+  can verify which mode fired.
+
+- Four new tests pin the contract:
+  `TestPickArtifactMover_PrefersGioTrashWhenAvailable`,
+  `TestPickArtifactMover_ForcePurgeOptsIntoPermanentDelete`,
+  `TestPickArtifactMover_ForcePurgeAcceptsTrueAlias`,
+  `TestPickArtifactMover_DefaultOnHostWithoutGio`.
+
+### Fixed — OpenRouter (and other OpenAI-compatible) base URL with `/v1` no longer 404s
+
+- **`internal/hermes/http_client.go` `openAICompatibleURL`** now
+  collapses a `/v1` prefix when both basePath and endpointPath carry
+  it. Previously, `endpoint = "https://openrouter.ai/api/v1"` (the
+  documented base URL) joined with `/v1/chat/completions` produced
+  `https://openrouter.ai/api/v1/v1/chat/completions` (double /v1) and
+  the upstream service returned a 404 HTML page. The cryptic
+  `"Not Found: provider returned HTML error body"` Go error gave the
+  operator no clue that the URL was double-prefixed.
+- Both `endpoint = ".../api"` and `endpoint = ".../api/v1"` now
+  resolve to the same correct URL across every OpenAI-compatible
+  provider (OpenAI itself, OpenRouter, Together, Groq chat, DeepInfra).
+- Eight-case `TestOpenAICompatibleURL_CollapsesDoubleV1Prefix` pins
+  the contract, including non-collapsible cases (Anthropic
+  `/v1/messages`, Azure `/responses`, middle-`/v1` proxy URLs).
+
+### Fixed — OpenAI STT response parsing (companion to the v0.2.4 Groq fix)
+
+- `TranscriptionOpenAIProvider.Transcribe` was sending
+  `response_format=text` in the multipart form but attempting
+  `json.NewDecoder(...).Decode(...)` on the response body. Same
+  defect class the v0.2.4 Groq fix addressed for one provider; this
+  was a copy-paste bug in the OpenAI implementation. Now reads the
+  body as plain text matching the requested format. Existing OpenAI
+  STT test updated to serve plain text (matches real OpenAI behavior
+  under `response_format=text`) and asserts `response_format=text`
+  is in the outgoing request.
+
+### Added — Pure-Go WASI Whisper transcriber wired into Telegram STT
+
+- `internal/wasi/whisper/transcriber.go` — pure-Go Whisper transcriber
+  via wazero + whisper.cpp WASM, no CGO, no Python.
+- `internal/wasi/whisper/audio/` — audio preprocessing package
+  (16 kHz mono PCM resampling).
+- Telegram channel STT resolver now tries the WASI Whisper path
+  before HTTP fallbacks (Groq, OpenAI), so operators with the
+  bundled wasm + model file get fully-local transcription without
+  paying a cloud STT provider.
+- WASI Whisper benchmark evidence recorded for tiny.en/base.en/small
+  performance comparison.
+
+### Improved — V4A patch tool resilience
+
+- Block-anchor patch matching for hunks that don't match the literal
+  source bytes.
+- Fuzzy patch replace strategies (whitespace-insensitive, unicode
+  normalization).
+- Context-aware patch replacement when multiple matches exist.
+- Failed v4a patch applies now roll back partial changes.
+- Patch no-match errors surface recovery hints.
+
+### Improved — Kanban orchestrator hardening
+
+- `feat: add Kanban orchestrator board tools` — chat tools can pin a
+  kanban board and operate on it implicitly.
+- `feat: add kanban tail event follower` — operators can stream
+  kanban worker events from the CLI.
+- `fix: stabilize kanban tool list order`,
+  `fix: harden kanban worker spawn resolution`,
+  `fix: harden kanban corrupt timestamp reads`.
+
+### Improved — Provider/runtime polish
+
+- `feat(provider): add stream drop upstream diagnostics` — kernel
+  provider-stream-drop frames now carry upstream diagnostic
+  fingerprints for fleet triage.
+- `fix: cover Hermes bundled platform plugins` — bundled-plugin
+  loader regression closed.
+- `fix: shape browser console CDP results` — browser tools now
+  return CDP-shaped results consistently.
+- `fix: guard curator prompt against transient failures` — curator
+  background skill now retries transient failures instead of
+  aborting the prompt build.
+- `fix: bind release date alias to GitHub releases` — release.json
+  date_alias is now correctly bound to the GitHub release URL.
+- `feat: expand Hermes i18n locale parity` — additional locale
+  files mirrored from upstream Hermes.
+
+### CI
+
+- `ci: smoke release binary metadata` — release workflow now smokes
+  binary metadata (version/git_commit/build_date provenance) before
+  publishing the GitHub release.
+- `test(landing): avoid e2e port collisions` — landing e2e
+  Playwright config honors `LANDING_E2E_PORT` env override (built on
+  in v0.2.4, hardened here).
+
 ## [0.2.4] - 2026-05-10
 
 Date alias: `v2026.5.10`.

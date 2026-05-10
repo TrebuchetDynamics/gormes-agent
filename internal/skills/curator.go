@@ -411,7 +411,19 @@ func (c *Curator) review(ctx context.Context, input CuratorReviewInput) (Curator
 }
 
 func curatorPrompt(dryRun bool) string {
-	prompt := "You are running as Gormes' Hermes-compatible background skill CURATOR."
+	prompt := strings.Join([]string{
+		"You are running as Gormes' Hermes-compatible background skill CURATOR.",
+		"",
+		"Review agent-created skills as class-level reusable knowledge. Prefer durable fixes, setup recipes, workflow corrections, and broad skill improvements over one-session artifacts.",
+		"",
+		"Do NOT capture these as skills:",
+		"- Environment-dependent failures: missing binaries, fresh-install errors, post-migration path mismatches, 'command not found', unconfigured credentials, and uninstalled packages. These are not durable rules.",
+		"- Negative claims about tools or features, such as 'browser tools do not work', 'X tool is broken', or 'cannot use Y'. These harden into self-cited refusals after the original setup issue is fixed.",
+		"- Session-specific transient errors that resolved before the conversation ended. If retrying worked, the lesson is the retry or setup pattern, not the original failure.",
+		"- One-off task narratives such as summarizing today's market or analyzing one PR.",
+		"",
+		"If a tool failed because of setup state, capture the FIX: install command, config step, or env var to set under an existing setup or troubleshooting skill. Never \"this tool does not work\" as a standalone constraint.",
+	}, "\n")
 	if dryRun {
 		return "DRY-RUN - REPORT ONLY. DO NOT MUTATE THE SKILL LIBRARY.\n\n" + prompt
 	}

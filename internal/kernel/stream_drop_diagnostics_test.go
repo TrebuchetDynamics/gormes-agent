@@ -3,6 +3,7 @@ package kernel
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -24,6 +25,11 @@ func TestKernel_StreamDropDiagnosticsForOpenStreamRetry(t *testing.T) {
 			Status:     http.StatusServiceUnavailable,
 			Body:       "provider stream connection lost",
 			RetryAfter: 50 * time.Millisecond,
+			Headers: map[string]string{
+				"cf-ray":                "8f1a2b3c4d5e6f7g-LAX",
+				"x-openrouter-provider": "Anthropic",
+				"authorization":         "Bearer should-not-leak",
+			},
 		}},
 		streams: []hermes.Stream{&streamDropDiagnosticsStream{events: []hermes.Event{
 			{Kind: hermes.EventToken, Token: "recovered"},
@@ -73,24 +79,38 @@ func TestKernel_StreamDropDiagnosticsForOpenStreamRetry(t *testing.T) {
 		"max_attempts=5",
 		"error_type=HTTPError",
 		"error_class=retryable",
+		"http_status=503",
+		"upstream_headers=\"cf-ray=8f1a2b3c4d5e6f7g-LAX x-openrouter-provider=Anthropic\"",
 	} {
 		if !strings.Contains(logText, want) {
 			t.Fatalf("stream-drop log missing %q in:\n%s", want, logText)
 		}
 	}
+	if strings.Contains(logText, "authorization") || strings.Contains(logText, "should-not-leak") {
+		t.Fatalf("stream-drop log leaked non-allowlisted header:\n%s", logText)
+	}
 }
 
 func TestKernel_StreamDropDiagnosticsForMidStreamRetry(t *testing.T) {
 	var logs bytes.Buffer
+	wrappedErr := fmt.Errorf("provider wrapper: %w", &hermes.HTTPError{
+		Status:     http.StatusServiceUnavailable,
+		Body:       "stream reset",
+		RetryAfter: 50 * time.Millisecond,
+	})
 	client := &streamDropDiagnosticsClient{
 		status: hermes.ProviderStatus{Provider: "anthropic", Runtime: "messages"},
 		streams: []hermes.Stream{
 			&streamDropDiagnosticsStream{
 				events: []hermes.Event{{Kind: hermes.EventToken, Token: "partial"}},
-				err: &hermes.HTTPError{
-					Status:     http.StatusServiceUnavailable,
-					Body:       "stream reset",
-					RetryAfter: 50 * time.Millisecond,
+				err:    wrappedErr,
+				diag: hermes.StreamDiagnostics{
+					HTTPStatus:      http.StatusOK,
+					Headers:         map[string]string{"x-request-id": "req-midstream", "cookie": "secret-cookie"},
+					Bytes:           4096,
+					Chunks:          3,
+					Elapsed:         8 * time.Second,
+					TimeToFirstByte: 400 * time.Millisecond,
 				},
 			},
 			&streamDropDiagnosticsStream{events: []hermes.Event{
@@ -117,14 +137,29 @@ func TestKernel_StreamDropDiagnosticsForMidStreamRetry(t *testing.T) {
 	reconnecting := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
 		return f.Phase == PhaseReconnecting
 	}, time.Second)
-	for _, want := range []string{"anthropic", "stream drop", "HTTPError", "retry 1/5"} {
+	for _, want := range []string{"anthropic", "stream drop", "HTTPError", "after 8.0s", "retry 1/5"} {
 		if !strings.Contains(reconnecting.StatusText, want) {
 			t.Fatalf("mid-stream reconnecting status = %q, want %q", reconnecting.StatusText, want)
 		}
 	}
 	logText := logs.String()
-	if !strings.Contains(logText, "mid_stream=true") || !strings.Contains(logText, "provider=anthropic") {
-		t.Fatalf("mid-stream log missing structured provider/mid_stream fields:\n%s", logText)
+	for _, want := range []string{
+		"mid_stream=true",
+		"provider=anthropic",
+		"http_status=200",
+		"bytes=4096",
+		"chunks=3",
+		"elapsed=8s",
+		"ttfb=400ms",
+		"upstream_headers=\"x-request-id=req-midstream\"",
+		"error_chain=\"wrapError(provider wrapper: Service Unavailable: stream reset) <- HTTPError(Service Unavailable: stream reset)\"",
+	} {
+		if !strings.Contains(logText, want) {
+			t.Fatalf("mid-stream log missing %q in:\n%s", want, logText)
+		}
+	}
+	if strings.Contains(logText, "cookie") || strings.Contains(logText, "secret-cookie") {
+		t.Fatalf("mid-stream log leaked non-allowlisted header:\n%s", logText)
 	}
 
 	_, final := drainUntilIdle(t, k.Render(), initial.Seq, time.Second)
@@ -171,6 +206,7 @@ func (c *streamDropDiagnosticsClient) ProviderStatus() hermes.ProviderStatus {
 type streamDropDiagnosticsStream struct {
 	events []hermes.Event
 	err    error
+	diag   hermes.StreamDiagnostics
 	pos    int
 }
 
@@ -190,3 +226,7 @@ func (s *streamDropDiagnosticsStream) Recv(context.Context) (hermes.Event, error
 
 func (s *streamDropDiagnosticsStream) SessionID() string { return "" }
 func (s *streamDropDiagnosticsStream) Close() error      { return nil }
+
+func (s *streamDropDiagnosticsStream) StreamDiagnostics() hermes.StreamDiagnostics {
+	return s.diag
+}

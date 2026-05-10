@@ -22,7 +22,7 @@ func setupLocalesDir(t *testing.T, files map[string]string) {
 }
 
 func TestSupportedLanguages(t *testing.T) {
-	expected := []string{"en", "zh", "ja", "de", "es", "fr", "tr", "uk"}
+	expected := []string{"en", "zh", "zh-hant", "ja", "de", "es", "fr", "tr", "uk", "af", "ko", "it", "ga", "pt", "ru", "hu"}
 	got := SupportedLanguages()
 	if len(got) != len(expected) {
 		t.Fatalf("SupportedLanguages() = %v, want %v", got, expected)
@@ -47,32 +47,43 @@ func TestNormalizeLang(t *testing.T) {
 	}{
 		{"en", "en"},
 		{"zh", "zh"},
+		{"zh-hant", "zh-hant"},
 		{"ja", "ja"},
 		{"de", "de"},
 		{"es", "es"},
 		{"fr", "fr"},
 		{"tr", "tr"},
 		{"uk", "uk"},
+		{"af", "af"},
+		{"ko", "ko"},
+		{"it", "it"},
+		{"ga", "ga"},
+		{"pt", "pt"},
+		{"ru", "ru"},
+		{"hu", "hu"},
 		{"english", "en"},
 		{"en-US", "en"},
 		{"en-gb", "en"},
 		{"chinese", "zh"},
 		{"mandarin", "zh"},
 		{"zh-CN", "zh"},
-		{"zh-TW", "zh"},
+		{"zh-TW", "zh-hant"},
+		{"zh-HK", "zh-hant"},
 		{"zh-hans", "zh"},
-		{"zh-hant", "zh"},
+		{"traditional-chinese", "zh-hant"},
 		{"japanese", "ja"},
 		{"jp", "ja"},
 		{"ja-JP", "ja"},
 		{"german", "de"},
 		{"deutsch", "de"},
+		{"de-AT", "de"},
 		{"de-DE", "de"},
 		{"spanish", "es"},
 		{"español", "es"},
 		{"espanol", "es"},
 		{"es-ES", "es"},
 		{"es-MX", "es"},
+		{"es-AR", "es"},
 		{"french", "fr"},
 		{"français", "fr"},
 		{"france", "fr"},
@@ -81,8 +92,21 @@ func TestNormalizeLang(t *testing.T) {
 		{"uk-ua", "uk"},
 		{"turkish", "tr"},
 		{"tr-TR", "tr"},
+		{"afrikaans", "af"},
+		{"af-ZA", "af"},
+		{"korean", "ko"},
+		{"ko-KR", "ko"},
+		{"italian", "it"},
+		{"it-CH", "it"},
+		{"irish", "ga"},
+		{"gaeilge", "ga"},
+		{"portuguese", "pt"},
+		{"pt-BR", "pt"},
+		{"russian", "ru"},
+		{"ru-RU", "ru"},
+		{"hungarian", "hu"},
+		{"magyar", "hu"},
 		{"klingon", "en"},
-		{"pt-BR", "en"},
 		{"", "en"},
 	}
 	for _, tc := range tests {
@@ -189,8 +213,33 @@ func TestCatalogParityKeysExist(t *testing.T) {
 
 func TestSupportedLanguagesCount(t *testing.T) {
 	langs := SupportedLanguages()
-	if len(langs) != 8 {
-		t.Errorf("SupportedLanguages() has %d entries, want 8", len(langs))
+	if len(langs) != 16 {
+		t.Errorf("SupportedLanguages() has %d entries, want 16", len(langs))
+	}
+}
+
+func TestBundledSupportedCatalogsHaveMatchingKeys(t *testing.T) {
+	t.Setenv("GORMES_LOCALES_DIR", filepath.Join("..", "..", "locales"))
+	ResetLanguageCache()
+
+	enCat := loadCatalog("en")
+	if len(enCat) == 0 {
+		t.Fatal("bundled en.yaml catalog is empty or unavailable")
+	}
+
+	for _, lang := range SupportedLanguages() {
+		catalog := loadCatalog(lang)
+		if len(catalog) == 0 {
+			t.Fatalf("bundled %s.yaml catalog is empty or unavailable", lang)
+		}
+		for key := range enCat {
+			if _, ok := catalog[key]; !ok {
+				t.Fatalf("bundled %s.yaml missing key %q", lang, key)
+			}
+		}
+		if got := T("approval.denied", "lang", lang); got == "approval.denied" {
+			t.Fatalf("approval.denied for lang %s fell back to key path", lang)
+		}
 	}
 }
 

@@ -92,9 +92,5 @@ func TestInstallSh_UninstallDefaultsToApply(t *testing.T) {
 
 func repoFile(t *testing.T, rel string) string {
 	t.Helper()
-	abs, err := filepath.Abs(filepath.Join("..", "..", "..", rel))
-	if err != nil {
-		t.Fatalf("abs path %s: %v", rel, err)
-	}
-	return abs
+	return filepath.Join(repoRoot(t), rel)
 }

@@ -2,6 +2,7 @@ package kanbantools
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"path/filepath"
 	"strings"
@@ -19,10 +20,18 @@ func TestKanbanToolsHiddenWithoutContextAndVisibleWithWorkerContext(t *testing.T
 	}
 
 	workerTools := NewTools(Config{DBPath: dbPath, TaskID: "t_worker", Profile: "coder"})
-	assertKanbanToolNames(t, workerTools)
+	assertKanbanLifecycleToolNames(t, workerTools)
 
 	profileToolsetTools := NewTools(Config{DBPath: dbPath, Enabled: true, Profile: "techlead"})
-	assertKanbanToolNames(t, profileToolsetTools)
+	assertKanbanOrchestratorToolNames(t, profileToolsetTools)
+
+	workerWithToolset := NewTools(Config{DBPath: dbPath, TaskID: "t_worker", Enabled: true, Profile: "coder"})
+	assertKanbanLifecycleToolNames(t, workerWithToolset)
+	for _, banned := range []string{"kanban_list", "kanban_unblock"} {
+		if hasKanbanTool(workerWithToolset, banned) {
+			t.Fatalf("%s registered for scoped worker with kanban toolset", banned)
+		}
+	}
 }
 
 func TestKanbanToolsWorkerLifecycleStoresStructuredHandoff(t *testing.T) {
@@ -227,6 +236,140 @@ func TestKanbanToolsDenyForeignTaskMutationForWorkers(t *testing.T) {
 	}
 }
 
+func TestKanbanToolsOrchestratorListFiltersAndBooleanArgs(t *testing.T) {
+	ctx := context.Background()
+	store, err := kanban.Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close()
+
+	alpha, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "alpha", Assignee: "factory", Priority: 5})
+	if err != nil {
+		t.Fatalf("CreateTask(alpha): %v", err)
+	}
+	beta, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "beta", Assignee: "factory"})
+	if err != nil {
+		t.Fatalf("CreateTask(beta): %v", err)
+	}
+	if _, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "review", Assignee: "reviewer"}); err != nil {
+		t.Fatalf("CreateTask(review): %v", err)
+	}
+	archived, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "archived", Assignee: "factory"})
+	if err != nil {
+		t.Fatalf("CreateTask(archived): %v", err)
+	}
+	markTaskStatus(t, store.DBPath(), archived.ID, kanban.StatusArchived)
+
+	toolset := NewTools(Config{DBPath: store.DBPath(), Enabled: true, Profile: "techlead"})
+	list := executeKanbanTool(t, toolset, "kanban_list", `{"assignee":"factory","status":"ready","include_archived":"false","limit":1}`)
+	if list["ok"] != true {
+		t.Fatalf("kanban_list = %v, want ok", list)
+	}
+	if list["count"] != float64(1) || list["limit"] != float64(1) || list["truncated"] != true || list["next_limit"] != float64(2) {
+		t.Fatalf("kanban_list paging = %v, want count=1 limit=1 truncated next_limit=2", list)
+	}
+	tasks := listTasksPayload(t, list)
+	if taskID(tasks[0]) != alpha.ID {
+		t.Fatalf("first filtered task id = %v, want %s", taskID(tasks[0]), alpha.ID)
+	}
+	if taskID(tasks[0]) == archived.ID {
+		t.Fatalf("archived task leaked with include_archived=false: %v", tasks[0])
+	}
+
+	withArchived := executeKanbanTool(t, toolset, "kanban_list", `{"assignee":"factory","include_archived":"true","limit":10}`)
+	if withArchived["ok"] != true {
+		t.Fatalf("kanban_list include archived = %v, want ok", withArchived)
+	}
+	ids := listTaskIDs(t, withArchived)
+	for _, want := range []string{alpha.ID, beta.ID, archived.ID} {
+		if !containsString(ids, want) {
+			t.Fatalf("include_archived ids = %v, missing %s", ids, want)
+		}
+	}
+
+	badBool := executeKanbanTool(t, toolset, "kanban_list", `{"include_archived":"sometimes"}`)
+	if badBool["ok"] == true || !strings.Contains(stringValue(badBool["error"]), "include_archived") {
+		t.Fatalf("bad include_archived = %v, want bounded bool error", badBool)
+	}
+
+	badLimit := executeKanbanTool(t, toolset, "kanban_list", `{"limit":201}`)
+	if badLimit["ok"] == true || !strings.Contains(stringValue(badLimit["error"]), "limit") {
+		t.Fatalf("bad limit = %v, want bounded limit error", badLimit)
+	}
+}
+
+func TestKanbanToolsOrchestratorUnblockRecomputesReadiness(t *testing.T) {
+	ctx := context.Background()
+	store, err := kanban.Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close()
+
+	parent, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "parent"})
+	if err != nil {
+		t.Fatalf("CreateTask(parent): %v", err)
+	}
+	child, err := store.CreateTask(ctx, kanban.CreateTaskInput{Title: "child", ParentIDs: []string{parent.ID}})
+	if err != nil {
+		t.Fatalf("CreateTask(child): %v", err)
+	}
+	if err := store.BlockTask(ctx, child.ID, kanban.BlockTaskInput{Reason: "waiting"}); err != nil {
+		t.Fatalf("BlockTask(child): %v", err)
+	}
+
+	toolset := NewTools(Config{DBPath: store.DBPath(), Enabled: true, Profile: "techlead"})
+	unblock := executeKanbanTool(t, toolset, "kanban_unblock", `{"task_id":"`+child.ID+`"}`)
+	if unblock["ok"] != true || unblock["status"] != string(kanban.StatusTodo) {
+		t.Fatalf("kanban_unblock = %v, want ok todo", unblock)
+	}
+
+	nonBlocked := executeKanbanTool(t, toolset, "kanban_unblock", `{"task_id":"`+parent.ID+`"}`)
+	if nonBlocked["ok"] == true || !strings.Contains(stringValue(nonBlocked["error"]), "not blocked") {
+		t.Fatalf("kanban_unblock non-blocked = %v, want bounded not-blocked error", nonBlocked)
+	}
+}
+
+func TestKanbanToolsCreateParsesTriageStringBooleans(t *testing.T) {
+	ctx := context.Background()
+	store, err := kanban.Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close()
+
+	toolset := NewTools(Config{DBPath: store.DBPath(), Enabled: true, Profile: "techlead"})
+	ready := executeKanbanTool(t, toolset, "kanban_create", `{"title":"ready task","assignee":"coder","triage":"false"}`)
+	if ready["ok"] != true {
+		t.Fatalf("kanban_create triage false = %v, want ok", ready)
+	}
+	readyTask, err := store.GetTask(ctx, stringValue(ready["task_id"]))
+	if err != nil {
+		t.Fatalf("GetTask(ready): %v", err)
+	}
+	if readyTask.Status != kanban.StatusReady {
+		t.Fatalf("triage false status = %q, want ready", readyTask.Status)
+	}
+
+	triage := executeKanbanTool(t, toolset, "kanban_create", `{"title":"rough idea","assignee":"coder","triage":"true"}`)
+	if triage["ok"] != true {
+		t.Fatalf("kanban_create triage true = %v, want ok", triage)
+	}
+	triageTask, err := store.GetTask(ctx, stringValue(triage["task_id"]))
+	if err != nil {
+		t.Fatalf("GetTask(triage): %v", err)
+	}
+	if triageTask.Status != kanban.StatusTriage {
+		t.Fatalf("triage true status = %q, want triage", triageTask.Status)
+	}
+
+	bad := executeKanbanTool(t, toolset, "kanban_create", `{"title":"bad","assignee":"coder","triage":"sometimes"}`)
+	if bad["ok"] == true || !strings.Contains(stringValue(bad["error"]), "triage") {
+		t.Fatalf("kanban_create bad triage = %v, want bounded bool error", bad)
+	}
+}
+
 func findKanbanTool(t *testing.T, toolset []tools.Tool, name string) tools.Tool {
 	t.Helper()
 	for _, candidate := range toolset {
@@ -238,7 +381,7 @@ func findKanbanTool(t *testing.T, toolset []tools.Tool, name string) tools.Tool 
 	return nil
 }
 
-func assertKanbanToolNames(t *testing.T, toolset []tools.Tool) {
+func assertKanbanLifecycleToolNames(t *testing.T, toolset []tools.Tool) {
 	t.Helper()
 	want := map[string]bool{
 		"kanban_show":      true,
@@ -261,6 +404,42 @@ func assertKanbanToolNames(t *testing.T, toolset []tools.Tool) {
 	if len(want) != 0 {
 		t.Fatalf("missing tool names: %v", want)
 	}
+}
+
+func assertKanbanOrchestratorToolNames(t *testing.T, toolset []tools.Tool) {
+	t.Helper()
+	want := map[string]bool{
+		"kanban_show":      true,
+		"kanban_list":      true,
+		"kanban_complete":  true,
+		"kanban_block":     true,
+		"kanban_heartbeat": true,
+		"kanban_comment":   true,
+		"kanban_create":    true,
+		"kanban_link":      true,
+		"kanban_unblock":   true,
+	}
+	if len(toolset) != len(want) {
+		t.Fatalf("tool count = %d, want %d", len(toolset), len(want))
+	}
+	for _, tool := range toolset {
+		if !want[tool.Name()] {
+			t.Fatalf("unexpected tool name %q", tool.Name())
+		}
+		delete(want, tool.Name())
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing tool names: %v", want)
+	}
+}
+
+func hasKanbanTool(toolset []tools.Tool, name string) bool {
+	for _, tool := range toolset {
+		if tool.Name() == name {
+			return true
+		}
+	}
+	return false
 }
 
 func newClaimedKanbanTask(t *testing.T, profile string) (*kanban.Store, kanban.Task) {
@@ -307,6 +486,56 @@ func executeKanbanTool(t *testing.T, toolset []tools.Tool, name, args string) ma
 func taskPayload(out map[string]any, key string) map[string]any {
 	task, _ := out[key].(map[string]any)
 	return task
+}
+
+func listTasksPayload(t *testing.T, out map[string]any) []any {
+	t.Helper()
+	tasks, ok := out["tasks"].([]any)
+	if !ok {
+		t.Fatalf("tasks payload = %T %v, want []any", out["tasks"], out["tasks"])
+	}
+	return tasks
+}
+
+func listTaskIDs(t *testing.T, out map[string]any) []string {
+	t.Helper()
+	tasks := listTasksPayload(t, out)
+	ids := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		taskMap, ok := task.(map[string]any)
+		if !ok {
+			t.Fatalf("task payload = %T %v, want map", task, task)
+		}
+		ids = append(ids, taskID(taskMap))
+	}
+	return ids
+}
+
+func taskID(task any) string {
+	taskMap, _ := task.(map[string]any)
+	id, _ := taskMap["id"].(string)
+	return id
+}
+
+func markTaskStatus(t *testing.T, dbPath, id string, status kanban.Status) {
+	t.Helper()
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite fixture: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`UPDATE tasks SET status = ? WHERE id = ?`, string(status), id); err != nil {
+		t.Fatalf("mark task %s status %s: %v", id, status, err)
+	}
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func hasKanbanEvent(events []kanban.Event, kind string) bool {

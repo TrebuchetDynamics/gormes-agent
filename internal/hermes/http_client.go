@@ -170,7 +170,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 				_ = retryResp.Body.Close()
 				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
 			}
-			return newChatStream(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors), nil
+			return newChatStreamWithDiagnostics(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors, streamDiagnosticsFromResponse(retryResp)), nil
 		}
 		if req.Temperature != nil && requestBodyHasParameter(body, "temperature") && isUnsupportedTemperatureError(httpErr) {
 			c.recordTemperatureRetry(req.Model, httpErr)
@@ -189,7 +189,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 				_ = retryResp.Body.Close()
 				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
 			}
-			return newChatStream(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors), nil
+			return newChatStreamWithDiagnostics(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors, streamDiagnosticsFromResponse(retryResp)), nil
 		}
 		if req.MaxTokens > 0 && requestBodyHasParameter(body, "max_tokens") && isUnsupportedParameterError(httpErr, "max_tokens") {
 			c.recordUnsupportedParameterRetry(req.Model, "max_tokens", "max_completion_tokens", httpErr)
@@ -206,12 +206,22 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 				_ = retryResp.Body.Close()
 				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
 			}
-			return newChatStream(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), descriptors), nil
+			return newChatStreamWithDiagnostics(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), descriptors, streamDiagnosticsFromResponse(retryResp)), nil
 		}
 		return nil, httpErr
 	}
 	// The body stays open for streaming; chatStream owns the Close.
-	return newChatStream(resp.Body, resp.Header.Get("X-Hermes-Session-Id"), descriptors), nil
+	return newChatStreamWithDiagnostics(resp.Body, resp.Header.Get("X-Hermes-Session-Id"), descriptors, streamDiagnosticsFromResponse(resp)), nil
+}
+
+func streamDiagnosticsFromResponse(resp *http.Response) StreamDiagnostics {
+	if resp == nil {
+		return StreamDiagnostics{}
+	}
+	return StreamDiagnostics{
+		HTTPStatus: resp.StatusCode,
+		Headers:    captureStreamDiagnosticHeaders(resp.Header),
+	}
 }
 
 func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]byte, []ToolDescriptor, error) {
@@ -415,6 +425,21 @@ func (c *httpClient) openAICompatibleURL(endpointPath string) string {
 
 	basePath := strings.TrimRight(parsed.Path, "/")
 	endpointPath = "/" + strings.TrimLeft(endpointPath, "/")
+	// Collapse a `/v1` prefix when both basePath and endpointPath carry it.
+	// Live regression 2026-05-10: operators copy-pasting OpenRouter's
+	// documented base URL `https://openrouter.ai/api/v1` produced a final
+	// request URL of `https://openrouter.ai/api/v1/v1/chat/completions` and
+	// got "Not Found: provider returned HTML error body" with no
+	// indication that the path was double-prefixed. Strip the basePath's
+	// trailing `/v1` whenever the endpointPath starts with `/v1/` so both
+	// shapes (`endpoint = '.../api'` and `endpoint = '.../api/v1'`)
+	// resolve to the same correct URL. This matches operator intuition
+	// across OpenAI-compatible providers (OpenAI itself, OpenRouter,
+	// Together, Groq chat, DeepInfra, etc.) whose docs include /v1 in the
+	// advertised base URL.
+	if strings.HasPrefix(endpointPath, "/v1/") && strings.HasSuffix(basePath, "/v1") {
+		basePath = strings.TrimSuffix(basePath, "/v1")
+	}
 	if basePath == "" {
 		parsed.Path = endpointPath
 	} else {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -328,7 +329,7 @@ func (b *BrowserHarnessChromedpBackend) runConsole(ctx context.Context, req Brow
 		Evidence:      BrowserHarnessEvidenceActionAccepted,
 		Kind:          "console",
 		TaskID:        req.TaskID,
-		Data:          map[string]any{"result": string(raw)},
+		Data:          browserHarnessConsoleExpressionData(raw),
 	}, nil
 }
 
@@ -618,6 +619,116 @@ func sanitizeBrowserHarnessRef(ref string) string {
 		return ref[:32]
 	}
 	return ref
+}
+
+type browserHarnessRuntimeEvaluateResponse struct {
+	Result struct {
+		Result struct {
+			Type                string          `json:"type"`
+			Value               json.RawMessage `json:"value"`
+			UnserializableValue string          `json:"unserializableValue"`
+			Description         string          `json:"description"`
+		} `json:"result"`
+		ExceptionDetails struct {
+			Text      string `json:"text"`
+			Exception struct {
+				Description string          `json:"description"`
+				Value       json.RawMessage `json:"value"`
+			} `json:"exception"`
+		} `json:"exceptionDetails"`
+	} `json:"result"`
+}
+
+func browserHarnessConsoleExpressionData(raw json.RawMessage) map[string]any {
+	var eval browserHarnessRuntimeEvaluateResponse
+	if err := json.Unmarshal(raw, &eval); err != nil {
+		return map[string]any{
+			"success":     true,
+			"result":      string(raw),
+			"result_type": "str",
+			"method":      "cdp_supervisor",
+		}
+	}
+	if msg := browserHarnessRuntimeExceptionMessage(eval); msg != "" {
+		return map[string]any{
+			"success": false,
+			"error":   msg,
+		}
+	}
+	parsed := browserHarnessRuntimeValue(eval.Result.Result)
+	if s, ok := parsed.(string); ok {
+		var nested any
+		if err := json.Unmarshal([]byte(s), &nested); err == nil {
+			parsed = nested
+		}
+	}
+	return map[string]any{
+		"success":     true,
+		"result":      parsed,
+		"result_type": browserHarnessConsoleResultType(parsed),
+		"method":      "cdp_supervisor",
+	}
+}
+
+func browserHarnessRuntimeExceptionMessage(eval browserHarnessRuntimeEvaluateResponse) string {
+	if msg := strings.TrimSpace(eval.Result.ExceptionDetails.Exception.Description); msg != "" {
+		return msg
+	}
+	if len(eval.Result.ExceptionDetails.Exception.Value) > 0 {
+		var value any
+		if err := json.Unmarshal(eval.Result.ExceptionDetails.Exception.Value, &value); err == nil {
+			return fmt.Sprint(value)
+		}
+		return string(eval.Result.ExceptionDetails.Exception.Value)
+	}
+	return strings.TrimSpace(eval.Result.ExceptionDetails.Text)
+}
+
+func browserHarnessRuntimeValue(remote struct {
+	Type                string          `json:"type"`
+	Value               json.RawMessage `json:"value"`
+	UnserializableValue string          `json:"unserializableValue"`
+	Description         string          `json:"description"`
+}) any {
+	if len(remote.Value) > 0 {
+		var value any
+		if err := json.Unmarshal(remote.Value, &value); err == nil {
+			return value
+		}
+		return string(remote.Value)
+	}
+	if remote.UnserializableValue != "" {
+		return remote.UnserializableValue
+	}
+	if remote.Description != "" {
+		return remote.Description
+	}
+	if strings.TrimSpace(remote.Type) == "undefined" {
+		return nil
+	}
+	return nil
+}
+
+func browserHarnessConsoleResultType(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return "NoneType"
+	case bool:
+		return "bool"
+	case string:
+		return "str"
+	case float64:
+		if math.Trunc(v) == v {
+			return "int"
+		}
+		return "float"
+	case []any:
+		return "list"
+	case map[string]any:
+		return "dict"
+	default:
+		return fmt.Sprintf("%T", value)
+	}
 }
 
 func jsonStringLiteral(s string) string {

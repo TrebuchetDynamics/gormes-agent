@@ -363,6 +363,18 @@ uninstall_command_path() {
 run_uninstall() {
   uninstall_bin=$(uninstall_command_path 2>/dev/null || true)
   [ -n "$uninstall_bin" ] || fail "could not find an installed gormes command; rerun with --bin-dir or put gormes on PATH"
+  # CRITICAL: scope the uninstall to the managed home dir resolved from
+  # GORMES_INSTALL_HOME. Without this, an operator running install.sh
+  # --uninstall from inside a sandbox (GORMES_INSTALL_HOME=/tmp/...) would
+  # see the gormes binary use its default HOME-derived ~/.gormes path and
+  # delete the operator's REAL install (live regression 2026-05-10:
+  # confirmed data loss of ~/.gormes/.env, ~/.gormes/memory.db,
+  # ~/.gormes/config.toml, ~/.local/bin/gormes during a sandbox uninstall
+  # test). Exporting GORMES_HOME pins the uninstall blast radius to the
+  # SAME directory tree install.sh manages; sandbox uninstalls now stay in
+  # the sandbox.
+  GORMES_HOME="$(managed_home_dir)"
+  export GORMES_HOME
   # Mirror install.sh's default-to-apply UX: `install.sh` actually
   # installs by default, so `install.sh --uninstall` should actually
   # uninstall by default. Without this, the operator saw a dry-run
@@ -375,10 +387,10 @@ run_uninstall() {
     esac
   done
   if [ "$apply_default" -eq 1 ]; then
-    log "running ${uninstall_bin} uninstall --yes --dry-run=false $*"
+    log "running GORMES_HOME=${GORMES_HOME} ${uninstall_bin} uninstall --yes --dry-run=false $*"
     "$uninstall_bin" uninstall --yes --dry-run=false "$@"
   else
-    log "running ${uninstall_bin} uninstall $*"
+    log "running GORMES_HOME=${GORMES_HOME} ${uninstall_bin} uninstall $*"
     "$uninstall_bin" uninstall "$@"
   fi
 }

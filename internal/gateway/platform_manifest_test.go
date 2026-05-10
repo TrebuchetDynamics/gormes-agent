@@ -86,6 +86,45 @@ func TestHermesGatewayPlatformManifestCoversUpstream(t *testing.T) {
 	}
 }
 
+func TestHermesGatewayPlatformManifestCoversBundledPluginPlatforms(t *testing.T) {
+	manifest := HermesGatewayPlatformManifest()
+	byID := make(map[string]PlatformManifestEntry, len(manifest))
+	for _, entry := range manifest {
+		byID[entry.ID] = entry
+	}
+
+	plugins, err := readHermesBundledPlatformPluginIDs()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			t.Skipf("upstream hermes-agent bundled platform plugins not present: %v", err)
+		}
+		t.Fatal(err)
+	}
+	if len(plugins) == 0 {
+		t.Fatal("no bundled platform plugins discovered")
+	}
+
+	for _, id := range plugins {
+		entry, ok := byID[id]
+		if !ok {
+			t.Fatalf("manifest missing bundled platform plugin %q; have %v", id, sortedKeys(byID))
+		}
+		if entry.Kind != PlatformKindChannel {
+			t.Fatalf("plugin platform %q kind = %q, want %q", id, entry.Kind, PlatformKindChannel)
+		}
+		if !entry.RequiresLiveCredentials {
+			t.Fatalf("plugin platform %q must require live credentials", id)
+		}
+		wantSource := "plugins/platforms/" + id + "/adapter.py"
+		if entry.HermesSource != wantSource {
+			t.Fatalf("plugin platform %q HermesSource = %q, want %q", id, entry.HermesSource, wantSource)
+		}
+		if entry.Status == PlatformStatusImplemented {
+			t.Fatalf("plugin platform %q must not be marked implemented without adapter fixtures", id)
+		}
+	}
+}
+
 func manifestEntriesOutsideUpstream(byID map[string]PlatformManifestEntry, upstream []string) []string {
 	upstreamSet := map[string]bool{}
 	for _, id := range upstream {
@@ -114,6 +153,53 @@ func assertHermesPluginPlatformSourceExists(source string) error {
 		return os.ErrInvalid
 	}
 	return nil
+}
+
+func readHermesBundledPlatformPluginIDs() ([]string, error) {
+	workspace, err := workspaceRoot()
+	if err != nil {
+		return nil, err
+	}
+	root := filepath.Join(workspace, "hermes-agent", "plugins", "platforms")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		id := entry.Name()
+		data, err := os.ReadFile(filepath.Join(root, id, "plugin.yaml"))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, err
+		}
+		if yamlScalarValue(data, "kind") != "platform" {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, id, "adapter.py")); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids, nil
+}
+
+func yamlScalarValue(data []byte, key string) string {
+	prefix := key + ":"
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, prefix) {
+			continue
+		}
+		return strings.Trim(strings.TrimSpace(strings.TrimPrefix(trimmed, prefix)), `"'`)
+	}
+	return ""
 }
 
 func TestHermesGatewayPlatformManifestReturnsCopy(t *testing.T) {

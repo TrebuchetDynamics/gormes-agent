@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -46,6 +47,7 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanRunsCommand(),
 		newKanbanStatsCommand(),
 		newKanbanLogCommand(),
+		newKanbanTailCommand(),
 		newKanbanGCCommand(),
 		newKanbanNotifySubscribeCommand(),
 		newKanbanNotifyListCommand(),
@@ -345,6 +347,80 @@ func newKanbanLogCommand() *cobra.Command {
 	}
 	cmd.Flags().Int64Var(&tailBytes, "tail", 0, "only print the last N bytes")
 	return cmd
+}
+
+func newKanbanTailCommand() *cobra.Command {
+	var intervalSeconds float64
+	cmd := &cobra.Command{
+		Use:   "tail <task-id>",
+		Short: "Follow a Kanban task's event stream",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := openKanbanStore(cmd.Context())
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+			return runKanbanTail(cmd.Context(), cmd.OutOrStdout(), store, args[0], intervalSeconds)
+		},
+	}
+	cmd.Flags().Float64Var(&intervalSeconds, "interval", 1.0, "poll interval in seconds")
+	return cmd
+}
+
+type kanbanEventLister interface {
+	ListEvents(context.Context, string) ([]kanban.Event, error)
+}
+
+func runKanbanTail(ctx context.Context, out io.Writer, lister kanbanEventLister, taskID string, intervalSeconds float64) error {
+	if _, err := fmt.Fprintf(out, "Tailing events for %s. Ctrl-C to stop.\n", taskID); err != nil {
+		return err
+	}
+	interval := kanbanTailPollInterval(intervalSeconds)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	var lastID int64
+	for {
+		events, err := lister.ListEvents(ctx, taskID)
+		if err != nil {
+			return err
+		}
+		for _, event := range events {
+			if event.ID <= lastID {
+				continue
+			}
+			payload := ""
+			if event.Payload != "" {
+				payload = " " + event.Payload
+			}
+			if _, err := fmt.Fprintf(out, "[%s] %s%s\n", formatKanbanTailTimestamp(event.CreatedAt), event.Kind, payload); err != nil {
+				return err
+			}
+			lastID = event.ID
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+	}
+}
+
+func kanbanTailPollInterval(seconds float64) time.Duration {
+	interval := time.Duration(seconds * float64(time.Second))
+	if interval < 100*time.Millisecond {
+		return 100 * time.Millisecond
+	}
+	return interval
+}
+
+func formatKanbanTailTimestamp(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Local().Format("2006-01-02 15:04")
 }
 
 func newKanbanGCCommand() *cobra.Command {

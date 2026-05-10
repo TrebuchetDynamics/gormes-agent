@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -279,6 +280,102 @@ func TestBrowserHarnessChromedpBackendNavigateCreatesTargetBeforePageNavigate(t 
 	if result.Evidence != BrowserHarnessEvidenceActionAccepted || result.Title != "Example" || result.Text != "Ready" {
 		t.Fatalf("result = %#v", result)
 	}
+}
+
+func TestBrowserHarnessChromedpBackendConsoleExpressionShapesHermesResult(t *testing.T) {
+	t.Run("primitive", func(t *testing.T) {
+		transport := &recordingBrowserHarnessCDPTransport{
+			responses: map[string]json.RawMessage{
+				"Runtime.evaluate": json.RawMessage(`{"result":{"result":{"type":"number","value":42}}}`),
+			},
+		}
+		backend := NewBrowserHarnessChromedpBackendFromTransport(transport)
+
+		result, err := backend.RunAction(context.Background(), BrowserHarnessActionRequest{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Kind:          "console",
+			TaskID:        "console-task",
+			Expression:    "1 + 41",
+		}, nil)
+		if err != nil {
+			t.Fatalf("RunAction returned error: %v", err)
+		}
+		if got := strings.Join(transport.methods, ","); got != "Runtime.evaluate" {
+			t.Fatalf("CDP methods = %s, want Runtime.evaluate", got)
+		}
+		params, ok := transport.params[0].(map[string]any)
+		if !ok || params["expression"] != "1 + 41" || params["returnByValue"] != true {
+			t.Fatalf("Runtime.evaluate params = %#v", transport.params[0])
+		}
+		if result.Data["success"] != true || result.Data["method"] != "cdp_supervisor" || result.Data["result"] != float64(42) || result.Data["result_type"] != "int" {
+			t.Fatalf("console data = %#v", result.Data)
+		}
+	})
+
+	t.Run("object", func(t *testing.T) {
+		transport := &recordingBrowserHarnessCDPTransport{
+			responses: map[string]json.RawMessage{
+				"Runtime.evaluate": json.RawMessage(`{"result":{"result":{"type":"object","value":{"foo":"bar","n":7}}}}`),
+			},
+		}
+		backend := NewBrowserHarnessChromedpBackendFromTransport(transport)
+
+		result, err := backend.RunAction(context.Background(), BrowserHarnessActionRequest{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Kind:          "console",
+			Expression:    `({foo:"bar", n:7})`,
+		}, nil)
+		if err != nil {
+			t.Fatalf("RunAction returned error: %v", err)
+		}
+		got, ok := result.Data["result"].(map[string]any)
+		if !ok || got["foo"] != "bar" || got["n"] != float64(7) || result.Data["result_type"] != "dict" {
+			t.Fatalf("console object data = %#v", result.Data)
+		}
+	})
+
+	t.Run("json string", func(t *testing.T) {
+		transport := &recordingBrowserHarnessCDPTransport{
+			responses: map[string]json.RawMessage{
+				"Runtime.evaluate": json.RawMessage(`{"result":{"result":{"type":"string","value":"{\"a\":1,\"b\":[2,3]}"}}}`),
+			},
+		}
+		backend := NewBrowserHarnessChromedpBackendFromTransport(transport)
+
+		result, err := backend.RunAction(context.Background(), BrowserHarnessActionRequest{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Kind:          "console",
+			Expression:    "JSON.stringify({a:1,b:[2,3]})",
+		}, nil)
+		if err != nil {
+			t.Fatalf("RunAction returned error: %v", err)
+		}
+		got, ok := result.Data["result"].(map[string]any)
+		if !ok || got["a"] != float64(1) || result.Data["result_type"] != "dict" {
+			t.Fatalf("console JSON-string data = %#v", result.Data)
+		}
+	})
+
+	t.Run("javascript exception", func(t *testing.T) {
+		transport := &recordingBrowserHarnessCDPTransport{
+			responses: map[string]json.RawMessage{
+				"Runtime.evaluate": json.RawMessage(`{"result":{"result":{"type":"undefined"},"exceptionDetails":{"text":"Uncaught","exception":{"description":"ReferenceError: foo is not defined"}}}}`),
+			},
+		}
+		backend := NewBrowserHarnessChromedpBackendFromTransport(transport)
+
+		result, err := backend.RunAction(context.Background(), BrowserHarnessActionRequest{
+			SchemaVersion: browserHarnessActionSchemaVersion,
+			Kind:          "console",
+			Expression:    "foo.bar",
+		}, nil)
+		if err != nil {
+			t.Fatalf("RunAction returned error for JS exception: %v", err)
+		}
+		if result.Data["success"] != false || !strings.Contains(fmt.Sprint(result.Data["error"]), "ReferenceError") {
+			t.Fatalf("console JS exception data = %#v", result.Data)
+		}
+	})
 }
 
 func TestBrowserHarnessLegacyCommandRunnerExplicit(t *testing.T) {

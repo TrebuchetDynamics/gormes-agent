@@ -30,6 +30,13 @@ const (
 	defaultSearchFilesMax    = 500
 	defaultWriteFileFileMode = 0o644
 	maxStructuredLintOutput  = 2000
+	v4aContextHintBefore     = 500
+	v4aContextHintAfter      = 2000
+)
+
+var (
+	errPatchNoMatch           = errors.New("old_string not found")
+	patchHorizontalWhitespace = regexp.MustCompile(`[ \t]+`)
 )
 
 // FileTaskToolConfig constrains local file tools to a workspace root.
@@ -63,6 +70,11 @@ type fileLintCommandResult struct {
 var (
 	fileLintLookPath   = exec.LookPath
 	fileLintRunCommand = runFileLintCommand
+	fileTaskMkdirAll   = os.MkdirAll
+	fileTaskReadFile   = os.ReadFile
+	fileTaskWriteFile  = os.WriteFile
+	fileTaskRemove     = os.Remove
+	fileTaskRename     = os.Rename
 )
 
 type ReadFileToolConfig = FileTaskToolConfig
@@ -629,7 +641,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
-	raw, err := os.ReadFile(resolved)
+	raw, err := fileTaskReadFile(resolved)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "read file: " + err.Error()})
 	}
@@ -637,20 +649,32 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		return marshalToolPayload(map[string]any{"path": rel, "error": "patch cannot edit binary files"})
 	}
 	content := string(raw)
-	count := strings.Count(content, in.OldString)
-	if count == 0 {
-		return marshalToolPayload(map[string]any{"path": rel, "error": "old_string not found"})
+	updated, replacements, replaceErr := fuzzyPatchReplace(content, in.OldString, in.NewString, in.ReplaceAll)
+	if replaceErr != nil {
+		payload := map[string]any{"path": rel, "error": replaceErr.Error()}
+		if errors.Is(replaceErr, errPatchNoMatch) {
+			payload["error"] = "old_string not found"
+			if hint := patchNoMatchHint(in.OldString, content); hint != "" {
+				payload["hint"] = hint
+			}
+		}
+		return marshalToolPayload(payload)
 	}
-	if count > 1 && !in.ReplaceAll {
-		return marshalToolPayload(map[string]any{"path": rel, "error": fmt.Sprintf("old_string matched %d times; set replace_all=true or include more context", count)})
-	}
-	replacements := 1
-	if in.ReplaceAll {
-		replacements = count
-	}
-	updated := strings.Replace(content, in.OldString, in.NewString, replacements)
-	if err := os.WriteFile(resolved, []byte(updated), defaultWriteFileFileMode); err != nil {
+	if err := fileTaskWriteFile(resolved, []byte(updated), defaultWriteFileFileMode); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write patched file: " + err.Error()})
+	}
+	verified, err := fileTaskReadFile(resolved)
+	if err != nil {
+		return marshalToolPayload(map[string]any{
+			"path":  rel,
+			"error": fmt.Sprintf("post-write verification failed: could not re-read %s: %v", rel, err),
+		})
+	}
+	if normalizePatchVerificationText(string(verified)) != normalizePatchVerificationText(updated) {
+		return marshalToolPayload(map[string]any{
+			"path":  rel,
+			"error": fmt.Sprintf("post-write verification failed for %s: did not persist intended content", rel),
+		})
 	}
 	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
 	payload := map[string]any{
@@ -665,6 +689,496 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		payload["file_state"] = statePayload
 	}
 	return marshalToolPayload(payload)
+}
+
+func normalizePatchVerificationText(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return strings.ReplaceAll(s, "\r", "\n")
+}
+
+type patchTextMatch struct {
+	start int
+	end   int
+}
+
+func fuzzyPatchReplace(content, oldString, newString string, replaceAll bool) (string, int, error) {
+	if oldString == "" {
+		return content, 0, errors.New("old_string is required")
+	}
+	if oldString == newString {
+		return content, 0, errors.New("old_string and new_string are identical")
+	}
+	strategies := []func(string, string) []patchTextMatch{
+		exactPatchMatches,
+		lineTrimmedPatchMatches,
+		whitespaceNormalizedPatchMatches,
+		indentationFlexiblePatchMatches,
+		escapeNormalizedPatchMatches,
+		trimmedBoundaryPatchMatches,
+		unicodeNormalizedPatchMatches,
+		blockAnchorPatchMatches,
+		contextAwarePatchMatches,
+	}
+	for _, strategy := range strategies {
+		matches := uniquePatchMatches(strategy(content, oldString))
+		if len(matches) == 0 {
+			continue
+		}
+		if len(matches) > 1 && !replaceAll {
+			return content, 0, fmt.Errorf("old_string matched %d times; set replace_all=true or include more context", len(matches))
+		}
+		if !replaceAll {
+			matches = matches[:1]
+		}
+		return applyPatchTextMatches(content, matches, newString), len(matches), nil
+	}
+	return content, 0, errPatchNoMatch
+}
+
+func exactPatchMatches(content, pattern string) []patchTextMatch {
+	if pattern == "" {
+		return nil
+	}
+	var matches []patchTextMatch
+	offset := 0
+	for offset <= len(content) {
+		idx := strings.Index(content[offset:], pattern)
+		if idx < 0 {
+			break
+		}
+		start := offset + idx
+		end := start + len(pattern)
+		matches = append(matches, patchTextMatch{start: start, end: end})
+		offset = end
+	}
+	return matches
+}
+
+func lineTrimmedPatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, _ int, _ int) string {
+		return strings.TrimSpace(line)
+	})
+}
+
+func whitespaceNormalizedPatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, _ int, _ int) string {
+		return patchHorizontalWhitespace.ReplaceAllString(line, " ")
+	})
+}
+
+func indentationFlexiblePatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, _ int, _ int) string {
+		return strings.TrimLeft(line, " \t")
+	})
+}
+
+func escapeNormalizedPatchMatches(content, pattern string) []patchTextMatch {
+	normalized := strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r").Replace(pattern)
+	if normalized == pattern {
+		return nil
+	}
+	return exactPatchMatches(content, normalized)
+}
+
+func trimmedBoundaryPatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, index int, count int) string {
+		if index == 0 || index == count-1 {
+			return strings.TrimSpace(line)
+		}
+		return line
+	})
+}
+
+type patchUnicodeByteMap struct {
+	normalized string
+	start      []int
+	end        []int
+	changed    bool
+}
+
+func unicodeNormalizedPatchMatches(content, pattern string) []patchTextMatch {
+	contentMap := normalizePatchUnicode(content)
+	patternMap := normalizePatchUnicode(pattern)
+	if !contentMap.changed && !patternMap.changed {
+		return nil
+	}
+
+	matches := exactPatchMatches(contentMap.normalized, patternMap.normalized)
+	if len(matches) == 0 {
+		matches = lineTrimmedPatchMatches(contentMap.normalized, patternMap.normalized)
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+
+	mapped := make([]patchTextMatch, 0, len(matches))
+	for _, match := range matches {
+		if match.start < 0 || match.end < match.start || match.start >= len(contentMap.start) || match.end >= len(contentMap.end) {
+			continue
+		}
+		mapped = append(mapped, patchTextMatch{start: contentMap.start[match.start], end: contentMap.end[match.end]})
+	}
+	return mapped
+}
+
+func normalizePatchUnicode(s string) patchUnicodeByteMap {
+	var b strings.Builder
+	b.Grow(len(s))
+	startMap := make([]int, 0, len(s)+1)
+	endMap := []int{0}
+	changed := false
+	for offset, r := range s {
+		size := utf8.RuneLen(r)
+		if size < 0 {
+			size = 1
+		}
+		origEnd := offset + size
+		replacement := patchUnicodeReplacement(r)
+		if replacement == "" {
+			replacement = string(r)
+		} else {
+			changed = true
+		}
+		for i := 0; i < len(replacement); i++ {
+			startMap = append(startMap, offset)
+			endMap = append(endMap, origEnd)
+		}
+		b.WriteString(replacement)
+	}
+	startMap = append(startMap, len(s))
+	return patchUnicodeByteMap{normalized: b.String(), start: startMap, end: endMap, changed: changed}
+}
+
+func patchUnicodeReplacement(r rune) string {
+	switch r {
+	case '\u201c', '\u201d':
+		return `"`
+	case '\u2018', '\u2019':
+		return `'`
+	case '\u2014':
+		return "--"
+	case '\u2013':
+		return "-"
+	case '\u2026':
+		return "..."
+	case '\u00a0':
+		return " "
+	default:
+		return ""
+	}
+}
+
+func blockAnchorPatchMatches(content, pattern string) []patchTextMatch {
+	contentLines := strings.Split(content, "\n")
+	normalizedContent := normalizePatchUnicode(content).normalized
+	normalizedPattern := normalizePatchUnicode(pattern).normalized
+	normalizedContentLines := strings.Split(normalizedContent, "\n")
+	patternLines := strings.Split(strings.ReplaceAll(normalizedPattern, "\r\n", "\n"), "\n")
+	if len(patternLines) < 2 || len(patternLines) > len(normalizedContentLines) {
+		return nil
+	}
+
+	firstLine := strings.TrimSpace(patternLines[0])
+	lastLine := strings.TrimSpace(patternLines[len(patternLines)-1])
+	var candidates []int
+	for i := 0; i <= len(normalizedContentLines)-len(patternLines); i++ {
+		if strings.TrimSpace(normalizedContentLines[i]) == firstLine &&
+			strings.TrimSpace(normalizedContentLines[i+len(patternLines)-1]) == lastLine {
+			candidates = append(candidates, i)
+		}
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	threshold := 0.70
+	if len(candidates) == 1 {
+		threshold = 0.50
+	}
+	matches := make([]patchTextMatch, 0, len(candidates))
+	for _, startLine := range candidates {
+		similarity := 1.0
+		if len(patternLines) > 2 {
+			contentMiddle := strings.Join(normalizedContentLines[startLine+1:startLine+len(patternLines)-1], "\n")
+			patternMiddle := strings.Join(patternLines[1:len(patternLines)-1], "\n")
+			similarity = patchSequenceSimilarity(contentMiddle, patternMiddle)
+		}
+		if similarity < threshold {
+			continue
+		}
+		start, end := patchLineRange(contentLines, startLine, len(patternLines))
+		matches = append(matches, patchTextMatch{start: start, end: end})
+	}
+	return matches
+}
+
+func contextAwarePatchMatches(content, pattern string) []patchTextMatch {
+	contentLines := strings.Split(content, "\n")
+	patternLines := strings.Split(strings.ReplaceAll(pattern, "\r\n", "\n"), "\n")
+	if len(patternLines) == 0 || len(patternLines) > len(contentLines) {
+		return nil
+	}
+
+	requiredHighSimilarity := float64(len(patternLines)) * 0.5
+	matches := make([]patchTextMatch, 0)
+	for startLine := 0; startLine <= len(contentLines)-len(patternLines); startLine++ {
+		highSimilarity := 0
+		for i, patternLine := range patternLines {
+			patternTrimmed := strings.TrimSpace(strings.TrimSuffix(patternLine, "\r"))
+			contentTrimmed := strings.TrimSpace(strings.TrimSuffix(contentLines[startLine+i], "\r"))
+			if patchSequenceSimilarity(contentTrimmed, patternTrimmed) >= 0.80 {
+				highSimilarity++
+			}
+		}
+		if float64(highSimilarity) < requiredHighSimilarity {
+			continue
+		}
+		start, end := patchLineRange(contentLines, startLine, len(patternLines))
+		matches = append(matches, patchTextMatch{start: start, end: end})
+	}
+	return matches
+}
+
+func patchSequenceSimilarity(a, b string) float64 {
+	if a == b {
+		return 1
+	}
+	ar := []rune(a)
+	br := []rune(b)
+	if len(ar) == 0 && len(br) == 0 {
+		return 1
+	}
+	if len(ar) == 0 || len(br) == 0 {
+		return 0
+	}
+	prev := make([]int, len(br)+1)
+	cur := make([]int, len(br)+1)
+	for i := 1; i <= len(ar); i++ {
+		for j := 1; j <= len(br); j++ {
+			if ar[i-1] == br[j-1] {
+				cur[j] = prev[j-1] + 1
+				continue
+			}
+			if prev[j] >= cur[j-1] {
+				cur[j] = prev[j]
+			} else {
+				cur[j] = cur[j-1]
+			}
+		}
+		prev, cur = cur, prev
+		for j := range cur {
+			cur[j] = 0
+		}
+	}
+	return float64(2*prev[len(br)]) / float64(len(ar)+len(br))
+}
+
+func lineBlockPatchMatches(content, pattern string, normalize func(line string, index int, count int) string) []patchTextMatch {
+	if strings.TrimSpace(pattern) == "" {
+		return nil
+	}
+	contentLines := strings.Split(content, "\n")
+	patternLines := strings.Split(strings.ReplaceAll(pattern, "\r\n", "\n"), "\n")
+	if len(patternLines) == 0 || len(patternLines) > len(contentLines) {
+		return nil
+	}
+	normalizedPattern := make([]string, len(patternLines))
+	for i, line := range patternLines {
+		normalizedPattern[i] = normalize(strings.TrimSuffix(line, "\r"), i, len(patternLines))
+	}
+	var matches []patchTextMatch
+	for i := 0; i <= len(contentLines)-len(patternLines); i++ {
+		matched := true
+		for j := range patternLines {
+			if normalize(strings.TrimSuffix(contentLines[i+j], "\r"), j, len(patternLines)) != normalizedPattern[j] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			start, end := patchLineRange(contentLines, i, len(patternLines))
+			matches = append(matches, patchTextMatch{start: start, end: end})
+		}
+	}
+	return matches
+}
+
+func patchLineRange(lines []string, startLine, lineCount int) (int, int) {
+	start := 0
+	for i := 0; i < startLine; i++ {
+		start += len(lines[i]) + 1
+	}
+	end := start + len(strings.Join(lines[startLine:startLine+lineCount], "\n"))
+	return start, end
+}
+
+func uniquePatchMatches(matches []patchTextMatch) []patchTextMatch {
+	if len(matches) <= 1 {
+		return matches
+	}
+	seen := make(map[patchTextMatch]struct{}, len(matches))
+	unique := make([]patchTextMatch, 0, len(matches))
+	for _, match := range matches {
+		if match.start < 0 || match.end < match.start {
+			continue
+		}
+		if _, ok := seen[match]; ok {
+			continue
+		}
+		seen[match] = struct{}{}
+		unique = append(unique, match)
+	}
+	sort.Slice(unique, func(i, j int) bool {
+		if unique[i].start == unique[j].start {
+			return unique[i].end < unique[j].end
+		}
+		return unique[i].start < unique[j].start
+	})
+	return unique
+}
+
+func applyPatchTextMatches(content string, matches []patchTextMatch, replacement string) string {
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].start > matches[j].start
+	})
+	updated := content
+	for _, match := range matches {
+		updated = updated[:match.start] + replacement + updated[match.end:]
+	}
+	return updated
+}
+
+func patchNoMatchHint(oldString, content string) string {
+	if snippet := closestPatchSections(oldString, content, 2, 3); snippet != "" {
+		return boundPatchHint("Did you mean one of these sections?\n" + snippet + "\n\nUse read_file to verify the current content, or search_files to locate the text.")
+	}
+	return "old_string not found. Use read_file to verify the current content, or search_files to locate the text."
+}
+
+func closestPatchSections(oldString, content string, contextLines, maxResults int) string {
+	if strings.TrimSpace(oldString) == "" || strings.TrimSpace(content) == "" || maxResults <= 0 {
+		return ""
+	}
+	oldLines := strings.Split(strings.ReplaceAll(oldString, "\r\n", "\n"), "\n")
+	anchor := ""
+	for _, line := range oldLines {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			anchor = trimmed
+			break
+		}
+	}
+	if anchor == "" {
+		return ""
+	}
+
+	contentLines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	type scoredLine struct {
+		score float64
+		index int
+	}
+	var scored []scoredLine
+	for i, line := range contentLines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		score := lineSimilarity(anchor, trimmed)
+		if score > 0.3 {
+			scored = append(scored, scoredLine{score: score, index: i})
+		}
+	}
+	if len(scored) == 0 {
+		return ""
+	}
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].index < scored[j].index
+		}
+		return scored[i].score > scored[j].score
+	})
+
+	oldLineCount := len(oldLines)
+	if oldLineCount < 1 {
+		oldLineCount = 1
+	}
+	seen := map[string]struct{}{}
+	var parts []string
+	for _, candidate := range scored {
+		if len(parts) >= maxResults {
+			break
+		}
+		start := candidate.index - contextLines
+		if start < 0 {
+			start = 0
+		}
+		end := candidate.index + oldLineCount + contextLines
+		if end > len(contentLines) {
+			end = len(contentLines)
+		}
+		key := strconv.Itoa(start) + ":" + strconv.Itoa(end)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		var b strings.Builder
+		for i := start; i < end; i++ {
+			if b.Len() > 0 {
+				b.WriteByte('\n')
+			}
+			fmt.Fprintf(&b, "%4d| %s", i+1, contentLines[i])
+		}
+		parts = append(parts, b.String())
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, "\n---\n")
+}
+
+func lineSimilarity(a, b string) float64 {
+	a = strings.ToLower(strings.TrimSpace(a))
+	b = strings.ToLower(strings.TrimSpace(b))
+	if a == "" || b == "" {
+		return 0
+	}
+	if a == b {
+		return 1
+	}
+	ar := []rune(a)
+	br := []rune(b)
+	prev := make([]int, len(br)+1)
+	cur := make([]int, len(br)+1)
+	for i := 1; i <= len(ar); i++ {
+		for j := 1; j <= len(br); j++ {
+			if ar[i-1] == br[j-1] {
+				cur[j] = prev[j-1] + 1
+				continue
+			}
+			if prev[j] >= cur[j-1] {
+				cur[j] = prev[j]
+			} else {
+				cur[j] = cur[j-1]
+			}
+		}
+		prev, cur = cur, prev
+		for j := range cur {
+			cur[j] = 0
+		}
+	}
+	lcs := prev[len(br)]
+	longest := len(ar)
+	if len(br) > longest {
+		longest = len(br)
+	}
+	return float64(lcs) / float64(longest)
+}
+
+func boundPatchHint(hint string) string {
+	const maxPatchHintChars = 2000
+	if len(hint) <= maxPatchHintChars {
+		return hint
+	}
+	return hint[:maxPatchHintChars] + "\n[hint truncated]"
 }
 
 func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
@@ -686,47 +1200,61 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 		}
 		actions = append(actions, action)
 	}
+	snapshotRoot, err := v4aPatchSnapshotRoot(actions)
+	if err != nil {
+		return marshalPatchApplyError("", "prepare rollback snapshot: "+err.Error(), nil, nil, nil)
+	}
+	rollbackSnapshot, err := TakeWorkspaceSnapshot(snapshotRoot)
+	if err != nil {
+		return marshalPatchApplyError("", "prepare rollback snapshot: "+err.Error(), nil, nil, nil)
+	}
 
 	var modified, created, deleted []string
 	lintResults := map[string]structuredLintResult{}
-	registry := fileTaskStateRegistry(t.cfg)
 	for _, action := range actions {
 		switch action.kind {
 		case v4aOperationAdd:
-			if err := os.MkdirAll(filepath.Dir(action.abs), 0o755); err != nil {
-				return marshalPatchApplyError(action.rel, "create parent directories: "+err.Error(), modified, created, deleted)
+			if err := fileTaskMkdirAll(filepath.Dir(action.abs), 0o755); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "create parent directories: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			if err := os.WriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
-				return marshalPatchApplyError(action.rel, "write added file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskWriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "write added file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			created = append(created, action.rel)
 			if lint, ok := postEditLintDelta(action.abs, action.rel, action.content, nil); ok {
 				lintResults[action.rel] = lint
 			}
 		case v4aOperationUpdate:
-			if err := os.WriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
-				return marshalPatchApplyError(action.rel, "write patched file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskWriteFile(action.abs, []byte(action.content), defaultWriteFileFileMode); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "write patched file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			modified = append(modified, action.rel)
 			if lint, ok := postEditLintDelta(action.abs, action.rel, action.content, action.preContent); ok {
 				lintResults[action.rel] = lint
 			}
 		case v4aOperationDelete:
-			if err := os.Remove(action.abs); err != nil {
-				return marshalPatchApplyError(action.rel, "delete file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskRemove(action.abs); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "delete file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
 			deleted = append(deleted, action.rel)
 		case v4aOperationMove:
-			if err := os.MkdirAll(filepath.Dir(action.newAbs), 0o755); err != nil {
-				return marshalPatchApplyError(action.rel, "create move parent directories: "+err.Error(), modified, created, deleted)
+			if err := fileTaskMkdirAll(filepath.Dir(action.newAbs), 0o755); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "create move parent directories: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			if err := os.Rename(action.abs, action.newAbs); err != nil {
-				return marshalPatchApplyError(action.rel, "move file: "+err.Error(), modified, created, deleted)
+			if err := fileTaskRename(action.abs, action.newAbs); err != nil {
+				return marshalPatchApplyErrorWithRollback(action.rel, "move file: "+err.Error(), modified, created, deleted, rollbackSnapshot)
 			}
-			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
 			modified = append(modified, action.rel+" -> "+action.newRel)
+		}
+	}
+	_ = rollbackSnapshot.Commit()
+	registry := fileTaskStateRegistry(t.cfg)
+	for _, action := range actions {
+		switch action.kind {
+		case v4aOperationAdd, v4aOperationUpdate:
+			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
+		case v4aOperationMove:
+			_, _ = registry.record(action.newRoot, t.cfg.TaskID, action.newCWD, action.newRel, action.newAbs)
 		}
 	}
 	payload := map[string]any{
@@ -741,6 +1269,25 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 		payload["lint"] = lintResults
 	}
 	return marshalToolPayload(payload)
+}
+
+func v4aPatchSnapshotRoot(actions []v4aPatchAction) (string, error) {
+	if len(actions) == 0 {
+		return "", errors.New("patch contains no operations")
+	}
+	root := filepath.Clean(actions[0].root)
+	if root == "." || root == "" {
+		return "", errors.New("workspace root is required")
+	}
+	for _, action := range actions {
+		if filepath.Clean(action.root) != root {
+			return "", fmt.Errorf("operation %s uses different workspace root", action.rel)
+		}
+		if action.kind == v4aOperationMove && filepath.Clean(action.newRoot) != root {
+			return "", fmt.Errorf("move destination %s uses different workspace root", action.newRel)
+		}
+	}
+	return root, nil
 }
 
 func (t *PatchTool) validateV4AOperation(op v4aPatchOperation) (v4aPatchAction, *fileStateCheck, error) {
@@ -828,7 +1375,7 @@ func marshalPatchValidationError(message string) (json.RawMessage, error) {
 }
 
 func marshalPatchApplyError(path, message string, modified, created, deleted []string) (json.RawMessage, error) {
-	return marshalToolPayload(map[string]any{
+	payload := map[string]any{
 		"path":           path,
 		"status":         "patch_apply_failed",
 		"success":        false,
@@ -836,7 +1383,32 @@ func marshalPatchApplyError(path, message string, modified, created, deleted []s
 		"files_modified": modified,
 		"files_created":  created,
 		"files_deleted":  deleted,
-	})
+		"rolled_back":    false,
+	}
+	return marshalToolPayload(payload)
+}
+
+func marshalPatchApplyErrorWithRollback(path, message string, modified, created, deleted []string, snapshot *WorkspaceSnapshot) (json.RawMessage, error) {
+	payload := map[string]any{
+		"path":           path,
+		"status":         "patch_apply_failed",
+		"success":        false,
+		"error":          message,
+		"files_modified": modified,
+		"files_created":  created,
+		"files_deleted":  deleted,
+	}
+	if snapshot == nil {
+		payload["rolled_back"] = false
+		return marshalToolPayload(payload)
+	}
+	if err := snapshot.Restore(); err != nil {
+		payload["rolled_back"] = false
+		payload["rollback_error"] = err.Error()
+		return marshalToolPayload(payload)
+	}
+	payload["rolled_back"] = true
+	return marshalToolPayload(payload)
 }
 
 type v4aOperationKind string
@@ -1016,16 +1588,41 @@ func applyV4AHunks(content string, hunks []v4aPatchHunk) (string, error) {
 		}
 		search := strings.Join(searchLines, "\n")
 		replacement := strings.Join(replaceLines, "\n")
-		count := strings.Count(updated, search)
-		if count == 0 {
-			return "", fmt.Errorf("could not apply hunk: context not found")
+		next, err := applyV4AFuzzyHunk(updated, search, replacement, hunk.contextHint)
+		if err != nil {
+			return "", fmt.Errorf("could not apply hunk: %w", err)
 		}
-		if count > 1 {
-			return "", fmt.Errorf("could not apply hunk: context matched %d times", count)
-		}
-		updated = strings.Replace(updated, search, replacement, 1)
+		updated = next
 	}
 	return updated, nil
+}
+
+func applyV4AFuzzyHunk(content, search, replacement, hint string) (string, error) {
+	updated, _, err := fuzzyPatchReplace(content, search, replacement, false)
+	if err == nil {
+		return updated, nil
+	}
+	if strings.TrimSpace(hint) == "" {
+		return "", err
+	}
+	hintPos := strings.Index(content, hint)
+	if hintPos < 0 {
+		return "", err
+	}
+	windowStart := hintPos - v4aContextHintBefore
+	if windowStart < 0 {
+		windowStart = 0
+	}
+	windowEnd := hintPos + v4aContextHintAfter
+	if windowEnd > len(content) {
+		windowEnd = len(content)
+	}
+	window := content[windowStart:windowEnd]
+	windowUpdated, _, windowErr := fuzzyPatchReplace(window, search, replacement, false)
+	if windowErr != nil {
+		return "", err
+	}
+	return content[:windowStart] + windowUpdated + content[windowEnd:], nil
 }
 
 func applyV4AAdditionOnlyHunk(content, hint, insertText string) (string, error) {

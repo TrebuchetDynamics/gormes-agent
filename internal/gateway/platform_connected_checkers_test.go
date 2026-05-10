@@ -37,6 +37,9 @@ func TestPlatformConnectedCheckersReturnTrueForSyntheticConfig(t *testing.T) {
 		{ID: "msgraph_webhook", Enabled: true, Extra: map[string]string{"client_state": "shared-secret"}},
 		{ID: "whatsapp", Enabled: true},
 		{ID: "feishu", Enabled: true, Extra: map[string]string{"app_id": "app"}},
+		{ID: "google_chat", Enabled: true, Extra: map[string]string{"project_id": "project", "subscription_name": "subscription"}},
+		{ID: "irc", Enabled: true, Extra: map[string]string{"server": "irc.example.net", "channel": "#gormes"}},
+		{ID: "line", Enabled: true, Extra: map[string]string{"channel_access_token": "line-token", "channel_secret": "line-secret"}},
 		{ID: "wecom", Enabled: true, Extra: map[string]string{"bot_id": "bot"}},
 		{ID: "wecom_callback", Enabled: true, Extra: map[string]string{"corp_id": "corp"}},
 		{ID: "bluebubbles", Enabled: true, Extra: map[string]string{"server_url": "http://bb:1234", "password": "pw"}},
@@ -81,5 +84,49 @@ func TestPlatformConnectedCheckersRequireMSGraphWebhookClientState(t *testing.T)
 	}
 	if !configured {
 		t.Fatal("msgraph_webhook with client_state should look configured")
+	}
+}
+
+func TestPlatformConnectedCheckersRequireBundledPluginFields(t *testing.T) {
+	cases := []struct {
+		id      string
+		missing PlatformConnectionConfig
+		present PlatformConnectionConfig
+	}{
+		{
+			id:      "google_chat",
+			missing: PlatformConnectionConfig{ID: "google_chat", Enabled: true, Extra: map[string]string{"project_id": "project"}},
+			present: PlatformConnectionConfig{ID: "google_chat", Enabled: true, Extra: map[string]string{"project_id": "project", "subscription_name": "subscription"}},
+		},
+		{
+			id:      "irc",
+			missing: PlatformConnectionConfig{ID: "irc", Enabled: true, Extra: map[string]string{"server": "irc.example.net"}},
+			present: PlatformConnectionConfig{ID: "irc", Enabled: true, Extra: map[string]string{"server": "irc.example.net", "channel": "#gormes"}},
+		},
+		{
+			id:      "line",
+			missing: PlatformConnectionConfig{ID: "line", Enabled: true, Extra: map[string]string{"channel_access_token": "line-token"}},
+			present: PlatformConnectionConfig{ID: "line", Enabled: true, Extra: map[string]string{"channel_access_token": "line-token", "channel_secret": "line-secret"}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.id, func(t *testing.T) {
+			configured, ok := PlatformLooksConfigured(tc.missing)
+			if !ok {
+				t.Fatalf("%s checker missing", tc.id)
+			}
+			if configured {
+				t.Fatalf("%s missing required field should not look configured", tc.id)
+			}
+
+			configured, ok = PlatformLooksConfigured(tc.present)
+			if !ok {
+				t.Fatalf("%s checker missing with required fields", tc.id)
+			}
+			if !configured {
+				t.Fatalf("%s with required fields should look configured", tc.id)
+			}
+		})
 	}
 }

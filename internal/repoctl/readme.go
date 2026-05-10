@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type ReadmeOptions struct {
@@ -37,6 +38,15 @@ func UpdateReadme(opts ReadmeOptions) error {
 			GoLines      json.RawMessage `json:"go_lines"`
 			Dependencies json.RawMessage `json:"dependencies"`
 		} `json:"code"`
+		STT struct {
+			WASIWhisper struct {
+				LastMeasured string `json:"last_measured"`
+				Models       []struct {
+					Name           string          `json:"name"`
+					RealtimeFactor json.RawMessage `json:"realtime_factor"`
+				} `json:"models"`
+			} `json:"wasi_whisper"`
+		} `json:"stt"`
 	}
 	if err := json.Unmarshal(raw, &data); err != nil {
 		return err
@@ -77,6 +87,9 @@ func UpdateReadme(opts ReadmeOptions) error {
 	release := readReleaseMetadata(opts.Root)
 	if release.Tag != "" {
 		content = updateReleaseMetadata(content, release, data.Binary.SizeMB, data.Binary.LastMeasured)
+	}
+	if summary := sttBenchmarkSummary(data.STT.WASIWhisper.LastMeasured, data.STT.WASIWhisper.Models); summary != "" {
+		content = updateSTTBenchmarkSummary(content, summary)
 	}
 
 	return os.WriteFile(readmePath, []byte(content), 0o644)
@@ -143,6 +156,35 @@ func updateReleaseMetadata(content string, release releaseMetadata, sizeRaw json
 	return releaseSummary.ReplaceAllString(content, summary)
 }
 
+func sttBenchmarkSummary(measured string, models []struct {
+	Name           string          `json:"name"`
+	RealtimeFactor json.RawMessage `json:"realtime_factor"`
+}) string {
+	if measured == "" {
+		return ""
+	}
+	for _, model := range models {
+		if model.Name != "ggml-tiny.en" {
+			continue
+		}
+		factor, err := benchmarkFloat(model.RealtimeFactor)
+		if err != nil || factor <= 0 {
+			return ""
+		}
+		return fmt.Sprintf("WASI Whisper tiny.en runs at %sx realtime (`benchmarks.json`, %s).", formatBenchmarkFloat(factor), measured)
+	}
+	return ""
+}
+
+func updateSTTBenchmarkSummary(content string, summary string) string {
+	stale := regexp.MustCompile(`WASI Whisper tiny\.en (?:has not been benchmarked yet|runs at [0-9.]+x realtime \(` + "`" + `benchmarks\.json` + "`" + `, [0-9-]+\))\.`)
+	if stale.MatchString(content) {
+		return stale.ReplaceAllString(content, summary)
+	}
+	statusLine := regexp.MustCompile(`(The current Linux build measures ~[0-9.]+ MB \(` + "`" + `benchmarks\.json` + "`" + `\)\.)`)
+	return statusLine.ReplaceAllString(content, "${1} "+summary)
+}
+
 func benchmarkSizeMB(raw json.RawMessage) (string, error) {
 	if len(raw) == 0 {
 		return "", nil
@@ -156,6 +198,28 @@ func benchmarkSizeMB(raw json.RawMessage) (string, error) {
 		return strconv.FormatFloat(number, 'f', -1, 64), nil
 	}
 	return "", fmt.Errorf("benchmarks.json binary.size_mb has unsupported type")
+}
+
+func benchmarkFloat(raw json.RawMessage) (float64, error) {
+	if len(raw) == 0 {
+		return 0, nil
+	}
+	var number float64
+	if err := json.Unmarshal(raw, &number); err == nil {
+		return number, nil
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return strconv.ParseFloat(text, 64)
+	}
+	return 0, fmt.Errorf("benchmarks.json value has unsupported type")
+}
+
+func formatBenchmarkFloat(value float64) string {
+	text := strconv.FormatFloat(value, 'f', 2, 64)
+	text = strings.TrimRight(text, "0")
+	text = strings.TrimRight(text, ".")
+	return text
 }
 
 func intVal(raw json.RawMessage) (int, error) {

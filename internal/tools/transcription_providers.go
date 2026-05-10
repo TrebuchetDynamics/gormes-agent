@@ -173,16 +173,19 @@ func (p *TranscriptionOpenAIProvider) Transcribe(ctx context.Context, req Transc
 		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	// Parse response - OpenAI returns {"text": "..."}
-	var result struct {
-		Text string `json:"text"`
+	// We requested response_format=text above, so the body is the raw
+	// transcript, not JSON. Reading the body as plain text matches the
+	// Content-Type OpenAI returns for text-format requests and avoids the
+	// "invalid character ... looking for beginning of value" parse failure
+	// the Groq provider hit before the same fix landed. Same defect class:
+	// the comment "OpenAI returns {\"text\": \"...\"}" was true ONLY when
+	// no response_format was set; with response_format=text the body is raw.
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT read response: %w", err)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return TranscriptionProviderResult{}, fmt.Errorf("OpenAI STT parse response: %w", err)
-	}
-
 	return TranscriptionProviderResult{
-		Transcript: strings.TrimSpace(result.Text),
+		Transcript: strings.TrimSpace(string(bodyBytes)),
 		Provider:   ProviderNameOpenAI, // from tts_providers.go
 		Model:      model,
 		Language:   req.Language,

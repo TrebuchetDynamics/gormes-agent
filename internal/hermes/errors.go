@@ -32,6 +32,7 @@ type HTTPError struct {
 	Status     int
 	Body       string
 	RetryAfter time.Duration
+	Headers    map[string]string
 }
 
 func (e *HTTPError) Error() string {
@@ -53,7 +54,97 @@ func newHTTPError(status int, body string, header http.Header) *HTTPError {
 		Status:     status,
 		Body:       body,
 		RetryAfter: parseRetryAfterHint(header.Get("Retry-After"), body, time.Now()),
+		Headers:    captureStreamDiagnosticHeaders(header),
 	}
+}
+
+func (e *HTTPError) StreamDiagnostics() StreamDiagnostics {
+	if e == nil {
+		return StreamDiagnostics{}
+	}
+	return sanitizeStreamDiagnostics(StreamDiagnostics{
+		HTTPStatus: e.Status,
+		Headers:    e.Headers,
+	})
+}
+
+func sanitizeStreamDiagnostics(diag StreamDiagnostics) StreamDiagnostics {
+	diag.Headers = sanitizeStreamDiagnosticHeaders(diag.Headers)
+	if diag.HTTPStatus < 0 {
+		diag.HTTPStatus = 0
+	}
+	if diag.Bytes < 0 {
+		diag.Bytes = 0
+	}
+	if diag.Chunks < 0 {
+		diag.Chunks = 0
+	}
+	if diag.Elapsed < 0 {
+		diag.Elapsed = 0
+	}
+	if diag.TimeToFirstByte < 0 {
+		diag.TimeToFirstByte = 0
+	}
+	return diag
+}
+
+func captureStreamDiagnosticHeaders(header http.Header) map[string]string {
+	if len(header) == 0 {
+		return nil
+	}
+	values := make(map[string]string, len(streamDiagnosticHeaderAllowlist))
+	for name := range streamDiagnosticHeaderAllowlist {
+		value := strings.TrimSpace(header.Get(name))
+		if value == "" {
+			continue
+		}
+		if len(value) > 120 {
+			value = value[:120]
+		}
+		values[name] = value
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	return values
+}
+
+func sanitizeStreamDiagnosticHeaders(headers map[string]string) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	values := make(map[string]string, len(headers))
+	for rawName, rawValue := range headers {
+		name := strings.ToLower(strings.TrimSpace(rawName))
+		if _, ok := streamDiagnosticHeaderAllowlist[name]; !ok {
+			continue
+		}
+		value := strings.TrimSpace(rawValue)
+		if value == "" {
+			continue
+		}
+		if len(value) > 120 {
+			value = value[:120]
+		}
+		values[name] = value
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	return values
+}
+
+var streamDiagnosticHeaderAllowlist = map[string]struct{}{
+	"cf-ray":                {},
+	"cf-cache-status":       {},
+	"x-openrouter-provider": {},
+	"x-openrouter-model":    {},
+	"x-openrouter-id":       {},
+	"x-request-id":          {},
+	"x-vercel-id":           {},
+	"via":                   {},
+	"server":                {},
+	"x-forwarded-for":       {},
 }
 
 type ProviderErrorKind string

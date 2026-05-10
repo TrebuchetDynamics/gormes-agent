@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -186,6 +187,486 @@ func TestWriteFileAndPatchTools_EditInsideRoot(t *testing.T) {
 	}
 }
 
+func TestPatchToolReplacePostWriteVerificationNoPersist(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "notes.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/notes.txt"}`)
+
+	originalWrite := fileTaskWriteFile
+	fileTaskWriteFile = func(name string, data []byte, perm os.FileMode) error {
+		if name == path {
+			return nil
+		}
+		return originalWrite(name, data, perm)
+	}
+	defer func() { fileTaskWriteFile = originalWrite }()
+
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/notes.txt","old_string":"beta","new_string":"gamma"}`)
+
+	if out["status"] == "ok" {
+		t.Fatalf("patch result = %#v, want verification failure", out)
+	}
+	if !strings.Contains(asString(out["error"]), "post-write verification failed") ||
+		!strings.Contains(asString(out["error"]), "did not persist") {
+		t.Fatalf("error = %v, want post-write persistence verification", out["error"])
+	}
+	if _, ok := out["file_state"]; ok {
+		t.Fatalf("file_state = %#v, want no success evidence on failed verification", out["file_state"])
+	}
+	assertFileContent(t, path, "alpha\nbeta\n")
+}
+
+func TestPatchToolReplacePostWriteVerificationReadFailure(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "notes.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/notes.txt"}`)
+
+	originalRead := fileTaskReadFile
+	reads := 0
+	fileTaskReadFile = func(name string) ([]byte, error) {
+		if name == path {
+			reads++
+			if reads == 2 {
+				return nil, errors.New("injected verify read failure")
+			}
+		}
+		return originalRead(name)
+	}
+	defer func() { fileTaskReadFile = originalRead }()
+
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/notes.txt","old_string":"beta","new_string":"gamma"}`)
+
+	if out["status"] == "ok" {
+		t.Fatalf("patch result = %#v, want verification read failure", out)
+	}
+	if !strings.Contains(asString(out["error"]), "post-write verification failed") ||
+		!strings.Contains(asString(out["error"]), "could not re-read") {
+		t.Fatalf("error = %v, want verification read failure", out["error"])
+	}
+	if _, ok := out["file_state"]; ok {
+		t.Fatalf("file_state = %#v, want no success evidence on failed verification", out["file_state"])
+	}
+}
+
+func TestPatchToolFuzzyReplaceLineTrimmedAppliesUniqueMatch(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "def outer():\n    if enabled:\n        return \"ok\"\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.py","old_string":"if enabled:\nreturn \"ok\"","new_string":"    if enabled:\n        return \"patched\""}`)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one fuzzy replacement", out)
+	}
+	assertFileContent(t, path, "def outer():\n    if enabled:\n        return \"patched\"\n")
+}
+
+func TestPatchToolFuzzyReplaceWhitespaceNormalizedAppliesUniqueMatch(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "result = call(  alpha,\t beta  )\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.py","old_string":"result = call( alpha, beta )","new_string":"result = call(alpha, beta)"}`)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one fuzzy replacement", out)
+	}
+	assertFileContent(t, path, "result = call(alpha, beta)\n")
+}
+
+func TestPatchToolFuzzyReplaceAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "  Step 1:\n  Do thing.\nStep 2: Wait.\n    Step 1:\n    Do thing.\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"Step 1:\nDo thing.","new_string":"Step 1:\nDone."}`)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous fuzzy match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	out = executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"Step 1:\nDo thing.","new_string":"Step 1:\nDone.","replace_all":true}`)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two replacements", out)
+	}
+	assertFileContent(t, path, "Step 1:\nDone.\nStep 2: Wait.\nStep 1:\nDone.\n")
+}
+
+func TestPatchToolFuzzyReplaceEscapeNormalizedAppliesUniqueMatch(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "alpha\n\tbeta\ngamma\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, `alpha\n\tbeta`) + `,"new_string":` + quoteJSON(t, "alpha\n\tBETA") + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one escape-normalized replacement", out)
+	}
+	assertFileContent(t, path, "alpha\n\tBETA\ngamma\n")
+}
+
+func TestPatchToolFuzzyReplaceUnicodeSmartQuotes(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "quote.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "print(\u201chello\u201d)\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/quote.py"}`)
+	args := `{"path":"pkg/quote.py","old_string":` + quoteJSON(t, `print("hello")`) + `,"new_string":` + quoteJSON(t, `print("world")`) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one unicode-normalized replacement", out)
+	}
+	assertFileContent(t, path, "print(\"world\")\n")
+}
+
+func TestPatchToolFuzzyReplaceUnicodeDashAndEllipsis(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "return value\u2014fallback\u2026\nkeep\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, "return value--fallback...") + `,"new_string":` + quoteJSON(t, "return value or fallback") + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one unicode-normalized replacement", out)
+	}
+	assertFileContent(t, path, "return value or fallback\nkeep\n")
+}
+
+func TestPatchToolFuzzyReplaceUnicodeAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "quotes.py")
+	original := "print(\u201chello\u201d)\nprint(\u201chello\u201d)\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"quotes.py"}`)
+	args := `{"path":"quotes.py","old_string":` + quoteJSON(t, `print("hello")`) + `,"new_string":` + quoteJSON(t, `print("world")`) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous unicode-normalized match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	args = `{"path":"quotes.py","old_string":` + quoteJSON(t, `print("hello")`) + `,"new_string":` + quoteJSON(t, `print("world")`) + `,"replace_all":true}`
+	out = executePatchTool(t, NewPatchTool(cfg), args)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two replacements", out)
+	}
+	assertFileContent(t, path, "print(\"world\")\nprint(\"world\")\n")
+}
+
+func TestPatchToolFuzzyReplaceBlockAnchorHighSimilarity(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "def combine():\n    x = 1\n    y = 2\n    return x + y\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, "def combine():\n    x = 1\n    y = 9\n    return x + y") + `,"new_string":` + quoteJSON(t, "def combine():\n    return 0") + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one block-anchor replacement", out)
+	}
+	assertFileContent(t, path, "def combine():\n    return 0\n")
+}
+
+func TestPatchToolFuzzyReplaceBlockAnchorLowSimilarityNoMutation(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "class Worker:\n    completely = 'unrelated'\n    content = 'here'\n    nothing = 'in common'\n    pass\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, "class Worker:\n    x = 1\n    y = 2\n    z = 3\n    pass") + `,"new_string":"replaced"}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("patch result = %#v, want old_string not found", out)
+	}
+	assertFileContent(t, path, original)
+}
+
+func TestPatchToolFuzzyReplaceBlockAnchorAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := strings.Join([]string{
+		"section:",
+		"  alpha = 1",
+		"  beta = 2",
+		"done",
+		"",
+		"section:",
+		"  alpha = 1",
+		"  beta = 2",
+		"done",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	oldString := "section:\n  alpha = 1\n  beta = 3\ndone"
+	newString := "section:\n  patched = true\ndone"
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous block-anchor match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	args = `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `,"replace_all":true}`
+	out = executePatchTool(t, NewPatchTool(cfg), args)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two block-anchor replacements", out)
+	}
+	assertFileContent(t, path, "section:\n  patched = true\ndone\n\nsection:\n  patched = true\ndone\n")
+}
+
+func TestPatchToolFuzzyReplaceContextAwareHighLineSimilarity(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := strings.Join([]string{
+		"def configure_feature():",
+		"    alpha = \"ready\"",
+		"    beta = \"stable\"",
+		"    gamma = \"done\"",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	oldString := strings.Join([]string{
+		"def config_feature():",
+		"    alpha = \"ready\"",
+		"    beta = \"steady\"",
+		"    gamma = \"done\"",
+	}, "\n")
+	newString := "def configure_feature():\n    return \"patched\""
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one context-aware replacement", out)
+	}
+	assertFileContent(t, path, "def configure_feature():\n    return \"patched\"\n")
+}
+
+func TestPatchToolFuzzyReplaceContextAwareAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := strings.Join([]string{
+		"section alpha:",
+		"  ready = true",
+		"  count = 2",
+		"done alpha",
+		"",
+		"section beta:",
+		"  ready = true",
+		"  count = 2",
+		"done beta",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	oldString := "section target:\n  ready = true\n  count = 9\ndone target"
+	newString := "section patched:\n  ok = true"
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous context-aware match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	args = `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `,"replace_all":true}`
+	out = executePatchTool(t, NewPatchTool(cfg), args)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two context-aware replacements", out)
+	}
+	assertFileContent(t, path, "section patched:\n  ok = true\n\nsection patched:\n  ok = true\n")
+}
+
+func TestPatchToolFuzzyReplaceContextAwareLowSimilarityNoMutation(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "class Worker:\n    completely = 'unrelated'\n    content = 'here'\n    nothing = 'in common'\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	oldString := "class WorkerRenamed:\n    alpha = 1\n    beta = 2\n    return alpha + beta"
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, oldString) + `,"new_string":"patched"}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("patch result = %#v, want old_string not found", out)
+	}
+	assertFileContent(t, path, original)
+}
+
+func TestPatchToolReplaceNoMatchIncludesDidYouMeanHint(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.go")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "package pkg\n\nfunc BuildService() string {\n\treturn \"ok\"\n}\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.go"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.go","old_string":"func MissingWidget() error {","new_string":"func BuildServiceV2() string {"}`)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("error = %v, want old_string not found", out["error"])
+	}
+	hint := asString(out["hint"])
+	for _, want := range []string{"Did you mean one of these sections?", "| func BuildService() string {", "read_file"} {
+		if !strings.Contains(hint, want) {
+			t.Fatalf("hint missing %q in:\n%s", want, hint)
+		}
+	}
+	assertFileContent(t, path, original)
+}
+
+func TestPatchToolReplaceNoMatchGenericHintWhenNoSimilarContent(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "alpha\nbeta\ngamma\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"totally_unique_xyzzy_qux","new_string":"replacement"}`)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("error = %v, want old_string not found", out["error"])
+	}
+	hint := asString(out["hint"])
+	for _, want := range []string{"old_string not found", "read_file", "search_files"} {
+		if !strings.Contains(hint, want) {
+			t.Fatalf("hint missing %q in:\n%s", want, hint)
+		}
+	}
+	if strings.Contains(hint, "alpha") || strings.Contains(hint, "beta") || strings.Contains(hint, "gamma") {
+		t.Fatalf("generic hint leaked unrelated file content:\n%s", hint)
+	}
+	assertFileContent(t, path, original)
+}
+
+func TestPatchToolReplaceNoMatchLeavesAmbiguousMatchesUntouched(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "alpha\nalpha\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"alpha","new_string":"omega"}`)
+
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("error = %v, want ambiguous-match error", out["error"])
+	}
+	if hint := asString(out["hint"]); hint != "" {
+		t.Fatalf("ambiguous match should not get no-match hint, got:\n%s", hint)
+	}
+	assertFileContent(t, path, original)
+}
+
 func TestPatchToolV4AAppliesAddUpdateDelete(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "src"), 0o755); err != nil {
@@ -228,6 +709,189 @@ func TestPatchToolV4AAppliesAddUpdateDelete(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "src", "delete.txt")); !os.IsNotExist(err) {
 		t.Fatalf("delete.txt stat err = %v, want not exist", err)
 	}
+}
+
+func TestPatchToolV4ARollbackOnApplyFailure(t *testing.T) {
+	root := t.TempDir()
+	appPath := filepath.Join(root, "src", "app.txt")
+	deletePath := filepath.Join(root, "src", "delete.txt")
+	if err := os.MkdirAll(filepath.Dir(appPath), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(appPath, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write app fixture: %v", err)
+	}
+	if err := os.WriteFile(deletePath, []byte("keep me\n"), 0o644); err != nil {
+		t.Fatalf("write delete fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/app.txt"}`)
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/delete.txt"}`)
+
+	originalRemove := fileTaskRemove
+	fileTaskRemove = func(path string) error {
+		if path == deletePath {
+			return errors.New("injected delete failure")
+		}
+		return originalRemove(path)
+	}
+	defer func() { fileTaskRemove = originalRemove }()
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/app.txt",
+		"@@",
+		" alpha",
+		"-beta",
+		"+gamma",
+		"*** Delete File: src/delete.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_apply_failed" || out["rolled_back"] != true {
+		t.Fatalf("patch result = %#v, want apply failure with rolled_back=true", out)
+	}
+	if !strings.Contains(asString(out["error"]), "injected delete failure") {
+		t.Fatalf("error = %v, want injected delete failure", out["error"])
+	}
+	assertStringListContains(t, out["files_modified"], "src/app.txt")
+	assertFileContent(t, appPath, "alpha\nbeta\n")
+	assertFileContent(t, deletePath, "keep me\n")
+}
+
+func TestPatchToolV4ARollbackRemovesCreatedFiles(t *testing.T) {
+	root := t.TempDir()
+	deletePath := filepath.Join(root, "src", "delete.txt")
+	createdPath := filepath.Join(root, "src", "created.txt")
+	if err := os.MkdirAll(filepath.Dir(deletePath), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(deletePath, []byte("keep me\n"), 0o644); err != nil {
+		t.Fatalf("write delete fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/delete.txt"}`)
+
+	originalRemove := fileTaskRemove
+	fileTaskRemove = func(path string) error {
+		if path == deletePath {
+			return errors.New("injected delete failure")
+		}
+		return originalRemove(path)
+	}
+	defer func() { fileTaskRemove = originalRemove }()
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Add File: src/created.txt",
+		"+temporary",
+		"*** Delete File: src/delete.txt",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_apply_failed" || out["rolled_back"] != true {
+		t.Fatalf("patch result = %#v, want apply failure with rolled_back=true", out)
+	}
+	assertStringListContains(t, out["files_created"], "src/created.txt")
+	if _, err := os.Stat(createdPath); !os.IsNotExist(err) {
+		t.Fatalf("created file stat err = %v, want not exist after rollback", err)
+	}
+	assertFileContent(t, deletePath, "keep me\n")
+}
+
+func TestPatchToolV4AFuzzyHunkLineTrimmedApplies(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "app.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("def run():\n    if enabled:\n        return \"ok\"\n"), 0o644); err != nil {
+		t.Fatalf("write app fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/app.py"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/app.py",
+		"@@",
+		" def run():",
+		"-if enabled:",
+		"-return \"ok\"",
+		"+    if enabled:",
+		"+        return \"patched\"",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "ok" || out["operations"] != float64(1) {
+		t.Fatalf("patch result = %#v, want ok with one fuzzy V4A operation", out)
+	}
+	assertFileContent(t, path, "def run():\n    if enabled:\n        return \"patched\"\n")
+}
+
+func TestPatchToolV4AFuzzyHunkContextHintDisambiguatesNearbyWindow(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "settings.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	filler := strings.Repeat("filler line keeps sections apart\n", 30)
+	original := "section alpha\ntarget = old\n" + filler + "marker beta\ntarget = old\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write settings fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/settings.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/settings.txt",
+		"@@ marker beta @@",
+		"-target = old",
+		"+target = new",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "ok" || out["operations"] != float64(1) {
+		t.Fatalf("patch result = %#v, want ok with context-hint V4A operation", out)
+	}
+	assertFileContent(t, path, "section alpha\ntarget = old\n"+filler+"marker beta\ntarget = new\n")
+}
+
+func TestPatchToolV4AFuzzyHunkAmbiguousNoMutation(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "settings.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "section alpha\ntarget = old\nsection beta\ntarget = old\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write settings fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/settings.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/settings.txt",
+		"@@ missing hint @@",
+		"-target = old",
+		"+target = new",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("error = %v, want ambiguous fuzzy match evidence", out["error"])
+	}
+	assertFileContent(t, path, original)
 }
 
 func TestPatchToolV4AMoveRenamesReadFile(t *testing.T) {

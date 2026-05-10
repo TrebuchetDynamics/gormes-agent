@@ -81,3 +81,89 @@ func TestStream_ToolCallDeltasAccumulate(t *testing.T) {
 		t.Errorf("Arguments = %s, want to contain \"hi\"", tc.Arguments)
 	}
 }
+
+func TestStreamDiagnosticsCapturesAllowlistedHeadersAndCounters(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cf-Ray", "8f1a2b3c4d5e6f7g-LAX")
+		w.Header().Set("X-Request-Id", "req-stream")
+		w.Header().Set("Authorization", "Bearer should-not-leak")
+		w.WriteHeader(http.StatusOK)
+		bw := bufio.NewWriter(w)
+		fmt.Fprint(bw, `data: {"choices":[{"delta":{"content":"hello"}}]}`+"\n\n")
+		bw.Flush()
+	}))
+	defer srv.Close()
+
+	c := NewHTTPClient(srv.URL, "")
+	s, err := c.OpenStream(context.Background(), ChatRequest{
+		Model:    "x",
+		Messages: []Message{{Role: "user", Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	reporter, ok := s.(StreamDiagnosticsReporter)
+	if !ok {
+		t.Fatalf("stream does not expose StreamDiagnosticsReporter")
+	}
+
+	diag := reporter.StreamDiagnostics()
+	if diag.HTTPStatus != http.StatusOK {
+		t.Fatalf("HTTPStatus = %d, want %d", diag.HTTPStatus, http.StatusOK)
+	}
+	if got := diag.Headers["cf-ray"]; got != "8f1a2b3c4d5e6f7g-LAX" {
+		t.Fatalf("cf-ray header = %q", got)
+	}
+	if got := diag.Headers["x-request-id"]; got != "req-stream" {
+		t.Fatalf("x-request-id header = %q", got)
+	}
+	if _, ok := diag.Headers["authorization"]; ok {
+		t.Fatalf("diagnostics leaked non-allowlisted authorization header: %#v", diag.Headers)
+	}
+
+	e, err := s.Recv(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.Kind != EventToken || e.Token != "hello" {
+		t.Fatalf("event = %#v, want token hello", e)
+	}
+
+	diag = reporter.StreamDiagnostics()
+	if diag.Chunks == 0 {
+		t.Fatalf("Chunks = 0, want recorded stream chunk")
+	}
+	if diag.Bytes == 0 {
+		t.Fatalf("Bytes = 0, want recorded stream bytes")
+	}
+	if diag.Elapsed <= 0 {
+		t.Fatalf("Elapsed = %s, want positive duration", diag.Elapsed)
+	}
+	if diag.TimeToFirstByte <= 0 {
+		t.Fatalf("TimeToFirstByte = %s, want positive duration", diag.TimeToFirstByte)
+	}
+}
+
+func TestHTTPErrorStreamDiagnosticsSanitizesHeaders(t *testing.T) {
+	err := fmt.Errorf("provider wrapper: %w", newHTTPError(http.StatusServiceUnavailable, "upstream unavailable", http.Header{
+		"Cf-Ray":                []string{"8f1a2b3c4d5e6f7g-LAX"},
+		"X-Openrouter-Provider": []string{"Anthropic"},
+		"Authorization":         []string{"Bearer should-not-leak"},
+	}))
+
+	diag := StreamDiagnosticsFromError(err)
+	if diag.HTTPStatus != http.StatusServiceUnavailable {
+		t.Fatalf("HTTPStatus = %d, want %d", diag.HTTPStatus, http.StatusServiceUnavailable)
+	}
+	if got := diag.Headers["cf-ray"]; got != "8f1a2b3c4d5e6f7g-LAX" {
+		t.Fatalf("cf-ray header = %q", got)
+	}
+	if got := diag.Headers["x-openrouter-provider"]; got != "Anthropic" {
+		t.Fatalf("x-openrouter-provider header = %q", got)
+	}
+	if _, ok := diag.Headers["authorization"]; ok {
+		t.Fatalf("diagnostics leaked non-allowlisted authorization header: %#v", diag.Headers)
+	}
+}

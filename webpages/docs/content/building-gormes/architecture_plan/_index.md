@@ -278,6 +278,7 @@ classification and row-backed implementation queue.
 - [x] Channel-neutral native runtime turn adapter
 - [x] Hermes gateway platform registry manifest
 - [x] MSGraph webhook platform manifest drift closeout
+- [x] Bundled platform plugin manifest drift guard
 - [x] Navivox stdio protocol control-plane tracer
 - [x] Navivox QR pairing descriptor CLI
 - [x] Navivox Flutter voice morph surface
@@ -633,6 +634,7 @@ classification and row-backed implementation queue.
 - [x] Kernel retry honors Retry-After hint
 - [x] Streaming interrupt retry suppression
 - [x] Provider stream-drop retry diagnostics
+- [x] Provider stream-drop timing and upstream diagnostics
 - [x] Provider timeout config fail-closed helper
 - [x] Prompt-cache capability guard
 - [x] Provider account usage read model + renderer
@@ -731,6 +733,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web managed gateway status and live smoke closure
 - [x] Brave Search + DDGS web search provider parity
 - [x] Browser artifact and console render contract
+- [x] Browser console expression CDP result shaping
 - [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
@@ -763,11 +766,12 @@ classification and row-backed implementation queue.
 - [x] Pure-Go STT exploration
 - [x] wazero WASI smoke harness
 - [x] whisper.cpp WASI module discovery
-- [ ] Pure-Go Whisper transcribe one WAV
+- [x] Pure-Go Whisper transcribe one WAV
 - [x] Whisper tiny.en model cache fetcher
-- [ ] Wire Pure-Go Whisper into Telegram resolver
-- [ ] Audio preprocessing and chunking pipeline
-- [ ] Whisper benchmark harness + perf budget
+- [x] Wire Pure-Go Whisper into Telegram resolver
+- [x] WASI Whisper ffmpeg preprocess + fixed-window chunker
+- [x] Audio preprocessing and chunking pipeline
+- [x] Whisper benchmark harness + perf budget
 - [ ] Go-native audio decoding (ffmpeg replacement)
 - [ ] Pure-Go TTS path scoping
 
@@ -873,6 +877,14 @@ classification and row-backed implementation queue.
 - [x] Structured lint delta for native write/patch tools
 - [x] Python syntax lint delta for native write/patch tools
 - [x] Shell lint delta for native write/patch tools
+- [x] Patch replace no-match did-you-mean hint
+- [x] Core fuzzy replace strategies for native patch tool
+- [x] Unicode-normalized fuzzy replace for native patch tool
+- [x] Block-anchor fuzzy replace for native patch tool
+- [x] V4A fuzzy hunk matching for native patch tool
+- [x] Context-aware fuzzy replace for native patch tool
+- [x] V4A patch apply rollback for native patch tool
+- [x] Patch replace post-write verification
 
 ### 5.M — Mixture of Agents 🔨
 
@@ -881,6 +893,7 @@ classification and row-backed implementation queue.
 - [x] Hermes Kanban dispatcher and worker spawn loop
 - [x] Hermes Kanban production worker process binding
 - [x] Hermes Kanban worker tools and prompt gating
+- [x] Kanban orchestrator board-routing tools
 - [x] Kanban comment author hardening and cross-task handoff policy
 - [x] Hermes Kanban slash/gateway/dashboard surfaces
 - [x] Native TUI /kanban slash command binding over gormes kanban
@@ -895,6 +908,7 @@ classification and row-backed implementation queue.
 - [x] Kanban notify subscription store and CLI
 - [x] Kanban notify delivery engine blocked retention
 - [x] Kanban stats command and board summary
+- [x] Kanban corrupt timestamp age hardening
 - [x] Kanban named-board workspace and log roots
 - [x] Kanban current-board task command routing
 - [x] Kanban task run history command
@@ -902,6 +916,7 @@ classification and row-backed implementation queue.
 - [x] Kanban global --board task command override
 - [x] Kanban GC terminal event and worker-log retention
 - [x] Kanban worker log read command
+- [x] Kanban task event tail command
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
 - [x] Hermes Kanban specify triage parity
 
@@ -1167,6 +1182,7 @@ classification and row-backed implementation queue.
 ### 5.W — i18n Internationalization ✅
 
 - [x] Hermes i18n static-message port
+- [x] Hermes i18n expanded locale catalog parity
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 
@@ -1199,6 +1215,7 @@ classification and row-backed implementation queue.
 - [x] Hermes curator auxiliary model routing slot
 - [x] Hermes curator state transitions and run reports
 - [x] Hermes curator rename summary notice
+- [x] Hermes review prompt transient-environment guard
 - [ ] Skill effectiveness scoring
 
 ### 6.F — Skill Surface 🔨
@@ -1319,12 +1336,14 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
+- [x] Release binary version/provenance smoke guard
 - [x] CI and installer Go toolchain floor sync
 - [x] Release prep guide target matrix sync
 - [x] Windows install.ps1 release binary fetch selector
 - [x] OCI image PR build and arm64 smoke workflow
 - [x] Release build-date provenance injection
 - [x] Landing release metadata date-alias sync
+- [x] GitHub release title date-alias binding
 - [x] Release notes artifact size table
 - [x] Release SBOM attestation binding
 - [x] Release build provenance attest action contract

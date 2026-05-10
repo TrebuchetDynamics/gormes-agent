@@ -148,6 +148,16 @@ jobs:
           CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
             go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY} -X main.BuildDate=${BUILD_DATE}" \
               -o "dist/${target}/${exe}" ./cmd/gormes
+          binary_path="dist/${target}/${exe}"
+          if [ "$GOOS" = "$(go env GOOS)" ] && [ "$GOARCH" = "$(go env GOARCH)" ]; then
+            version_json=$("$binary_path" version --json)
+            printf '%s\n' "$version_json" | grep "\"version\": \"${VERSION}\""
+            printf '%s\n' "$version_json" | grep "\"git_commit\": \"${GIT_COMMIT}\""
+            printf '%s\n' "$version_json" | grep "\"git_dirty\": ${GIT_DIRTY}"
+            printf '%s\n' "$version_json" | grep "\"build_date\": \"${BUILD_DATE}\""
+          else
+            go version -m "$binary_path" >/dev/null
+          fi
           archive="dist/${target}.tar.gz"
           tar -C dist -czf "$archive" "${target}"
           sha256sum "$archive" > "${archive}.sha256"
@@ -217,10 +227,17 @@ jobs:
           cp scripts/install.ps1 dist/install.ps1
 
       - name: Build release notes
+        id: release_notes
         shell: bash
         run: |
+          set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
+          date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          test -n "$date_alias"
+          echo "date_alias=$date_alias" >> "$GITHUB_OUTPUT"
           {
+            echo "# Gormes ${GITHUB_REF_NAME} (${date_alias})"
+            echo ""
             echo "## Install"
             echo '```bash'
             echo "# Linux/macOS/WSL2 (downloads release binary)"
@@ -260,6 +277,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          name: Gormes ${{ github.ref_name }} (${{ steps.release_notes.outputs.date_alias }})
           files: |
             dist/*.tar.gz
             dist/*.sha256

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,10 @@ const (
 	EvidenceInvalidArgs      = "kanban_invalid_args"
 	EvidenceStoreUnavailable = "kanban_store_unavailable"
 	EvidenceOwnershipDenied  = "kanban_task_ownership_denied"
+	EvidenceWorkerScoped     = "kanban_worker_scoped"
+
+	kanbanListDefaultLimit = 50
+	kanbanListMaxLimit     = 200
 )
 
 type Config struct {
@@ -51,12 +56,20 @@ func NewTools(cfg Config) []tools.Tool {
 	}
 	names := []string{
 		"kanban_show",
+	}
+	if cfg.TaskID == "" && cfg.Enabled {
+		names = append(names, "kanban_list")
+	}
+	names = append(names,
 		"kanban_complete",
 		"kanban_block",
 		"kanban_heartbeat",
 		"kanban_comment",
 		"kanban_create",
 		"kanban_link",
+	)
+	if cfg.TaskID == "" && cfg.Enabled {
+		names = append(names, "kanban_unblock")
 	}
 	out := make([]tools.Tool, 0, len(names))
 	for _, name := range names {
@@ -111,6 +124,8 @@ func (t *kanbanTool) Execute(ctx context.Context, args json.RawMessage) (json.Ra
 	switch t.name {
 	case "kanban_show":
 		return t.show(ctx, in), nil
+	case "kanban_list":
+		return t.list(ctx, in), nil
 	case "kanban_complete":
 		return t.complete(ctx, in), nil
 	case "kanban_block":
@@ -123,6 +138,8 @@ func (t *kanbanTool) Execute(ctx context.Context, args json.RawMessage) (json.Ra
 		return t.create(ctx, in), nil
 	case "kanban_link":
 		return t.link(ctx, in), nil
+	case "kanban_unblock":
+		return t.unblock(ctx, in), nil
 	default:
 		return kanbanError(EvidenceStoreUnavailable, "unknown kanban tool"), nil
 	}
@@ -167,6 +184,84 @@ func (t *kanbanTool) show(ctx context.Context, in map[string]any) json.RawMessag
 		"events":         lastEvents(events, 50),
 		"runs":           runs,
 		"worker_context": contextBlock,
+	})
+}
+
+func (t *kanbanTool) list(ctx context.Context, in map[string]any) json.RawMessage {
+	if err := t.requireOrchestrator("kanban_list"); err != nil {
+		return kanbanError(EvidenceWorkerScoped, err.Error())
+	}
+	if strings.TrimSpace(stringValue(in["tenant"])) != "" {
+		return kanbanError(EvidenceInvalidArgs, "tenant filter is not supported by the native Gormes Kanban store")
+	}
+	includeArchived, boolErr := boolValue(in["include_archived"], "include_archived", false)
+	if boolErr != "" {
+		return kanbanError(EvidenceInvalidArgs, boolErr)
+	}
+	limit := kanbanListDefaultLimit
+	if value, ok := intValue(in["limit"]); !ok {
+		return kanbanError(EvidenceInvalidArgs, "limit must be an integer")
+	} else if in["limit"] != nil {
+		limit = value
+	}
+	if limit < 1 {
+		return kanbanError(EvidenceInvalidArgs, "limit must be >= 1")
+	}
+	if limit > kanbanListMaxLimit {
+		return kanbanError(EvidenceInvalidArgs, fmt.Sprintf("limit must be <= %d", kanbanListMaxLimit))
+	}
+
+	store, done, err := t.openStore(ctx)
+	if err != nil {
+		return kanbanError(EvidenceStoreUnavailable, err.Error())
+	}
+	defer done()
+
+	tasks, err := store.ListTasks(ctx, kanban.ListFilter{
+		Status:   kanban.Status(strings.TrimSpace(stringValue(in["status"]))),
+		Assignee: stringValue(in["assignee"]),
+	})
+	if err != nil {
+		return kanbanError(EvidenceStoreUnavailable, err.Error())
+	}
+	filtered := make([]kanban.Task, 0, len(tasks))
+	for _, task := range tasks {
+		if !includeArchived && task.Status == kanban.StatusArchived {
+			continue
+		}
+		filtered = append(filtered, task)
+	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		left := filtered[i]
+		right := filtered[j]
+		if left.Priority != right.Priority {
+			return left.Priority > right.Priority
+		}
+		if !left.CreatedAt.Equal(right.CreatedAt) {
+			return left.CreatedAt.Before(right.CreatedAt)
+		}
+		return left.ID < right.ID
+	})
+
+	truncated := len(filtered) > limit
+	if truncated {
+		filtered = filtered[:limit]
+	}
+	var nextLimit any
+	if truncated && limit < kanbanListMaxLimit {
+		nextLimit = min(limit*2, kanbanListMaxLimit)
+	}
+	summaries := make([]map[string]any, 0, len(filtered))
+	for _, task := range filtered {
+		summaries = append(summaries, kanbanTaskSummary(task))
+	}
+	return kanbanOK(map[string]any{
+		"tasks":      summaries,
+		"count":      len(summaries),
+		"limit":      limit,
+		"truncated":  truncated,
+		"next_limit": nextLimit,
+		"promoted":   0,
 	})
 }
 
@@ -288,6 +383,10 @@ func (t *kanbanTool) create(ctx context.Context, in map[string]any) json.RawMess
 	if !ok {
 		return kanbanError(EvidenceInvalidArgs, "priority must be an integer")
 	}
+	triage, boolErr := boolValue(in["triage"], "triage", false)
+	if boolErr != "" {
+		return kanbanError(EvidenceInvalidArgs, boolErr)
+	}
 	workspaceKind := kanban.WorkspaceKind(strings.TrimSpace(stringValue(in["workspace_kind"])))
 	if workspaceKind == "" {
 		workspaceKind = kanban.WorkspaceScratch
@@ -306,6 +405,7 @@ func (t *kanbanTool) create(ctx context.Context, in map[string]any) json.RawMess
 		WorkspaceKind: workspaceKind,
 		WorkspacePath: stringValue(in["workspace_path"]),
 		CreatedBy:     emptyDefault(t.cfg.Profile, "worker"),
+		Triage:        triage,
 	})
 	if err != nil {
 		return kanbanError(EvidenceStoreUnavailable, err.Error())
@@ -330,6 +430,36 @@ func (t *kanbanTool) link(ctx context.Context, in map[string]any) json.RawMessag
 	return kanbanOK(map[string]any{"parent_id": parentID, "child_id": childID})
 }
 
+func (t *kanbanTool) unblock(ctx context.Context, in map[string]any) json.RawMessage {
+	if err := t.requireOrchestrator("kanban_unblock"); err != nil {
+		return kanbanError(EvidenceWorkerScoped, err.Error())
+	}
+	taskID := strings.TrimSpace(stringValue(in["task_id"]))
+	if taskID == "" {
+		return kanbanError(EvidenceInvalidArgs, "task_id is required")
+	}
+	store, done, err := t.openStore(ctx)
+	if err != nil {
+		return kanbanError(EvidenceStoreUnavailable, err.Error())
+	}
+	defer done()
+	task, err := store.GetTask(ctx, taskID)
+	if err != nil {
+		return kanbanError(EvidenceStoreUnavailable, err.Error())
+	}
+	if task.Status != kanban.StatusBlocked {
+		return kanbanError(EvidenceInvalidArgs, fmt.Sprintf("could not unblock %s (not blocked)", taskID))
+	}
+	if err := store.UnblockTask(ctx, taskID); err != nil {
+		return kanbanError(EvidenceStoreUnavailable, err.Error())
+	}
+	task, err = store.GetTask(ctx, taskID)
+	if err != nil {
+		return kanbanError(EvidenceStoreUnavailable, err.Error())
+	}
+	return kanbanOK(map[string]any{"task_id": taskID, "status": string(task.Status)})
+}
+
 func (t *kanbanTool) defaultTaskID(taskID string) string {
 	if strings.TrimSpace(taskID) != "" {
 		return strings.TrimSpace(taskID)
@@ -345,6 +475,13 @@ func (t *kanbanTool) enforceWorkerTaskOwnership(taskID string) error {
 		return fmt.Errorf("worker is scoped to task %s; refusing to mutate %s", t.cfg.TaskID, taskID)
 	}
 	return nil
+}
+
+func (t *kanbanTool) requireOrchestrator(toolName string) error {
+	if t.cfg.TaskID == "" {
+		return nil
+	}
+	return fmt.Errorf("%s is orchestrator-only; dispatcher-spawned workers must use kanban_complete, kanban_block, kanban_heartbeat, or kanban_comment for their assigned task", toolName)
 }
 
 func (t *kanbanTool) openStore(ctx context.Context) (*kanban.Store, func(), error) {
@@ -452,6 +589,29 @@ func stringListValue(value any) ([]string, bool) {
 	}
 }
 
+func boolValue(value any, name string, defaultValue bool) (bool, string) {
+	if value == nil {
+		return defaultValue, ""
+	}
+	switch v := value.(type) {
+	case bool:
+		return v, ""
+	case string:
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "":
+			return defaultValue, ""
+		case "true", "1", "yes":
+			return true, ""
+		case "false", "0", "no":
+			return false, ""
+		default:
+			return defaultValue, fmt.Sprintf("%s must be a boolean or 'true'/'false'", name)
+		}
+	default:
+		return defaultValue, fmt.Sprintf("%s must be a boolean or 'true'/'false'", name)
+	}
+}
+
 func intValue(value any) (int, bool) {
 	if value == nil {
 		return 0, true
@@ -473,6 +633,26 @@ func intValue(value any) (int, bool) {
 		return i, err == nil
 	default:
 		return 0, false
+	}
+}
+
+func kanbanTaskSummary(task kanban.Task) map[string]any {
+	return map[string]any{
+		"id":             task.ID,
+		"title":          task.Title,
+		"assignee":       task.Assignee,
+		"status":         string(task.Status),
+		"priority":       task.Priority,
+		"workspace_kind": string(task.WorkspaceKind),
+		"workspace_path": task.WorkspacePath,
+		"created_by":     task.CreatedBy,
+		"created_at":     task.CreatedAt,
+		"started_at":     task.StartedAt,
+		"completed_at":   task.CompletedAt,
+		"parents":        task.ParentIDs,
+		"children":       task.ChildIDs,
+		"parent_count":   len(task.ParentIDs),
+		"child_count":    len(task.ChildIDs),
 	}
 }
 
@@ -533,6 +713,8 @@ func kanbanDescription(name string) string {
 	switch name {
 	case "kanban_show":
 		return "Read a Kanban task, its dependency links, comments, run history, recent events, and worker context."
+	case "kanban_list":
+		return "List compact Kanban task summaries for orchestrator profiles with bounded filters and pagination metadata."
 	case "kanban_complete":
 		return "Mark the scoped Kanban task done with a human summary and optional structured metadata handoff."
 	case "kanban_block":
@@ -545,6 +727,8 @@ func kanbanDescription(name string) string {
 		return "Create a new Kanban task, optionally linked to parent tasks for dependency-gated promotion."
 	case "kanban_link":
 		return "Add a parent to child Kanban dependency edge after both tasks already exist."
+	case "kanban_unblock":
+		return "Move a blocked Kanban task back to todo or ready through dependency-aware readiness recomputation."
 	default:
 		return "Use the native Kanban board."
 	}
@@ -554,6 +738,8 @@ func kanbanSchema(name string) json.RawMessage {
 	switch name {
 	case "kanban_show":
 		return json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string","description":"Task id. Defaults to the worker task from the environment."}},"required":[]}`)
+	case "kanban_list":
+		return json.RawMessage(`{"type":"object","properties":{"assignee":{"type":"string","description":"Optional assignee/profile filter."},"status":{"type":"string","enum":["triage","todo","ready","running","blocked","done","archived"],"description":"Optional task status filter."},"include_archived":{"oneOf":[{"type":"boolean"},{"type":"string"}],"description":"Include archived tasks. Defaults to false."},"limit":{"type":"integer","description":"Maximum rows to return (default 50, max 200)."}},"required":[]}`)
 	case "kanban_complete":
 		return json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string","description":"Task id. Defaults to the worker task from the environment."},"summary":{"type":"string","description":"Human-readable handoff summary."},"metadata":{"type":"object","description":"Structured handoff facts for downstream workers."},"result":{"type":"string","description":"Legacy result field."}},"required":[]}`)
 	case "kanban_block":
@@ -563,9 +749,11 @@ func kanbanSchema(name string) json.RawMessage {
 	case "kanban_comment":
 		return json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string","description":"Task id. Defaults to the worker task from the environment; may also name another task for handoff."},"body":{"type":"string","description":"Comment body."}},"required":["body"]}`)
 	case "kanban_create":
-		return json.RawMessage(`{"type":"object","properties":{"title":{"type":"string"},"assignee":{"type":"string"},"body":{"type":"string"},"parents":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}]},"parent_ids":{"type":"array","items":{"type":"string"}},"priority":{"type":"integer"},"workspace_kind":{"type":"string","enum":["scratch","dir","worktree"]},"workspace_path":{"type":"string"}},"required":["title","assignee"]}`)
+		return json.RawMessage(`{"type":"object","properties":{"title":{"type":"string"},"assignee":{"type":"string"},"body":{"type":"string"},"parents":{"oneOf":[{"type":"array","items":{"type":"string"}},{"type":"string"}]},"parent_ids":{"type":"array","items":{"type":"string"}},"priority":{"type":"integer"},"workspace_kind":{"type":"string","enum":["scratch","dir","worktree"]},"workspace_path":{"type":"string"},"triage":{"oneOf":[{"type":"boolean"},{"type":"string"}],"description":"If true, create the task in triage instead of ready/todo."}},"required":["title","assignee"]}`)
 	case "kanban_link":
 		return json.RawMessage(`{"type":"object","properties":{"parent_id":{"type":"string"},"child_id":{"type":"string"}},"required":["parent_id","child_id"]}`)
+	case "kanban_unblock":
+		return json.RawMessage(`{"type":"object","properties":{"task_id":{"type":"string","description":"Blocked task id to move back through readiness recomputation."}},"required":["task_id"]}`)
 	default:
 		return json.RawMessage(`{"type":"object","properties":{},"required":[]}`)
 	}

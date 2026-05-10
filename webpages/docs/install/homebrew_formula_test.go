@@ -185,7 +185,7 @@ func readRepoFileHomebrew(t *testing.T, rel string) string {
 	t.Helper()
 	// Tests under docs/install run with cwd there, so reach back
 	// to the repo root for top-level fixtures like packaging/homebrew/.
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
 	if err != nil {
 		t.Fatalf("read %s: %v", rel, err)
 	}

@@ -21,6 +21,9 @@ func TestBuildDefaultRegistryKanbanHiddenByDefault(t *testing.T) {
 	if _, ok := reg.Get("kanban_show"); ok {
 		t.Fatal("kanban_show registered without Kanban worker context")
 	}
+	if _, ok := reg.Get("kanban_list"); ok {
+		t.Fatal("kanban_list registered without Kanban worker or orchestrator context")
+	}
 }
 
 func TestBuildDefaultRegistryKanbanVisibleWithWorkerEnv(t *testing.T) {
@@ -49,6 +52,11 @@ func TestBuildDefaultRegistryKanbanVisibleWithWorkerEnv(t *testing.T) {
 			t.Fatalf("%s not registered with Kanban worker env", name)
 		}
 	}
+	for _, name := range []string{"kanban_list", "kanban_unblock"} {
+		if _, ok := reg.Get(name); ok {
+			t.Fatalf("%s registered for scoped Kanban worker env", name)
+		}
+	}
 
 	show, ok := reg.Get("kanban_show")
 	if !ok {
@@ -64,5 +72,20 @@ func TestBuildDefaultRegistryKanbanVisibleWithWorkerEnv(t *testing.T) {
 	}
 	if out["worker_context"] == "" {
 		t.Fatalf("kanban_show output missing worker_context: %v", out)
+	}
+}
+
+func TestBuildDefaultRegistryKanbanOrchestratorToolsetIncludesBoardRouting(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+	t.Setenv("GORMES_KANBAN_DB", filepath.Join(t.TempDir(), "kanban.db"))
+	t.Setenv("GORMES_KANBAN_TASK", "")
+	t.Setenv("HERMES_KANBAN_TASK", "")
+	t.Setenv("GORMES_TOOLSETS", "kanban")
+
+	reg := buildDefaultRegistry(context.Background(), config.Config{}, nil, "")
+	for _, name := range []string{"kanban_show", "kanban_list", "kanban_complete", "kanban_block", "kanban_heartbeat", "kanban_comment", "kanban_create", "kanban_link", "kanban_unblock"} {
+		if _, ok := reg.Get(name); !ok {
+			t.Fatalf("%s not registered with orchestrator kanban toolset", name)
+		}
 	}
 }

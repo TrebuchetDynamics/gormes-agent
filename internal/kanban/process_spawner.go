@@ -33,11 +33,13 @@ type ProcessStarter interface {
 }
 
 type ProcessSpawner struct {
-	Binary      string
-	LogRoot     string
-	MaxLogBytes int64
-	Starter     ProcessStarter
-	Now         func() time.Time
+	Binary         string
+	LogRoot        string
+	MaxLogBytes    int64
+	Starter        ProcessStarter
+	Now            func() time.Time
+	BinaryLookPath func(string) (string, error)
+	ExecutablePath func() (string, error)
 }
 
 func (s ProcessSpawner) SpawnKanbanWorker(ctx context.Context, req SpawnRequest) (SpawnResult, error) {
@@ -45,9 +47,9 @@ func (s ProcessSpawner) SpawnKanbanWorker(ctx context.Context, req SpawnRequest)
 	if profile == "" {
 		return SpawnResult{}, fmt.Errorf("worker_spawn_failed: task %s has no assignee", req.Task.ID)
 	}
-	binary := strings.TrimSpace(s.Binary)
-	if binary == "" {
-		binary = "gormes"
+	binary, err := s.resolveBinary()
+	if err != nil {
+		return SpawnResult{}, fmt.Errorf("worker_spawn_failed: %w", err)
 	}
 	logRoot := strings.TrimSpace(s.LogRoot)
 	if logRoot == "" {
@@ -81,6 +83,33 @@ func (s ProcessSpawner) SpawnKanbanWorker(ctx context.Context, req SpawnRequest)
 		started.StartedAt = s.now()
 	}
 	return SpawnResult{PID: started.PID, StartedAt: started.StartedAt}, nil
+}
+
+func (s ProcessSpawner) resolveBinary() (string, error) {
+	explicit := strings.TrimSpace(s.Binary)
+	if explicit != "" {
+		return explicit, nil
+	}
+	lookPath := s.BinaryLookPath
+	if lookPath == nil {
+		lookPath = exec.LookPath
+	}
+	if path, err := lookPath("gormes"); err == nil && strings.TrimSpace(path) != "" {
+		return strings.TrimSpace(path), nil
+	}
+	executablePath := s.ExecutablePath
+	if executablePath == nil {
+		executablePath = os.Executable
+	}
+	path, err := executablePath()
+	if err != nil {
+		return "", fmt.Errorf("resolve default gormes worker executable: %w", err)
+	}
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", errors.New("resolve default gormes worker executable: current executable path is empty")
+	}
+	return path, nil
 }
 
 func (s ProcessSpawner) maxLogBytes() int64 {

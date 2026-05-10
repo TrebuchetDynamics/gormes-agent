@@ -2,7 +2,6 @@ package kanban
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 )
 
@@ -67,15 +66,32 @@ GROUP BY assignee, status`, string(StatusArchived))
 		return BoardStats{}, fmt.Errorf("scan kanban board stats by assignee: %w", err)
 	}
 
-	var oldest sql.NullInt64
-	if err := s.db.QueryRowContext(ctx, `
-SELECT MIN(created_at)
+	readyRows, err := s.db.QueryContext(ctx, `
+SELECT created_at
 FROM tasks
-WHERE status = ?`, string(StatusReady)).Scan(&oldest); err != nil {
+WHERE status = ?`, string(StatusReady))
+	if err != nil {
 		return BoardStats{}, fmt.Errorf("kanban board stats oldest ready: %w", err)
 	}
-	if oldest.Valid {
-		age := stats.Now - millisToTime(oldest.Int64).Unix()
+	defer readyRows.Close()
+	var oldestMillis int64
+	for readyRows.Next() {
+		var createdAt safeMillis
+		if err := readyRows.Scan(&createdAt); err != nil {
+			return BoardStats{}, fmt.Errorf("scan kanban board stats oldest ready: %w", err)
+		}
+		if createdAt.value == 0 {
+			continue
+		}
+		if oldestMillis == 0 || createdAt.value < oldestMillis {
+			oldestMillis = createdAt.value
+		}
+	}
+	if err := readyRows.Err(); err != nil {
+		return BoardStats{}, fmt.Errorf("scan kanban board stats oldest ready: %w", err)
+	}
+	if oldestMillis != 0 {
+		age := stats.Now - millisToTime(oldestMillis).Unix()
 		stats.OldestReadyAgeSeconds = &age
 	}
 

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 type chatStream struct {
@@ -24,6 +25,8 @@ type chatStream struct {
 	// Populated across partial tool_calls deltas; flushed on finish_reason=="tool_calls".
 	pendingCalls map[int]*pendingToolCall
 	tools        []ToolDescriptor
+	startedAt    time.Time
+	diag         StreamDiagnostics
 }
 
 type pendingToolCall struct {
@@ -33,12 +36,19 @@ type pendingToolCall struct {
 }
 
 func newChatStream(body io.ReadCloser, sessionID string, tools []ToolDescriptor) *chatStream {
+	return newChatStreamWithDiagnostics(body, sessionID, tools, StreamDiagnostics{})
+}
+
+func newChatStreamWithDiagnostics(body io.ReadCloser, sessionID string, tools []ToolDescriptor, diag StreamDiagnostics) *chatStream {
+	diag = sanitizeStreamDiagnostics(diag)
 	return &chatStream{
 		body:         body,
 		sse:          newSSEReader(body),
 		sessionID:    sessionID,
 		pendingCalls: make(map[int]*pendingToolCall),
 		tools:        SanitizeToolDescriptors(tools),
+		startedAt:    time.Now(),
+		diag:         diag,
 	}
 }
 
@@ -54,6 +64,19 @@ func (s *chatStream) Close() error {
 	}
 	s.closed = true
 	return s.body.Close()
+}
+
+func (s *chatStream) StreamDiagnostics() StreamDiagnostics {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	diag := s.diag
+	if !s.startedAt.IsZero() {
+		elapsed := time.Since(s.startedAt)
+		if elapsed > diag.Elapsed {
+			diag.Elapsed = elapsed
+		}
+	}
+	return sanitizeStreamDiagnostics(diag)
 }
 
 type orChunkDelta struct {
@@ -114,6 +137,7 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 			}
 			return Event{}, err
 		}
+		s.recordDiagnosticChunk(f.data)
 		if strings.TrimSpace(f.data) == "[DONE]" {
 			return Event{}, io.EOF
 		}
@@ -178,6 +202,20 @@ func (s *chatStream) Recv(ctx context.Context) (Event, error) {
 			s.pending = append(s.pending, events[1:]...)
 		}
 		return head, nil
+	}
+}
+
+func (s *chatStream) recordDiagnosticChunk(data string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	if s.diag.Chunks == 0 && !s.startedAt.IsZero() {
+		s.diag.TimeToFirstByte = now.Sub(s.startedAt)
+	}
+	s.diag.Chunks++
+	s.diag.Bytes += int64(len(data))
+	if !s.startedAt.IsZero() {
+		s.diag.Elapsed = now.Sub(s.startedAt)
 	}
 }
 

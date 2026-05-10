@@ -142,6 +142,50 @@ func TestKanbanStoreConcurrentClaimOnlyOneWinner(t *testing.T) {
 	}
 }
 
+func TestKanbanTaskScansCorruptTimestampsAsZero(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	defer store.Close()
+
+	task, err := store.CreateTask(ctx, CreateTaskInput{Title: "corrupt timestamps"})
+	if err != nil {
+		t.Fatalf("CreateTask() error = %v", err)
+	}
+	if _, err := store.db.ExecContext(ctx, `
+UPDATE tasks
+SET created_at = ?, started_at = ?, completed_at = ?, claim_expires = ?, heartbeat_at = ?
+WHERE id = ?`, "%s", "started", "", "1.5", "heartbeat", task.ID); err != nil {
+		t.Fatalf("corrupt timestamp fixture: %v", err)
+	}
+
+	got, err := store.GetTask(ctx, task.ID)
+	if err != nil {
+		t.Fatalf("GetTask() error = %v", err)
+	}
+	assertZeroTaskTimestamps(t, got)
+
+	tasks, err := store.ListTasks(ctx, ListFilter{})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("ListTasks() returned %d tasks, want 1", len(tasks))
+	}
+	assertZeroTaskTimestamps(t, tasks[0])
+
+	ready, err := store.readyTasks(ctx)
+	if err != nil {
+		t.Fatalf("readyTasks() error = %v", err)
+	}
+	if len(ready) != 1 {
+		t.Fatalf("readyTasks() returned %d tasks, want 1", len(ready))
+	}
+	assertZeroTaskTimestamps(t, ready[0])
+}
+
 func TestKanbanStoreLinkRejectsCyclesAndDemotesReadyChildren(t *testing.T) {
 	ctx := context.Background()
 	store, err := Open(ctx, filepath.Join(t.TempDir(), "kanban.db"))
@@ -404,6 +448,25 @@ func insertKanbanEventFixture(t *testing.T, store *Store, taskID, kind string, a
 	t.Helper()
 	if _, err := store.db.ExecContext(context.Background(), `INSERT INTO task_events(task_id, kind, payload, created_at) VALUES (?, ?, '', ?)`, taskID, kind, at.UTC().UnixMilli()); err != nil {
 		t.Fatalf("insert fixture event %q: %v", kind, err)
+	}
+}
+
+func assertZeroTaskTimestamps(t *testing.T, task Task) {
+	t.Helper()
+	if !task.CreatedAt.IsZero() {
+		t.Fatalf("CreatedAt = %s, want zero time", task.CreatedAt)
+	}
+	if !task.StartedAt.IsZero() {
+		t.Fatalf("StartedAt = %s, want zero time", task.StartedAt)
+	}
+	if !task.CompletedAt.IsZero() {
+		t.Fatalf("CompletedAt = %s, want zero time", task.CompletedAt)
+	}
+	if !task.ClaimExpires.IsZero() {
+		t.Fatalf("ClaimExpires = %s, want zero time", task.ClaimExpires)
+	}
+	if !task.HeartbeatAt.IsZero() {
+		t.Fatalf("HeartbeatAt = %s, want zero time", task.HeartbeatAt)
 	}
 }
 

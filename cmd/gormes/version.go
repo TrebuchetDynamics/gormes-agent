@@ -17,7 +17,7 @@ import (
 // notes, release.json, and the GitHub release title. The git tag remains
 // v<Version> until the release workflow learns to extract version from this
 // file independently of the tag string.
-var Version = "0.2.4"
+var Version = "0.2.5"
 
 // VersionDateAlias is the Hermes-style vYYYY.M.D paired alias for the
 // current release. Bumped together with Version on every release. Fleet

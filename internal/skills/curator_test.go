@@ -249,6 +249,46 @@ func TestCuratorRun_ReportEvidence(t *testing.T) {
 	}
 }
 
+func TestCuratorPromptTransientEnvironmentGuard(t *testing.T) {
+	root := t.TempDir()
+	now := time.Date(2026, 5, 10, 9, 0, 0, 0, time.UTC)
+	writeCuratorTestSkill(t, root, "browser-troubleshooting")
+	if err := MarkAgentCreated(root, "browser-troubleshooting"); err != nil {
+		t.Fatalf("MarkAgentCreated: %v", err)
+	}
+
+	var gotPrompt string
+	curator := NewCurator(CuratorConfig{
+		Root: root,
+		Now:  func() time.Time { return now },
+		Reviewer: func(_ context.Context, input CuratorReviewInput) (CuratorReviewResult, error) {
+			gotPrompt = input.Prompt
+			return CuratorReviewResult{Summary: "reviewed prompt guard"}, nil
+		},
+	})
+	if _, err := curator.Run(context.Background(), CuratorRunOptions{}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	lower := strings.ToLower(gotPrompt)
+	for _, want := range []string{
+		"do not capture",
+		"environment-dependent failures",
+		"missing binaries",
+		"post-migration path mismatches",
+		"unconfigured credentials",
+		"negative claims about tools",
+		"session-specific transient errors",
+		"one-off task narratives",
+		"capture the fix",
+		"never \"this tool does not work\"",
+	} {
+		if !strings.Contains(lower, want) {
+			t.Fatalf("curator prompt missing %q:\n%s", want, gotPrompt)
+		}
+	}
+}
+
 func TestCuratorBackupAndRollbackSafety(t *testing.T) {
 	root := t.TempDir()
 	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)

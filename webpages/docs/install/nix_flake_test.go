@@ -127,7 +127,7 @@ func TestNixFlakeContract(t *testing.T) {
 
 func readRepoFileNix(t *testing.T, rel string) string {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", rel))
+	raw, err := os.ReadFile(filepath.Join(repoRoot(t), rel))
 	if err != nil {
 		t.Fatalf("read %s: %v", rel, err)
 	}

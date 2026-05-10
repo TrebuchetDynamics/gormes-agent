@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 )
 
 // Client is the single outbound HTTP surface of Gormes.
@@ -30,6 +31,41 @@ type Stream interface {
 	Recv(ctx context.Context) (Event, error)
 	SessionID() string
 	Close() error
+}
+
+// StreamDiagnostics carries bounded, non-secret breadcrumbs for retry logs.
+// Headers must be sanitized through the package allowlist before leaving the
+// provider boundary.
+type StreamDiagnostics struct {
+	HTTPStatus      int
+	Headers         map[string]string
+	Bytes           int64
+	Chunks          int
+	Elapsed         time.Duration
+	TimeToFirstByte time.Duration
+}
+
+type StreamDiagnosticsReporter interface {
+	StreamDiagnostics() StreamDiagnostics
+}
+
+func StreamDiagnosticsOf(stream Stream) StreamDiagnostics {
+	reporter, ok := stream.(StreamDiagnosticsReporter)
+	if !ok || reporter == nil {
+		return StreamDiagnostics{}
+	}
+	return sanitizeStreamDiagnostics(reporter.StreamDiagnostics())
+}
+
+func StreamDiagnosticsFromError(err error) StreamDiagnostics {
+	if err == nil {
+		return StreamDiagnostics{}
+	}
+	var reporter StreamDiagnosticsReporter
+	if errors.As(err, &reporter) && reporter != nil {
+		return sanitizeStreamDiagnostics(reporter.StreamDiagnostics())
+	}
+	return StreamDiagnostics{}
 }
 
 type RunEventStream interface {
