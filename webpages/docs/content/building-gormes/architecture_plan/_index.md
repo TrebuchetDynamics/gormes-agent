@@ -1336,6 +1336,7 @@ classification and row-backed implementation queue.
 - [x] OCI image PR build and arm64 smoke workflow
 - [x] Release build-date provenance injection
 - [x] Landing release metadata date-alias sync
+- [x] GitHub release title date-alias binding
 - [x] Release notes artifact size table
 - [x] Release SBOM attestation binding
 - [x] Release build provenance attest action contract

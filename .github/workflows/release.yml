@@ -227,10 +227,17 @@ jobs:
           cp scripts/install.ps1 dist/install.ps1
 
       - name: Build release notes
+        id: release_notes
         shell: bash
         run: |
+          set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
+          date_alias=$(grep 'var VersionDateAlias =' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
+          test -n "$date_alias"
+          echo "date_alias=$date_alias" >> "$GITHUB_OUTPUT"
           {
+            echo "# Gormes ${GITHUB_REF_NAME} (${date_alias})"
+            echo ""
             echo "## Install"
             echo '```bash'
             echo "# Linux/macOS/WSL2 (downloads release binary)"
@@ -270,6 +277,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          name: Gormes ${{ github.ref_name }} (${{ steps.release_notes.outputs.date_alias }})
           files: |
             dist/*.tar.gz
             dist/*.sha256

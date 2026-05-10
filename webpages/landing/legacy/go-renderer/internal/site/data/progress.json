@@ -55888,6 +55888,76 @@
               }
             },
             {
+              "name": "GitHub release title date-alias binding",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "Tagged GitHub Releases display the same semver plus Hermes-style date alias that `gormes version --json` and landing release metadata report. The release workflow must parse VersionDateAlias from cmd/gormes/version.go while building release notes, include the paired alias in the release-note heading, and pass a custom softprops/action-gh-release `name` so the GitHub release title is not only the tag name.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without this binding, public release pages still show only the semver tag even though Gormes' binary identity and landing metadata claim a paired vYYYY.M.D alias.",
+              "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowReleaseTitleCarriesDateAlias",
+              "source_refs": [
+                "cmd/gormes/version.go:VersionDateAlias comment naming release notes and the GitHub release title",
+                "cmd/gormes/version_test.go:TestVersionCommand_JSONIncludesSemverAndDateAlias",
+                "webpages/docs/install/release_metadata_test.go:TestLandingReleaseMetadataCarriesDateAlias",
+                ".github/workflows/release.yml:Build release notes and softprops/action-gh-release publish step",
+                "Context7 /softprops/action-gh-release docs: `name` sets the release name/title and `body_path` loads release notes from a file"
+              ],
+              "ready_when": [
+                "`gormes version --json` already emits date_alias from VersionDateAlias.",
+                "Landing release metadata date-alias sync is complete.",
+                "The release workflow already generates release-notes.md and publishes it through softprops/action-gh-release body_path."
+              ],
+              "not_ready_when": [
+                "The slice changes version numbers, pushes a tag, publishes a live release, or calls the GitHub API.",
+                "The release title hard-codes the current date alias instead of reading cmd/gormes/version.go.",
+                "The change removes generated release notes, install-script release assets, SBOM wording, provenance wording, or artifact tables."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleaseWorkflowReleaseTitleCarriesDateAlias fails until Build release notes parses VersionDateAlias from cmd/gormes/version.go and exposes it as a step output.",
+                "The generated release notes begin with a `# Gormes ${GITHUB_REF_NAME} (${date_alias})` heading derived from the same parsed alias.",
+                "The softprops/action-gh-release step sets `name: Gormes ${{ github.ref_name }} (${{ steps.release_notes.outputs.date_alias }})` while preserving body_path and release assets.",
+                "Existing release workflow, landing release metadata, install-script publication, SBOM, provenance, and artifact-size tests remain green."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install ./docs/install -run 'TestReleaseWorkflow(ReleaseTitleCarriesDateAlias|ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|PublishesInstallScripts)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release workflow fixtures prove the GitHub release title and release-note heading carry the VersionDateAlias value without live release publication."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to 44cdf555a and Honcho to e659b6b; checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 16, below the 90-row cap. Focused gates for command parity, provider/auth, gateway/channel/TUI, tools/browser, Goncho/memory/session, and release/install fixtures were green after repairing the symlinked docs/install repo-root helper. Current runtime deltas are complete or row-backed, TD publication rows remain operator-blocked, and the broad release parent remains non-selectable. This small P1 release/operator child closes the remaining date-alias surface promised by cmd/gormes/version.go: release.json already carries VersionDateAlias, but generated GitHub release notes and the softprops release title still defaulted to semver-only tag naming. TDD added a release workflow fixture for parsing VersionDateAlias into release notes and the softprops release name, then updated the publish workflow without publishing a live release.",
+              "completed_at": "2026-05-10T12:47:42Z",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/release.yml: Build release notes now parses VersionDateAlias from cmd/gormes/version.go, writes date_alias to GITHUB_OUTPUT, and starts release-notes.md with a semver plus date-alias heading.",
+                  ".github/workflows/release.yml: softprops/action-gh-release now sets the displayed release name from github.ref_name plus steps.release_notes.outputs.date_alias while preserving body_path and all release assets.",
+                  "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseTitleCarriesDateAlias pins the release-note heading, date-alias step output, and softprops release name contract for both docs import paths."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install ./docs/install -run TestReleaseWorkflowReleaseTitleCarriesDateAlias -count=1 failed because the workflow had no release_notes step output, date-alias heading, or softprops release name.",
+                  "GREEN: go test ./webpages/docs/install ./docs/install -run TestReleaseWorkflowReleaseTitleCarriesDateAlias -count=1 passed.",
+                  "GREEN: go test ./webpages/docs/install ./docs/install -run 'TestReleaseWorkflow(ReleaseTitleCarriesDateAlias|ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|PublishesInstallScripts)' -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Release notes artifact size table",
               "priority": "P1",
               "status": "complete",
