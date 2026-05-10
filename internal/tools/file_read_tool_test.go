@@ -419,6 +419,102 @@ func TestPatchToolFuzzyReplaceBlockAnchorAmbiguousRequiresReplaceAll(t *testing.
 	assertFileContent(t, path, "section:\n  patched = true\ndone\n\nsection:\n  patched = true\ndone\n")
 }
 
+func TestPatchToolFuzzyReplaceContextAwareHighLineSimilarity(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := strings.Join([]string{
+		"def configure_feature():",
+		"    alpha = \"ready\"",
+		"    beta = \"stable\"",
+		"    gamma = \"done\"",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	oldString := strings.Join([]string{
+		"def config_feature():",
+		"    alpha = \"ready\"",
+		"    beta = \"steady\"",
+		"    gamma = \"done\"",
+	}, "\n")
+	newString := "def configure_feature():\n    return \"patched\""
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one context-aware replacement", out)
+	}
+	assertFileContent(t, path, "def configure_feature():\n    return \"patched\"\n")
+}
+
+func TestPatchToolFuzzyReplaceContextAwareAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := strings.Join([]string{
+		"section alpha:",
+		"  ready = true",
+		"  count = 2",
+		"done alpha",
+		"",
+		"section beta:",
+		"  ready = true",
+		"  count = 2",
+		"done beta",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	oldString := "section target:\n  ready = true\n  count = 9\ndone target"
+	newString := "section patched:\n  ok = true"
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous context-aware match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	args = `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `,"replace_all":true}`
+	out = executePatchTool(t, NewPatchTool(cfg), args)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two context-aware replacements", out)
+	}
+	assertFileContent(t, path, "section patched:\n  ok = true\n\nsection patched:\n  ok = true\n")
+}
+
+func TestPatchToolFuzzyReplaceContextAwareLowSimilarityNoMutation(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "class Worker:\n    completely = 'unrelated'\n    content = 'here'\n    nothing = 'in common'\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	oldString := "class WorkerRenamed:\n    alpha = 1\n    beta = 2\n    return alpha + beta"
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, oldString) + `,"new_string":"patched"}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("patch result = %#v, want old_string not found", out)
+	}
+	assertFileContent(t, path, original)
+}
+
 func TestPatchToolReplaceNoMatchIncludesDidYouMeanHint(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "pkg", "service.go")
@@ -432,7 +528,7 @@ func TestPatchToolReplaceNoMatchIncludesDidYouMeanHint(t *testing.T) {
 
 	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
 	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.go"}`)
-	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.go","old_string":"func BuildServce() string {","new_string":"func BuildServiceV2() string {"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.go","old_string":"func MissingWidget() error {","new_string":"func BuildServiceV2() string {"}`)
 
 	if !strings.Contains(asString(out["error"]), "old_string not found") {
 		t.Fatalf("error = %v, want old_string not found", out["error"])

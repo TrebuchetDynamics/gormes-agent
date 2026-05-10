@@ -698,6 +698,7 @@ func fuzzyPatchReplace(content, oldString, newString string, replaceAll bool) (s
 		trimmedBoundaryPatchMatches,
 		unicodeNormalizedPatchMatches,
 		blockAnchorPatchMatches,
+		contextAwarePatchMatches,
 	}
 	for _, strategy := range strategies {
 		matches := uniquePatchMatches(strategy(content, oldString))
@@ -884,6 +885,33 @@ func blockAnchorPatchMatches(content, pattern string) []patchTextMatch {
 			similarity = patchSequenceSimilarity(contentMiddle, patternMiddle)
 		}
 		if similarity < threshold {
+			continue
+		}
+		start, end := patchLineRange(contentLines, startLine, len(patternLines))
+		matches = append(matches, patchTextMatch{start: start, end: end})
+	}
+	return matches
+}
+
+func contextAwarePatchMatches(content, pattern string) []patchTextMatch {
+	contentLines := strings.Split(content, "\n")
+	patternLines := strings.Split(strings.ReplaceAll(pattern, "\r\n", "\n"), "\n")
+	if len(patternLines) == 0 || len(patternLines) > len(contentLines) {
+		return nil
+	}
+
+	requiredHighSimilarity := float64(len(patternLines)) * 0.5
+	matches := make([]patchTextMatch, 0)
+	for startLine := 0; startLine <= len(contentLines)-len(patternLines); startLine++ {
+		highSimilarity := 0
+		for i, patternLine := range patternLines {
+			patternTrimmed := strings.TrimSpace(strings.TrimSuffix(patternLine, "\r"))
+			contentTrimmed := strings.TrimSpace(strings.TrimSuffix(contentLines[startLine+i], "\r"))
+			if patchSequenceSimilarity(contentTrimmed, patternTrimmed) >= 0.80 {
+				highSimilarity++
+			}
+		}
+		if float64(highSimilarity) < requiredHighSimilarity {
 			continue
 		}
 		start, end := patchLineRange(contentLines, startLine, len(patternLines))
