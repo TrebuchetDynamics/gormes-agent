@@ -138,8 +138,20 @@ func telegramAudioErrorDiagnostic(err error) string {
 			}
 		}
 		return "stt_http_unknown"
+	case strings.Contains(msg, "groq stt http:"):
+		return "stt_groq_network_failure"
+	case strings.Contains(msg, "groq stt open audio"):
+		return "stt_groq_file_open_failure"
+	case strings.Contains(msg, "groq stt request"):
+		return "stt_groq_request_build_failure"
+	case strings.Contains(msg, "groq stt parse response"):
+		return "stt_groq_parse_failure"
+	case strings.Contains(msg, "groq stt copy audio"):
+		return "stt_groq_copy_failure"
+	case strings.Contains(msg, "groq stt close writer"):
+		return "stt_groq_writer_close_failure"
 	case strings.Contains(msg, "groq stt"):
-		return "stt_groq_local_failure"
+		return "stt_groq_form_failure"
 	case strings.Contains(msg, "openai stt"):
 		return "stt_openai_local_failure"
 	case strings.Contains(msg, "http stt"):
@@ -155,6 +167,40 @@ func telegramAudioErrorDiagnostic(err error) string {
 	default:
 		return "unclassified"
 	}
+}
+
+// telegramAudioErrorRedactedDetail returns a length-bounded, redacted
+// substring of err.Error() suitable for the WARN log. It strips anything
+// that looks like a Telegram bot token, Telegram file_id, or full Telegram
+// download URL so log forwarders cannot leak credentials. Provider-side
+// errors (Groq HTTP responses, dial errors, TLS messages) pass through.
+// The result is capped at 256 chars to avoid logging large HTML response
+// bodies.
+func telegramAudioErrorRedactedDetail(err error) string {
+	if err == nil {
+		return ""
+	}
+	raw := err.Error()
+	// Strip Telegram getFile direct URLs (contain bot tokens).
+	if i := strings.Index(raw, "https://api.telegram.org/file/bot"); i >= 0 {
+		raw = raw[:i] + "<redacted-telegram-file-url>"
+	}
+	// Strip generic bot:NNN:XXXX bot tokens that may appear in error strings.
+	if i := strings.Index(strings.ToLower(raw), "bot"); i >= 0 {
+		// Only redact when followed by a digit (token-shaped).
+		if i+3 < len(raw) && raw[i+3] >= '0' && raw[i+3] <= '9' {
+			// Find the end of the token (whitespace, quote, slash).
+			end := i + 3
+			for end < len(raw) && raw[end] != ' ' && raw[end] != '"' && raw[end] != '\'' && raw[end] != '/' {
+				end++
+			}
+			raw = raw[:i] + "<redacted-bot-token>" + raw[end:]
+		}
+	}
+	if len(raw) > 256 {
+		raw = raw[:256] + "...(truncated)"
+	}
+	return raw
 }
 
 // strconvAtoi is a thin local indirection so telegramAudioErrorDiagnostic
