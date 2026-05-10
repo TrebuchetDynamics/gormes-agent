@@ -493,7 +493,7 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 	items := []doctor.ItemInfo{
 		readinessItem("endpoint", h.Endpoint, doctor.StatusWarn),
 		authItem,
-		readinessItem("model", h.Model, doctor.StatusFail),
+		doctorModelReadinessItem(h),
 	}
 
 	status := doctor.StatusPass
@@ -534,6 +534,14 @@ func doctorCustomEndpointReadiness(cfg config.Config) doctor.CheckResult {
 		Summary: summary,
 		Items:   items,
 	}
+}
+
+func doctorModelReadinessItem(h config.HermesCfg) doctor.ItemInfo {
+	item := readinessItem("model", h.Model, doctor.StatusFail)
+	if item.Status == doctor.StatusPass && strings.TrimSpace(h.ModelResolutionSource) != "" {
+		item.Note = fmt.Sprintf("set model=%s source=%s", strings.TrimSpace(h.Model), strings.TrimSpace(h.ModelResolutionSource))
+	}
+	return item
 }
 
 func missingReadinessItemNames(items []doctor.ItemInfo) []string {

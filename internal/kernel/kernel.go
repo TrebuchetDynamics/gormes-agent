@@ -316,12 +316,14 @@ func (k *Kernel) Run(ctx context.Context) error {
 					}
 					continue
 				}
+				if k.cfg.ContextEngine != nil {
+					outgoingHistory := append([]hermes.Message(nil), k.history...)
+					_ = k.cfg.ContextEngine.OnSessionEnd(ctx, k.sessionID, outgoingHistory)
+					k.cfg.ContextEngine.OnSessionReset()
+				}
 				k.history = nil
 				k.sessionID = ""
 				k.lastError = ""
-				if k.cfg.ContextEngine != nil {
-					k.cfg.ContextEngine.OnSessionReset()
-				}
 				k.phase = PhaseIdle
 				k.emitFrame("session reset")
 				if e.ack != nil {
@@ -818,15 +820,22 @@ toolLoop:
 
 func validateTurnAdmission(admission Admission, text string, parts []hermes.MessageContentPart) error {
 	payload := text
+	hasImage := false
 	for _, part := range parts {
 		switch strings.ToLower(strings.TrimSpace(part.Type)) {
 		case "text", "input_text", "output_text":
 			payload += "\n" + part.Text
 		case "image_url", "input_image", "image":
-			payload += "\n" + part.ImageURL
+			// Image data URIs / URLs do not count toward the text admission
+			// byte limit. Image payload size is governed separately by the
+			// provider-side image_shrink_retry path; admission gates user
+			// text input only. A 243 KB JPEG becomes ~325 KB base64, which
+			// would otherwise blow past the default MaxBytes (200_000) and
+			// silently reject every photo turn from a channel.
+			hasImage = true
 		}
 	}
-	if strings.TrimSpace(payload) == "" {
+	if strings.TrimSpace(payload) == "" && !hasImage {
 		return ErrEmptyInput
 	}
 	if admission.MaxBytes > 0 && len(payload) > admission.MaxBytes {

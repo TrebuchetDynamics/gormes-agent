@@ -53,7 +53,19 @@ func TestHermesGatewayPlatformManifestCoversUpstream(t *testing.T) {
 		}
 	}
 	if len(byID) != len(upstreamPlatforms) {
-		t.Fatalf("manifest has %d entries, upstream Platform enum has %d entries: manifest=%v upstream=%v", len(byID), len(upstreamPlatforms), sortedKeys(byID), upstreamPlatforms)
+		extras := manifestEntriesOutsideUpstream(byID, upstreamPlatforms)
+		if len(extras) == 0 {
+			t.Fatalf("manifest has %d entries, upstream Platform enum has %d entries: manifest=%v upstream=%v", len(byID), len(upstreamPlatforms), sortedKeys(byID), upstreamPlatforms)
+		}
+		for _, id := range extras {
+			entry := byID[id]
+			if !strings.HasPrefix(entry.HermesSource, "plugins/platforms/") {
+				t.Fatalf("manifest extra %q must be source-backed by plugins/platforms, got %q", id, entry.HermesSource)
+			}
+			if err := assertHermesPluginPlatformSourceExists(entry.HermesSource); err != nil {
+				t.Fatalf("manifest extra %q has invalid plugin source: %v", id, err)
+			}
+		}
 	}
 
 	connectors, err := readHermesGatewayConnectorIDs()
@@ -72,6 +84,36 @@ func TestHermesGatewayPlatformManifestCoversUpstream(t *testing.T) {
 			t.Fatalf("manifest connector %q should name its connector source file, got %q", id, entry.HermesSource)
 		}
 	}
+}
+
+func manifestEntriesOutsideUpstream(byID map[string]PlatformManifestEntry, upstream []string) []string {
+	upstreamSet := map[string]bool{}
+	for _, id := range upstream {
+		upstreamSet[id] = true
+	}
+	var extras []string
+	for id := range byID {
+		if !upstreamSet[id] {
+			extras = append(extras, id)
+		}
+	}
+	sort.Strings(extras)
+	return extras
+}
+
+func assertHermesPluginPlatformSourceExists(source string) error {
+	root, err := workspaceRoot()
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(filepath.Join(root, "hermes-agent", filepath.FromSlash(source)))
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return os.ErrInvalid
+	}
+	return nil
 }
 
 func TestHermesGatewayPlatformManifestReturnsCopy(t *testing.T) {

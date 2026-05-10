@@ -21,6 +21,7 @@ require (
 	github.com/slack-go/slack v0.22.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
+	github.com/tetratelabs/wazero v1.11.0
 	github.com/yuin/goldmark v1.8.2
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sync v0.20.0
@@ -31,7 +32,7 @@ require (
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
-	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/gorilla/websocket v1.5.3
 	golang.org/x/crypto v0.50.0 // indirect
 )
 
@@ -54,6 +55,7 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jerbob92/wazero-emscripten-embind v1.5.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect

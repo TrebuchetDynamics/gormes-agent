@@ -186,6 +186,11 @@ func ClassifyProviderError(err error) ProviderErrorClassification {
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return providerError(ProviderErrorRetryable, ClassRetryable, 0, message, true)
 	}
+	if containsAny(combined, timeoutMessagePatterns) {
+		out := providerError(ProviderErrorTimeout, ClassRetryable, 0, message, true)
+		out.ShouldFallback = true
+		return out
+	}
 	return providerError(ProviderErrorUnknown, ClassUnknown, 0, message, false)
 }
 
@@ -264,6 +269,15 @@ var contextPatterns = []string{
 	"max input token",
 	"input token",
 	"exceeds the maximum number of input tokens",
+}
+
+var timeoutMessagePatterns = []string{
+	"timed out",
+	"turn timed out",
+	"request timed out",
+	"deadline exceeded",
+	"operation timed out",
+	"upstream timed out",
 }
 
 func containsAny(s string, patterns []string) bool {

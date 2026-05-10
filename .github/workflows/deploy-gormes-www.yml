@@ -77,9 +77,10 @@ jobs:
         working-directory: webpages/landing
         run: |
           grep -F 'data-site-runtime="astro-tailwind"' dist/index.html >/dev/null
-          grep -F "AI agent runtime in one Go binary." dist/index.html >/dev/null
-          grep -F "An autonomous engineering loop ports Hermes to Go, every day." dist/index.html >/dev/null
-          grep -F "HOW IT IS BUILT" dist/index.html >/dev/null
+          grep -F "Autonomously porting Python to Go, in production." dist/index.html >/dev/null
+          grep -F "How the receipt is produced." dist/index.html >/dev/null
+          grep -F "THE METHODOLOGY" dist/index.html >/dev/null
+          grep -F "30 Hermes skills curated" dist/index.html >/dev/null
           grep -F "Validated rows shipped" dist/index.html >/dev/null
           grep -F "Current scout release:" dist/index.html >/dev/null
           grep -F "Runtime-ready" dist/index.html >/dev/null
@@ -87,6 +88,10 @@ jobs:
           grep -F 'property="og:image" content="https://gormes.ai/static/social-card.png"' dist/index.html >/dev/null
           grep -F '/static/go-gopher-bear-lowpoly.png' dist/index.html >/dev/null
           ! grep -F "Gormes 0.1.0" dist/index.html >/dev/null
+          ! grep -F "AI agent runtime in one Go binary." dist/index.html >/dev/null
+          ! grep -F "An autonomous engineering loop ports Hermes to Go, every day." dist/index.html >/dev/null
+          ! grep -F "Hermes-Compatible AI Agent Runtime in One Go Binary" dist/index.html >/dev/null
+          ! grep -F "Drop-in compatible with the Hermes agent ecosystem" dist/index.html >/dev/null
           ! grep -F "Run Agents From One Go Binary." dist/index.html >/dev/null
           ! grep -F "Run AI agents from one Go binary." dist/index.html >/dev/null
           ! grep -F "Gormes runs AI agents as a single static binary." dist/index.html >/dev/null

@@ -257,6 +257,62 @@ func TestLoad_TelegramDefaults(t *testing.T) {
 	if !cfg.Telegram.FirstRunDiscovery {
 		t.Error("FirstRunDiscovery default = false, want true")
 	}
+	if cfg.Telegram.Notifications != "important" {
+		t.Errorf("Notifications default = %q, want important", cfg.Telegram.Notifications)
+	}
+}
+
+func TestLoad_TelegramNotificationsConfigAndEnv(t *testing.T) {
+	t.Run("toml all", func(t *testing.T) {
+		cfgHome := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", cfgHome)
+		t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+		dir := filepath.Join(cfgHome, "gormes")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[telegram]
+notifications = "all"
+`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.Notifications != "all" {
+			t.Errorf("Notifications = %q, want all", cfg.Telegram.Notifications)
+		}
+	})
+
+	t.Run("gormes env wins over hermes alias", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		t.Setenv("GORMES_TELEGRAM_NOTIFICATIONS", "all")
+		t.Setenv("HERMES_TELEGRAM_NOTIFICATIONS", "important")
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.Notifications != "all" {
+			t.Errorf("Notifications = %q, want GORMES env all", cfg.Telegram.Notifications)
+		}
+	})
+
+	t.Run("hermes env alias", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		t.Setenv("HERMES_TELEGRAM_NOTIFICATIONS", "all")
+
+		cfg, err := Load(nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Telegram.Notifications != "all" {
+			t.Errorf("Notifications = %q, want Hermes env alias all", cfg.Telegram.Notifications)
+		}
+	})
 }
 
 func TestLoad_TelegramRequireMentionFields(t *testing.T) {

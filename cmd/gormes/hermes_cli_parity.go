@@ -83,7 +83,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("uninstall", "hermes_cli/main.py:uninstall", "Backup/update opt-in and exclusion policy", "uninstaller remains row-backed and destructive"),
 		hermesRowCommand("acp", "hermes_cli/main.py:acp", "ACP server side", "ACP server/client command remains row-backed"),
 		hermesImplementedCommand("profile", "hermes_cli/main.py:profile", "internal/gateway profile command handler"),
-		hermesRowCommand("completion", "hermes_cli/main.py:completion", "Hermes CLI command-tree parity manifest", "shell completion command remains manifest-classified only"),
+		hermesImplementedCommand("completion", "hermes_cli/main.py:completion", "cmd/gormes completion"),
 		hermesRowCommand("dashboard", "hermes_cli/main.py:dashboard", "Dashboard theme/plugin extension status contract", "dashboard launch/status command remains row-backed"),
 		hermesRowCommand("logs", "hermes_cli/main.py:logs", "Diagnostics, backup, logs, and status CLI", "log snapshot command remains row-backed"),
 		hermesOwnedCommand("goncho", "cmd/gormes/goncho.go", "Gormes-owned Honcho-compatible local memory namespace"),
@@ -300,6 +300,11 @@ func hermesKanbanCommands() []hermesCLIParityEntry {
 		out = append(out, entry)
 	}
 
+	logEntry := hermesRowPath([]string{"kanban", "log"}, hermesCLICommand, source+":log", "Kanban worker log read command", "kanban log is implemented as a read-only selected-board worker log accessor")
+	logEntry.Status = hermesCLIImplemented
+	logEntry.Target = "cmd/gormes kanban log"
+	out = append(out, logEntry)
+
 	alias := hermesRowPath([]string{"kanban", "ls"}, hermesCLIAlias, source+":list aliases", row, "kanban ls alias remains row-backed until the CLI alias is wired")
 	alias.AliasFor = []string{"kanban", "list"}
 	out = append(out, alias)
@@ -318,7 +323,6 @@ func hermesKanbanCommands() []hermesCLIParityEntry {
 		"notify-subscribe",
 		"notify-list",
 		"notify-unsubscribe",
-		"log",
 		"runs",
 		"heartbeat",
 		"assignees",

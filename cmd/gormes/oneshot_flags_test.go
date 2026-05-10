@@ -208,6 +208,11 @@ func setupOneshotFlagTestEnv(t *testing.T) {
 	t.Setenv("GORMES_API_KEY", "")
 	t.Setenv("GORMES_INFERENCE_MODEL", "")
 	t.Setenv("GORMES_INFERENCE_PROVIDER", "")
+	t.Setenv("GORMES_KANBAN_DB", "")
+	t.Setenv("GORMES_KANBAN_HOME", "")
+	t.Setenv("GORMES_KANBAN_TASK", "")
+	t.Setenv("HERMES_KANBAN_BOARD", "")
+	t.Setenv("HERMES_KANBAN_DB", "")
 }
 
 func writeOneshotFlagConfig(t *testing.T, data []byte) {

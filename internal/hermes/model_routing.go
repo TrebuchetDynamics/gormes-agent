@@ -26,8 +26,34 @@ const (
 )
 
 type ModelRoute struct {
-	Provider string
-	Model    string
+	Provider       string
+	Model          string
+	BaseURL        string
+	APIMode        string
+	ExplicitAPIKey string
+	KeyEnv         string
+	APIKeyEnv      string
+}
+
+func (r ModelRoute) ResolveFallbackCredential(lookupEnv func(string) string) ModelRoute {
+	r.ExplicitAPIKey = strings.TrimSpace(r.ExplicitAPIKey)
+	if r.ExplicitAPIKey != "" {
+		return r
+	}
+	if lookupEnv == nil {
+		lookupEnv = func(string) string { return "" }
+	}
+	for _, envName := range []string{r.KeyEnv, r.APIKeyEnv} {
+		envName = strings.TrimSpace(envName)
+		if envName == "" {
+			continue
+		}
+		if value := strings.TrimSpace(lookupEnv(envName)); value != "" {
+			r.ExplicitAPIKey = value
+			return r
+		}
+	}
+	return r
 }
 
 type ProviderAvailability struct {
@@ -63,25 +89,25 @@ func normalizeFallbackRoutes(value any) []ModelRoute {
 	case FallbackModelPolicy:
 		return normalizeFallbackRoutes(v.Routes)
 	case ModelRoute:
-		if route, ok := normalizeFallbackRoute(v.Provider, v.Model); ok {
+		if route, ok := normalizeFallbackRoute(v); ok {
 			return []ModelRoute{route}
 		}
 		return nil
 	case []ModelRoute:
 		routes := make([]ModelRoute, 0, len(v))
 		for _, route := range v {
-			if normalized, ok := normalizeFallbackRoute(route.Provider, route.Model); ok {
+			if normalized, ok := normalizeFallbackRoute(route); ok {
 				routes = append(routes, normalized)
 			}
 		}
 		return routes
 	case map[string]any:
-		if route, ok := normalizeFallbackRoute(stringFromAny(v["provider"]), stringFromAny(v["model"])); ok {
+		if route, ok := normalizeFallbackRoute(modelRouteFromAnyMap(v)); ok {
 			return []ModelRoute{route}
 		}
 		return nil
 	case map[string]string:
-		if route, ok := normalizeFallbackRoute(v["provider"], v["model"]); ok {
+		if route, ok := normalizeFallbackRoute(modelRouteFromStringMap(v)); ok {
 			return []ModelRoute{route}
 		}
 		return nil
@@ -108,15 +134,42 @@ func normalizeFallbackRoutes(value any) []ModelRoute {
 	}
 }
 
-func normalizeFallbackRoute(provider, model string) (ModelRoute, bool) {
-	route := ModelRoute{
-		Provider: normalizeModelContextProvider(provider),
-		Model:    normalizeModelContextText(model),
-	}
+func normalizeFallbackRoute(route ModelRoute) (ModelRoute, bool) {
+	route.Provider = normalizeModelContextProvider(route.Provider)
+	route.Model = normalizeModelContextText(route.Model)
+	route.BaseURL = strings.TrimSpace(route.BaseURL)
+	route.APIMode = strings.TrimSpace(route.APIMode)
+	route.ExplicitAPIKey = strings.TrimSpace(route.ExplicitAPIKey)
+	route.KeyEnv = strings.TrimSpace(route.KeyEnv)
+	route.APIKeyEnv = strings.TrimSpace(route.APIKeyEnv)
 	if route.Provider == "" || route.Model == "" {
 		return ModelRoute{}, false
 	}
 	return route, true
+}
+
+func modelRouteFromAnyMap(v map[string]any) ModelRoute {
+	return ModelRoute{
+		Provider:       stringFromAny(v["provider"]),
+		Model:          stringFromAny(v["model"]),
+		BaseURL:        stringFromAny(v["base_url"]),
+		APIMode:        stringFromAny(v["api_mode"]),
+		ExplicitAPIKey: stringFromAny(v["api_key"]),
+		KeyEnv:         stringFromAny(v["key_env"]),
+		APIKeyEnv:      stringFromAny(v["api_key_env"]),
+	}
+}
+
+func modelRouteFromStringMap(v map[string]string) ModelRoute {
+	return ModelRoute{
+		Provider:       v["provider"],
+		Model:          v["model"],
+		BaseURL:        v["base_url"],
+		APIMode:        v["api_mode"],
+		ExplicitAPIKey: v["api_key"],
+		KeyEnv:         v["key_env"],
+		APIKeyEnv:      v["api_key_env"],
+	}
 }
 
 func stringFromAny(value any) string {

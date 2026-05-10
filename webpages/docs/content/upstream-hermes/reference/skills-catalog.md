@@ -118,16 +118,12 @@ If a skill is missing from this list but present in the repo, the catalog is reg
 | Skill | Description | Path |
 |-------|-------------|------|
 | [`audiocraft-audio-generation`](../../user-guide/skills/bundled/mlops/mlops-models-audiocraft/) | AudioCraft: MusicGen text-to-music, AudioGen text-to-sound. | `mlops/models/audiocraft` |
-| [`axolotl`](../../user-guide/skills/bundled/mlops/mlops-training-axolotl/) | Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO). | `mlops/training/axolotl` |
 | [`dspy`](../../user-guide/skills/bundled/mlops/mlops-research-dspy/) | DSPy: declarative LM programs, auto-optimize prompts, RAG. | `mlops/research/dspy` |
 | [`huggingface-hub`](../../user-guide/skills/bundled/mlops/mlops-huggingface-hub/) | HuggingFace hf CLI: search/download/upload models, datasets. | `mlops/huggingface-hub` |
 | [`llama-cpp`](../../user-guide/skills/bundled/mlops/mlops-inference-llama-cpp/) | llama.cpp local GGUF inference + HF Hub model discovery. | `mlops/inference/llama-cpp` |
 | [`evaluating-llms-harness`](../../user-guide/skills/bundled/mlops/mlops-evaluation-lm-evaluation-harness/) | lm-eval-harness: benchmark LLMs (MMLU, GSM8K, etc.). | `mlops/evaluation/lm-evaluation-harness` |
 | [`obliteratus`](../../user-guide/skills/bundled/mlops/mlops-inference-obliteratus/) | OBLITERATUS: abliterate LLM refusals (diff-in-means). | `mlops/inference/obliteratus` |
-| [`outlines`](../../user-guide/skills/bundled/mlops/mlops-inference-outlines/) | Outlines: structured JSON/regex/Pydantic LLM generation. | `mlops/inference/outlines` |
 | [`segment-anything-model`](../../user-guide/skills/bundled/mlops/mlops-models-segment-anything/) | SAM: zero-shot image segmentation via points, boxes, masks. | `mlops/models/segment-anything` |
-| [`fine-tuning-with-trl`](../../user-guide/skills/bundled/mlops/mlops-training-trl-fine-tuning/) | TRL: SFT, DPO, PPO, GRPO, reward modeling for LLM RLHF. | `mlops/training/trl-fine-tuning` |
-| [`unsloth`](../../user-guide/skills/bundled/mlops/mlops-training-unsloth/) | Unsloth: 2-5x faster LoRA/QLoRA fine-tuning, less VRAM. | `mlops/training/unsloth` |
 | [`serving-llms-vllm`](../../user-guide/skills/bundled/mlops/mlops-inference-vllm/) | vLLM: high-throughput LLM serving, OpenAI API, quantization. | `mlops/inference/vllm` |
 | [`weights-and-biases`](../../user-guide/skills/bundled/mlops/mlops-evaluation-weights-and-biases/) | W&B: log ML experiments, sweeps, model registry, dashboards. | `mlops/evaluation/weights-and-biases` |
 

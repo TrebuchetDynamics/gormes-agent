@@ -1,7 +1,11 @@
 package hermes
 
 import (
+	"bufio"
+	"context"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -122,6 +126,80 @@ func TestOpenRouterAttributionHeaders(t *testing.T) {
 		if got := plainReq.Header.Get(header); got != "" {
 			t.Fatalf("%s = %q, want no OpenRouter attribution for non-OpenRouter route", header, got)
 		}
+	}
+}
+
+func TestOpenRouterGrokPromptCacheAffinityHeader(t *testing.T) {
+	tests := []struct {
+		name      string
+		provider  string
+		model     string
+		sessionID string
+		want      string
+	}{
+		{
+			name:      "x-ai grok model gets session affinity",
+			provider:  "openrouter",
+			model:     "x-ai/grok-4",
+			sessionID: "sess-abc123",
+			want:      "sess-abc123",
+		},
+		{
+			name:      "xai grok model gets session affinity",
+			provider:  "openrouter",
+			model:     "xai/grok-3",
+			sessionID: "sess-xyz",
+			want:      "sess-xyz",
+		},
+		{
+			name:      "non grok model omits header",
+			provider:  "openrouter",
+			model:     "anthropic/claude-sonnet-4.6",
+			sessionID: "sess-abc123",
+		},
+		{
+			name:     "grok without session omits header",
+			provider: "openrouter",
+			model:    "x-ai/grok-4",
+		},
+		{
+			name:      "non openrouter route omits header",
+			provider:  "custom",
+			model:     "x-ai/grok-4",
+			sessionID: "sess-abc123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured http.Header
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				captured = r.Header.Clone()
+				w.Header().Set("Content-Type", "text/event-stream")
+				w.WriteHeader(http.StatusOK)
+				bw := bufio.NewWriter(w)
+				_, _ = fmt.Fprint(bw, "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n")
+				_, _ = fmt.Fprint(bw, "data: [DONE]\n\n")
+				_ = bw.Flush()
+			}))
+			defer srv.Close()
+
+			baseURL := srv.URL
+			client := NewHTTPClientWithProvider(baseURL, "test-key", tt.provider)
+			stream, err := client.OpenStream(context.Background(), ChatRequest{
+				Model:     tt.model,
+				SessionID: tt.sessionID,
+				Messages:  []Message{{Role: "user", Content: "hi"}},
+			})
+			if err != nil {
+				t.Fatalf("OpenStream() error = %v", err)
+			}
+			defer stream.Close()
+
+			if got := captured.Get("x-grok-conv-id"); got != tt.want {
+				t.Fatalf("x-grok-conv-id = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

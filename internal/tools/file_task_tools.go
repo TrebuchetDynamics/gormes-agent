@@ -43,10 +43,27 @@ type FileTaskToolConfig struct {
 }
 
 type structuredLintResult struct {
+	Status  string `json:"status,omitempty"`
 	Success bool   `json:"success"`
 	Output  string `json:"output,omitempty"`
 	Message string `json:"message,omitempty"`
 }
+
+type shellLintSpec struct {
+	command string
+	args    []string
+}
+
+type fileLintCommandResult struct {
+	Output   string
+	ExitCode int
+	Err      error
+}
+
+var (
+	fileLintLookPath   = exec.LookPath
+	fileLintRunCommand = runFileLintCommand
+)
 
 type ReadFileToolConfig = FileTaskToolConfig
 
@@ -527,7 +544,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 		return marshalToolPayload(map[string]any{"path": rel, "error": ErrFileReadGuardStatusContent.Error()})
 	}
 	var preContent *string
-	if supportsStructuredLint(rel) {
+	if supportsPostEditLint(rel) {
 		if raw, err := os.ReadFile(resolved); err == nil {
 			pre := string(raw)
 			preContent = &pre
@@ -545,7 +562,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 		"bytes_written": len([]byte(in.Content)),
 		"status":        "ok",
 	}
-	if lint, ok := structuredLintDelta(rel, in.Content, preContent); ok {
+	if lint, ok := postEditLintDelta(resolved, rel, in.Content, preContent); ok {
 		payload["lint"] = lint
 	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
@@ -641,7 +658,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		"replacements": replacements,
 		"status":       "ok",
 	}
-	if lint, ok := structuredLintDelta(rel, updated, &content); ok {
+	if lint, ok := postEditLintDelta(resolved, rel, updated, &content); ok {
 		payload["lint"] = lint
 	}
 	if statePayload := fileStatePayload(state); statePayload != nil {
@@ -684,7 +701,7 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 			}
 			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			created = append(created, action.rel)
-			if lint, ok := structuredLintDelta(action.rel, action.content, nil); ok {
+			if lint, ok := postEditLintDelta(action.abs, action.rel, action.content, nil); ok {
 				lintResults[action.rel] = lint
 			}
 		case v4aOperationUpdate:
@@ -693,7 +710,7 @@ func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
 			}
 			_, _ = registry.record(action.root, t.cfg.TaskID, action.cwd, action.rel, action.abs)
 			modified = append(modified, action.rel)
-			if lint, ok := structuredLintDelta(action.rel, action.content, action.preContent); ok {
+			if lint, ok := postEditLintDelta(action.abs, action.rel, action.content, action.preContent); ok {
 				lintResults[action.rel] = lint
 			}
 		case v4aOperationDelete:
@@ -1050,6 +1067,21 @@ func supportsStructuredLint(path string) bool {
 	}
 }
 
+func supportsPostEditLint(path string) bool {
+	if supportsStructuredLint(path) {
+		return true
+	}
+	_, ok := shellLintSpecForPath(path)
+	return ok
+}
+
+func postEditLintDelta(absPath, relPath, postContent string, preContent *string) (structuredLintResult, bool) {
+	if lint, ok := structuredLintDelta(relPath, postContent, preContent); ok {
+		return lint, true
+	}
+	return shellLintDelta(absPath, relPath)
+}
+
 func structuredLintDelta(path, postContent string, preContent *string) (structuredLintResult, bool) {
 	post, ok := runStructuredLint(path, postContent)
 	if !ok {
@@ -1079,6 +1111,77 @@ func structuredLintDelta(path, postContent string, preContent *string) (structur
 	}
 	post.Output = boundStructuredLintOutput("New lint errors introduced by this edit (pre-existing errors filtered out):\n" + strings.Join(newLines, "\n"))
 	return post, true
+}
+
+func shellLintDelta(absPath, relPath string) (structuredLintResult, bool) {
+	spec, ok := shellLintSpecForPath(relPath)
+	if !ok {
+		return structuredLintResult{}, false
+	}
+	binary, err := fileLintLookPath(spec.command)
+	if err != nil {
+		return structuredLintResult{
+			Status:  "skipped",
+			Success: false,
+			Message: spec.command + " not available",
+		}, true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	result := fileLintRunCommand(ctx, binary, spec.argsFor(absPath)...)
+	output := strings.TrimSpace(result.Output)
+	if output == "" && result.Err != nil {
+		output = result.Err.Error()
+	}
+	if result.ExitCode != 0 || result.Err != nil {
+		return structuredLintResult{
+			Status:  "error",
+			Success: false,
+			Output:  boundStructuredLintOutput(output),
+		}, true
+	}
+	return structuredLintResult{Status: "ok", Success: true}, true
+}
+
+func shellLintSpecForPath(path string) (shellLintSpec, bool) {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".js":
+		return shellLintSpec{command: "node", args: []string{"--check"}}, true
+	case ".ts":
+		return shellLintSpec{command: "npx", args: []string{"tsc", "--noEmit"}}, true
+	case ".go":
+		return shellLintSpec{command: "go", args: []string{"vet"}}, true
+	case ".rs":
+		return shellLintSpec{command: "rustfmt", args: []string{"--check"}}, true
+	default:
+		return shellLintSpec{}, false
+	}
+}
+
+func (s shellLintSpec) argsFor(path string) []string {
+	args := make([]string, 0, len(s.args)+1)
+	args = append(args, s.args...)
+	args = append(args, path)
+	return args
+}
+
+func runFileLintCommand(ctx context.Context, name string, args ...string) fileLintCommandResult {
+	cmd := exec.CommandContext(ctx, name, args...)
+	out, err := cmd.CombinedOutput()
+	result := fileLintCommandResult{Output: string(out)}
+	if err == nil {
+		return result
+	}
+	result.Err = err
+	result.ExitCode = 1
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		result.ExitCode = exitErr.ExitCode()
+	}
+	if ctx.Err() != nil {
+		result.Err = ctx.Err()
+	}
+	return result
 }
 
 func runStructuredLint(path, content string) (structuredLintResult, bool) {

@@ -93,6 +93,53 @@ func TestConfigWriter_WriteTOMLValueDottedSectionRoutesToTable(t *testing.T) {
 	}
 }
 
+func TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte(`# operator-selected defaults
+[hermes] # primary provider section
+# keep the model rationale near the value
+model = "old-model" # inline model note
+endpoint = "https://example.invalid/v1"
+
+[display]
+skin = "default"
+system_prompt = "你好，保持中文输出"
+`), 0o600); err != nil {
+		t.Fatalf("write seed config: %v", err)
+	}
+
+	if err := WriteTOMLValue(path, "hermes.model", "new-model"); err != nil {
+		t.Fatalf("WriteTOMLValue: %v", err)
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	got := string(body)
+	for _, want := range []string{
+		"# operator-selected defaults",
+		"[hermes] # primary provider section",
+		"# keep the model rationale near the value",
+		"# inline model note",
+		"system_prompt = \"你好，保持中文输出\"",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("config.toml lost %q after write:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "old-model") {
+		t.Fatalf("config.toml kept old model after update:\n%s", got)
+	}
+	if !strings.Contains(got, `model = "new-model"`) && !strings.Contains(got, `model = 'new-model'`) {
+		t.Fatalf("config.toml missing updated model:\n%s", got)
+	}
+	if strings.Contains(got, `\u4f60`) {
+		t.Fatalf("config.toml escaped readable Unicode after unrelated write:\n%s", got)
+	}
+}
+
 // TestConfigWriter_WriteTOMLValueAcceptsUpdatesSection proves
 // `gormes config set updates.pre_update_backup true` and
 // `... updates.backup_keep 7` round-trip through both the writer (TOML

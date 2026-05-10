@@ -209,7 +209,7 @@ func PluginMetadata() PluginInfo {
 		RequiredEnv:      []string{"GOOGLE_CHAT_PROJECT_ID", "GOOGLE_CHAT_SUBSCRIPTION_NAME", "GOOGLE_CHAT_SERVICE_ACCOUNT_JSON"},
 		AllowedUsersEnv:  "GOOGLE_CHAT_ALLOWED_USERS",
 		AllowAllEnv:      "GOOGLE_CHAT_ALLOW_ALL_USERS",
-		InstallHint:      "pip install 'hermes-agent[google_chat]'",
+		InstallHint:      "pip install google-cloud-pubsub google-api-python-client google-auth google-auth-oauthlib",
 		MaxMessageLength: MaxMessageLength,
 		SetupAvailable:   true,
 		PlatformHint:     "You are on Google Chat. Keep responses concise and use the supported markdown subset.",

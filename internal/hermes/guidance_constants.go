@@ -11,7 +11,7 @@
 // wiring. Wiring slices that compose these blocks into the system prompt are
 // tracked separately in `docs/content/building-gormes/architecture_plan/progress.json`.
 //
-// Upstream pin: hermes-agent commit b816fd4e26d6c7260814f53d5ba7c7eb065548c7
+// Upstream pin: hermes-agent commit e612c3d6f00624868ce3f73bb6beaacfea36337f
 // (./hermes-agent/agent/prompt_builder.py). Byte-equivalence with the
 // upstream constants is enforced by guidance_constants_test.go; if Hermes
 // changes a constant, the test fails loudly so a follow-up port row can land
@@ -30,6 +30,9 @@ const MemoryGuidance = "You have persistent memory across sessions. Save durable
 	"User preferences and recurring corrections matter more than procedural task details.\n" +
 	"Do NOT save task progress, session outcomes, completed-work logs, or temporary TODO " +
 	"state to memory; use session_search to recall those from past transcripts. " +
+	"Specifically: do not record PR numbers, issue numbers, commit SHAs, 'fixed bug X', " +
+	"'submitted PR Y', 'Phase N done', file counts, or any artifact that will be stale " +
+	"in 7 days. If a fact will be stale in a week, it does not belong in memory. " +
 	"If you've discovered a new way to do something, solved a problem that could be " +
 	"necessary later, save it as a skill with the skill tool.\n" +
 	"Write memories as declarative facts, not instructions to yourself. " +

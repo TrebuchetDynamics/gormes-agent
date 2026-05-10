@@ -1,21 +1,21 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "c8b82e021",
+    "commit": "998768b00",
     "go_version": "1.26+",
     "last_measured": "2026-05-09",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 29311138,
-    "size_mb": "28.0",
+    "size_bytes": 44261163,
+    "size_mb": "42.2",
     "stripped": true
   },
   "code": {
-    "dependencies": 145,
-    "go_files": 797,
-    "go_lines": 206539,
-    "test_count": 5408
+    "dependencies": 149,
+    "go_files": 804,
+    "go_lines": 208742,
+    "test_count": 5508
   },
   "history": [
     {

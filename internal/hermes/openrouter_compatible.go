@@ -3,6 +3,7 @@ package hermes
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -104,12 +105,56 @@ func ApplyOpenRouterAttributionHeaders(req *http.Request, provider, baseURL stri
 	}
 }
 
+func ApplyOpenRouterGrokPromptCacheAffinityHeader(req *http.Request, provider, baseURL, model, sessionID string) {
+	if req == nil || !IsOpenRouterRoute(provider, baseURL) {
+		return
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" || !openRouterModelIsGrok(model) {
+		return
+	}
+	req.Header.Set("x-grok-conv-id", sessionID)
+}
+
 func OpenRouterAttributionHeaders() map[string]string {
 	return map[string]string{
 		"HTTP-Referer":            "https://gormes.ai",
 		"X-OpenRouter-Title":      "Gormes Agent",
 		"X-OpenRouter-Categories": "productivity,cli-agent",
 	}
+}
+
+func openRouterModelIsGrok(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	return strings.HasPrefix(model, "x-ai/grok-") || strings.HasPrefix(model, "xai/grok-")
+}
+
+func buildOpenRouterParetoExtraBody(provider, baseURL, model, score string) map[string]any {
+	if !IsOpenRouterRoute(provider, baseURL) || strings.TrimSpace(model) != "openrouter/pareto-code" {
+		return nil
+	}
+	normalized, ok := normalizeOpenRouterParetoScore(score)
+	if !ok {
+		return nil
+	}
+	return map[string]any{
+		"plugins": []map[string]any{{
+			"id":               "pareto-router",
+			"min_coding_score": normalized,
+		}},
+	}
+}
+
+func normalizeOpenRouterParetoScore(raw string) (float64, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, false
+	}
+	score, err := strconv.ParseFloat(raw, 64)
+	if err != nil || math.IsNaN(score) || math.IsInf(score, 0) || score < 0 || score > 1 {
+		return 0, false
+	}
+	return score, true
 }
 
 func ParseOpenRouterModelRegistry(data []byte, version string) ([]ModelRegistryEntry, error) {

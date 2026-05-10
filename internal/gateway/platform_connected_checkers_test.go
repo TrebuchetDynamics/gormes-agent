@@ -43,6 +43,7 @@ func TestPlatformConnectedCheckersReturnTrueForSyntheticConfig(t *testing.T) {
 		{ID: "qqbot", Enabled: true, Extra: map[string]string{"app_id": "app", "client_secret": "secret"}},
 		{ID: "yuanbao", Enabled: true, Extra: map[string]string{"app_id": "app", "app_secret": "secret"}},
 		{ID: "dingtalk", Enabled: true, Extra: map[string]string{"client_id": "id", "client_secret": "secret"}},
+		{ID: "teams", Enabled: true, Extra: map[string]string{"client_id": "id", "client_secret": "secret", "tenant_id": "tenant"}},
 	}
 
 	for _, tc := range cases {

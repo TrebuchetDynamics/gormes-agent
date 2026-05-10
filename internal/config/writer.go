@@ -121,6 +121,15 @@ func WriteTOMLValue(path, key, value string) error {
 	if err != nil {
 		return fmt.Errorf("config: %s: %w", key, err)
 	}
+
+	if body, readErr := os.ReadFile(path); readErr == nil && len(body) > 0 {
+		if updated, ok, preserveErr := updateTOMLValuePreservingLayout(body, section, fields, coerced); preserveErr == nil && ok {
+			return writeTOMLRawAtomic(path, updated)
+		}
+	} else if readErr != nil && !os.IsNotExist(readErr) {
+		return fmt.Errorf("config: read %s: %w", path, readErr)
+	}
+
 	setNestedTOMLValue(table, fields, coerced)
 	doc[section] = table
 	return writeTOMLDoc(path, doc)
@@ -241,13 +250,17 @@ func writeTOMLDoc(path string, doc map[string]any) error {
 // rename so a partially-written config can never replace the previous one.
 // The dotenv parent dir is created with 0o700 and the TOML file with 0o600.
 func writeTOMLAtomic(path string, doc map[string]any) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("config: mkdir %s: %w", dir, err)
-	}
 	body, err := toml.Marshal(doc)
 	if err != nil {
 		return fmt.Errorf("config: marshal toml: %w", err)
+	}
+	return writeTOMLRawAtomic(path, body)
+}
+
+func writeTOMLRawAtomic(path string, body []byte) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("config: mkdir %s: %w", dir, err)
 	}
 	tmp, err := os.CreateTemp(dir, ".config.toml.*")
 	if err != nil {
@@ -273,6 +286,293 @@ func writeTOMLAtomic(path string, doc map[string]any) error {
 		return fmt.Errorf("config: rename temp -> %s: %w", path, err)
 	}
 	return nil
+}
+
+func updateTOMLValuePreservingLayout(body []byte, section string, fields []string, value any) ([]byte, bool, error) {
+	rendered, err := renderTOMLValue(value)
+	if err != nil {
+		return nil, false, err
+	}
+	targetPath := append([]string{section}, fields...)
+	spans := splitTextLineSpans(body)
+	currentTable := []string{}
+	for _, span := range spans {
+		line := string(body[span.start:span.textEnd])
+		if table, ok := parseTOMLTableHeader(line); ok {
+			currentTable = table
+			continue
+		}
+		keyPath, valueStart, valueEnd, ok := parseTOMLAssignment(line)
+		if !ok {
+			continue
+		}
+		fullPath := append(append([]string{}, currentTable...), keyPath...)
+		if !sameTOMLPath(fullPath, targetPath) {
+			continue
+		}
+		updated := make([]byte, 0, len(body)+len(rendered))
+		updated = append(updated, body[:span.start+valueStart]...)
+		updated = append(updated, rendered...)
+		updated = append(updated, body[span.start+valueEnd:]...)
+		if err := validateTOMLBytes(updated); err != nil {
+			return nil, false, err
+		}
+		return updated, true, nil
+	}
+
+	updated, err := insertTOMLValuePreservingLayout(body, section, fields, rendered, spans)
+	if err != nil {
+		return nil, false, err
+	}
+	return updated, true, nil
+}
+
+func renderTOMLValue(value any) ([]byte, error) {
+	body, err := toml.Marshal(map[string]any{"value": value})
+	if err != nil {
+		return nil, fmt.Errorf("config: marshal toml value: %w", err)
+	}
+	line := strings.TrimSpace(string(body))
+	eq := strings.IndexByte(line, '=')
+	if eq < 0 {
+		return nil, fmt.Errorf("config: marshal toml value: missing assignment")
+	}
+	return []byte(strings.TrimSpace(line[eq+1:])), nil
+}
+
+func insertTOMLValuePreservingLayout(body []byte, section string, fields []string, rendered []byte, spans []textLineSpan) ([]byte, error) {
+	tablePath := append([]string{section}, fields[:len(fields)-1]...)
+	key := fields[len(fields)-1]
+	insertLine := []byte(key + " = " + string(rendered) + "\n")
+
+	insertAt := -1
+	for i, span := range spans {
+		line := string(body[span.start:span.textEnd])
+		table, ok := parseTOMLTableHeader(line)
+		if !ok {
+			continue
+		}
+		if sameTOMLPath(table, tablePath) {
+			insertAt = len(body)
+			for _, next := range spans[i+1:] {
+				nextLine := string(body[next.start:next.textEnd])
+				if _, tableOK := parseTOMLTableHeader(nextLine); tableOK {
+					insertAt = next.start
+					break
+				}
+			}
+			break
+		}
+	}
+
+	var updated []byte
+	if insertAt >= 0 {
+		updated = make([]byte, 0, len(body)+len(insertLine))
+		updated = append(updated, body[:insertAt]...)
+		if insertAt > 0 && body[insertAt-1] != '\n' {
+			updated = append(updated, '\n')
+		}
+		updated = append(updated, insertLine...)
+		updated = append(updated, body[insertAt:]...)
+	} else {
+		header := []byte("[" + strings.Join(tablePath, ".") + "]\n")
+		updated = append([]byte{}, body...)
+		if len(updated) > 0 && updated[len(updated)-1] != '\n' {
+			updated = append(updated, '\n')
+		}
+		if len(updated) > 0 && !bytes.HasSuffix(updated, []byte("\n\n")) {
+			updated = append(updated, '\n')
+		}
+		updated = append(updated, header...)
+		updated = append(updated, insertLine...)
+	}
+	if err := validateTOMLBytes(updated); err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+func validateTOMLBytes(body []byte) error {
+	var doc map[string]any
+	if err := toml.Unmarshal(body, &doc); err != nil {
+		return fmt.Errorf("config: generated invalid TOML: %w", err)
+	}
+	return nil
+}
+
+type textLineSpan struct {
+	start   int
+	textEnd int
+}
+
+func splitTextLineSpans(body []byte) []textLineSpan {
+	spans := []textLineSpan{}
+	for start := 0; start < len(body); {
+		end := start
+		for end < len(body) && body[end] != '\n' {
+			end++
+		}
+		textEnd := end
+		if textEnd > start && body[textEnd-1] == '\r' {
+			textEnd--
+		}
+		if end < len(body) {
+			end++
+		}
+		spans = append(spans, textLineSpan{start: start, textEnd: textEnd})
+		start = end
+	}
+	return spans
+}
+
+func parseTOMLTableHeader(line string) ([]string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "[[") {
+		return nil, false
+	}
+	close := strings.IndexByte(trimmed, ']')
+	if close < 0 {
+		return nil, false
+	}
+	raw := strings.TrimSpace(trimmed[1:close])
+	if raw == "" {
+		return nil, false
+	}
+	return splitTOMLPath(raw), true
+}
+
+func parseTOMLAssignment(line string) (keyPath []string, valueStart int, valueEnd int, ok bool) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "[") {
+		return nil, 0, 0, false
+	}
+	eq := findTOMLTokenOutsideQuotes(line, '=')
+	if eq < 0 {
+		return nil, 0, 0, false
+	}
+	key := strings.TrimSpace(line[:eq])
+	if key == "" {
+		return nil, 0, 0, false
+	}
+	valueStart = eq + 1
+	for valueStart < len(line) && (line[valueStart] == ' ' || line[valueStart] == '\t') {
+		valueStart++
+	}
+	comment := findTOMLCommentStart(line[valueStart:])
+	if comment >= 0 {
+		valueEnd = valueStart + comment
+	} else {
+		valueEnd = len(line)
+	}
+	for valueEnd > valueStart && (line[valueEnd-1] == ' ' || line[valueEnd-1] == '\t') {
+		valueEnd--
+	}
+	return splitTOMLPath(key), valueStart, valueEnd, true
+}
+
+func splitTOMLPath(path string) []string {
+	parts := strings.Split(path, ".")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		part = strings.Trim(part, `"'`)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func sameTOMLPath(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func findTOMLTokenOutsideQuotes(line string, token byte) int {
+	inSingle := false
+	inDouble := false
+	escaped := false
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		if inDouble {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == '"' {
+				inDouble = false
+			}
+			continue
+		}
+		if inSingle {
+			if c == '\'' {
+				inSingle = false
+			}
+			continue
+		}
+		switch c {
+		case '#':
+			return -1
+		case '\'':
+			inSingle = true
+		case '"':
+			inDouble = true
+		default:
+			if c == token {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func findTOMLCommentStart(s string) int {
+	inSingle := false
+	inDouble := false
+	escaped := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if inDouble {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if c == '\\' {
+				escaped = true
+				continue
+			}
+			if c == '"' {
+				inDouble = false
+			}
+			continue
+		}
+		if inSingle {
+			if c == '\'' {
+				inSingle = false
+			}
+			continue
+		}
+		switch c {
+		case '\'':
+			inSingle = true
+		case '"':
+			inDouble = true
+		case '#':
+			return i
+		}
+	}
+	return -1
 }
 
 // EnsureConfigFile creates an empty TOML file at path stamped with the

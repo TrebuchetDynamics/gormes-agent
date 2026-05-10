@@ -94,6 +94,73 @@ func TestGatewayWindowsScheduledTaskLifecycleCommands(t *testing.T) {
 	}
 }
 
+func TestGatewayWindowsScheduledTaskCommandLineMarksDetached(t *testing.T) {
+	got := windowsScheduledTaskCommandLine(gatewayWindowsScheduledTaskConfig{
+		Command: `C:\Program Files\Gormes\gormes.exe`,
+		Args:    []string{"gateway"},
+	})
+	for _, want := range []string{
+		`cmd.exe /d /c`,
+		`set "GORMES_GATEWAY_DETACHED=1"&&`,
+		`"C:\Program Files\Gormes\gormes.exe"`,
+		`"gateway"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("scheduled task command line missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestGatewayWindowsDetachedCtrlCSignalPlan(t *testing.T) {
+	t.Run("foreground windows keeps interrupt subscribed", func(t *testing.T) {
+		restoreGOOS := gatewayRuntimeGOOSForTest(t, "windows")
+		defer restoreGOOS()
+		t.Setenv("GORMES_GATEWAY_DETACHED", "0")
+
+		signals, absorbInterrupt := gatewayShutdownSignalPlan()
+
+		if absorbInterrupt {
+			t.Fatal("foreground Windows gateway must not absorb Ctrl+C")
+		}
+		if !hasGatewaySignal(signals, os.Interrupt) {
+			t.Fatalf("foreground Windows signals = %v, want os.Interrupt", signals)
+		}
+	})
+
+	t.Run("detached windows absorbs interrupt", func(t *testing.T) {
+		restoreGOOS := gatewayRuntimeGOOSForTest(t, "windows")
+		defer restoreGOOS()
+		t.Setenv("GORMES_GATEWAY_DETACHED", "1")
+
+		signals, absorbInterrupt := gatewayShutdownSignalPlan()
+
+		if !absorbInterrupt {
+			t.Fatal("detached Windows gateway must absorb Ctrl+C broadcasts")
+		}
+		if hasGatewaySignal(signals, os.Interrupt) {
+			t.Fatalf("detached Windows signals = %v, must omit os.Interrupt", signals)
+		}
+		if !hasGatewaySignal(signals, syscall.SIGTERM) || !hasGatewaySignal(signals, syscall.SIGHUP) {
+			t.Fatalf("detached Windows signals = %v, want SIGTERM and SIGHUP", signals)
+		}
+	})
+
+	t.Run("non-windows keeps interrupt even with detached env", func(t *testing.T) {
+		restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
+		defer restoreGOOS()
+		t.Setenv("GORMES_GATEWAY_DETACHED", "1")
+
+		signals, absorbInterrupt := gatewayShutdownSignalPlan()
+
+		if absorbInterrupt {
+			t.Fatal("non-Windows gateway must not use the Windows detached interrupt absorber")
+		}
+		if !hasGatewaySignal(signals, os.Interrupt) {
+			t.Fatalf("non-Windows signals = %v, want os.Interrupt", signals)
+		}
+	})
+}
+
 func TestGatewayStopSignalsValidatedLiveRuntime(t *testing.T) {
 	setupGatewayStatusTestEnv(t)
 	store := &fakeGatewayStopRuntimeStore{
@@ -843,6 +910,15 @@ func gatewayPlannedStopConsumerForTest(t *testing.T, consume func(context.Contex
 	return func() {
 		consumeGatewayPlannedStopMarkerForSelf = previous
 	}
+}
+
+func hasGatewaySignal(signals []os.Signal, want os.Signal) bool {
+	for _, sig := range signals {
+		if sig == want {
+			return true
+		}
+	}
+	return false
 }
 
 func gatewayRuntimeGOOSForTest(t *testing.T, goos string) func() {

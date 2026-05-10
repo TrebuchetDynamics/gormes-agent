@@ -50,8 +50,9 @@ type ChatRequest struct {
 }
 
 type RequestOverrides struct {
-	ServiceTier string
-	Speed       string
+	ServiceTier              string
+	Speed                    string
+	OpenRouterMinCodingScore string
 }
 
 type ReasoningEffort string

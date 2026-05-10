@@ -15,6 +15,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 const openRouterBaseURL = "https://openrouter.ai/api/v1"
@@ -649,6 +650,9 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 			return fmt.Errorf("gormes auth add %s --type oauth: credential_pool_corrupt", config.CodexOAuthProvider)
 		}
 		if status.Code == config.CodexOAuthStatusAuthorized {
+			if err := updateConfigForCodexOAuthProvider(opts.InferenceURL); err != nil {
+				return fmt.Errorf("gormes auth add %s --type oauth: config_update_failed: %w", config.CodexOAuthProvider, err)
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Found existing Codex CLI credentials.")
 			fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 			fmt.Fprintln(cmd.OutOrStdout(), "Credentials imported into the Gormes credential pool; future Codex CLI or VS Code refreshes do not rotate Gormes tokens.")
@@ -676,8 +680,38 @@ func runAuthAddCodexOAuthCommand(cmd *cobra.Command, opts authAddOptions) error 
 	if status.Code != config.CodexOAuthStatusAuthorized {
 		return fmt.Errorf("gormes auth add %s --type oauth: %s", config.CodexOAuthProvider, status.Code)
 	}
+	if err := updateConfigForCodexOAuthProvider(opts.InferenceURL); err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: config_update_failed: %w", config.CodexOAuthProvider, err)
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 	fmt.Fprintln(cmd.OutOrStdout(), "Hermes will keep working independently with its own session; the Codex CLI / VS Code extension cannot rotate Gormes tokens.")
+	return nil
+}
+
+func updateConfigForCodexOAuthProvider(inferenceURL string) error {
+	provider := config.CodexOAuthProvider
+	model := hermes.ResolveProviderDefaultModel(provider, hermes.ProviderDefaultModelOptions{}).Model
+	if cfg, err := config.Load(nil); err == nil && normalizeAuthProvider(cfg.Hermes.Provider) == provider {
+		current := strings.TrimSpace(cfg.Hermes.Model)
+		if current != "" && !strings.EqualFold(current, "hermes-agent") {
+			model = current
+		}
+	}
+	for _, update := range []struct {
+		key   string
+		value string
+	}{
+		{key: "hermes.provider", value: provider},
+		{key: "hermes.endpoint", value: providerBaseURL(provider, inferenceURL)},
+		{key: "hermes.model", value: model},
+	} {
+		if strings.TrimSpace(update.value) == "" {
+			continue
+		}
+		if err := config.WriteTOMLValue(config.ConfigPath(), update.key, update.value); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -713,6 +747,9 @@ func runAuthAddCodexEmergencyImportCommand(cmd *cobra.Command, opts authAddOptio
 			code = "codex_external_import_blocked"
 		}
 		return fmt.Errorf("gormes auth add %s --type oauth: %s", config.CodexOAuthProvider, code)
+	}
+	if err := updateConfigForCodexOAuthProvider(opts.InferenceURL); err != nil {
+		return fmt.Errorf("gormes auth add %s --type oauth: config_update_failed: %w", config.CodexOAuthProvider, err)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "auth_oauth_saved provider=%s account_id=%s label=%s source=%s redacted=true\n", config.CodexOAuthProvider, status.AccountID, status.Label, status.Source)
 	return nil

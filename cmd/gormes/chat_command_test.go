@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 )
 
 func TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad(t *testing.T) {
@@ -44,6 +45,81 @@ func TestChatCommandProfileFlagSetsGormesHomeBeforeConfigLoad(t *testing.T) {
 	}
 	if gotPrompt != "work kanban task t_123" {
 		t.Fatalf("Prompt = %q, want kanban task prompt", gotPrompt)
+	}
+}
+
+func TestChatCommandPinsCurrentKanbanBoardDBForTools(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	t.Setenv("GORMES_KANBAN_DB", "")
+	t.Setenv("HERMES_KANBAN_BOARD", "")
+	t.Setenv("HERMES_KANBAN_DB", "")
+
+	reg := kanban.NewBoardRegistry(config.KanbanHome())
+	if err := reg.Create("alpha"); err != nil {
+		t.Fatalf("create alpha board: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch alpha board: %v", err)
+	}
+	wantDB := reg.BoardPath("alpha")
+	hermesHome := os.Getenv("HERMES_HOME")
+
+	var gotDB string
+	var gotHermesBoard string
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
+			gotDB = os.Getenv("GORMES_KANBAN_DB")
+			gotHermesBoard = os.Getenv("HERMES_KANBAN_BOARD")
+			return nil
+		},
+		runResolvedTUI: func(*cobra.Command, tuiInvocation) error {
+			t.Fatal("runResolvedTUI was called for chat -q")
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "chat", "-q", "work kanban task t_123")
+	if err != nil {
+		t.Fatalf("chat -q error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if gotDB != wantDB {
+		t.Fatalf("GORMES_KANBAN_DB during chat = %q, want current board DB %q", gotDB, wantDB)
+	}
+	if gotHermesBoard != "" {
+		t.Fatalf("HERMES_KANBAN_BOARD changed to %q, want untouched", gotHermesBoard)
+	}
+	if os.Getenv("HERMES_HOME") != hermesHome {
+		t.Fatalf("HERMES_HOME changed to %q, want %q", os.Getenv("HERMES_HOME"), hermesHome)
+	}
+}
+
+func TestChatCommandPreservesExplicitKanbanDBPin(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	explicitDB := filepath.Join(t.TempDir(), "explicit-kanban.db")
+	t.Setenv("GORMES_KANBAN_DB", explicitDB)
+
+	reg := kanban.NewBoardRegistry(config.KanbanHome())
+	if err := reg.Create("alpha"); err != nil {
+		t.Fatalf("create alpha board: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch alpha board: %v", err)
+	}
+
+	var gotDB string
+	cmd := newRootCommandWithRuntime(rootRuntime{
+		runOneshot: func(_ *cobra.Command, _ oneshotInvocation) error {
+			gotDB = os.Getenv("GORMES_KANBAN_DB")
+			return nil
+		},
+	})
+
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "chat", "-q", "work kanban task t_456")
+	if err != nil {
+		t.Fatalf("chat -q error = %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if gotDB != explicitDB {
+		t.Fatalf("GORMES_KANBAN_DB during chat = %q, want explicit pin %q", gotDB, explicitDB)
 	}
 }
 

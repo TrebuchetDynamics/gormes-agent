@@ -87,15 +87,15 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 88/100 subphases shipped · 9 in progress · 3 planned
+**Overall:** 86/100 subphases shipped · 11 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
+| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -152,6 +152,7 @@ classification and row-backed implementation queue.
 - [x] Telegram adapter
 - [x] Long-poll ingress
 - [x] Edit coalescing
+- [x] Telegram important notification default
 
 ### 2.B.2 — Gateway Chassis + Discord ✅
 
@@ -191,6 +192,7 @@ classification and row-backed implementation queue.
 - [x] Live-turn USER.md and MEMORY.md durable user context block (channel-neutral)
 - [x] Live-turn timestamp + model/provider/session metadata block + self-help guidance (channel-neutral)
 - [x] Hermes prompt-builder guidance constants port (data-only, byte-equivalent)
+- [x] Hermes MEMORY_GUIDANCE stale-artifact exclusion refresh
 - [x] Live-turn metadata production wiring (cmd/gormes -> Manager seams)
 - [x] BlueBubbles iMessage session-context prompt guidance
 - [x] Telegram production live-turn provider payload golden
@@ -279,6 +281,8 @@ classification and row-backed implementation queue.
 - [x] Navivox stdio protocol control-plane tracer
 - [x] Navivox QR pairing descriptor CLI
 - [x] Navivox Flutter voice morph surface
+- [x] Multimodal photo attachment passthrough
+- [x] Hermes-style default prompt and image-path hints for inbound photos
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -500,7 +504,7 @@ classification and row-backed implementation queue.
 - [x] Goncho Honcho SDK compatibility e2e harness
 - [x] Goncho memory integration into normal agent turn
 
-## Phase 4 — The Brain Transplant ✅
+## Phase 4 — The Brain Transplant 🔨
 
 *Native Go agent orchestrator + prompt builder*
 
@@ -508,6 +512,7 @@ classification and row-backed implementation queue.
 
 - [x] Provider interface + stream fixture harness
 - [x] Hermes provider registry and alias manifest
+- [x] OpenRouter Pareto router request plugin
 - [x] Tool-call normalization + continuation contract
 - [x] DeepSeek/Kimi reasoning_content echo for tool-call replay
 - [x] DeepSeek/Kimi cross-provider reasoning isolation
@@ -529,6 +534,7 @@ classification and row-backed implementation queue.
 - [x] Bedrock stale-client eviction + retry classification
 - [x] Gemini Cloud Code request/stream mapper
 - [x] OpenRouter compatible-provider routing
+- [x] OpenRouter Grok prompt-cache affinity header
 - [x] Google Code Assist project/quota resolver
 - [x] Codex
 - [x] Codex Responses pure conversion harness
@@ -541,6 +547,7 @@ classification and row-backed implementation queue.
 - [x] OpenAI-compatible developer-role API-boundary swap
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
+- [x] Vision-unsupported provider retry (strip-images-and-resend)
 
 ### 4.B — Context Engine + Compression ✅
 
@@ -559,6 +566,7 @@ classification and row-backed implementation queue.
 - [x] Manual compression feedback renderer + focus parser
 - [x] ContextEngine compression-boundary callback vocabulary
 - [x] Kernel compression-boundary callback binding
+- [x] ContextEngine session-end hook on reset
 
 ### 4.C — Native Prompt Builder ✅
 
@@ -574,7 +582,7 @@ classification and row-backed implementation queue.
 - [x] Native full prompt assembly
 - [x] Ephemeral prefill messages file injection
 
-### 4.D — Smart Model Routing ✅
+### 4.D — Smart Model Routing 🔨
 
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
@@ -584,6 +592,8 @@ classification and row-backed implementation queue.
 - [x] Routing policy and fallback selector
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
+- [x] Provider-default model resolution at config load
+- [ ] Image input mode resolver + vision_analyze text fallback
 
 ### 4.E — Trajectory + Insights ✅
 
@@ -611,6 +621,7 @@ classification and row-backed implementation queue.
 
 - [x] Provider-side resilience
 - [x] Classified provider-error taxonomy
+- [x] Generic provider timeout message classifier
 - [x] Provider image-too-large error classification
 - [x] Unsupported temperature retry + Codex no-temperature guard
 - [x] Codex Responses temperature guard after flush removal
@@ -650,6 +661,7 @@ classification and row-backed implementation queue.
 
 - [x] Resilient provider chain dispatch
 - [x] Hermes fallback activation + classifier carve-outs
+- [x] Fallback entry api_key_env credential alias
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 
@@ -729,9 +741,10 @@ classification and row-backed implementation queue.
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch
+- [x] FAL image generation queue REST binding
 - [x] Native video_analyze tool contract
 
-### 5.E — TTS / Voice / Transcription ✅
+### 5.E — TTS / Voice / Transcription 🔨
 
 - [x] Voice mode port
 - [x] Voice mode environment detector + audio provider seam
@@ -742,6 +755,16 @@ classification and row-backed implementation queue.
 - [x] TTS provider matrix + dotenv/command-provider resolution
 - [x] TTS synthesis + voice-mode state
 - [x] Voice record-key config binding for native TUI
+- [x] Telegram voice STT HTTP-provider fallback
+- [x] Pure-Go STT exploration
+- [x] wazero WASI smoke harness
+- [x] whisper.cpp WASI module discovery
+- [ ] Pure-Go Whisper transcribe one WAV
+- [ ] Wire Pure-Go Whisper into Telegram resolver
+- [ ] Audio preprocessing and chunking pipeline
+- [ ] Whisper benchmark harness + perf budget
+- [ ] Go-native audio decoding (ffmpeg replacement)
+- [ ] Pure-Go TTS path scoping
 
 ### 5.F — Skills System (Remaining) ✅
 
@@ -779,6 +802,7 @@ classification and row-backed implementation queue.
 - [x] ACP Client Bridge Mode
 - [x] ACP JSON-RPC stdio session/prompt closeout
 - [x] ACP stdio benign ping/probe suppression
+- [x] ACP session CWD propagation into prompt runners
 
 ### 5.I — Plugins Architecture ✅
 
@@ -843,6 +867,7 @@ classification and row-backed implementation queue.
 - [x] search_files hidden-root and context-line parsing drift
 - [x] Structured lint delta for native write/patch tools
 - [x] Python syntax lint delta for native write/patch tools
+- [x] Shell lint delta for native write/patch tools
 
 ### 5.M — Mixture of Agents 🔨
 
@@ -859,7 +884,10 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [x] Kanban chat board DB pin
+- [x] Kanban schema migration duplicate-column race guard
 - [x] Kanban notify subscription store and CLI
+- [x] Kanban notify delivery engine blocked retention
 - [x] Kanban stats command and board summary
 - [x] Kanban named-board workspace and log roots
 - [x] Kanban current-board task command routing
@@ -867,6 +895,7 @@ classification and row-backed implementation queue.
 - [x] Kanban boards list/show task-count read model
 - [x] Kanban global --board task command override
 - [x] Kanban GC terminal event and worker-log retention
+- [x] Kanban worker log read command
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
 - [x] Hermes Kanban specify triage parity
 
@@ -913,6 +942,7 @@ classification and row-backed implementation queue.
 - [x] System Events, Heartbeat, and Presence
 - [x] Gateway Discover and Probe
 - [x] Channels Capabilities Introspection
+- [x] Teams configured-state in channel capabilities
 - [x] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
@@ -980,6 +1010,7 @@ classification and row-backed implementation queue.
 - [x] Gormes profile skills chat invocation shim
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface
+- [x] Gormes config set comment-preserving TOML writes
 - [x] Gormes config edit/check/native schema-migrate closeout
 - [x] Hermes config migration dry-run manifest
 - [x] Hermes config migration writer
@@ -1001,6 +1032,7 @@ classification and row-backed implementation queue.
 - [x] Gateway management CLI read-model closeout
 - [x] Gateway mutating-subcommand unavailability stub
 - [x] Windows gateway Scheduled Task lifecycle commands
+- [x] Windows detached gateway Ctrl+C boundary
 - [x] Service RestartSec parser helper
 - [x] Service restart active-status poller
 - [x] Diagnostics, backup, logs, and status CLI
@@ -1081,6 +1113,7 @@ classification and row-backed implementation queue.
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence
 - [x] Gateway proxy mode forwarding contract
+- [x] Gateway proxy replay assistant metadata preservation
 - [x] Dashboard API client contract
 - [x] Dashboard PTY chat sidecar contract
 - [x] API server detailed health snapshot contract
@@ -1159,6 +1192,7 @@ classification and row-backed implementation queue.
 
 - [x] Hermes curator auxiliary model routing slot
 - [x] Hermes curator state transitions and run reports
+- [x] Hermes curator rename summary notice
 - [ ] Skill effectiveness scoring
 
 ### 6.F — Skill Surface 🔨
@@ -1254,6 +1288,7 @@ classification and row-backed implementation queue.
 - [x] Google Chat shared-chassis platform adapter seam
 - [x] Google Chat relay sender-type self-filter
 - [x] Google Chat standalone cron sender
+- [x] Google Chat install dependency hint refresh
 
 ## Phase 8 — Reputation & Publication 🔨
 
@@ -1287,6 +1322,7 @@ classification and row-backed implementation queue.
 - [x] Release notes artifact size table
 - [x] Release SBOM attestation binding
 - [x] Release build provenance attest action contract
+- [x] Release notes SBOM attestation wording
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
 

@@ -55,6 +55,10 @@ type Config struct {
 	// BotUserID is optional and lets Telegram text_mention entities target the
 	// bot by user ID when Telegram does not emit an @username mention.
 	BotUserID int64
+	// Notifications controls Telegram push behavior. "important" is the
+	// Hermes-compatible default: placeholders/progress are silent while final
+	// sends and approval prompts still notify. "all" preserves legacy behavior.
+	Notifications string
 	// DynamicCommands are optional runtime-discovered commands (for example
 	// enabled skill slash commands) appended to the canonical Hermes menu.
 	DynamicCommands  []gateway.PlatformCommand
@@ -138,6 +142,31 @@ func telegramReactionsEnabled() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func telegramNotificationsMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "all":
+		return "all"
+	default:
+		return "important"
+	}
+}
+
+func (b *Bot) silentIntermediateNotifications() bool {
+	return telegramNotificationsMode(b.cfg.Notifications) == "important"
+}
+
+func (b *Bot) markSilentIntermediateMessage(cfg *tgbotapi.MessageConfig) {
+	if cfg != nil && b.silentIntermediateNotifications() {
+		cfg.DisableNotification = true
+	}
+}
+
+func (b *Bot) addSilentIntermediateParam(params tgbotapi.Params) {
+	if b.silentIntermediateNotifications() {
+		params.AddBool("disable_notification", true)
 	}
 }
 
@@ -562,6 +591,10 @@ func (b *Bot) SendThread(ctx context.Context, chatID, threadID, text string) (st
 		params.AddNonZero("message_thread_id", thread)
 	}
 
+	return b.sendThreadParamsWithRetry(ctx, params, includeThread)
+}
+
+func (b *Bot) sendThreadParamsWithRetry(ctx context.Context, params tgbotapi.Params, includeThread bool) (string, error) {
 	var lastErr error
 	for attempt := 0; attempt < maxSendRetries; attempt++ {
 		msg, err := b.sendRawMessageWithParseFallback(ctx, params)
@@ -606,27 +639,7 @@ func (b *Bot) SendThreadReply(ctx context.Context, chatID, threadID, replyToMsgI
 		params.AddNonZero("message_thread_id", thread)
 	}
 
-	var lastErr error
-	for attempt := 0; attempt < maxSendRetries; attempt++ {
-		msg, err := b.sendRawMessageWithParseFallback(ctx, params)
-		if err == nil {
-			return strconv.Itoa(msg.MessageID), nil
-		}
-		lastErr = err
-
-		if isThreadNotFoundError(err) && includeThread {
-			delete(params, "message_thread_id")
-			includeThread = false
-			continue
-		}
-		if isTimedOutError(err) {
-			return "", err
-		}
-		if !isTransientNetworkError(err) {
-			return "", err
-		}
-	}
-	return "", lastErr
+	return b.sendThreadParamsWithRetry(ctx, params, includeThread)
 }
 
 func (b *Bot) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
@@ -795,19 +808,84 @@ func telegramMediaUploadEndpoint(media gateway.OutboundMedia) (endpoint, field s
 }
 
 func (b *Bot) SendPlaceholder(ctx context.Context, chatID string) (string, error) {
-	return b.Send(ctx, chatID, "⏳")
+	_ = ctx
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	msgCfg := tgbotapi.NewMessage(id, "⏳")
+	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
+	b.markSilentIntermediateMessage(&msgCfg)
+	msg, err := b.sendWithParseFallback(msgCfg)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(msg.MessageID), nil
 }
 
 func (b *Bot) SendThreadPlaceholder(ctx context.Context, chatID, threadID string) (string, error) {
-	return b.SendThread(ctx, chatID, threadID, "⏳")
+	if strings.TrimSpace(threadID) == "" {
+		return b.SendPlaceholder(ctx, chatID)
+	}
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	thread, includeThread, err := telegramThreadIDForTextSend(threadID)
+	if err != nil {
+		return "", err
+	}
+	params := telegramSendMessageParams(id, 0, "⏳", tgbotapi.ModeMarkdownV2)
+	if includeThread {
+		params.AddNonZero("message_thread_id", thread)
+	}
+	b.addSilentIntermediateParam(params)
+	return b.sendThreadParamsWithRetry(ctx, params, includeThread)
 }
 
 func (b *Bot) SendReplyPlaceholder(ctx context.Context, chatID, replyToMsgID string) (string, error) {
-	return b.SendReply(ctx, chatID, replyToMsgID, "⏳")
+	_ = ctx
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	replyID, err := strconv.Atoi(replyToMsgID)
+	if err != nil {
+		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+	}
+	msgCfg := tgbotapi.NewMessage(id, "⏳")
+	msgCfg.ParseMode = tgbotapi.ModeMarkdownV2
+	msgCfg.ReplyToMessageID = replyID
+	b.markSilentIntermediateMessage(&msgCfg)
+	msg, err := b.sendWithParseFallback(msgCfg)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(msg.MessageID), nil
 }
 
 func (b *Bot) SendThreadReplyPlaceholder(ctx context.Context, chatID, threadID, replyToMsgID string) (string, error) {
-	return b.SendThreadReply(ctx, chatID, threadID, replyToMsgID, "⏳")
+	if strings.TrimSpace(threadID) == "" {
+		return b.SendReplyPlaceholder(ctx, chatID, replyToMsgID)
+	}
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	replyID, err := strconv.Atoi(replyToMsgID)
+	if err != nil {
+		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+	}
+	thread, includeThread, err := telegramThreadIDForTextSend(threadID)
+	if err != nil {
+		return "", err
+	}
+	params := telegramSendMessageParams(id, replyID, "⏳", tgbotapi.ModeMarkdownV2)
+	if includeThread {
+		params.AddNonZero("message_thread_id", thread)
+	}
+	b.addSilentIntermediateParam(params)
+	return b.sendThreadParamsWithRetry(ctx, params, includeThread)
 }
 
 func (b *Bot) EditMessage(ctx context.Context, chatID, msgID, text string) error {

@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const e2ePort = Number(process.env.LANDING_E2E_PORT ?? 8080);
+const e2eBaseURL = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: 'tests',
   fullyParallel: true,
@@ -8,7 +11,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://127.0.0.1:8080',
+    baseURL: e2eBaseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -18,8 +21,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:8080',
+    command: `node ../scripts/with-compatible-node.mjs astro dev --host 127.0.0.1 --port ${e2ePort} --strictPort`,
+    url: e2eBaseURL,
     reuseExistingServer: false,
   },
 });

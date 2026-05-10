@@ -21,7 +21,7 @@ Build, test, and debug Hermes Agent RL environments for Atropos training. Covers
 | Author | Hermes Agent |
 | License | MIT |
 | Tags | `atropos`, `rl`, `environments`, `training`, `reinforcement-learning`, `reward-functions` |
-| Related skills | [`axolotl`](../../../bundled/mlops/mlops-training-axolotl/), [`fine-tuning-with-trl`](../../../bundled/mlops/mlops-training-trl-fine-tuning/), `lm-evaluation-harness` |
+| Related skills | [`axolotl`](../../../optional/mlops/mlops-training-axolotl/), [`fine-tuning-with-trl`](../../../optional/mlops/mlops-training-trl-fine-tuning/), `lm-evaluation-harness` |
 
 ## Reference: full SKILL.md
 

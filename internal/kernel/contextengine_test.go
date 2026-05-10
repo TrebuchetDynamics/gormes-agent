@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -188,6 +189,101 @@ func TestKernel_UnknownContextToolReturnsStructuredErrorAndStatus(t *testing.T) 
 	}
 }
 
+func TestKernel_ResetSession_NotifiesContextEngineSessionEndBeforeReset(t *testing.T) {
+	engine := &sessionEndSpyContextEngine{
+		DisabledContextEngine: hermes.NewDisabledContextEngine("compression disabled by config"),
+	}
+	mc := hermes.NewMockClient()
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 12, TokensOut: 3},
+	}, "sess-context-boundary")
+
+	k := New(Config{
+		Model:         "hermes-agent",
+		Endpoint:      "http://mock",
+		Admission:     Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		ContextEngine: engine,
+	}, mc, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "remember this"}); err != nil {
+		t.Fatal(err)
+	}
+	completed := waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && len(f.History) >= 2 && f.SessionID != ""
+	}, 2*time.Second)
+
+	if err := k.ResetSession(); err != nil {
+		t.Fatalf("ResetSession: %v", err)
+	}
+
+	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && len(f.History) == 0 && f.SessionID == ""
+	}, time.Second)
+
+	if engine.sessionEndCalls != 1 {
+		t.Fatalf("OnSessionEnd calls = %d, want 1", engine.sessionEndCalls)
+	}
+	if engine.sessionEndID != completed.SessionID {
+		t.Fatalf("OnSessionEnd sessionID = %q, want outgoing %q", engine.sessionEndID, completed.SessionID)
+	}
+	if got := len(engine.sessionEndMessages); got < 2 {
+		t.Fatalf("OnSessionEnd messages len = %d, want completed transcript", got)
+	}
+	if engine.sessionEndMessages[0].Role != "user" || !strings.Contains(engine.sessionEndMessages[0].Content, "remember this") {
+		t.Fatalf("OnSessionEnd first message = %#v, want outgoing user transcript", engine.sessionEndMessages[0])
+	}
+	if got := strings.Join(engine.order, ","); got != "end,reset" {
+		t.Fatalf("context engine hook order = %q, want end,reset", got)
+	}
+}
+
+func TestKernel_ResetSession_ContextEngineSessionEndFailureStillResets(t *testing.T) {
+	engine := &sessionEndSpyContextEngine{
+		DisabledContextEngine: hermes.NewDisabledContextEngine("compression disabled by config"),
+		sessionEndErr:         errors.New("flush failed"),
+	}
+	mc := hermes.NewMockClient()
+	mc.Script([]hermes.Event{
+		{Kind: hermes.EventToken, Token: "ok", TokensOut: 1},
+		{Kind: hermes.EventDone, FinishReason: "stop", TokensIn: 2, TokensOut: 1},
+	}, "sess-context-failing-boundary")
+
+	k := New(Config{
+		Model:         "hermes-agent",
+		Endpoint:      "http://mock",
+		Admission:     Admission{MaxBytes: 200_000, MaxLines: 10_000},
+		ContextEngine: engine,
+	}, mc, store.NewNoop(), telemetry.New(), nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go k.Run(ctx)
+	<-k.Render()
+
+	if err := k.Submit(PlatformEvent{Kind: PlatformEventSubmit, Text: "reset despite hook failure"}); err != nil {
+		t.Fatal(err)
+	}
+	waitForFrameMatching(t, k.Render(), func(f RenderFrame) bool {
+		return f.Phase == PhaseIdle && len(f.History) >= 2 && f.SessionID != ""
+	}, 2*time.Second)
+
+	if err := k.ResetSession(); err != nil {
+		t.Fatalf("ResetSession must tolerate OnSessionEnd failure, got %v", err)
+	}
+	if len(k.history) != 0 || k.sessionID != "" {
+		t.Fatalf("after reset = history %d session %q, want cleared", len(k.history), k.sessionID)
+	}
+	if engine.sessionEndCalls != 1 || engine.resetCalls != 1 {
+		t.Fatalf("hook calls end=%d reset=%d, want 1/1", engine.sessionEndCalls, engine.resetCalls)
+	}
+}
+
 type compressSpyContextEngine struct {
 	*hermes.DisabledContextEngine
 	compressCalls int
@@ -200,6 +296,30 @@ func (s *compressSpyContextEngine) ShouldCompress(int) bool {
 func (s *compressSpyContextEngine) Compress(ctx context.Context, messages []hermes.Message, req hermes.CompressionRequest) ([]hermes.Message, hermes.CompressionReport, error) {
 	s.compressCalls++
 	return s.DisabledContextEngine.Compress(ctx, messages, req)
+}
+
+type sessionEndSpyContextEngine struct {
+	*hermes.DisabledContextEngine
+	sessionEndErr      error
+	sessionEndCalls    int
+	sessionEndID       string
+	sessionEndMessages []hermes.Message
+	resetCalls         int
+	order              []string
+}
+
+func (s *sessionEndSpyContextEngine) OnSessionEnd(_ context.Context, sessionID string, messages []hermes.Message) error {
+	s.sessionEndCalls++
+	s.sessionEndID = sessionID
+	s.sessionEndMessages = append([]hermes.Message(nil), messages...)
+	s.order = append(s.order, "end")
+	return s.sessionEndErr
+}
+
+func (s *sessionEndSpyContextEngine) OnSessionReset() {
+	s.resetCalls++
+	s.order = append(s.order, "reset")
+	s.DisabledContextEngine.OnSessionReset()
 }
 
 func hasToolDescriptor(tools []hermes.ToolDescriptor, name string) bool {

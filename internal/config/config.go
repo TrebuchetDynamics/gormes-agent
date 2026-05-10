@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -83,6 +84,7 @@ type TelegramCfg struct {
 	BotUsername            string     `toml:"bot_username" yaml:"bot_username"`
 	CoalesceMs             int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
 	FreshFinalAfterSeconds float64    `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
+	Notifications          string     `toml:"notifications" yaml:"notifications"`
 	FirstRunDiscovery      bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
@@ -355,11 +357,12 @@ func (d *DelegationCfg) UnmarshalTOML(data []byte) error {
 }
 
 type HermesCfg struct {
-	Endpoint  string     `toml:"endpoint" yaml:"endpoint"`
-	APIKey    string     `toml:"api_key" yaml:"api_key"`
-	APIKeyRef *SecretRef `toml:"api_key_ref" yaml:"api_key_ref" json:"api_key_ref,omitempty"`
-	Model     string     `toml:"model" yaml:"model"`
-	Provider  string     `toml:"provider" yaml:"provider"`
+	Endpoint              string     `toml:"endpoint" yaml:"endpoint"`
+	APIKey                string     `toml:"api_key" yaml:"api_key"`
+	APIKeyRef             *SecretRef `toml:"api_key_ref" yaml:"api_key_ref" json:"api_key_ref,omitempty"`
+	Model                 string     `toml:"model" yaml:"model"`
+	Provider              string     `toml:"provider" yaml:"provider"`
+	ModelResolutionSource string     `toml:"-" yaml:"-" json:"model_resolution_source,omitempty"`
 }
 
 type AuxiliaryCfg struct {
@@ -458,6 +461,7 @@ type InferenceResolution struct {
 	Provider                   string
 	ProviderSource             InferenceValueSource
 	ProviderAutoDetectRequired bool
+	ModelResolutionSource      string
 }
 
 type OneshotInferenceResolution = InferenceResolution
@@ -506,7 +510,45 @@ func ResolveInference(req InferenceRequest) (InferenceResolution, error) {
 		return resolution, providerRequiresExplicitModelError(req.CommandLabel, providerSource)
 	}
 	resolution.ProviderAutoDetectRequired = explicitModel && providerSource == InferenceValueSourceUnset
+	resolveInferenceProviderDefaultModel(&resolution)
 	return resolution, nil
+}
+
+func resolveProviderDefaultModel(cfg *Config) {
+	if !shouldResolveProviderDefaultModel(cfg.Hermes.Provider, cfg.Hermes.Model) {
+		if strings.TrimSpace(cfg.Hermes.Provider) != "" && strings.TrimSpace(cfg.Hermes.Model) != "" {
+			cfg.Hermes.ModelResolutionSource = "explicit_operator_config"
+		}
+		return
+	}
+	resolution := hermes.ResolveProviderDefaultModel(cfg.Hermes.Provider, hermes.ProviderDefaultModelOptions{})
+	if strings.TrimSpace(resolution.Model) == "" {
+		return
+	}
+	cfg.Hermes.Provider = resolution.Provider
+	cfg.Hermes.Model = resolution.Model
+	cfg.Hermes.ModelResolutionSource = string(resolution.Source)
+}
+
+func resolveInferenceProviderDefaultModel(resolution *InferenceResolution) {
+	if resolution == nil || !shouldResolveProviderDefaultModel(resolution.Provider, resolution.Model) {
+		return
+	}
+	defaultModel := hermes.ResolveProviderDefaultModel(resolution.Provider, hermes.ProviderDefaultModelOptions{})
+	if strings.TrimSpace(defaultModel.Model) == "" {
+		return
+	}
+	resolution.Provider = defaultModel.Provider
+	resolution.Model = defaultModel.Model
+	resolution.ModelResolutionSource = string(defaultModel.Source)
+}
+
+func shouldResolveProviderDefaultModel(provider, model string) bool {
+	if strings.TrimSpace(provider) == "" {
+		return false
+	}
+	model = strings.TrimSpace(model)
+	return model == "" || strings.EqualFold(model, "hermes-agent")
 }
 
 type inferenceCandidate struct {
@@ -565,6 +607,7 @@ func Load(args []string) (Config, error) {
 	if err := validateConfig(&cfg); err != nil {
 		return cfg, err
 	}
+	resolveProviderDefaultModel(&cfg)
 	return cfg, nil
 }
 
@@ -603,6 +646,7 @@ func defaults() Config {
 		Telegram: TelegramCfg{
 			CoalesceMs:             1000,
 			FreshFinalAfterSeconds: 60.0,
+			Notifications:          "important",
 			FirstRunDiscovery:      true,
 			MemoryQueueCap:         1024,
 			ExtractorBatchSize:     5,
@@ -827,6 +871,15 @@ func normalizeHermesToolProgressMode(raw interface{}) (string, bool) {
 	}
 }
 
+func normalizeTelegramNotifications(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "all":
+		return "all"
+	default:
+		return "important"
+	}
+}
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {
@@ -915,6 +968,9 @@ func loadEnv(cfg *Config) error {
 			return err
 		}
 		cfg.Telegram.GuestMode = parsed
+	}
+	if v := firstNonEmpty(os.Getenv("GORMES_TELEGRAM_NOTIFICATIONS"), os.Getenv("HERMES_TELEGRAM_NOTIFICATIONS"), os.Getenv("TELEGRAM_NOTIFICATIONS")); v != "" {
+		cfg.Telegram.Notifications = v
 	}
 	if v := os.Getenv("GORMES_DISCORD_TOKEN"); v != "" {
 		cfg.Discord.Token = v
@@ -1280,6 +1336,7 @@ func validateConfig(cfg *Config) error {
 	if cfg.Voice.RecordKey == "" {
 		cfg.Voice.RecordKey = "ctrl+b"
 	}
+	cfg.Telegram.Notifications = normalizeTelegramNotifications(cfg.Telegram.Notifications)
 	if strings.TrimSpace(cfg.Runtime.TerminalBackend) == "" {
 		cfg.Runtime.TerminalBackend = cfg.Terminal.Backend
 	}

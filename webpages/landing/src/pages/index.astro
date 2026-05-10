@@ -76,7 +76,7 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
               src="/static/gormes-agent-logo-blue.svg"
               alt="GORMES-AGENT"
             />
-            <p class="kicker mb-4 text-xs font-bold uppercase text-[#eeece5]/50">{page.heroKicker}</p>
+            <p class="kicker mb-4 text-xs font-bold uppercase tracking-[0.18em] text-[#73cedd]">{page.heroKicker}</p>
             <h1 class="hero-title mb-5 max-w-[740px] break-words font-serif text-[clamp(2.25rem,8vw,4.75rem)] font-black leading-[0.98] text-white">
               {page.heroHeadline}
             </h1>
@@ -93,8 +93,14 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
             </div>
             <div class="proof-strip mt-5 flex flex-wrap gap-2">
               {page.proofStrip.map((item) => (
-                <span class="proof-item rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 text-xs font-bold text-[#eeece5]/75">
-                  {item}
+                <span
+                  class={`proof-item rounded-full border px-3 py-1 text-xs font-bold ${
+                    item.kind === 'pop'
+                      ? 'proof-item-pop border-[#f0c84b]/55 bg-[#f0c84b]/10 text-[#f0c84b]'
+                      : 'border-white/10 bg-white/[0.035] text-[#eeece5]/75'
+                  }`}
+                >
+                  {item.label}
                 </span>
               ))}
             </div>

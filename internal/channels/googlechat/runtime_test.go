@@ -9,7 +9,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
-func TestGoogleChatPluginMetadataMatchesHermesPlugin(t *testing.T) {
+func TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint(t *testing.T) {
 	meta := PluginMetadata()
 	if meta.Name != PlatformName || meta.Label != "Google Chat" {
 		t.Fatalf("metadata identity = %+v", meta)
@@ -20,7 +20,8 @@ func TestGoogleChatPluginMetadataMatchesHermesPlugin(t *testing.T) {
 	if meta.AllowedUsersEnv != "GOOGLE_CHAT_ALLOWED_USERS" || meta.AllowAllEnv != "GOOGLE_CHAT_ALLOW_ALL_USERS" {
 		t.Fatalf("auth env metadata = %+v", meta)
 	}
-	if meta.InstallHint != "pip install 'hermes-agent[google_chat]'" {
+	wantInstallHint := "pip install google-cloud-pubsub google-api-python-client google-auth google-auth-oauthlib"
+	if meta.InstallHint != wantInstallHint {
 		t.Fatalf("InstallHint = %q", meta.InstallHint)
 	}
 	if meta.MaxMessageLength != MaxMessageLength {

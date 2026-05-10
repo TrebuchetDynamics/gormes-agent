@@ -85,18 +85,16 @@ func explicitAuxVisionOverride(aux AuxiliaryVisionConfig) bool {
 const defaultImagePromptText = "What do you see in this image?"
 
 // BuildNativeImageContentParts constructs a multimodal content list for a
-// user turn: one text part (when text is non-empty) followed by one
-// image_url part per readable path. Unreadable paths are returned in
-// skipped. When the user text is empty and at least one image was attached,
-// a short default prompt is prepended so the turn is not images-only.
+// user turn: one leading text part followed by one image_url part per readable
+// path. The text part preserves the user's caption, or uses a default image
+// prompt when the caption is empty, and appends a local path hint for each
+// attached image. Unreadable paths are returned in skipped and are not
+// advertised in the text hints.
 func BuildNativeImageContentParts(userText string, imagePaths []string) ([]MessageContentPart, []string) {
 	text := strings.TrimSpace(userText)
 	parts := make([]MessageContentPart, 0, 1+len(imagePaths))
-	if text != "" {
-		parts = append(parts, MessageContentPart{Type: "text", Text: text})
-	}
 	skipped := make([]string, 0)
-	addedImage := false
+	attachedPaths := make([]string, 0, len(imagePaths))
 	for _, raw := range imagePaths {
 		dataURL, err := imageFileToDataURL(raw)
 		if err != nil {
@@ -107,10 +105,20 @@ func BuildNativeImageContentParts(userText string, imagePaths []string) ([]Messa
 			Type:     "image_url",
 			ImageURL: dataURL,
 		})
-		addedImage = true
+		attachedPaths = append(attachedPaths, raw)
 	}
-	if text == "" && addedImage {
-		parts = append([]MessageContentPart{{Type: "text", Text: defaultImagePromptText}}, parts...)
+	if len(attachedPaths) > 0 {
+		baseText := text
+		if baseText == "" {
+			baseText = defaultImagePromptText
+		}
+		hints := make([]string, 0, len(attachedPaths))
+		for _, path := range attachedPaths {
+			hints = append(hints, "[Image attached at: "+path+"]")
+		}
+		parts = append([]MessageContentPart{{Type: "text", Text: baseText + "\n\n" + strings.Join(hints, "\n")}}, parts...)
+	} else if text != "" {
+		parts = append(parts, MessageContentPart{Type: "text", Text: text})
 	}
 	return parts, skipped
 }

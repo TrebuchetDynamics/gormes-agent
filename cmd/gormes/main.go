@@ -23,6 +23,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/kanban"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kernel"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/session"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
@@ -291,7 +292,7 @@ Docs: https://docs.gormes.ai`,
 		flag.NoOptDefVal = "last"
 	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSlackCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newFallbackCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand())
+	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSlackCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newFallbackCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand(), newCompletionCommand())
 	installParentUnknownSubcommandGuards(root)
 	return root
 }
@@ -415,6 +416,7 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 		Short: "Open chat or send a one-shot query",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			pinCurrentKanbanBoardDBForChat()
 			prompt := strings.TrimSpace(query)
 			if prompt == "" && len(args) > 0 {
 				prompt = strings.TrimSpace(strings.Join(args, " "))
@@ -437,7 +439,25 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 	return cmd
 }
 
+func pinCurrentKanbanBoardDBForChat() {
+	if strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")) != "" {
+		return
+	}
+	board, err := kanban.NewBoardRegistry(config.KanbanHome()).Current()
+	if err != nil {
+		slog.Debug("chat: kanban board pin unavailable", "err", err)
+		return
+	}
+	if strings.TrimSpace(board.Path) == "" {
+		return
+	}
+	if err := os.Setenv("GORMES_KANBAN_DB", board.Path); err != nil {
+		slog.Debug("chat: kanban board pin failed", "err", err)
+	}
+}
+
 func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) error {
+	pinCurrentKanbanBoardDBForChat()
 	if cmd.Flags().Changed("oneshot") {
 		invocation, err := resolveOneshotInvocation(cmd)
 		if err != nil {

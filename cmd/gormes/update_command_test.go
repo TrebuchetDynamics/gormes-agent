@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 )
 
 func TestUpdateCommandRegistersNativeUpdate(t *testing.T) {
@@ -76,6 +78,131 @@ func TestUpdateCommandUsesInjectedLifecycle(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "update branch: development") || !strings.Contains(stdout, "update_autostash_restored") {
 		t.Fatalf("stdout missing summary/evidence:\n%s", stdout)
+	}
+}
+
+func TestUpdateCommand_PrintsCuratorRecentRunSummaryOnce(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	root := filepath.Join(os.Getenv("GORMES_HOME"), "skills")
+	if err := os.MkdirAll(filepath.Join(root, "active"), 0o755); err != nil {
+		t.Fatalf("mkdir skills root: %v", err)
+	}
+	lastRun := time.Now().UTC().Add(-4 * time.Hour).Truncate(time.Second)
+	summary := "auto: no changes; llm: consolidated 1 into 1\n" +
+		"archived 1 skill(s):\n" +
+		"  • old-skill → new-skill\n" +
+		"full report: gormes curator status"
+	curator := skills.NewCurator(skills.CuratorConfig{Root: root})
+	if err := curator.SaveState(skills.CuratorState{
+		LastRunAt:      &lastRun,
+		LastRunSummary: summary,
+		RunCount:       1,
+	}); err != nil {
+		t.Fatalf("SaveState: %v", err)
+	}
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+
+	stdout, stderr, err := executeRootCommandForTest(command)
+	if err != nil {
+		t.Fatalf("update: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	for _, want := range []string{
+		"Skill curator",
+		"last run",
+		"old-skill → new-skill",
+		"shows once per curator run",
+		"gormes curator status",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("update stdout missing curator notice %q:\n%s", want, stdout)
+		}
+	}
+	state, err := curator.LoadState()
+	if err != nil {
+		t.Fatalf("LoadState: %v", err)
+	}
+	if state.LastRunSummaryShownAt == nil || !state.LastRunSummaryShownAt.Equal(lastRun) {
+		t.Fatalf("LastRunSummaryShownAt = %v, want %s", state.LastRunSummaryShownAt, lastRun)
+	}
+
+	command = newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+	stdout, stderr, err = executeRootCommandForTest(command)
+	if err != nil {
+		t.Fatalf("second update: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	if strings.Contains(stdout, "old-skill → new-skill") {
+		t.Fatalf("curator notice printed twice:\n%s", stdout)
+	}
+}
+
+func TestUpdateCommand_SkipsCuratorRecentRunSummaryNoopOrShown(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	root := filepath.Join(os.Getenv("GORMES_HOME"), "skills")
+	if err := os.MkdirAll(filepath.Join(root, "active"), 0o755); err != nil {
+		t.Fatalf("mkdir skills root: %v", err)
+	}
+	curator := skills.NewCurator(skills.CuratorConfig{Root: root})
+	lastRun := time.Now().UTC().Add(-2 * time.Hour).Truncate(time.Second)
+	if err := curator.SaveState(skills.CuratorState{
+		LastRunAt:      &lastRun,
+		LastRunSummary: "auto: no changes; llm: no change",
+		RunCount:       1,
+	}); err != nil {
+		t.Fatalf("SaveState noop: %v", err)
+	}
+	command := newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+	stdout, stderr, err := executeRootCommandForTest(command)
+	if err != nil {
+		t.Fatalf("noop update: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	if strings.Contains(stdout, "Skill curator") {
+		t.Fatalf("single-line no-op summary should stay silent:\n%s", stdout)
+	}
+	state, err := curator.LoadState()
+	if err != nil {
+		t.Fatalf("LoadState noop: %v", err)
+	}
+	if state.LastRunSummaryShownAt == nil || !state.LastRunSummaryShownAt.Equal(lastRun) {
+		t.Fatalf("noop LastRunSummaryShownAt = %v, want %s", state.LastRunSummaryShownAt, lastRun)
+	}
+
+	newer := time.Now().UTC().Truncate(time.Second)
+	if err := curator.SaveState(skills.CuratorState{
+		LastRunAt:              &newer,
+		LastRunSummaryShownAt:  state.LastRunSummaryShownAt,
+		LastRunSummary:         "auto: no changes; llm: consolidated 1 into 1\narchived 1 skill(s):\n  • newer → umbrella\nfull report: gormes curator status",
+		RunCount:               2,
+		LastRunDurationSeconds: state.LastRunDurationSeconds,
+	}); err != nil {
+		t.Fatalf("SaveState newer: %v", err)
+	}
+	command = newUpdateCommandWithSeams(updateCommandSeams{
+		CheckoutDir: func() (string, error) { return "/repo/gormes", nil },
+		RunLifecycle: func(context.Context, cli.UpdateLifecycleOptions) cli.UpdateReport {
+			return cli.UpdateReport{Branch: "main"}
+		},
+	})
+	stdout, stderr, err = executeRootCommandForTest(command)
+	if err != nil {
+		t.Fatalf("newer update: %v stderr=%s stdout=%s", err, stderr, stdout)
+	}
+	if !strings.Contains(stdout, "newer → umbrella") {
+		t.Fatalf("newer curator run should print after an older shown stamp:\n%s", stdout)
 	}
 }
 

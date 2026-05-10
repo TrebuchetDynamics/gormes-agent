@@ -142,6 +142,56 @@ func (timeoutError) Temporary() bool { return true }
 
 var _ net.Error = timeoutError{}
 
+func TestClassifyProviderError_GenericTimeoutMessages(t *testing.T) {
+	cases := []struct {
+		name    string
+		message string
+	}{
+		{"turn timed out", "claude CLI turn timed out"},
+		{"request timed out", "request timed out after 120s"},
+		{"deadline exceeded", "deadline exceeded"},
+		{"operation timed out", "operation timed out waiting for provider"},
+		{"upstream timed out", "upstream timed out while streaming"},
+		{"timed out", "provider timed out"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ClassifyProviderError(errors.New(tc.message))
+			if got.Kind != ProviderErrorTimeout {
+				t.Fatalf("Kind = %q, want %q", got.Kind, ProviderErrorTimeout)
+			}
+			if got.Class != ClassRetryable {
+				t.Fatalf("Class = %q, want %q", got.Class, ClassRetryable)
+			}
+			if !got.Retryable {
+				t.Fatal("Retryable = false, want true")
+			}
+			if !got.ShouldFallback {
+				t.Fatal("ShouldFallback = false, want true")
+			}
+			if Classify(errors.New(tc.message)) != ClassRetryable {
+				t.Fatal("Classify compatibility did not return retryable")
+			}
+		})
+	}
+}
+
+func TestDefaultChainErrorClassifierTimeoutRetriesThenFallback(t *testing.T) {
+	classifier := &DefaultChainErrorClassifier{MaxRetriesPerProvider: 2}
+	classification := ProviderErrorClassification{Kind: ProviderErrorTimeout, Class: ClassRetryable, Retryable: true}
+
+	if got := classifier.Decide(classification, 0); got != ChainDecisionRetry {
+		t.Fatalf("attempt 0 decision = %q, want %q", got, ChainDecisionRetry)
+	}
+	if got := classifier.Decide(classification, 1); got != ChainDecisionRetry {
+		t.Fatalf("attempt 1 decision = %q, want %q", got, ChainDecisionRetry)
+	}
+	if got := classifier.Decide(classification, 2); got != ChainDecisionFallback {
+		t.Fatalf("attempt 2 decision = %q, want %q", got, ChainDecisionFallback)
+	}
+}
+
 func statusOf(err error) int {
 	var httpErr *HTTPError
 	if errors.As(err, &httpErr) {
@@ -184,6 +234,7 @@ func TestClassifyProviderErrorKindStrings(t *testing.T) {
 		ProviderErrorImageTooLarge,
 		ProviderErrorRetryable,
 		ProviderErrorNonRetryable,
+		ProviderErrorTimeout,
 	} {
 		if kind.String() == "" {
 			t.Fatalf("%#v String() is empty", kind)

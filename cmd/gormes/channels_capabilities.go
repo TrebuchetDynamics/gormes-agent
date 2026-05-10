@@ -67,6 +67,9 @@ func configuredChannelCapabilityDetails(cfg config.Config) map[string]string {
 	if cfg.Slack.Enabled {
 		details["slack"] = configuredSlackGatewayStatusDetail(cfg.Slack)
 	}
+	if cfg.Teams.Enabled {
+		details["teams"] = configuredTeamsGatewayStatusDetail(cfg.Teams)
+	}
 	if cfg.Yuanbao.Enabled {
 		details["yuanbao"] = cfg.Yuanbao.RedactedStatus()
 	}

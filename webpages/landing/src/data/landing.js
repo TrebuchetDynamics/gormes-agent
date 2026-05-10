@@ -20,44 +20,44 @@ const codeBaseLabel = goFiles && goLines && testCount
   : '';
 
 export const page = {
-  title: 'Gormes — Hermes-Compatible AI Agent Runtime in One Go Binary',
+  title: 'Gormes — Autonomously porting Python to Go, in production',
   description:
-    'Run Hermes-style AI agent skills, providers, memory, and gateways from one Go binary. No Python runtime. Built by an autonomous engineering loop that ports upstream Hermes daily under TDD discipline.',
+    "TrebuchetDynamics' autonomous engineering loop ports large Python codebases to Go in production. Gormes is the receipt — 30 Hermes skills unchanged in one Go binary on Termux, Windows-without-Python, and locked-down corp Linux.",
   nav: [
-    { label: 'How it is built', href: '#methodology' },
+    { label: 'Methodology', href: '#methodology' },
     { label: 'Install', href: '#install' },
     { label: 'Trust', href: '#trust' },
     { label: 'Roadmap', href: '#roadmap' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  heroKicker: 'OPEN SOURCE · MIT LICENSE · AUTONOMOUSLY PORTED FROM HERMES',
-  heroHeadline: 'AI agent runtime in one Go binary.',
+  heroKicker: 'METHODOLOGY · OPEN SOURCE · MIT LICENSE',
+  heroHeadline: 'Autonomously porting Python to Go, in production.',
   heroLines: [
-    'Drop-in compatible with the Hermes agent ecosystem — skills, providers, memory, and gateways — without a Python runtime, virtualenv, or backend service.',
-    "Built by TrebuchetDynamics' autonomous engineering loop, which ports upstream Hermes daily under TDD discipline.",
-    'Choose source build or install.sh, prove the machine offline, then add provider and gateway credentials.',
+    "TrebuchetDynamics built an agentic engineering loop that ports large Python codebases to Go in production — under TDD discipline, validation-gated commits, and a contract-typed plan. Gormes is the receipt.",
+    'That receipt runs the 30 most-used Hermes skills unchanged in one Go binary on Termux, Windows-without-Python, and locked-down corp Linux. No pip, no venv, no Docker daemon.',
+    'Build from source or run install.sh, prove the machine offline, then add provider and gateway credentials.',
   ],
   heroFilterStamp: 'Scout release.',
   heroFilterLine:
     'Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now. Release signing, voice/TTS, and full Hermes parity are still hardening.',
   primaryCta: { label: 'Choose an install path', href: '#install' },
   secondaryCta: {
-    label: 'See how it is built',
+    label: 'See the methodology',
     href: '#methodology',
   },
   proofStrip: [
-    'Source build recommended',
-    'install.sh available',
-    releaseLabel,
-    'Static Go binary',
-    'MIT License',
-    'Offline doctor before credentials',
-    'Autonomous porting loop ships daily',
+    { label: '30 Hermes skills curated', kind: 'pop' },
+    { label: '1 Go binary', kind: 'pop' },
+    { label: '3 hard targets: Termux / Windows / locked Linux', kind: 'pop' },
+    { label: 'Validation-gated autonomous loop' },
+    { label: releaseLabel },
+    { label: 'MIT License' },
+    { label: 'Offline doctor before credentials' },
   ],
-  methodologyLabel: 'HOW IT IS BUILT',
-  methodologyHeadline: 'An autonomous engineering loop ports Hermes to Go, every day.',
+  methodologyLabel: 'THE METHODOLOGY',
+  methodologyHeadline: 'How the receipt is produced.',
   methodologyIntro:
-    "Gormes is the artifact TrebuchetDynamics' agentic engineering system produces. A planner → builder → TDD-slice loop runs against upstream Hermes around the clock, lands one bounded vertical slice at a time, and only commits when go test, progress validate, and git diff --check are all green. The methodology is the differentiator; Hermes-parity is the receipt that proves it works.",
+    "Gormes is the artifact TrebuchetDynamics' agentic engineering system produces. A planner → builder → TDD-slice loop runs around the clock, lands one bounded vertical slice at a time, and only commits when go test, progress validate, and git diff --check are all green. The methodology is the product. Hermes-parity is supporting evidence the methodology works.",
   methodologyMetricLabel: 'Loop output, measured today',
   methodologyMetrics: [
     {
@@ -86,12 +86,12 @@ export const page = {
       body: 'A schema-validated, contract-typed plan tracks every bounded slice. The loop selects the next builder-ready row; nothing else. No side queues, no private TODOs.',
     },
     {
-      title: 'Hermes is the parity oracle',
-      body: 'Upstream Hermes is the Python reference. The loop sweeps each release for behavior gaps, classifies them, and turns them into TDD slices the builder can finish.',
-    },
-    {
       title: 'Reusable porting toolkit',
       body: 'The skill set behind the loop (planner, builder, tdd-slice, parity-auditor, references, skill-manager) is generic Python-to-Go porting infrastructure. Open-source extraction is on the Q2 roadmap.',
+    },
+    {
+      title: 'Hermes is the parity oracle, not the contract',
+      body: 'Upstream Hermes is the Python reference behavior. The loop sweeps each release for gaps, classifies them, and turns them into TDD slices — but Gormes can decline upstream features that contradict the sharp v1.0 cut.',
     },
   ],
   methodologyLink: {
@@ -141,7 +141,7 @@ export const page = {
   fitCards: [
     {
       label: 'For',
-      body: 'Developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift — and engineering teams curious how an autonomous loop ships parity work daily.',
+      body: 'Engineering teams curious how an autonomous loop ports Python projects to Go in production — and developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift.',
     },
     {
       label: 'Not for yet',
