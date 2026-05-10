@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"encoding/base64"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -137,16 +138,20 @@ func imageContentPartsFromAttachments(attachments []Attachment) []hermes.Message
 		return nil
 	}
 	var parts []hermes.MessageContentPart
+	var skipped int
+	var totalBytes int
 	for _, att := range attachments {
 		if !strings.EqualFold(strings.TrimSpace(att.Kind), "photo") {
 			continue
 		}
 		path := strings.TrimSpace(att.URL)
 		if path == "" {
+			skipped++
 			continue
 		}
 		data, err := os.ReadFile(path)
 		if err != nil || len(data) == 0 {
+			skipped++
 			continue
 		}
 		mediaType := strings.TrimSpace(att.MediaType)
@@ -157,6 +162,14 @@ func imageContentPartsFromAttachments(attachments []Attachment) []hermes.Message
 			Type:     "image_url",
 			ImageURL: "data:" + mediaType + ";base64," + base64.StdEncoding.EncodeToString(data),
 		})
+		totalBytes += len(data)
+	}
+	if len(parts) > 0 || skipped > 0 {
+		slog.Info("imageContentPartsFromAttachments",
+			"image_parts", len(parts),
+			"skipped", skipped,
+			"total_image_bytes", totalBytes,
+			"attachment_count", len(attachments))
 	}
 	return parts
 }
