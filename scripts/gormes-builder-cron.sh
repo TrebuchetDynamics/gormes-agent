@@ -115,6 +115,17 @@ Skill loading
   The same files are symlinked into ~/.config/opencode/skills/ for
   discoverability.
 
+Tool-schema reminders (opencode is strict about these — wrong shape = no-op)
+- `bash`: REQUIRES both `command` (the shell command) and `description` (one
+  short sentence describing what it does). Omitting `description` errors out.
+- `read`: takes `file_path` (absolute path preferred).
+- `edit`: takes `file_path`, `old_string`, `new_string`. The old_string must
+  match exactly (whitespace + newlines included) and be unique in the file.
+- `write`: takes `file_path` and `content`. Use only for new files; prefer
+  `edit` for changes to existing files.
+- When in doubt, run a single `bash` with `git status --short` first — it is
+  the cheapest way to ground yourself in the worktree state.
+
 Mandatory branch + safety rules
 - Stay on the existing `development` branch only. Do not create branches or
   worktrees. If HEAD is not `development`, stop and report the blocker.
