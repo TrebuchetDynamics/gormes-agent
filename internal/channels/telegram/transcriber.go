@@ -92,9 +92,83 @@ func sanitizeTelegramAudioError(err error) string {
 		return "audio transcription timed out"
 	case strings.Contains(msg, "whisper"), strings.Contains(msg, "transcrib"):
 		return "audio transcription failed"
+	case strings.Contains(msg, "groq stt http "):
+		return "audio transcription rejected by provider"
+	case strings.Contains(msg, "groq stt") || strings.Contains(msg, "openai stt") || strings.Contains(msg, "http stt"):
+		return "audio transcription provider failed"
+	case strings.Contains(msg, "telegram file id missing") || strings.Contains(msg, "telegram file path missing"):
+		return "telegram file metadata missing"
+	case strings.Contains(msg, "empty audio"):
+		return "telegram download returned empty audio"
 	default:
 		return "audio unavailable"
 	}
+}
+
+// telegramAudioErrorDiagnostic returns a short, redacted token suitable for
+// internal logging that pinpoints which failure mode tripped without leaking
+// Telegram file_ids, direct URLs, or provider response bodies. It mirrors
+// sanitizeTelegramAudioError's classification but stays in snake_case so log
+// scrapers can group failures cleanly. Provider HTTP status codes are
+// preserved when present (Groq STT HTTP 401 → "stt_http_401").
+func telegramAudioErrorDiagnostic(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "getfile"):
+		return "telegram_getfile_failed"
+	case strings.Contains(msg, "download") && strings.Contains(msg, "empty"):
+		return "telegram_empty_download"
+	case strings.Contains(msg, "download"):
+		return "telegram_download_failed"
+	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline"):
+		return "transcription_timeout"
+	case strings.Contains(msg, "groq stt http "):
+		// Format: "Groq STT HTTP 401: ..." → extract the 3-digit code.
+		if idx := strings.Index(msg, "groq stt http "); idx >= 0 {
+			tail := msg[idx+len("groq stt http "):]
+			tail = strings.TrimSpace(tail)
+			if len(tail) >= 3 {
+				code := tail[:3]
+				if _, convErr := strconvAtoi(code); convErr == nil {
+					return "stt_http_" + code
+				}
+			}
+		}
+		return "stt_http_unknown"
+	case strings.Contains(msg, "groq stt"):
+		return "stt_groq_local_failure"
+	case strings.Contains(msg, "openai stt"):
+		return "stt_openai_local_failure"
+	case strings.Contains(msg, "http stt"):
+		return "stt_adapter_failure"
+	case strings.Contains(msg, "whisper"), strings.Contains(msg, "transcrib"):
+		return "stt_local_command_failure"
+	case strings.Contains(msg, "telegram file id missing"):
+		return "telegram_file_id_missing"
+	case strings.Contains(msg, "telegram file path missing"):
+		return "telegram_file_path_missing"
+	case strings.Contains(msg, "empty audio"):
+		return "transcriber_empty_audio"
+	default:
+		return "unclassified"
+	}
+}
+
+// strconvAtoi is a thin local indirection so telegramAudioErrorDiagnostic
+// stays in this file without forcing a strconv import on the rest of the
+// package surface (which never needed strconv before).
+func strconvAtoi(s string) (int, error) {
+	n := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, fmt.Errorf("not a digit: %q", s)
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n, nil
 }
 
 // CommandAudioTranscriber runs a local whisper-compatible CLI in a temporary
