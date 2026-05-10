@@ -547,8 +547,7 @@ toolLoop:
 					decision := retryBudget.NextDelayDecision(err)
 					k.retryStatus = retryStatusWithDecision(k.retryStatus, decision, classification)
 					k.phase = PhaseReconnecting
-					k.lastError = "reconnecting: " + err.Error()
-					k.emitFrame("reconnecting")
+					k.emitStreamDropRetryFrame(err, decision, classification, false)
 					if k.waitForRetryDelay(ctx, decision.Delay) {
 						cancelled = true
 						break toolLoop
@@ -581,7 +580,8 @@ toolLoop:
 			k.phase = PhaseStreaming
 			k.emitFrame("streaming")
 
-			outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken)
+			var streamRetryErr error
+			outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken, &streamRetryErr)
 			_ = stream.Close()
 			if sid := stream.SessionID(); sid != "" {
 				latestSessionID = sid
@@ -618,14 +618,11 @@ toolLoop:
 					)
 					return
 				}
-				decision := retryBudget.NextDelayDecision(nil)
-				k.retryStatus = retryStatusWithDecision(k.retryStatus, decision, hermes.ProviderErrorClassification{
-					Kind:      hermes.ProviderErrorRetryable,
-					Class:     hermes.ClassRetryable,
-					Retryable: true,
-				})
+				decision := retryBudget.NextDelayDecision(streamRetryErr)
+				classification := streamDropRetryClassification(streamRetryErr)
+				k.retryStatus = retryStatusWithDecision(k.retryStatus, decision, classification)
 				k.phase = PhaseReconnecting
-				k.emitFrame("reconnecting")
+				k.emitStreamDropRetryFrame(streamRetryErr, decision, classification, true)
 				if k.waitForRetryDelay(ctx, decision.Delay) {
 					cancelled = true
 					break toolLoop
@@ -888,7 +885,7 @@ func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base hermes.Cha
 		cancelled          bool
 		replaceOnNextToken bool
 	)
-	outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken)
+	outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken, nil)
 	summarySessionID := stream.SessionID()
 	_ = stream.Close()
 
@@ -1015,6 +1012,84 @@ func (k *Kernel) handleRetryEvent(e PlatformEvent) bool {
 	return false
 }
 
+func (k *Kernel) emitStreamDropRetryFrame(err error, decision RetryDelayDecision, classification hermes.ProviderErrorClassification, midStream bool) {
+	provider := k.streamDropProviderName()
+	errorType := streamDropErrorType(err)
+	errorText := streamDropErrorText(err)
+	errorClass := classification.Class.String()
+	errorKind := classification.Kind.String()
+	dropKind := "stream drop"
+	if midStream {
+		dropKind = "stream drop mid-stream"
+	}
+	k.lastError = dropKind + ": " + errorText
+	k.log.Warn("kernel stream drop retry",
+		"provider", provider,
+		"endpoint", k.cfg.Endpoint,
+		"attempt", decision.Attempt,
+		"max_attempts", maxRetryAttempts,
+		"error_type", errorType,
+		"error_class", errorClass,
+		"error_kind", errorKind,
+		"mid_stream", midStream,
+		"error", errorText,
+	)
+	k.emitFrame(fmt.Sprintf("%s %s (%s/%s) - reconnecting, retry %d/%d",
+		provider,
+		dropKind,
+		errorKind,
+		errorType,
+		decision.Attempt,
+		maxRetryAttempts,
+	))
+}
+
+func (k *Kernel) streamDropProviderName() string {
+	status := hermes.ProviderStatusOf(k.client)
+	provider := strings.TrimSpace(status.Provider)
+	if provider == "" {
+		return "provider"
+	}
+	return provider
+}
+
+func streamDropRetryClassification(err error) hermes.ProviderErrorClassification {
+	classification := hermes.ClassifyProviderError(err)
+	if classification.Class == hermes.ClassRetryable {
+		return classification
+	}
+	return hermes.ProviderErrorClassification{
+		Kind:      hermes.ProviderErrorRetryable,
+		Class:     hermes.ClassRetryable,
+		Retryable: true,
+	}
+}
+
+func streamDropErrorType(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+	name := strings.TrimPrefix(fmt.Sprintf("%T", err), "*")
+	if idx := strings.LastIndex(name, "."); idx >= 0 {
+		name = name[idx+1:]
+	}
+	if name == "" {
+		return "unknown"
+	}
+	return name
+}
+
+func streamDropErrorText(err error) string {
+	if err == nil {
+		return "unknown stream drop"
+	}
+	text := strings.TrimSpace(err.Error())
+	if text == "" {
+		return streamDropErrorType(err)
+	}
+	return text
+}
+
 // streamInner runs one stream attempt. Pumps events from hermes.Stream.Recv
 // into a bounded channel, multiplexes over the kernel's platform events and
 // a 16ms flush ticker, and returns a classified outcome so the retry-loop
@@ -1033,6 +1108,7 @@ func (k *Kernel) streamInner(
 	fatalErr *error,
 	cancelled *bool,
 	replaceOnNextToken *bool,
+	retryErr *error,
 ) streamOutcome {
 	type streamResult struct {
 		event hermes.Event
@@ -1062,6 +1138,11 @@ func (k *Kernel) streamInner(
 		outcome streamOutcome
 	)
 	outcome = streamOutcomeFatal // default if something truly unexpected happens
+	setRetryErr := func(err error) {
+		if retryErr != nil && err != nil {
+			*retryErr = err
+		}
+	}
 
 streamLoop:
 	for {
@@ -1105,6 +1186,7 @@ streamLoop:
 				if *gotFinal {
 					outcome = streamOutcomeDone
 				} else {
+					setRetryErr(io.ErrUnexpectedEOF)
 					outcome = streamOutcomeRetryable
 				}
 				break streamLoop
@@ -1115,6 +1197,7 @@ streamLoop:
 						outcome = streamOutcomeDone
 					} else {
 						// Stream ended without EventDone — treat as retryable.
+						setRetryErr(io.ErrUnexpectedEOF)
 						outcome = streamOutcomeRetryable
 					}
 					break streamLoop
@@ -1126,6 +1209,7 @@ streamLoop:
 				}
 				// Classify the error: Retryable → caller retries; otherwise fatal.
 				if hermes.Classify(res.err) == hermes.ClassRetryable {
+					setRetryErr(res.err)
 					outcome = streamOutcomeRetryable
 				} else {
 					*fatalErr = res.err

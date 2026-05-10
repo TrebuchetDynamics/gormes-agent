@@ -19263,6 +19263,84 @@
               }
             },
             {
+              "name": "Provider stream-drop retry diagnostics",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Kernel reconnect attempts for provider stream drops emit exactly one provider-named status frame per drop and a structured warning log with retry attempt, provider, endpoint, error kind, and error type evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Operators see a generic reconnecting frame and must inspect unstructured logs to identify which provider or stream error class caused a retry.",
+              "fixture": "internal/kernel/stream_drop_diagnostics_test.go",
+              "source_refs": [
+                "./hermes-agent/run_agent.py@68e44642c:_emit_stream_drop",
+                "./hermes-agent/run_agent.py@68e44642c:_log_stream_retry",
+                "./hermes-agent/tests/run_agent/test_stream_drop_logging.py@68e44642c",
+                "internal/kernel/kernel.go:streamInner",
+                "internal/kernel/retry.go:RetryStatus"
+              ],
+              "ready_when": [
+                "Streaming interrupt retry suppression and Kernel retry honors Retry-After hint are validated on development.",
+                "A fake hermes.Client can make OpenStream return a retryable setup error or a stream Recv error without live provider credentials.",
+                "Tests can capture the injected slog.Logger output and RenderFrame status text without starting a gateway or TUI."
+              ],
+              "not_ready_when": [
+                "The slice changes retry timing, provider fallback policy, credential rotation, or gateway channel rendering.",
+                "The implementation emits a separate reconnected status frame for the same drop.",
+                "The test depends on live provider, network, or filesystem log locations."
+              ],
+              "acceptance": [
+                "A retryable OpenStream setup failure produces one reconnect frame whose StatusText contains the provider name, stream-drop wording, error type, and retry attempt/max attempts.",
+                "The same retry writes a structured warning through the kernel logger with provider, endpoint, attempt, max_attempts, error_type, error_class, and error_kind attributes.",
+                "A retryable mid-stream Recv failure preserves the same provider-named status/log contract before retrying.",
+                "The no-drop recovery path does not invent stream-drop warnings or reconnected status frames, and existing interrupt retry suppression fixtures stay green."
+              ],
+              "note": "Complete 2026-05-10: planned by a bounded all-topic weakness sweep after refreshing Hermes from 3800972dd to e2ce89a8a. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 19, below the 90-row cap, so adding one source-backed P1 row was allowed. Fresh Hermes deltas were stream-drop retry diagnostics, Kanban watcher double-init removal, and release AUTHOR_MAP metadata; Gormes' native Kanban store/dispatcher already avoids the redundant init shape, and release author mapping is lower-impact metadata. TDD added provider-named stream-drop retry frames plus structured slog warning breadcrumbs at the Go kernel retry boundary for OpenStream setup failures and mid-stream Recv failures without changing retry timing, fallback policy, credential rotation, or gateway channel rendering. RED: `go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics' -count=1` failed because reconnecting frames were generic. GREEN: `go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1` passed.",
+              "write_scope": [
+                "internal/kernel/kernel.go",
+                "internal/kernel/stream_drop_diagnostics_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1",
+                "go test ./internal/kernel -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Kernel stream-drop fixtures prove provider-named reconnect status, structured warning diagnostics, retry recovery, and no duplicate reconnected status frames."
+              ],
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/kernel/kernel.go emits one provider-named stream-drop retry frame for retryable OpenStream setup failures and retryable mid-stream Recv failures.",
+                  "internal/kernel/kernel.go writes structured warning logs with provider, endpoint, attempt, max_attempts, error_type, error_class, error_kind, mid_stream, and redacted error text.",
+                  "internal/kernel/kernel.go preserves retry budget timing, Retry-After hints, interrupt suppression, fallback policy, and channel rendering boundaries."
+                ],
+                "tests": [
+                  "internal/kernel/stream_drop_diagnostics_test.go covers OpenStream setup drop diagnostics and mid-stream drop diagnostics with fake providers and injected slog output.",
+                  "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1 -> ok"
+                ],
+                "red_green": [
+                  "RED failed with generic StatusText=\"reconnecting\" for both setup and mid-stream retry cases.",
+                  "GREEN passed after the kernel retry boundary emitted provider-named status text and structured warning logs."
+                ]
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-10T00:00:00Z",
+                "last_success": "2026-05-10T00:00:00Z"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:68e44642c run_agent.py",
+                "note": "Hermes collapsed duplicate stream-drop UI lines and added structured provider retry breadcrumbs; Gormes should expose the same diagnostic contract at the Go kernel retry boundary."
+              }
+            },
+            {
               "name": "Provider timeout config fail-closed helper",
               "priority": "P3",
               "status": "complete",
