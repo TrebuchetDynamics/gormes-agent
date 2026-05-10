@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -230,6 +231,17 @@ func (t *kanbanTool) list(ctx context.Context, in map[string]any) json.RawMessag
 		}
 		filtered = append(filtered, task)
 	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		left := filtered[i]
+		right := filtered[j]
+		if left.Priority != right.Priority {
+			return left.Priority > right.Priority
+		}
+		if !left.CreatedAt.Equal(right.CreatedAt) {
+			return left.CreatedAt.Before(right.CreatedAt)
+		}
+		return left.ID < right.ID
+	})
 
 	truncated := len(filtered) > limit
 	if truncated {
