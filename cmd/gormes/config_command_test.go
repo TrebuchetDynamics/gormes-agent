@@ -128,6 +128,43 @@ func TestConfigCommand_SetEndpointAndModelWritesTOMLOnly(t *testing.T) {
 	}
 }
 
+func TestConfigCommand_SetPreservesTOMLComments(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	writeOneshotFlagConfig(t, []byte(`# operator config note
+[hermes]
+# preserve this model note
+model = "old-model" # inline model note
+endpoint = "https://example.invalid/v1"
+`))
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	if _, stderr, err := executeOneshotFlagCommand(cmd, "config", "set", "hermes.model", "new-model"); err != nil {
+		t.Fatalf("config set hermes.model: %v stderr=%s", err, stderr)
+	}
+
+	body, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	got := string(body)
+	for _, want := range []string{
+		"# operator config note",
+		"# preserve this model note",
+		"# inline model note",
+		"endpoint = \"https://example.invalid/v1\"",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("config set stripped %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "old-model") {
+		t.Fatalf("config set left old model value:\n%s", got)
+	}
+	if !strings.Contains(got, `model = "new-model"`) && !strings.Contains(got, `model = 'new-model'`) {
+		t.Fatalf("config set did not write new model value:\n%s", got)
+	}
+}
+
 func TestConfigCommand_SetTerminalCWDWritesTOMLAndLoads(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	projectDir := t.TempDir()
@@ -433,8 +470,8 @@ provider = "openai"
 			Provider string `json:"provider"`
 		} `json:"hermes"`
 		Secrets struct {
-			APIKey            string `json:"api_key"`
-			GormesAPIKeyEnv   string `json:"gormes_api_key_env"`
+			APIKey          string `json:"api_key"`
+			GormesAPIKeyEnv string `json:"gormes_api_key_env"`
 		} `json:"secrets"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
