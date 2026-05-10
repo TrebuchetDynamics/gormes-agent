@@ -26337,6 +26337,78 @@
               }
             },
             {
+              "name": "WASI Whisper ffmpeg preprocess + fixed-window chunker",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Split 2026-05-10 from the broader `Audio preprocessing and chunking pipeline` parent during a bounded all-topic weakness sweep. Planned rows were 17, below the 90-row cap, so adding one source-backed child row was allowed. Recent Hermes runtime deltas (Codex Spark, stream-drop diagnostics, Kanban slash UX, image/vision routing, docs/public mirrors, and release/operator trust) are complete or row-backed; higher-priority TD publication rows remain operator-owned and the release parent is too broad for one builder pass. This child owns the smallest unblocked STT closure: Hermes' local STT command normalizes non-WAV audio through ffmpeg before local transcription, while Gormes' WASI Whisper lane still needs a reusable Go preprocessing/chunking package before the broad parent can close."
+              },
+              "contract": "Introduce a reusable `internal/wasi/whisper/audio` preprocessing package that accepts inbound audio bytes, preserves already-compatible 16kHz mono PCM WAV input, converts non-WAV formats through an injectable ffmpeg-style converter into 16kHz mono PCM WAV, returns typed `audio_preprocess_unavailable` evidence when conversion is unavailable, and exposes fixed-window PCM chunking for offline Whisper transcription. This is a library slice only; Telegram resolver binding and pure-Go codec replacement remain separate rows.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "When ffmpeg is absent or conversion fails, Preprocess returns a typed error with code `audio_preprocess_unavailable`; callers can surface an actionable fallback instead of panicking or silently dropping the voice message.",
+              "fixture": "internal/wasi/whisper/audio/preprocess_test.go and internal/wasi/whisper/audio/chunker_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/transcription_tools.py@44cdf555a:_prepare_local_audio",
+                "internal/wasi/whisper/transcriber.go:TranscribeWAV",
+                "cmd/gormes/telegram_transcriber.go:temporary non-WAV conversion bridge",
+                "docs/content/building-gormes/architecture_plan/progress.json:Audio preprocessing and chunking pipeline"
+              ],
+              "ready_when": [
+                "Row D `Wire Pure-Go Whisper into Telegram resolver` is complete and can already hand local temp files to WASI Whisper.",
+                "The child can be proven with hermetic converter fixtures; no live Telegram, real ffmpeg binary, real model file, or cloud STT credentials are required."
+              ],
+              "not_ready_when": [
+                "The slice rewrites Telegram channel parsing, resolver priority, or the AudioTranscriber interface.",
+                "The slice attempts pure-Go OGG/Opus/MP3 decoding, VAD, streaming transcription, or model benchmarking.",
+                "Tests require a real ffmpeg binary, real Whisper model, live provider credentials, or network access."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Audio preprocessing and chunking pipeline"
+              ],
+              "acceptance": [
+                "Preprocess returns 16kHz mono PCM samples for already-compatible WAV bytes without invoking a converter.",
+                "Preprocess converts Telegram-shaped OGG/Opus bytes through an injected converter and decodes the generated 16kHz mono PCM WAV fixture.",
+                "A missing ffmpeg/default converter path returns a typed `audio_preprocess_unavailable` error without panicking and without leaking temp paths beyond basename diagnostics.",
+                "ChunkPCM splits PCM samples into bounded fixed-window chunks while preserving silence, short input, exact boundaries, and ragged tails.",
+                "No Telegram channel code, resolver ordering, pure-Go codec library, or WASI Transcriber API is changed in this slice."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/audio/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio ./internal/wasi/whisper -count=1 -timeout=10m",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "The new audio package provides hermetic preprocessing and chunking fixtures for the parent row; broad Telegram integration, VAD, and pure-Go codec replacement remain explicitly row-backed."
+              ],
+              "note": "Complete 2026-05-10: TDD added the reusable `internal/wasi/whisper/audio` package as the bounded child of the broader audio preprocessing parent. The package now decodes compatible 16kHz mono PCM WAV bytes without conversion, converts OGG/Opus-shaped inputs through an injected ffmpeg-style converter, returns typed `audio_preprocess_unavailable` degraded evidence when ffmpeg is missing or conversion fails, removes temp input/output files after preprocessing, and exposes fixed-window ChunkPCM behavior for short, silent, exact-boundary, multi-chunk, and ragged-tail samples. This slice deliberately did not change Telegram resolver ordering, the AudioTranscriber seam, the WASI Transcriber API, VAD, model benchmarking, or pure-Go codec libraries.",
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/wasi/whisper/audio/preprocess.go adds PCM, PreprocessOptions, typed PreprocessError, direct WAV PCM16/16k/mono decoding, injectable converter support, and a default ffmpeg converter that redacts temp paths to basenames.",
+                  "internal/wasi/whisper/audio/chunker.go adds ChunkPCM fixed-window splitting with copied chunks and safe fallback behavior for invalid chunk parameters.",
+                  "internal/wasi/whisper/audio/preprocess_test.go and chunker_test.go cover direct WAV input, injected OGG conversion, missing-ffmpeg degraded evidence, temp cleanup, silence, short input, equal chunks, and ragged tails."
+                ],
+                "verification": [
+                  "RED: CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1 failed with missing Preprocess, PreprocessOptions, AudioPreprocessUnavailable, PreprocessError, and ChunkPCM symbols.",
+                  "RED: TestPreprocess_RedactsConverterTempPaths failed when a converter error included full temp input/output paths.",
+                  "GREEN: CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1 passed.",
+                  "GREEN: CGO_ENABLED=0 go test ./internal/wasi/whisper/audio ./internal/wasi/whisper -count=1 -timeout=10m passed."
+                ]
+              }
+            },
+            {
               "name": "Audio preprocessing and chunking pipeline",
               "priority": "P2",
               "status": "planned",
