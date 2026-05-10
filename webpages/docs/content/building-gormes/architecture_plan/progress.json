@@ -24559,6 +24559,79 @@
               ]
             },
             {
+              "name": "Browser console expression CDP result shaping",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes browser_console(expression=...) mirrors Hermes' current CDP-supervisor fast-path result contract: Runtime.evaluate runs through the existing Go CDP backend without spawning a legacy subprocess, primitive/object/JSON-string results are returned as structured data with success/result/result_type/method evidence, and JavaScript exceptions surface as success=false tool data instead of retrying or hiding the error.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If no CDP backend is configured or the transport fails, the existing browser_harness_* unavailable/failed evidence is preserved; JS-side exceptions remain ordinary browser_console result data and do not become transport failures.",
+              "fixture": "internal/tools/browser_use_harness_bridge_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/browser_tool.py@d4b26df89:_browser_eval",
+                "./hermes-agent/tools/browser_supervisor.py@d4b26df89:CDPSupervisor.evaluate_runtime",
+                "./hermes-agent/tests/tools/test_browser_eval_supervisor_path.py@d4b26df89",
+                "internal/tools/browser_harness_backend.go:BrowserHarnessChromedpBackend.runConsole",
+                "internal/tools/browser_harness_tools.go:BrowserToolConsole",
+                "internal/tools/browser_use_harness_bridge_test.go"
+              ],
+              "ready_when": [
+                "Go browser-harness Hermes browser_* tool wrappers is complete.",
+                "go-browser-harness Chromedp action backend is complete.",
+                "Tests can inject fake CDP Runtime.evaluate responses without Chrome, Browserbase, Firecrawl, Camofox, Python browser-harness, or network access."
+              ],
+              "not_ready_when": [
+                "The slice changes navigation/session lifecycle, Browserbase/Firecrawl/Camofox provider creation, live Chrome startup, or browser_console no-expression log-buffer collection.",
+                "The implementation shells out to agent-browser/browser-harness for the default expression path.",
+                "JavaScript exceptions are returned as Go transport errors instead of structured browser_console success=false data."
+              ],
+              "blocked_by": [
+                "Go browser-harness Hermes browser_* tool wrappers",
+                "go-browser-harness Chromedp action backend"
+              ],
+              "unblocks": [
+                "Browser artifact and console render contract revisit",
+                "Browser /browser connect CDP parity"
+              ],
+              "acceptance": [
+                "A fake CDP transport test proves browser_console(expression) sends Runtime.evaluate with returnByValue=true and returns method=cdp_supervisor with structured result/result_type data for primitives and objects.",
+                "A JSON-string expression result is parsed into structured data so the model receives an object/list instead of an opaque string, matching Hermes' _browser_eval behavior.",
+                "A Runtime.evaluate exceptionDetails response returns success=false error data without returning a Go error or invoking any subprocess fallback.",
+                "Existing browser harness wrapper tests still prove browser_console action JSON generation and default internal-backend routing."
+              ],
+              "write_scope": [
+                "internal/tools/browser_harness_backend.go",
+                "internal/tools/browser_use_harness_bridge_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestBrowserHarnessChromedpBackendConsoleExpression' -count=1",
+                "go test ./internal/tools -run '^TestBrowserHarness' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Browser console expression fixtures prove CDP Runtime.evaluate result-shaping parity, JSON-string parsing, JS-exception data, and no default subprocess path."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:d4b26df89 browser_console expression fast path",
+                "note": "2026-05-10 all-topic weakness sweep refreshed Hermes from 40a4bfa71 to d4b26df89 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Focused gates for non-browser surfaces were green or row-backed. The concrete source-backed stale-complete gap is Hermes' new browser_console(expression) CDP-supervisor result-shape contract, which extends the previously completed Gormes browser artifact/console row."
+              },
+              "note": "Complete 2026-05-10: TDD added fake-CDP Runtime.evaluate fixtures for the Hermes d4b26df89 browser_console(expression) fast-path contract. Gormes now shapes console expression data with success/result/result_type/method=cdp_supervisor, parses JSON-string results into structured objects/lists, and treats JS exceptionDetails as success=false browser_console data without a Go transport error or subprocess fallback. The slice stayed inside the existing Go CDP backend; no browser lifecycle, provider creation, or no-expression log-buffer behavior changed.",
+              "evidence": [
+                "RED: go test ./internal/tools -run 'TestBrowserHarnessChromedpBackendConsoleExpression' -count=1 failed because browser_console returned the raw Runtime.evaluate payload string in data.result.",
+                "GREEN: go test ./internal/tools -run 'TestBrowserHarnessChromedpBackendConsoleExpression' -count=1 passed after browserHarnessConsoleExpressionData shaped primitive, object, JSON-string, and JS-exception responses.",
+                "GREEN: go test ./internal/tools -run '^TestBrowserHarness' -count=1 passed.",
+                "GREEN: go run ./cmd/progress validate passed."
+              ]
+            },
+            {
               "name": "Telegram browser artifact rendering",
               "status": "complete",
               "priority": "P1",

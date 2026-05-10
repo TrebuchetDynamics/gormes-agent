@@ -733,6 +733,7 @@ classification and row-backed implementation queue.
 - [x] Go-native Hermes web managed gateway status and live smoke closure
 - [x] Brave Search + DDGS web search provider parity
 - [x] Browser artifact and console render contract
+- [x] Browser console expression CDP result shaping
 - [x] Telegram browser artifact rendering
 - [x] Browser hybrid private-URL local sidecar routing
 - [x] Browser SSRF quoted-false guard
