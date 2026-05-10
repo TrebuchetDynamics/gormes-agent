@@ -270,6 +270,72 @@ func TestPatchToolFuzzyReplaceEscapeNormalizedAppliesUniqueMatch(t *testing.T) {
 	assertFileContent(t, path, "alpha\n\tBETA\ngamma\n")
 }
 
+func TestPatchToolFuzzyReplaceUnicodeSmartQuotes(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "quote.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "print(\u201chello\u201d)\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/quote.py"}`)
+	args := `{"path":"pkg/quote.py","old_string":` + quoteJSON(t, `print("hello")`) + `,"new_string":` + quoteJSON(t, `print("world")`) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one unicode-normalized replacement", out)
+	}
+	assertFileContent(t, path, "print(\"world\")\n")
+}
+
+func TestPatchToolFuzzyReplaceUnicodeDashAndEllipsis(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "return value\u2014fallback\u2026\nkeep\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, "return value--fallback...") + `,"new_string":` + quoteJSON(t, "return value or fallback") + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one unicode-normalized replacement", out)
+	}
+	assertFileContent(t, path, "return value or fallback\nkeep\n")
+}
+
+func TestPatchToolFuzzyReplaceUnicodeAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "quotes.py")
+	original := "print(\u201chello\u201d)\nprint(\u201chello\u201d)\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"quotes.py"}`)
+	args := `{"path":"quotes.py","old_string":` + quoteJSON(t, `print("hello")`) + `,"new_string":` + quoteJSON(t, `print("world")`) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous unicode-normalized match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	args = `{"path":"quotes.py","old_string":` + quoteJSON(t, `print("hello")`) + `,"new_string":` + quoteJSON(t, `print("world")`) + `,"replace_all":true}`
+	out = executePatchTool(t, NewPatchTool(cfg), args)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two replacements", out)
+	}
+	assertFileContent(t, path, "print(\"world\")\nprint(\"world\")\n")
+}
+
 func TestPatchToolReplaceNoMatchIncludesDidYouMeanHint(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "pkg", "service.go")

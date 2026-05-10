@@ -690,6 +690,7 @@ func fuzzyPatchReplace(content, oldString, newString string, replaceAll bool) (s
 		indentationFlexiblePatchMatches,
 		escapeNormalizedPatchMatches,
 		trimmedBoundaryPatchMatches,
+		unicodeNormalizedPatchMatches,
 	}
 	for _, strategy := range strategies {
 		matches := uniquePatchMatches(strategy(content, oldString))
@@ -759,6 +760,85 @@ func trimmedBoundaryPatchMatches(content, pattern string) []patchTextMatch {
 		}
 		return line
 	})
+}
+
+type patchUnicodeByteMap struct {
+	normalized string
+	start      []int
+	end        []int
+	changed    bool
+}
+
+func unicodeNormalizedPatchMatches(content, pattern string) []patchTextMatch {
+	contentMap := normalizePatchUnicode(content)
+	patternMap := normalizePatchUnicode(pattern)
+	if !contentMap.changed && !patternMap.changed {
+		return nil
+	}
+
+	matches := exactPatchMatches(contentMap.normalized, patternMap.normalized)
+	if len(matches) == 0 {
+		matches = lineTrimmedPatchMatches(contentMap.normalized, patternMap.normalized)
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+
+	mapped := make([]patchTextMatch, 0, len(matches))
+	for _, match := range matches {
+		if match.start < 0 || match.end < match.start || match.start >= len(contentMap.start) || match.end >= len(contentMap.end) {
+			continue
+		}
+		mapped = append(mapped, patchTextMatch{start: contentMap.start[match.start], end: contentMap.end[match.end]})
+	}
+	return mapped
+}
+
+func normalizePatchUnicode(s string) patchUnicodeByteMap {
+	var b strings.Builder
+	b.Grow(len(s))
+	startMap := make([]int, 0, len(s)+1)
+	endMap := []int{0}
+	changed := false
+	for offset, r := range s {
+		size := utf8.RuneLen(r)
+		if size < 0 {
+			size = 1
+		}
+		origEnd := offset + size
+		replacement := patchUnicodeReplacement(r)
+		if replacement == "" {
+			replacement = string(r)
+		} else {
+			changed = true
+		}
+		for i := 0; i < len(replacement); i++ {
+			startMap = append(startMap, offset)
+			endMap = append(endMap, origEnd)
+		}
+		b.WriteString(replacement)
+	}
+	startMap = append(startMap, len(s))
+	return patchUnicodeByteMap{normalized: b.String(), start: startMap, end: endMap, changed: changed}
+}
+
+func patchUnicodeReplacement(r rune) string {
+	switch r {
+	case '\u201c', '\u201d':
+		return `"`
+	case '\u2018', '\u2019':
+		return `'`
+	case '\u2014':
+		return "--"
+	case '\u2013':
+		return "-"
+	case '\u2026':
+		return "..."
+	case '\u00a0':
+		return " "
+	default:
+		return ""
+	}
 }
 
 func lineBlockPatchMatches(content, pattern string, normalize func(line string, index int, count int) string) []patchTextMatch {
