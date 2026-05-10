@@ -17,13 +17,14 @@ const defaultChatCompletionsPath = "/v1/chat/completions"
 const defaultHealthPath = "/health"
 
 type httpClient struct {
-	baseURL          string
-	apiKey           string
-	provider         string
-	http             *http.Client
-	mu               sync.Mutex
-	temperatureRetry ProviderTemperatureRetryStatus
-	parameterRetry   ProviderUnsupportedParameterRetryStatus
+	baseURL                   string
+	apiKey                    string
+	provider                  string
+	http                      *http.Client
+	mu                        sync.Mutex
+	temperatureRetry          ProviderTemperatureRetryStatus
+	parameterRetry            ProviderUnsupportedParameterRetryStatus
+	visionUnsupportedSessions map[string]bool
 }
 
 // NewHTTPClient returns a Client that talks HTTP+SSE to a
@@ -137,6 +138,7 @@ type orChatRequest struct {
 }
 
 func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, error) {
+	req = c.prepareVisionUnsupportedRequest(req)
 	if c.usesCodexResponsesTransport() {
 		return c.openCodexResponsesStream(ctx, req)
 	}
@@ -154,6 +156,22 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		httpErr := newHTTPError(resp.StatusCode, string(raw), resp.Header)
+		if retryReq, ok := c.planVisionUnsupportedRetry(req, httpErr); ok {
+			retryBody, retryDescriptors, err := c.buildOpenAICompatibleChatRequestBody(retryReq)
+			if err != nil {
+				return nil, err
+			}
+			retryResp, err := c.doChatCompletions(ctx, retryReq, retryBody)
+			if err != nil {
+				return nil, err
+			}
+			if retryResp.StatusCode >= 300 {
+				retryRaw, _ := io.ReadAll(retryResp.Body)
+				_ = retryResp.Body.Close()
+				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
+			}
+			return newChatStream(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors), nil
+		}
 		if req.Temperature != nil && requestBodyHasParameter(body, "temperature") && isUnsupportedTemperatureError(httpErr) {
 			c.recordTemperatureRetry(req.Model, httpErr)
 			retryReq := req
@@ -272,7 +290,33 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 	if resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		return nil, newHTTPError(resp.StatusCode, string(raw), resp.Header)
+		httpErr := newHTTPError(resp.StatusCode, string(raw), resp.Header)
+		if retryReq, ok := c.planVisionUnsupportedRetry(req, httpErr); ok {
+			retryProviderReq, err := transport.BuildRequest(retryReq)
+			if err != nil {
+				return nil, err
+			}
+			if chatGPTCodexBackend {
+				retryProviderReq.Body, err = codexResponsesStreamingBody(retryProviderReq.Body)
+				if err != nil {
+					return nil, err
+				}
+			}
+			retryResp, err := c.doProviderPost(ctx, retryReq.SessionID, retryReq.Model, retryProviderReq.Path, retryProviderReq.Body, accept)
+			if err != nil {
+				return nil, err
+			}
+			if retryResp.StatusCode >= 300 {
+				retryRaw, _ := io.ReadAll(retryResp.Body)
+				_ = retryResp.Body.Close()
+				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
+			}
+			if chatGPTCodexBackend {
+				return newCodexResponsesSSEStream(ctx, retryResp.Body, retryProviderReq)
+			}
+			return transport.OpenFixtureStream(retryResp.Body, retryProviderReq)
+		}
+		return nil, httpErr
 	}
 	if chatGPTCodexBackend {
 		return newCodexResponsesSSEStream(ctx, resp.Body, providerReq)

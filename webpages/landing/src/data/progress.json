@@ -15321,15 +15321,15 @@
             },
             {
               "name": "Vision-unsupported provider retry (strip-images-and-resend)",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes run_agent.py:12745-12800 _IMAGE_REJECTION_PHRASES + _strip_images_from_messages",
+                "upstream_ref": "hermes-agent/run_agent.py@998676dd0:878-916 _strip_images_from_messages; 11176-11180 _vision_supported; 12739-12799 image-rejection recovery",
                 "note": "Hermes detects 14 phrases (`does not support vision`, `only 'text' content type is supported`, `image_url is not supported`, etc.) on a 4xx provider error, sets _vision_supported=False, strips all image_url parts from messages, and retries the same turn text-only. 4xx-only gate to avoid catching transient 5xx as vision-unsupported. Picoclaw has the same pattern at pkg/agent/llm_media.go and pkg/agent/turn_coord.go:499. Gormes has image_shrink_retry.go for too-large but no vision-unsupported retry — when a provider rejects image_url today, the bot returns the safe-busy reply with no automatic recovery."
               },
               "contract": "When a provider returns a 4xx error whose body matches the vision-rejection phrase set, the provider stack strips all image_url / input_image / image content parts from the in-flight messages, marks the session as vision-unsupported (so future turns in the same session skip image attachment), and retries the same turn once. 5xx and timeout errors are NOT classified as vision-unsupported — those route to the existing transient-retry path. Phrase matching is best-effort English; expand the phrase set when new provider wordings are observed.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -15338,18 +15338,21 @@
                 "system"
               ],
               "degraded_mode": "When the same session's vision-supported flag flips to false, subsequent image_url attachments are stripped pre-flight (before the provider call) so the session doesn't keep paying the round-trip cost; the channel surfaces the resulting text-only behavior in operator logs at INFO level.",
-              "fixture": "internal/hermes/vision_unsupported_retry_test.go (planned) using fake transport that returns vision-rejection bodies",
+              "fixture": "internal/hermes/vision_unsupported_retry_test.go using fake HTTP transports that return vision-rejection bodies",
               "source_refs": [
-                "../hermes-agent/run_agent.py:12745-12800 _IMAGE_REJECTION_PHRASES + retry implementation",
+                "./hermes-agent/run_agent.py@998676dd0:878-916 _strip_images_from_messages",
+                "./hermes-agent/run_agent.py@998676dd0:11176-11180 _vision_supported session flag",
+                "./hermes-agent/run_agent.py@998676dd0:12739-12799 _IMAGE_REJECTION_PHRASES + retry implementation",
                 "../picoclaw/pkg/agent/llm_media.go (sibling Go port — same pattern)",
                 "../picoclaw/pkg/agent/turn_coord.go:499 (vision-unsupported retry call site)",
                 "../picoclaw/pkg/agent/pipeline_llm.go:207 (alternative pipeline retry path)",
                 "internal/hermes/image_shrink_retry.go (existing too-large retry — pattern reference for the new retry)",
-                "internal/hermes/client.go (provider call entry)",
+                "internal/hermes/http_client.go:OpenStream/openCodexResponsesStream (provider call entry)",
+                "internal/hermes/client.go:ChatRequest and MessageContentPart types",
                 "internal/hermes/codex_responses_adapter.go (one provider that may emit vision-rejection)"
               ],
               "ready_when": [
-                "Multimodal photo attachment passthrough (2.B.12 row 6) is complete (true at HEAD = 0a7f8d02d).",
+                "Multimodal photo attachment passthrough (2.B.12 row 6) is complete at current development HEAD 61f0f7d9b.",
                 "image_shrink_retry.go pattern is stable and tests are green (true)."
               ],
               "not_ready_when": [
@@ -15371,8 +15374,8 @@
               "write_scope": [
                 "internal/hermes/vision_unsupported_retry.go (new)",
                 "internal/hermes/vision_unsupported_retry_test.go (new)",
-                "internal/hermes/client.go (wire the retry into the provider call path)",
-                "internal/kernel/kernel.go (session-scoped flag, optional — could live in session state)",
+                "internal/hermes/http_client.go (wire the retry into the provider call path)",
+                "internal/hermes/client.go (types only if the retry seam needs public request metadata)",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -15381,9 +15384,9 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Operator points the gateway at a text-only model (e.g. local Ollama, DeepSeek-V2 without vision) and sends a screenshot. Provider returns a vision-rejection 4xx; the in-flight request is rebuilt text-only and resent; the bot replies based on the caption text alone. Subsequent turns in the same session pre-strip image attachments without a round-trip. Operator log shows the session_vision_supported=false transition."
+                "internal/hermes fake-provider fixtures prove OpenAI-compatible and Codex Responses requests retry once without image_url/input_image/image parts after a 4xx vision rejection; the same session pre-strips future image parts before the next provider call."
               ],
-              "note": "Filed 2026-05-09 from gormes-hermes-parity audit. Hermes has 14 phrase matchers + 4xx-only gate + session-scoped flag. Picoclaw has equivalent at pkg/agent/llm_media.go and pkg/agent/turn_coord.go. Gormes has image_shrink_retry for too-large but no vision-unsupported retry — when a non-vision provider rejects image_url today, the bot returns the safe-busy reply with no automatic recovery. Real today since the operator's openai-codex / gpt-5.5 stack DOES support vision; bites the day they switch to a text-only fallback."
+              "note": "Filed 2026-05-09 from gormes-hermes-parity audit. Hermes has 14 phrase matchers + 4xx-only gate + session-scoped flag. Picoclaw has equivalent at pkg/agent/llm_media.go and pkg/agent/turn_coord.go. Gormes had image_shrink_retry for too-large but no vision-unsupported retry — when a non-vision provider rejected image_url, the bot returned the safe-busy reply with no automatic recovery. Refined 2026-05-10 during bounded all-topic weakness sweep after refreshing Hermes to 998676dd0 and planned rows were 22, below the 90-row cap. No new row was added: CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows were complete or row-backed, while this provider-visible multimodal fallback was source-backed, unblocked by the completed photo passthrough row, fixture-ready, and higher leverage than operator-blocked P1 publication/release parent rows. Complete 2026-05-10: TDD added PlanVisionUnsupportedRetry, 4xx-only phrase detection for Hermes' image-rejection phrases plus `unsupported content type: image_url` and `unknown variant image_url`, in-flight image stripping without mutating caller-owned ChatRequest messages, tool-message placeholders for image-only tool outputs, session-scoped text-only memory in httpClient, and retry wiring for both OpenAI-compatible chat completions and Codex Responses. RED: `CGO_ENABLED=0 go test ./internal/hermes -run TestVisionUnsupportedRetry -count=1` failed on missing retry seam. GREEN: that focused test plus `CGO_ENABLED=0 go test ./internal/hermes ./internal/gateway ./cmd/gormes -count=1` passed."
             }
           ],
           "drift_state": {

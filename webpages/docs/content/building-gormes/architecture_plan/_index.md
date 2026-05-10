@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 85/100 subphases shipped · 12 in progress · 3 planned
+**Overall:** 86/100 subphases shipped · 11 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 12/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
@@ -508,7 +508,7 @@ classification and row-backed implementation queue.
 
 *Native Go agent orchestrator + prompt builder*
 
-### 4.A — Provider Adapters 🔨
+### 4.A — Provider Adapters ✅
 
 - [x] Provider interface + stream fixture harness
 - [x] Hermes provider registry and alias manifest
@@ -547,7 +547,7 @@ classification and row-backed implementation queue.
 - [x] OpenAI-compatible developer-role API-boundary swap
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
-- [ ] Vision-unsupported provider retry (strip-images-and-resend)
+- [x] Vision-unsupported provider retry (strip-images-and-resend)
 
 ### 4.B — Context Engine + Compression ✅
 
