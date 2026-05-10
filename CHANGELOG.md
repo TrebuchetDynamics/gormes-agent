@@ -8,6 +8,109 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-05-09
+
+Date alias: `v2026.5.9` (third same-day patch; shared alias follows the
+v0.1.06 / v0.1.07 and same-day v0.2.1 / v0.2.2 precedent for back-to-back
+releases).
+
+> **Methodology-first landing + multimodal vision + provider-fallback polish.**
+> Landing copy at gormes.ai now leads with TrebuchetDynamics' autonomous-porting
+> methodology and the ratified v1 differentiator (30 Hermes skills, 1 Go binary,
+> 3 hard targets) instead of Hermes-compatibility, which becomes supporting
+> evidence per `docs/content/building-gormes/strategy/success-plan.md`. Telegram
+> photo attachments now reach vision-capable providers as `image_url` content
+> parts; vision-rejected turns auto-retry text-only.
+
+### Public site — methodology-first positioning
+
+- **Landing hero rewritten.** Page title, headline, hero paragraphs, navigation,
+  and secondary CTA lead with the autonomous-porting methodology and the
+  ratified v1 differentiator (30 most-used Hermes skills · single Go binary ·
+  Termux + Windows-without-Python + locked-down corp Linux). Hermes parity
+  demoted from the lede to supporting evidence; methodology section renamed
+  `THE METHODOLOGY / How the receipt is produced.`; methodology pillars
+  reordered so "Reusable porting toolkit" precedes "Hermes is the parity
+  oracle, not the contract".
+- **Differentiator chip variant.** Proof-strip gains a `.proof-item-pop`
+  yellow-emphasized chip variant for the three v1 differentiator items.
+- **Deploy guard alignment.** `deploy-gormes-www.yml` content guards repointed
+  to the new copy; old hero strings added to the negative-grep list so future
+  drift back to parity-first copy fails the deploy.
+
+### Multimodal vision passthrough
+
+- **Telegram photo → image_url content parts.** Channel attachments with
+  `Kind: "photo"` now materialize into `hermes.MessageContentPart{Type:
+  "image_url", ImageURL: "data:<mime>;base64,..."}` on the kernel turn
+  message, so vision-capable providers (gpt-5.5 via openai-codex,
+  Anthropic, OpenAI multipart) receive the image instead of just a text
+  marker. Pure-Go path; zero Python dependency.
+- **Admission gate exempts image bytes.** `validateTurnAdmission` no longer
+  counts `image_url` data URI payloads against the text `MaxBytes` limit.
+  Image-only turns (no caption text) pass the empty-input check. Image
+  payload size is governed separately by the provider-side
+  `image_shrink_retry` path.
+- **Native image input mode wired.** `DecideImageInputMode` and the
+  associated path hints (previously dead code) are now wired into the
+  channel→kernel turn submission so the auto/native/text mode decision
+  actually runs.
+- **Vision-unsupported retry.** When a provider returns a vision-rejection
+  phrase, the turn now retries text-only automatically instead of failing
+  the user's request — Hermes parity for `agent/run_agent.py` retry
+  behavior.
+
+### Voice STT
+
+- **Telegram voice STT HTTP fallback.** Channel resolver now wires the
+  Groq HTTP transcription provider as the priority cloud fallback ahead
+  of paid OpenAI when local `whisper`/`whisper-cli` binary is absent;
+  configured by the `GROQ_API_KEY` environment variable.
+- **Pure-Go STT exploration started.** Filed Phase 5.E exploration row
+  selecting the WASI productionization path (wazero + whisper.cpp WASM)
+  and spawned the first two builder rows: `wazero WASI smoke harness`
+  and `whisper.cpp WASI module discovery fixture`. Preserves the
+  static-binary + zero-CGO promise.
+
+### Provider / auth / runtime polish
+
+- `fix: preserve fallback credential aliases` — provider fallback now
+  preserves credential-pool alias mapping when the primary provider
+  routes through a fallback.
+- `fix: preserve config comments on set` — `gormes config set` now
+  round-trips TOML comments through the writer.
+- `fix(provider): classify generic timeout messages` — provider router
+  now correctly classifies generic timeout messages as transient/retry,
+  not permanent.
+- `fix: preserve proxy replay metadata` — proxy replay no longer drops
+  metadata on round-trip.
+- `fix: add shell lint evidence to file tools` — file-task tools now
+  surface shell linter (node, npx, go, rustfmt) evidence per file in
+  patch and write results.
+- `feat: add python lint evidence to file tools` and
+  `feat: add structured lint evidence to file tools` — same shape for
+  Python and structured-evidence cases.
+- `feat: bind FAL image generation queue API` — new image-generation
+  provider binding.
+- `feat: add OpenRouter Pareto request plugin` — new request-routing
+  plugin for OpenRouter.
+- `feat: add shell completion command` — bash/zsh/fish completion
+  generation.
+- `feat: silence Telegram placeholders by default` — Telegram channel
+  no longer sends placeholder/typing-indicator messages by default;
+  opt-in via `telegram.notifications`.
+- `feat: surface curator rename summaries` — curator now reports rename
+  summaries in operator output.
+
+### Kanban
+
+- `feat: pin kanban board for chat tools` — chat tools can now pin a
+  kanban board so subsequent operations target it implicitly.
+- `feat: add kanban notify delivery engine` — kanban notifications now
+  deliver through a typed engine with structured retry semantics.
+- `feat: add kanban worker log command` — operators can stream kanban
+  worker logs from the CLI.
+
 ## [0.2.2] - 2026-05-09
 
 Date alias: `v2026.5.9` (same-day patch over v0.2.1; shared alias
