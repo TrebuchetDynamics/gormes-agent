@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -547,7 +548,7 @@ toolLoop:
 					decision := retryBudget.NextDelayDecision(err)
 					k.retryStatus = retryStatusWithDecision(k.retryStatus, decision, classification)
 					k.phase = PhaseReconnecting
-					k.emitStreamDropRetryFrame(err, decision, classification, false)
+					k.emitStreamDropRetryFrame(err, decision, classification, false, hermes.StreamDiagnosticsFromError(err))
 					if k.waitForRetryDelay(ctx, decision.Delay) {
 						cancelled = true
 						break toolLoop
@@ -581,7 +582,8 @@ toolLoop:
 			k.emitFrame("streaming")
 
 			var streamRetryErr error
-			outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken, &streamRetryErr)
+			var streamRetryDiag hermes.StreamDiagnostics
+			outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken, &streamRetryErr, &streamRetryDiag)
 			_ = stream.Close()
 			if sid := stream.SessionID(); sid != "" {
 				latestSessionID = sid
@@ -622,7 +624,7 @@ toolLoop:
 				classification := streamDropRetryClassification(streamRetryErr)
 				k.retryStatus = retryStatusWithDecision(k.retryStatus, decision, classification)
 				k.phase = PhaseReconnecting
-				k.emitStreamDropRetryFrame(streamRetryErr, decision, classification, true)
+				k.emitStreamDropRetryFrame(streamRetryErr, decision, classification, true, streamRetryDiag)
 				if k.waitForRetryDelay(ctx, decision.Delay) {
 					cancelled = true
 					break toolLoop
@@ -885,7 +887,7 @@ func (k *Kernel) requestMaxIterationSummary(ctx context.Context, base hermes.Cha
 		cancelled          bool
 		replaceOnNextToken bool
 	)
-	outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken, nil)
+	outcome := k.streamInner(ctx, runCtx, cancelRun, stream, &finalDelta, &gotFinal, &fatalErr, &cancelled, &replaceOnNextToken, nil, nil)
 	summarySessionID := stream.SessionID()
 	_ = stream.Close()
 
@@ -1012,7 +1014,7 @@ func (k *Kernel) handleRetryEvent(e PlatformEvent) bool {
 	return false
 }
 
-func (k *Kernel) emitStreamDropRetryFrame(err error, decision RetryDelayDecision, classification hermes.ProviderErrorClassification, midStream bool) {
+func (k *Kernel) emitStreamDropRetryFrame(err error, decision RetryDelayDecision, classification hermes.ProviderErrorClassification, midStream bool, diag hermes.StreamDiagnostics) {
 	provider := k.streamDropProviderName()
 	errorType := streamDropErrorType(err)
 	errorText := streamDropErrorText(err)
@@ -1023,22 +1025,47 @@ func (k *Kernel) emitStreamDropRetryFrame(err error, decision RetryDelayDecision
 		dropKind = "stream drop mid-stream"
 	}
 	k.lastError = dropKind + ": " + errorText
-	k.log.Warn("kernel stream drop retry",
+	attrs := []any{
 		"provider", provider,
 		"endpoint", k.cfg.Endpoint,
 		"attempt", decision.Attempt,
 		"max_attempts", maxRetryAttempts,
 		"error_type", errorType,
+		"error_chain", streamDropErrorChain(err),
 		"error_class", errorClass,
 		"error_kind", errorKind,
 		"mid_stream", midStream,
 		"error", errorText,
-	)
-	k.emitFrame(fmt.Sprintf("%s %s (%s/%s) - reconnecting, retry %d/%d",
+	}
+	if diag.HTTPStatus > 0 {
+		attrs = append(attrs, "http_status", diag.HTTPStatus)
+	}
+	if diag.Bytes > 0 {
+		attrs = append(attrs, "bytes", diag.Bytes)
+	}
+	if diag.Chunks > 0 {
+		attrs = append(attrs, "chunks", diag.Chunks)
+	}
+	if diag.Elapsed > 0 {
+		attrs = append(attrs, "elapsed", diag.Elapsed.Round(time.Millisecond))
+	}
+	if diag.TimeToFirstByte > 0 {
+		attrs = append(attrs, "ttfb", diag.TimeToFirstByte.Round(time.Millisecond))
+	}
+	if headers := formatStreamDiagnosticHeaders(diag.Headers); headers != "" {
+		attrs = append(attrs, "upstream_headers", headers)
+	}
+	k.log.Warn("kernel stream drop retry", attrs...)
+	elapsedSuffix := ""
+	if diag.Elapsed > 0 {
+		elapsedSuffix = fmt.Sprintf(" after %.1fs", diag.Elapsed.Seconds())
+	}
+	k.emitFrame(fmt.Sprintf("%s %s (%s/%s)%s - reconnecting, retry %d/%d",
 		provider,
 		dropKind,
 		errorKind,
 		errorType,
+		elapsedSuffix,
 		decision.Attempt,
 		maxRetryAttempts,
 	))
@@ -1069,6 +1096,17 @@ func streamDropErrorType(err error) string {
 	if err == nil {
 		return "unknown"
 	}
+	var httpErr *hermes.HTTPError
+	if errors.As(err, &httpErr) {
+		return "HTTPError"
+	}
+	return streamDropConcreteErrorType(err)
+}
+
+func streamDropConcreteErrorType(err error) string {
+	if err == nil {
+		return "unknown"
+	}
 	name := strings.TrimPrefix(fmt.Sprintf("%T", err), "*")
 	if idx := strings.LastIndex(name, "."); idx >= 0 {
 		name = name[idx+1:]
@@ -1077,6 +1115,45 @@ func streamDropErrorType(err error) string {
 		return "unknown"
 	}
 	return name
+}
+
+func streamDropErrorChain(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+	parts := make([]string, 0, 4)
+	for current := err; current != nil && len(parts) < 4; current = errors.Unwrap(current) {
+		parts = append(parts, fmt.Sprintf("%s(%s)", streamDropConcreteErrorType(current), compactStreamDropText(current.Error(), 200)))
+	}
+	if len(parts) == 0 {
+		return "unknown"
+	}
+	return strings.Join(parts, " <- ")
+}
+
+func formatStreamDiagnosticHeaders(headers map[string]string) string {
+	if len(headers) == 0 {
+		return ""
+	}
+	pairs := make([]string, 0, len(headers))
+	for rawName, rawValue := range headers {
+		name := strings.ToLower(strings.TrimSpace(rawName))
+		value := compactStreamDropText(rawValue, 120)
+		if name == "" || value == "" {
+			continue
+		}
+		pairs = append(pairs, name+"="+value)
+	}
+	sort.Strings(pairs)
+	return strings.Join(pairs, " ")
+}
+
+func compactStreamDropText(text string, maxLen int) string {
+	text = strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
+	if maxLen > 3 && len(text) > maxLen {
+		return text[:maxLen-3] + "..."
+	}
+	return text
 }
 
 func streamDropErrorText(err error) string {
@@ -1109,6 +1186,7 @@ func (k *Kernel) streamInner(
 	cancelled *bool,
 	replaceOnNextToken *bool,
 	retryErr *error,
+	retryDiag *hermes.StreamDiagnostics,
 ) streamOutcome {
 	type streamResult struct {
 		event hermes.Event
@@ -1141,6 +1219,9 @@ func (k *Kernel) streamInner(
 	setRetryErr := func(err error) {
 		if retryErr != nil && err != nil {
 			*retryErr = err
+		}
+		if retryDiag != nil && err != nil {
+			*retryDiag = hermes.StreamDiagnosticsOf(stream)
 		}
 	}
 

@@ -19436,6 +19436,95 @@
               }
             },
             {
+              "name": "Provider stream-drop timing and upstream diagnostics",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Kernel reconnect attempts for provider stream drops include Hermes' current deep diagnostics in the structured warning log: compact error-chain text, upstream HTTP status/headers, streamed byte and chunk counts, elapsed attempt duration, and time-to-first-byte when available. The user-visible reconnect frame stays a single compact provider-named line with an elapsed suffix only when timing evidence exists.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Operators can see that a provider stream dropped, but cannot tell whether it failed before first byte, died mid-stream, came from a specific upstream edge/provider, or was wrapped by an inner transport error.",
+              "fixture": "internal/kernel/stream_drop_diagnostics_test.go",
+              "source_refs": [
+                "./hermes-agent/run_agent.py@126cbffb8:_stream_diag_init",
+                "./hermes-agent/run_agent.py@126cbffb8:_stream_diag_capture_response",
+                "./hermes-agent/run_agent.py@126cbffb8:_flatten_exception_chain",
+                "./hermes-agent/run_agent.py@126cbffb8:_log_stream_retry",
+                "./hermes-agent/tests/run_agent/test_stream_drop_logging.py@126cbffb8",
+                "internal/kernel/kernel.go:emitStreamDropRetryFrame",
+                "internal/hermes/stream.go:chatStream"
+              ],
+              "ready_when": [
+                "Provider stream-drop retry diagnostics is complete and emits one provider-named retry frame plus structured retry warning.",
+                "A fake hermes.Stream can expose diagnostic metadata without live provider credentials or network calls.",
+                "The implementation can add optional stream/error diagnostic interfaces without changing retry timing, fallback policy, credential rotation, or channel rendering."
+              ],
+              "not_ready_when": [
+                "The slice changes max retry attempts, backoff timing, provider fallback policy, credential rotation, or gateway channel rendering.",
+                "The implementation logs unbounded headers, request bodies, API keys, user prompts, or raw stream bytes.",
+                "The user-visible status grows into the full diagnostic dump instead of keeping detailed breadcrumbs in the structured log."
+              ],
+              "blocked_by": [
+                "Provider stream-drop retry diagnostics"
+              ],
+              "acceptance": [
+                "A retryable OpenStream setup failure backed by an HTTPError logs http_status plus allowlisted upstream headers without leaking arbitrary headers.",
+                "A retryable mid-stream Recv failure logs chunk count, streamed byte count, elapsed duration, time-to-first-byte, and an error_chain that includes wrapped inner errors.",
+                "The reconnect StatusText remains one provider-named stream-drop line, includes an elapsed suffix when timing is available, and still does not emit a separate reconnected frame.",
+                "Existing interrupt retry suppression and stream-drop recovery fixtures stay green."
+              ],
+              "note": "Added 2026-05-10 by a bounded all-topic weakness sweep after refreshing Hermes to 44cdf555a. Planned rows were 16, below the 90-row cap. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current Codex Spark, Kanban slash help, vision, user-story docs, release trust, browser, install/runtime, and Goncho deltas are complete or row-backed; TD publication rows remain operator-gated. The stale complete weakness is that Gormes' earlier stream-drop row covers Hermes 68e44642c's single-line/provider-named retry breadcrumb, but Hermes 126cbffb8 now logs upstream headers, bytes/chunks, elapsed, TTFB, and exception-chain evidence for diagnosing subagent stream drops.",
+              "write_scope": [
+                "internal/hermes/client.go",
+                "internal/hermes/errors.go",
+                "internal/hermes/http_client.go",
+                "internal/hermes/stream.go",
+                "internal/hermes/stream_tools_test.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/stream_drop_diagnostics_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1",
+                "go test ./internal/hermes -run 'TestStreamDiagnostics|TestHTTPErrorStreamDiagnostics' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Kernel stream-drop fixtures prove allowlisted upstream headers, HTTP status, elapsed/TTFB, bytes/chunks, error-chain diagnostics, compact single-line retry status, and unchanged retry/cancel behavior."
+              ],
+              "completed_at": "2026-05-10T10:56:01Z",
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/http_client.go seeds StreamDiagnostics from successful response status/headers and internal/hermes/errors.go exposes sanitized HTTPError diagnostics for failed setup attempts.",
+                  "internal/hermes/stream.go records streamed byte count, chunk count, elapsed attempt duration, and time-to-first-byte without storing raw stream payloads.",
+                  "internal/kernel/kernel.go logs http_status, upstream_headers, bytes, chunks, elapsed, ttfb, and compact error_chain fields while keeping the reconnect StatusText to one provider-named line."
+                ],
+                "tests": [
+                  "go test ./internal/kernel -run 'TestKernel_StreamDropDiagnostics|TestKernel_StreamInterruptSuppressesRetry' -count=1 -> ok",
+                  "go test ./internal/hermes -run 'TestStreamDiagnostics|TestHTTPErrorStreamDiagnostics' -count=1 -> ok",
+                  "go run ./cmd/progress validate -> ok"
+                ],
+                "red_green": [
+                  "RED failed because hermes.HTTPError carried no headers and hermes.Stream exposed no bounded diagnostic metadata.",
+                  "GREEN passed after adding sanitized diagnostic interfaces, stream counters, and kernel structured log fields."
+                ]
+              },
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-10T00:00:00Z",
+                "last_success": "2026-05-10T00:00:00Z"
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:126cbffb8 run_agent.py",
+                "note": "Hermes added deeper stream-drop diagnostics after the earlier provider-named retry UI fix; Gormes should preserve that diagnostic contract at the native kernel/provider boundary."
+              }
+            },
+            {
               "name": "Provider timeout config fail-closed helper",
               "priority": "P3",
               "status": "complete",

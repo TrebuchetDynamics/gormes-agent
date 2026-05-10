@@ -170,7 +170,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 				_ = retryResp.Body.Close()
 				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
 			}
-			return newChatStream(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors), nil
+			return newChatStreamWithDiagnostics(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors, streamDiagnosticsFromResponse(retryResp)), nil
 		}
 		if req.Temperature != nil && requestBodyHasParameter(body, "temperature") && isUnsupportedTemperatureError(httpErr) {
 			c.recordTemperatureRetry(req.Model, httpErr)
@@ -189,7 +189,7 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 				_ = retryResp.Body.Close()
 				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
 			}
-			return newChatStream(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors), nil
+			return newChatStreamWithDiagnostics(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), retryDescriptors, streamDiagnosticsFromResponse(retryResp)), nil
 		}
 		if req.MaxTokens > 0 && requestBodyHasParameter(body, "max_tokens") && isUnsupportedParameterError(httpErr, "max_tokens") {
 			c.recordUnsupportedParameterRetry(req.Model, "max_tokens", "max_completion_tokens", httpErr)
@@ -206,12 +206,22 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 				_ = retryResp.Body.Close()
 				return nil, newHTTPError(retryResp.StatusCode, string(retryRaw), retryResp.Header)
 			}
-			return newChatStream(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), descriptors), nil
+			return newChatStreamWithDiagnostics(retryResp.Body, retryResp.Header.Get("X-Hermes-Session-Id"), descriptors, streamDiagnosticsFromResponse(retryResp)), nil
 		}
 		return nil, httpErr
 	}
 	// The body stays open for streaming; chatStream owns the Close.
-	return newChatStream(resp.Body, resp.Header.Get("X-Hermes-Session-Id"), descriptors), nil
+	return newChatStreamWithDiagnostics(resp.Body, resp.Header.Get("X-Hermes-Session-Id"), descriptors, streamDiagnosticsFromResponse(resp)), nil
+}
+
+func streamDiagnosticsFromResponse(resp *http.Response) StreamDiagnostics {
+	if resp == nil {
+		return StreamDiagnostics{}
+	}
+	return StreamDiagnostics{
+		HTTPStatus: resp.StatusCode,
+		Headers:    captureStreamDiagnosticHeaders(resp.Header),
+	}
 }
 
 func (c *httpClient) buildOpenAICompatibleChatRequestBody(req ChatRequest) ([]byte, []ToolDescriptor, error) {

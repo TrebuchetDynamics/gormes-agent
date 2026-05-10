@@ -633,6 +633,7 @@ classification and row-backed implementation queue.
 - [x] Kernel retry honors Retry-After hint
 - [x] Streaming interrupt retry suppression
 - [x] Provider stream-drop retry diagnostics
+- [x] Provider stream-drop timing and upstream diagnostics
 - [x] Provider timeout config fail-closed helper
 - [x] Prompt-cache capability guard
 - [x] Provider account usage read model + renderer
