@@ -51573,7 +51573,78 @@
                 "tests": "go test ./internal/i18n -count=1 (15 tests pass)",
                 "note": "Core i18n package ported from hermes-agent/agent/i18n.py. Language resolution priority: explicit lang arg -> GORMES_LANGUAGE env var -> SetConfigLanguage() -> en default. Supported languages: en, zh, ja, de, es, fr, tr, uk with full alias table. Catalog loading uses YAML flattening matching Hermes dotted-key convention. Missing keys fall back to en then to key path literal. Integration into gateway/TUI/approval surfaces is deferred to follow-up slices that reference internal/i18n.T()."
               },
-              "note": "Complete 2026-05-08: core i18n package landed with language resolution, YAML catalog loading, 8 locale files ported from Hermes, config language support via SetConfigLanguage(), and 15 passing tests covering fallback chain, format substitution, catalog parity, env/config resolution, and edge cases (missing file, broken YAML)."
+              "note": "Complete 2026-05-08: core i18n package landed with language resolution, YAML catalog loading, 8 locale files ported from Hermes, config language support via SetConfigLanguage(), and 15 passing tests covering fallback chain, format substitution, catalog parity, env/config resolution, and edge cases (missing file, broken YAML). 2026-05-10 all-topic parity sweep refreshed Hermes to d4b26df89 and found upstream agent/i18n.py now lists 16 supported languages. The child row `Hermes i18n expanded locale catalog parity` owns that source-backed stale-complete closure."
+            },
+            {
+              "name": "Hermes i18n expanded locale catalog parity",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes updates the completed static-message i18n port to match current Hermes' expanded locale catalog: supported languages are en, zh, zh-hant, ja, de, es, fr, tr, uk, af, ko, it, ga, pt, ru, and hu; aliases normalize the same current Hermes regional/common names; and every bundled locale file has the same key set with English fallback behavior unchanged.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "source_refs": [
+                "./hermes-agent/agent/i18n.py:SUPPORTED_LANGUAGES",
+                "./hermes-agent/agent/i18n.py:_LANGUAGE_ALIASES",
+                "./hermes-agent/locales/af.yaml",
+                "./hermes-agent/locales/ga.yaml",
+                "./hermes-agent/locales/hu.yaml",
+                "./hermes-agent/locales/it.yaml",
+                "./hermes-agent/locales/ko.yaml",
+                "./hermes-agent/locales/pt.yaml",
+                "./hermes-agent/locales/ru.yaml",
+                "./hermes-agent/locales/zh-hant.yaml",
+                "./hermes-agent/tests/agent/test_i18n.py"
+              ],
+              "ready_when": [
+                "The core i18n loader, fallback chain, and eight-locale static-message row are complete.",
+                "Hermes agent/i18n.py declares the expanded language tuple and matching locale files exist in ./hermes-agent/locales/.",
+                "The slice stays limited to locale catalog support and alias normalization; no gateway/TUI copy rewrite is required."
+              ],
+              "not_ready_when": [
+                "The row broadens into translating agent-generated output, logs, tool output, or dashboard-wide localization.",
+                "A builder reads live ~/.gormes or ~/.hermes state instead of bundled locale files and temp fixture dirs.",
+                "Catalog parity is asserted only by file presence rather than matching key sets and sample translations."
+              ],
+              "acceptance": [
+                "SupportedLanguages returns the same ordered language set as current Hermes agent/i18n.py.",
+                "normalizeLang maps current Hermes aliases for zh-hant, af, ko, it, ga, pt, ru, and hu.",
+                "Bundled Gormes locales include af, ga, hu, it, ko, pt, ru, and zh-hant copied from current Hermes static-message catalogs.",
+                "Catalog parity tests prove every supported bundled locale has the same key set as en.yaml and representative translations load without falling back to the key path."
+              ],
+              "write_scope": [
+                "internal/i18n/",
+                "locales/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/i18n -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gormes static-message i18n exposes all 16 current Hermes locale catalogs and alias normalizations with passing internal/i18n tests and progress evidence."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:d4b26df89 agent/i18n.py + locales/",
+                "note": "2026-05-10 all-topic Hermes parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing high-priority runtime gaps are complete or row-backed, while the completed 5.W i18n row was stale against current Hermes' expanded locale tuple. Planned rows were 15, below the 90-row cap, so one source-backed P2 child row was added."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/i18n/i18n.go: supportedLanguages expanded to the current Hermes 16-language tuple and languageAliases updated for zh-hant, af, ko, it, ga, pt, ru, and hu aliases.",
+                  "internal/i18n/i18n_test.go: RED/GREEN tests now assert current Hermes language ordering, alias normalization, bundled catalog key parity, and representative approval.denied lookup for every supported locale.",
+                  "locales/af.yaml, locales/ga.yaml, locales/hu.yaml, locales/it.yaml, locales/ko.yaml, locales/pt.yaml, locales/ru.yaml, locales/zh-hant.yaml: copied from current Hermes static-message catalogs."
+                ],
+                "tests": "go test ./internal/i18n -count=1",
+                "note": "Completed 2026-05-10 after RED failure showed Gormes still exposed eight languages and mapped new aliases to en or zh. The slice stays limited to static-message locale catalogs; broader dashboard/localized command-copy work remains out of scope."
+              },
+              "note": "Complete 2026-05-10: Gormes static-message i18n now exposes the current Hermes 16-language catalog set and alias normalization, with bundled catalog parity tests proving every supported locale has the English key set and representative translations load without key-path fallback."
             }
           ]
         }

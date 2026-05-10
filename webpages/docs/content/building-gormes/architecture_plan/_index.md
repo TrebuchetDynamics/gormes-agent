@@ -1182,6 +1182,7 @@ classification and row-backed implementation queue.
 ### 5.W — i18n Internationalization ✅
 
 - [x] Hermes i18n static-message port
+- [x] Hermes i18n expanded locale catalog parity
 
 ## Phase 6 — The Learning Loop (Soul) 🔨
 

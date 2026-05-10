@@ -11,17 +11,25 @@ import (
 
 const defaultLanguage = "en"
 
-var supportedLanguages = []string{"en", "zh", "ja", "de", "es", "fr", "tr", "uk"}
+var supportedLanguages = []string{"en", "zh", "zh-hant", "ja", "de", "es", "fr", "tr", "uk", "af", "ko", "it", "ga", "pt", "ru", "hu"}
 
 var languageAliases = map[string]string{
 	"english": "en", "en-us": "en", "en-gb": "en",
-	"chinese": "zh", "mandarin": "zh", "zh-cn": "zh", "zh-tw": "zh", "zh-hans": "zh", "zh-hant": "zh",
+	"chinese": "zh", "mandarin": "zh", "zh-cn": "zh", "zh-hans": "zh", "zh-sg": "zh",
+	"traditional-chinese": "zh-hant", "traditional_chinese": "zh-hant", "zh-tw": "zh-hant", "zh-hk": "zh-hant", "zh-mo": "zh-hant",
 	"japanese": "ja", "jp": "ja", "ja-jp": "ja",
-	"german": "de", "deutsch": "de", "de-de": "de",
-	"spanish": "es", "español": "es", "espanol": "es", "es-es": "es", "es-mx": "es",
+	"german": "de", "deutsch": "de", "de-de": "de", "de-at": "de", "de-ch": "de",
+	"spanish": "es", "español": "es", "espanol": "es", "es-es": "es", "es-mx": "es", "es-ar": "es",
 	"french": "fr", "français": "fr", "france": "fr", "fr-fr": "fr", "fr-be": "fr", "fr-ca": "fr", "fr-ch": "fr",
 	"ukrainian": "uk", "ukrainisch": "uk", "українська": "uk", "uk-ua": "uk", "ua": "uk",
 	"turkish": "tr", "türkçe": "tr", "tr-tr": "tr",
+	"afrikaans": "af", "af-za": "af",
+	"korean": "ko", "한국어": "ko", "ko-kr": "ko",
+	"italian": "it", "italiano": "it", "it-it": "it", "it-ch": "it",
+	"irish": "ga", "gaeilge": "ga", "ga-ie": "ga",
+	"portuguese": "pt", "português": "pt", "portugues": "pt", "pt-pt": "pt", "pt-br": "pt", "brazilian": "pt", "brasileiro": "pt",
+	"russian": "ru", "русский": "ru", "ru-ru": "ru",
+	"hungarian": "hu", "magyar": "hu", "hu-hu": "hu",
 }
 
 var (
