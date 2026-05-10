@@ -223,12 +223,46 @@ func safeProxyHistory(history []hermes.Message) []hermes.Message {
 		default:
 			continue
 		}
-		if strings.TrimSpace(msg.Content) == "" {
+		if strings.TrimSpace(msg.Content) == "" && !hasSafeProxyContentParts(msg.ContentParts) {
 			continue
 		}
-		out = append(out, hermes.Message{Role: role, Content: msg.Content})
+		safe := hermes.Message{Role: role, Content: msg.Content}
+		if len(msg.ContentParts) > 0 {
+			safe.ContentParts = append([]hermes.MessageContentPart(nil), msg.ContentParts...)
+		}
+		if msg.CacheControl != nil {
+			cache := *msg.CacheControl
+			safe.CacheControl = &cache
+		}
+		if role == "assistant" {
+			if msg.Reasoning != nil {
+				reasoning := *msg.Reasoning
+				safe.Reasoning = &reasoning
+			}
+			if msg.ReasoningContent != nil {
+				reasoningContent := *msg.ReasoningContent
+				safe.ReasoningContent = &reasoningContent
+			}
+		}
+		out = append(out, safe)
 	}
 	return out
+}
+
+func hasSafeProxyContentParts(parts []hermes.MessageContentPart) bool {
+	for _, part := range parts {
+		switch strings.ToLower(strings.TrimSpace(part.Type)) {
+		case "text", "input_text", "output_text":
+			if strings.TrimSpace(part.Text) != "" {
+				return true
+			}
+		case "image_url", "input_image", "image":
+			if strings.TrimSpace(part.ImageURL) != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (p *ProxySubmitter) finishProxyError(generation uint64, sessionID string, history []hermes.Message, err error) {

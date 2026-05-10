@@ -1102,6 +1102,7 @@ classification and row-backed implementation queue.
 - [x] Responses API store + run event stream
 - [x] API server disconnect snapshot persistence
 - [x] Gateway proxy mode forwarding contract
+- [x] Gateway proxy replay assistant metadata preservation
 - [x] Dashboard API client contract
 - [x] Dashboard PTY chat sidecar contract
 - [x] API server detailed health snapshot contract

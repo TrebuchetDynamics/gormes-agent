@@ -129,6 +129,171 @@ func TestProxySubmitter_ForwardsSessionHeaderAndFiltersUnsafeHistory(t *testing.
 	}
 }
 
+func TestProxySubmitter_PreservesAssistantReplayMetadata(t *testing.T) {
+	requests := make(chan capturedProxyRequest, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Messages []map[string]any `json:"messages"`
+			Stream   bool             `json:"stream"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request body: %v", err)
+		}
+		requests <- capturedProxyRequest{Messages: body.Messages, Stream: body.Stream}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, `data: {"choices":[{"delta":{"content":"metadata ok"}}]}`+"\n\n")
+		fmt.Fprint(w, `data: {"choices":[{"finish_reason":"stop","delta":{}}]}`+"\n\n")
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	defer srv.Close()
+
+	structuredReasoning := "structured provider reasoning"
+	emptyReasoning := ""
+	proxy, err := NewProxySubmitter(ProxySubmitterConfig{
+		BaseURL: srv.URL,
+		Model:   "deepseek/deepseek-reasoner",
+		History: []hermes.Message{
+			{Role: "assistant", Content: "reasoned answer", Reasoning: &hermes.ReasoningContent{Text: "storage-only reasoning"}, ReasoningContent: &structuredReasoning},
+			{Role: "assistant", Content: "empty sentinel", ReasoningContent: &emptyReasoning},
+			{Role: "assistant", ContentParts: []hermes.MessageContentPart{{Type: "text", Text: "content part survived"}}},
+			{Role: "assistant", Content: "cached answer", CacheControl: &hermes.CacheControl{Type: "ephemeral"}},
+			{Role: "assistant", Content: "unsafe tool-call carrier", ToolCalls: []hermes.ToolCall{{ID: "call_1", Name: "lookup"}}},
+			{Role: "tool", Content: "tool result", ToolCallID: "call_1", Name: "lookup"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewProxySubmitter: %v", err)
+	}
+
+	if err := proxy.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "continue", SessionID: "sess-replay"}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+
+	var req capturedProxyRequest
+	select {
+	case req = <-requests:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("proxy request not received")
+	}
+	if !req.Stream {
+		t.Fatal("stream = false, want true")
+	}
+	reasoned := proxyMessageByContent(t, req.Messages, "reasoned answer")
+	if got := reasoned["reasoning_content"]; got != structuredReasoning {
+		t.Fatalf("reasoned reasoning_content = %#v, want %q", got, structuredReasoning)
+	}
+	sentinel := proxyMessageByContent(t, req.Messages, "empty sentinel")
+	if got, ok := sentinel["reasoning_content"].(string); !ok || got != "" {
+		t.Fatalf("sentinel reasoning_content = %#v (present=%v), want empty string", sentinel["reasoning_content"], ok)
+	}
+	parts := proxyMessageByRoleAndContentPart(t, req.Messages, "assistant", "content part survived")
+	if _, ok := parts["tool_calls"]; ok {
+		t.Fatalf("content-parts message leaked tool_calls: %#v", parts)
+	}
+	unsafe := proxyMessageByContent(t, req.Messages, "unsafe tool-call carrier")
+	if _, ok := unsafe["tool_calls"]; ok {
+		t.Fatalf("unsafe tool-call carrier forwarded tool_calls: %#v", unsafe)
+	}
+	for _, msg := range req.Messages {
+		if msg["role"] == "tool" || msg["tool_call_id"] != nil {
+			t.Fatalf("proxy replay forwarded unsafe tool history: %#v", msg)
+		}
+	}
+
+	final := readProxyTerminalFrame(t, proxy.Render())
+	var foundStructuredReasoning bool
+	var foundEmptySentinel bool
+	var foundCacheControl bool
+	for _, msg := range final.History {
+		if msg.Content == "reasoned answer" {
+			foundStructuredReasoning = msg.Reasoning != nil &&
+				msg.Reasoning.Text == "storage-only reasoning" &&
+				msg.ReasoningContent != nil &&
+				*msg.ReasoningContent == structuredReasoning
+		}
+		if msg.Content == "empty sentinel" {
+			foundEmptySentinel = msg.ReasoningContent != nil && *msg.ReasoningContent == ""
+		}
+		if msg.Content == "cached answer" {
+			foundCacheControl = msg.CacheControl != nil && msg.CacheControl.Type == "ephemeral"
+		}
+	}
+	if !foundStructuredReasoning {
+		t.Fatalf("final history did not preserve structured assistant reasoning: %#v", final.History)
+	}
+	if !foundEmptySentinel {
+		t.Fatalf("final history did not preserve empty reasoning_content sentinel: %#v", final.History)
+	}
+	if !foundCacheControl {
+		t.Fatalf("final history did not preserve assistant cache control: %#v", final.History)
+	}
+}
+
+func TestProxySubmitter_PreservesAssistantReplayMetadataForClientRequest(t *testing.T) {
+	client := hermes.NewMockClient()
+	client.Script([]hermes.Event{{Kind: hermes.EventToken, Token: "client metadata ok"}}, "sess-client-replay")
+
+	structuredReasoning := "structured provider reasoning"
+	emptyReasoning := ""
+	proxy, err := NewProxySubmitter(ProxySubmitterConfig{
+		Client: client,
+		Model:  "deepseek/deepseek-reasoner",
+		History: []hermes.Message{
+			{Role: "assistant", Content: "reasoned answer", Reasoning: &hermes.ReasoningContent{Text: "storage-only reasoning"}, ReasoningContent: &structuredReasoning},
+			{Role: "assistant", Content: "empty sentinel", ReasoningContent: &emptyReasoning},
+			{Role: "assistant", ContentParts: []hermes.MessageContentPart{{Type: "text", Text: "content part survived"}}},
+			{Role: "assistant", Content: "cached answer", CacheControl: &hermes.CacheControl{Type: "ephemeral"}},
+			{Role: "assistant", Content: "unsafe tool-call carrier", ToolCalls: []hermes.ToolCall{{ID: "call_1", Name: "lookup"}}},
+			{Role: "tool", Content: "tool result", ToolCallID: "call_1", Name: "lookup"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewProxySubmitter: %v", err)
+	}
+
+	if err := proxy.Submit(kernel.PlatformEvent{Kind: kernel.PlatformEventSubmit, Text: "continue", SessionID: "sess-replay"}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	final := readProxyTerminalFrame(t, proxy.Render())
+	if final.SessionID != "sess-client-replay" {
+		t.Fatalf("terminal SessionID = %q, want remote session", final.SessionID)
+	}
+
+	requests := client.Requests()
+	if len(requests) != 1 {
+		t.Fatalf("client requests len = %d, want 1", len(requests))
+	}
+	reasoned := proxyClientMessageByContent(t, requests[0].Messages, "reasoned answer")
+	if reasoned.Reasoning == nil || reasoned.Reasoning.Text != "storage-only reasoning" {
+		t.Fatalf("reasoned Reasoning = %#v, want storage-only reasoning", reasoned.Reasoning)
+	}
+	if reasoned.ReasoningContent == nil || *reasoned.ReasoningContent != structuredReasoning {
+		t.Fatalf("reasoned ReasoningContent = %#v, want %q", reasoned.ReasoningContent, structuredReasoning)
+	}
+	sentinel := proxyClientMessageByContent(t, requests[0].Messages, "empty sentinel")
+	if sentinel.ReasoningContent == nil || *sentinel.ReasoningContent != "" {
+		t.Fatalf("sentinel ReasoningContent = %#v, want empty string pointer", sentinel.ReasoningContent)
+	}
+	parts := proxyClientMessageByContentPart(t, requests[0].Messages, "content part survived")
+	if len(parts.ContentParts) != 1 || parts.ContentParts[0].Text != "content part survived" {
+		t.Fatalf("parts ContentParts = %#v, want preserved text part", parts.ContentParts)
+	}
+	cached := proxyClientMessageByContent(t, requests[0].Messages, "cached answer")
+	if cached.CacheControl == nil || cached.CacheControl.Type != "ephemeral" {
+		t.Fatalf("cached CacheControl = %#v, want ephemeral", cached.CacheControl)
+	}
+	unsafe := proxyClientMessageByContent(t, requests[0].Messages, "unsafe tool-call carrier")
+	if len(unsafe.ToolCalls) != 0 {
+		t.Fatalf("unsafe carrier forwarded tool calls: %#v", unsafe.ToolCalls)
+	}
+	for _, msg := range requests[0].Messages {
+		if msg.Role == "tool" || msg.ToolCallID != "" || msg.Name != "" {
+			t.Fatalf("proxy replay forwarded unsafe tool history: %#v", msg)
+		}
+	}
+}
+
 func TestProxySubmitter_StaleGenerationReportsDegradedOutput(t *testing.T) {
 	requestSeen := make(chan struct{})
 	release := make(chan struct{})
@@ -237,6 +402,77 @@ func TestProxySubmitter_UnreachableProxyReportsDegradedOutput(t *testing.T) {
 		t.Fatalf("LastError = %q, want proxy unreachable degradation", final.LastError)
 	}
 	assertProxyStatus(t, store, "degraded", "proxy unreachable")
+}
+
+func proxyMessageByContent(t *testing.T, messages []map[string]any, content string) map[string]any {
+	t.Helper()
+	for _, msg := range messages {
+		if msg["content"] == content {
+			return msg
+		}
+	}
+	t.Fatalf("message with content %q not found in %#v", content, messages)
+	return nil
+}
+
+func proxyMessageByContentPart(t *testing.T, messages []map[string]any, text string) map[string]any {
+	t.Helper()
+	for _, msg := range messages {
+		if proxyContentPartContainsText(msg, text) {
+			return msg
+		}
+	}
+	t.Fatalf("message with content part %q not found in %#v", text, messages)
+	return nil
+}
+
+func proxyMessageByRoleAndContentPart(t *testing.T, messages []map[string]any, role, text string) map[string]any {
+	t.Helper()
+	for _, msg := range messages {
+		if msg["role"] == role && proxyContentPartContainsText(msg, text) {
+			return msg
+		}
+	}
+	t.Fatalf("%s message with content part %q not found in %#v", role, text, messages)
+	return nil
+}
+
+func proxyClientMessageByContent(t *testing.T, messages []hermes.Message, content string) hermes.Message {
+	t.Helper()
+	for _, msg := range messages {
+		if msg.Content == content {
+			return msg
+		}
+	}
+	t.Fatalf("client message with content %q not found in %#v", content, messages)
+	return hermes.Message{}
+}
+
+func proxyClientMessageByContentPart(t *testing.T, messages []hermes.Message, text string) hermes.Message {
+	t.Helper()
+	for _, msg := range messages {
+		for _, part := range msg.ContentParts {
+			if part.Text == text {
+				return msg
+			}
+		}
+	}
+	t.Fatalf("client message with content part %q not found in %#v", text, messages)
+	return hermes.Message{}
+}
+
+func proxyContentPartContainsText(msg map[string]any, text string) bool {
+	parts, ok := msg["content"].([]any)
+	if !ok {
+		return false
+	}
+	for _, part := range parts {
+		partMap, ok := part.(map[string]any)
+		if ok && partMap["text"] == text {
+			return true
+		}
+	}
+	return false
 }
 
 func readProxyTerminalFrame(t *testing.T, frames <-chan kernel.RenderFrame) kernel.RenderFrame {

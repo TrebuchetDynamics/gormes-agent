@@ -46806,6 +46806,87 @@
               }
             },
             {
+              "name": "Gateway proxy replay assistant metadata preservation",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes proxy-mode replay preserves safe assistant metadata that provider request builders need for multi-turn fidelity: existing reasoning and reasoning_content echoes survive safe history filtering, empty reasoning_content remains a meaningful sentinel, cache/content-part context survives, and unsafe tool-call/tool-result history is still excluded before forwarding to the remote OpenAI-compatible server.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "gateway",
+                "operator"
+              ],
+              "degraded_mode": "Unsupported provider serializers may still strip cache_control according to provider capability policy; proxy safe-history now preserves safe replay metadata before provider-specific request shaping while continuing to strip unsafe tool/tool-call history.",
+              "fixture": "internal/gateway/proxy_mode_test.go::TestProxySubmitter_PreservesAssistantReplayMetadata",
+              "source_refs": [
+                "./hermes-agent/gateway/run.py@70bfd429e:_ASSISTANT_REPLAY_FIELDS",
+                "./hermes-agent/gateway/run.py@70bfd429e:_build_replay_entry",
+                "./hermes-agent/tests/gateway/test_replay_entry_fields.py@70bfd429e",
+                "internal/gateway/proxy_mode.go:safeProxyHistory",
+                "internal/hermes/client.go:Message",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Gateway, Channels, Cron, API, TUI, And CLI / OpenAI-compatible API"
+              ],
+              "ready_when": [
+                "Gateway proxy mode forwarding contract is complete and safeProxyHistory already filters unsafe empty/tool-only history.",
+                "Gormes hermes.Message already carries Reasoning, ReasoningContent, ContentParts, CacheControl, and tool-call fields for provider-bound replay fixtures.",
+                "The slice can prove behavior with httptest and fake history; no live proxy server, provider credential, or persisted transcript database is required."
+              ],
+              "not_ready_when": [
+                "The slice forwards tool role messages, assistant tool_calls, tool_call_id, or name fields that the proxy filter intentionally strips.",
+                "The slice adds Codex Responses message-item persistence or finish_reason storage beyond the current Gormes hermes.Message shape.",
+                "The slice changes API server, provider transport, session persistence, or non-proxy gateway history replay behavior."
+              ],
+              "blocked_by": [
+                "Gateway proxy mode forwarding contract"
+              ],
+              "acceptance": [
+                "TestProxySubmitter_PreservesAssistantReplayMetadata fails before implementation because safeProxyHistory collapses assistant history to role/content only.",
+                "Forwarded proxy request messages preserve assistant Reasoning and explicit ReasoningContent, including an empty-string reasoning_content sentinel for thinking-provider replay.",
+                "Forwarded proxy request messages preserve safe ContentParts and CacheControl metadata on assistant history so prompt-cache and multimodal context are not flattened away.",
+                "Existing proxy tests still prove tool_calls, tool_call_id, tool role messages, empty content, stale generations, and remote errors are filtered/degraded as before."
+              ],
+              "note": "Complete: TDD landed proxy replay metadata preservation after a bounded all-topic Hermes parity sweep refreshed Hermes to fef1a4124 and inspected upstream delta 70bfd429e. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing rows already cover OpenRouter Pareto/Grok, terminal cwd, Windows gateway Ctrl+C, session search, docs mirror, Kanban, browser, release, and operator-public surfaces; the fresh source-backed gap was that Hermes gateway replay now preserves assistant metadata while Gormes proxy safe-history still dropped all fields except role/content. This row intentionally implements only the current Gormes message-shape slice; Codex message-item persistence and finish_reason storage require a separate provider/session row if Gormes adds those fields.",
+              "write_scope": [
+                "internal/gateway/proxy_mode.go",
+                "internal/gateway/proxy_mode_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestProxySubmitter_(PreservesAssistantReplayMetadata|ForwardsSessionHeaderAndFiltersUnsafeHistory)' -count=1",
+                "go test ./internal/gateway -run TestProxySubmitter -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Proxy-mode fixtures prove safe assistant reasoning/cache/content-part metadata survives replay filtering while unsafe tool-call history remains excluded."
+              ],
+              "completed_at": "2026-05-09T18:06:47-06:00",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/proxy_mode.go safeProxyHistory now copies safe ContentParts, CacheControl, and assistant Reasoning/ReasoningContent after role/content filtering.",
+                  "internal/gateway/proxy_mode.go hasSafeProxyContentParts keeps nonblank text and image content-part history instead of dropping safe multimodal or structured assistant context.",
+                  "Proxy replay still excludes tool role messages, tool_call_id/name fields, and assistant tool_calls so unsafe tool-call history is not forwarded."
+                ],
+                "tests": [
+                  "internal/gateway/proxy_mode_test.go::TestProxySubmitter_PreservesAssistantReplayMetadata covers OpenAI-compatible HTTP JSON replay for reasoning_content, content parts, unsafe tool filtering, and final history metadata.",
+                  "internal/gateway/proxy_mode_test.go::TestProxySubmitter_PreservesAssistantReplayMetadataForClientRequest captures the ChatRequest before provider serialization and proves Reasoning, explicit/empty ReasoningContent, ContentParts, and CacheControl survive safe-history filtering."
+                ],
+                "verification": [
+                  "go test ./internal/gateway -run TestProxySubmitter_PreservesAssistantReplayMetadata -count=1 -> failed before implementation because safeProxyHistory collapsed assistant history to role/content only.",
+                  "go test ./internal/gateway -run 'TestProxySubmitter_(PreservesAssistantReplayMetadata|ForwardsSessionHeaderAndFiltersUnsafeHistory)' -count=1 -> pass",
+                  "go test ./internal/gateway -run TestProxySubmitter -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass",
+                  "git diff --check -> pass"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:70bfd429e gateway replay assistant metadata preservation",
+                "note": "Hermes defines the replay metadata contract; Gormes applies the equivalent safe subset to proxy-mode history forwarding without widening provider/session persistence."
+              }
+            },
+            {
               "name": "Dashboard API client contract",
               "status": "complete",
               "contract": "Dashboard-facing API helpers consume native chat, Responses, model, provider, OAuth, session, and tool-progress endpoints without importing the upstream React app",
