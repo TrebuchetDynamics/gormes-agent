@@ -49991,6 +49991,94 @@
               }
             },
             {
+              "name": "Hermes curator rename summary notice",
+              "priority": "P0",
+              "status": "complete",
+              "contract": "Gormes surfaces Hermes' current curator rename-map behavior anywhere operators see the last curator run: native curator runs append a bounded multi-line archived-skill map showing consolidated `old -> umbrella` and pruned stale skills, `gormes curator status` indents multi-line summaries as one field, and `gormes update` prints the most recent multi-line curator summary exactly once per curator run before stamping it shown.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Curator summary rendering reports no rename map for no-op runs, caps very large archive maps with an omitted-count line, preserves JSON status output, and never lets curator state-load or summary-stamp errors fail the update command.",
+              "fixture": "internal/skills/curator_test.go + cmd/gormes/curator_test.go + cmd/gormes/update_command_test.go",
+              "source_refs": [
+                "./hermes-agent/agent/curator.py@08ec60277:_build_rename_summary",
+                "./hermes-agent/tests/agent/test_curator_classification.py@08ec60277:test_rename_summary_*",
+                "./hermes-agent/hermes_cli/curator.py@08ec60277:_cmd_status",
+                "./hermes-agent/hermes_cli/main.py@08ec60277:_print_curator_recent_run_notice",
+                "./hermes-agent/tests/hermes_cli/test_curator_recent_run_notice.py@08ec60277",
+                "internal/skills/curator.go",
+                "cmd/gormes/curator.go",
+                "cmd/gormes/update.go"
+              ],
+              "ready_when": [
+                "Hermes curator state transitions and run reports, skill_manage absorbed_into delete intent, and curator command surface rows are complete/validated.",
+                "The row can use temporary Gormes skill roots, fake reviewer tool calls, fake clocks, and injected command dependencies; no live LLM, gateway, network, update download, or real home-directory state is required.",
+                "The in-repo Hermes source is refreshed to 08ec60277 and includes the rename summary plus recent-run update notice tests."
+              ],
+              "not_ready_when": [
+                "The slice changes curator classification, archive, backup, rollback, or cron-link rewrite semantics beyond formatting and show-once state.",
+                "The slice prints rename summaries for single-line no-op curator runs or on every update invocation after a run was already shown.",
+                "The slice breaks `gormes curator status --json` or requires scraping human text for machine-readable state.",
+                "The slice reads or writes live ~/.hermes, ~/.gormes, bundled development skills, or hub-installed skill directories."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestCuratorRenameSummary proves native curator run summaries append an empty string for no archive, consolidation lines for absorbed_into targets, pruned lines for explicit prune/no-target removals, and a capped omitted-count line after ten entries.",
+                "TestCuratorCommand_StatusMultilineSummary proves `gormes curator status` indents continuation lines of a multi-line last_run_summary under the last summary field while `--json` still returns the raw summary.",
+                "TestUpdateCommand_PrintsCuratorRecentRunSummaryOnce proves `gormes update` prints a multi-line curator summary with a last-run header and one-time footer, then stamps last_run_summary_shown_at to last_run_at.",
+                "TestUpdateCommand_SkipsCuratorRecentRunSummaryNoopOrShown proves no-run, single-line summaries, already-shown summaries, and newer-run reset behavior match Hermes without failing update on curator state errors."
+              ],
+              "write_scope": [
+                "internal/skills/curator.go",
+                "internal/skills/curator_test.go",
+                "cmd/gormes/curator.go",
+                "cmd/gormes/curator_test.go",
+                "cmd/gormes/update.go",
+                "cmd/gormes/update_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills ./cmd/gormes -run 'TestCuratorRenameSummary|TestCuratorCommand_StatusMultilineSummary|TestUpdateCommand_.*CuratorRecentRunSummary' -count=1",
+                "go test ./internal/skills ./cmd/gormes -run 'TestCurator|TestUpdateCommand' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Curator fixtures prove archived-skill rename maps are present where operators look, bounded for large runs, hidden for no-op runs, show-once through update, and preserved in structured status output without live model or network dependencies."
+              ],
+              "note": "Complete 2026-05-10: added by the bounded all-topic Hermes parity weakness sweep after refreshing Hermes to 08ec60277. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Most surfaces were already complete or row-backed; current Hermes changed curator user-visible behavior after Gormes completed the older curator rows, making this the highest-priority unblocked source-backed revisit. TDD added native curator rename-summary formatting, bounded archive maps, multi-line `gormes curator status` indentation with raw JSON preservation, and a best-effort `gormes update` recent-run notice that stamps last_run_summary_shown_at for both visible rename maps and silent no-op runs without live LLM, network, update checkout, or real home-directory state.",
+              "evidence": {
+                "implementation": [
+                  "internal/skills/curator.go: CuratorState now persists last_run_summary_shown_at, Curator.Run appends a bounded archived-skill rename map after removed-skill classification, and no-op runs keep summaries single-line.",
+                  "cmd/gormes/curator.go: human status output indents multi-line summaries as one logical field while status --json keeps the raw summary and shown-at timestamp.",
+                  "cmd/gormes/update.go: successful human update output prints the latest multi-line curator run summary once per run and silently stamps single-line no-op summaries as shown."
+                ],
+                "tests": [
+                  "internal/skills/curator_test.go:TestCuratorRenameSummary",
+                  "internal/skills/curator_test.go:TestCuratorRenameSummaryCapsLargeRunsAndSkipsNoop",
+                  "cmd/gormes/curator_test.go:TestCuratorCommand_StatusMultilineSummary",
+                  "cmd/gormes/update_command_test.go:TestUpdateCommand_PrintsCuratorRecentRunSummaryOnce",
+                  "cmd/gormes/update_command_test.go:TestUpdateCommand_SkipsCuratorRecentRunSummaryNoopOrShown"
+                ],
+                "verification": [
+                  "RED: go test ./internal/skills -run TestCuratorRenameSummary -count=1 failed because the run summary lacked the archived-skill map.",
+                  "RED: go test ./cmd/gormes -run TestCuratorCommand_StatusMultilineSummary -count=1 failed because continuation lines were not indented under last summary.",
+                  "RED: go test ./cmd/gormes -run 'TestUpdateCommand_.*CuratorRecentRunSummary' -count=1 failed to compile before last_run_summary_shown_at existed.",
+                  "GREEN: go test ./internal/skills ./cmd/gormes -run 'TestCuratorRenameSummary|TestCuratorCommand_StatusMultilineSummary|TestUpdateCommand_.*CuratorRecentRunSummary' -count=1 passed.",
+                  "GREEN: go test ./internal/skills ./cmd/gormes -run 'TestCurator|TestUpdateCommand' -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:08ec60277 agent/curator.py + hermes_cli/main.py + tests/hermes_cli/test_curator_recent_run_notice.py",
+                "note": "Hermes owns the user-visible curator rename-summary and update notice contract; Gormes ports it onto the native curator state and update command surfaces."
+              }
+            },
+            {
               "name": "Skill effectiveness scoring",
               "status": "planned",
               "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior.",

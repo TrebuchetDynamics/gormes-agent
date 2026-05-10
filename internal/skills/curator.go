@@ -50,6 +50,7 @@ type CuratorState struct {
 	LastRunAt              *time.Time `json:"last_run_at,omitempty"`
 	LastRunDurationSeconds float64    `json:"last_run_duration_seconds,omitempty"`
 	LastRunSummary         string     `json:"last_run_summary,omitempty"`
+	LastRunSummaryShownAt  *time.Time `json:"last_run_summary_shown_at,omitempty"`
 	LastReportPath         string     `json:"last_report_path,omitempty"`
 	Paused                 bool       `json:"paused,omitempty"`
 	RunCount               int        `json:"run_count,omitempty"`
@@ -358,6 +359,7 @@ func (c *Curator) Run(ctx context.Context, opts CuratorRunOptions) (CuratorRunRe
 	}
 	report.AfterNames = usageNames(afterRows)
 	report.Classification = ClassifyRemovedSkills(diffNames(beforeNames, report.AfterNames), report.AfterNames, report.ToolCalls)
+	report.Summary = appendCuratorRenameSummary(report.Summary, report.Classification)
 	finished := c.now()
 	report.Duration = finished.Sub(started)
 	if report.Duration <= 0 {
@@ -465,6 +467,53 @@ func ClassifyRemovedSkills(removed, afterNames []string, calls []CuratorToolCall
 		result.Consolidated = nil
 	}
 	return result
+}
+
+func appendCuratorRenameSummary(summary string, classification CuratorClassification) string {
+	renameSummary := buildCuratorRenameSummary(classification)
+	if renameSummary == "" {
+		return summary
+	}
+	summary = strings.TrimRight(summary, "\n")
+	if summary == "" {
+		return renameSummary
+	}
+	return summary + "\n" + renameSummary
+}
+
+func buildCuratorRenameSummary(classification CuratorClassification) string {
+	total := len(classification.Consolidated) + len(classification.Pruned)
+	if total == 0 {
+		return ""
+	}
+	const showLimit = 10
+	lines := []string{fmt.Sprintf("archived %d skill(s):", total)}
+	shown := 0
+
+	consolidated := make([]string, 0, len(classification.Consolidated))
+	for name := range classification.Consolidated {
+		consolidated = append(consolidated, name)
+	}
+	sort.Strings(consolidated)
+	for _, name := range consolidated {
+		if shown >= showLimit {
+			break
+		}
+		lines = append(lines, fmt.Sprintf("  • %s → %s", name, classification.Consolidated[name].Into))
+		shown++
+	}
+	for _, name := range classification.Pruned {
+		if shown >= showLimit {
+			break
+		}
+		lines = append(lines, fmt.Sprintf("  • %s — pruned (stale)", name))
+		shown++
+	}
+	if total > showLimit {
+		lines = append(lines, fmt.Sprintf("  … and %d more", total-showLimit))
+	}
+	lines = append(lines, "full report: gormes curator status")
+	return strings.Join(lines, "\n")
 }
 
 func declaredConsolidation(name string, after map[string]bool, calls []CuratorToolCall) (CuratorConsolidation, bool) {

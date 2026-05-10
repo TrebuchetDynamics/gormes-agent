@@ -321,6 +321,108 @@ func TestCuratorClassificationReconciliation(t *testing.T) {
 	}
 }
 
+func TestCuratorRenameSummary(t *testing.T) {
+	root := t.TempDir()
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	for _, name := range []string{"pdf-extraction", "docx-extraction", "old-stale-thing", "document-tools"} {
+		writeCuratorTestSkill(t, root, name)
+	}
+	mustUsageState(t, root, map[string]SkillUsageRecord{
+		"pdf-extraction": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			CreatedAt:    now.Add(-24 * time.Hour),
+			LastUsedAt:   now.Add(-24 * time.Hour),
+			State:        SkillStateActive,
+		},
+		"docx-extraction": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			CreatedAt:    now.Add(-24 * time.Hour),
+			LastUsedAt:   now.Add(-24 * time.Hour),
+			State:        SkillStateActive,
+		},
+		"old-stale-thing": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			CreatedAt:    now.Add(-24 * time.Hour),
+			LastUsedAt:   now.Add(-24 * time.Hour),
+			State:        SkillStateActive,
+		},
+		"document-tools": {
+			CreatedBy:    "agent",
+			AgentCreated: true,
+			CreatedAt:    now.Add(-24 * time.Hour),
+			LastUsedAt:   now.Add(-24 * time.Hour),
+			State:        SkillStateActive,
+		},
+	})
+	curator := NewCurator(CuratorConfig{
+		Root: root,
+		Now:  func() time.Time { return now },
+		Reviewer: func(context.Context, CuratorReviewInput) (CuratorReviewResult, error) {
+			for _, name := range []string{"pdf-extraction", "docx-extraction", "old-stale-thing"} {
+				if _, err := ArchiveAgentCreatedSkill(root, name, now); err != nil {
+					t.Fatalf("ArchiveAgentCreatedSkill(%s): %v", name, err)
+				}
+			}
+			return CuratorReviewResult{
+				Summary: "auto: 1 marked stale; llm: consolidated 2 into 1, pruned 1",
+				ToolCalls: []CuratorToolCall{
+					{Name: "skill_manage", Arguments: map[string]string{"action": "delete", "name": "pdf-extraction", "absorbed_into": "document-tools"}},
+					{Name: "skill_manage", Arguments: map[string]string{"action": "delete", "name": "docx-extraction", "absorbed_into": "document-tools"}},
+					{Name: "skill_manage", Arguments: map[string]string{"action": "delete", "name": "old-stale-thing", "absorbed_into": ""}},
+				},
+			}, nil
+		},
+	})
+
+	report, err := curator.Run(context.Background(), CuratorRunOptions{})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	for _, want := range []string{
+		"auto: 1 marked stale; llm: consolidated 2 into 1, pruned 1",
+		"archived 3 skill(s):",
+		"pdf-extraction → document-tools",
+		"docx-extraction → document-tools",
+		"old-stale-thing — pruned (stale)",
+		"full report: gormes curator status",
+	} {
+		if !strings.Contains(report.Summary, want) {
+			t.Fatalf("summary missing %q:\n%s", want, report.Summary)
+		}
+	}
+	state, err := curator.LoadState()
+	if err != nil {
+		t.Fatalf("LoadState: %v", err)
+	}
+	if state.LastRunSummary != report.Summary {
+		t.Fatalf("state summary = %q, want report summary %q", state.LastRunSummary, report.Summary)
+	}
+}
+
+func TestCuratorRenameSummaryCapsLargeRunsAndSkipsNoop(t *testing.T) {
+	if got := buildCuratorRenameSummary(CuratorClassification{}); got != "" {
+		t.Fatalf("noop rename summary = %q, want empty", got)
+	}
+
+	classification := CuratorClassification{
+		Consolidated: map[string]CuratorConsolidation{},
+	}
+	for i := 0; i < 15; i++ {
+		name := "skill-" + string(rune('a'+i))
+		classification.Consolidated[name] = CuratorConsolidation{Into: "umbrella", Source: "absorbed_into"}
+	}
+	got := buildCuratorRenameSummary(classification)
+	if !strings.Contains(got, "archived 15 skill(s):") || !strings.Contains(got, "… and 5 more") {
+		t.Fatalf("capped summary missing count/omitted line:\n%s", got)
+	}
+	if bullets := strings.Count(got, "  • "); bullets != 10 {
+		t.Fatalf("bullet count = %d, want 10 in capped summary:\n%s", bullets, got)
+	}
+}
+
 func writeCuratorTestSkill(t *testing.T, root, name string) string {
 	t.Helper()
 	dir := filepath.Join(root, "active", name)

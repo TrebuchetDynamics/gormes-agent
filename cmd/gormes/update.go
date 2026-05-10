@@ -146,6 +146,9 @@ so the recovery path is visible inline.
 				}
 			} else {
 				printUpdateReport(cmd, report, checkOnly)
+				if !report.Failed {
+					printCuratorRecentRunNotice(cmd)
+				}
 			}
 			if report.Failed {
 				message := "gormes update failed"
@@ -260,6 +263,35 @@ func printUpdateReport(cmd *cobra.Command, report cli.UpdateReport, checkOnly bo
 	if report.OperatorRecovery != "" {
 		fmt.Fprintln(cmd.ErrOrStderr(), report.OperatorRecovery)
 	}
+}
+
+func printCuratorRecentRunNotice(cmd *cobra.Command) {
+	root := resolveCuratorSkillsRoot(curatorCommandDeps{})
+	curator := skills.NewCurator(skills.CuratorConfig{Root: root})
+	state, err := curator.LoadState()
+	if err != nil || state.LastRunAt == nil || state.LastRunAt.IsZero() {
+		return
+	}
+	lastRun := state.LastRunAt.UTC()
+	if state.LastRunSummaryShownAt != nil && state.LastRunSummaryShownAt.UTC().Equal(lastRun) {
+		return
+	}
+
+	shownAt := lastRun
+	state.LastRunSummaryShownAt = &shownAt
+	summary := strings.TrimSpace(state.LastRunSummary)
+	if !strings.Contains(summary, "\n") {
+		_ = curator.SaveState(state)
+		return
+	}
+
+	out := cmd.OutOrStdout()
+	fmt.Fprintf(out, "\nℹ Skill curator — last run %s\n", formatCuratorTimestamp(state.LastRunAt, curatorCommandDeps{}))
+	for _, line := range strings.Split(summary, "\n") {
+		fmt.Fprintf(out, "  %s\n", line)
+	}
+	fmt.Fprintln(out, "  (This message shows once per curator run. View anytime: gormes curator status)")
+	_ = curator.SaveState(state)
 }
 
 // resolveManagedCheckoutDir is the production CheckoutDir resolver for

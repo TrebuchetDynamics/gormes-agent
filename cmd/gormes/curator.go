@@ -93,7 +93,7 @@ func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
 			if summary == "" {
 				summary = "(none)"
 			}
-			if _, err := fmt.Fprintf(out, "  last summary:   %s\n", summary); err != nil {
+			if err := writeCuratorStatusSummary(out, summary); err != nil {
 				return err
 			}
 			if state.LastReportPath != "" {
@@ -117,6 +117,19 @@ func newCuratorStatusCommand(deps curatorCommandDeps) *cobra.Command {
 	return cmd
 }
 
+func writeCuratorStatusSummary(out anyWriter, summary string) error {
+	lines := strings.Split(summary, "\n")
+	if _, err := fmt.Fprintf(out, "  last summary:   %s\n", lines[0]); err != nil {
+		return err
+	}
+	for _, line := range lines[1:] {
+		if _, err := fmt.Fprintf(out, "                  %s\n", line); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // curatorStatusReportJSON is the wire shape for `curator status --json`.
 // Fleet dashboards parse this to monitor curator across machines without
 // scraping multi-section prose. `state` mirrors the CuratorState struct;
@@ -135,6 +148,7 @@ type curatorStateJSON struct {
 	LastRunAt              *time.Time `json:"last_run_at,omitempty"`
 	LastRunDurationSeconds float64    `json:"last_run_duration_seconds,omitempty"`
 	LastRunSummary         string     `json:"last_run_summary,omitempty"`
+	LastRunSummaryShownAt  *time.Time `json:"last_run_summary_shown_at,omitempty"`
 	LastReportPath         string     `json:"last_report_path,omitempty"`
 }
 
@@ -167,6 +181,7 @@ func writeCuratorStatusJSON(out interface{ Write(p []byte) (int, error) }, state
 			LastRunAt:              state.LastRunAt,
 			LastRunDurationSeconds: state.LastRunDurationSeconds,
 			LastRunSummary:         state.LastRunSummary,
+			LastRunSummaryShownAt:  state.LastRunSummaryShownAt,
 			LastReportPath:         state.LastReportPath,
 		},
 		Defaults: curatorDefaultsJSON{

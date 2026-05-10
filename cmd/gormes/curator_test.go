@@ -68,6 +68,58 @@ func TestCuratorCommand_Status(t *testing.T) {
 	}
 }
 
+func TestCuratorCommand_StatusMultilineSummary(t *testing.T) {
+	root := setupCuratorCommandHome(t)
+	writeCuratorCommandSkill(t, root, "document-tools")
+	if err := skills.MarkAgentCreated(root, "document-tools"); err != nil {
+		t.Fatalf("MarkAgentCreated: %v", err)
+	}
+	lastRun := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	summary := "auto: 1 marked stale; llm: consolidated 2 into 1\n" +
+		"archived 2 skill(s):\n" +
+		"  • pdf-extraction → document-tools\n" +
+		"full report: gormes curator status"
+	curator := skills.NewCurator(skills.CuratorConfig{Root: root})
+	if err := curator.SaveState(skills.CuratorState{
+		LastRunAt:      &lastRun,
+		LastRunSummary: summary,
+		RunCount:       1,
+	}); err != nil {
+		t.Fatalf("SaveState: %v", err)
+	}
+
+	stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "status")
+	if err != nil {
+		t.Fatalf("curator status: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"last summary:   auto: 1 marked stale; llm: consolidated 2 into 1",
+		"                  archived 2 skill(s):",
+		"                    • pdf-extraction → document-tools",
+		"                  full report: gormes curator status",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("curator status stdout missing indented summary line %q:\n%s", want, stdout)
+		}
+	}
+
+	stdout, stderr, err = executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), "curator", "status", "--json")
+	if err != nil {
+		t.Fatalf("curator status --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		State struct {
+			LastRunSummary string `json:"last_run_summary,omitempty"`
+		} `json:"state"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("curator status --json must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.State.LastRunSummary != summary {
+		t.Fatalf("json last_run_summary = %q, want raw summary %q", got.State.LastRunSummary, summary)
+	}
+}
+
 // TestCuratorCommand_StatusJSONEmitsStructuredReport proves
 // `gormes curator status --json` returns a parseable
 // `{build, state: {paused, run_count, last_run_at, last_run_summary,
