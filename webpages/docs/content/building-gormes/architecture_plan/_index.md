@@ -1205,6 +1205,7 @@ classification and row-backed implementation queue.
 - [x] Hermes curator auxiliary model routing slot
 - [x] Hermes curator state transitions and run reports
 - [x] Hermes curator rename summary notice
+- [x] Hermes review prompt transient-environment guard
 - [ ] Skill effectiveness scoring
 
 ### 6.F — Skill Surface 🔨

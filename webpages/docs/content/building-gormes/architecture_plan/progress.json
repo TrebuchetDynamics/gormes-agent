@@ -51678,6 +51678,75 @@
               }
             },
             {
+              "name": "Hermes review prompt transient-environment guard",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes' native curator review prompt must preserve Hermes' current class-first learning guard: background review may capture durable reusable fixes, but must not create or harden skills from transient setup failures, post-migration path mismatches, missing binaries, unconfigured credentials, negative tool capability claims, resolved session-specific errors, or one-off task narratives.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without this guard, a temporary local setup failure such as a missing browser dependency can become a durable self-cited skill constraint that keeps Gormes refusing a working tool after the environment is repaired.",
+              "fixture": "internal/skills/curator_test.go::TestCuratorPromptTransientEnvironmentGuard",
+              "source_refs": [
+                "./hermes-agent/run_agent.py@e5af1dd63:_SKILL_REVIEW_PROMPT transient environment Do NOT capture section",
+                "./hermes-agent/run_agent.py@e5af1dd63:_COMBINED_REVIEW_PROMPT transient environment Do NOT capture section",
+                "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@e5af1dd63",
+                "internal/skills/curator.go:curatorPrompt",
+                "internal/skills/curator_test.go"
+              ],
+              "ready_when": [
+                "Hermes curator state transitions and run reports plus native curator prompt plumbing are complete/validated.",
+                "The slice can assert the prompt string passed to the injected CuratorReviewer; no live LLM, gateway, network, home-directory state, or tool execution is required.",
+                "The in-repo Hermes source is refreshed to 44cdf555a and includes e5af1dd63's transient-environment review prompt regression tests."
+              ],
+              "not_ready_when": [
+                "The slice changes skill archive/restore/classification behavior, curator scheduling, usage scoring, or live reviewer model calls.",
+                "The prompt forbids all negative feedback instead of only forbidding durable capture of transient environment failures and unsupported tool claims.",
+                "The row is used to implement broader Skill effectiveness scoring or another learning-loop umbrella behavior."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestCuratorPromptTransientEnvironmentGuard fails while curatorPrompt lacks a Do NOT capture section for transient environment failures and passes after the injected CuratorReviewer receives the guard text.",
+                "The prompt tells reviewers to capture durable setup fixes under existing setup/troubleshooting skills rather than standalone negative constraints such as a tool not working.",
+                "Existing curator state/run/rename summary tests remain green."
+              ],
+              "write_scope": [
+                "internal/skills/curator.go",
+                "internal/skills/curator_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/skills -run 'TestCuratorPromptTransientEnvironmentGuard|TestCuratorRun' -count=1",
+                "go test ./internal/skills -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Curator prompt fixtures prove Gormes preserves Hermes' transient-environment learning guard without changing curator state, archive, scheduling, or live reviewer behavior."
+              ],
+              "note": "Complete 2026-05-10: added and shipped by a bounded all-topic Hermes parity weakness sweep after refreshing Hermes to 44cdf555a and Honcho to e659b6b. Planned rows were 15, below the 90-row cap, so adding one source-backed P1 row was allowed. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current Codex Spark/model-catalog, Kanban slash help, stream-drop diagnostics, vision, user-story mirror, release trust, browser, install/runtime, and Goncho deltas are complete or row-backed; TD publication and broad release rows remain operator-gated or non-selectable. This row targeted the remaining learning-loop drift from Hermes e5af1dd63: background review must not turn transient environment failures into durable negative skills. TDD added a curator prompt fixture that failed on the one-line prompt, then expanded the native prompt with Do NOT capture guidance for environment-dependent failures, negative tool claims, resolved transient errors, one-off task narratives, and the positive rule to capture setup fixes instead of standalone tool-does-not-work constraints.",
+              "evidence": {
+                "implementation": [
+                  "internal/skills/curator.go: curatorPrompt now includes Hermes-compatible class-level review guidance and a transient-environment Do NOT capture section.",
+                  "internal/skills/curator_test.go: TestCuratorPromptTransientEnvironmentGuard captures the injected CuratorReviewer prompt and checks the durable-vs-transient boundary."
+                ],
+                "verification": [
+                  "RED: go test ./internal/skills -run TestCuratorPromptTransientEnvironmentGuard -count=1 failed because curatorPrompt was only the one-line native curator prompt.",
+                  "GREEN: go test ./internal/skills -run TestCuratorPromptTransientEnvironmentGuard -count=1 passed after the guard text landed.",
+                  "GREEN: go test ./internal/skills -run 'TestCuratorPromptTransientEnvironmentGuard|TestCuratorRun' -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:e5af1dd63 run_agent.py + tests/run_agent/test_review_prompt_class_first.py",
+                "note": "Hermes owns the class-first background-review prompt guard; Gormes ports the same durable-vs-transient boundary into the native curator prompt."
+              }
+            },
+            {
               "name": "Skill effectiveness scoring",
               "status": "planned",
               "note": "TDD: persist skill-use outcomes, explicit operator feedback, and decay/weight adjustments as auditable records before any automatic promotion or demotion behavior.",
