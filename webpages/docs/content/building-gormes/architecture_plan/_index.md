@@ -765,7 +765,7 @@ classification and row-backed implementation queue.
 - [x] whisper.cpp WASI module discovery
 - [x] Pure-Go Whisper transcribe one WAV
 - [x] Whisper tiny.en model cache fetcher
-- [ ] Wire Pure-Go Whisper into Telegram resolver
+- [x] Wire Pure-Go Whisper into Telegram resolver
 - [ ] Audio preprocessing and chunking pipeline
 - [ ] Whisper benchmark harness + perf budget
 - [ ] Go-native audio decoding (ffmpeg replacement)

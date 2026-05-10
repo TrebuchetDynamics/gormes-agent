@@ -26257,13 +26257,13 @@
             {
               "name": "Wire Pure-Go Whisper into Telegram resolver",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Spawned 2026-05-09 from path #3 (WASI productionization). Closes Phase 2 of the stakeholder plan by making the in-binary WASI Whisper visible to operators."
               },
               "contract": "Extend cmd/gormes/telegram_transcriber.go's resolveTelegramAudioTranscriber with the in-binary WASI Whisper as a third candidate, slotted between local CLI (free, fastest) and HTTP cloud fallback (Groq/OpenAI). Final priority: local CLI → in-binary WASI Whisper → HTTP cloud → nil. The WASI candidate is constructed only when GORMES_WASI_WHISPER_MODEL points to an existing model file; it gracefully returns nil when the env var is unset or the file is missing.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -26274,12 +26274,14 @@
               "degraded_mode": "If GORMES_WASI_WHISPER_MODEL is unset or points at a missing file, the WASI candidate constructor returns nil and the resolver falls through to HTTP cloud — same UX as today.",
               "fixture": "cmd/gormes/telegram_transcriber_test.go (extended)",
               "source_refs": [
-                "internal/wasi/whisper/ (Row C's Transcriber API)",
-                "cmd/gormes/telegram_transcriber.go (existing resolver — extend, do not rewrite)",
-                "internal/channels/telegram/transcriber.go (AudioTranscriber interface — unchanged)"
+                "hermes-agent/tools/transcription_tools.py:_get_provider and _transcribe_local_command (local-first STT with cloud fallback and temporary ffmpeg normalization)",
+                "internal/wasi/whisper/transcriber.go:NewTranscriber/TranscribeWAV/Close (Row C's validated Transcriber API)",
+                "cmd/gormes/telegram_transcriber.go:resolveTelegramAudioTranscriber (existing resolver — extend, do not rewrite)",
+                "internal/channels/telegram/transcriber.go:AudioTranscriber/ResolveAudioTranscriber (interface unchanged)"
               ],
               "ready_when": [
-                "Row C 'Pure-Go Whisper transcribe one WAV' is complete; Transcriber API is stable."
+                "Row C 'Pure-Go Whisper transcribe one WAV' is complete with contract_status=validated; Transcriber API is stable.",
+                "2026-05-10 planner sweep confirms internal/wasi/whisper tests pass and resolveTelegramAudioTranscriber remains the only production cmd/gormes wiring point for Telegram STT candidates."
               ],
               "not_ready_when": [
                 "The slice changes the AudioTranscriber interface in internal/channels/telegram/ (no breaking changes to the channel seam).",
@@ -26315,7 +26317,24 @@
               "done_signal": [
                 "Operator sets GORMES_WASI_WHISPER_MODEL=/path/to/ggml-tiny.en.bin in ~/.gormes/.env, restarts gateway, sends a Telegram voice message, and the bot replies using a transcript produced by the in-binary WASI Whisper (not Groq/OpenAI). HTTP cloud fallback remains intact for operators who do not install a model."
               ],
-              "note": "This row is the load-bearing milestone for closing the Pure-Go STT exploration row. Until this lands, the WASI work in Rows A/B/C is invisible to operators. After this lands, the exploration row resolves to complete (with a note pointing here) once Row F's benchmarks confirm the perf gap is within budget."
+              "note": "This row is the load-bearing milestone for closing the Pure-Go STT exploration row. Until this lands, the WASI work in Rows A/B/C is invisible to operators. After this lands, the exploration row resolves to complete (with a note pointing here) once Row F's benchmarks confirm the perf gap is within budget. Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to 44cdf555a and Honcho to e659b6b, covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows, and ran focused Gormes packages for those surfaces. Planned rows were 19, below the 90-row cap, so no new P3/P4 row was added. Higher-priority TD publication rows remain operator-gated and broad release/operator parents remain non-selectable; current Hermes Codex Spark, stream-drop, Kanban, TUI, provider/auth, browser, Goncho, install/runtime, docs/public, and release deltas are complete or row-backed. This existing P1 gateway row is the highest-priority builder-ready closure because Row C now proves real WASI Whisper WAV transcription and the only remaining operator visibility gap is cmd/gormes Telegram resolver wiring. Complete 2026-05-10: TDD added an env-gated WASI Whisper Telegram transcriber candidate, resolver priority local CLI → WASI Whisper → HTTP STT → nil, lazy in-binary whisper.NewTranscriber construction, tempfile audio materialization, temporary ffmpeg WAV conversion for non-WAV Telegram audio until Row E's pure-Go preprocessing lands, and injectable constructors/converters so the resolver path is tested without live ffmpeg, live Telegram, or a real model in cmd/gormes tests.",
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/telegram_transcriber.go adds newWASIWhisperTranscriberFromEnv, wasiWhisperAudioTranscriber, lazy internal/wasi/whisper.NewTranscriber wiring, bounded ffmpeg conversion for non-WAV inputs, and resolver candidate ordering local CLI -> WASI -> HTTP.",
+                  "cmd/gormes/telegram_transcriber_test.go adds env-gating, tempfile cleanup, non-WAV conversion, and resolver-priority fixtures with fake transcribers.",
+                  "cmd/gormes/telegram_transcriber_slim.go remains local-CLI only, so slim builds do not import internal/wasi/whisper."
+                ],
+                "verification": [
+                  "RED: CGO_ENABLED=0 go test ./cmd/gormes -run 'TestResolveTelegramAudio|TestWASIWhisper' -count=1 failed on missing newWASIWhisperTranscriberFromEnv, wasiWhisperAudioTranscriber, wasiWhisperTranscriber, and injectable resolver constructors.",
+                  "GREEN: CGO_ENABLED=0 go test ./cmd/gormes -run 'TestResolveTelegramAudio|TestWASIWhisper' -count=1 passed.",
+                  "GREEN: CGO_ENABLED=0 go build ./... passed.",
+                  "GREEN: CGO_ENABLED=0 go build -tags slim ./... passed.",
+                  "GREEN: CGO_ENABLED=0 go test ./cmd/gormes ./internal/channels/telegram -count=1 passed.",
+                  "GREEN: CGO_ENABLED=0 go test ./internal/wasi/whisper -count=1 -timeout=5m passed.",
+                  "GREEN: go run ./cmd/progress validate passed."
+                ]
+              }
             },
             {
               "name": "Audio preprocessing and chunking pipeline",

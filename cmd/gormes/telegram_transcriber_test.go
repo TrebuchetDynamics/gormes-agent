@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -180,6 +181,7 @@ func TestResolveTelegramAudioTranscriber_FallsBackToHTTPWhenNoLocalCLI(t *testin
 	// Force NewWhisperTranscriberFromEnv to return nil by clearing the env
 	// override and ensuring no whisper binary is on PATH for this test.
 	t.Setenv("GORMES_WHISPER_COMMAND", "")
+	t.Setenv("GORMES_WASI_WHISPER_MODEL", "")
 	t.Setenv("PATH", "/nonexistent")
 	// Configure HTTP fallback.
 	t.Setenv("GORMES_STT_OPENAI_KEY", "")
@@ -197,13 +199,205 @@ func TestResolveTelegramAudioTranscriber_FallsBackToHTTPWhenNoLocalCLI(t *testin
 
 func TestResolveTelegramAudioTranscriber_ReturnsNilWhenNeitherLocalNorHTTPConfigured(t *testing.T) {
 	t.Setenv("GORMES_WHISPER_COMMAND", "")
+	t.Setenv("GORMES_WASI_WHISPER_MODEL", "")
 	t.Setenv("PATH", "/nonexistent")
 	t.Setenv("GORMES_STT_OPENAI_KEY", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("VOICE_TOOLS_OPENAI_KEY", "")
+	t.Setenv("GROQ_API_KEY", "")
 
 	got := resolveTelegramAudioTranscriber()
 	if got != nil {
 		t.Fatalf("expected nil when neither local nor HTTP is configured, got %T", got)
+	}
+}
+
+func TestWASIWhisperFromEnv_ReturnsNilWhenModelUnsetOrMissing(t *testing.T) {
+	t.Setenv("GORMES_WASI_WHISPER_MODEL", "")
+	if got := newWASIWhisperTranscriberFromEnv(); got != nil {
+		t.Fatalf("expected nil when env var is unset, got %T", got)
+	}
+
+	t.Setenv("GORMES_WASI_WHISPER_MODEL", filepath.Join(t.TempDir(), "missing.bin"))
+	if got := newWASIWhisperTranscriberFromEnv(); got != nil {
+		t.Fatalf("expected nil when model is missing, got %T", got)
+	}
+}
+
+func TestWASIWhisperFromEnv_ReturnsAdapterWhenModelFileExists(t *testing.T) {
+	modelPath := filepath.Join(t.TempDir(), "ggml-tiny.en.bin")
+	if err := os.WriteFile(modelPath, []byte("placeholder-model"), 0o600); err != nil {
+		t.Fatalf("write model fixture: %v", err)
+	}
+	t.Setenv("GORMES_WASI_WHISPER_MODEL", modelPath)
+
+	got := newWASIWhisperTranscriberFromEnv()
+	adapter, ok := got.(*wasiWhisperAudioTranscriber)
+	if !ok {
+		t.Fatalf("expected *wasiWhisperAudioTranscriber, got %T", got)
+	}
+	if adapter.modelPath != modelPath {
+		t.Fatalf("modelPath = %q, want %q", adapter.modelPath, modelPath)
+	}
+}
+
+func TestWASIWhisperAudioTranscriber_WritesWAVTempfileAndReturnsTranscript(t *testing.T) {
+	modelPath := filepath.Join(t.TempDir(), "ggml-tiny.en.bin")
+	var capturedModel string
+	var capturedPath string
+	var capturedBytes []byte
+	adapter := &wasiWhisperAudioTranscriber{
+		modelPath: modelPath,
+		newTranscriber: func(_ context.Context, gotModel string) (wasiWhisperTranscriber, error) {
+			capturedModel = gotModel
+			return fakeWASIWhisperTranscriber{
+				transcript: "hello from wasi",
+				onTranscribe: func(path string) {
+					capturedPath = path
+					capturedBytes, _ = os.ReadFile(path)
+				},
+			}, nil
+		},
+	}
+
+	got, err := adapter.Transcribe(context.Background(), telegram.AudioInput{
+		MediaType: "audio/wav",
+		FileName:  "voice.wav",
+		Data:      []byte("RIFF-wav-fixture"),
+	})
+	if err != nil {
+		t.Fatalf("Transcribe returned error: %v", err)
+	}
+	if got != "hello from wasi" {
+		t.Fatalf("transcript = %q, want %q", got, "hello from wasi")
+	}
+	if capturedModel != modelPath {
+		t.Fatalf("model path = %q, want %q", capturedModel, modelPath)
+	}
+	if !strings.HasSuffix(capturedPath, ".wav") {
+		t.Fatalf("expected WAV tempfile, got %q", capturedPath)
+	}
+	if string(capturedBytes) != "RIFF-wav-fixture" {
+		t.Fatalf("transcriber received bytes %q", capturedBytes)
+	}
+	if _, statErr := os.Stat(capturedPath); !os.IsNotExist(statErr) {
+		t.Fatalf("expected tempfile cleanup, stat err: %v", statErr)
+	}
+}
+
+func TestWASIWhisperAudioTranscriber_ConvertsNonWAVInputBeforeTranscribing(t *testing.T) {
+	var convertedFrom string
+	var convertedTo string
+	var transcribedPath string
+	adapter := &wasiWhisperAudioTranscriber{
+		modelPath: filepath.Join(t.TempDir(), "ggml-tiny.en.bin"),
+		convertToWAV: func(_ context.Context, inputPath, outputPath string) error {
+			convertedFrom = inputPath
+			convertedTo = outputPath
+			return os.WriteFile(outputPath, []byte("RIFF-converted"), 0o600)
+		},
+		newTranscriber: func(_ context.Context, _ string) (wasiWhisperTranscriber, error) {
+			return fakeWASIWhisperTranscriber{
+				transcript: "converted transcript",
+				onTranscribe: func(path string) {
+					transcribedPath = path
+				},
+			}, nil
+		},
+	}
+
+	got, err := adapter.Transcribe(context.Background(), telegram.AudioInput{
+		MediaType: "audio/ogg",
+		FileName:  "voice.ogg",
+		Data:      []byte("OggS"),
+	})
+	if err != nil {
+		t.Fatalf("Transcribe returned error: %v", err)
+	}
+	if got != "converted transcript" {
+		t.Fatalf("transcript = %q", got)
+	}
+	if !strings.HasSuffix(convertedFrom, ".ogg") {
+		t.Fatalf("converted input = %q, want .ogg", convertedFrom)
+	}
+	if !strings.HasSuffix(convertedTo, ".wav") || transcribedPath != convertedTo {
+		t.Fatalf("convertedTo = %q transcribedPath = %q, want same .wav path", convertedTo, transcribedPath)
+	}
+}
+
+func TestResolveTelegramAudioTranscriber_PriorityLocalWASIHTTP(t *testing.T) {
+	local := fakeMainAudioTranscriber{transcript: "local"}
+	wasi := fakeMainAudioTranscriber{transcript: "wasi"}
+	http := fakeMainAudioTranscriber{transcript: "http"}
+	restore := stubTranscriberConstructors(t, local, wasi, http)
+	defer restore()
+
+	got, err := resolveTelegramAudioTranscriber().Transcribe(context.Background(), telegram.AudioInput{})
+	if err != nil {
+		t.Fatalf("Transcribe local: %v", err)
+	}
+	if got != "local" {
+		t.Fatalf("expected local first, got %q", got)
+	}
+
+	restore()
+	restore = stubTranscriberConstructors(t, nil, wasi, http)
+	defer restore()
+	got, err = resolveTelegramAudioTranscriber().Transcribe(context.Background(), telegram.AudioInput{})
+	if err != nil {
+		t.Fatalf("Transcribe wasi: %v", err)
+	}
+	if got != "wasi" {
+		t.Fatalf("expected WASI before HTTP, got %q", got)
+	}
+
+	restore()
+	restore = stubTranscriberConstructors(t, nil, nil, http)
+	defer restore()
+	got, err = resolveTelegramAudioTranscriber().Transcribe(context.Background(), telegram.AudioInput{})
+	if err != nil {
+		t.Fatalf("Transcribe http: %v", err)
+	}
+	if got != "http" {
+		t.Fatalf("expected HTTP fallback, got %q", got)
+	}
+}
+
+type fakeWASIWhisperTranscriber struct {
+	transcript   string
+	onTranscribe func(path string)
+}
+
+func (f fakeWASIWhisperTranscriber) TranscribeWAV(_ context.Context, path string) (string, error) {
+	if f.onTranscribe != nil {
+		f.onTranscribe(path)
+	}
+	return f.transcript, nil
+}
+
+func (f fakeWASIWhisperTranscriber) Close(_ context.Context) error {
+	return nil
+}
+
+type fakeMainAudioTranscriber struct {
+	transcript string
+}
+
+func (f fakeMainAudioTranscriber) Transcribe(context.Context, telegram.AudioInput) (string, error) {
+	return f.transcript, nil
+}
+
+func stubTranscriberConstructors(t *testing.T, local, wasi, http telegram.AudioTranscriber) func() {
+	t.Helper()
+	oldLocal := newLocalTelegramAudioTranscriber
+	oldWASI := newWASIWhisperTelegramAudioTranscriber
+	oldHTTP := newHTTPSTTTelegramAudioTranscriber
+	newLocalTelegramAudioTranscriber = func() telegram.AudioTranscriber { return local }
+	newWASIWhisperTelegramAudioTranscriber = func() telegram.AudioTranscriber { return wasi }
+	newHTTPSTTTelegramAudioTranscriber = func() telegram.AudioTranscriber { return http }
+	return func() {
+		newLocalTelegramAudioTranscriber = oldLocal
+		newWASIWhisperTelegramAudioTranscriber = oldWASI
+		newHTTPSTTTelegramAudioTranscriber = oldHTTP
 	}
 }

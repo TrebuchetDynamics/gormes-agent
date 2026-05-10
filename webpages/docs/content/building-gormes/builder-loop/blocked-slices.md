@@ -15,7 +15,6 @@ Use it to avoid assigning work before the dependency chain is ready.
 <!-- PROGRESS:START kind=blocked-slices -->
 | Phase | Slice | Blocked by | Ready when | Unblocks |
 |---|---|---|---|---|
-| 5 / 5.E | Wire Pure-Go Whisper into Telegram resolver | Pure-Go Whisper transcribe one WAV | Row C 'Pure-Go Whisper transcribe one WAV' is complete; Transcriber API is stable. | Audio preprocessing and chunking pipeline |
 | 5 / 5.E | Audio preprocessing and chunking pipeline | Wire Pure-Go Whisper into Telegram resolver | Row D 'Wire Pure-Go Whisper into Telegram resolver' is complete; the resolver is sending OGG bytes to a tempfile and Row E supplies the decoder/chunker that lives between. | Go-native audio decoding (ffmpeg replacement) |
 | 5 / 5.E | Whisper benchmark harness + perf budget | Pure-Go Whisper transcribe one WAV | Row C 'Pure-Go Whisper transcribe one WAV' is complete; Transcriber API is stable. | - |
 | 5 / 5.E | Go-native audio decoding (ffmpeg replacement) | Audio preprocessing and chunking pipeline | Row E 'Audio preprocessing and chunking pipeline' is complete and shipping ffmpeg-based preprocessing., Operator feedback or telemetry shows ffmpeg-absence is a real blocker on a target platform (Termux, Windows-portable, etc.). | - |
