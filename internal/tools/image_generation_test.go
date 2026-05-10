@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -276,14 +278,14 @@ func TestBuildFALPayload(t *testing.T) {
 		},
 		Defaults: map[string]any{
 			"num_inference_steps": 4,
-			"output_format":      "png",
+			"output_format":       "png",
 		},
 		Supports: map[string]bool{
-			"prompt":               true,
-			"image_size":           true,
-			"num_inference_steps":  true,
-			"output_format":        true,
-			"seed":                 true,
+			"prompt":              true,
+			"image_size":          true,
+			"num_inference_steps": true,
+			"output_format":       true,
+			"seed":                true,
 		},
 	}
 	seed := 42
@@ -336,6 +338,102 @@ func TestRedactImageGenError(t *testing.T) {
 				t.Errorf("input %q: got %q, want %q", tc.input, got, tc.contains)
 			}
 		}
+	}
+}
+
+func TestFALGenImageProviderQueueRESTFlow(t *testing.T) {
+	var server *httptest.Server
+	statusCalls := 0
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/fal-ai/flux-2/klein/9b":
+			if r.Method != http.MethodPost {
+				t.Errorf("submit method = %s, want POST", r.Method)
+			}
+			if got := r.Header.Get("Authorization"); got != "Key test-fal-key" {
+				t.Errorf("Authorization = %q, want Key test-fal-key", got)
+			}
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Errorf("decode payload: %v", err)
+			}
+			if payload["prompt"] != "draw a precise cat" {
+				t.Errorf("prompt payload = %v, want draw a precise cat", payload["prompt"])
+			}
+			if payload["image_size"] != "square_hd" {
+				t.Errorf("image_size payload = %v, want square_hd", payload["image_size"])
+			}
+			if _, ok := payload["aspect_ratio"]; ok {
+				t.Errorf("payload should not include unsupported aspect_ratio key: %#v", payload)
+			}
+			_, _ = w.Write([]byte(`{"request_id":"req-1","status_url":"` + server.URL + `/status/req-1","response_url":"` + server.URL + `/response/req-1"}`))
+		case "/status/req-1":
+			statusCalls++
+			if statusCalls == 1 {
+				_, _ = w.Write([]byte(`{"status":"IN_PROGRESS","request_id":"req-1","response_url":"` + server.URL + `/response/req-1"}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"status":"COMPLETED","request_id":"req-1","response_url":"` + server.URL + `/response/req-1"}`))
+		case "/response/req-1":
+			_, _ = w.Write([]byte(`{"images":[{"url":"https://cdn.example/cat.png","width":1024,"height":1024,"content_type":"image/png"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	provider := NewFALGenImageProvider("test-fal-key")
+	provider.httpClient = server.Client()
+	provider.queueBaseURL = server.URL
+	provider.pollInterval = time.Nanosecond
+
+	result, err := provider.Generate(context.Background(), ImageProviderRequest{
+		Prompt:       "draw a precise cat",
+		AspectRatio:  "square",
+		SizeStyle:    "image_size_preset",
+		Size:         "square_hd",
+		Model:        "fal-ai/flux-2/klein/9b",
+		OutputFormat: "png",
+	})
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if statusCalls != 2 {
+		t.Fatalf("status calls = %d, want 2", statusCalls)
+	}
+	if result.Provider != "fal" || result.Model != "fal-ai/flux-2/klein/9b" || result.ImageURL != "https://cdn.example/cat.png" {
+		t.Fatalf("result = %+v, want fal model image URL", result)
+	}
+	if result.MediaType != "image/png" || result.Width != 1024 || result.Height != 1024 {
+		t.Fatalf("result metadata = %+v, want image/png 1024x1024", result)
+	}
+}
+
+func TestFALGenImageProviderQueueRESTFailure(t *testing.T) {
+	prompt := "secret prompt fragment"
+	key := "test-fal-secret"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		http.Error(w, `{"detail":"failed for secret prompt fragment with Key test-fal-secret","error_type":"bad_request"}`, http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	provider := NewFALGenImageProvider(key)
+	provider.httpClient = server.Client()
+	provider.queueBaseURL = server.URL
+
+	_, err := provider.Generate(context.Background(), ImageProviderRequest{
+		Prompt: prompt,
+		Model:  "fal-ai/flux-2/klein/9b",
+		Size:   "landscape_16_9",
+	})
+	if err == nil {
+		t.Fatal("Generate error = nil, want bounded submit failure")
+	}
+	errText := err.Error()
+	if strings.Contains(errText, prompt) || strings.Contains(errText, key) || strings.Contains(errText, "Key ") {
+		t.Fatalf("error leaked prompt or key: %s", errText)
 	}
 }
 
@@ -392,11 +490,11 @@ func TestImageGenOutputDir(t *testing.T) {
 
 func TestImageGenResultJSON(t *testing.T) {
 	result := ImageGenResult{
-		Success:   true,
-		ImageURL:  "https://example.com/image.png",
-		Provider:  "fal",
-		Model:     "fal-ai/flux-2/klein/9b",
-		Evidence:  ImageGenerationStatusOK,
+		Success:  true,
+		ImageURL: "https://example.com/image.png",
+		Provider: "fal",
+		Model:    "fal-ai/flux-2/klein/9b",
+		Evidence: ImageGenerationStatusOK,
 	}
 
 	raw, err := json.Marshal(result)

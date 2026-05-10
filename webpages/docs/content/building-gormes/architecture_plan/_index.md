@@ -735,6 +735,7 @@ classification and row-backed implementation queue.
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch
+- [x] FAL image generation queue REST binding
 - [x] Native video_analyze tool contract
 
 ### 5.E — TTS / Voice / Transcription 🔨

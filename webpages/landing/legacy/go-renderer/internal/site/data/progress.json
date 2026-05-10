@@ -24317,6 +24317,75 @@
               }
             },
             {
+              "name": "FAL image generation queue REST binding",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-10T00:52:17Z",
+              "contract": "The default FAL image-generation provider performs a lazy first-use REST queue call against https://queue.fal.run using Hermes' image_generation_tool.py payload semantics and fal.ai's current queue contract: POST model payload with Authorization: Key, poll status until COMPLETED, then retrieve the response URL and return the first image URL through the existing Gormes ImageGenResult envelope.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing FAL_API_KEY, submit/status/response HTTP failures, non-COMPLETED terminal statuses, malformed queue JSON, missing response_url, and empty image result arrays return image_gen_provider_unavailable or image_gen_api_error evidence without leaking API keys, prompts, queue URLs with credentials, or raw provider bodies.",
+              "fixture": "internal/tools/image_generation_test.go::TestFALGenImageProviderQueueRESTFlow",
+              "source_refs": [
+                "./hermes-agent/tools/image_generation_tool.py@c1cc3d4ea:_load_fal_client and _submit_fal_request",
+                "Context7 /websites/fal_ai queue docs: POST https://queue.fal.run/{model_path}, request_id/status_url/response_url, IN_QUEUE/IN_PROGRESS/COMPLETED statuses, Authorization: Key $FAL_KEY",
+                "internal/tools/image_generation.go:FALGenImageProvider.Generate",
+                "cmd/gormes/registry_image.go:registerImageGenerationTool"
+              ],
+              "ready_when": [
+                "Image generation result contract and image generation provider registry + plugin dispatch are complete.",
+                "Tests can use httptest to fake queue submit, status, and response endpoints; no live FAL account, API key, or network call is required.",
+                "The implementation can keep provider construction cheap and defer all HTTP work until Generate is called."
+              ],
+              "not_ready_when": [
+                "The slice calls live FAL, OpenAI, xAI, Codex, or browser providers in tests.",
+                "The slice adds SDK imports, Python runtime dependencies, or eager startup network checks.",
+                "The slice changes plugin provider dispatch semantics instead of only binding the built-in FAL provider."
+              ],
+              "blocked_by": [
+                "Image generation result contract",
+                "Image generation provider registry + plugin dispatch"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestFALGenImageProviderQueueRESTFlow proves the provider sends Authorization: Key, posts Hermes-compatible filtered payload JSON to /{model}, polls status_url until COMPLETED, fetches response_url, and returns images[0].url plus provider/model/media metadata.",
+                "TestFALGenImageProviderQueueRESTFailure proves non-2xx submit/status/response bodies are bounded and do not leak the configured FAL API key or prompt.",
+                "ImageGenRunner fixtures still prove unavailable provider and redacted provider-error evidence without live network calls.",
+                "No work is performed at registerImageGenerationTool time beyond constructing the provider; all REST calls happen inside Generate."
+              ],
+              "write_scope": [
+                "internal/tools/image_generation.go",
+                "internal/tools/image_generation_test.go",
+                "cmd/gormes/registry_image.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestFALGenImageProviderQueueREST|TestImageGen' -count=1",
+                "go test ./cmd/gormes ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Built-in FAL provider is no longer a stub: hermetic queue REST tests prove submit/status/response behavior, lazy first-use execution, metadata extraction, and redacted failures without live FAL access."
+              ],
+              "note": "Complete 2026-05-10: planner added this row from the bounded all-topic weakness sweep after Hermes advanced to c1cc3d4ea and kept FAL image generation active while deferring its SDK import to first use. TDD added hermetic httptest queue fixtures and replaced the built-in FAL provider stub with a lazy REST binding: provider construction remains cheap, Generate posts filtered Hermes-compatible payload JSON with Authorization: Key, polls status_url through IN_PROGRESS to COMPLETED, fetches response_url, extracts images[0].url/metadata, and redacts prompt/API-key material from provider errors. No live FAL, SDK import, Python runtime, plugin dispatch, or startup network check is used.",
+              "evidence": [
+                "RED: go test ./internal/tools -run 'TestFALGenImageProviderQueueREST' -count=1 failed because FALGenImageProvider had no injectable HTTP queue plumbing and still returned live API not implemented.",
+                "GREEN: go test ./internal/tools -run 'TestFALGenImageProviderQueueREST' -count=1 passed.",
+                "GREEN: go test ./internal/tools -run 'TestFALGenImageProviderQueueREST|TestImageGen' -count=1 passed."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:c1cc3d4ea tools/image_generation_tool.py",
+                "note": "2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 21, below the 90-row cap. Most runtime surfaces were complete or row-backed; the current Hermes delta kept FAL image generation active while deferring SDK import to first generation call, and Gormes still had a built-in FAL provider that returned live API not implemented. This row owns the bounded closure."
+              }
+            },
+            {
               "name": "Native video_analyze tool contract",
               "priority": "P2",
               "status": "complete",

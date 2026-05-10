@@ -3,10 +3,13 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -529,6 +532,7 @@ func imageGenFailure(provider string, evidence imageGenEvidence, message string)
 // imageGenSecretPatterns matches credential shapes in error messages.
 var imageGenSecretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+`),
+	regexp.MustCompile(`(?i)\bKey\s+[A-Za-z0-9._~+/=\-]+`),
 	regexp.MustCompile(`(?i)\b(sk|key|token|secret)[-_]?[A-Za-z0-9]*[=:]\s*["']?[^"'\s]+`),
 	regexp.MustCompile(`\b[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{20,}\b`),
 }
@@ -561,8 +565,11 @@ func falAPIKeyPresent() bool {
 
 // FALGenImageProvider is the FAL.ai image generation provider.
 type FALGenImageProvider struct {
-	apiKey  string
-	timeout time.Duration
+	apiKey       string
+	timeout      time.Duration
+	httpClient   *http.Client
+	queueBaseURL string
+	pollInterval time.Duration
 }
 
 // NewFALGenImageProvider creates a FAL provider from config.
@@ -571,8 +578,11 @@ func NewFALGenImageProvider(apiKey string) *FALGenImageProvider {
 		apiKey = os.Getenv("FAL_API_KEY")
 	}
 	return &FALGenImageProvider{
-		apiKey:  apiKey,
-		timeout: 120 * time.Second,
+		apiKey:       apiKey,
+		timeout:      120 * time.Second,
+		httpClient:   http.DefaultClient,
+		queueBaseURL: "https://queue.fal.run",
+		pollInterval: 500 * time.Millisecond,
 	}
 }
 
@@ -596,8 +606,232 @@ func (p *FALGenImageProvider) Generate(ctx context.Context, req ImageProviderReq
 	}
 
 	payload := buildFALPayload(req, meta)
-	_ = payload
-	return ImageProviderResult{}, errors.New("FAL provider: live API not implemented (use mock provider for testing)")
+	if p.timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, p.timeout)
+		defer cancel()
+	}
+
+	submit, err := p.submitFALQueue(ctx, req.Model, payload, req.Prompt)
+	if err != nil {
+		return ImageProviderResult{}, err
+	}
+	responseURL := strings.TrimSpace(submit.ResponseURL)
+	if strings.TrimSpace(submit.StatusURL) != "" {
+		responseURL, err = p.waitForFALQueue(ctx, req.Model, submit, req.Prompt)
+		if err != nil {
+			return ImageProviderResult{}, err
+		}
+	}
+	if responseURL == "" {
+		responseURL = p.falRequestURL(req.Model, submit.RequestID, "")
+	}
+	if responseURL == "" {
+		return ImageProviderResult{}, errors.New("FAL provider: missing response URL")
+	}
+
+	image, err := p.fetchFALResponse(ctx, responseURL, req.Prompt)
+	if err != nil {
+		return ImageProviderResult{}, err
+	}
+	return ImageProviderResult{
+		ImageURL:  image.URL,
+		Width:     image.Width,
+		Height:    image.Height,
+		Provider:  "fal",
+		Model:     req.Model,
+		MediaType: image.MediaType(),
+	}, nil
+}
+
+type falQueueSubmitResponse struct {
+	RequestID   string `json:"request_id"`
+	StatusURL   string `json:"status_url"`
+	ResponseURL string `json:"response_url"`
+}
+
+type falQueueStatusResponse struct {
+	Status      string `json:"status"`
+	RequestID   string `json:"request_id"`
+	ResponseURL string `json:"response_url"`
+}
+
+type falQueueImage struct {
+	URL         string `json:"url"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	ContentType string `json:"content_type"`
+	MIMEType    string `json:"mime_type"`
+}
+
+func (i falQueueImage) MediaType() string {
+	if strings.TrimSpace(i.ContentType) != "" {
+		return strings.TrimSpace(i.ContentType)
+	}
+	return strings.TrimSpace(i.MIMEType)
+}
+
+type falQueueResponse struct {
+	Images []falQueueImage `json:"images"`
+	Image  falQueueImage   `json:"image"`
+	URL    string          `json:"url"`
+}
+
+func (p *FALGenImageProvider) submitFALQueue(ctx context.Context, model string, payload map[string]any, prompt string) (falQueueSubmitResponse, error) {
+	var out falQueueSubmitResponse
+	if err := p.doFALJSON(ctx, http.MethodPost, p.falModelURL(model), payload, prompt, &out); err != nil {
+		return falQueueSubmitResponse{}, err
+	}
+	if strings.TrimSpace(out.RequestID) == "" && strings.TrimSpace(out.ResponseURL) == "" {
+		return falQueueSubmitResponse{}, errors.New("FAL provider: submit response missing request_id")
+	}
+	return out, nil
+}
+
+func (p *FALGenImageProvider) waitForFALQueue(ctx context.Context, model string, submit falQueueSubmitResponse, prompt string) (string, error) {
+	statusURL := strings.TrimSpace(submit.StatusURL)
+	responseURL := strings.TrimSpace(submit.ResponseURL)
+	for {
+		var status falQueueStatusResponse
+		if err := p.doFALJSON(ctx, http.MethodGet, statusURL, nil, prompt, &status); err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(status.ResponseURL) != "" {
+			responseURL = strings.TrimSpace(status.ResponseURL)
+		}
+		switch strings.ToUpper(strings.TrimSpace(status.Status)) {
+		case "COMPLETED":
+			if responseURL == "" {
+				requestID := strings.TrimSpace(status.RequestID)
+				if requestID == "" {
+					requestID = submit.RequestID
+				}
+				responseURL = p.falRequestURL(model, requestID, "")
+			}
+			return responseURL, nil
+		case "IN_QUEUE", "IN_PROGRESS":
+			if err := sleepFALPoll(ctx, p.pollInterval); err != nil {
+				return "", err
+			}
+		case "":
+			return "", errors.New("FAL provider: status response missing status")
+		default:
+			return "", fmt.Errorf("FAL provider: request ended with status %s", sanitizeFALMessage(status.Status, p.apiKey, prompt))
+		}
+	}
+}
+
+func sleepFALPoll(ctx context.Context, interval time.Duration) error {
+	if interval <= 0 {
+		interval = 500 * time.Millisecond
+	}
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func (p *FALGenImageProvider) fetchFALResponse(ctx context.Context, responseURL, prompt string) (falQueueImage, error) {
+	var out falQueueResponse
+	if err := p.doFALJSON(ctx, http.MethodGet, responseURL, nil, prompt, &out); err != nil {
+		return falQueueImage{}, err
+	}
+	for _, image := range out.Images {
+		if strings.TrimSpace(image.URL) != "" {
+			return image, nil
+		}
+	}
+	if strings.TrimSpace(out.Image.URL) != "" {
+		return out.Image, nil
+	}
+	if strings.TrimSpace(out.URL) != "" {
+		return falQueueImage{URL: strings.TrimSpace(out.URL)}, nil
+	}
+	return falQueueImage{}, errors.New("FAL provider: response did not include an image URL")
+}
+
+func (p *FALGenImageProvider) doFALJSON(ctx context.Context, method, endpoint string, body any, prompt string, out any) error {
+	var reader io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return fmt.Errorf("FAL provider: encode request: %w", err)
+		}
+		reader = bytes.NewReader(raw)
+	}
+	request, err := http.NewRequestWithContext(ctx, method, endpoint, reader)
+	if err != nil {
+		return fmt.Errorf("FAL provider: build request: %w", err)
+	}
+	request.Header.Set("Authorization", "Key "+p.apiKey)
+	if body != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+
+	client := p.httpClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("FAL provider: request failed: %s", sanitizeFALMessage(err.Error(), p.apiKey, prompt))
+	}
+	defer response.Body.Close()
+	raw, readErr := io.ReadAll(io.LimitReader(response.Body, 64*1024))
+	if readErr != nil {
+		return fmt.Errorf("FAL provider: read response: %w", readErr)
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("FAL provider: %s failed with status %d: %s", method, response.StatusCode, sanitizeFALMessage(string(raw), p.apiKey, prompt))
+	}
+	if len(raw) == 0 {
+		return errors.New("FAL provider: empty response")
+	}
+	if err := json.Unmarshal(raw, out); err != nil {
+		return fmt.Errorf("FAL provider: decode response: %w", err)
+	}
+	return nil
+}
+
+func (p *FALGenImageProvider) falModelURL(model string) string {
+	base := strings.TrimRight(p.queueBaseURL, "/")
+	if base == "" {
+		base = "https://queue.fal.run"
+	}
+	return base + "/" + strings.TrimLeft(model, "/")
+}
+
+func (p *FALGenImageProvider) falRequestURL(model, requestID, suffix string) string {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" {
+		return ""
+	}
+	base := strings.TrimRight(p.falModelURL(model), "/")
+	if model == "" {
+		base = strings.TrimRight(p.queueBaseURL, "/")
+	}
+	if strings.TrimSpace(suffix) != "" {
+		return base + "/requests/" + requestID + "/" + strings.TrimLeft(suffix, "/")
+	}
+	return base + "/requests/" + requestID
+}
+
+func sanitizeFALMessage(text, apiKey, prompt string) string {
+	text = strings.TrimSpace(text)
+	if apiKey != "" {
+		text = strings.ReplaceAll(text, "Key "+apiKey, "[redacted]")
+		text = strings.ReplaceAll(text, apiKey, "[redacted]")
+	}
+	text = redactImageGenErrorForPrompt(text, prompt)
+	text = strings.ReplaceAll(text, "Key [redacted]", "[redacted]")
+	if text == "" {
+		return "redacted FAL error"
+	}
+	return text
 }
 
 // buildFALPayload constructs the FAL API payload per model metadata.
