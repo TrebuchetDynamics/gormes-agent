@@ -26121,15 +26121,15 @@
                 "system"
               ],
               "degraded_mode": "If model file is missing or corrupted, NewTranscriber returns a typed error (model_unavailable) without panicking. If TranscribeWAV's WASI invocation hangs or errors, returns a typed error (wasi_inference_failed) with the underlying wazero diagnostic redacted of any test-fixture paths.",
-              "fixture": "internal/wasi/whisper/transcribe_test.go and internal/wasi/whisper/testdata/{whisper.wasm,ggml-tiny.en.bin,sample.wav}",
+              "fixture": "internal/wasi/whisper/transcribe_test.go, internal/wasi/whisper/testdata/{whisper.wasm,sample.wav}, and a checksum-verified ggml-tiny.en.bin cache populated by the `Whisper tiny.en model cache fetcher` row",
               "source_refs": [
-                "https://huggingface.co/ggerganov/whisper.cpp (ggml-tiny.en.bin canonical source — MIT-equivalent ggml license)",
+                "https://huggingface.co/ggerganov/whisper.cpp (ggml-tiny.en.bin canonical source — MIT-equivalent ggml license; fetched through the `Whisper tiny.en model cache fetcher` row)",
                 "internal/wasi/whisper/ (Row B's package home)",
                 "Stakeholder plan Phase 2 Transcriber API shape (recorded on Pure-Go STT exploration row note)"
               ],
               "ready_when": [
                 "Row B 'whisper.cpp WASI module discovery' is complete; whisper.wasm loads via wazero.",
-                "ggml-tiny.en.bin model file is decided: either committed under testdata (~75 MB — acceptable for a one-time vendoring) or fetched in CI from a known SHA-256 (test-only, never in the runtime binary)."
+                "`Whisper tiny.en model cache fetcher` is complete; tests can populate ggml-tiny.en.bin from a pinned URL, size, and SHA-256 without committing the 75 MB model to the repository or embedding it in the runtime binary."
               ],
               "not_ready_when": [
                 "The slice ships an audio preprocessing pipeline (that's Row E).",
@@ -26137,7 +26137,8 @@
                 "ggml-tiny.en.bin is downloaded at runtime by Gormes itself (model distribution is a runtime decision; tests must use a vendored or CI-fetched copy with a checksum)."
               ],
               "blocked_by": [
-                "whisper.cpp WASI module discovery"
+                "whisper.cpp WASI module discovery",
+                "Whisper tiny.en model cache fetcher"
               ],
               "unblocks": [
                 "Wire Pure-Go Whisper into Telegram resolver",
@@ -26163,7 +26164,80 @@
               "done_signal": [
                 "Hermetic test transcribes a fixture WAV through wazero+whisper.wasm+ggml-tiny.en.bin and asserts a substring; Transcriber API shipped; CGO_ENABLED=0 invariant preserved."
               ],
-              "note": "Model file decision is the largest risk for this row. Two viable approaches: (1) commit ggml-tiny.en.bin (~75 MB) under testdata — bloats repo but makes tests fully hermetic; (2) fetch in CI from an HTTPS URL with SHA-256 verification, .gitignore the cached file. Recommend approach (2) so the repo size doesn't jump 75 MB. Either way, the runtime binary itself does NOT embed the model — that's a separate operator-installed artifact tracked under Row D's user-facing acceptance."
+              "note": "Model file decision is resolved by the `Whisper tiny.en model cache fetcher` row: fetch the ~75 MB ggml-tiny.en.bin model in CI/local test caches from a pinned Hugging Face URL with size + SHA-256 verification, never commit it to git, and never embed it in the runtime binary. Row C should consume the verified cache path only."
+            },
+            {
+              "name": "Whisper tiny.en model cache fetcher",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Added 2026-05-10 by a bounded all-topic Hermes parity sweep after refreshing Hermes to 44cdf555a and Honcho to e659b6b. Current upstream deltas for Codex Spark, stream-drop diagnostics, Kanban slash help, chat -q, and background review transient-failure guidance are complete or row-backed. The top P1 Whisper transcription row remained blocked only by the test-model distribution decision, so this row chooses the checksum-verified cache path instead of vendoring a 75 MB model."
+              },
+              "contract": "Provide a small helper that resolves ggml-tiny.en.bin for WASI Whisper tests by verifying an existing cache file or downloading it from a pinned HTTPS URL into a caller-selected cache directory. The helper records the model filename, URL, expected byte size, and SHA-256; downloads write to a temporary partial file, verify bytes before rename, and never place the model under git-tracked testdata or embed it in the runtime binary.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing cache directories, bad HTTP status, short reads, size mismatch, checksum mismatch, and rename failures return typed model_cache_* errors with URL/path details bounded to test cache paths and without writing corrupted final model files.",
+              "fixture": "internal/wasi/whisper/model_cache_test.go with httptest-backed downloads; no live Hugging Face request in tests",
+              "source_refs": [
+                "https://huggingface.co/api/models/ggerganov/whisper.cpp/tree/main?path=ggml-tiny.en.bin: ggml-tiny.en.bin size 77704715 and LFS oid 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f",
+                "internal/wasi/whisper/testdata/README.md: whisper.wasm fixture policy",
+                "docs/content/building-gormes/architecture_plan/progress.json: Pure-Go Whisper transcribe one WAV ready_when model-file decision"
+              ],
+              "ready_when": [
+                "Row B 'whisper.cpp WASI module discovery' is complete and internal/wasi/whisper exists.",
+                "The source model URL, expected byte count, and SHA-256 are pinned from Hugging Face metadata; tests can use httptest fixtures instead of downloading the real model."
+              ],
+              "not_ready_when": [
+                "The slice commits ggml-tiny.en.bin or any other large model file to git.",
+                "The slice downloads the model at runtime for normal operators instead of only when a caller explicitly asks for a cache file.",
+                "The slice performs live network access in unit tests."
+              ],
+              "blocked_by": [
+                "whisper.cpp WASI module discovery"
+              ],
+              "unblocks": [
+                "Pure-Go Whisper transcribe one WAV"
+              ],
+              "acceptance": [
+                "TinyEnModelArtifact exposes filename ggml-tiny.en.bin, source URL, expected size 77704715, and SHA-256 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f.",
+                "EnsureModel(ctx, artifact, cacheDir, client) returns the existing cache path without network access when size and SHA-256 match.",
+                "EnsureModel downloads through an injected HTTP client, writes a .partial file, verifies size and SHA-256, atomically renames to the final path, and removes bad partial files.",
+                "Checksum, short-body, HTTP-status, and missing-cache-dir tests return typed errors and leave no final corrupted model file.",
+                "go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1 passes without a live network request."
+              ],
+              "write_scope": [
+                "internal/wasi/whisper/model_cache.go",
+                "internal/wasi/whisper/model_cache_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1",
+                "go test ./internal/wasi/whisper -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "WASI Whisper tests have a checksum-verified tiny.en model cache helper, with no vendored model file and no live network in unit tests."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes to 44cdf555a and Honcho to e659b6b. Fresh upstream deltas were already complete or row-backed; the highest unblocked P1 closure was this Gormes-owned Whisper blocker because Row C could not honestly run without a decided model-file path. TDD added a checksum-verified cache helper and httptest-only fixtures for cache hits, downloads, bad status, short bodies, checksum mismatch, cache-dir validation, atomic .partial cleanup, and no corrupted final file. This row intentionally stops before transcription. Row C consumes the cache helper to run whisper.wasm against a sample WAV. Runtime/operator model installation remains Row D's user-facing env/config behavior, not this test-cache helper.",
+              "evidence": {
+                "implementation": [
+                  "internal/wasi/whisper/model_cache.go defines ModelArtifact, TinyEnModelArtifact, ModelCacheError typed evidence, and EnsureModel(ctx, artifact, cacheDir, client).",
+                  "EnsureModel verifies existing cache files by size and SHA-256 before returning, downloads through an injected HTTP client, writes to .partial, verifies bytes, renames atomically, and removes bad partial files.",
+                  "TinyEnModelArtifact pins Hugging Face ggml-tiny.en.bin filename, URL, 77,704,715-byte size, and SHA-256/LFS oid 921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f without committing the 75 MB model."
+                ],
+                "verification": [
+                  "RED: go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1 failed on missing TinyEnModelArtifact, EnsureModel, ModelArtifact, and typed cache error symbols.",
+                  "GREEN: go test ./internal/wasi/whisper -run 'TestModelArtifact|TestEnsureModel' -count=1 passed.",
+                  "GREEN: go test ./internal/wasi/whisper -count=1 passed."
+                ]
+              }
             },
             {
               "name": "Wire Pure-Go Whisper into Telegram resolver",
