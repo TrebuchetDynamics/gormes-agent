@@ -71,6 +71,7 @@ var (
 	fileLintLookPath   = exec.LookPath
 	fileLintRunCommand = runFileLintCommand
 	fileTaskMkdirAll   = os.MkdirAll
+	fileTaskReadFile   = os.ReadFile
 	fileTaskWriteFile  = os.WriteFile
 	fileTaskRemove     = os.Remove
 	fileTaskRename     = os.Rename
@@ -640,7 +641,7 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	if check := registry.check(root, t.cfg.TaskID, cwd, rel, resolved); check != nil {
 		return marshalToolPayload(fileStateErrorPayload(rel, check))
 	}
-	raw, err := os.ReadFile(resolved)
+	raw, err := fileTaskReadFile(resolved)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "read file: " + err.Error()})
 	}
@@ -659,8 +660,21 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		}
 		return marshalToolPayload(payload)
 	}
-	if err := os.WriteFile(resolved, []byte(updated), defaultWriteFileFileMode); err != nil {
+	if err := fileTaskWriteFile(resolved, []byte(updated), defaultWriteFileFileMode); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write patched file: " + err.Error()})
+	}
+	verified, err := fileTaskReadFile(resolved)
+	if err != nil {
+		return marshalToolPayload(map[string]any{
+			"path":  rel,
+			"error": fmt.Sprintf("post-write verification failed: could not re-read %s: %v", rel, err),
+		})
+	}
+	if normalizePatchVerificationText(string(verified)) != normalizePatchVerificationText(updated) {
+		return marshalToolPayload(map[string]any{
+			"path":  rel,
+			"error": fmt.Sprintf("post-write verification failed for %s: did not persist intended content", rel),
+		})
 	}
 	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
 	payload := map[string]any{
@@ -675,6 +689,11 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		payload["file_state"] = statePayload
 	}
 	return marshalToolPayload(payload)
+}
+
+func normalizePatchVerificationText(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return strings.ReplaceAll(s, "\r", "\n")
 }
 
 type patchTextMatch struct {

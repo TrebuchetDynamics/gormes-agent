@@ -882,6 +882,7 @@ classification and row-backed implementation queue.
 - [x] V4A fuzzy hunk matching for native patch tool
 - [x] Context-aware fuzzy replace for native patch tool
 - [x] V4A patch apply rollback for native patch tool
+- [x] Patch replace post-write verification
 
 ### 5.M — Mixture of Agents 🔨
 

@@ -187,6 +187,83 @@ func TestWriteFileAndPatchTools_EditInsideRoot(t *testing.T) {
 	}
 }
 
+func TestPatchToolReplacePostWriteVerificationNoPersist(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "notes.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/notes.txt"}`)
+
+	originalWrite := fileTaskWriteFile
+	fileTaskWriteFile = func(name string, data []byte, perm os.FileMode) error {
+		if name == path {
+			return nil
+		}
+		return originalWrite(name, data, perm)
+	}
+	defer func() { fileTaskWriteFile = originalWrite }()
+
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/notes.txt","old_string":"beta","new_string":"gamma"}`)
+
+	if out["status"] == "ok" {
+		t.Fatalf("patch result = %#v, want verification failure", out)
+	}
+	if !strings.Contains(asString(out["error"]), "post-write verification failed") ||
+		!strings.Contains(asString(out["error"]), "did not persist") {
+		t.Fatalf("error = %v, want post-write persistence verification", out["error"])
+	}
+	if _, ok := out["file_state"]; ok {
+		t.Fatalf("file_state = %#v, want no success evidence on failed verification", out["file_state"])
+	}
+	assertFileContent(t, path, "alpha\nbeta\n")
+}
+
+func TestPatchToolReplacePostWriteVerificationReadFailure(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "notes.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("alpha\nbeta\n"), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/notes.txt"}`)
+
+	originalRead := fileTaskReadFile
+	reads := 0
+	fileTaskReadFile = func(name string) ([]byte, error) {
+		if name == path {
+			reads++
+			if reads == 2 {
+				return nil, errors.New("injected verify read failure")
+			}
+		}
+		return originalRead(name)
+	}
+	defer func() { fileTaskReadFile = originalRead }()
+
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/notes.txt","old_string":"beta","new_string":"gamma"}`)
+
+	if out["status"] == "ok" {
+		t.Fatalf("patch result = %#v, want verification read failure", out)
+	}
+	if !strings.Contains(asString(out["error"]), "post-write verification failed") ||
+		!strings.Contains(asString(out["error"]), "could not re-read") {
+		t.Fatalf("error = %v, want verification read failure", out["error"])
+	}
+	if _, ok := out["file_state"]; ok {
+		t.Fatalf("file_state = %#v, want no success evidence on failed verification", out["file_state"])
+	}
+}
+
 func TestPatchToolFuzzyReplaceLineTrimmedAppliesUniqueMatch(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "pkg", "service.py")

@@ -32935,12 +32935,93 @@
                 "upstream_ref": "hermes:44cdf555a tools/patch_parser.py + tools/checkpoint_manager.py",
                 "note": "Hermes separates V4A validation from apply and runs file-mutating tools behind checkpoint rollback. Gormes owns an in-process WorkspaceSnapshot helper that can provide the same user-visible rollback guarantee for native V4A apply failures."
               }
+            },
+            {
+              "name": "Patch replace post-write verification",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes native `patch` replace mode mirrors Hermes' post-write verification: after a successful replace write, the tool re-reads the target file and confirms the on-disk bytes match the intended content before returning status ok or updating file-state evidence. Silent write/no-persist failures and verify-read errors return bounded typed errors and do not record the patch as successful.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If the write call succeeds but verification cannot re-read the file or the bytes differ, the patch result returns a post-write verification error with the relative path only; raw file contents, absolute home paths, provider data, and stale file-state updates are not emitted.",
+              "fixture": "internal/tools/file_read_tool_test.go::TestPatchToolReplacePostWriteVerification",
+              "source_refs": [
+                "./hermes-agent/tools/file_operations.py@ce374bc1b:patch_replace post-write verification",
+                "./hermes-agent/tests/tools/test_file_operations.py@ce374bc1b:TestPatchReplacePostWriteVerification",
+                "internal/tools/file_task_tools.go:PatchTool.Execute",
+                "internal/tools/file_read_tool_test.go:TestWriteFileAndPatchTools_EditInsideRoot"
+              ],
+              "ready_when": [
+                "Context-aware fuzzy replace for native patch tool and V4A patch apply rollback for native patch tool are complete, so replace-mode matching and V4A rollback semantics are already fixture-backed.",
+                "The slice can be tested with t.TempDir fixtures and the public PatchTool JSON payload by injecting a no-op write function and a verify-read failure; no live Hermes process, provider, terminal execution, checkpoint CLI, or external filesystem backend is required.",
+                "The row is scoped to replace-mode post-write verification only; terminal-backed file_operations.py behavior, full checkpoint restore tooling, and write_file verification remain separate follow-ups under the Atomic checkpoints umbrella."
+              ],
+              "not_ready_when": [
+                "The implementation mutates file-state registry evidence before verification succeeds.",
+                "The slice rewrites fuzzy matching, lint-delta, V4A patch behavior, checkpoint rollback, or terminal-backed file_operations.py in the same change.",
+                "The verification error includes raw file content, absolute private paths, or unbounded backend output."
+              ],
+              "blocked_by": [
+                "Context-aware fuzzy replace for native patch tool",
+                "V4A patch apply rollback for native patch tool"
+              ],
+              "unblocks": [
+                "Full file_operations.py parity"
+              ],
+              "acceptance": [
+                "TestPatchToolReplacePostWriteVerificationNoPersist injects a successful no-op write, proves the tool returns a post-write verification error instead of status ok, and proves the original file bytes remain unchanged.",
+                "TestPatchToolReplacePostWriteVerificationReadFailure injects a verify-read failure after a successful write and proves the tool returns a bounded verification error without file-state success evidence.",
+                "Existing replace fuzzy, replace no-match, V4A, stale-state, lint, and search_files fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestPatchToolReplacePostWriteVerification|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Patch replace fixtures prove replace-mode writes are re-read before success, no-persist and verify-read failures return bounded errors, and file-state/lint evidence remains unchanged for successful patches."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to ce374bc1b and Honcho to e659b6b, covering CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Fresh Kanban board-tool deltas from Hermes ce374bc1b are already complete and tested locally. Current planned rows were 15 before this planner pass, below the 90-row cap; higher-priority P1 publication/release rows remain operator-blocked or parent-sized. The remaining source-backed runtime gap under Atomic checkpoints was Hermes' replace-mode post-write verification from file_operations.py/tests, while Gormes replace mode returned success immediately after the write call. TDD added replace-mode verification after writes, no-persist and verify-read failure fixtures, bounded error text, and delayed file-state recording until verification succeeds.",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:ce374bc1b tools/file_operations.py patch_replace + tests/tools/test_file_operations.py TestPatchReplacePostWriteVerification",
+                "note": "Hermes re-reads replace-mode patch output to catch backend persistence anomalies before returning success. Gormes should preserve that operator-visible safety before broader terminal-backed file_operations.py parity work."
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go adds an injectable fileTaskReadFile seam beside the existing write/remove/rename seams.",
+                  "internal/tools/file_task_tools.go routes replace-mode PatchTool writes through fileTaskWriteFile, re-reads the target after write, normalizes CRLF for comparison, and returns bounded post-write verification errors before file-state recording or lint evidence.",
+                  "internal/tools/file_read_tool_test.go adds no-persist and verify-read failure fixtures through the public PatchTool JSON payload."
+                ],
+                "tests": [
+                  "internal/tools/file_read_tool_test.go:TestPatchToolReplacePostWriteVerificationNoPersist",
+                  "internal/tools/file_read_tool_test.go:TestPatchToolReplacePostWriteVerificationReadFailure"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestPatchToolReplacePostWriteVerification' -count=1 failed to compile because fileTaskReadFile did not exist.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolReplacePostWriteVerification' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolReplacePostWriteVerification|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -count=1 passed."
+                ]
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-10T00:00:00Z",
-            "origin_decision": "Hermes 44cdf555a plus recent file-operation rows show the remaining File Ops + Patches weakness is full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, V4A fuzzy hunk matching, V4A apply rollback, and context-aware fuzzy replacement validated. The 2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 16 before completing the row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Context-aware fuzzy replace for native patch tool` as the next small builder-ready runtime slice."
+            "origin_decision": "Hermes ce374bc1b plus recent file-operation rows show the remaining File Ops + Patches weakness is full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, block-anchor fuzzy replace, V4A fuzzy hunk matching, V4A apply rollback, context-aware fuzzy replacement, and replace-mode post-write verification validated. The 2026-05-10 bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the post-write verification row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Patch replace post-write verification` as the next small builder-ready runtime slice."
           }
         },
         "5.M": {
