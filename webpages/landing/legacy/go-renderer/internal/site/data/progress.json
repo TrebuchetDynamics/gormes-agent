@@ -32725,6 +32725,97 @@
               }
             },
             {
+              "name": "Kanban slash help and usage-error UX",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' current `/kanban` chat-command help behavior over the shared Cobra runner: bare `/kanban` plus `help`, `--help`, `-h`, and `?` return a curated short help block; `/kanban <subcommand> -h` returns captured subcommand help; parse/usage errors return bounded `/kanban`-branded guidance instead of raw Cobra/argparse-style noise; valid command failures such as missing task IDs still surface as command errors.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the slash runner cannot classify a usage failure, it should still consume the slash text with bounded `/kanban` usage evidence and must not submit the text to the model, mutate Kanban state, or leak home-directory paths.",
+              "fixture": "cmd/gormes/tui_kanban_slash_test.go; internal/gateway/kanban_command_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@d1fc748de:run_slash",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_bare_returns_curated_help",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_help_aliases_match_bare",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_subcommand_help_returns_help_text",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_unknown_action_friendly_error",
+                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@d1fc748de:test_run_slash_missing_required_arg_friendly_error",
+                "cmd/gormes/kanban.go:runTUIKanbanSlashCommand",
+                "internal/gateway/kanban_command.go:runGatewayKanbanSlash",
+                "internal/tui/slash_kanban.go:kanbanSlashHandler"
+              ],
+              "ready_when": [
+                "Native TUI /kanban slash command binding over gormes kanban is complete.",
+                "Gateway /kanban shared command-runner binding is complete.",
+                "Hermes Kanban durable board core is complete and tests can use temp GORMES_HOME state only."
+              ],
+              "not_ready_when": [
+                "The slice changes `gormes kanban` terminal CLI help output instead of only the shared slash runner output.",
+                "The slice implements new Kanban subcommands, dashboard routes, dispatcher behavior, notifier behavior, or live channel adapters.",
+                "Usage errors become successful Kanban mutations or valid command failures such as missing task IDs are swallowed as help output."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "Slash runner fixtures prove `/kanban`, `/kanban help`, `/kanban --help`, `/kanban -h`, and `/kanban ?` all return the same curated help block under 2000 bytes with common subcommands.",
+                "Slash runner fixtures prove `/kanban show -h` returns subcommand help with `/kanban show` usage and no warning prefix.",
+                "Slash runner fixtures prove unknown actions and missing required args return bounded warning-prefixed `/kanban` usage evidence without doubled `kanban kanban`, `gormes kanban`, or `(usage error: N)` text.",
+                "Existing missing-task fixtures still return a real command error so operator state problems are not hidden as help.",
+                "Gateway fixtures prove bare `/kanban` replies with the curated help through the injected runner."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep refreshed Hermes from e2ce89a8a to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current deltas were: `126cbffb8` stream-drop timing diagnostics, already covered by `internal/kernel/stream_drop_diagnostics_test.go`; `3d2bfc502` OpenRouter/Nous model-list refresh, covered or row-backed by provider registry/model catalog rows; `e5af1dd63` background-review transient-environment guidance, covered by existing background review scaffolding and lower than a user-visible slash regression; `5a70d9b6b` author metadata, not a runtime parity gap; and `d1fc748de` `/kanban` slash help UX, which was missing in the shared Gormes slash runner. Planned rows were below the 90-row cap, so one P1 source-backed row was added and completed. TDD added a curated slash-only help block, help-alias handling, subcommand help rewriting to `/kanban`, friendly warning-prefixed usage errors for unknown actions and missing args, and preserved real command errors such as missing task IDs.",
+              "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/tui_kanban_slash_test.go",
+                "internal/gateway/kanban_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1",
+                "go test ./internal/gateway -run 'TestKanbanCommand' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Slash-runner and gateway fixtures prove curated `/kanban` help, subcommand help capture, friendly usage errors, and preserved real command errors."
+              ],
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/kanban.go keeps `gormes kanban` terminal CLI behavior unchanged while `runTUIKanbanSlashCommand` returns curated help for bare `/kanban` and help aliases.",
+                  "cmd/gormes/kanban.go rewrites captured Cobra subcommand help from `kanban ...` to `/kanban ...` for slash surfaces only.",
+                  "cmd/gormes/kanban.go classifies slash usage errors before channel/TUI rendering, returning bounded warning-prefixed `/kanban` guidance while leaving valid command failures as errors.",
+                  "internal/gateway/kanban_command_test.go proves empty gateway `/kanban` input is normalized to `/kanban` and sent through the injected runner."
+                ],
+                "tests": [
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandCuratedHelpAliases",
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandSubcommandHelpUsesSlashProg",
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandUsageErrorsAreFriendly",
+                  "cmd/gormes/tui_kanban_slash_test.go:TestRunTUIKanbanSlashCommandSurfacesErrors",
+                  "internal/gateway/kanban_command_test.go:TestKanbanCommandBareInputUsesSlashHelpRunner"
+                ],
+                "red_green": [
+                  "RED: go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1 failed because bare `/kanban` emitted raw Cobra help, `/kanban show -h` used `kanban show`, unknown actions dumped root help, and missing args returned an error.",
+                  "GREEN: go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1 passed after adding slash help/usage handling.",
+                  "GREEN: go test ./internal/gateway -run 'TestKanbanCommand' -count=1 passed after adding the bare-input runner fixture."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run 'TestRunTUIKanbanSlashCommand' -count=1 -> ok",
+                  "go test ./internal/gateway -run 'TestKanbanCommand' -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:d1fc748de hermes_cli/kanban.py run_slash + tests/hermes_cli/test_kanban_cli.py",
+                "note": "Hermes defines the chat-friendly `/kanban` slash UX; Gormes adapts it to the existing Cobra-backed slash runner without changing terminal CLI behavior."
+              }
+            },
+            {
               "name": "Kanban dashboard dispatch quick path",
               "priority": "P2",
               "status": "complete",
