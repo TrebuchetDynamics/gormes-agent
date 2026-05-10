@@ -7823,6 +7823,78 @@
                 "owned_since": "2026-05-05T00:00:00Z",
                 "note": "Navivox voice graphics are a Gormes-owned Flutter UX surface; Flutter official docs inform the CustomPaint, animation, repaint, and accessibility implementation shape."
               }
+            },
+            {
+              "name": "Multimodal photo attachment passthrough",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes gateway/run.py multimodal message construction",
+                "note": "Hermes attaches inbound image bytes as image_url content parts on the user turn so Vision-capable providers receive them directly. Picoclaw (sibling Go port at /home/xel/git/sages-openclaw/workspace-mineru/picoclaw) takes the same approach — pkg/providers/common/common.go:96-156 SerializeMessages converts internal Message{Media} into OpenAI multipart [{type:text},{type:image_url}]. Gormes had the channel side (telegram photo download), the kernel side (PlatformEvent.ContentParts), and the provider side (hermes.MessageContentPart{Type:image_url}, codex_responses_adapter image_url serialization, image_shrink_retry, context_compressor image-aware pruning) all in place — only the gateway-to-kernel adapter was not populating ContentParts from req.Attachments."
+              },
+              "contract": "TurnAdapter.Dispatch materializes inbound gateway.Attachment{Kind:\"photo\"} entries into kernel.PlatformEvent.ContentParts as hermes.MessageContentPart{Type:\"image_url\", ImageURL:\"data:<media-type>;base64,...\"} before submitting to the kernel. Vision-capable providers (currently openai-codex/gpt-5.5 on the operator's PC, plus Anthropic, Codex Responses, OpenRouter/etc.) receive the image bytes directly through the existing provider stack. Non-photo attachments (voice, document) are skipped — voice has its own transcriber resolver and documents lack a defined multimodal contract today. Unreadable cache files are silently dropped so the existing text-marker fallback in SubmitText remains the user-visible signal and the kernel never sees a broken image_url.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "When Attachment.URL is empty or the cache file is unreadable, the helper omits the image_url part entirely; the existing channel-side text marker (e.g. '[Telegram photo unavailable: cache read failed]') in SubmitText remains the user/model signal. Existing image_shrink_retry handles oversized payloads on retry without adapter-side bounds.",
+              "fixture": "internal/gateway/turn_adapter_test.go (synthetic 4x4 JPEGs generated via image/jpeg.Encode — no committed binary fixtures)",
+              "source_refs": [
+                "internal/gateway/turn_adapter.go:imageContentPartsFromAttachments (helper)",
+                "internal/gateway/turn_adapter.go:Dispatch (wire-up — populates kernel.PlatformEvent.ContentParts)",
+                "internal/gateway/turn_adapter_test.go (6 hermetic tests)",
+                "internal/kernel/frame.go:PlatformEvent.ContentParts (existing kernel field)",
+                "internal/kernel/kernel.go:378 (kernel constructs hermes.Message{ContentParts: cloneMessageContentParts(contentParts)})",
+                "internal/hermes/client.go:256 (MessageContentPart{Type, Text, ImageURL, Detail})",
+                "internal/hermes/codex_responses_adapter.go:322 (Codex Responses image_url serializer)",
+                "internal/hermes/image_shrink_retry.go (existing retry-on-too-large)",
+                "internal/channels/telegram/document_cache.go:150 (telegramPhotoMessageAttachment — channel-side download)",
+                "../hermes-agent/gateway/run.py (Hermes parity reference)",
+                "../picoclaw/pkg/providers/common/common.go:96-156 (sibling Go port — confirms the no-OCR/just-pass-to-provider approach)",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md (Channels / Multimodal section)"
+              ],
+              "ready_when": [
+                "kernel.PlatformEvent.ContentParts existed and was wired through to hermes.Message{ContentParts} (true at HEAD before this slice).",
+                "internal/hermes provider stack supports image_url content parts end-to-end (true — codex_responses_adapter, image_shrink_retry, context_compressor all image-aware)."
+              ],
+              "not_ready_when": [
+                "The slice introduces OCR or shells to tesseract/python — wrong abstraction; Vision-capable models read images natively.",
+                "The slice rewrites gateway.Attachment shape or kernel.PlatformEvent fields (additive only).",
+                "The slice handles voice or document attachments (separate paths — voice goes through transcriber resolver; documents lack a defined multimodal contract)."
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "acceptance": [
+                "TestTurnAdapter_Dispatch_PhotoAttachmentBecomesImageURLContentPart passes — single photo attachment becomes one image_url ContentPart with `data:image/jpeg;base64,<bytes>` payload matching the on-disk fixture exactly.",
+                "TestTurnAdapter_Dispatch_PhotoAttachmentMissingFileFallsBackToMarker passes — Attachment{URL:/nonexistent/...} produces no broken image_url; the existing text-marker fallback path is preserved.",
+                "TestTurnAdapter_Dispatch_MultiplePhotoAttachmentsBecomeMultipleImageURLParts passes — order preserved across batched photos.",
+                "TestTurnAdapter_Dispatch_NonImageAttachmentDoesNotBecomeImageURL passes — voice and document attachments are skipped (image_url ContentParts only emitted for Kind=\"photo\").",
+                "TestTurnAdapter_Dispatch_NoAttachments_LeavesContentPartsEmpty passes — plain-text turns get no spurious ContentParts.",
+                "TestTurnAdapter_Dispatch_SubmitterErrorStillRunsOnTurnFailure passes — error propagation unchanged by the new wiring.",
+                "Existing internal/gateway, internal/channels/telegram, internal/kernel, cmd/gormes test suites remain green.",
+                "CGO_ENABLED=0 go build ./... and CGO_ENABLED=0 go build -tags slim ./... both clean."
+              ],
+              "write_scope": [
+                "internal/gateway/turn_adapter.go",
+                "internal/gateway/turn_adapter_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "CGO_ENABLED=0 go test ./internal/gateway -run 'TestTurnAdapter_Dispatch_' -count=1",
+                "CGO_ENABLED=0 go test ./internal/gateway ./internal/channels/telegram ./internal/kernel ./cmd/gormes -count=1",
+                "CGO_ENABLED=0 go build ./...",
+                "CGO_ENABLED=0 go build -tags slim ./...",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "After rebuild + redeploy on the operator's PC: user sends a screenshot to the Telegram bot, the bot's reply demonstrates it actually saw the image (no more 'vision/OCR backend is not configured' boilerplate; concrete description of image contents). Provider-stack image_url plumbing routes the bytes through to gpt-5.5 via openai-codex without any OCR/tesseract/python in the loop."
+              ],
+              "note": "Filed and shipped 2026-05-09 from a live regression: user sent a screenshot to the Telegram bot, the model saw a path/marker only and tried unsuccessfully to OCR it via python3+PIL, file, and browser_vision tool calls. Diagnosis: every multimodal piece existed in Gormes (channel download, kernel ContentParts field, hermes.MessageContentPart, codex_responses_adapter image_url serializer, image_shrink_retry, context_compressor image-aware pruning) — the only missing wire was TurnAdapter.Dispatch populating kernel.PlatformEvent.ContentParts from req.Attachments. Picoclaw (sibling Go port, sipeed/picoclaw) confirmed via pkg/providers/common/common.go:96-156 that the right approach is the same: send image bytes as image_url content parts to the Vision-capable provider, no OCR involved.\n\nFollow-up rows worth filing later (NOT covered by this slice):\n- Vision-unsupported retry: when a provider rejects image_url with 'does not support vision' or DeepSeek's 'unknown variant' error, retry the same turn without the media. Picoclaw does this at pkg/agent/llm_media.go and pkg/agent/turn_coord.go:499.\n- Model-callable load_image tool: expose a tool the model can invoke to pull arbitrary local images into the next turn (not just channel attachments). Picoclaw's pkg/tools/fs/load_image.go is the reference."
             }
           ]
         },
@@ -25127,13 +25199,13 @@
             {
               "name": "Pure-Go STT exploration",
               "priority": "P3",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Hermes solves local STT via Python venv + faster-whisper, which Gormes deliberately rejects (single static binary, CGO_ENABLED=0, no Python). This is a Gormes-internal architectural question with no upstream parity equivalent."
               },
               "contract": "Track the architectural question: how should Gormes ship local STT given the Go ecosystem currently has no production-quality pure-Go (CGO_ENABLED=0) STT library? Document the four mutually-exclusive choices (status quo / cgo build-tag / WASI productionization / wait+monitor) with their tradeoffs so future planners do not re-research the same dead ends. This row is exploratory and decision-tracking — not builder-selectable until a stakeholder commits to one of the four paths.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "large",
               "execution_owner": "provider",
               "trust_class": [
@@ -25248,13 +25320,13 @@
             {
               "name": "whisper.cpp WASI module discovery",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Spawned 2026-05-09 from path #3 (WASI productionization). Hermes uses Python+faster-whisper which Gormes deliberately rejects."
               },
               "contract": "Vendor a known-good whisper.cpp WASI/WASM build under internal/wasi/whisper/testdata/, instantiate it via wazero, query its WASI exports, and prove it responds to --help (or equivalent argv probe). This row does not yet transcribe audio — it proves the binary loads and is callable from Go.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
@@ -40626,6 +40698,83 @@
               "done_signal": [
                 "Config command fixtures prove XDG paths, TOML writes, dotenv secret routing, redacted show output, explicit-empty handling, and no full-Hermes setup/auth coupling."
               ]
+            },
+            {
+              "name": "Gormes config set comment-preserving TOML writes",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Gormes preserves operator-authored comments and readable Unicode in config.toml when `gormes config set` mutates non-secret values, matching Hermes' current round-trip config mutation behavior while keeping Gormes' native TOML/XDG schema and atomic write guarantees.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Malformed TOML, unknown sections, or invalid typed values still fail before mutation; successful writes update only the selected key and preserve unrelated comments/values.",
+              "fixture": "internal/config/writer_test.go::TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode",
+              "source_refs": [
+                "./hermes-agent/cli.py@85383c636:save_config_value uses round-trip config mutation",
+                "./hermes-agent/utils.py@85383c636:atomic_roundtrip_yaml_update",
+                "./hermes-agent/tests/cli/test_cli_save_config_value.py@85383c636:test_preserves_comments_after_config_mutation",
+                "./hermes-agent/tests/cli/test_cli_save_config_value.py@85383c636:test_preserves_readable_unicode_after_config_mutation",
+                "cmd/gormes/config.go:newConfigSetCommand",
+                "internal/config/writer.go:WriteTOMLValue,writeTOMLAtomic",
+                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:CLI command tree and Config command and provider overrides"
+              ],
+              "ready_when": [
+                "Gormes config command surface and native config closeout are complete.",
+                "The refreshed Hermes source shows comment-preserving config mutation as the active upstream CLI contract.",
+                "The slice can stay inside the config writer and focused config command tests without changing config format or setup behavior."
+              ],
+              "not_ready_when": [
+                "The implementation imports live ~/.hermes state or rewrites Gormes config.toml into Hermes config.yaml.",
+                "The implementation strips existing TOML comments, rewrites unrelated sections, or inlines secret values.",
+                "The slice changes setup wizard, profile, migration, or provider-auth behavior."
+              ],
+              "blocked_by": [
+                "Gormes config command surface",
+                "Gormes config edit/check/native schema-migrate closeout"
+              ],
+              "acceptance": [
+                "WriteTOMLValue updates an existing key while preserving top-of-file, table-adjacent, and inline TOML comments.",
+                "WriteTOMLValue preserves unrelated readable Unicode strings and does not escape them through a full-document remarshal.",
+                "`gormes config set <non-secret-key> <value>` exercises the same writer path and leaves comments intact in an isolated GORMES_HOME fixture.",
+                "Atomic write and symlink preservation behavior from existing writer tests remains green.",
+                "Unknown-section and explicit-empty behavior remains unchanged."
+              ],
+              "write_scope": [
+                "internal/config/writer.go",
+                "internal/config/writer_test.go",
+                "cmd/gormes/config_command_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run 'TestConfigWriter_WriteTOMLValue(PreservesCommentsAndUnicode|PreservesSymlink|RejectsUnknownSection|AcceptsExplicitEmpty)' -count=1",
+                "go test ./cmd/gormes -run 'TestConfigCommand.*Comment|TestConfigCommand' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Config writer and command fixtures prove `gormes config set` updates the requested TOML value without stripping comments or readable Unicode, while preserving existing atomic/symlink/secret-routing invariants."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes to da086a015. Planned rows were 21, below the 90-row cap, so adding one source-backed P1 row was allowed. Recent Hermes 85383c636 changed config writes to preserve comments and readable Unicode; Gormes' native TOML writer still remarshal-stripped comments. RED: `go test ./internal/config -run 'TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode' -count=1` and `go test ./cmd/gormes -run 'TestConfigCommand_SetPreservesTOMLComments' -count=1` failed because comments disappeared. GREEN: `internal/config.WriteTOMLValue` now updates or inserts TOML keys in-place where possible, validates the resulting TOML, preserves existing atomic/symlink behavior, and `gormes config set` leaves operator comments and readable Unicode intact.",
+              "implementation_evidence": [
+                "internal/config/writer.go: WriteTOMLValue now uses a comment-preserving raw TOML update/insert path before falling back to full-document marshal for new files.",
+                "internal/config/writer_test.go: TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode pins top-of-file, table-adjacent, inline comments, updated value, and readable Unicode preservation.",
+                "cmd/gormes/config_command_test.go: TestConfigCommand_SetPreservesTOMLComments proves the public config set command exercises the same preservation path."
+              ],
+              "validation_evidence": [
+                "RED: go test ./internal/config -run 'TestConfigWriter_WriteTOMLValuePreservesCommentsAndUnicode' -count=1 failed before implementation.",
+                "RED: go test ./cmd/gormes -run 'TestConfigCommand_SetPreservesTOMLComments' -count=1 failed before implementation.",
+                "GREEN: go test ./internal/config -run 'TestConfigWriter_WriteTOMLValue(PreservesCommentsAndUnicode|PreservesSymlink|RejectsUnknownSection|AcceptsExplicitEmpty)' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes -run 'TestConfigCommand.*Comment|TestConfigCommand' -count=1 passed."
+              ],
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:85383c636 fix(cli): preserve config comments on setting writes",
+                "note": "Added by the 2026-05-10 bounded all-topic parity sweep after refreshing Hermes to da086a015; this is the single new row for the cycle."
+              }
             },
             {
               "name": "Gormes config edit/check/native schema-migrate closeout",

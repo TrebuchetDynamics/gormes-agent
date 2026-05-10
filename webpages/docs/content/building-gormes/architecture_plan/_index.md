@@ -281,6 +281,7 @@ classification and row-backed implementation queue.
 - [x] Navivox stdio protocol control-plane tracer
 - [x] Navivox QR pairing descriptor CLI
 - [x] Navivox Flutter voice morph surface
+- [x] Multimodal photo attachment passthrough
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -750,9 +751,9 @@ classification and row-backed implementation queue.
 - [x] TTS synthesis + voice-mode state
 - [x] Voice record-key config binding for native TUI
 - [x] Telegram voice STT HTTP-provider fallback
-- [ ] Pure-Go STT exploration
+- [x] Pure-Go STT exploration
 - [x] wazero WASI smoke harness
-- [ ] whisper.cpp WASI module discovery
+- [x] whisper.cpp WASI module discovery
 - [ ] Pure-Go Whisper transcribe one WAV
 - [ ] Wire Pure-Go Whisper into Telegram resolver
 - [ ] Audio preprocessing and chunking pipeline
@@ -1002,6 +1003,7 @@ classification and row-backed implementation queue.
 - [x] Gormes profile skills chat invocation shim
 - [x] Hermes config.yaml Telegram compatibility bridge
 - [x] Gormes config command surface
+- [x] Gormes config set comment-preserving TOML writes
 - [x] Gormes config edit/check/native schema-migrate closeout
 - [x] Hermes config migration dry-run manifest
 - [x] Hermes config migration writer
