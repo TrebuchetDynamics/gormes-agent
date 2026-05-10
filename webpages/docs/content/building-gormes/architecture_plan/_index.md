@@ -1339,6 +1339,7 @@ classification and row-backed implementation queue.
 ### 8.G — Community & External Contributions ✅
 
 - [x] Built-with-Gormes page scaffold
+- [x] Upstream Hermes user-stories static mirror
 
 <!-- PROGRESS:END -->
 

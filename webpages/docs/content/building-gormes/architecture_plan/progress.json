@@ -55144,6 +55144,72 @@
                   "`timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'` passed 6 Playwright tests."
                 ]
               }
+            },
+            {
+              "name": "Upstream Hermes user-stories static mirror",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream"
+              },
+              "contract": "The static Gormes docs mirror for upstream Hermes user stories must expose the current source-backed story count, category rollup, and fresh representative entries from `hermes-agent/website/src/data/userStories.json` instead of collapsing the page to an omitted interactive component. The mirror is intentionally a static summary, not a copied React grid or a duplicate quote database.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without the static summary, Gormes' upstream archive hides the community-proof surface that Hermes publishes publicly, so docs/public parity looks stale even when the upstream submodule is current.",
+              "fixture": "webpages/docs/upstream_user_stories_test.go::TestUpstreamHermesUserStoriesStaticMirror",
+              "source_refs": [
+                "./hermes-agent/website/src/data/userStories.json@e62250453: 99 -> 117 verified social entries",
+                "./hermes-agent/website/src/data/userStories.json@3800972dd: current upstream data file",
+                "webpages/docs/content/upstream-hermes/user-stories.md"
+              ],
+              "ready_when": [
+                "`./hermes-agent/website/src/data/userStories.json` is present in the refreshed upstream Hermes checkout.",
+                "`webpages/docs/content/upstream-hermes/user-stories.md` exists as the static mirror page.",
+                "The docs test can compare source JSON counts/categories to the static markdown without a live browser or network."
+              ],
+              "not_ready_when": [
+                "The slice copies all 117 quote bodies into the mirror instead of publishing a compact summary.",
+                "The mirror depends on the upstream React component or client-side data loader at docs build time.",
+                "The row is used to add Gormes customer claims; this is an upstream-Hermes archive mirror only."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestUpstreamHermesUserStoriesStaticMirror fails while the mirror contains only `Upstream interactive component omitted from the static mirror` and passes after the page includes the source-derived total, top category rollup, and fresh entry headlines.",
+                "The static page states it summarizes `hermes-agent/website/src/data/userStories.json` from upstream Hermes and records the current 117-story count.",
+                "The page includes at least the top five source-derived category counts and representative fresh headlines from the e62250453 addition without duplicating every quote.",
+                "The upstream archive build still emits `/upstream-hermes/user-stories/` and markdown lint/content tests stay green."
+              ],
+              "write_scope": [
+                "webpages/docs/content/upstream-hermes/user-stories.md",
+                "webpages/docs/upstream_user_stories_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs -run TestUpstreamHermesUserStoriesStaticMirror -count=1",
+                "go test ./webpages/docs -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Static upstream-Hermes user-stories mirror shows the current source-backed count/category rollup and fresh entries; focused docs test plus full docs package pass."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Runtime/tooling deltas from current Hermes 3800972dd are complete or row-backed, including native `vision_analyze`; higher-priority P1 publication and release-parent rows remain operator-blocked or too broad. Fresh upstream public-surface evidence e62250453 expanded `website/src/data/userStories.json` from 99 to 117 entries, while the Gormes upstream mirror still rendered only an omitted-component placeholder. Planned rows were 19, below the 90-row cap, so adding this one source-backed P1 docs row was allowed. TDD added a docs test that compares the upstream JSON source to the static mirror, then replaced the placeholder with a compact source-derived summary: 117-story count, top category rollup, representative fresh entries, and an explicit boundary that these are upstream Hermes stories rather than Gormes customer claims.",
+              "evidence": {
+                "implementation": [
+                  "webpages/docs/upstream_user_stories_test.go parses hermes-agent/website/src/data/userStories.json, derives the source count/category rows, and verifies fresh entry headlines/authors are mirrored without copying the full quote body.",
+                  "webpages/docs/content/upstream-hermes/user-stories.md now exposes the source data path, 117 verified upstream user stories, top five category counts, fresh representative entries, and the Gormes/Hermes claim boundary."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs -run TestUpstreamHermesUserStoriesStaticMirror -count=1 failed because the mirror still said the upstream interactive component was omitted.",
+                  "GREEN: go test ./webpages/docs -run TestUpstreamHermesUserStoriesStaticMirror -count=1 passed after the static summary landed.",
+                  "GREEN: go test ./webpages/docs -count=1 passed, including the Astro build checks for the upstream archive."
+                ]
+              }
             }
           ]
         }

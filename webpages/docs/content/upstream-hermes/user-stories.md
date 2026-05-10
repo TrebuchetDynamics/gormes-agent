@@ -5,6 +5,35 @@ hide_title: true
 hide_table_of_contents: true
 ---
 
+# User Stories & Use Cases
 
+Source data: `hermes-agent/website/src/data/userStories.json`
 
-> Upstream interactive component omitted from the static mirror.
+This static mirror summarizes 117 verified upstream user stories from the
+Hermes website data file. The upstream site renders the full interactive grid;
+this archive keeps the source-backed count, category shape, and recent examples
+visible without copying the whole quote database.
+
+## Category Rollup
+
+| Category | Stories |
+|---|---:|
+| `personal-assistant` | 21 |
+| `dev-workflow` | 20 |
+| `integrations` | 15 |
+| `meta` | 11 |
+| `business-ops` | 8 |
+
+## Fresh Representative Entries
+
+| Source | Author | Headline |
+|---|---|---|
+| Reddit | u/ninjapapi | 5 things Hermes does that ChatGPT will never do |
+| Reddit | u/itsdodobitch | Kanban multi-agent feature is game-changing |
+| X | @vmiss33 | 100% human guide: what I use Hermes for and how I keep it cheap |
+
+## Mirror Boundary
+
+Gormes does not treat these stories as Gormes customer claims. They are upstream
+Hermes community evidence retained here so the static upstream archive preserves
+the public proof surface that the source repository publishes.
