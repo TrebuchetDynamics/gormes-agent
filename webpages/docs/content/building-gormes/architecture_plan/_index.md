@@ -767,7 +767,7 @@ classification and row-backed implementation queue.
 - [x] Whisper tiny.en model cache fetcher
 - [x] Wire Pure-Go Whisper into Telegram resolver
 - [x] WASI Whisper ffmpeg preprocess + fixed-window chunker
-- [ ] Audio preprocessing and chunking pipeline
+- [x] Audio preprocessing and chunking pipeline
 - [ ] Whisper benchmark harness + perf budget
 - [ ] Go-native audio decoding (ffmpeg replacement)
 - [ ] Pure-Go TTS path scoping

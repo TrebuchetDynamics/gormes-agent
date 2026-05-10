@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"os"
 	"path/filepath"
@@ -246,6 +247,7 @@ func TestWASIWhisperAudioTranscriber_WritesWAVTempfileAndReturnsTranscript(t *te
 	var capturedModel string
 	var capturedPath string
 	var capturedBytes []byte
+	input := testTelegramWAVPCM16Mono16k(t, []int16{0, 1024, -1024})
 	adapter := &wasiWhisperAudioTranscriber{
 		modelPath: modelPath,
 		newTranscriber: func(_ context.Context, gotModel string) (wasiWhisperTranscriber, error) {
@@ -263,7 +265,7 @@ func TestWASIWhisperAudioTranscriber_WritesWAVTempfileAndReturnsTranscript(t *te
 	got, err := adapter.Transcribe(context.Background(), telegram.AudioInput{
 		MediaType: "audio/wav",
 		FileName:  "voice.wav",
-		Data:      []byte("RIFF-wav-fixture"),
+		Data:      input,
 	})
 	if err != nil {
 		t.Fatalf("Transcribe returned error: %v", err)
@@ -277,7 +279,7 @@ func TestWASIWhisperAudioTranscriber_WritesWAVTempfileAndReturnsTranscript(t *te
 	if !strings.HasSuffix(capturedPath, ".wav") {
 		t.Fatalf("expected WAV tempfile, got %q", capturedPath)
 	}
-	if string(capturedBytes) != "RIFF-wav-fixture" {
+	if string(capturedBytes) != string(input) {
 		t.Fatalf("transcriber received bytes %q", capturedBytes)
 	}
 	if _, statErr := os.Stat(capturedPath); !os.IsNotExist(statErr) {
@@ -285,16 +287,14 @@ func TestWASIWhisperAudioTranscriber_WritesWAVTempfileAndReturnsTranscript(t *te
 	}
 }
 
-func TestWASIWhisperAudioTranscriber_ConvertsNonWAVInputBeforeTranscribing(t *testing.T) {
+func TestWASIWhisperAudioTranscriber_UsesInjectedConverterBeforeTranscribing(t *testing.T) {
 	var convertedFrom string
-	var convertedTo string
 	var transcribedPath string
 	adapter := &wasiWhisperAudioTranscriber{
 		modelPath: filepath.Join(t.TempDir(), "ggml-tiny.en.bin"),
 		convertToWAV: func(_ context.Context, inputPath, outputPath string) error {
 			convertedFrom = inputPath
-			convertedTo = outputPath
-			return os.WriteFile(outputPath, []byte("RIFF-converted"), 0o600)
+			return os.WriteFile(outputPath, testTelegramWAVPCM16Mono16k(t, []int16{7, 8, 9}), 0o600)
 		},
 		newTranscriber: func(_ context.Context, _ string) (wasiWhisperTranscriber, error) {
 			return fakeWASIWhisperTranscriber{
@@ -320,8 +320,80 @@ func TestWASIWhisperAudioTranscriber_ConvertsNonWAVInputBeforeTranscribing(t *te
 	if !strings.HasSuffix(convertedFrom, ".ogg") {
 		t.Fatalf("converted input = %q, want .ogg", convertedFrom)
 	}
-	if !strings.HasSuffix(convertedTo, ".wav") || transcribedPath != convertedTo {
-		t.Fatalf("convertedTo = %q transcribedPath = %q, want same .wav path", convertedTo, transcribedPath)
+	if !strings.HasSuffix(transcribedPath, ".wav") {
+		t.Fatalf("transcribedPath = %q, want .wav", transcribedPath)
+	}
+}
+
+func TestWASIWhisperAudioTranscriber_ChunksLongPCMAndJoinsTranscripts(t *testing.T) {
+	samples := make([]int16, 31*16000)
+	for i := range samples {
+		samples[i] = int16(i % 1024)
+	}
+	input := testTelegramWAVPCM16Mono16k(t, samples)
+	var calls int
+	var chunkPaths []string
+	adapter := &wasiWhisperAudioTranscriber{
+		modelPath: filepath.Join(t.TempDir(), "ggml-tiny.en.bin"),
+		newTranscriber: func(context.Context, string) (wasiWhisperTranscriber, error) {
+			return fakeWASIWhisperTranscriber{
+				transcript: "chunk",
+				onTranscribe: func(path string) {
+					calls++
+					chunkPaths = append(chunkPaths, path)
+				},
+			}, nil
+		},
+	}
+
+	got, err := adapter.Transcribe(context.Background(), telegram.AudioInput{
+		MediaType: "audio/wav",
+		FileName:  "long.wav",
+		Data:      input,
+	})
+	if err != nil {
+		t.Fatalf("Transcribe returned error: %v", err)
+	}
+	if got != "chunk\nchunk" {
+		t.Fatalf("transcript = %q, want joined chunk transcripts", got)
+	}
+	if calls != 2 {
+		t.Fatalf("transcribe calls = %d, want 2 fixed-window chunks", calls)
+	}
+	for _, path := range chunkPaths {
+		if !strings.HasSuffix(path, ".wav") {
+			t.Fatalf("chunk path = %q, want .wav", path)
+		}
+		if _, statErr := os.Stat(path); !os.IsNotExist(statErr) {
+			t.Fatalf("expected chunk tempfile cleanup for %s, stat err: %v", path, statErr)
+		}
+	}
+}
+
+func TestWASIWhisperAudioTranscriber_NonWAVMissingFFmpegReturnsTypedPreprocessEvidence(t *testing.T) {
+	t.Setenv("PATH", filepath.Join(t.TempDir(), "missing-bin"))
+	var transcriberConstructed bool
+	adapter := &wasiWhisperAudioTranscriber{
+		modelPath: filepath.Join(t.TempDir(), "ggml-tiny.en.bin"),
+		newTranscriber: func(context.Context, string) (wasiWhisperTranscriber, error) {
+			transcriberConstructed = true
+			return fakeWASIWhisperTranscriber{transcript: "should not run"}, nil
+		},
+	}
+
+	_, err := adapter.Transcribe(context.Background(), telegram.AudioInput{
+		MediaType: "audio/ogg",
+		FileName:  "voice.ogg",
+		Data:      []byte("OggS"),
+	})
+	if err == nil {
+		t.Fatal("Transcribe returned nil error without ffmpeg")
+	}
+	if !strings.Contains(err.Error(), "audio_preprocess_unavailable") {
+		t.Fatalf("error = %v, want audio_preprocess_unavailable evidence", err)
+	}
+	if transcriberConstructed {
+		t.Fatal("transcriber was constructed even though preprocessing failed")
 	}
 }
 
@@ -400,4 +472,27 @@ func stubTranscriberConstructors(t *testing.T, local, wasi, http telegram.AudioT
 		newWASIWhisperTelegramAudioTranscriber = oldWASI
 		newHTTPSTTTelegramAudioTranscriber = oldHTTP
 	}
+}
+
+func testTelegramWAVPCM16Mono16k(t *testing.T, samples []int16) []byte {
+	t.Helper()
+	dataSize := len(samples) * 2
+	raw := make([]byte, 44+dataSize)
+	copy(raw[0:4], "RIFF")
+	binary.LittleEndian.PutUint32(raw[4:8], uint32(36+dataSize))
+	copy(raw[8:12], "WAVE")
+	copy(raw[12:16], "fmt ")
+	binary.LittleEndian.PutUint32(raw[16:20], 16)
+	binary.LittleEndian.PutUint16(raw[20:22], 1)
+	binary.LittleEndian.PutUint16(raw[22:24], 1)
+	binary.LittleEndian.PutUint32(raw[24:28], 16000)
+	binary.LittleEndian.PutUint32(raw[28:32], 16000*2)
+	binary.LittleEndian.PutUint16(raw[32:34], 2)
+	binary.LittleEndian.PutUint16(raw[34:36], 16)
+	copy(raw[36:40], "data")
+	binary.LittleEndian.PutUint32(raw[40:44], uint32(dataSize))
+	for i, sample := range samples {
+		binary.LittleEndian.PutUint16(raw[44+(i*2):46+(i*2)], uint16(sample))
+	}
+	return raw
 }

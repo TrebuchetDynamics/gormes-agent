@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,11 +15,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	wasiwhisper "github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper"
+	whisperaudio "github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper/audio"
 )
 
 const (
 	wasiWhisperModelEnv             = "GORMES_WASI_WHISPER_MODEL"
 	wasiWhisperTranscriptionTimeout = 2 * time.Minute
+	wasiWhisperMaxChunkDuration     = 30 * time.Second
 )
 
 // httpSTTAudioTranscriber adapts a tools.TranscriptionProvider into the
@@ -100,7 +101,7 @@ type wasiWhisperAudioTranscriber struct {
 	mu             sync.Mutex
 	transcriber    wasiWhisperTranscriber
 	newTranscriber func(context.Context, string) (wasiWhisperTranscriber, error)
-	convertToWAV   func(context.Context, string, string) error
+	convertToWAV   whisperaudio.Converter
 }
 
 func newWASIWhisperTranscriberFromEnv() telegram.AudioTranscriber {
@@ -132,39 +133,51 @@ func (a *wasiWhisperAudioTranscriber) Transcribe(ctx context.Context, audio tele
 	ctx, cancel := context.WithTimeout(ctx, wasiWhisperTranscriptionTimeout)
 	defer cancel()
 
-	dir, err := os.MkdirTemp("", "gormes-telegram-audio-wasi-*")
+	pcm, err := whisperaudio.Preprocess(ctx, audio.Data, audio.MediaType, whisperaudio.PreprocessOptions{
+		FileName:  audio.FileName,
+		Converter: a.convertToWAV,
+	})
 	if err != nil {
-		return "", fmt.Errorf("wasi whisper tempdir: %w", err)
+		return "", fmt.Errorf("wasi whisper audio preprocess: %w", err)
 	}
-	defer os.RemoveAll(dir)
-
-	ext := wasiWhisperAudioExtension(audio.MediaType, audio.FileName)
-	inputPath := filepath.Join(dir, "input"+ext)
-	if err := os.WriteFile(inputPath, audio.Data, 0o600); err != nil {
-		return "", fmt.Errorf("wasi whisper temp write: %w", err)
-	}
-
-	wavPath := inputPath
-	if !isWAVExtension(ext) {
-		wavPath = filepath.Join(dir, "input.wav")
-		convert := a.convertToWAV
-		if convert == nil {
-			convert = defaultConvertAudioToWAV
-		}
-		if err := convert(ctx, inputPath, wavPath); err != nil {
-			return "", fmt.Errorf("wasi whisper audio conversion: %w", err)
-		}
+	chunks := whisperaudio.ChunkPCM(pcm.Samples, pcm.SampleRate, wasiWhisperMaxChunkDuration)
+	if len(chunks) == 0 {
+		return "", errors.New("wasi whisper audio preprocess produced no chunks")
 	}
 
 	transcriber, err := a.getTranscriber(ctx)
 	if err != nil {
 		return "", err
 	}
-	transcript, err := transcriber.TranscribeWAV(ctx, wavPath)
+
+	dir, err := os.MkdirTemp("", "gormes-telegram-audio-wasi-*")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("wasi whisper tempdir: %w", err)
 	}
-	return strings.TrimSpace(transcript), nil
+	defer os.RemoveAll(dir)
+
+	transcripts := make([]string, 0, len(chunks))
+	for i, samples := range chunks {
+		raw, err := whisperaudio.EncodePCM16MonoWAV(whisperaudio.PCM{
+			SampleRate: pcm.SampleRate,
+			Samples:    samples,
+		})
+		if err != nil {
+			return "", fmt.Errorf("wasi whisper audio encode chunk: %w", err)
+		}
+		chunkPath := filepath.Join(dir, fmt.Sprintf("chunk-%04d.wav", i+1))
+		if err := os.WriteFile(chunkPath, raw, 0o600); err != nil {
+			return "", fmt.Errorf("wasi whisper temp write: %w", err)
+		}
+		transcript, err := transcriber.TranscribeWAV(ctx, chunkPath)
+		if err != nil {
+			return "", err
+		}
+		if trimmed := strings.TrimSpace(transcript); trimmed != "" {
+			transcripts = append(transcripts, trimmed)
+		}
+	}
+	return strings.Join(transcripts, "\n"), nil
 }
 
 func (a *wasiWhisperAudioTranscriber) getTranscriber(ctx context.Context) (wasiWhisperTranscriber, error) {
@@ -183,52 +196,6 @@ func (a *wasiWhisperAudioTranscriber) getTranscriber(ctx context.Context) (wasiW
 	}
 	a.transcriber = transcriber
 	return transcriber, nil
-}
-
-func wasiWhisperAudioExtension(mediaType, fileName string) string {
-	if ext := strings.ToLower(strings.TrimSpace(filepath.Ext(fileName))); ext != "" && len(ext) <= 10 {
-		return ext
-	}
-	switch strings.ToLower(strings.TrimSpace(mediaType)) {
-	case "audio/wav", "audio/wave", "audio/x-wav":
-		return ".wav"
-	case "audio/ogg", "audio/opus":
-		return ".ogg"
-	default:
-		return ".ogg"
-	}
-}
-
-func isWAVExtension(ext string) bool {
-	switch strings.ToLower(strings.TrimSpace(ext)) {
-	case ".wav", ".wave":
-		return true
-	default:
-		return false
-	}
-}
-
-func defaultConvertAudioToWAV(ctx context.Context, inputPath, outputPath string) error {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		return errors.New("ffmpeg not found; non-WAV Telegram audio requires ffmpeg until the pure-Go audio preprocessing row lands")
-	}
-	cmd := exec.CommandContext(ctx, ffmpeg, "-y", "-i", inputPath, "-ar", "16000", "-ac", "1", outputPath)
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return nil
-	}
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	detail := strings.TrimSpace(string(out))
-	if detail == "" {
-		detail = err.Error()
-	}
-	if len(detail) > 300 {
-		detail = detail[:300] + "...(truncated)"
-	}
-	return fmt.Errorf("ffmpeg failed: %s", detail)
 }
 
 var (

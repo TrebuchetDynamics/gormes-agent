@@ -26411,28 +26411,31 @@
             {
               "name": "Audio preprocessing and chunking pipeline",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Spawned 2026-05-09 from path #3 (WASI productionization), Phase 3 of the stakeholder plan."
               },
-              "contract": "Convert arbitrary inbound audio (Telegram OGG/Opus, WAV, MP3) to 16kHz mono PCM that whisper.wasm consumes, optionally chunk by VAD or fixed window, and stitch the per-chunk transcripts back together. Initial implementation may shell to ffmpeg when present and report a typed degraded marker when ffmpeg is absent; Go-native decoding is Row G.",
-              "contract_status": "draft",
-              "slice_size": "medium",
+              "contract": "Bind the completed `internal/wasi/whisper/audio` preprocessing and fixed-window chunker into the in-binary WASI Telegram transcriber. The adapter must run inbound Telegram audio bytes through the shared preprocessor, split long PCM into bounded chunks, transcribe each chunk through the existing WASI `TranscribeWAV` seam using temp WAV files, stitch non-empty chunk transcripts in order, and surface typed `audio_preprocess_unavailable` evidence when ffmpeg/conversion is unavailable. Go-native codec replacement and benchmarks remain separate rows.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "provider",
               "trust_class": [
                 "operator",
                 "system"
               ],
               "degraded_mode": "When ffmpeg is not on PATH, the preprocessor returns a typed degraded marker (audio_preprocess_unavailable) and the channel surfaces 'audio decoding requires ffmpeg' attachment-marker fallback rather than panicking. This degraded state is operator-actionable.",
-              "fixture": "internal/wasi/whisper/audio/{preprocess_test.go,chunker_test.go} with vendored OGG/MP3/WAV fixtures",
+              "fixture": "cmd/gormes/telegram_transcriber_test.go plus internal/wasi/whisper/audio encoder/chunker fixtures",
               "source_refs": [
-                "internal/wasi/whisper/ (Row C's Transcriber)",
-                "cmd/gormes/telegram_transcriber.go (Row D's resolver wiring)",
-                "../hermes-agent/tools/transcription_tools.py (audio handling reference; Hermes does the same conversion)"
+                "internal/wasi/whisper/audio/preprocess.go:Preprocess",
+                "internal/wasi/whisper/audio/chunker.go:ChunkPCM",
+                "internal/wasi/whisper/transcriber.go:TranscribeWAV",
+                "cmd/gormes/telegram_transcriber.go:wasiWhisperAudioTranscriber",
+                "./hermes-agent/tools/transcription_tools.py@44cdf555a:_prepare_local_audio"
               ],
               "ready_when": [
-                "Row D 'Wire Pure-Go Whisper into Telegram resolver' is complete; the resolver is sending OGG bytes to a tempfile and Row E supplies the decoder/chunker that lives between."
+                "Row D 'Wire Pure-Go Whisper into Telegram resolver' is complete and still owns the only production WASI Telegram transcriber adapter.",
+                "Child row `WASI Whisper ffmpeg preprocess + fixed-window chunker` is complete with `internal/wasi/whisper/audio.Preprocess` and `ChunkPCM` validated."
               ],
               "not_ready_when": [
                 "The slice replaces ffmpeg with a Go-native decoder (that's Row G).",
@@ -26446,27 +26449,46 @@
                 "Go-native audio decoding (ffmpeg replacement)"
               ],
               "acceptance": [
-                "Preprocess(ctx, audioBytes, mediaType) ([]byte, error) returns 16kHz mono PCM (or another whisper-friendly format) when ffmpeg is available.",
-                "When ffmpeg is absent, Preprocess returns a typed error (audio_preprocess_unavailable) without panicking; tests prove both branches.",
-                "ChunkPCM(samples []int16, sampleRate int, maxChunk time.Duration) [][]int16 splits long PCM into bounded chunks; unit tests cover edge cases (silent input, single short chunk, multiple equal chunks, ragged tail).",
-                "Optional VAD is implemented as a thin wrapper that the chunker can consume; when VAD is unavailable, falls back to fixed-window chunking and reports the choice in degraded_mode evidence.",
-                "TestPreprocess_ConvertsOGGToPCMWhenFFmpegAvailable and TestPreprocess_ReturnsDegradedWhenFFmpegMissing both pass under CGO_ENABLED=0.",
-                "Whole-pipeline integration test transcribes a Telegram-shaped OGG fixture end-to-end via Row D's resolver and Row E's preprocessor + chunker, asserting a substring in the joined transcript."
+                "wasiWhisperAudioTranscriber calls audio.Preprocess for both WAV and non-WAV Telegram inputs instead of its local conversion helper.",
+                "A non-WAV input with ffmpeg unavailable returns an error containing `audio_preprocess_unavailable` and does not invoke the transcriber.",
+                "Long PCM input is split through `audio.ChunkPCM`; fake transcriber tests prove multiple chunk WAV files are sent in order and joined into one transcript.",
+                "Short compatible WAV input remains one transcription call and all temp chunk files are removed after Transcribe returns.",
+                "Resolver priority local CLI -> WASI Whisper -> HTTP STT remains unchanged."
               ],
               "write_scope": [
                 "internal/wasi/whisper/audio/",
-                "internal/wasi/whisper/transcriber.go (extension only — accept the new preprocessed input)",
+                "cmd/gormes/telegram_transcriber.go",
+                "cmd/gormes/telegram_transcriber_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "CGO_ENABLED=0 go build ./...",
-                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio ./internal/wasi/whisper -count=1 -timeout=10m",
+                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1",
+                "CGO_ENABLED=0 go test ./cmd/gormes -run 'TestWASIWhisperAudioTranscriber|TestResolveTelegramAudioTranscriber' -count=1",
+                "CGO_ENABLED=0 go test ./cmd/gormes ./internal/channels/telegram ./internal/wasi/whisper/audio -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
                 "Telegram OGG voice message → in-binary WASI Whisper transcript works end-to-end on this PC after Row D + Row E land. ffmpeg-absent operators see actionable degraded evidence rather than a silent fallback to attachment markers."
               ],
-              "note": "ffmpeg is shipped with most desktop Linux distributions, macOS via brew, and Termux via `pkg install ffmpeg`. The dependency is acceptable as a stopgap because it is widely available; Row G replaces it with pure-Go decoding to honor the static-binary promise on platforms where ffmpeg is awkward (Windows-without-extra-tooling, locked-down corp Linux). VAD library choice is open — github.com/maxhawkins/go-webrtcvad is one option but uses cgo; consider a pure-Go fixed-window chunker as the v1 and treat VAD as a separate spike."
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to 44cdf555a and Honcho to e659b6b across CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current upstream deltas were complete or row-backed; planned rows were 18, below the 90-row cap, so this pass sharpened an existing stale P2 row instead of adding a new P3/P4 row. The reusable audio preprocessing/chunking child row was already complete, leaving the concrete builder-ready work as production binding inside cmd/gormes' WASI Telegram transcriber. TDD added a PCM-to-WAV encoder, routed WASI Telegram audio through the shared preprocessor, split long PCM with ChunkPCM, stitched ordered chunk transcripts, preserved resolver priority, and surfaced typed audio_preprocess_unavailable evidence before constructing the transcriber when ffmpeg/conversion is absent. VAD, pure-Go codec replacement, and benchmarks remain out of scope.",
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/wasi/whisper/audio/encode.go adds EncodePCM16MonoWAV for preprocessed PCM chunk temp files.",
+                  "cmd/gormes/telegram_transcriber.go now calls audio.Preprocess and audio.ChunkPCM inside wasiWhisperAudioTranscriber before invoking the existing TranscribeWAV seam for each chunk.",
+                  "cmd/gormes/telegram_transcriber_test.go proves short WAV, injected non-WAV conversion, long fixed-window chunk stitching, temp cleanup, typed missing-ffmpeg evidence, and unchanged resolver priority."
+                ],
+                "verification": [
+                  "RED: CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1 failed on missing EncodePCM16MonoWAV.",
+                  "RED: CGO_ENABLED=0 go test ./cmd/gormes -run 'TestWASIWhisperAudioTranscriber' -count=1 failed because long PCM was sent as one chunk and missing ffmpeg returned the old untyped conversion error.",
+                  "GREEN: CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1 passed.",
+                  "GREEN: CGO_ENABLED=0 go test ./cmd/gormes -run 'TestWASIWhisperAudioTranscriber|TestResolveTelegramAudioTranscriber' -count=1 passed.",
+                  "GREEN: CGO_ENABLED=0 go build ./... passed.",
+                  "GREEN: CGO_ENABLED=0 go test ./cmd/gormes ./internal/channels/telegram ./internal/wasi/whisper/audio -count=1 passed.",
+                  "GREEN: go run ./cmd/progress validate passed."
+                ]
+              }
             },
             {
               "name": "Whisper benchmark harness + perf budget",
