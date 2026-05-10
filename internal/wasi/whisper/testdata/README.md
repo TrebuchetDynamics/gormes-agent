@@ -13,6 +13,13 @@ Fixture metadata:
 - sha256: `e575a73bff506574513709c26ced98b65a90b6960810078fc4d928882bc1bd2e`
 - upstream file: `binary.wasm`
 
+`jfk.wav` is the small speech fixture from `ggerganov/whisper.cpp` samples,
+used only for end-to-end transcription tests. It is not a model artifact.
+
+- size: `352078` bytes
+- sha256: `59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e`
+- upstream file: `samples/jfk.wav`
+
 Rebuild notes:
 
 1. Clone `https://github.com/agnivade/whisper-wasi`.

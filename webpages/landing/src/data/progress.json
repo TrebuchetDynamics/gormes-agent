@@ -19408,7 +19408,7 @@
               "done_signal": [
                 "Kernel stream-drop fixtures prove provider-named reconnect status, structured warning diagnostics, retry recovery, and no duplicate reconnected status frames."
               ],
-              "completed_at": "2026-05-10T00:00:00Z",
+              "completed_at": "2026-05-10T07:29:53Z",
               "evidence": {
                 "implementation": [
                   "internal/kernel/kernel.go emits one provider-named stream-drop retry frame for retryable OpenStream setup failures and retryable mid-stream Recv failures.",
@@ -26107,13 +26107,13 @@
             {
               "name": "Pure-Go Whisper transcribe one WAV",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Spawned 2026-05-09 from path #3 (WASI productionization). Scaffolds the user-defined Transcriber API shape from Phase 2 of the stakeholder plan."
               },
-              "contract": "Transcribe a small fixture WAV file end-to-end through wazero+whisper.wasm, returning a non-empty transcript string. Define and implement the public Transcriber API (NewTranscriber/TranscribeWAV/Close) named in the stakeholder plan, with WASI filesystem mounting for /models and /audio. This is the first row that actually performs inference.",
-              "contract_status": "draft",
+              "contract": "Transcribe a small fixture WAV file end-to-end through wazero+whisper.wasm, returning a non-empty transcript string. Define and implement the public Transcriber API (NewTranscriber/TranscribeWAV/Close) named in the stakeholder plan, with WASI filesystem mounting for /models and Go-side 16 kHz mono PCM WAV decoding that matches the active whisper-wasi prototype. This is the first row that actually performs inference.",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "provider",
               "trust_class": [
@@ -26121,7 +26121,7 @@
                 "system"
               ],
               "degraded_mode": "If model file is missing or corrupted, NewTranscriber returns a typed error (model_unavailable) without panicking. If TranscribeWAV's WASI invocation hangs or errors, returns a typed error (wasi_inference_failed) with the underlying wazero diagnostic redacted of any test-fixture paths.",
-              "fixture": "internal/wasi/whisper/transcribe_test.go, internal/wasi/whisper/testdata/{whisper.wasm,sample.wav}, and a checksum-verified ggml-tiny.en.bin cache populated by the `Whisper tiny.en model cache fetcher` row",
+              "fixture": "internal/wasi/whisper/transcribe_test.go, internal/wasi/whisper/testdata/{whisper.wasm,jfk.wav}, and a checksum-verified ggml-tiny.en.bin cache populated by the `Whisper tiny.en model cache fetcher` row",
               "source_refs": [
                 "https://huggingface.co/ggerganov/whisper.cpp (ggml-tiny.en.bin canonical source — MIT-equivalent ggml license; fetched through the `Whisper tiny.en model cache fetcher` row)",
                 "internal/wasi/whisper/ (Row B's package home)",
@@ -26146,8 +26146,8 @@
               ],
               "acceptance": [
                 "Public API exists: type Transcriber struct, NewTranscriber(ctx, modelPath string) (*Transcriber, error), (*Transcriber).TranscribeWAV(ctx, path string) (string, error), (*Transcriber).Close(ctx) error.",
-                "WASI filesystem mounts /models/model.bin and /audio/input.wav; output captured from stdout or /output/result.txt per the chosen whisper.wasm CLI shape.",
-                "TestTranscriber_TranscribeFixtureWAV transcribes a 2-3 second sample.wav using ggml-tiny.en.bin and asserts an expected substring (case-insensitive) in the returned transcript.",
+                "WASI filesystem mounts /models/model.bin; TranscribeWAV decodes 16 kHz mono PCM WAV on the Go side and passes float32 samples through the whisper-wasi Embind `full_default` entrypoint, matching the upstream prototype shape.",
+                "TestTranscriberTranscribesFixtureWAV transcribes the jfk.wav speech fixture using ggml-tiny.en.bin and asserts expected substrings (case-insensitive) in the returned transcript.",
                 "CGO_ENABLED=0 go build ./... still passes after this row.",
                 "CGO_ENABLED=0 go test ./internal/wasi/whisper -count=1 -timeout=5m passes (timeout buffers the ~5x WASI slowdown vs native).",
                 "Concurrent calls to TranscribeWAV are serialized internally OR explicitly documented as not supported — wazero lacks WASM thread support, so the contract must be honest about parallelism."
@@ -26164,7 +26164,22 @@
               "done_signal": [
                 "Hermetic test transcribes a fixture WAV through wazero+whisper.wasm+ggml-tiny.en.bin and asserts a substring; Transcriber API shipped; CGO_ENABLED=0 invariant preserved."
               ],
-              "note": "Model file decision is resolved by the `Whisper tiny.en model cache fetcher` row: fetch the ~75 MB ggml-tiny.en.bin model in CI/local test caches from a pinned Hugging Face URL with size + SHA-256 verification, never commit it to git, and never embed it in the runtime binary. Row C should consume the verified cache path only."
+              "note": "Complete 2026-05-10: Model file decision is resolved by the `Whisper tiny.en model cache fetcher` row: fetch the ~75 MB ggml-tiny.en.bin model in CI/local test caches from a pinned Hugging Face URL with size + SHA-256 verification, never commit it to git, and never embed it in the runtime binary. Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to 44cdf555a and Honcho to e659b6b, covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows, and found current runtime deltas complete or row-backed. Planned rows were 19, below the 90-row cap; higher-priority TD publication and release rows were operator-gated or broad parent rows, while this P1 provider row was unblocked by completed `whisper.cpp WASI module discovery` and `Whisper tiny.en model cache fetcher` evidence. TDD added the public Transcriber API, embedded whisper.wasm, a package-local Embind HEAPU8/Float32Array bridge needed by the vendored whisper-wasi prototype, Go-side PCM16 mono 16k WAV decoding, serialized full_default inference, model_unavailable/wav_unsupported/wasi_inference_failed errors, and a jfk.wav fixture that proves real transcription through wazero.",
+              "completed_at": "2026-05-10T00:00:00Z",
+              "evidence": {
+                "implementation": [
+                  "internal/wasi/whisper/transcriber.go defines Transcriber, NewTranscriber, TranscribeWAV, Close, typed TranscriberError codes, embedded whisper.wasm runtime setup, Go-side WAV decoding, and serialized whisper-wasi inference.",
+                  "internal/wasi/whisper/transcribe_test.go proves missing model evidence and real jfk.wav transcription against the checksum-verified ggml-tiny.en.bin cache.",
+                  "internal/wasi/whisper/testdata/jfk.wav adds the small upstream whisper.cpp speech fixture; ggml-tiny.en.bin remains outside git and is resolved through EnsureModel."
+                ],
+                "verification": [
+                  "RED: CGO_ENABLED=0 go test ./internal/wasi/whisper -run '^TestTranscriber' -count=1 -timeout=5m failed on missing NewTranscriber, TranscriberError, and typed model-unavailable symbols.",
+                  "GREEN: CGO_ENABLED=0 go test ./internal/wasi/whisper -run '^TestTranscriberTranscribesFixtureWAV$' -count=1 -timeout=5m passed in 36.836s.",
+                  "GREEN: CGO_ENABLED=0 go build ./... passed.",
+                  "GREEN: CGO_ENABLED=0 go test ./internal/wasi/whisper -count=1 -timeout=5m passed in 41.401s.",
+                  "GREEN: go run ./cmd/progress validate passed."
+                ]
+              }
             },
             {
               "name": "Whisper tiny.en model cache fetcher",

@@ -763,7 +763,7 @@ classification and row-backed implementation queue.
 - [x] Pure-Go STT exploration
 - [x] wazero WASI smoke harness
 - [x] whisper.cpp WASI module discovery
-- [ ] Pure-Go Whisper transcribe one WAV
+- [x] Pure-Go Whisper transcribe one WAV
 - [x] Whisper tiny.en model cache fetcher
 - [ ] Wire Pure-Go Whisper into Telegram resolver
 - [ ] Audio preprocessing and chunking pipeline
