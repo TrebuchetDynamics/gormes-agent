@@ -9553,6 +9553,78 @@
               }
             },
             {
+              "name": "Gateway restart notification opt-out",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes ports Hermes' per-platform gateway_restart_notification opt-out for restart takeover notifications: restart command acknowledgements still send, but post-restart comeback pings are skipped for platforms whose gateway notification flag is false, and the marker is consumed so operators are not spammed on every startup.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If the flag is absent, Gormes preserves the existing default of sending the one-shot restart notification. If the flag is false, startup records marker evidence and marks the marker consumed without sending live channel traffic.",
+              "fixture": "internal/gateway/restart_command_test.go + internal/config/config_test.go",
+              "source_refs": [
+                "./hermes-agent/gateway/config.py@3800972dd:PlatformConfig.gateway_restart_notification",
+                "./hermes-agent/tests/gateway/test_config.py@3800972dd:test_gateway_restart_notification_defaults_true/test_gateway_restart_notification_roundtrip_false",
+                "./hermes-agent/tests/gateway/test_restart_notification.py@3800972dd:test_send_restart_notification_skipped_when_flag_disabled",
+                "./hermes-agent/gateway/run.py@3800972dd:GatewayRunner._send_restart_notification",
+                "internal/gateway/manager.go:ConsumeRestartTakeoverMarker",
+                "internal/config/config.go:GatewayCfg"
+              ],
+              "ready_when": [
+                "Gateway /restart command + takeover markers is complete and ConsumeRestartTakeoverMarker is the only startup notification path.",
+                "The config parser can load native Gormes TOML without reading live Hermes homes or channel credentials."
+              ],
+              "not_ready_when": [
+                "The slice changes restart service-manager control, active-turn drain policy, channel SDK delivery, or live channel credentials.",
+                "The slice mutes the immediate /restart acknowledgement instead of only the startup comeback notification."
+              ],
+              "blocked_by": [
+                "Gateway /restart command + takeover markers"
+              ],
+              "acceptance": [
+                "Config defaults gateway restart notifications to enabled when no platform override is present.",
+                "Native TOML [gateway.platforms.telegram].gateway_restart_notification=false decodes as a false platform override without importing Hermes config.yaml.",
+                "ConsumeRestartTakeoverMarker sends the existing one-shot restart notification by default.",
+                "When the source platform has restart notifications disabled, ConsumeRestartTakeoverMarker sends nothing, records marker evidence, and marks the marker consumed so the next startup does not retry it."
+              ],
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/config_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/restart.go",
+                "internal/gateway/restart_command_test.go",
+                "cmd/gormes/gateway.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/config -run 'GatewayRestartNotification|Load_HermesConfigYAMLDoesNotOverrideNativeGormes' -count=1",
+                "go test ./internal/gateway -run 'TestGatewayRestartCommand_TakeoverStartupNotification' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Restart takeover fixtures prove default notification delivery and per-platform opt-out consumption; config fixtures prove the native TOML override defaults to true and decodes false."
+              ],
+              "note": "Complete 2026-05-10: planned and shipped by the bounded all-topic weakness sweep after refreshing Hermes to 3800972dd and checking CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing P1 publication/release rows are operator- or umbrella-gated, Pure-Go Whisper is blocked on the WASI model fixture decision, and recent provider/auth, Kanban, Google Chat, browser, install, docs/public, and release deltas are complete or row-backed. Hermes' current gateway restart tests expose one small unrowed operator-control delta: per-platform gateway_restart_notification=false suppresses restart comeback pings without disabling the restart command itself. TDD added native [gateway.platforms.<platform>] gateway_restart_notification parsing, passed explicit false overrides into the shared gateway manager, and made ConsumeRestartTakeoverMarker mark disabled-platform markers consumed without sending live channel traffic.",
+              "evidence": {
+                "implementation": [
+                  "internal/config/config.go: GatewayCfg now carries per-platform GatewayRestartNotification overrides with default-true helpers.",
+                  "cmd/gormes/gateway.go passes cfg.GatewayRestartNotifications() into gateway.ManagerConfig.",
+                  "internal/gateway/manager.go suppresses restart comeback sends when the source platform override is false and still marks the marker consumed."
+                ],
+                "verification": [
+                  "RED: go test ./internal/config -run 'GatewayRestartNotification|Load_BuiltinDefaults' -count=1 failed because Config.GatewayRestartNotificationEnabled was missing.",
+                  "RED: go test ./internal/gateway -run 'TestGatewayRestartCommand_TakeoverStartupNotification' -count=1 failed because ManagerConfig had no RestartNotifications field.",
+                  "GREEN: go test ./internal/config -run 'GatewayRestartNotification|Load_BuiltinDefaults|Load_HermesConfigYAMLDoesNotOverrideNativeGormes' -count=1 passed.",
+                  "GREEN: go test ./internal/gateway -run 'TestGatewayRestartCommand_TakeoverStartupNotification' -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Session expiry finalized-flag migration",
               "priority": "P2",
               "status": "complete",

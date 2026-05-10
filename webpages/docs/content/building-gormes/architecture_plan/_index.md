@@ -356,6 +356,7 @@ classification and row-backed implementation queue.
 - [x] Runtime status JSON + PID/process validation
 - [x] Token-scoped gateway locks
 - [x] Gateway /restart command + takeover markers
+- [x] Gateway restart notification opt-out
 - [x] Session expiry finalized-flag migration
 - [x] Session expiry hook cleanup retry evidence
 - [x] Channel lifecycle writers into status model

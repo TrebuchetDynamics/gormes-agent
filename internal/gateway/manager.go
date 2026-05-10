@@ -106,8 +106,11 @@ type ManagerConfig struct {
 	EventDispatcher *EventDispatcher
 	RuntimeStatus   RuntimeStatusWriter
 	Restart         RestartConfig
-	SessionExpiry   SessionExpiryConfig
-	Now             func() time.Time
+	// RestartNotifications holds per-platform restart comeback notification
+	// overrides. Missing platforms default to enabled.
+	RestartNotifications map[string]bool
+	SessionExpiry        SessionExpiryConfig
+	Now                  func() time.Time
 	// SkipAutoResume disables gateway startup auto-resume of sessions
 	// marked ResumePending. Tests use this flag to isolate ResumePending
 	// flag handling from auto-resume scheduling.
@@ -2007,10 +2010,26 @@ func (m *Manager) ConsumeRestartTakeoverMarker(ctx context.Context) error {
 	}
 	evidence := restartTakeoverEvidence(marker, RestartTakeoverMarkerStatusSeen, now)
 	m.writeRuntimeStatus(context.Background(), RuntimeStatusUpdate{TakeoverMarkerEvidence: &evidence})
+	if !m.restartNotificationEnabled(marker.SourcePlatform) {
+		m.log.Info("restart notification suppressed", "platform", marker.SourcePlatform, "chat_id", marker.ChatID)
+		return store.MarkNotificationSent(ctx, marker, now)
+	}
 	if _, err := m.sendWithHooks(ctx, ch, marker.ChatID, "Gateway restarted successfully. Your session continues."); err != nil {
 		return err
 	}
 	return store.MarkNotificationSent(ctx, marker, now)
+}
+
+func (m *Manager) restartNotificationEnabled(platform string) bool {
+	key := strings.ToLower(strings.TrimSpace(platform))
+	if key == "" || len(m.cfg.RestartNotifications) == 0 {
+		return true
+	}
+	enabled, ok := m.cfg.RestartNotifications[key]
+	if !ok {
+		return true
+	}
+	return enabled
 }
 
 func (m *Manager) allowed(ev InboundEvent) bool {

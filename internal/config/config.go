@@ -412,8 +412,13 @@ type CodeExecutionCfg struct {
 }
 
 type GatewayCfg struct {
-	ProxyURL string `toml:"proxy_url" yaml:"proxy_url"`
-	ProxyKey string `toml:"proxy_key" yaml:"proxy_key"`
+	ProxyURL  string                        `toml:"proxy_url" yaml:"proxy_url"`
+	ProxyKey  string                        `toml:"proxy_key" yaml:"proxy_key"`
+	Platforms map[string]GatewayPlatformCfg `toml:"platforms" yaml:"platforms"`
+}
+
+type GatewayPlatformCfg struct {
+	GatewayRestartNotification *bool `toml:"gateway_restart_notification" yaml:"gateway_restart_notification"`
 }
 
 type DisplayCfg struct {
@@ -841,6 +846,61 @@ type hermesStreamingConfigYAML struct {
 
 func normalizeDisplayPlatformKey(platform string) string {
 	return strings.ToLower(strings.TrimSpace(platform))
+}
+
+func normalizeGatewayPlatformKey(platform string) string {
+	return strings.ToLower(strings.TrimSpace(platform))
+}
+
+func normalizeGatewayPlatformMap(in map[string]GatewayPlatformCfg) map[string]GatewayPlatformCfg {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]GatewayPlatformCfg, len(in))
+	for platform, cfg := range in {
+		key := normalizeGatewayPlatformKey(platform)
+		if key == "" {
+			continue
+		}
+		out[key] = cfg
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func (c Config) GatewayRestartNotificationEnabled(platform string) bool {
+	key := normalizeGatewayPlatformKey(platform)
+	if key == "" || len(c.Gateway.Platforms) == 0 {
+		return true
+	}
+	cfg, ok := c.Gateway.Platforms[key]
+	if !ok || cfg.GatewayRestartNotification == nil {
+		return true
+	}
+	return *cfg.GatewayRestartNotification
+}
+
+func (c Config) GatewayRestartNotifications() map[string]bool {
+	if len(c.Gateway.Platforms) == 0 {
+		return nil
+	}
+	out := make(map[string]bool)
+	for platform, cfg := range c.Gateway.Platforms {
+		if cfg.GatewayRestartNotification == nil {
+			continue
+		}
+		key := normalizeGatewayPlatformKey(platform)
+		if key == "" {
+			continue
+		}
+		out[key] = *cfg.GatewayRestartNotification
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func normalizeHermesToolProgressMode(raw interface{}) (string, bool) {
@@ -1331,6 +1391,7 @@ func loadFlags(cfg *Config, args []string) error {
 func validateConfig(cfg *Config) error {
 	cfg.Gateway.ProxyURL = normalizeGatewayProxyURL(cfg.Gateway.ProxyURL)
 	cfg.Gateway.ProxyKey = strings.TrimSpace(cfg.Gateway.ProxyKey)
+	cfg.Gateway.Platforms = normalizeGatewayPlatformMap(cfg.Gateway.Platforms)
 	cfg.Agent.ImageInputMode = normalizeAgentImageInputMode(cfg.Agent.ImageInputMode)
 	normalizeAuxiliaryTask(&cfg.Auxiliary.Curator, true)
 	normalizeAuxiliaryTask(&cfg.Auxiliary.Vision, false)
