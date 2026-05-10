@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -108,5 +109,62 @@ func TestManager_SubmitPinned_PhotoAttachmentBecomesImageURLContentPart(t *testi
 	}
 	if !sawImage {
 		t.Fatal("no image_url ContentPart found in kernel submit; expected one for the photo attachment")
+	}
+}
+
+func TestManager_SubmitPinned_ImageOnlyPhotoUsesDefaultPromptContentPart(t *testing.T) {
+	dir := t.TempDir()
+	jpgPath := writeFixtureJPEGForManager(t, dir, "screenshot.jpg", 100, 200, 150)
+
+	platform := "telegram"
+	tg := newFakeChannel(platform)
+	fk := &fakeKernel{}
+	smap := session.NewMemMap()
+	if err := smap.Put(context.Background(), platform+":42", "sess-stored"); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	cfg := ManagerConfig{
+		AllowedChats: map[string]string{platform: "42"},
+		SessionMap:   smap,
+	}
+	m := NewManagerWithSubmitter(cfg, fk, slog.Default())
+	if err := m.Register(tg); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = m.Run(ctx) }()
+
+	tg.pushInbound(InboundEvent{
+		Platform: platform,
+		ChatID:   "42",
+		UserID:   "7",
+		MsgID:    "m-photo-only",
+		Kind:     EventSubmit,
+		Attachments: []Attachment{
+			{Kind: "photo", URL: jpgPath, MediaType: "image/jpeg", FileName: "screenshot.jpg"},
+		},
+	})
+
+	waitFor(t, 1*time.Second, func() bool {
+		return len(fk.submitsSnapshot()) == 1
+	})
+	submits := fk.submitsSnapshot()
+	if len(submits) != 1 {
+		t.Fatalf("kernel got %d submits, want 1", len(submits))
+	}
+	ev := submits[0]
+	if !strings.Contains(ev.Text, "Attachments:") {
+		t.Fatalf("plain text projection = %q, want attachment marker preserved", ev.Text)
+	}
+	wantTextPart := "What do you see in this image?\n\n[Image attached at: " + jpgPath + "]"
+	if len(ev.ContentParts) != 2 {
+		t.Fatalf("ContentParts len = %d, want text plus image: %+v", len(ev.ContentParts), ev.ContentParts)
+	}
+	if ev.ContentParts[0].Type != "text" || ev.ContentParts[0].Text != wantTextPart {
+		t.Fatalf("ContentParts[0] = %+v, want default image prompt %q", ev.ContentParts[0], wantTextPart)
+	}
+	if strings.Contains(ev.ContentParts[0].Text, "Attachments:") {
+		t.Fatalf("ContentParts[0].Text = %q, must not use generated attachment marker as caption", ev.ContentParts[0].Text)
 	}
 }

@@ -86,6 +86,10 @@ func TestTurnAdapter_Dispatch_PhotoAttachmentBecomesImageURLContentPart(t *testi
 	if len(ev.ContentParts) == 0 {
 		t.Fatal("ContentParts is empty; expected at least one image_url part for the photo attachment")
 	}
+	wantTextPart := "what is in this picture?\n\n[Image attached at: " + jpgPath + "]"
+	if ev.ContentParts[0].Type != "text" || ev.ContentParts[0].Text != wantTextPart {
+		t.Fatalf("ContentParts[0] = %+v, want text path hint %q", ev.ContentParts[0], wantTextPart)
+	}
 	var sawImage bool
 	for _, part := range ev.ContentParts {
 		if part.Type == "image_url" {
@@ -97,6 +101,41 @@ func TestTurnAdapter_Dispatch_PhotoAttachmentBecomesImageURLContentPart(t *testi
 	}
 	if !sawImage {
 		t.Fatal("no image_url ContentPart found; expected one for the photo attachment")
+	}
+}
+
+func TestTurnAdapter_Dispatch_PhotoAttachmentEmptyTextAddsDefaultPromptAndPathHint(t *testing.T) {
+	dir := t.TempDir()
+	jpgPath := writeFixtureJPEG(t, dir, "sample.jpg", 50, 100, 200)
+
+	submitter := &fakeSubmitter{}
+	adapter := &TurnAdapter{Submitter: submitter}
+
+	req := TurnRequest{
+		SubmitText: "",
+		Attachments: []Attachment{
+			{Kind: "photo", URL: jpgPath, MediaType: "image/jpeg", FileName: "sample.jpg"},
+		},
+	}
+	if err := adapter.Dispatch(context.Background(), req); err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
+	if len(submitter.events) != 1 {
+		t.Fatalf("submitter received %d events, want 1", len(submitter.events))
+	}
+	ev := submitter.events[0]
+	if ev.Text != "" {
+		t.Fatalf("text = %q, want plain text projection to stay empty", ev.Text)
+	}
+	if len(ev.ContentParts) != 2 {
+		t.Fatalf("ContentParts len = %d, want text plus one image: %+v", len(ev.ContentParts), ev.ContentParts)
+	}
+	wantTextPart := "What do you see in this image?\n\n[Image attached at: " + jpgPath + "]"
+	if ev.ContentParts[0].Type != "text" || ev.ContentParts[0].Text != wantTextPart {
+		t.Fatalf("ContentParts[0] = %+v, want default prompt path hint %q", ev.ContentParts[0], wantTextPart)
+	}
+	if ev.ContentParts[1].Type != "image_url" || !strings.HasPrefix(ev.ContentParts[1].ImageURL, "data:image/jpeg;base64,") {
+		t.Fatalf("ContentParts[1] = %+v, want image_url data URI", ev.ContentParts[1])
 	}
 }
 

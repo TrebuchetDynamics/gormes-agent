@@ -7898,15 +7898,15 @@
             },
             {
               "name": "Hermes-style default prompt and image-path hints for inbound photos",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes agent/image_routing.py:build_native_content_parts (line 280-288)",
+                "upstream_ref": "hermes-agent/agent/image_routing.py@998676dd0:build_native_content_parts",
                 "note": "Hermes prepends `What do you see in this image?` when the user sends an image with no caption, and appends `[Image attached at: <local path>]` per image so MCP/skill tools that take an image-path argument can operate on the same image without an extra round-trip. Picoclaw takes a similar shortcut. Gormes today uses only the channel's auto-generated `Attachments: ...` marker, which provides context but lacks the explicit prompt and the path-hint contract."
               },
-              "contract": "When the gateway constructs a kernel turn from an InboundEvent that carries one or more photo attachments AND the user's caption text is empty, the leading text content part becomes `What do you see in this image?` (or the configured default-prompt) instead of relying on the auto-generated attachment marker. Each successfully-attached image also produces a `[Image attached at: <local path>]` text hint inside the leading text content part so model-callable tools that take an image-path argument can address the same image. This matches the Hermes contract at agent/image_routing.py:280-288.",
-              "contract_status": "draft",
+              "contract": "When the gateway constructs a kernel turn from an InboundEvent that carries one or more photo attachments, the leading native content text part preserves the user's caption when present or becomes `What do you see in this image?` when the caption is empty. Each successfully-attached image also appends one `[Image attached at: <local path>]` hint inside that leading text part so model-callable tools that take an image-path argument can address the same image. This matches Hermes' build_native_content_parts contract.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "gateway",
               "trust_class": [
@@ -7917,8 +7917,13 @@
               "degraded_mode": "When path-hint construction fails (unreadable cache file), the helper omits that image's hint but still emits the default prompt; missing hints are logged at WARN level so operators see the gap.",
               "fixture": "internal/gateway/turn_adapter_test.go (extend existing TurnAdapter_Dispatch_PhotoAttachment* tests)",
               "source_refs": [
-                "../hermes-agent/agent/image_routing.py:230-295 build_native_content_parts (default prompt + path hints)",
+                "./hermes-agent/agent/image_routing.py@998676dd0:230-295 build_native_content_parts (default prompt + path hints)",
+                "./hermes-agent/tests/agent/test_image_routing.py@998676dd0:146-211 path-hint/default-prompt fixtures",
+                "internal/hermes/image_routing.go:BuildNativeImageContentParts (current reusable helper — add path hints)",
+                "internal/hermes/image_routing_test.go:BuildNativeImageContentParts fixtures",
                 "internal/gateway/turn_adapter.go:imageContentPartsFromAttachments (current helper — extend, do not rewrite)",
+                "internal/gateway/turn_adapter_test.go:TurnAdapter photo fixtures",
+                "internal/gateway/manager_photo_passthrough_test.go:Manager submitPinned photo fixtures",
                 "internal/gateway/manager.go:2702 submitPinned (callsite)",
                 "internal/gateway/event.go:243-252 attachment marker render (current text source)"
               ],
@@ -7930,32 +7935,39 @@
                 "The slice changes the existing attachment-marker render path (event.go:243) — must be additive only.",
                 "The slice forces the default prompt even when the user provided a non-empty caption."
               ],
-              "blocked_by": [
-                "Multimodal photo attachment passthrough"
-              ],
+              "blocked_by": [],
               "acceptance": [
-                "When InboundEvent has photo attachments AND caption text is empty/whitespace, the kernel turn's leading text content part is `What do you see in this image?` (overridable via config field, e.g. agent.default_image_prompt).",
-                "When InboundEvent has a non-empty caption, the caption is used verbatim as the leading text content part — no default prompt overrides operator intent.",
+                "When InboundEvent has photo attachments AND caption text is empty/whitespace, the kernel turn's leading native text content part is `What do you see in this image?` followed by one path hint per readable image.",
+                "When InboundEvent has a non-empty caption, that caption is preserved at the start of the leading native text content part — no default prompt overrides operator intent.",
                 "Each successfully-base64-encoded image appends `[Image attached at: <local cache path>]` to the leading text part (one hint per image, separated by newlines).",
                 "Unreadable images produce no path hint (skipped silently from hints) but the helper still attaches the readable ones.",
-                "Existing TurnAdapter_Dispatch_PhotoAttachment* tests extended to assert default-prompt and path-hint presence; existing tests for image_url payload bytes stay green.",
+                "Existing TurnAdapter_Dispatch_PhotoAttachment* tests and manager photo-passthrough tests assert default-prompt and path-hint presence; existing tests for image_url payload bytes stay green.",
                 "CGO_ENABLED=0 go build ./... clean; CGO_ENABLED=0 go test ./internal/gateway ./cmd/gormes -count=1 green."
               ],
               "write_scope": [
+                "internal/hermes/image_routing.go",
+                "internal/hermes/image_routing_test.go",
                 "internal/gateway/turn_adapter.go",
                 "internal/gateway/turn_adapter_test.go",
-                "internal/config/config.go (default_image_prompt field, optional)",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "CGO_ENABLED=0 go test ./internal/gateway -run 'TurnAdapter.*Photo' -count=1",
+                "CGO_ENABLED=0 go test ./internal/hermes -run 'BuildNativeImageContentParts' -count=1",
+                "CGO_ENABLED=0 go test ./internal/gateway -run 'TurnAdapter.*Photo|PhotoAttachment|ImageOnlyPhoto' -count=1",
                 "CGO_ENABLED=0 go test ./internal/gateway ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
+              ],
+              "evidence": [
+                "RED 2026-05-10: CGO_ENABLED=0 go test ./internal/hermes -run 'BuildNativeImageContentParts' -count=1 failed because text parts lacked `[Image attached at: ...]` hints.",
+                "RED 2026-05-10: CGO_ENABLED=0 go test ./internal/gateway -run 'TurnAdapter.*Photo' -count=1 failed because photo ContentParts contained only image_url parts.",
+                "GREEN 2026-05-10: CGO_ENABLED=0 go test ./internal/hermes -run 'BuildNativeImageContentParts' -count=1 passed.",
+                "GREEN 2026-05-10: CGO_ENABLED=0 go test ./internal/gateway -run 'TurnAdapter.*Photo|PhotoAttachment|ImageOnlyPhoto' -count=1 passed.",
+                "GREEN 2026-05-10: CGO_ENABLED=0 go test ./internal/gateway ./cmd/gormes -count=1 passed."
               ],
               "done_signal": [
                 "Image-only Telegram message (no caption) reaches the model with `What do you see in this image?` as the prompt and `[Image attached at: /home/xel/.cache/gormes/telegram/photos/...]` as a path hint, enabling subsequent MCP/skill tools to operate on the same image without re-uploading. Caption-bearing messages preserve the operator's text verbatim."
               ],
-              "note": "Filed 2026-05-09 from gormes-hermes-parity audit. Audit found that Gormes' imageContentPartsFromAttachments matches Hermes byte-for-byte for image_url payloads but omits two pieces from Hermes' build_native_content_parts: (a) the `What do you see in this image?` default-prompt for image-only turns, and (b) the `[Image attached at: <path>]` per-image text hint that Hermes appends so MCP/skill tools can take an image-path argument on the same image. Today's path works because operators always send a caption with their screenshots, but image-only turns currently get only the auto-generated `Attachments: ...` marker as the model's prompt."
+              "note": "Complete 2026-05-10. Refined during bounded all-topic weakness sweep after refreshing Hermes to 998676dd0 and planned rows were 23, below the 90-row cap. No new row was added: this existing source-backed row was raised to P1 because higher-priority P1 rows were blocked/operator-owned while this gateway/provider-visible image routing drift was small and fixture-ready. TDD extended internal/hermes BuildNativeImageContentParts fixtures, TurnAdapter photo fixtures, and the real Manager.submitPinned photo path. GREEN: the reusable helper now appends one `[Image attached at: <path>]` hint per readable image, default-prompts image-only native content parts with `What do you see in this image?`, preserves caption text ahead of hints, and never advertises skipped image paths. Gateway photo attachment materialization now routes through that helper, and Manager.submitPinned passes the raw inbound caption so image-only Telegram turns do not treat the generated `Attachments:` marker as the native caption. Plain text projection still preserves existing attachment markers for memory/legacy UI compatibility."
             }
           ]
         },

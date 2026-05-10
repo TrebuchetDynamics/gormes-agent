@@ -2702,7 +2702,7 @@ func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent)
 	if err := submitter.Submit(kernel.PlatformEvent{
 		Kind:           kernel.PlatformEventSubmit,
 		Text:           submitText,
-		ContentParts:   imageContentPartsFromAttachments(ev.Attachments),
+		ContentParts:   imageContentPartsFromAttachments(ev.Text, ev.Attachments),
 		Tools:          snapshot.Tools,
 		Skills:         snapshot.Skills,
 		ToolSafety:     snapshot.ToolSafety,
