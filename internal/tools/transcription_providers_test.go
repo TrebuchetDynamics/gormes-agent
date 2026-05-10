@@ -50,7 +50,11 @@ func TestTranscriptionOpenAIProviderAvailable(t *testing.T) {
 }
 
 func TestTranscriptionOpenAIProviderTranscribe(t *testing.T) {
-	t.Run("transcribes successfully", func(t *testing.T) {
+	t.Run("transcribes successfully (response_format=text returns raw text body)", func(t *testing.T) {
+		// Same defect class as the Groq provider hit on 2026-05-10:
+		// the request sends response_format=text but the old code tried to
+		// JSON-decode the body. Pin the actual OpenAI contract: when we ask
+		// for text, the body is the raw transcript, not JSON.
 		var reqBody map[string]any
 		var authHeader string
 		var contentType string
@@ -61,11 +65,16 @@ func TestTranscriptionOpenAIProviderTranscribe(t *testing.T) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			model := r.FormValue("model")
-			language := r.FormValue("language")
-			reqBody = map[string]any{"model": model, "language": language}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"text": "Hello world"})
+			reqBody = map[string]any{
+				"model":           r.FormValue("model"),
+				"language":        r.FormValue("language"),
+				"response_format": r.FormValue("response_format"),
+			}
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			// Real OpenAI behavior under response_format=text: raw transcript,
+			// no JSON envelope. Leading 'H' specifically reproduces the
+			// production failure that gave us "invalid character ..." on Groq.
+			_, _ = w.Write([]byte("Hello world\n"))
 		}))
 		defer server.Close()
 
@@ -88,7 +97,7 @@ func TestTranscriptionOpenAIProviderTranscribe(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if result.Transcript != "Hello world" {
-			t.Fatalf("expected transcript 'Hello world', got %q", result.Transcript)
+			t.Fatalf("expected raw text transcript, got %q", result.Transcript)
 		}
 		if result.Provider != "openai" {
 			t.Fatalf("expected provider 'openai', got %q", result.Provider)
@@ -101,6 +110,9 @@ func TestTranscriptionOpenAIProviderTranscribe(t *testing.T) {
 		}
 		if reqBody["language"] != "en" {
 			t.Fatalf("expected language en, got: %v", reqBody["language"])
+		}
+		if reqBody["response_format"] != "text" {
+			t.Fatalf("expected response_format=text (raw body contract), got: %v", reqBody["response_format"])
 		}
 		_ = contentType // multipart form-data
 	})
