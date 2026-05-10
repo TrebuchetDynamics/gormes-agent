@@ -50144,8 +50144,9 @@
           "items": [
             {
               "name": "LLM-assisted pattern distillation",
+              "priority": "P1",
               "status": "complete",
-              "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, and preserve a clear no-op escape path before any generated draft can be promoted",
+              "contract": "Skill distillation review prompts survey existing skills first, prefer class-level generalization over near-duplicate creation, reject transient environment failures and negative tool claims as durable skill constraints, and preserve a clear no-op escape path before any generated draft can be promoted",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "skills",
@@ -50154,10 +50155,13 @@
                 "system"
               ],
               "degraded_mode": "Skill review status reports review_prompt_unavailable, overlap_detected, no_skill_to_save, or draft_requires_review instead of auto-promoting narrow one-off skills.",
-              "fixture": "internal/skills/distillation_prompt_test.go",
+              "fixture": "internal/hermes/background_review_test.go::TestBackgroundReviewFork_SkillPromptRejectsTransientEnvironmentFailures",
               "source_refs": [
-                "../hermes-agent/run_agent.py@76042f58:AIAgent._SKILL_REVIEW_PROMPT",
-                "../hermes-agent/tests/run_agent/test_review_prompt_class_first.py@76042f58",
+                "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._SKILL_REVIEW_PROMPT",
+                "./hermes-agent/run_agent.py@e5af1dd63:AIAgent._COMBINED_REVIEW_PROMPT",
+                "./hermes-agent/tests/run_agent/test_review_prompt_class_first.py@e5af1dd63",
+                "internal/hermes/background_review.go",
+                "internal/hermes/background_review_test.go",
                 "internal/skills/store.go",
                 "internal/skills/selector.go",
                 "docs/content/building-gormes/architecture_plan/phase-6-learning-loop.md"
@@ -50177,26 +50181,28 @@
                 "Prompt fixtures instruct the reviewer to call skills_list and inspect likely existing skills before deciding.",
                 "Prompt fixtures explicitly prefer updating/generalizing an existing skill at the task-class level and gate new skill creation as a last resort.",
                 "Overlap evidence is captured for follow-up review when a draft resembles existing skills.",
+                "Prompt fixtures explicitly reject environment-dependent setup failures, negative claims about tools/features, resolved transient errors, and one-off task narratives as skill-worthy durable constraints.",
+                "Prompt fixtures positively reframe setup-state failures as fixes to record under existing setup/troubleshooting skills, never as standalone `tool does not work` rules.",
                 "The no-op escape phrase `Nothing to save.` remains valid and produces no draft writes."
               ],
-              "note": "Hermes 76042f58 changed skill review prompts to be class-first and update-over-create. Gormes should fixture-lock that review contract before adding any LLM-backed skill extractor.",
+              "note": "Planner refresh 2026-05-10: bounded all-topic weakness sweep refreshed Hermes to e5af1dd63 and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current upstream deltas after the last completed user-stories/docs sweep are complete, row-backed, or lower risk except this stale complete prompt contract: Hermes e5af1dd63 adds explicit anti-pattern guidance so background skill review does not persist transient environment failures or negative tool claims as durable constraints. Reopened as one P1 source-backed prompt fixture refresh; no live LLM, selector, skill install, or background worker lifecycle code is in scope. Complete 2026-05-10: TDD added background review prompt fixtures for skills-only, combined memory+skills, and memory-only prompts, then expanded the existing backgroundReviewPrompt seam so skill review forks survey skills_list/skill_view, prefer class-level updates, reject environment-dependent failures, negative tool claims, resolved transient errors, and one-off task narratives, and reframe setup failures as fixes under existing setup/troubleshooting skills. RED: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt)' -count=1` failed on the old one-line prompt. GREEN: `go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1` and `go test ./internal/hermes -count=1` passed.",
               "write_scope": [
-                "internal/skills/distillation_prompt.go",
-                "internal/skills/distillation_prompt_test.go",
+                "internal/hermes/background_review.go",
+                "internal/hermes/background_review_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/skills -run 'Test.*Distillation.*Prompt|Test.*Skill.*Review' -count=1",
-                "go test ./internal/skills -count=1",
+                "go test ./internal/hermes -run 'TestBackgroundReviewFork_(SkillPrompt|CombinedPrompt|MemoryPrompt|InheritsActiveRuntime|RestrictsTools)' -count=1",
+                "go test ./internal/hermes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Distillation prompt fixtures prove survey-first behavior, class-level generalization, overlap evidence, draft-review gating, and the Nothing-to-save escape path."
+                "Distillation prompt fixtures prove survey-first behavior, class-level generalization, anti-pattern rejection, positive setup-fix reframing, overlap evidence, draft-review gating, and the Nothing-to-save escape path."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:76042f58 run_agent.py",
-                "note": "Hermes defines the class-first review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
+                "upstream_ref": "hermes:e5af1dd63 run_agent.py",
+                "note": "Hermes defines the class-first and anti-transient review prompt behavior; Gormes adapts it to native skill distillation and review-state storage."
               },
               "wired": true
             }

@@ -277,12 +277,29 @@ func SummarizeBackgroundReviewActions(reviewMessages, priorSnapshot []Background
 func backgroundReviewPrompt(reviewMemory, reviewSkills bool) string {
 	switch {
 	case reviewMemory && reviewSkills:
-		return "Review the conversation for durable memory and reusable skill improvements. If nothing stands out, say 'Nothing to save.'"
+		return "Review the conversation above and update two things:\n\n" +
+			"Memory: save durable user facts, preferences, and expectations with the memory tool when they are worth remembering.\n\n" +
+			backgroundReviewSkillPrompt()
 	case reviewMemory:
 		return "Review the conversation for durable memory updates. If nothing stands out, say 'Nothing to save.'"
 	default:
-		return "Review the conversation for reusable skill improvements. If nothing stands out, say 'Nothing to save.'"
+		return backgroundReviewSkillPrompt()
 	}
+}
+
+func backgroundReviewSkillPrompt() string {
+	return "Skills: review the conversation for reusable skill improvements. " +
+		"Use skills_list and skill_view to survey currently relevant skills before deciding. " +
+		"Prefer updating or generalizing an existing class-level skill over creating a narrow one-off skill. " +
+		"Create a new class-level skill only when no existing skill covers the task class.\n\n" +
+		"Do NOT capture as skills:\n" +
+		"- Environment-dependent failures such as missing binaries, fresh-install errors, post-migration path mismatches, command not found, unconfigured credentials, or uninstalled packages.\n" +
+		"- Negative claims about tools or features such as browser tools do not work, a tool is broken, or cannot use a feature. These become durable self-imposed constraints after the setup state changes.\n" +
+		"- Session-specific transient errors that resolved before the conversation ended. If retrying worked, capture the retry pattern rather than the original failure.\n" +
+		"- One-off task narratives such as summarize today's market or analyze this PR.\n\n" +
+		"If a tool failed because of setup state, capture the fix: the install command, config step, or environment variable to set under an existing setup or troubleshooting skill. " +
+		"Never save this tool does not work as a standalone constraint.\n\n" +
+		"If nothing stands out, say 'Nothing to save.'"
 }
 
 func backgroundReviewTargetLabel(target string) string {

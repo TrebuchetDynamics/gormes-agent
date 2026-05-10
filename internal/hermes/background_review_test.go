@@ -87,6 +87,75 @@ func TestBackgroundReviewFork_RestrictsTools(t *testing.T) {
 	}
 }
 
+func TestBackgroundReviewFork_SkillPromptRejectsTransientEnvironmentFailures(t *testing.T) {
+	var captured BackgroundReviewFork
+	runner := BackgroundReviewRunnerFunc(func(_ context.Context, fork BackgroundReviewFork) ([]BackgroundReviewMessage, error) {
+		captured = fork
+		return nil, nil
+	})
+
+	_, err := RunBackgroundReview(context.Background(), BackgroundReviewRequest{
+		Runtime:      BackgroundReviewRuntime{Model: "gpt-5.5"},
+		ReviewSkills: true,
+		Runner:       runner,
+	})
+	if err != nil {
+		t.Fatalf("RunBackgroundReview() error = %v", err)
+	}
+
+	assertBackgroundReviewSkillPrompt(t, captured.Prompt)
+}
+
+func TestBackgroundReviewFork_CombinedPromptRejectsTransientEnvironmentFailures(t *testing.T) {
+	var captured BackgroundReviewFork
+	runner := BackgroundReviewRunnerFunc(func(_ context.Context, fork BackgroundReviewFork) ([]BackgroundReviewMessage, error) {
+		captured = fork
+		return nil, nil
+	})
+
+	_, err := RunBackgroundReview(context.Background(), BackgroundReviewRequest{
+		Runtime:      BackgroundReviewRuntime{Model: "gpt-5.5"},
+		ReviewMemory: true,
+		ReviewSkills: true,
+		Runner:       runner,
+	})
+	if err != nil {
+		t.Fatalf("RunBackgroundReview() error = %v", err)
+	}
+
+	assertBackgroundReviewSkillPrompt(t, captured.Prompt)
+	if !strings.Contains(strings.ToLower(captured.Prompt), "memory") {
+		t.Fatalf("combined prompt = %q, want memory review section preserved", captured.Prompt)
+	}
+}
+
+func TestBackgroundReviewFork_MemoryPromptStaysMemoryOnly(t *testing.T) {
+	var captured BackgroundReviewFork
+	runner := BackgroundReviewRunnerFunc(func(_ context.Context, fork BackgroundReviewFork) ([]BackgroundReviewMessage, error) {
+		captured = fork
+		return nil, nil
+	})
+
+	_, err := RunBackgroundReview(context.Background(), BackgroundReviewRequest{
+		Runtime:      BackgroundReviewRuntime{Model: "gpt-5.5"},
+		ReviewMemory: true,
+		Runner:       runner,
+	})
+	if err != nil {
+		t.Fatalf("RunBackgroundReview() error = %v", err)
+	}
+
+	lower := strings.ToLower(captured.Prompt)
+	if !strings.Contains(lower, "durable memory") || !strings.Contains(captured.Prompt, "Nothing to save.") {
+		t.Fatalf("memory prompt = %q, want durable memory no-op guidance", captured.Prompt)
+	}
+	for _, forbidden := range []string{"skill_manage", "skills_list", "do not capture as skills"} {
+		if strings.Contains(lower, forbidden) {
+			t.Fatalf("memory prompt contains skill-review guidance %q: %q", forbidden, captured.Prompt)
+		}
+	}
+}
+
 func TestBackgroundReviewFork_SkipsPriorToolMessages(t *testing.T) {
 	priorPayload := map[string]any{"success": true, "message": "Cron job 'old' created."}
 	newPayload := map[string]any{"success": true, "message": "Entry added", "target": "memory"}
@@ -203,4 +272,28 @@ func containsString(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func assertBackgroundReviewSkillPrompt(t *testing.T, prompt string) {
+	t.Helper()
+	lower := strings.ToLower(prompt)
+	for _, want := range []string{
+		"skills_list",
+		"skill_view",
+		"class-level",
+		"nothing to save.",
+		"do not capture",
+		"missing binaries",
+		"command not found",
+		"unconfigured credentials",
+		"negative claims",
+		"do not work",
+		"session-specific transient errors",
+		"one-off task narratives",
+		"capture the fix",
+	} {
+		if !strings.Contains(lower, want) {
+			t.Fatalf("prompt missing %q:\n%s", want, prompt)
+		}
+	}
 }
