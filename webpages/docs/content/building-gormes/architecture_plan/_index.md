@@ -879,6 +879,7 @@ classification and row-backed implementation queue.
 - [x] Core fuzzy replace strategies for native patch tool
 - [x] Unicode-normalized fuzzy replace for native patch tool
 - [x] Block-anchor fuzzy replace for native patch tool
+- [x] V4A fuzzy hunk matching for native patch tool
 
 ### 5.M — Mixture of Agents 🔨
 

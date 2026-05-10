@@ -537,6 +537,99 @@ func TestPatchToolV4AAppliesAddUpdateDelete(t *testing.T) {
 	}
 }
 
+func TestPatchToolV4AFuzzyHunkLineTrimmedApplies(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "app.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("def run():\n    if enabled:\n        return \"ok\"\n"), 0o644); err != nil {
+		t.Fatalf("write app fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/app.py"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/app.py",
+		"@@",
+		" def run():",
+		"-if enabled:",
+		"-return \"ok\"",
+		"+    if enabled:",
+		"+        return \"patched\"",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "ok" || out["operations"] != float64(1) {
+		t.Fatalf("patch result = %#v, want ok with one fuzzy V4A operation", out)
+	}
+	assertFileContent(t, path, "def run():\n    if enabled:\n        return \"patched\"\n")
+}
+
+func TestPatchToolV4AFuzzyHunkContextHintDisambiguatesNearbyWindow(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "settings.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	filler := strings.Repeat("filler line keeps sections apart\n", 30)
+	original := "section alpha\ntarget = old\n" + filler + "marker beta\ntarget = old\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write settings fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/settings.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/settings.txt",
+		"@@ marker beta @@",
+		"-target = old",
+		"+target = new",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "ok" || out["operations"] != float64(1) {
+		t.Fatalf("patch result = %#v, want ok with context-hint V4A operation", out)
+	}
+	assertFileContent(t, path, "section alpha\ntarget = old\n"+filler+"marker beta\ntarget = new\n")
+}
+
+func TestPatchToolV4AFuzzyHunkAmbiguousNoMutation(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "settings.txt")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "section alpha\ntarget = old\nsection beta\ntarget = old\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write settings fixture: %v", err)
+	}
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"src/settings.txt"}`)
+
+	patchText := strings.Join([]string{
+		"*** Begin Patch",
+		"*** Update File: src/settings.txt",
+		"@@ missing hint @@",
+		"-target = old",
+		"+target = new",
+		"*** End Patch",
+	}, "\n")
+	out := executePatchTool(t, NewPatchTool(cfg), `{"mode":"patch","patch":`+quoteJSON(t, patchText)+`}`)
+
+	if out["status"] != "patch_validation_failed" {
+		t.Fatalf("status = %v, want patch_validation_failed: %#v", out["status"], out)
+	}
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("error = %v, want ambiguous fuzzy match evidence", out["error"])
+	}
+	assertFileContent(t, path, original)
+}
+
 func TestPatchToolV4AMoveRenamesReadFile(t *testing.T) {
 	root := t.TempDir()
 	src := filepath.Join(root, "src", "old.txt")

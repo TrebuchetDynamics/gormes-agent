@@ -30,6 +30,8 @@ const (
 	defaultSearchFilesMax    = 500
 	defaultWriteFileFileMode = 0o644
 	maxStructuredLintOutput  = 2000
+	v4aContextHintBefore     = 500
+	v4aContextHintAfter      = 2000
 )
 
 var (
@@ -1477,16 +1479,41 @@ func applyV4AHunks(content string, hunks []v4aPatchHunk) (string, error) {
 		}
 		search := strings.Join(searchLines, "\n")
 		replacement := strings.Join(replaceLines, "\n")
-		count := strings.Count(updated, search)
-		if count == 0 {
-			return "", fmt.Errorf("could not apply hunk: context not found")
+		next, err := applyV4AFuzzyHunk(updated, search, replacement, hunk.contextHint)
+		if err != nil {
+			return "", fmt.Errorf("could not apply hunk: %w", err)
 		}
-		if count > 1 {
-			return "", fmt.Errorf("could not apply hunk: context matched %d times", count)
-		}
-		updated = strings.Replace(updated, search, replacement, 1)
+		updated = next
 	}
 	return updated, nil
+}
+
+func applyV4AFuzzyHunk(content, search, replacement, hint string) (string, error) {
+	updated, _, err := fuzzyPatchReplace(content, search, replacement, false)
+	if err == nil {
+		return updated, nil
+	}
+	if strings.TrimSpace(hint) == "" {
+		return "", err
+	}
+	hintPos := strings.Index(content, hint)
+	if hintPos < 0 {
+		return "", err
+	}
+	windowStart := hintPos - v4aContextHintBefore
+	if windowStart < 0 {
+		windowStart = 0
+	}
+	windowEnd := hintPos + v4aContextHintAfter
+	if windowEnd > len(content) {
+		windowEnd = len(content)
+	}
+	window := content[windowStart:windowEnd]
+	windowUpdated, _, windowErr := fuzzyPatchReplace(window, search, replacement, false)
+	if windowErr != nil {
+		return "", err
+	}
+	return content[:windowStart] + windowUpdated + content[windowEnd:], nil
 }
 
 func applyV4AAdditionOnlyHunk(content, hint, insertText string) (string, error) {
