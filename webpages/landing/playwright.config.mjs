@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const e2ePort = Number(process.env.LANDING_E2E_PORT ?? 8080);
-const e2eBaseURL = `http://127.0.0.1:${e2ePort}`;
+const e2eHost = '127.0.0.1';
+const e2ePort = Number(process.env.LANDING_E2E_PORT ?? 18080);
+const e2eBaseURL = `http://${e2eHost}:${e2ePort}`;
+const assertPortFree = `node -e "const net=require('node:net');const port=${e2ePort};const host='${e2eHost}';const server=net.createServer();server.once('error',err=>{console.error('LANDING_E2E_PORT '+port+' unavailable: '+err.message);process.exit(1)});server.listen(port,host,()=>server.close(()=>process.exit(0)))"`;
 
 export default defineConfig({
   testDir: 'tests',
@@ -21,7 +23,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `node ../scripts/with-compatible-node.mjs ./node_modules/.bin/astro dev --host 127.0.0.1 --port ${e2ePort} --strictPort`,
+    command: `${assertPortFree} && node ../scripts/with-compatible-node.mjs ./node_modules/.bin/astro dev --host ${e2eHost} --port ${e2ePort}`,
     url: e2eBaseURL,
     reuseExistingServer: false,
   },
