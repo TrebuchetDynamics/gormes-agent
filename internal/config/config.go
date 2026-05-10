@@ -29,6 +29,7 @@ type Config struct {
 	ConfigVersion int `toml:"_config_version" yaml:"_config_version"`
 
 	Hermes        HermesCfg         `toml:"hermes" yaml:"hermes"`
+	Agent         AgentRuntimeCfg   `toml:"agent" yaml:"agent"`
 	Runtime       RuntimeCfg        `toml:"runtime" yaml:"runtime"`
 	TTS           map[string]any    `toml:"tts" yaml:"tts"`
 	ImageGen      map[string]any    `toml:"image_gen" yaml:"image_gen"`
@@ -365,8 +366,13 @@ type HermesCfg struct {
 	ModelResolutionSource string     `toml:"-" yaml:"-" json:"model_resolution_source,omitempty"`
 }
 
+type AgentRuntimeCfg struct {
+	ImageInputMode string `toml:"image_input_mode" yaml:"image_input_mode"`
+}
+
 type AuxiliaryCfg struct {
 	Curator AuxiliaryTaskCfg `toml:"curator" yaml:"curator"`
+	Vision  AuxiliaryTaskCfg `toml:"vision" yaml:"vision"`
 }
 
 type CuratorCfg struct {
@@ -1325,7 +1331,9 @@ func loadFlags(cfg *Config, args []string) error {
 func validateConfig(cfg *Config) error {
 	cfg.Gateway.ProxyURL = normalizeGatewayProxyURL(cfg.Gateway.ProxyURL)
 	cfg.Gateway.ProxyKey = strings.TrimSpace(cfg.Gateway.ProxyKey)
+	cfg.Agent.ImageInputMode = normalizeAgentImageInputMode(cfg.Agent.ImageInputMode)
 	normalizeAuxiliaryTask(&cfg.Auxiliary.Curator, true)
+	normalizeAuxiliaryTask(&cfg.Auxiliary.Vision, false)
 	normalizeAuxiliaryTask(&cfg.Curator.Auxiliary, false)
 	cfg.Terminal.Backend = strings.ToLower(strings.TrimSpace(firstNonEmpty(cfg.Terminal.Backend, cfg.Runtime.TerminalBackend, "local")))
 	cfg.Terminal.CWD = strings.TrimSpace(cfg.Terminal.CWD)
@@ -1408,6 +1416,10 @@ func normalizeAuxiliaryTask(task *AuxiliaryTaskCfg, defaultCurator bool) {
 			task.ExtraBody = map[string]any{}
 		}
 	}
+}
+
+func normalizeAgentImageInputMode(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
 }
 
 func normalizeGatewayProxyURL(raw string) string {

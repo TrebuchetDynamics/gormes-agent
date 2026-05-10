@@ -17646,15 +17646,16 @@
             },
             {
               "name": "Image input mode resolver + vision_analyze text fallback",
-              "priority": "P2",
-              "status": "planned",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-10T04:30:52Z",
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes agent/image_routing.py:decide_image_input_mode + gateway/run.py:6275",
-                "note": "Hermes resolves auto/native/text per turn based on model vision capability and auxiliary.vision config. Gormes already ships the helper (internal/hermes/image_routing.go:DecideImageInputMode) but it has zero non-test callers — Manager.submitPinned unconditionally emits image_url parts regardless of model capability. This is dead-code closure plus the missing text-mode path."
+                "upstream_ref": "hermes tools/vision_tools.py@3800972dd:_handle_vision_analyze + agent/image_routing.py:decide_image_input_mode",
+                "note": "Hermes resolves auto/native/text per turn based on model vision capability and auxiliary.vision config. The 3800972dd vision fast-path keeps vision_analyze image bytes native for vision-capable models, which makes Gormes' unconditional Manager.submitPinned image_url emission stale for text-only models. Gormes already ships the helper (internal/hermes/image_routing.go:DecideImageInputMode) but it has zero non-test callers. This row closes the gateway dead-code loop and ships the typed degraded text-mode marker; native multimodal tool-result bytes for vision_analyze remain out of this bounded gateway slice."
               },
-              "contract": "Manager.submitPinned consults DecideImageInputMode before calling imageContentPartsFromAttachments. When mode resolves to 'native' (vision-capable model + no auxiliary.vision override), behavior is unchanged. When mode resolves to 'text' (text-only model OR explicit auxiliary.vision config OR explicit image_input_mode=text), Gormes runs an image-to-text pre-pass via a vision_analyze tool/seam and prepends the description to SubmitText instead of emitting image_url parts. The active model's vision capability is read from internal/hermes model metadata (internal/hermes/model_metadata.go).",
-              "contract_status": "draft",
+              "contract": "Manager.submitPinned consults DecideImageInputMode before calling imageContentPartsFromAttachments. When mode resolves to 'native' (vision-capable model + no auxiliary.vision override), behavior is unchanged. When mode resolves to 'text' (text-only or unknown model OR explicit auxiliary.vision config OR explicit agent.image_input_mode=text), Gormes does not emit image_url parts; this bounded row prepends a typed vision_pre_analysis_unavailable degraded marker to SubmitText until a concrete vision_analyze backend is wired. The active model's vision capability is read from internal/hermes model metadata (internal/hermes/model_registry.go).",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -17663,11 +17664,12 @@
                 "system"
               ],
               "degraded_mode": "When mode=text is selected but no vision_analyze backend is configured, the channel reports a typed degraded marker (vision_pre_analysis_unavailable) and falls back to the existing attachment-marker text rather than silently dropping the image or sending image_url to a non-vision provider that will reject it.",
-              "fixture": "internal/gateway/manager_image_mode_test.go (planned) and internal/hermes/image_routing_test.go (existing)",
+              "fixture": "internal/gateway/manager_image_mode_test.go, internal/gateway/manager_photo_passthrough_test.go, internal/config/image_input_mode_test.go, and internal/hermes/image_routing_test.go",
               "source_refs": [
-                "../hermes-agent/agent/image_routing.py:decide_image_input_mode",
-                "../hermes-agent/gateway/run.py:6275 _decide_image_input_mode",
-                "../hermes-agent/gateway/run.py:6296 _enrich_message_with_vision (text-mode pre-pass)",
+                "./hermes-agent/agent/image_routing.py@3800972dd:decide_image_input_mode",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_handle_vision_analyze",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_vision_analyze_native",
+                "./hermes-agent/tests/tools/test_vision_native_fast_path.py@3800972dd",
                 "internal/hermes/image_routing.go:DecideImageInputMode (dead-code helper to wire)",
                 "internal/hermes/image_routing.go:BuildNativeImageContentParts (dead-code helper)",
                 "internal/gateway/manager.go:2702 submitPinned (current call site)",
@@ -17675,8 +17677,8 @@
               ],
               "ready_when": [
                 "Multimodal photo attachment passthrough (2.B.12 row 6) is complete (true at HEAD = 0a7f8d02d).",
-                "Model-capability metadata is queryable from gateway code via internal/hermes (true — model_metadata.go).",
-                "A vision_analyze tool/seam exists OR the slice ships its first concrete one (e.g. wrapping the same provider stack with a vision-capable secondary model)."
+                "Model-capability metadata is queryable from gateway code via internal/hermes (true — model_registry.go).",
+                "The row can ship a typed vision_pre_analysis_unavailable degraded marker for text mode without silently stripping images; a concrete vision_analyze backend can follow as a separate provider/tool-result slice."
               ],
               "not_ready_when": [
                 "The slice silently strips images for non-vision models without surfacing degraded-mode evidence to the operator.",
@@ -17695,26 +17697,49 @@
               "write_scope": [
                 "internal/gateway/manager.go",
                 "internal/gateway/turn_adapter.go",
+                "internal/gateway/config_reload.go",
                 "internal/gateway/manager_image_mode_test.go (new)",
+                "internal/gateway/manager_photo_passthrough_test.go",
                 "internal/hermes/image_routing.go (wire BuildNativeImageContentParts to single call site)",
                 "internal/config/config.go (image_input_mode field)",
+                "internal/config/image_input_mode_test.go (new)",
+                "cmd/gormes/gateway.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
                 "CGO_ENABLED=0 go test ./internal/gateway -run 'TestManager.*ImageMode' -count=1",
-                "CGO_ENABLED=0 go test ./internal/gateway ./internal/hermes ./cmd/gormes -count=1",
+                "CGO_ENABLED=0 go test ./internal/gateway ./internal/hermes ./internal/config ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Operator with text-only model (e.g. local Ollama) sends a screenshot to the Telegram bot; gateway routes via vision_analyze pre-pass + text description rather than sending image_url to a model that would reject it. Operator with vision-capable model sees identical behavior to today."
+                "Operator with text-only model (e.g. local Ollama) sends a screenshot to the Telegram bot; gateway routes to text mode with a typed vision_pre_analysis_unavailable marker and preserved attachment references rather than sending image_url to a model that would reject it. Operator with vision-capable model sees identical behavior to today."
               ],
-              "note": "Filed 2026-05-09 from gormes-hermes-parity audit covering the 0a7f8d02d / 72aa8e29b multimodal slice. The DecideImageInputMode + BuildNativeImageContentParts helpers were ported from Hermes but never wired — planner row 0a7f8d02d wired only the always-native path. This row closes the dead-code loop and adds the text-mode fallback that Hermes provides via auxiliary.vision config."
+              "note": "Filed 2026-05-09 from gormes-hermes-parity audit covering the 0a7f8d02d / 72aa8e29b multimodal slice. The DecideImageInputMode + BuildNativeImageContentParts helpers were ported from Hermes but never wired — planner row 0a7f8d02d wired only the always-native path. Planner refresh 2026-05-10 covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 20, below the 90-row cap; no new row was added. Fresh Hermes 3800972dd vision_analyze native fast-path evidence raised this existing gateway row to P1 and narrowed the builder slice to model-aware gateway selection plus typed degraded text mode. Complete 2026-05-10: Manager.submitPinned now calls DecideImageInputMode through imagePayloadFromAttachments, native mode remains unchanged for known vision-capable models, explicit/auto text mode suppresses image_url parts, auxiliary.vision forces text mode, and config/reload wiring honors agent.image_input_mode plus auxiliary.vision.",
+              "evidence": {
+                "implementation": [
+                  "internal/gateway/manager.go resolves active provider/model and calls imageModeSubmitPayload before kernel Submit.",
+                  "internal/gateway/turn_adapter.go gates photo attachment content parts through hermes.DecideImageInputMode and emits vision_pre_analysis_unavailable degraded text when mode resolves to text.",
+                  "internal/config/config.go adds [agent] image_input_mode and [auxiliary.vision] parsing; cmd/gormes/gateway.go and internal/gateway/config_reload.go pass the settings into ManagerConfig."
+                ],
+                "tests": [
+                  "internal/gateway/manager_image_mode_test.go covers known vision-model native passthrough, explicit text mode, unknown/text-only model metadata, and auxiliary.vision override.",
+                  "internal/gateway/manager_photo_passthrough_test.go keeps the existing native photo regression tests explicit about a known vision-capable model.",
+                  "internal/config/image_input_mode_test.go covers config parsing and trimming for agent.image_input_mode plus auxiliary.vision."
+                ],
+                "verification": [
+                  "CGO_ENABLED=0 go test ./internal/gateway -run 'TestManager.*ImageMode' -count=1 -> pass",
+                  "CGO_ENABLED=0 go test ./internal/gateway -run 'TestManager.*ImageMode|TestManager_SubmitPinned_PhotoAttachmentBecomesImageURLContentPart|TestManager_SubmitPinned_ImageOnlyPhotoUsesDefaultPromptContentPart' -count=1 -> pass",
+                  "CGO_ENABLED=0 go test ./internal/config -run TestLoadConfigParsesAgentImageInputModeAndAuxiliaryVision -count=1 -> pass",
+                  "CGO_ENABLED=0 go test ./internal/gateway ./internal/hermes ./internal/config ./cmd/gormes -count=1 -> pass",
+                  "go run ./cmd/progress validate -> pass"
+                ]
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
-            "last_upstream_check": "2026-05-06T00:00:00Z",
-            "origin_decision": "The 2026-05-06 all-topic Hermes parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Normal-turn, Goncho, CLI/auth/config, gateway, browser, installer, and TUI proof rows remain row-backed or complete; the builder-ready provider/model weakness is Hermes eadf34633 Ollama Cloud model ID normalization. Promote `Ollama Cloud models.dev suffix normalization` to P1 because duplicated or suffixed Ollama Cloud IDs break the operator model picker before broader model-catalog cache/live-merge work. Hermes b816fd4e2 model catalog tests still show the wider cache/live-merge weakness: manifest validation, stale cache fallback, AI Gateway pricing/free-model promotion, and preferred-provider models.dev merge for opencode-go/opencode-zen. That remains tracked as `Model catalog cache + preferred-provider live merge` without changing runtime routing policy."
+            "last_upstream_check": "2026-05-10T04:30:52Z",
+            "origin_decision": "The 2026-05-10 all-topic Hermes parity sweep checked CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned rows were 20, below the 90-row cap. Fresh Hermes 3800972dd vision_analyze native fast-path evidence made the existing image input mode row the highest builder-ready weakness, so it was raised to P1, sharpened, and completed rather than adding a new row. CLI chat -q, comment-preserving config writes, generic provider auth messages, release child rows, and curator rename-map behavior were already row-backed or complete; broader native multimodal tool-result bytes remain out of this bounded gateway slice."
           }
         },
         "4.E": {

@@ -123,6 +123,62 @@ func SafeExternalChannelError(_ error) string {
 // emitted by the gateway when the kernel submit path fails. Reusing this
 // vocabulary keeps Hermes/Honcho channel parity stable.
 const externalChannelSafeBusyReply = "Busy — try again in a second."
+const visionPreAnalysisUnavailableMarker = "vision_pre_analysis_unavailable"
+
+type imageInputModeOptions struct {
+	Mode            hermes.ImageInputMode
+	AuxiliaryVision hermes.AuxiliaryVisionConfig
+	Provider        string
+	Model           string
+}
+
+func imagePayloadFromAttachments(userText, submitText string, attachments []Attachment, opts imageInputModeOptions) (string, []hermes.MessageContentPart) {
+	if !hasPhotoAttachments(attachments) {
+		return submitText, nil
+	}
+	mode := decideImageInputModeForTurn(opts)
+	if mode == hermes.ImageInputModeNative {
+		return submitText, imageContentPartsFromAttachments(userText, attachments)
+	}
+	slog.Info("image_input_mode_text_degraded",
+		"evidence", visionPreAnalysisUnavailableMarker,
+		"provider", strings.TrimSpace(opts.Provider),
+		"model", strings.TrimSpace(opts.Model))
+	return degradedVisionSubmitText(submitText), nil
+}
+
+func decideImageInputModeForTurn(opts imageInputModeOptions) hermes.ImageInputMode {
+	metadata := hermes.LookupModelMetadata(hermes.ModelRegistryQuery{
+		Provider: opts.Provider,
+		Model:    opts.Model,
+	})
+	return hermes.DecideImageInputMode(hermes.ImageRoutingConfig{
+		Mode:                  opts.Mode,
+		AuxiliaryVision:       opts.AuxiliaryVision,
+		ModelVisionCapability: metadata.Capabilities.Vision,
+	})
+}
+
+func degradedVisionSubmitText(submitText string) string {
+	text := strings.TrimSpace(submitText)
+	if strings.Contains(text, visionPreAnalysisUnavailableMarker) {
+		return text
+	}
+	marker := "[" + visionPreAnalysisUnavailableMarker + ": no vision_analyze backend configured]"
+	if text == "" {
+		return marker
+	}
+	return marker + "\n\n" + text
+}
+
+func hasPhotoAttachments(attachments []Attachment) bool {
+	for _, att := range attachments {
+		if strings.EqualFold(strings.TrimSpace(att.Kind), "photo") {
+			return true
+		}
+	}
+	return false
+}
 
 // imageContentPartsFromAttachments materializes channel-cached photo bytes into
 // Hermes native multimodal content parts. The first content part is the user

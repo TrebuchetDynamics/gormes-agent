@@ -64,8 +64,10 @@ func TestManager_SubmitPinned_PhotoAttachmentBecomesImageURLContentPart(t *testi
 		t.Fatalf("Put: %v", err)
 	}
 	cfg := ManagerConfig{
-		AllowedChats: map[string]string{platform: "42"},
-		SessionMap:   smap,
+		AllowedChats:           map[string]string{platform: "42"},
+		SessionMap:             smap,
+		LiveTurnActiveProvider: func() string { return "openai" },
+		LiveTurnActiveModel:    func() string { return "gpt-4o-mini" },
 	}
 	m := NewManagerWithSubmitter(cfg, fk, slog.Default())
 	if err := m.Register(tg); err != nil {
@@ -124,8 +126,10 @@ func TestManager_SubmitPinned_ImageOnlyPhotoUsesDefaultPromptContentPart(t *test
 		t.Fatalf("Put: %v", err)
 	}
 	cfg := ManagerConfig{
-		AllowedChats: map[string]string{platform: "42"},
-		SessionMap:   smap,
+		AllowedChats:           map[string]string{platform: "42"},
+		SessionMap:             smap,
+		LiveTurnActiveProvider: func() string { return "openai" },
+		LiveTurnActiveModel:    func() string { return "gpt-4o-mini" },
 	}
 	m := NewManagerWithSubmitter(cfg, fk, slog.Default())
 	if err := m.Register(tg); err != nil {
