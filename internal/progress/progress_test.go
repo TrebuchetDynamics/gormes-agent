@@ -459,8 +459,12 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if routing.Priority != "P1" {
 		t.Fatalf("Phase 2.B.5 priority = %q, want P1", routing.Priority)
 	}
-	if got := routing.DerivedStatus(); got != StatusComplete {
-		t.Fatalf("Phase 2.B.5 = %q, want complete — all session-context and delivery-routing rows shipped", got)
+	switch got := routing.DerivedStatus(); got {
+	case StatusComplete, StatusInProgress:
+		// complete or reopened by a newly discovered gateway slash-handler
+		// gap such as `Gateway /model interactive provider/model picker`
+	default:
+		t.Fatalf("Phase 2.B.5 = %q, want complete or in_progress", got)
 	}
 	routingItems := itemsByName(routing.Items)
 	topicCloseout := routingItems["Telegram topic mode off/help/auth/debounce closeout"]
