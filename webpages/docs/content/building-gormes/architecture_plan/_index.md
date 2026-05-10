@@ -874,6 +874,7 @@ classification and row-backed implementation queue.
 - [x] Structured lint delta for native write/patch tools
 - [x] Python syntax lint delta for native write/patch tools
 - [x] Shell lint delta for native write/patch tools
+- [x] Patch replace no-match did-you-mean hint
 
 ### 5.M — Mixture of Agents 🔨
 

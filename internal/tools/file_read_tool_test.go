@@ -186,6 +186,81 @@ func TestWriteFileAndPatchTools_EditInsideRoot(t *testing.T) {
 	}
 }
 
+func TestPatchToolReplaceNoMatchIncludesDidYouMeanHint(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.go")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "package pkg\n\nfunc BuildService() string {\n\treturn \"ok\"\n}\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.go"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.go","old_string":"func BuildServce() string {","new_string":"func BuildServiceV2() string {"}`)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("error = %v, want old_string not found", out["error"])
+	}
+	hint := asString(out["hint"])
+	for _, want := range []string{"Did you mean one of these sections?", "| func BuildService() string {", "read_file"} {
+		if !strings.Contains(hint, want) {
+			t.Fatalf("hint missing %q in:\n%s", want, hint)
+		}
+	}
+	assertFileContent(t, path, original)
+}
+
+func TestPatchToolReplaceNoMatchGenericHintWhenNoSimilarContent(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "alpha\nbeta\ngamma\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"totally_unique_xyzzy_qux","new_string":"replacement"}`)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("error = %v, want old_string not found", out["error"])
+	}
+	hint := asString(out["hint"])
+	for _, want := range []string{"old_string not found", "read_file", "search_files"} {
+		if !strings.Contains(hint, want) {
+			t.Fatalf("hint missing %q in:\n%s", want, hint)
+		}
+	}
+	if strings.Contains(hint, "alpha") || strings.Contains(hint, "beta") || strings.Contains(hint, "gamma") {
+		t.Fatalf("generic hint leaked unrelated file content:\n%s", hint)
+	}
+	assertFileContent(t, path, original)
+}
+
+func TestPatchToolReplaceNoMatchLeavesAmbiguousMatchesUntouched(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "alpha\nalpha\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"alpha","new_string":"omega"}`)
+
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("error = %v, want ambiguous-match error", out["error"])
+	}
+	if hint := asString(out["hint"]); hint != "" {
+		t.Fatalf("ambiguous match should not get no-match hint, got:\n%s", hint)
+	}
+	assertFileContent(t, path, original)
+}
+
 func TestPatchToolV4AAppliesAddUpdateDelete(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "src"), 0o755); err != nil {

@@ -639,7 +639,11 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 	content := string(raw)
 	count := strings.Count(content, in.OldString)
 	if count == 0 {
-		return marshalToolPayload(map[string]any{"path": rel, "error": "old_string not found"})
+		payload := map[string]any{"path": rel, "error": "old_string not found"}
+		if hint := patchNoMatchHint(in.OldString, content); hint != "" {
+			payload["hint"] = hint
+		}
+		return marshalToolPayload(payload)
 	}
 	if count > 1 && !in.ReplaceAll {
 		return marshalToolPayload(map[string]any{"path": rel, "error": fmt.Sprintf("old_string matched %d times; set replace_all=true or include more context", count)})
@@ -665,6 +669,139 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		payload["file_state"] = statePayload
 	}
 	return marshalToolPayload(payload)
+}
+
+func patchNoMatchHint(oldString, content string) string {
+	if snippet := closestPatchSections(oldString, content, 2, 3); snippet != "" {
+		return boundPatchHint("Did you mean one of these sections?\n" + snippet + "\n\nUse read_file to verify the current content, or search_files to locate the text.")
+	}
+	return "old_string not found. Use read_file to verify the current content, or search_files to locate the text."
+}
+
+func closestPatchSections(oldString, content string, contextLines, maxResults int) string {
+	if strings.TrimSpace(oldString) == "" || strings.TrimSpace(content) == "" || maxResults <= 0 {
+		return ""
+	}
+	oldLines := strings.Split(strings.ReplaceAll(oldString, "\r\n", "\n"), "\n")
+	anchor := ""
+	for _, line := range oldLines {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			anchor = trimmed
+			break
+		}
+	}
+	if anchor == "" {
+		return ""
+	}
+
+	contentLines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	type scoredLine struct {
+		score float64
+		index int
+	}
+	var scored []scoredLine
+	for i, line := range contentLines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		score := lineSimilarity(anchor, trimmed)
+		if score > 0.3 {
+			scored = append(scored, scoredLine{score: score, index: i})
+		}
+	}
+	if len(scored) == 0 {
+		return ""
+	}
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].index < scored[j].index
+		}
+		return scored[i].score > scored[j].score
+	})
+
+	oldLineCount := len(oldLines)
+	if oldLineCount < 1 {
+		oldLineCount = 1
+	}
+	seen := map[string]struct{}{}
+	var parts []string
+	for _, candidate := range scored {
+		if len(parts) >= maxResults {
+			break
+		}
+		start := candidate.index - contextLines
+		if start < 0 {
+			start = 0
+		}
+		end := candidate.index + oldLineCount + contextLines
+		if end > len(contentLines) {
+			end = len(contentLines)
+		}
+		key := strconv.Itoa(start) + ":" + strconv.Itoa(end)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		var b strings.Builder
+		for i := start; i < end; i++ {
+			if b.Len() > 0 {
+				b.WriteByte('\n')
+			}
+			fmt.Fprintf(&b, "%4d| %s", i+1, contentLines[i])
+		}
+		parts = append(parts, b.String())
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, "\n---\n")
+}
+
+func lineSimilarity(a, b string) float64 {
+	a = strings.ToLower(strings.TrimSpace(a))
+	b = strings.ToLower(strings.TrimSpace(b))
+	if a == "" || b == "" {
+		return 0
+	}
+	if a == b {
+		return 1
+	}
+	ar := []rune(a)
+	br := []rune(b)
+	prev := make([]int, len(br)+1)
+	cur := make([]int, len(br)+1)
+	for i := 1; i <= len(ar); i++ {
+		for j := 1; j <= len(br); j++ {
+			if ar[i-1] == br[j-1] {
+				cur[j] = prev[j-1] + 1
+				continue
+			}
+			if prev[j] >= cur[j-1] {
+				cur[j] = prev[j]
+			} else {
+				cur[j] = cur[j-1]
+			}
+		}
+		prev, cur = cur, prev
+		for j := range cur {
+			cur[j] = 0
+		}
+	}
+	lcs := prev[len(br)]
+	longest := len(ar)
+	if len(br) > longest {
+		longest = len(br)
+	}
+	return float64(lcs) / float64(longest)
+}
+
+func boundPatchHint(hint string) string {
+	const maxPatchHintChars = 2000
+	if len(hint) <= maxPatchHintChars {
+		return hint
+	}
+	return hint[:maxPatchHintChars] + "\n[hint truncated]"
 }
 
 func (t *PatchTool) executeV4APatch(patchText string) (json.RawMessage, error) {
