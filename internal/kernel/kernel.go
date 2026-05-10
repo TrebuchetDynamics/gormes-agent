@@ -714,10 +714,11 @@ toolLoop:
 		request.Messages = append(request.Messages, assistantMsg)
 		for _, r := range results {
 			request.Messages = append(request.Messages, hermes.Message{
-				Role:       "tool",
-				ToolCallID: r.ID,
-				Name:       r.Name,
-				Content:    r.Content,
+				Role:         "tool",
+				ToolCallID:   r.ID,
+				Name:         r.Name,
+				Content:      r.Content,
+				ContentParts: cloneMessageContentParts(r.ContentParts),
 			})
 		}
 

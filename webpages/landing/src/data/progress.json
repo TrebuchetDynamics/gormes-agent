@@ -24564,6 +24564,101 @@
               }
             },
             {
+              "name": "vision_analyze native multimodal tool-result path",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-10T04:49:17Z",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:3800972dd tools/vision_tools.py + agent/codex_responses_adapter.py",
+                "note": "2026-05-10 bounded all-topic weakness sweep refreshed Hermes to 3800972dd and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Existing runtime rows were complete or row-backed except this fresh Hermes vision fast path: vision_analyze now returns native image content blocks to vision-capable main models, and Codex Responses preserves array-shaped function_call_output payloads. Planned rows were 19, below the 90-row cap, so one source-backed P1 row was added."
+              },
+              "contract": "Gormes exposes a model-callable `vision_analyze` tool that can load a local image path or file:// URL into a multimodal tool-result envelope, carries that envelope through kernel role=tool messages as content parts, and serializes those parts for Codex Responses and OpenAI-compatible providers without stringifying or dropping image bytes. The slice falls back to typed JSON errors for missing/invalid images and does not call a live auxiliary vision LLM.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing image paths, directories, unsupported schemes, and non-image payloads return redacted vision_analyze_* JSON errors; provider transports that cannot carry multimodal tool-result arrays keep the text summary rather than leaking binary bytes or blocking the tool loop.",
+              "fixture": "internal/tools/vision_analyze_test.go, internal/kernel/toolexec_multimodal_test.go, internal/hermes/codex_responses_multimodal_tool_result_test.go",
+              "source_refs": [
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_supports_media_in_tool_results",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_vision_analyze_native",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_build_native_vision_tool_result",
+                "./hermes-agent/tools/vision_tools.py@3800972dd:_handle_vision_analyze",
+                "./hermes-agent/tests/tools/test_vision_native_fast_path.py@3800972dd",
+                "./hermes-agent/agent/codex_responses_adapter.py@3800972dd:_chat_messages_to_responses_input",
+                "./hermes-agent/tests/run_agent/test_codex_multimodal_tool_result.py@3800972dd",
+                "internal/tools/testdata/upstream_tool_parity_manifest.json:vision_analyze",
+                "internal/hermes/client.go:MessageContentPart",
+                "internal/kernel/toolexec.go:toolResult",
+                "internal/hermes/codex_responses_adapter.go:buildCodexResponsesPayload",
+                "internal/hermes/http_client.go:openAICompatibleMessageContent"
+              ],
+              "ready_when": [
+                "Image input mode router + native content parts is complete, so Gormes already has MessageContentPart vocabulary and provider serializers for user images.",
+                "Vision-unsupported provider retry is complete, so providers that reject image content already have a bounded retry path.",
+                "The worker can use temp image fixtures, fake tool calls, and payload-builder tests only; no live provider, HTTP download, OCR, auxiliary LLM, or Hermes Python runtime is required."
+              ],
+              "not_ready_when": [
+                "The slice calls a live vision provider, adds remote URL downloading, rewrites gateway image-mode routing, or implements auxiliary text analysis instead of the native tool-result path.",
+                "The tool returns raw base64 as ordinary text for vision-capable transports instead of content parts.",
+                "Codex Responses function_call_output.output is forced to a string when the tool result has input_text/input_image parts."
+              ],
+              "blocked_by": [
+                "Image input mode router + native content parts",
+                "Vision-unsupported provider retry (strip-images-and-resend)"
+              ],
+              "acceptance": [
+                "TestVisionAnalyzeNativeLocalFileReturnsMultimodalEnvelope proves a tiny local PNG returns `_multimodal:true`, text plus image_url content parts, and a data:image URL without live provider calls.",
+                "TestVisionAnalyzeNativeRejectsMissingAndUnsupportedSources proves missing files, directories, empty image_url, and unsupported schemes return typed JSON errors with no local path secret expansion.",
+                "TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts proves kernel tool execution parses the multimodal envelope into role=tool ContentParts while preserving a text summary for transcripts and unsupported transports.",
+                "TestCodexResponsesMultimodalToolResultArray proves Codex Responses serializes tool ContentParts as function_call_output.output arrays with input_text/input_image parts and passes string outputs through unchanged.",
+                "TestOpenAICompatibleToolResultContentParts proves OpenAI-compatible chat payloads retain image_url content arrays on role=tool messages with tool_call_id/name metadata.",
+                "cmd/gormes default registry includes vision_analyze in non-slim builds, while slim/lite builds either compile or keep the tool out via existing build-tag stubs."
+              ],
+              "write_scope": [
+                "internal/tools/vision_analyze.go",
+                "internal/tools/vision_analyze_test.go",
+                "internal/kernel/toolexec.go",
+                "internal/kernel/toolexec_multimodal_test.go",
+                "internal/hermes/codex_responses_adapter.go",
+                "internal/hermes/codex_responses_multimodal_tool_result_test.go",
+                "internal/hermes/openai_compatible_role_test.go",
+                "cmd/gormes/registry.go",
+                "cmd/gormes/registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestVisionAnalyze' -count=1",
+                "go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1",
+                "go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1",
+                "go test ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "A model can call vision_analyze on a local image fixture, the next provider request receives native image content parts instead of a stringified JSON blob on supported OpenAI/Codex-compatible transports, and invalid inputs degrade as typed JSON errors without live provider calls."
+              ],
+              "note": "Complete 2026-05-10: TDD added a Go-native vision_analyze tool for local paths and file:// URLs, kernel parsing for Hermes-style `_multimodal` tool-result envelopes, Codex Responses array-shaped function_call_output serialization, OpenAI-compatible tool content-part preservation, and default-registry exposure. Remote URL download and auxiliary LLM text analysis remain out of scope for this native fast-path slice.",
+              "evidence": [
+                "RED: go test ./internal/tools -run 'TestVisionAnalyze' -count=1 failed because NewVisionAnalyzeTool was missing.",
+                "RED: go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1 failed because toolResult had no ContentParts field.",
+                "RED: go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 failed because Codex Responses output was string-only.",
+                "RED: go test ./cmd/gormes -run TestBuildDefaultRegistryDelegationDisabled -count=1 failed because vision_analyze was not registered.",
+                "GREEN: go test ./internal/tools -run 'TestVisionAnalyze' -count=1 passed.",
+                "GREEN: go test ./internal/kernel -run 'TestExecuteToolCalls_MultimodalVisionResultCarriesContentParts' -count=1 passed.",
+                "GREEN: go test ./internal/hermes -run 'TestCodexResponsesMultimodalToolResultArray|TestOpenAICompatibleToolResultContentParts' -count=1 passed.",
+                "GREEN: go test ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
+                "GREEN: go test -tags slim ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
+                "GREEN: go test -tags gormes_lite ./cmd/gormes -run TestDefaultRegistryIncludesVisionAnalyze -count=1 passed.",
+                "FOCUSED: go test ./cmd/gormes ./internal/tools ./internal/kernel ./internal/hermes -count=1 passed."
+              ]
+            },
+            {
               "name": "Image-too-large shrink retry helper",
               "priority": "P2",
               "status": "complete",

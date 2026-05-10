@@ -16,9 +16,10 @@ import (
 // toolResult is the internal per-call output feeding back into the next
 // ChatRequest as a role=tool Message.
 type toolResult struct {
-	ID      string
-	Name    string
-	Content string // JSON string — errors are JSON-encoded {"error":"..."}
+	ID           string
+	Name         string
+	Content      string // JSON string or text fallback — errors are JSON-encoded {"error":"..."}
+	ContentParts []hermes.MessageContentPart
 }
 
 type toolBatchOutcome struct {
@@ -318,7 +319,7 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 			if err == nil {
 				err = errors.New(status)
 			}
-			result := toolResult{ID: call.ID, Name: call.Name, Content: string(payload)}
+			result := newToolResult(call, payload)
 			return indexedToolResult{
 				Index:  index,
 				Result: result,
@@ -338,7 +339,7 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 		if err != nil {
 			status = "failed"
 		}
-		result := toolResult{ID: call.ID, Name: call.Name, Content: string(payload)}
+		result := newToolResult(call, payload)
 		return indexedToolResult{
 			Index:  index,
 			Result: result,
@@ -422,7 +423,7 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 		}
 	}
 
-	result := toolResult{ID: call.ID, Name: call.Name, Content: string(payload)}
+	result := newToolResult(call, payload)
 	return indexedToolResult{
 		Index:  index,
 		Result: result,
@@ -433,6 +434,95 @@ func (k *Kernel) executeOneToolCall(ctx context.Context, index int, call hermes.
 
 func cancelledToolResult(call hermes.ToolCall) toolResult {
 	return toolResult{ID: call.ID, Name: call.Name, Content: toolExecutionCancelledContent}
+}
+
+func newToolResult(call hermes.ToolCall, payload json.RawMessage) toolResult {
+	result := toolResult{ID: call.ID, Name: call.Name, Content: string(payload)}
+	if summary, parts, ok := multimodalToolResult(payload); ok {
+		result.Content = summary
+		result.ContentParts = parts
+	}
+	return result
+}
+
+func multimodalToolResult(payload json.RawMessage) (string, []hermes.MessageContentPart, bool) {
+	var envelope struct {
+		Multimodal  bool              `json:"_multimodal"`
+		TextSummary string            `json:"text_summary"`
+		Content     []json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(payload, &envelope); err != nil || !envelope.Multimodal || len(envelope.Content) == 0 {
+		return "", nil, false
+	}
+	parts := make([]hermes.MessageContentPart, 0, len(envelope.Content))
+	for _, raw := range envelope.Content {
+		part, ok := multimodalContentPart(raw)
+		if ok {
+			parts = append(parts, part)
+		}
+	}
+	if len(parts) == 0 {
+		return "", nil, false
+	}
+	summary := strings.TrimSpace(envelope.TextSummary)
+	if summary == "" {
+		for _, part := range parts {
+			if part.Type == "text" && strings.TrimSpace(part.Text) != "" {
+				summary = strings.TrimSpace(part.Text)
+				break
+			}
+		}
+	}
+	if summary == "" {
+		summary = "Multimodal tool result attached."
+	}
+	return summary, parts, true
+}
+
+func multimodalContentPart(raw json.RawMessage) (hermes.MessageContentPart, bool) {
+	var node map[string]any
+	if err := json.Unmarshal(raw, &node); err != nil {
+		return hermes.MessageContentPart{}, false
+	}
+	partType := strings.ToLower(strings.TrimSpace(asString(node["type"])))
+	switch partType {
+	case "text", "input_text", "output_text":
+		text := asString(node["text"])
+		if strings.TrimSpace(text) == "" {
+			return hermes.MessageContentPart{}, false
+		}
+		return hermes.MessageContentPart{Type: "text", Text: text}, true
+	case "image_url", "input_image", "image":
+		url, detail := imageURLPart(node)
+		if strings.TrimSpace(url) == "" {
+			return hermes.MessageContentPart{}, false
+		}
+		return hermes.MessageContentPart{Type: "image_url", ImageURL: url, Detail: detail}, true
+	default:
+		return hermes.MessageContentPart{}, false
+	}
+}
+
+func imageURLPart(node map[string]any) (string, string) {
+	detail := strings.TrimSpace(asString(node["detail"]))
+	switch image := node["image_url"].(type) {
+	case string:
+		return image, detail
+	case map[string]any:
+		if detail == "" {
+			detail = strings.TrimSpace(asString(image["detail"]))
+		}
+		return asString(image["url"]), detail
+	default:
+		return asString(node["url"]), detail
+	}
+}
+
+func asString(value any) string {
+	if s, ok := value.(string); ok {
+		return s
+	}
+	return ""
 }
 
 func (k *Kernel) recordToolAudit(rec *audit.Record) {

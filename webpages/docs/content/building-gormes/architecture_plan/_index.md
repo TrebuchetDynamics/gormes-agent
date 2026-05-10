@@ -738,6 +738,7 @@ classification and row-backed implementation queue.
 
 - [x] Multimodal in/out
 - [x] Image input mode router + native content parts
+- [x] vision_analyze native multimodal tool-result path
 - [x] Image-too-large shrink retry helper
 - [x] Image generation result contract
 - [x] Image generation provider registry + plugin dispatch

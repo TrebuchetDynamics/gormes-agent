@@ -67,6 +67,7 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	registerAudioTools(reg, cfg)
 	registerImageGenerationTool(reg, cfg)
 	registerVideoAnalyzeTool(reg, cfg)
+	reg.MustRegister(tools.NewVisionAnalyzeTool())
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
 	}))

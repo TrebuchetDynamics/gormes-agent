@@ -55,6 +55,48 @@ func TestOpenAICompatibleSystemRoleKeptForNonDeveloperModels(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleToolResultContentParts(t *testing.T) {
+	body := openAICompatibleRoleRequestBody(t, ChatRequest{
+		Model: "openai/gpt-5.4",
+		Messages: []Message{
+			{
+				Role:       "tool",
+				ToolCallID: "call_vision",
+				Name:       "vision_analyze",
+				Content:    "Image attached natively for the main model.",
+				ContentParts: []MessageContentPart{
+					{Type: "text", Text: "Image loaded."},
+					{Type: "image_url", ImageURL: "data:image/png;base64,AAA", Detail: "high"},
+				},
+			},
+		},
+	})
+	messages := decodedMessages(t, body)
+	if len(messages) != 1 {
+		t.Fatalf("messages len = %d, want 1", len(messages))
+	}
+	msg := messages[0]
+	if msg["role"] != "tool" || msg["tool_call_id"] != "call_vision" || msg["name"] != "vision_analyze" {
+		t.Fatalf("tool metadata = %#v", msg)
+	}
+	content, ok := msg["content"].([]any)
+	if !ok {
+		t.Fatalf("content = %T, want array: %#v", msg["content"], msg["content"])
+	}
+	if len(content) != 2 {
+		t.Fatalf("content len = %d, want 2: %#v", len(content), content)
+	}
+	text := content[0].(map[string]any)
+	if text["type"] != "text" || text["text"] != "Image loaded." {
+		t.Fatalf("text part = %#v", text)
+	}
+	image := content[1].(map[string]any)
+	imageURL, _ := image["image_url"].(map[string]any)
+	if image["type"] != "image_url" || imageURL["url"] != "data:image/png;base64,AAA" || imageURL["detail"] != "high" {
+		t.Fatalf("image part = %#v", image)
+	}
+}
+
 func TestOpenAICompatibleDeveloperRoleOnlySwapsFirstSystemMessage(t *testing.T) {
 	body := openAICompatibleRoleRequestBody(t, ChatRequest{
 		Model: "codex-mini-latest",
