@@ -5,8 +5,6 @@ description: "Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO)"
 ---
 
 
-
-
 # Axolotl
 
 Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO).
@@ -15,19 +13,20 @@ Axolotl: YAML LLM fine-tuning (LoRA, DPO, GRPO).
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/mlops/training/axolotl` |
+| Source | Optional — install with `hermes skills install official/mlops/axolotl` |
+| Path | `optional-skills/mlops/training/axolotl` |
 | Version | `1.0.0` |
 | Author | Orchestra Research |
 | License | MIT |
 | Dependencies | `axolotl`, `torch`, `transformers`, `datasets`, `peft`, `accelerate`, `deepspeed` |
+| Platforms | linux, macos |
 | Tags | `Fine-Tuning`, `Axolotl`, `LLM`, `LoRA`, `QLoRA`, `DPO`, `KTO`, `ORPO`, `GRPO`, `YAML`, `HuggingFace`, `DeepSpeed`, `Multimodal` |
 
 ## Reference: full SKILL.md
 
 > **Info**
+>
 > The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
-
 
 # Axolotl Skill
 
