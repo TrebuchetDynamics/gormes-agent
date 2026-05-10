@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1010,7 +1011,7 @@ func getTask(ctx context.Context, q interface {
 }, id string) (Task, error) {
 	var task Task
 	var status, workspaceKind string
-	var createdAt, startedAt, completedAt, claimExpires, heartbeatAt int64
+	var createdAt, startedAt, completedAt, claimExpires, heartbeatAt safeMillis
 	err := q.QueryRowContext(ctx, `
 SELECT id, title, body, assignee, status, priority, workspace_kind, workspace_path,
 	created_by, created_at, started_at, completed_at, result, claim_lock, claim_expires,
@@ -1030,11 +1031,11 @@ WHERE id = ?`, id).Scan(
 	}
 	task.Status = Status(status)
 	task.WorkspaceKind = WorkspaceKind(workspaceKind)
-	task.CreatedAt = millisToTime(createdAt)
-	task.StartedAt = millisToTime(startedAt)
-	task.CompletedAt = millisToTime(completedAt)
-	task.ClaimExpires = millisToTime(claimExpires)
-	task.HeartbeatAt = millisToTime(heartbeatAt)
+	task.CreatedAt = createdAt.Time()
+	task.StartedAt = startedAt.Time()
+	task.CompletedAt = completedAt.Time()
+	task.ClaimExpires = claimExpires.Time()
+	task.HeartbeatAt = heartbeatAt.Time()
 	return task, nil
 }
 
@@ -1043,7 +1044,7 @@ func scanTask(scanner interface {
 }) (Task, error) {
 	var task Task
 	var status, workspaceKind string
-	var createdAt, startedAt, completedAt, claimExpires, heartbeatAt int64
+	var createdAt, startedAt, completedAt, claimExpires, heartbeatAt safeMillis
 	if err := scanner.Scan(
 		&task.ID, &task.Title, &task.Body, &task.Assignee, &status, &task.Priority,
 		&workspaceKind, &task.WorkspacePath, &task.CreatedBy, &createdAt, &startedAt,
@@ -1054,11 +1055,11 @@ func scanTask(scanner interface {
 	}
 	task.Status = Status(status)
 	task.WorkspaceKind = WorkspaceKind(workspaceKind)
-	task.CreatedAt = millisToTime(createdAt)
-	task.StartedAt = millisToTime(startedAt)
-	task.CompletedAt = millisToTime(completedAt)
-	task.ClaimExpires = millisToTime(claimExpires)
-	task.HeartbeatAt = millisToTime(heartbeatAt)
+	task.CreatedAt = createdAt.Time()
+	task.StartedAt = startedAt.Time()
+	task.CompletedAt = completedAt.Time()
+	task.ClaimExpires = claimExpires.Time()
+	task.HeartbeatAt = heartbeatAt.Time()
 	return task, nil
 }
 
@@ -1394,6 +1395,61 @@ func millisToTime(ms int64) time.Time {
 		return time.Time{}
 	}
 	return time.UnixMilli(ms).UTC()
+}
+
+type safeMillis struct {
+	value int64
+}
+
+func (m *safeMillis) Scan(src any) error {
+	if m == nil {
+		return nil
+	}
+	switch value := src.(type) {
+	case nil:
+		m.value = 0
+	case int64:
+		m.value = value
+	case int:
+		m.value = int64(value)
+	case int32:
+		m.value = int64(value)
+	case int16:
+		m.value = int64(value)
+	case int8:
+		m.value = int64(value)
+	case uint:
+		m.value = int64(value)
+	case uint32:
+		m.value = int64(value)
+	case uint16:
+		m.value = int64(value)
+	case uint8:
+		m.value = int64(value)
+	case []byte:
+		m.value = parseSafeMillisString(string(value))
+	case string:
+		m.value = parseSafeMillisString(value)
+	default:
+		m.value = 0
+	}
+	return nil
+}
+
+func (m safeMillis) Time() time.Time {
+	return millisToTime(m.value)
+}
+
+func parseSafeMillisString(value string) int64 {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return parsed
 }
 
 const kanbanSchema = `

@@ -34840,6 +34840,86 @@
               }
             },
             {
+              "name": "Kanban corrupt timestamp age hardening",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-10T14:38:26Z",
+              "contract": "Gormes ports Hermes' Kanban task-age corruption guard: a task row whose created_at, started_at, completed_at, claim_expires, or heartbeat_at field contains corrupt non-integer SQLite data must not crash board stats, CLI task listing, dashboard Kanban task routes, or dispatcher scans. Corrupt timestamp fields degrade to zero/nil time evidence and oldest-ready age is null when no valid ready timestamp exists.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Corrupt timestamp fields such as '%s', 'abc', empty strings, float-like strings, or NULL values are treated as unavailable for derived ages instead of aborting the whole board/dashboard response. Other task fields and valid timestamp rows remain readable.",
+              "fixture": "internal/kanban/stats_test.go::TestBoardStatsSkipsCorruptReadyTimestamps; internal/kanban/store_test.go::TestKanbanTaskScansCorruptTimestampsAsZero",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban_db.py@061a18300:_safe_int/task_age",
+                "./hermes-agent/plugins/kanban/dashboard/plugin_api.py@061a18300:_task_dict age fallback",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@40a4bfa71:test_task_age_handles_corrupt_created_at",
+                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@40a4bfa71:test_task_dict_survives_corrupt_created_at",
+                "internal/kanban/stats.go:Store.BoardStats",
+                "internal/kanban/store.go:getTask/scanTask"
+              ],
+              "ready_when": [
+                "Kanban durable board core, dashboard task routes, and stats command are complete.",
+                "The slice can write corrupt timestamp fixtures directly into a temp SQLite kanban.db; no live Hermes, dashboard, gateway, or worker process is required.",
+                "The implementation stays inside native Gormes Kanban read paths and does not introduce a migration that mutates operator data."
+              ],
+              "not_ready_when": [
+                "The slice rewrites or deletes corrupt rows instead of degrading read-side behavior.",
+                "The implementation broadens into full dashboard localization, Kanban i18n, release AUTHOR_MAP, or unrelated Kanban worker lifecycle changes.",
+                "A corrupt timestamp in one task still makes list/stats/dashboard reads return a 500-style error."
+              ],
+              "blocked_by": [
+                "Hermes Kanban durable board core",
+                "Kanban stats command and board summary",
+                "Kanban dashboard task run history endpoint"
+              ],
+              "acceptance": [
+                "Store stats fixtures prove corrupt ready-task created_at values are ignored for oldest_ready_age_seconds while valid ready timestamps still compute age from the store clock.",
+                "Task scan fixtures prove ListTasks and GetTask return tasks with zero CreatedAt/StartedAt/CompletedAt/ClaimExpires/HeartbeatAt for corrupt timestamp columns instead of returning scan errors.",
+                "Existing Kanban stats, list, dispatcher, dashboard, and worker lifecycle fixtures remain green.",
+                "Progress evidence records the fresh Hermes 62b1c74cb..40a4bfa71 parity sweep and leaves broad i18n/dashboard localization as separate future planning work."
+              ],
+              "write_scope": [
+                "internal/kanban/stats.go",
+                "internal/kanban/stats_test.go",
+                "internal/kanban/store.go",
+                "internal/kanban/store_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run 'TestBoardStats|TestKanbanTaskScansCorruptTimestampsAsZero' -count=1",
+                "go test ./internal/kanban -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban store fixtures prove corrupt timestamp rows no longer crash stats, list, get, or dispatcher-facing task scans, and valid timestamp age behavior remains unchanged."
+              ],
+              "note": "Complete 2026-05-10: TDD ported Hermes' Kanban safe-int timestamp degradation into native Gormes Kanban read paths. Corrupt task timestamp fields now scan as unavailable zero times for GetTask, ListTasks, and dispatcher-facing ready-task scans; BoardStats skips corrupt ready created_at values, keeps valid oldest-ready age behavior, and returns null age when no valid ready timestamp remains. The parity sweep that planned this row refreshed Hermes from 62b1c74cb to 40a4bfa71 and counted 15 planned/porting/fixture-ready rows, below the 90-row cap, after covering CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows.",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/store.go adds a safe millisecond scanner for task timestamp columns and applies it to getTask/scanTask so corrupt SQLite values degrade to zero time instead of aborting task reads.",
+                  "internal/kanban/stats.go scans ready-task created_at values row-by-row, ignores corrupt or unavailable values for oldest_ready_age_seconds, and preserves valid timestamp age calculation from the store clock."
+                ],
+                "verification": [
+                  "RED: timeout 5m go test ./internal/kanban -run 'TestBoardStatsSkipsCorruptReadyTimestamps|TestKanbanTaskScansCorruptTimestampsAsZero' -count=1 failed on BoardStats MIN(created_at) and GetTask scan errors for corrupt '%s' created_at.",
+                  "GREEN: timeout 5m go test ./internal/kanban -run 'TestBoardStatsSkipsCorruptReadyTimestamps|TestKanbanTaskScansCorruptTimestampsAsZero' -count=1 passed.",
+                  "GREEN: timeout 5m go test ./internal/kanban -run 'TestBoardStats|TestKanbanTaskScansCorruptTimestampsAsZero' -count=1 passed.",
+                  "GREEN: timeout 5m go test ./internal/kanban -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:061a18300 kanban_db.py task_age safe-int + hermes:40a4bfa71 tests/hermes_cli/test_kanban_db.py corrupt timestamp fixtures",
+                "note": "Hermes defines the read-side degradation behavior for corrupt Kanban timestamp fields; Gormes adapts it to typed Go time fields and native SQLite scans."
+              }
+            },
+            {
               "name": "Kanban named-board workspace and log roots",
               "priority": "P2",
               "status": "complete",

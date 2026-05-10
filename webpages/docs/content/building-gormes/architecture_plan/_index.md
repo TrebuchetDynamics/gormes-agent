@@ -907,6 +907,7 @@ classification and row-backed implementation queue.
 - [x] Kanban notify subscription store and CLI
 - [x] Kanban notify delivery engine blocked retention
 - [x] Kanban stats command and board summary
+- [x] Kanban corrupt timestamp age hardening
 - [x] Kanban named-board workspace and log roots
 - [x] Kanban current-board task command routing
 - [x] Kanban task run history command
