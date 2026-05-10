@@ -148,6 +148,16 @@ jobs:
           CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
             go build -trimpath -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${GIT_COMMIT} -X main.GitDirty=${GIT_DIRTY} -X main.BuildDate=${BUILD_DATE}" \
               -o "dist/${target}/${exe}" ./cmd/gormes
+          binary_path="dist/${target}/${exe}"
+          if [ "$GOOS" = "$(go env GOOS)" ] && [ "$GOARCH" = "$(go env GOARCH)" ]; then
+            version_json=$("$binary_path" version --json)
+            printf '%s\n' "$version_json" | grep "\"version\": \"${VERSION}\""
+            printf '%s\n' "$version_json" | grep "\"git_commit\": \"${GIT_COMMIT}\""
+            printf '%s\n' "$version_json" | grep "\"git_dirty\": ${GIT_DIRTY}"
+            printf '%s\n' "$version_json" | grep "\"build_date\": \"${BUILD_DATE}\""
+          else
+            go version -m "$binary_path" >/dev/null
+          fi
           archive="dist/${target}.tar.gz"
           tar -C dist -czf "$archive" "${target}"
           sha256sum "$archive" > "${archive}.sha256"

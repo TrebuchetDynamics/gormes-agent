@@ -55313,7 +55313,9 @@
               "not_ready_when": [
                 "Binary size exceeds 30 MB for any target without an explicit operator-approved exception.",
                 "Termux build is missing or fails CGO-equivalent restrictions.",
-                "Release artifacts are unsigned."
+                "Release artifacts are unsigned.",
+                "The row is assigned as one combined release-pipeline implementation slice instead of a focused child closure.",
+                "No tagged-release run has produced and attached all seven artifacts from the current workflow."
               ],
               "blocked_by": [
                 "Sharp v1.0 differentiator decision"
@@ -55326,7 +55328,7 @@
               ],
               "write_scope": [
                 ".github/workflows/release.yml",
-                "scripts/install.sh",
+                "install.sh",
                 "scripts/install.ps1",
                 "cmd/gormes/version.go",
                 "internal/runtime/version_test.go",
@@ -55340,7 +55342,76 @@
               "done_signal": [
                 "A test tag push produces all seven release artifacts; install.sh and install.ps1 fetch and verify each on a matching host."
               ],
-              "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure. A later 2026-05-09 sweep found the same parent still promised release notes with install size and SHA while the workflow emitted SHA only; the child row `Release notes artifact size table` owns that bounded closure. This 2026-05-09 all-topic sweep found current Hermes runtime parity rows complete or row-backed, but the same release parent still generated SBOM files without proving the current GitHub SBOM-attestation contract. The child row `Release SBOM attestation binding` owns that bounded closure. A later 2026-05-09 sweep found the parent still promised install.ps1 fetches the right asset while the PowerShell installer was source-build only; the child row `Windows install.ps1 release binary fetch selector` owns that bounded closure."
+              "note": "Source: success-plan.md Q3 v1.0 milestone. 2026-05-08 all-topic parity sweep found stale release/operator wording and implementation drift: the contract named Termux android/arm64, but the release workflow, workflow test, and install.sh selector covered only linux/darwin/windows slugs. The child row `Termux android/arm64 release artifact and installer selector` owns that bounded closure before the full release-pipeline row can be completed. 2026-05-09 all-topic parity sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows; planned rows were 26, below the 90-row cap. Existing higher-priority TD blog/writeup rows remain operator-blocked, existing Hermes runtime rows cover or queue the main parity gaps, and the P1 release contract still promised a 30 MB binary without any workflow/test size gate. The child row `Release archive 30 MB size gate` owns that bounded closure. A later 2026-05-09 sweep found the same parent still promised release notes with install size and SHA while the workflow emitted SHA only; the child row `Release notes artifact size table` owns that bounded closure. This 2026-05-09 all-topic sweep found current Hermes runtime parity rows complete or row-backed, but the same release parent still generated SBOM files without proving the current GitHub SBOM-attestation contract. The child row `Release SBOM attestation binding` owns that bounded closure. A later 2026-05-09 sweep found the parent still promised install.ps1 fetches the right asset while the PowerShell installer was source-build only; the child row `Windows install.ps1 release binary fetch selector` owns that bounded closure. 2026-05-10 all-topic sweep refreshed Hermes to 44cdf555a and Honcho to e659b6b, covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows, and found current runtime deltas complete or row-backed. Planned rows were 15, below the 90-row cap; the broad release parent remains non-selectable until an actual tagged release proves all artifacts, but its acceptance still lacked a focused workflow guard that built binaries are metadata-smoked after ldflags injection. The child row `Release binary version/provenance smoke guard` owns that bounded closure."
+            },
+            {
+              "name": "Release binary version/provenance smoke guard",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The release workflow proves each matrix-built archive contains a Go binary with inspectable build metadata, and every host-executable matrix leg runs `gormes version --json` before packaging so the injected semver tag, git commit, dirty bit, and build date are checked from the actual binary output.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Without a binary smoke guard, the workflow can inject ldflags and publish archives while never proving the produced executable reports the tag, commit, dirty bit, and build date that release notes and fleet automation rely on.",
+              "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowSmokeChecksBinaryVersionMetadata",
+              "source_refs": [
+                "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline acceptance TestReleaseBinaryHasVersionMetadata",
+                ".github/workflows/release.yml:Build static binary archive",
+                "cmd/gormes/version.go:versionReportJSON",
+                "cmd/gormes/version_test.go:TestVersionCommand_JSONIncludesBuildDateField",
+                "cmd/gormes/version_vcs_fallback_test.go:resolveGitCommitFrom/resolveBuildDateFrom"
+              ],
+              "ready_when": [
+                "Release build-date provenance injection is complete.",
+                "Release archive 30 MB size gate is complete.",
+                "The release workflow already builds the seven target archives and can use static workflow fixtures; no tag push or live GitHub release is required."
+              ],
+              "not_ready_when": [
+                "The slice publishes a release, pushes a tag, changes version numbers, or requires a live GitHub Actions run.",
+                "The workflow only checks source-code variables and never inspects the built binary.",
+                "The workflow tries to execute cross-compiled Windows, Android, or non-host-architecture binaries instead of using `go version -m` as a cross-target metadata fallback."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleaseWorkflowSmokeChecksBinaryVersionMetadata fails until the build step runs host-compatible binaries with `version --json` and checks `version`, `git_commit`, `git_dirty`, and `build_date` against the release build variables.",
+                "The same build step falls back to `go version -m` for cross-compiled targets so every matrix leg has a binary metadata probe without executing incompatible artifacts.",
+                "The smoke check runs after `go build` and before `tar -C dist -czf`, `sha256sum`, the archive size gate, SBOM generation, attestations, and artifact upload.",
+                "Existing release workflow contract, build-date, size, SBOM, provenance, release-note, and install-script tests remain green."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|InjectsBuildDateProvenance|SmokeChecksBinaryVersionMetadata|EnforcesMaxArchiveSize)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release workflow fixtures prove every matrix binary is inspected after build, host-compatible binaries execute `gormes version --json` with injected release metadata, and cross-target binaries use `go version -m` before archive/checksum/upload."
+              ],
+              "note": "Complete 2026-05-10: added by a bounded all-topic weakness sweep after refreshing Hermes to 44cdf555a and Honcho to e659b6b. Current Hermes runtime deltas for Codex Spark, stream-drop diagnostics, Kanban slash help, vision fast-path, curator review prompts, provider fallback credentials, and CLI chat -q are complete or row-backed. Higher-priority TD publication rows are operator-blocked, and the broad P1 release parent remains non-selectable until a tagged release proves all artifacts. This P1 child was the highest unblocked builder-ready closure because the parent acceptance still promised `gormes version` metadata checks while the release workflow only injected ldflags and packaged archives. TDD added a release workflow fixture for post-build binary metadata smoke checks and updated the archive build step so host-compatible binaries execute `version --json` while cross-target binaries use `go version -m` before packaging.",
+              "completed_at": "2026-05-10T12:28:28Z",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/release.yml: Build static binary archive now inspects the built binary after `go build` and before archive creation.",
+                  "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowSmokeChecksBinaryVersionMetadata pins host `version --json` metadata checks and cross-target `go version -m` fallback ordering."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run TestReleaseWorkflowSmokeChecksBinaryVersionMetadata -count=1 failed until the workflow inspected built binaries.",
+                  "GREEN: go test ./webpages/docs/install -run TestReleaseWorkflowSmokeChecksBinaryVersionMetadata -count=1 passed after adding the smoke guard.",
+                  "GREEN: go test ./webpages/docs/install -run 'TestReleaseWorkflow(Contract|InjectsBuildDateProvenance|SmokeChecksBinaryVersionMetadata|EnforcesMaxArchiveSize)' -count=1 passed."
+                ]
+              }
             },
             {
               "name": "CI and installer Go toolchain floor sync",

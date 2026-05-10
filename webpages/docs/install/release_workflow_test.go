@@ -104,6 +104,40 @@ func TestReleaseWorkflowInjectsBuildDateProvenance(t *testing.T) {
 	)
 }
 
+func TestReleaseWorkflowSmokeChecksBinaryVersionMetadata(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	buildStep := workflowStepBlock(t, workflow, "- name: Build static binary archive")
+
+	wantAll := []string{
+		"binary_path=\"dist/${target}/${exe}\"",
+		"if [ \"$GOOS\" = \"$(go env GOOS)\" ] && [ \"$GOARCH\" = \"$(go env GOARCH)\" ]; then",
+		"version_json=$(\"$binary_path\" version --json)",
+		"grep \"\\\"version\\\": \\\"${VERSION}\\\"\"",
+		"grep \"\\\"git_commit\\\": \\\"${GIT_COMMIT}\\\"\"",
+		"grep \"\\\"git_dirty\\\": ${GIT_DIRTY}\"",
+		"grep \"\\\"build_date\\\": \\\"${BUILD_DATE}\\\"\"",
+		"go version -m \"$binary_path\"",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(buildStep, want) {
+			t.Errorf("Build static binary archive step missing %q", want)
+		}
+	}
+
+	assertWorkflowOrder(t, buildStep,
+		"go build -trimpath",
+		"version_json=$(\"$binary_path\" version --json)",
+	)
+	assertWorkflowOrder(t, buildStep,
+		"go version -m \"$binary_path\"",
+		"tar -C dist -czf \"$archive\"",
+	)
+	assertWorkflowOrder(t, buildStep,
+		"version_json=$(\"$binary_path\" version --json)",
+		"tar -C dist -czf \"$archive\"",
+	)
+}
+
 func TestReleaseWorkflowGeneratesSBOMsWithoutPublishingFromMatrix(t *testing.T) {
 	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
 	sbomStep := workflowStepBlock(t, workflow, "- name: Generate SBOM")

@@ -1329,6 +1329,7 @@ classification and row-backed implementation queue.
 
 - [x] Sharp v1.0 differentiator decision
 - [ ] Single-binary cross-platform release pipeline
+- [x] Release binary version/provenance smoke guard
 - [x] CI and installer Go toolchain floor sync
 - [x] Release prep guide target matrix sync
 - [x] Windows install.ps1 release binary fetch selector
