@@ -192,7 +192,13 @@ func TestTranscriptionGroqProviderAvailable(t *testing.T) {
 }
 
 func TestTranscriptionGroqProviderTranscribe(t *testing.T) {
-	t.Run("transcribes successfully", func(t *testing.T) {
+	t.Run("transcribes successfully (response_format=text returns raw text body)", func(t *testing.T) {
+		// Live regression 2026-05-10: provider was sending
+		// response_format=text but trying to JSON-decode the response,
+		// producing "invalid character 'T' looking for beginning of value"
+		// the moment a real transcript started with a non-{ character.
+		// Pin the actual Groq contract: when we ask for text, the body
+		// is the raw transcript, not JSON.
 		var reqBody map[string]any
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if err := r.ParseMultipartForm(1024 * 1024); err != nil {
@@ -203,8 +209,11 @@ func TestTranscriptionGroqProviderTranscribe(t *testing.T) {
 				"model":           r.FormValue("model"),
 				"response_format": r.FormValue("response_format"),
 			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"text": "Groq transcript"})
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			// Real Groq behavior under response_format=text: raw transcript,
+			// no JSON envelope. Leading 'T' specifically reproduces the
+			// production failure that gave us "invalid character 'T'".
+			_, _ = w.Write([]byte("Testing the voice path end to end.\n"))
 		}))
 		defer server.Close()
 
@@ -224,14 +233,17 @@ func TestTranscriptionGroqProviderTranscribe(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if result.Transcript != "Groq transcript" {
-			t.Fatalf("expected transcript 'Groq transcript', got %q", result.Transcript)
+		if result.Transcript != "Testing the voice path end to end." {
+			t.Fatalf("expected raw text transcript, got %q", result.Transcript)
 		}
 		if result.Provider != "groq" {
 			t.Fatalf("expected provider 'groq', got %q", result.Provider)
 		}
 		if reqBody["model"] != "whisper-large-v3-turbo" {
 			t.Fatalf("expected model whisper-large-v3-turbo, got: %v", reqBody["model"])
+		}
+		if reqBody["response_format"] != "text" {
+			t.Fatalf("expected response_format=text (raw body contract), got: %v", reqBody["response_format"])
 		}
 	})
 
