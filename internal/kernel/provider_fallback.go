@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
@@ -34,6 +35,7 @@ func (k *Kernel) activateFallback(ctx context.Context, request *hermes.ChatReque
 			k.addSoul("fallback_config_invalid: incomplete fallback route")
 			continue
 		}
+		route = route.ResolveFallbackCredential(os.Getenv)
 		client, err := k.cfg.FallbackClientFactory(ctx, route)
 		if err != nil || client == nil {
 			if err == nil {

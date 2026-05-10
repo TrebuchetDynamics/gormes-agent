@@ -661,6 +661,7 @@ classification and row-backed implementation queue.
 
 - [x] Resilient provider chain dispatch
 - [x] Hermes fallback activation + classifier carve-outs
+- [x] Fallback entry api_key_env credential alias
 
 ### 4.L — Safety-Anchored Turn Loop (MOSAIC) ✅
 

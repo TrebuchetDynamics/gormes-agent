@@ -20883,6 +20883,87 @@
                 "upstream_ref": "hermes:b816fd4e2 tests/run_agent/test_provider_fallback.py + test_fallback_model.py + test_jsondecodeerror_retryable.py + test_compressor_fallback_update.py",
                 "note": "The existing complete row proves generic chain dispatch. This row tracks the current Hermes agent-loop semantics still absent from that broad fallback slice. The 2026-05-06 all-topic parity sweep re-ran the row tests and marked the stale planned row complete."
               }
+            },
+            {
+              "name": "Fallback entry api_key_env credential alias",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes preserves Hermes' current fallback-entry credential alias behavior: fallback_model/fallback_providers entries may carry key_env or api_key_env, the selected environment variable is resolved only at fallback activation, unset variables become an absent explicit API key rather than an empty string, and explicit base_url/api_key metadata travels with the fallback route without leaking credentials in operator evidence.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "Missing or unset credential env vars leave the fallback route selectable but pass no explicit API key to the fallback client factory; provider setup may then use its normal defaults or report credential_unavailable without logging secret values.",
+              "fixture": "internal/hermes/fallback_activation_test.go; internal/kernel/provider_fallback_test.go",
+              "source_refs": [
+                "./hermes-agent/run_agent.py@6ddc48b05:1665-1676 init-time fallback key_env/api_key_env resolution",
+                "./hermes-agent/run_agent.py@6ddc48b05:8121-8130 runtime _try_activate_fallback key_env/api_key_env resolution",
+                "./hermes-agent/tests/run_agent/test_fallback_model.py@6ddc48b05:TestFallbackKeyEnvResolution",
+                "internal/hermes/model_routing.go:NormalizeFallbackModelConfig",
+                "internal/kernel/provider_fallback.go:activateFallback"
+              ],
+              "ready_when": [
+                "Hermes fallback activation + classifier carve-outs is complete and already passes provider/model fallback routes to a fallback client factory.",
+                "The refreshed Hermes source shows key_env and api_key_env are active documented aliases for fallback entries.",
+                "The slice can be proven with env-scoped unit tests and fake clients only."
+              ],
+              "not_ready_when": [
+                "The implementation reads live provider credentials, ~/.hermes, ~/.gormes, or real operator config.",
+                "The implementation logs or stores resolved plaintext fallback API keys in progress evidence, config rewrites, soul events, or command output.",
+                "The slice wires broad provider fallback activation into every CLI/gateway path instead of preserving the route metadata contract."
+              ],
+              "blocked_by": [
+                "Hermes fallback activation + classifier carve-outs"
+              ],
+              "unblocks": [
+                "Provider-tool-memory golden transcript suite",
+                "Release readiness e2e gate"
+              ],
+              "acceptance": [
+                "NormalizeFallbackModelConfig preserves base_url, api_key, key_env, and api_key_env metadata on valid fallback routes while still dropping incomplete routes.",
+                "A fallback route with api_key_env resolves the environment variable to ExplicitAPIKey for the fallback client factory.",
+                "A fallback route with key_env still resolves correctly and takes precedence over api_key_env when both aliases are present.",
+                "Unset key_env/api_key_env values produce an empty ExplicitAPIKey instead of an empty-string credential override.",
+                "Kernel fallback activation evidence remains provider/model-only and does not print resolved API keys."
+              ],
+              "write_scope": [
+                "internal/hermes/model_routing.go",
+                "internal/hermes/fallback_activation_test.go",
+                "internal/kernel/provider_fallback.go",
+                "internal/kernel/provider_fallback_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestFallbackConfig.*KeyEnv|TestFallbackConfigNormalizes' -count=1",
+                "go test ./internal/kernel -run 'TestFallbackActivation.*Credential|TestFallbackActivationAfterEmptyResponses' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Fallback config and kernel fixtures prove key_env/api_key_env route credential metadata is preserved, resolved at activation, and redacted from operator-visible evidence."
+              ],
+              "note": "Complete 2026-05-10: added by a bounded all-topic weakness sweep after refreshing Hermes to 998676dd0. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Latest HEAD is a Kanban test-comment-only change; recent CLI config-comment, curator, generic-timeout, image-routing, and release/public deltas are already complete or row-backed. Planned rows were 21, below the 90-row cap, so adding one source-backed P1 provider/auth row was allowed. This was the smallest unblocked stale-complete revisit: Hermes 6ddc48b05 fixed fallback entry api_key_env/key_env resolution, while Gormes fallback routes still carried only provider/model. RED: the focused hermes/kernel tests failed to compile because ModelRoute had no fallback credential metadata fields. GREEN: ModelRoute now preserves base_url, api_mode, inline api_key, key_env, and api_key_env; ResolveFallbackCredential resolves inline, key_env, then api_key_env without lowercasing env names or secrets; kernel fallback activation resolves the credential immediately before calling the fallback client factory and keeps soul evidence provider/model-only.",
+              "implementation_evidence": [
+                "internal/hermes/model_routing.go: ModelRoute carries fallback BaseURL/APIMode/ExplicitAPIKey/KeyEnv/APIKeyEnv metadata, NormalizeFallbackModelConfig preserves those fields, and ResolveFallbackCredential resolves aliases with trim-only secret/env handling.",
+                "internal/kernel/provider_fallback.go: activateFallback resolves fallback route credentials through os.Getenv immediately before invoking the fallback client factory.",
+                "internal/hermes/fallback_activation_test.go: TestFallbackConfigPreservesCredentialAliases and TestFallbackRouteResolveCredentialAliases cover api_key_env, key_env precedence, inline api_key precedence, and unset-env degradation.",
+                "internal/kernel/provider_fallback_test.go: TestFallbackActivationResolvesCredentialAlias proves the factory sees resolved ExplicitAPIKey/BaseURL and soul evidence does not leak the secret."
+              ],
+              "validation_evidence": [
+                "RED: go test ./internal/hermes -run 'TestFallbackConfig.*KeyEnv|TestFallbackConfigNormalizes' -count=1 failed because ModelRoute had no BaseURL/APIKeyEnv/KeyEnv/ExplicitAPIKey/APIMode fields.",
+                "RED: go test ./internal/kernel -run 'TestFallbackActivation.*Credential|TestFallbackActivationAfterEmptyResponses' -count=1 failed because captured fallback routes had no BaseURL/ExplicitAPIKey fields.",
+                "GREEN: go test ./internal/hermes -run 'TestFallbackConfig.*KeyEnv|TestFallbackConfigNormalizes' -count=1 passed.",
+                "GREEN: go test ./internal/kernel -run 'TestFallbackActivation.*Credential|TestFallbackActivationAfterEmptyResponses' -count=1 passed.",
+                "GREEN: go test ./internal/hermes ./internal/kernel -count=1 passed."
+              ],
+              "provenance": {
+                "origin_type": "upstream_reconciliation",
+                "upstream_ref": "hermes:6ddc48b05 fix(fallback): resolve api_key_env in fallback chain entries",
+                "note": "Current Hermes preserves both fallback credential env aliases in the agent loop. Gormes should port the route metadata and activation-time redacted resolution without expanding into live provider/auth wiring."
+              }
             }
           ]
         },
