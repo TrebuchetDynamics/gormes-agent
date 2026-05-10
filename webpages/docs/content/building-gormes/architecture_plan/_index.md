@@ -87,14 +87,14 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 87/100 subphases shipped · 10 in progress · 3 planned
+**Overall:** 84/100 subphases shipped · 13 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | ✅ | 21/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
-| Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
+| Phase 4 — The Brain Transplant | 🔨 | 11/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
@@ -136,7 +136,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -273,7 +273,7 @@ classification and row-backed implementation queue.
 - [x] Discord SessionSource guild/parent/message evidence
 - [x] Discord forum media + polish parity
 
-### 2.B.12 — Channel-Neutral Native Runtime Adapter ✅
+### 2.B.12 — Channel-Neutral Native Runtime Adapter 🔨
 
 - [x] Channel-neutral native runtime turn adapter
 - [x] Hermes gateway platform registry manifest
@@ -282,6 +282,7 @@ classification and row-backed implementation queue.
 - [x] Navivox QR pairing descriptor CLI
 - [x] Navivox Flutter voice morph surface
 - [x] Multimodal photo attachment passthrough
+- [ ] Hermes-style default prompt and image-path hints for inbound photos
 
 ### 2.C — Thin Mapping Persistence ✅
 
@@ -503,11 +504,11 @@ classification and row-backed implementation queue.
 - [x] Goncho Honcho SDK compatibility e2e harness
 - [x] Goncho memory integration into normal agent turn
 
-## Phase 4 — The Brain Transplant ✅
+## Phase 4 — The Brain Transplant 🔨
 
 *Native Go agent orchestrator + prompt builder*
 
-### 4.A — Provider Adapters ✅
+### 4.A — Provider Adapters 🔨
 
 - [x] Provider interface + stream fixture harness
 - [x] Hermes provider registry and alias manifest
@@ -546,6 +547,7 @@ classification and row-backed implementation queue.
 - [x] OpenAI-compatible developer-role API-boundary swap
 - [x] xAI Grok provider adapter
 - [x] LM Studio provider adapter
+- [ ] Vision-unsupported provider retry (strip-images-and-resend)
 
 ### 4.B — Context Engine + Compression ✅
 
@@ -580,7 +582,7 @@ classification and row-backed implementation queue.
 - [x] Native full prompt assembly
 - [x] Ephemeral prefill messages file injection
 
-### 4.D — Smart Model Routing ✅
+### 4.D — Smart Model Routing 🔨
 
 - [x] Model metadata registry + context limits
 - [x] Provider-enforced context-length resolver
@@ -591,6 +593,7 @@ classification and row-backed implementation queue.
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
 - [x] Provider-default model resolution at config load
+- [ ] Image input mode resolver + vision_analyze text fallback
 
 ### 4.E — Trajectory + Insights ✅
 
@@ -880,6 +883,7 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
 - [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [x] Kanban chat board DB pin
 - [x] Kanban schema migration duplicate-column race guard
 - [x] Kanban notify subscription store and CLI
 - [x] Kanban stats command and board summary
