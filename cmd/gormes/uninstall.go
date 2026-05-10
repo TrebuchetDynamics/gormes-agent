@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -58,13 +59,14 @@ type uninstallOptions struct {
 // `groups` lists what would be / was removed by category, so scripts
 // can branch on missing categories without scraping bracketed prose.
 type uninstallReportJSON struct {
-	Build   buildProvenanceJSON  `json:"build"`
-	Action  string               `json:"action"`
-	DryRun  bool                 `json:"dry_run"`
-	Total   int                  `json:"total"`
-	Removed int                  `json:"removed,omitempty"`
-	Failed  int                  `json:"failed,omitempty"`
-	Groups  []uninstallGroupJSON `json:"groups"`
+	Build       buildProvenanceJSON  `json:"build"`
+	Action      string               `json:"action"`
+	DryRun      bool                 `json:"dry_run"`
+	RemovalMode string               `json:"removal_mode,omitempty"`
+	Total       int                  `json:"total"`
+	Removed     int                  `json:"removed,omitempty"`
+	Failed      int                  `json:"failed,omitempty"`
+	Groups      []uninstallGroupJSON `json:"groups"`
 }
 
 type uninstallGroupJSON struct {
@@ -127,11 +129,13 @@ func printDryRunJSON(out io.Writer, groups []artifactGroup) error {
 
 func executeUninstallJSON(out, errOut io.Writer, groups []artifactGroup) error {
 	var removed, failed int
+	mover := pickArtifactMover()
 	report := uninstallReportJSON{
-		Build:  newBuildProvenance(),
-		Action: "uninstalled",
-		DryRun: false,
-		Groups: make([]uninstallGroupJSON, 0, len(groups)),
+		Build:       newBuildProvenance(),
+		Action:      "uninstalled",
+		DryRun:      false,
+		RemovalMode: mover.label,
+		Groups:      make([]uninstallGroupJSON, 0, len(groups)),
 	}
 	for _, g := range groups {
 		if len(g.Paths) == 0 {
@@ -143,7 +147,7 @@ func executeUninstallJSON(out, errOut io.Writer, groups []artifactGroup) error {
 		})
 		for _, p := range g.Paths {
 			clean := strings.TrimSuffix(p, "/")
-			if err := os.RemoveAll(clean); err != nil {
+			if err := mover.move(clean); err != nil {
 				fmt.Fprintf(errOut, "warning: could not remove %s: %v\n", clean, err)
 				failed++
 				continue
@@ -351,11 +355,15 @@ func printDryRun(out io.Writer, groups []artifactGroup) error {
 
 func executeUninstall(out, errOut io.Writer, groups []artifactGroup) error {
 	var removed, failed int
+	mover := pickArtifactMover()
+	if mover.label != "" {
+		fmt.Fprintf(out, "removal mode: %s\n", mover.label)
+	}
 	for _, g := range groups {
 		fmt.Fprintf(out, "removing [%s]...\n", g.Name)
 		for _, p := range g.Paths {
 			clean := strings.TrimSuffix(p, "/")
-			if err := os.RemoveAll(clean); err != nil {
+			if err := mover.move(clean); err != nil {
 				fmt.Fprintf(errOut, "warning: could not remove %s: %v\n", clean, err)
 				failed++
 				continue
@@ -377,4 +385,40 @@ func executeUninstall(out, errOut io.Writer, groups []artifactGroup) error {
 		return newExitCodeError(2, fmt.Errorf("uninstall: %d artifact(s) could not be removed (see warnings on stderr)", failed))
 	}
 	return nil
+}
+
+// artifactMover encapsulates how an uninstall removes a path. The default
+// resolves to `gio trash` when available so artifacts move to the
+// freedesktop trash and stay recoverable; permanent deletion via
+// os.RemoveAll is the fallback for hosts that lack gio (containers, BSD,
+// macOS without gvfs, etc.). Live regression 2026-05-10 made the
+// recoverable default urgent: a sandbox uninstall accidentally targeting
+// the operator's real ~/.gormes wiped .env (provider keys), memory.db
+// (Goncho conversation history), and config.toml — recoverable from a
+// May-2 trash backup only because the uninstall on that earlier date had
+// used a trash-aware path. Today's permanent-delete behavior would have
+// destroyed everything outright. Operators who want guaranteed permanent
+// deletion can opt in via GORMES_UNINSTALL_FORCE_PURGE=1.
+type artifactMover struct {
+	label string
+	move  func(string) error
+}
+
+func pickArtifactMover() artifactMover {
+	if force := strings.TrimSpace(os.Getenv("GORMES_UNINSTALL_FORCE_PURGE")); force == "1" || strings.EqualFold(force, "true") {
+		return artifactMover{
+			label: "permanent delete (GORMES_UNINSTALL_FORCE_PURGE=1)",
+			move:  os.RemoveAll,
+		}
+	}
+	if gio, err := exec.LookPath("gio"); err == nil && gio != "" {
+		return artifactMover{
+			label: "move to freedesktop trash via gio (recoverable from your file manager's trash)",
+			move:  func(p string) error { return exec.Command(gio, "trash", "--", p).Run() },
+		}
+	}
+	return artifactMover{
+		label: "permanent delete (gio not available; install glib2-tools for recoverable trash)",
+		move:  os.RemoveAll,
+	}
 }
