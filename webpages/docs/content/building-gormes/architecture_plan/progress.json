@@ -17717,6 +17717,101 @@
               }
             },
             {
+              "name": "OpenAI Codex Spark catalog and context parity",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:44cdf555a hermes_cli/codex_models.py + agent/model_metadata.py",
+                "note": "Planner sweep 2026-05-10 refreshed Hermes from e5af1dd63 to 44cdf555a and covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. No fresh source delta appeared outside provider/model catalog parity. Planned rows were 19, below the 90-row cap, so this one P1 row records the new source-backed Spark drift instead of adding lower-priority backlog."
+              },
+              "contract": "Gormes mirrors Hermes OpenAI Codex model catalog behavior for `gpt-5.3-codex-spark`: curated Codex fallbacks include Spark, local Codex model-cache selection keeps Codex CLI-only entries even when `supported_in_api` is false, model picker suggestions expose Spark for `openai-codex`, and provider-aware context resolution reports Spark's 128k Codex OAuth window instead of substring-matching `gpt-5.3-codex` to 272k.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "provider",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If Spark is absent from the operator's local Codex cache or account entitlement, Gormes still lists it only as a curated/offline Codex candidate and leaves runtime provider rejection to the existing provider error path; no live Codex API call or entitlement probe is introduced.",
+              "fixture": "internal/hermes/provider_default_model_test.go; internal/hermes/model_catalog_test.go; internal/hermes/model_context_resolver_test.go; internal/hermes/model_registry_test.go",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/codex_models.py@44cdf555a:DEFAULT_CODEX_MODELS",
+                "./hermes-agent/hermes_cli/codex_models.py@44cdf555a:_read_cache_models",
+                "./hermes-agent/hermes_cli/codex_models.py@44cdf555a:_add_forward_compat_models",
+                "./hermes-agent/agent/model_metadata.py@44cdf555a:DEFAULT_CONTEXT_LENGTHS",
+                "./hermes-agent/agent/model_metadata.py@44cdf555a:_CODEX_OAUTH_CONTEXT_FALLBACK",
+                "./hermes-agent/tests/hermes_cli/test_codex_models.py@44cdf555a:test_get_codex_model_ids_prioritizes_default_and_cache",
+                "./hermes-agent/tests/hermes_cli/test_codex_models.py@44cdf555a:test_fetch_from_api_keeps_supported_in_api_false_models",
+                "./hermes-agent/tests/hermes_cli/test_openai_codex_model_validation_fallback.py@44cdf555a",
+                "internal/hermes/provider_default_model.go",
+                "internal/hermes/model_context_resolver.go",
+                "internal/hermes/model_catalog.go",
+                "internal/hermes/model_registry.go"
+              ],
+              "ready_when": [
+                "Provider-default model resolution at config load is complete and already owns offline Codex config/cache/fallback order.",
+                "Model catalog cache + preferred-provider live merge is complete and already owns model picker suggestion fixtures.",
+                "Provider-enforced context-length resolver is complete and already owns provider-cap precedence."
+              ],
+              "not_ready_when": [
+                "The slice calls the live chatgpt.com Codex model API, device-code auth, or any real operator CODEX_HOME.",
+                "The slice adds Spark to the public OpenAI provider catalog instead of only the OpenAI Codex OAuth provider.",
+                "The slice changes generic provider routing, fallback dispatch, or provider error classification."
+              ],
+              "blocked_by": [
+                "Provider-default model resolution at config load",
+                "Model catalog cache + preferred-provider live merge",
+                "Provider-enforced context-length resolver"
+              ],
+              "acceptance": [
+                "OpenAI Codex curated fallback order includes `gpt-5.3-codex-spark` after `gpt-5.3-codex` and before `gpt-5.2-codex`, matching Hermes 44cdf555a.",
+                "Codex local cache fixtures do not filter `gpt-5.3-codex-spark` when `supported_in_api` is false, but still filter hidden entries.",
+                "`ProviderModelCatalogSuggestions(\"openai-codex\", nil)` includes Spark while the public `openai` provider suggestions do not.",
+                "OpenAI Codex context resolution for `gpt-5.3-codex-spark` returns 128000 from provider caps, while `gpt-5.3-codex` remains 272000.",
+                "Model registry lookup reports Spark as an `openai-codex` model with explicit unknown pricing and known capability flags."
+              ],
+              "write_scope": [
+                "internal/hermes/provider_default_model.go",
+                "internal/hermes/provider_default_model_test.go",
+                "internal/hermes/model_catalog.go",
+                "internal/hermes/model_catalog_test.go",
+                "internal/hermes/model_context_resolver.go",
+                "internal/hermes/model_context_resolver_test.go",
+                "internal/hermes/model_registry.go",
+                "internal/hermes/model_registry_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/hermes -run 'TestProviderDefaultModel_OpenAICodexKeepsCLIOnlyCacheModel|TestOpenAICodexModelCatalogSuggestions|TestResolveDisplayContextLengthCodexSpark|TestModelRegistryExposesOpenAICodexSpark' -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Internal Hermes fixtures prove Spark is visible only through OpenAI Codex catalog paths, local cache handling preserves CLI-only models, and context budgeting uses Spark's 128k Codex OAuth cap without live credentials."
+              ],
+              "completed_at": "2026-05-10T06:42:49Z",
+              "note": "Complete 2026-05-10: TDD ported the Hermes 44cdf555a OpenAI Codex Spark catalog drift into Gormes. `gpt-5.3-codex-spark` is now present in the OpenAI Codex curated fallback and model picker suggestions, remains absent from public OpenAI suggestions, local Codex cache selection preserves visible `supported_in_api=false` CLI-only entries while still filtering hidden entries, provider-aware context resolution returns Spark's exact 128k Codex OAuth cap before the broader `gpt-5.3-codex` 272k match, and the static model registry exposes Spark with unknown pricing plus known capability flags. No live Codex API, device-code auth, generic routing, fallback dispatch, or provider error classification changed.",
+              "evidence": {
+                "implementation": [
+                  "internal/hermes/provider_default_model.go adds Spark to the OpenAI Codex fallback order and stops treating `supported_in_api=false` as unavailable for the Codex OAuth cache.",
+                  "internal/hermes/model_catalog.go exposes Spark through `ProviderModelCatalogSuggestions(\"openai-codex\", nil)` without adding it to public OpenAI suggestions.",
+                  "internal/hermes/model_context_resolver.go adds an exact OpenAI Codex Spark 128000-token provider cap.",
+                  "internal/hermes/model_registry.go adds a static OpenAI Codex Spark metadata fixture with unknown pricing and known capability flags."
+                ],
+                "tests": [
+                  "internal/hermes/provider_default_model_test.go covers visible CLI-only Codex cache entries and preserves hidden-entry filtering.",
+                  "internal/hermes/model_catalog_test.go covers OpenAI Codex suggestion ordering and public OpenAI exclusion.",
+                  "internal/hermes/model_context_resolver_test.go covers Spark 128k and gpt-5.3-codex 272k provider caps.",
+                  "internal/hermes/model_registry_test.go covers static Spark metadata lookup."
+                ],
+                "verification": [
+                  "go test ./internal/hermes -run 'TestProviderDefaultModel_OpenAICodexKeepsCLIOnlyCacheModel|TestProviderDefaultModel_OpenAICodexUsesLocalCachePriority|TestOpenAICodexModelCatalogSuggestions|TestResolveDisplayContextLengthCodexSpark|TestModelRegistryExposesOpenAICodexSpark' -count=1 -> pass",
+                  "go test ./internal/hermes -count=1 -> pass"
+                ]
+              }
+            },
+            {
               "name": "Image input mode resolver + vision_analyze text fallback",
               "priority": "P1",
               "status": "complete",

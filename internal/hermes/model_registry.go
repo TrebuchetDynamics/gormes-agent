@@ -452,4 +452,22 @@ var defaultModelRegistry = NewStaticModelRegistry(ModelRegistrySnapshot{
 			ModelCapabilityUnsupported,
 		),
 	},
+	{
+		Provider:         "openai-codex",
+		Model:            "gpt-5.3-codex-spark",
+		ProviderFamily:   "openai",
+		ModelFamily:      "gpt-5.3-codex",
+		RawContextWindow: 128_000,
+		MaxOutputTokens:  32_000,
+		Pricing:          unknownModelPricing(),
+		Capabilities: knownModelCapabilities(
+			ModelCapabilitySupported,
+			ModelCapabilitySupported,
+			ModelCapabilitySupported,
+			ModelCapabilityUnsupported,
+			ModelCapabilityUnsupported,
+			ModelCapabilitySupported,
+			ModelCapabilityUnsupported,
+		),
+	},
 })

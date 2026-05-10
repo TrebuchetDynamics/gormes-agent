@@ -23,8 +23,8 @@ func TestProviderDefaultModel_OpenAICodexUsesLocalCachePriority(t *testing.T) {
 	cache := `{
   "models": [
     {"slug": "hidden-model", "priority": 0, "visibility": "hidden"},
-    {"slug": "unsupported-model", "priority": 1, "supported_in_api": false},
     {"slug": "account-visible-model", "priority": 2},
+    {"slug": "cli-only-visible-model", "priority": 7, "supported_in_api": false},
     {"slug": "later-visible-model", "priority": 7}
   ]
 }`
@@ -35,6 +35,25 @@ func TestProviderDefaultModel_OpenAICodexUsesLocalCachePriority(t *testing.T) {
 	got := ResolveProviderDefaultModel("openai-codex", ProviderDefaultModelOptions{CodexHome: codexHome})
 	if got.Model != "account-visible-model" || got.Source != ProviderDefaultModelSourceCodexCache {
 		t.Fatalf("ResolveProviderDefaultModel = %#v, want first visible cache model", got)
+	}
+}
+
+func TestProviderDefaultModel_OpenAICodexKeepsCLIOnlyCacheModel(t *testing.T) {
+	codexHome := t.TempDir()
+	cache := `{
+  "models": [
+    {"slug": "gpt-5-hidden-codex", "priority": 0, "visibility": "hidden"},
+    {"slug": "gpt-5.3-codex-spark", "priority": 1, "supported_in_api": false},
+    {"slug": "gpt-5.4", "priority": 2, "supported_in_api": true}
+  ]
+}`
+	if err := os.WriteFile(filepath.Join(codexHome, "models_cache.json"), []byte(cache), 0o600); err != nil {
+		t.Fatalf("write codex cache: %v", err)
+	}
+
+	got := ResolveProviderDefaultModel("openai-codex", ProviderDefaultModelOptions{CodexHome: codexHome})
+	if got.Model != "gpt-5.3-codex-spark" || got.Source != ProviderDefaultModelSourceCodexCache {
+		t.Fatalf("ResolveProviderDefaultModel = %#v, want CLI-only Spark cache model", got)
 	}
 }
 

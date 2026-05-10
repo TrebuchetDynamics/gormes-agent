@@ -594,6 +594,7 @@ classification and row-backed implementation queue.
 - [x] Per-turn model selection
 - [x] Per-turn reasoning effort propagation
 - [x] Provider-default model resolution at config load
+- [x] OpenAI Codex Spark catalog and context parity
 - [x] Image input mode resolver + vision_analyze text fallback
 
 ### 4.E — Trajectory + Insights ✅
