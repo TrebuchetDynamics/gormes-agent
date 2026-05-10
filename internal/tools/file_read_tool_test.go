@@ -336,6 +336,88 @@ func TestPatchToolFuzzyReplaceUnicodeAmbiguousRequiresReplaceAll(t *testing.T) {
 	assertFileContent(t, path, "print(\"world\")\nprint(\"world\")\n")
 }
 
+func TestPatchToolFuzzyReplaceBlockAnchorHighSimilarity(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "def combine():\n    x = 1\n    y = 2\n    return x + y\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, "def combine():\n    x = 1\n    y = 9\n    return x + y") + `,"new_string":` + quoteJSON(t, "def combine():\n    return 0") + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one block-anchor replacement", out)
+	}
+	assertFileContent(t, path, "def combine():\n    return 0\n")
+}
+
+func TestPatchToolFuzzyReplaceBlockAnchorLowSimilarityNoMutation(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "class Worker:\n    completely = 'unrelated'\n    content = 'here'\n    nothing = 'in common'\n    pass\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	args := `{"path":"pkg/service.py","old_string":` + quoteJSON(t, "class Worker:\n    x = 1\n    y = 2\n    z = 3\n    pass") + `,"new_string":"replaced"}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if !strings.Contains(asString(out["error"]), "old_string not found") {
+		t.Fatalf("patch result = %#v, want old_string not found", out)
+	}
+	assertFileContent(t, path, original)
+}
+
+func TestPatchToolFuzzyReplaceBlockAnchorAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := strings.Join([]string{
+		"section:",
+		"  alpha = 1",
+		"  beta = 2",
+		"done",
+		"",
+		"section:",
+		"  alpha = 1",
+		"  beta = 2",
+		"done",
+		"",
+	}, "\n")
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	oldString := "section:\n  alpha = 1\n  beta = 3\ndone"
+	newString := "section:\n  patched = true\ndone"
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous block-anchor match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	args = `{"path":"notes.txt","old_string":` + quoteJSON(t, oldString) + `,"new_string":` + quoteJSON(t, newString) + `,"replace_all":true}`
+	out = executePatchTool(t, NewPatchTool(cfg), args)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two block-anchor replacements", out)
+	}
+	assertFileContent(t, path, "section:\n  patched = true\ndone\n\nsection:\n  patched = true\ndone\n")
+}
+
 func TestPatchToolReplaceNoMatchIncludesDidYouMeanHint(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "pkg", "service.go")

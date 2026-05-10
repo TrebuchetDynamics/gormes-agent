@@ -691,6 +691,7 @@ func fuzzyPatchReplace(content, oldString, newString string, replaceAll bool) (s
 		escapeNormalizedPatchMatches,
 		trimmedBoundaryPatchMatches,
 		unicodeNormalizedPatchMatches,
+		blockAnchorPatchMatches,
 	}
 	for _, strategy := range strategies {
 		matches := uniquePatchMatches(strategy(content, oldString))
@@ -839,6 +840,84 @@ func patchUnicodeReplacement(r rune) string {
 	default:
 		return ""
 	}
+}
+
+func blockAnchorPatchMatches(content, pattern string) []patchTextMatch {
+	contentLines := strings.Split(content, "\n")
+	normalizedContent := normalizePatchUnicode(content).normalized
+	normalizedPattern := normalizePatchUnicode(pattern).normalized
+	normalizedContentLines := strings.Split(normalizedContent, "\n")
+	patternLines := strings.Split(strings.ReplaceAll(normalizedPattern, "\r\n", "\n"), "\n")
+	if len(patternLines) < 2 || len(patternLines) > len(normalizedContentLines) {
+		return nil
+	}
+
+	firstLine := strings.TrimSpace(patternLines[0])
+	lastLine := strings.TrimSpace(patternLines[len(patternLines)-1])
+	var candidates []int
+	for i := 0; i <= len(normalizedContentLines)-len(patternLines); i++ {
+		if strings.TrimSpace(normalizedContentLines[i]) == firstLine &&
+			strings.TrimSpace(normalizedContentLines[i+len(patternLines)-1]) == lastLine {
+			candidates = append(candidates, i)
+		}
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	threshold := 0.70
+	if len(candidates) == 1 {
+		threshold = 0.50
+	}
+	matches := make([]patchTextMatch, 0, len(candidates))
+	for _, startLine := range candidates {
+		similarity := 1.0
+		if len(patternLines) > 2 {
+			contentMiddle := strings.Join(normalizedContentLines[startLine+1:startLine+len(patternLines)-1], "\n")
+			patternMiddle := strings.Join(patternLines[1:len(patternLines)-1], "\n")
+			similarity = patchSequenceSimilarity(contentMiddle, patternMiddle)
+		}
+		if similarity < threshold {
+			continue
+		}
+		start, end := patchLineRange(contentLines, startLine, len(patternLines))
+		matches = append(matches, patchTextMatch{start: start, end: end})
+	}
+	return matches
+}
+
+func patchSequenceSimilarity(a, b string) float64 {
+	if a == b {
+		return 1
+	}
+	ar := []rune(a)
+	br := []rune(b)
+	if len(ar) == 0 && len(br) == 0 {
+		return 1
+	}
+	if len(ar) == 0 || len(br) == 0 {
+		return 0
+	}
+	prev := make([]int, len(br)+1)
+	cur := make([]int, len(br)+1)
+	for i := 1; i <= len(ar); i++ {
+		for j := 1; j <= len(br); j++ {
+			if ar[i-1] == br[j-1] {
+				cur[j] = prev[j-1] + 1
+				continue
+			}
+			if prev[j] >= cur[j-1] {
+				cur[j] = prev[j]
+			} else {
+				cur[j] = cur[j-1]
+			}
+		}
+		prev, cur = cur, prev
+		for j := range cur {
+			cur[j] = 0
+		}
+	}
+	return float64(2*prev[len(br)]) / float64(len(ar)+len(br))
 }
 
 func lineBlockPatchMatches(content, pattern string, normalize func(line string, index int, count int) string) []patchTextMatch {

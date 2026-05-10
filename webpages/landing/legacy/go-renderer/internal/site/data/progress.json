@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "last_updated": "2026-05-09T13:51:42Z",
+    "last_updated": "2026-05-10T11:29:30Z",
     "links": {
       "github_readme": "https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md",
       "landing_page": "https://gormes.ai",
@@ -31079,7 +31079,7 @@
                 "../hermes-agent/tools/file_tools.py",
                 "../hermes-agent/tools/patch_parser.py"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. 2026-05-09 sweep against Hermes dae94fa65 found the remaining small ready lint gap: Hermes also runs `_lint_python_inproc` through the same lint-delta path for `.py` writes/patches, while Gormes still omitted lint evidence for Python files; child row `Python syntax lint delta for native write/patch tools` is now complete. 2026-05-10 all-topic sweep against Hermes fef1a4124 found the next small ready lint gap: Hermes falls back to shell linters for `.js`, `.ts`, `.go`, and `.rs` post-edit checks, while Gormes still stopped at in-process lint evidence; child row `Shell lint delta for native write/patch tools` is now complete. 2026-05-10 sweep against Hermes 44cdf555a found the next small ready patch UX gap: Hermes surfaces nearby-section hints for replace-mode `old_string` misses, while Gormes returned a bare error; child row `Patch replace no-match did-you-mean hint` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' replace mode applies core fuzzy line/whitespace/indentation/escape strategies, while Gormes still required an exact `old_string`; child row `Core fuzzy replace strategies for native patch tool` is now complete. 2026-05-10 all-topic sweep against Hermes 44cdf555a found the next small ready unicode patch gap: Hermes normalizes smart quotes, apostrophes, en/em dashes, ellipses, and non-breaking spaces before fuzzy replace matching; child row `Unicode-normalized fuzzy replace for native patch tool` is now complete. The umbrella remains planned because block-anchor/context-aware fuzzy replacement, checkpoint rollback linkage, and full file_operations.py parity remain row-backed.",
+              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. 2026-05-09 sweep against Hermes dae94fa65 found the remaining small ready lint gap: Hermes also runs `_lint_python_inproc` through the same lint-delta path for `.py` writes/patches, while Gormes still omitted lint evidence for Python files; child row `Python syntax lint delta for native write/patch tools` is now complete. 2026-05-10 all-topic sweep against Hermes fef1a4124 found the next small ready lint gap: Hermes falls back to shell linters for `.js`, `.ts`, `.go`, and `.rs` post-edit checks, while Gormes still stopped at in-process lint evidence; child row `Shell lint delta for native write/patch tools` is now complete. 2026-05-10 sweep against Hermes 44cdf555a found the next small ready patch UX gap: Hermes surfaces nearby-section hints for replace-mode `old_string` misses, while Gormes returned a bare error; child row `Patch replace no-match did-you-mean hint` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' replace mode applies core fuzzy line/whitespace/indentation/escape strategies, while Gormes still required an exact `old_string`; child row `Core fuzzy replace strategies for native patch tool` is now complete. 2026-05-10 all-topic sweep against Hermes 44cdf555a found the next small ready unicode patch gap: Hermes normalizes smart quotes, apostrophes, en/em dashes, ellipses, and non-breaking spaces before fuzzy replace matching; child row `Unicode-normalized fuzzy replace for native patch tool` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' block-anchor strategy matches same first/last lines with a similarity threshold over the middle; child row `Block-anchor fuzzy replace for native patch tool` is now complete. The umbrella remains planned because context-aware fuzzy replacement, checkpoint rollback linkage, and full file_operations.py parity remain row-backed.",
               "priority": "P2"
             },
             {
@@ -32580,12 +32580,101 @@
                   "GREEN: go test ./internal/tools -count=1 passed."
                 ]
               }
+            },
+            {
+              "name": "Block-anchor fuzzy replace for native patch tool",
+              "priority": "P1",
+              "status": "complete",
+              "contract": "Gormes native `patch` replace mode mirrors Hermes' block-anchor fuzzy replacement strategy after exact, core fuzzy, and unicode-normalized strategies fail: same first and last lines anchor a candidate block, normalized middle content must meet Hermes' 0.50 threshold for a single candidate or 0.70 threshold for multiple candidates, and replacements apply only to original byte positions. The slice is limited to replace-mode matching and preserves exact/core/unicode precedence, replace_all ambiguity rules, read-before-edit file-state checks, lint evidence, binary/path guards, V4A patch behavior, and no-match hints.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "If block-anchor matching does not find a unique safe candidate, the existing bounded no-match hint remains visible. Ambiguous block-anchor matches without `replace_all=true`, stale file-state failures, binary files, unreadable files, V4A validation failures, and low-similarity middle sections return typed errors without mutating files.",
+              "fixture": "internal/tools/file_read_tool_test.go::TestPatchToolFuzzyReplaceBlockAnchor",
+              "source_refs": [
+                "./hermes-agent/tools/fuzzy_match.py@44cdf555a:_strategy_block_anchor",
+                "./hermes-agent/tools/fuzzy_match.py@44cdf555a:fuzzy_find_and_replace strategy order",
+                "./hermes-agent/tests/tools/test_fuzzy_match.py@44cdf555a:TestBlockAnchorThreshold",
+                "internal/tools/file_task_tools.go:fuzzyPatchReplace",
+                "internal/tools/file_read_tool_test.go:TestPatchToolFuzzyReplaceUnicodeSmartQuotes"
+              ],
+              "ready_when": [
+                "Unicode-normalized fuzzy replace for native patch tool is complete, so replace-mode matching already has exact, core fuzzy, unicode, and ambiguity semantics to extend.",
+                "The slice can be tested with t.TempDir fixtures and the public PatchTool JSON payload; no live Hermes process, provider, terminal execution, checkpoint rollback, external fuzzy-match library, or locale-sensitive filesystem behavior is required.",
+                "The row is scoped to block-anchor replace-mode matching only; context-aware approximate matching, escape-drift guards, checkpoint rollback linkage, and full file_operations.py parity remain separate follow-ups under the Atomic checkpoints umbrella."
+              ],
+              "not_ready_when": [
+                "The implementation applies context-aware approximate replacements that can mutate unrelated blocks.",
+                "The slice lowers Hermes' block-anchor thresholds or treats matching first/last lines with unrelated middle content as safe.",
+                "The slice bypasses the existing read-before-edit file-state guard, binary/path guards, no-match hints, lint evidence, V4A behavior, or replace_all ambiguity behavior."
+              ],
+              "blocked_by": [
+                "Unicode-normalized fuzzy replace for native patch tool"
+              ],
+              "unblocks": [
+                "Context-aware fuzzy replace for native patch tool"
+              ],
+              "acceptance": [
+                "TestPatchToolFuzzyReplaceBlockAnchorHighSimilarity proves a pattern with the same first/last lines and a small middle-line drift replaces the original block through the public PatchTool payload.",
+                "TestPatchToolFuzzyReplaceBlockAnchorLowSimilarityNoMutation proves matching first/last lines with unrelated middle content does not replace and leaves the file unchanged.",
+                "TestPatchToolFuzzyReplaceBlockAnchorAmbiguousRequiresReplaceAll proves duplicate anchored matches fail without `replace_all=true` and update all matching blocks when the flag is true.",
+                "Existing exact, core fuzzy, unicode, patch no-match, V4A, stale-state, lint, and search_files fixtures remain green."
+              ],
+              "write_scope": [
+                "internal/tools/file_task_tools.go",
+                "internal/tools/file_read_tool_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestPatchToolFuzzyReplaceBlockAnchor|TestPatchToolFuzzyReplaceUnicode|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1",
+                "go test ./internal/tools -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Patch replace fixtures prove Hermes-style block-anchor matching applies only threshold-qualified unique or replace_all-approved matches while low-similarity, no-match, ambiguous, stale, V4A, and lint paths stay stable."
+              ],
+              "note": "Complete 2026-05-10: added and shipped by a bounded all-topic weakness sweep after refreshing Hermes to 44cdf555a and Honcho to e659b6b. The sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Current planned item rows were 15, below the 90-row cap. Fresh Hermes Codex Spark, stream-drop diagnostics, Kanban slash help, vision native results, user-story docs, release trust, browser, install/runtime, and Goncho deltas are complete or row-backed; higher-priority P1 publication/release parents remain operator-blocked or too broad. TDD added Hermes-style block-anchor replace-mode matching after unicode-normalized matching: first/last lines anchor candidates, middle similarity must meet 0.50 for a single candidate or 0.70 for multiple candidates, and replacements apply only to original byte positions while exact/core/unicode/no-match/stale/V4A/lint behavior stays stable.",
+              "completed_at": "2026-05-10T11:32:47Z",
+              "health": {
+                "attempt_count": 1,
+                "last_attempt": "2026-05-10T00:00:00Z",
+                "last_success": "2026-05-10T00:00:00Z"
+              },
+              "evidence": {
+                "implementation": [
+                  "internal/tools/file_task_tools.go adds blockAnchorPatchMatches after unicodeNormalizedPatchMatches in the replace-mode strategy chain.",
+                  "internal/tools/file_task_tools.go compares normalized first/last line anchors, applies Hermes' 0.50 single-candidate and 0.70 multi-candidate middle-similarity thresholds, and maps replacements back through original line byte ranges.",
+                  "internal/tools/file_read_tool_test.go adds public PatchTool fixtures for high-similarity anchored replacement, low-similarity no-mutation, and ambiguous replace_all behavior."
+                ],
+                "tests": [
+                  "internal/tools/file_read_tool_test.go:TestPatchToolFuzzyReplaceBlockAnchorHighSimilarity",
+                  "internal/tools/file_read_tool_test.go:TestPatchToolFuzzyReplaceBlockAnchorLowSimilarityNoMutation",
+                  "internal/tools/file_read_tool_test.go:TestPatchToolFuzzyReplaceBlockAnchorAmbiguousRequiresReplaceAll"
+                ],
+                "verification": [
+                  "RED: go test ./internal/tools -run 'TestPatchToolFuzzyReplaceBlockAnchor' -count=1 failed with old_string not found for high-similarity and ambiguous anchored cases.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolFuzzyReplaceBlockAnchor' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -run 'TestPatchToolFuzzyReplaceBlockAnchor|TestPatchToolFuzzyReplaceUnicode|TestPatchToolFuzzyReplace|TestPatchToolReplaceNoMatch|TestWriteFileAndPatchTools|TestPatchToolV4A|TestPatchRejectsStaleAfterExternalChange' -count=1 passed.",
+                  "GREEN: go test ./internal/tools -count=1 passed."
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:44cdf555a tools/fuzzy_match.py block_anchor strategy + tests/tools/test_fuzzy_match.py",
+                "note": "Hermes uses block-anchor fuzzy replacement to recover model-authored edits where first and last lines remain stable but middle content has minor drift. Gormes should preserve that recovery behavior before broader context-aware matching."
+              }
             }
           ],
           "drift_state": {
             "status": "porting",
             "last_upstream_check": "2026-05-10T00:00:00Z",
-            "origin_decision": "Hermes 44cdf555a plus recent file-operation rows show the remaining File Ops + Patches weaknesses are block-anchor/context-aware fuzzy replacement, checkpoint rollback linkage, and full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, and unicode-normalized replace strategies validated. The 2026-05-10 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Unicode-normalized fuzzy replace for native patch tool` as the next small builder-ready runtime slice."
+            "origin_decision": "Hermes 44cdf555a plus recent file-operation rows show the remaining File Ops + Patches weaknesses are context-aware fuzzy replacement, checkpoint rollback linkage, and full file_operations.py parity. Gormes has native file task tools, read guards, terminal.cwd, file-state staleness, V4A add/update/delete/move, terminal deleted-cwd recovery, search_files drift, structured JSON/YAML/TOML lint-delta evidence, Python syntax lint-delta evidence, shell-linter lint-delta evidence, replace-mode no-match did-you-mean hints, core fuzzy replace strategies, unicode-normalized replace strategies, and block-anchor fuzzy replace validated. The 2026-05-10 all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator rows. Planned item rows were 15 before adding the row, below the 90 cap; higher-priority P1 rows remained operator-blocked or broad, so the sweep selected and completed `Block-anchor fuzzy replace for native patch tool` as the next small builder-ready runtime slice."
           }
         },
         "5.M": {
