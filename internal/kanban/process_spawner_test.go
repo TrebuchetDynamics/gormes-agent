@@ -31,6 +31,14 @@ func TestKanbanProcessSpawnerBuildsNativeWorkerCommandAndRotatesLogs(t *testing.
 		MaxLogBytes: 4,
 		Starter:     starter,
 		Now:         func() time.Time { return now },
+		BinaryLookPath: func(string) (string, error) {
+			t.Fatal("BinaryLookPath should not be called for explicit Binary")
+			return "", nil
+		},
+		ExecutablePath: func() (string, error) {
+			t.Fatal("ExecutablePath should not be called for explicit Binary")
+			return "", nil
+		},
 	}
 
 	result, err := spawner.SpawnKanbanWorker(ctx, SpawnRequest{
@@ -128,6 +136,95 @@ func TestKanbanProcessSpawnerNamedBoardLogRoot(t *testing.T) {
 	}
 	if _, err := os.Stat(want); err != nil {
 		t.Fatalf("log path missing: %v", err)
+	}
+}
+
+func TestKanbanProcessSpawnerDefaultBinaryPrefersPathShim(t *testing.T) {
+	ctx := context.Background()
+	workspace := t.TempDir()
+	now := time.Date(2026, 5, 10, 18, 0, 0, 0, time.UTC)
+	starter := &recordingProcessStarter{
+		result: ProcessStartResult{PID: 6161, StartedAt: now},
+	}
+	spawner := ProcessSpawner{
+		LogRoot: filepath.Join(t.TempDir(), "logs"),
+		Starter: starter,
+		Now:     func() time.Time { return now },
+		BinaryLookPath: func(name string) (string, error) {
+			if name != "gormes" {
+				t.Fatalf("BinaryLookPath name = %q, want gormes", name)
+			}
+			return "/usr/local/bin/gormes", nil
+		},
+		ExecutablePath: func() (string, error) {
+			t.Fatal("ExecutablePath should not be called when gormes is on PATH")
+			return "", nil
+		},
+	}
+
+	_, err := spawner.SpawnKanbanWorker(ctx, SpawnRequest{
+		Task: Task{
+			ID:       "t_path",
+			Title:    "PATH shim wins",
+			Assignee: "coder",
+		},
+		WorkspacePath: workspace,
+		Env: map[string]string{
+			"GORMES_KANBAN_DB": filepath.Join(t.TempDir(), "kanban.db"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("SpawnKanbanWorker() error = %v", err)
+	}
+	if len(starter.requests) != 1 {
+		t.Fatalf("starter requests = %d, want 1", len(starter.requests))
+	}
+	if got := starter.requests[0].Binary; got != "/usr/local/bin/gormes" {
+		t.Fatalf("Binary = %q, want PATH shim", got)
+	}
+}
+
+func TestKanbanProcessSpawnerDefaultBinaryFallsBackToCurrentExecutable(t *testing.T) {
+	ctx := context.Background()
+	workspace := t.TempDir()
+	now := time.Date(2026, 5, 10, 18, 30, 0, 0, time.UTC)
+	starter := &recordingProcessStarter{
+		result: ProcessStartResult{PID: 7171, StartedAt: now},
+	}
+	spawner := ProcessSpawner{
+		LogRoot: filepath.Join(t.TempDir(), "logs"),
+		Starter: starter,
+		Now:     func() time.Time { return now },
+		BinaryLookPath: func(name string) (string, error) {
+			if name != "gormes" {
+				t.Fatalf("BinaryLookPath name = %q, want gormes", name)
+			}
+			return "", os.ErrNotExist
+		},
+		ExecutablePath: func() (string, error) {
+			return "/opt/gormes/current/gormes", nil
+		},
+	}
+
+	_, err := spawner.SpawnKanbanWorker(ctx, SpawnRequest{
+		Task: Task{
+			ID:       "t_fallback",
+			Title:    "Current executable fallback",
+			Assignee: "coder",
+		},
+		WorkspacePath: workspace,
+		Env: map[string]string{
+			"GORMES_KANBAN_DB": filepath.Join(t.TempDir(), "kanban.db"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("SpawnKanbanWorker() error = %v", err)
+	}
+	if len(starter.requests) != 1 {
+		t.Fatalf("starter requests = %d, want 1", len(starter.requests))
+	}
+	if got := starter.requests[0].Binary; got != "/opt/gormes/current/gormes" {
+		t.Fatalf("Binary = %q, want current executable fallback", got)
 	}
 }
 
