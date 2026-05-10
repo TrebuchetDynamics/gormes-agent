@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +32,13 @@ var supportedBenchmarkPlatforms = []string{
 }
 
 const benchmarkGoVersionFloor = "1.26+"
+
+const (
+	benchmarkPreWASICommit              = "2e54a1a60"
+	benchmarkPreWASISizeBytes     int64 = 29311138
+	benchmarkPostHTTPSTTCommit          = "d42a77042"
+	benchmarkPostHTTPSTTSizeBytes       = 44261163
+)
 
 var benchmarkMirrorPaths = []string{
 	filepath.Join("docs", "data", "benchmarks.json"),
@@ -101,6 +109,7 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 
 	code := countCodeMetrics(opts.Root)
 	bench["code"] = code
+	updateSTTBenchmarkBinaryMetadata(bench, info.Size())
 
 	properties, _ := bench["properties"].(map[string]any)
 	if properties == nil {
@@ -147,6 +156,46 @@ func RecordBenchmark(opts BenchmarkOptions) error {
 		}
 	}
 	return nil
+}
+
+func updateSTTBenchmarkBinaryMetadata(bench map[string]any, currentSizeBytes int64) {
+	if currentSizeBytes <= 0 {
+		return
+	}
+	stt, _ := bench["stt"].(map[string]any)
+	if stt == nil {
+		stt = map[string]any{}
+	}
+	wasi, _ := stt["wasi_whisper"].(map[string]any)
+	if wasi == nil {
+		wasi = map[string]any{}
+	}
+	wasi["current_binary_size_bytes"] = currentSizeBytes
+	wasi["current_binary_size_mb"] = benchmarkMegabytes(currentSizeBytes)
+	wasi["binary_size_delta_mb_vs_pre_wasi_baseline"] = benchmarkMegabytes(currentSizeBytes - benchmarkPreWASISizeBytes)
+	wasi["pre_wasi_baseline"] = map[string]any{
+		"commit":     benchmarkPreWASICommit,
+		"size_bytes": benchmarkPreWASISizeBytes,
+		"size_mb":    benchmarkMegabytes(benchmarkPreWASISizeBytes),
+	}
+	wasi["post_http_stt_baseline"] = map[string]any{
+		"commit":     benchmarkPostHTTPSTTCommit,
+		"size_bytes": benchmarkPostHTTPSTTSizeBytes,
+		"size_mb":    benchmarkMegabytes(benchmarkPostHTTPSTTSizeBytes),
+	}
+	if _, ok := wasi["status"]; !ok {
+		if models, _ := wasi["models"].([]any); len(models) > 0 {
+			wasi["status"] = "measured"
+		} else {
+			wasi["status"] = "pending_measurement"
+		}
+	}
+	stt["wasi_whisper"] = wasi
+	bench["stt"] = stt
+}
+
+func benchmarkMegabytes(sizeBytes int64) float64 {
+	return math.Round(float64(sizeBytes)/104857.6) / 10
 }
 
 func gitCommit(root string) (string, error) {

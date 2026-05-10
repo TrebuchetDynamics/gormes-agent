@@ -768,7 +768,7 @@ classification and row-backed implementation queue.
 - [x] Wire Pure-Go Whisper into Telegram resolver
 - [x] WASI Whisper ffmpeg preprocess + fixed-window chunker
 - [x] Audio preprocessing and chunking pipeline
-- [ ] Whisper benchmark harness + perf budget
+- [x] Whisper benchmark harness + perf budget
 - [ ] Go-native audio decoding (ffmpeg replacement)
 - [ ] Pure-Go TTS path scoping
 

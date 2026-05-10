@@ -335,6 +335,78 @@ func TestRecordBenchmarkCopiesBenchmarksToPublicMirrors(t *testing.T) {
 	}
 }
 
+func TestRecordBenchmarkSTTBinaryDelta(t *testing.T) {
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin", "gormes")
+	if err := os.MkdirAll(filepath.Dir(bin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bin, make([]byte, 45*1024*1024), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "benchmarks.json"), []byte(`{
+  "binary": {},
+  "stt": {
+    "wasi_whisper": {
+      "last_measured": "2026-05-10",
+      "models": [
+        {"name": "ggml-tiny.en", "realtime_factor": 0.92}
+      ]
+    }
+  },
+  "history": []
+}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := RecordBenchmark(BenchmarkOptions{
+		Root:      root,
+		Binary:    bin,
+		Now:       func() time.Time { return time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC) },
+		GitCommit: func(string) (string, error) { return "stt123", nil },
+	})
+	if err != nil {
+		t.Fatalf("RecordBenchmark: %v", err)
+	}
+
+	var got struct {
+		STT struct {
+			WASIWhisper struct {
+				CurrentBinarySizeBytes int64   `json:"current_binary_size_bytes"`
+				DeltaMB                float64 `json:"binary_size_delta_mb_vs_pre_wasi_baseline"`
+				PreWASIBaseline        struct {
+					Commit    string  `json:"commit"`
+					SizeBytes int64   `json:"size_bytes"`
+					SizeMB    float64 `json:"size_mb"`
+				} `json:"pre_wasi_baseline"`
+				Models []struct {
+					Name           string  `json:"name"`
+					RealtimeFactor float64 `json:"realtime_factor"`
+				} `json:"models"`
+			} `json:"wasi_whisper"`
+		} `json:"stt"`
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "benchmarks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("benchmarks.json is invalid JSON: %v\n%s", err, raw)
+	}
+	if got.STT.WASIWhisper.CurrentBinarySizeBytes != 45*1024*1024 {
+		t.Fatalf("current_binary_size_bytes = %d", got.STT.WASIWhisper.CurrentBinarySizeBytes)
+	}
+	if got.STT.WASIWhisper.PreWASIBaseline.Commit != "2e54a1a60" || got.STT.WASIWhisper.PreWASIBaseline.SizeBytes != 29311138 {
+		t.Fatalf("pre_wasi_baseline = %+v", got.STT.WASIWhisper.PreWASIBaseline)
+	}
+	if got.STT.WASIWhisper.DeltaMB <= 16 || got.STT.WASIWhisper.DeltaMB >= 18 {
+		t.Fatalf("binary_size_delta_mb_vs_pre_wasi_baseline = %.2f, want about 17.0", got.STT.WASIWhisper.DeltaMB)
+	}
+	if len(got.STT.WASIWhisper.Models) != 1 || got.STT.WASIWhisper.Models[0].Name != "ggml-tiny.en" || got.STT.WASIWhisper.Models[0].RealtimeFactor != 0.92 {
+		t.Fatalf("models were not preserved: %+v", got.STT.WASIWhisper.Models)
+	}
+}
+
 func TestRecordBenchmarkNormalizesSupportedPlatformMatrix(t *testing.T) {
 	root := t.TempDir()
 	bin := filepath.Join(root, "bin", "gormes")
