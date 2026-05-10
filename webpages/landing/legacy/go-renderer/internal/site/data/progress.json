@@ -34575,6 +34575,100 @@
               }
             },
             {
+              "name": "Kanban task event tail command",
+              "priority": "P2",
+              "status": "complete",
+              "contract": "Gormes ports Hermes `kanban tail <task-id> [--interval seconds]` as a read-only native operator command: it follows the selected Gormes board's task event stream, prints existing and newly observed task_events as `[timestamp] kind payload`, clamps the poll interval to Hermes' 100ms minimum, exits cleanly on cancellation, and never starts workers, reads Hermes home state, or tails worker log files.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "child-agent",
+                "system"
+              ],
+              "degraded_mode": "Missing boards or unreadable event stores return bounded CLI/store errors before entering the follow loop; cancellation exits without mutating task state, worker logs, board state, or Hermes-owned paths.",
+              "fixture": "cmd/gormes/kanban_tail_test.go::TestKanbanTailCommand*",
+              "source_refs": [
+                "./hermes-agent/hermes_cli/kanban.py@44cdf555a:p_tail parser",
+                "./hermes-agent/hermes_cli/kanban.py@44cdf555a:_cmd_tail",
+                "./hermes-agent/hermes_cli/kanban_db.py@44cdf555a:list_events",
+                "internal/kanban/store.go:ListEvents",
+                "cmd/gormes/kanban.go:newKanbanCommand",
+                "cmd/gormes/hermes_cli_parity.go:hermesKanbanCommands"
+              ],
+              "ready_when": [
+                "Kanban named-board workspace/log roots, global --board routing, task event storage, stats, notify delivery, GC, and worker log read rows are complete.",
+                "The slice can use temp GORMES_HOME/GORMES_KANBAN_HOME roots, seeded task events, and context cancellation only; no dispatcher, worker subprocess, gateway, Hermes Python runtime, or wall-clock long run is required.",
+                "The command stays read-only and updates only CLI, manifest, registry, and progress evidence for the implemented event follower."
+              ],
+              "not_ready_when": [
+                "The implementation starts workers, dispatchers, gateway notification delivery, `kanban watch`, or worker-log streaming in the same row.",
+                "The command reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, Hermes profiles, or another board's task_events as live state.",
+                "Tests require real subprocesses, network services, unbounded sleeps, or live Hermes Python execution."
+              ],
+              "blocked_by": [
+                "Kanban named-board workspace and log roots",
+                "Kanban global --board task command override",
+                "Kanban worker log read command"
+              ],
+              "acceptance": [
+                "TestKanbanTailCommandStreamsTaskEventsUntilContextCancel proves `gormes kanban tail <task-id> --interval 0` prints the Hermes-shaped header, existing task event lines, clamps to the 100ms poll minimum, and exits when the command context is canceled.",
+                "TestKanbanTailCommandPrintsNewEvents proves events appended after the command starts are emitted once in increasing event-id order without mutating task state.",
+                "Hermes CLI parity and command-registry fixtures mark `kanban tail` implemented while `kanban watch` remains row-backed residual work."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes 44cdf555a and Honcho e659b6b. Planned rows were 16, below the 90-row cap, so one source-backed P2 child row was allowed. Existing P1 publication/release rows remain operator- or infra-blocked, and current provider/auth/gateway/browser/session surfaces are complete or row-backed. TDD ported Hermes `kanban tail` as a selected-board task event follower separate from worker-log `kanban log` and live-board `watch` behavior.",
+              "write_scope": [
+                "cmd/gormes/kanban.go",
+                "cmd/gormes/kanban_tail_test.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "cmd/gormes/hermes_cli_parity_test.go",
+                "internal/cli/command_registry.go",
+                "internal/cli/command_registry_policy_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestKanbanTailCommand|TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals' -count=1",
+                "go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1",
+                "go test ./cmd/gormes -run TestKanbanCommand -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban tail fixtures prove selected-board task-event following, Hermes-shaped output, interval clamping, cancellation, and parity manifest/command registry implementation evidence without live Hermes, gateway, dispatcher, worker subprocesses, or worker-log streaming."
+              ],
+              "completed_at": "2026-05-10T09:49:04Z",
+              "evidence": {
+                "implementation": [
+                  "cmd/gormes/kanban.go registers `gormes kanban tail <task-id> --interval seconds` and follows native selected-board task_events with Hermes-shaped header and event lines.",
+                  "The tail loop clamps sub-100ms intervals, tracks the last emitted event id to avoid duplicates, and exits cleanly when the command context is canceled.",
+                  "cmd/gormes/hermes_cli_parity.go and internal/cli/command_registry.go mark `kanban tail` implemented while `kanban watch` remains row-backed residual work."
+                ],
+                "tests": [
+                  "cmd/gormes/kanban_tail_test.go:TestKanbanTailCommandStreamsTaskEventsUntilContextCancel",
+                  "cmd/gormes/kanban_tail_test.go:TestKanbanTailCommandPrintsNewEvents",
+                  "cmd/gormes/kanban_tail_test.go:TestKanbanTailCommandClampsFastIntervals",
+                  "cmd/gormes/hermes_cli_parity_test.go:TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals",
+                  "internal/cli/command_registry_policy_test.go:TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands"
+                ],
+                "red_green": [
+                  "RED: go test ./cmd/gormes -run '^TestKanbanTailCommand|TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals' -count=1 failed because `gormes kanban tail` was unknown and the manifest still classified `kanban tail` as row-backed.",
+                  "RED: go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1 failed because `/kanban` subcommands omitted `tail`.",
+                  "GREEN: focused tail, manifest, registry, and Kanban command selectors passed after adding the read-only event follower."
+                ],
+                "verification": [
+                  "go test ./cmd/gormes -run '^TestKanbanTailCommand|TestHermesCLIParityManifestClassifiesKanbanCoreAndResiduals' -count=1 -> ok",
+                  "go test ./internal/cli -run TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands -count=1 -> ok",
+                  "go test ./cmd/gormes -run TestKanbanCommand -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:44cdf555a hermes_cli/kanban.py p_tail parser + _cmd_tail",
+                "note": "Hermes defines the operator event follower; Gormes adapts it to native task_events over the selected Gormes board and keeps live board watch behavior row-backed."
+              }
+            },
+            {
               "name": "Kanban worker heartbeat, reclaim, and zombie detection",
               "priority": "P1",
               "status": "complete",

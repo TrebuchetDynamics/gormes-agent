@@ -127,7 +127,7 @@ func TestCommandRegistryKanbanRecognizedUntilSlashHandlerLands(t *testing.T) {
 	if !cmd.Ported {
 		t.Fatal("/kanban Ported = false, want true now that slash handler lands")
 	}
-	want := []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link", "log"}
+	want := []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link", "log", "tail"}
 	if len(cmd.Subcommands) != len(want) {
 		t.Fatalf("/kanban Subcommands = %v, want %v", cmd.Subcommands, want)
 	}

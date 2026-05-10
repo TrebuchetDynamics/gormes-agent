@@ -131,7 +131,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "history", Description: "Show conversation history", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "image", Description: "Attach a local image file for your next prompt", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "insights", Description: "Show usage insights and analytics", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
-	{Name: "kanban", Description: "Manage the durable multi-agent task board", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link", "log"}},
+	{Name: "kanban", Description: "Manage the durable multi-agent task board", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"init", "create", "list", "show", "claim", "complete", "block", "unblock", "link", "log", "tail"}},
 	{Name: "model", Description: "Switch model for this session", Aliases: []string{"provider"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "paste", Description: "Attach clipboard image", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "personality", Description: "Set a predefined personality", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},

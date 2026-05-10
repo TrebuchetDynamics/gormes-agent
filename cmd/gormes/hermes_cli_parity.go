@@ -305,6 +305,11 @@ func hermesKanbanCommands() []hermesCLIParityEntry {
 	logEntry.Target = "cmd/gormes kanban log"
 	out = append(out, logEntry)
 
+	tailEntry := hermesRowPath([]string{"kanban", "tail"}, hermesCLICommand, source+":tail", "Kanban task event tail command", "kanban tail is implemented as a read-only selected-board task event follower")
+	tailEntry.Status = hermesCLIImplemented
+	tailEntry.Target = "cmd/gormes kanban tail"
+	out = append(out, tailEntry)
+
 	alias := hermesRowPath([]string{"kanban", "ls"}, hermesCLIAlias, source+":list aliases", row, "kanban ls alias remains row-backed until the CLI alias is wired")
 	alias.AliasFor = []string{"kanban", "list"}
 	out = append(out, alias)
@@ -315,7 +320,6 @@ func hermesKanbanCommands() []hermesCLIParityEntry {
 		"unlink",
 		"comment",
 		"archive",
-		"tail",
 		"dispatch",
 		"daemon",
 		"watch",
