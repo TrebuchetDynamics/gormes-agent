@@ -186,6 +186,90 @@ func TestWriteFileAndPatchTools_EditInsideRoot(t *testing.T) {
 	}
 }
 
+func TestPatchToolFuzzyReplaceLineTrimmedAppliesUniqueMatch(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "def outer():\n    if enabled:\n        return \"ok\"\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.py","old_string":"if enabled:\nreturn \"ok\"","new_string":"    if enabled:\n        return \"patched\""}`)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one fuzzy replacement", out)
+	}
+	assertFileContent(t, path, "def outer():\n    if enabled:\n        return \"patched\"\n")
+}
+
+func TestPatchToolFuzzyReplaceWhitespaceNormalizedAppliesUniqueMatch(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "service.py")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir fixture: %v", err)
+	}
+	original := "result = call(  alpha,\t beta  )\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"pkg/service.py"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"pkg/service.py","old_string":"result = call( alpha, beta )","new_string":"result = call(alpha, beta)"}`)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one fuzzy replacement", out)
+	}
+	assertFileContent(t, path, "result = call(alpha, beta)\n")
+}
+
+func TestPatchToolFuzzyReplaceAmbiguousRequiresReplaceAll(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "  Step 1:\n  Do thing.\nStep 2: Wait.\n    Step 1:\n    Do thing.\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	out := executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"Step 1:\nDo thing.","new_string":"Step 1:\nDone."}`)
+	if !strings.Contains(asString(out["error"]), "old_string matched 2 times") {
+		t.Fatalf("patch result = %#v, want ambiguous fuzzy match error", out)
+	}
+	assertFileContent(t, path, original)
+
+	out = executePatchTool(t, NewPatchTool(cfg), `{"path":"notes.txt","old_string":"Step 1:\nDo thing.","new_string":"Step 1:\nDone.","replace_all":true}`)
+	if out["status"] != "ok" || out["replacements"] != float64(2) {
+		t.Fatalf("replace_all result = %#v, want two replacements", out)
+	}
+	assertFileContent(t, path, "Step 1:\nDone.\nStep 2: Wait.\nStep 1:\nDone.\n")
+}
+
+func TestPatchToolFuzzyReplaceEscapeNormalizedAppliesUniqueMatch(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "notes.txt")
+	original := "alpha\n\tbeta\ngamma\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cfg := FileTaskToolConfig{Root: root, StateRegistry: NewFileStateRegistry(), TaskID: "agent-a"}
+	_ = executeReadFileTool(t, NewReadFileTool(cfg), `{"path":"notes.txt"}`)
+	args := `{"path":"notes.txt","old_string":` + quoteJSON(t, `alpha\n\tbeta`) + `,"new_string":` + quoteJSON(t, "alpha\n\tBETA") + `}`
+	out := executePatchTool(t, NewPatchTool(cfg), args)
+
+	if out["status"] != "ok" || out["replacements"] != float64(1) {
+		t.Fatalf("patch result = %#v, want one escape-normalized replacement", out)
+	}
+	assertFileContent(t, path, "alpha\n\tBETA\ngamma\n")
+}
+
 func TestPatchToolReplaceNoMatchIncludesDidYouMeanHint(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "pkg", "service.go")

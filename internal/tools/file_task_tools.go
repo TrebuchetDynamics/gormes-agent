@@ -32,6 +32,11 @@ const (
 	maxStructuredLintOutput  = 2000
 )
 
+var (
+	errPatchNoMatch           = errors.New("old_string not found")
+	patchHorizontalWhitespace = regexp.MustCompile(`[ \t]+`)
+)
+
 // FileTaskToolConfig constrains local file tools to a workspace root.
 type FileTaskToolConfig struct {
 	Root          string
@@ -637,22 +642,17 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		return marshalToolPayload(map[string]any{"path": rel, "error": "patch cannot edit binary files"})
 	}
 	content := string(raw)
-	count := strings.Count(content, in.OldString)
-	if count == 0 {
-		payload := map[string]any{"path": rel, "error": "old_string not found"}
-		if hint := patchNoMatchHint(in.OldString, content); hint != "" {
-			payload["hint"] = hint
+	updated, replacements, replaceErr := fuzzyPatchReplace(content, in.OldString, in.NewString, in.ReplaceAll)
+	if replaceErr != nil {
+		payload := map[string]any{"path": rel, "error": replaceErr.Error()}
+		if errors.Is(replaceErr, errPatchNoMatch) {
+			payload["error"] = "old_string not found"
+			if hint := patchNoMatchHint(in.OldString, content); hint != "" {
+				payload["hint"] = hint
+			}
 		}
 		return marshalToolPayload(payload)
 	}
-	if count > 1 && !in.ReplaceAll {
-		return marshalToolPayload(map[string]any{"path": rel, "error": fmt.Sprintf("old_string matched %d times; set replace_all=true or include more context", count)})
-	}
-	replacements := 1
-	if in.ReplaceAll {
-		replacements = count
-	}
-	updated := strings.Replace(content, in.OldString, in.NewString, replacements)
 	if err := os.WriteFile(resolved, []byte(updated), defaultWriteFileFileMode); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write patched file: " + err.Error()})
 	}
@@ -669,6 +669,171 @@ func (t *PatchTool) Execute(ctx context.Context, args json.RawMessage) (json.Raw
 		payload["file_state"] = statePayload
 	}
 	return marshalToolPayload(payload)
+}
+
+type patchTextMatch struct {
+	start int
+	end   int
+}
+
+func fuzzyPatchReplace(content, oldString, newString string, replaceAll bool) (string, int, error) {
+	if oldString == "" {
+		return content, 0, errors.New("old_string is required")
+	}
+	if oldString == newString {
+		return content, 0, errors.New("old_string and new_string are identical")
+	}
+	strategies := []func(string, string) []patchTextMatch{
+		exactPatchMatches,
+		lineTrimmedPatchMatches,
+		whitespaceNormalizedPatchMatches,
+		indentationFlexiblePatchMatches,
+		escapeNormalizedPatchMatches,
+		trimmedBoundaryPatchMatches,
+	}
+	for _, strategy := range strategies {
+		matches := uniquePatchMatches(strategy(content, oldString))
+		if len(matches) == 0 {
+			continue
+		}
+		if len(matches) > 1 && !replaceAll {
+			return content, 0, fmt.Errorf("old_string matched %d times; set replace_all=true or include more context", len(matches))
+		}
+		if !replaceAll {
+			matches = matches[:1]
+		}
+		return applyPatchTextMatches(content, matches, newString), len(matches), nil
+	}
+	return content, 0, errPatchNoMatch
+}
+
+func exactPatchMatches(content, pattern string) []patchTextMatch {
+	if pattern == "" {
+		return nil
+	}
+	var matches []patchTextMatch
+	offset := 0
+	for offset <= len(content) {
+		idx := strings.Index(content[offset:], pattern)
+		if idx < 0 {
+			break
+		}
+		start := offset + idx
+		end := start + len(pattern)
+		matches = append(matches, patchTextMatch{start: start, end: end})
+		offset = end
+	}
+	return matches
+}
+
+func lineTrimmedPatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, _ int, _ int) string {
+		return strings.TrimSpace(line)
+	})
+}
+
+func whitespaceNormalizedPatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, _ int, _ int) string {
+		return patchHorizontalWhitespace.ReplaceAllString(line, " ")
+	})
+}
+
+func indentationFlexiblePatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, _ int, _ int) string {
+		return strings.TrimLeft(line, " \t")
+	})
+}
+
+func escapeNormalizedPatchMatches(content, pattern string) []patchTextMatch {
+	normalized := strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\r`, "\r").Replace(pattern)
+	if normalized == pattern {
+		return nil
+	}
+	return exactPatchMatches(content, normalized)
+}
+
+func trimmedBoundaryPatchMatches(content, pattern string) []patchTextMatch {
+	return lineBlockPatchMatches(content, pattern, func(line string, index int, count int) string {
+		if index == 0 || index == count-1 {
+			return strings.TrimSpace(line)
+		}
+		return line
+	})
+}
+
+func lineBlockPatchMatches(content, pattern string, normalize func(line string, index int, count int) string) []patchTextMatch {
+	if strings.TrimSpace(pattern) == "" {
+		return nil
+	}
+	contentLines := strings.Split(content, "\n")
+	patternLines := strings.Split(strings.ReplaceAll(pattern, "\r\n", "\n"), "\n")
+	if len(patternLines) == 0 || len(patternLines) > len(contentLines) {
+		return nil
+	}
+	normalizedPattern := make([]string, len(patternLines))
+	for i, line := range patternLines {
+		normalizedPattern[i] = normalize(strings.TrimSuffix(line, "\r"), i, len(patternLines))
+	}
+	var matches []patchTextMatch
+	for i := 0; i <= len(contentLines)-len(patternLines); i++ {
+		matched := true
+		for j := range patternLines {
+			if normalize(strings.TrimSuffix(contentLines[i+j], "\r"), j, len(patternLines)) != normalizedPattern[j] {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			start, end := patchLineRange(contentLines, i, len(patternLines))
+			matches = append(matches, patchTextMatch{start: start, end: end})
+		}
+	}
+	return matches
+}
+
+func patchLineRange(lines []string, startLine, lineCount int) (int, int) {
+	start := 0
+	for i := 0; i < startLine; i++ {
+		start += len(lines[i]) + 1
+	}
+	end := start + len(strings.Join(lines[startLine:startLine+lineCount], "\n"))
+	return start, end
+}
+
+func uniquePatchMatches(matches []patchTextMatch) []patchTextMatch {
+	if len(matches) <= 1 {
+		return matches
+	}
+	seen := make(map[patchTextMatch]struct{}, len(matches))
+	unique := make([]patchTextMatch, 0, len(matches))
+	for _, match := range matches {
+		if match.start < 0 || match.end < match.start {
+			continue
+		}
+		if _, ok := seen[match]; ok {
+			continue
+		}
+		seen[match] = struct{}{}
+		unique = append(unique, match)
+	}
+	sort.Slice(unique, func(i, j int) bool {
+		if unique[i].start == unique[j].start {
+			return unique[i].end < unique[j].end
+		}
+		return unique[i].start < unique[j].start
+	})
+	return unique
+}
+
+func applyPatchTextMatches(content string, matches []patchTextMatch, replacement string) string {
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].start > matches[j].start
+	})
+	updated := content
+	for _, match := range matches {
+		updated = updated[:match.start] + replacement + updated[match.end:]
+	}
+	return updated
 }
 
 func patchNoMatchHint(oldString, content string) string {
