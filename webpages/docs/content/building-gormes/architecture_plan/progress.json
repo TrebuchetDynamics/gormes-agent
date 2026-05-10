@@ -32638,7 +32638,7 @@
                 "Remaining child rows, if any, must be one behavior each and cite exact Hermes Kanban functions/tests plus Gormes write scope.",
                 "The parent remains non-selectable until every child row is complete and progress evidence can close the broad surface honestly."
               ],
-              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py. 2026-05-09 refresh against Hermes f6d45e5df and Honcho e659b6b found recent upstream deltas for Telegram edit safety, profile clone-all exclusions, Feishu update prompts, Google Chat sender_type filtering, provider argument coercion, browser async-loop handling, release metadata, and public surfaces already complete or row-backed. Planned rows are 14, below the 90-row cap. The remaining unimplemented source-backed Kanban operator atom is `kanban stats`: Hermes exposes per-status, per-assignee, and oldest-ready-age board summaries through hermes_cli/kanban.py:_cmd_stats and hermes_cli/kanban_db.py:board_stats; the new child row `Kanban stats command and board summary` owns that small CLI/store slice before watch/tail/notification work. 2026-05-09 refresh against Hermes 0cafe7d50 and Honcho e659b6b found recent gateway slash-confirm, Telegram Markdown safety, Google Chat relay, profile clone-all, Feishu prompt-card, update-check, and Kanban stats/GC deltas complete or row-backed. Planned rows are 14, below the 90-row cap, so one source-backed P2 row is allowed: `Kanban notify subscription store and CLI` owns notify-subscribe/list/unsubscribe persistence and read/write commands without implementing dispatcher delivery, watch, or tail.",
+              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py. 2026-05-09 refresh against Hermes f6d45e5df and Honcho e659b6b found recent upstream deltas for Telegram edit safety, profile clone-all exclusions, Feishu update prompts, Google Chat sender_type filtering, provider argument coercion, browser async-loop handling, release metadata, and public surfaces already complete or row-backed. Planned rows are 14, below the 90-row cap. The remaining unimplemented source-backed Kanban operator atom is `kanban stats`: Hermes exposes per-status, per-assignee, and oldest-ready-age board summaries through hermes_cli/kanban.py:_cmd_stats and hermes_cli/kanban_db.py:board_stats; the new child row `Kanban stats command and board summary` owns that small CLI/store slice before watch/tail/notification work. 2026-05-09 refresh against Hermes 0cafe7d50 and Honcho e659b6b found recent gateway slash-confirm, Telegram Markdown safety, Google Chat relay, profile clone-all, Feishu prompt-card, update-check, and Kanban stats/GC deltas complete or row-backed. Planned rows are 14, below the 90-row cap, so one source-backed P2 row is allowed: `Kanban notify subscription store and CLI` owns notify-subscribe/list/unsubscribe persistence and read/write commands without implementing dispatcher delivery, watch, or tail. 2026-05-10 refresh against Hermes 998676dd0 and Honcho e659b6b found CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows complete or row-backed except fresh Kanban notifier drift: Hermes a4036654f keeps blocked notifications non-terminal so a later unblock->block cycle still delivers. Planned rows are 22, below the 90-row cap; the new source-backed P1 child row `Kanban notify delivery engine blocked retention` owns the bounded delivery-engine slice before gateway scheduling, watch, or tail.",
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
@@ -32916,6 +32916,96 @@
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:0cafe7d50 hermes_cli/kanban.py notify-subscribe/list/unsubscribe + hermes_cli/kanban_db.py notification subscription/cursor helpers",
                 "note": "Hermes defines the subscription and cursor contract used by gateway adapters; Gormes adopts the durable store and CLI surface through Gormes-owned Kanban state while excluding live Hermes env/home compatibility."
+              }
+            },
+            {
+              "name": "Kanban notify delivery engine blocked retention",
+              "priority": "P1",
+              "status": "complete",
+              "completed_at": "2026-05-10T02:51:20Z",
+              "contract": "Gormes ports Hermes' Kanban notification delivery semantics over the native subscription store: a fakeable delivery engine polls unseen task events for notify subscriptions, sends one bounded message per completed/blocked/gave_up/crashed/worker_timed_out event to the subscribed platform/chat/thread target, advances the cursor after successful sends, removes subscriptions only for completed/gave_up/crashed/worker_timed_out, and deliberately keeps blocked subscriptions active so unblock->block cycles notify again.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "Missing tasks, unknown platform adapters, send failures, absent subscriptions, and closed contexts return bounded delivery evidence without deleting task events, dropping blocked subscriptions, starting a live gateway, reading Hermes env/home paths, or following watch/tail loops.",
+              "fixture": "internal/kanban/notifier_test.go::TestKanbanNotifierBlockedEventDoesNotUnsubscribe",
+              "source_refs": [
+                "./hermes-agent/gateway/run.py@998676dd0:_kanban_notifier_watcher TERMINAL_KINDS and TERMINAL_EVENT_KINDS",
+                "./hermes-agent/tests/hermes_cli/test_kanban_notify.py@998676dd0:test_notifier_second_blocked_delivers",
+                "./hermes-agent/tests/hermes_cli/test_kanban_notify.py@998676dd0:test_notifier_unsubs_after_completed_event",
+                "./hermes-agent/tests/hermes_cli/test_kanban_notify.py@998676dd0:test_notifier_unsubs_after_abnormal_events",
+                "internal/kanban/store.go:NotifySubscription, UnseenEventsForSubscription, AdvanceNotifyCursor, RemoveNotifySubscription",
+                "internal/kanban/notify_test.go:TestNotifySubscriptionEventsAndCursor"
+              ],
+              "ready_when": [
+                "Kanban notify subscription store and CLI is complete, so subscriptions and event cursors already exist in native Gormes state.",
+                "The slice can use a fake Sender and temp SQLite stores; no Telegram token, Slack app, live gateway loop, worker subprocess, watch/tail command, provider, or Hermes Python runtime is required.",
+                "Recent Hermes upstream is refreshed to 998676dd0 so the active contract treats blocked as deliverable but not subscription-terminal."
+              ],
+              "not_ready_when": [
+                "The slice starts a production gateway ticker, adds watch/tail streaming, reads HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live state.",
+                "Blocked events remove notify subscriptions or suppress later blocked events after an unblock cycle.",
+                "Send failures advance cursors, delete subscriptions, or hide retryable delivery evidence."
+              ],
+              "blocked_by": [
+                "Kanban notify subscription store and CLI"
+              ],
+              "unblocks": [
+                "Hermes Kanban multi-board, workspace, and run-history parity"
+              ],
+              "acceptance": [
+                "A notifier fixture creates a task subscription, blocks the task, runs delivery, unblocks and blocks it again, runs delivery again, and proves both blocked messages are sent while the subscription remains present with an advanced cursor.",
+                "A notifier fixture proves completed events send once and then remove the subscription after the cursor advances.",
+                "A notifier fixture proves gave_up, crashed, and worker_timed_out events are subscription-terminal, while blocked is not.",
+                "A send-failure fixture proves the cursor and subscription stay unchanged when the fake sender returns an error so the event can be retried.",
+                "The delivery engine formats bounded messages with task id/title, event kind, payload, and board evidence without leaking Hermes paths or live config."
+              ],
+              "write_scope": [
+                "internal/kanban/notifier.go",
+                "internal/kanban/notifier_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kanban -run TestKanbanNotifier -count=1",
+                "go test ./internal/kanban -run 'TestNotifySubscription|TestKanbanNotifier' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Kanban notifier fixtures prove successful delivery advances cursors, completed/abnormal events unsubscribe, blocked events keep subscriptions active, and send failures retry without live gateway adapters or Hermes state."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic parity sweep refreshed Hermes to 998676dd0 and Honcho to e659b6b, then covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 22, below the 90-row cap. P1 publication/release rows were operator-blocked or broad parents, and P1 WASI Whisper rows were blocked by model-file/API decisions. Hermes commit a4036654f changed gateway notification semantics so `blocked` remains in the delivered event set but is no longer terminal for auto-unsubscribe; dd49d5038 added `test_notifier_second_blocked_delivers`. TDD added a native fakeable Notifier over the existing subscription store: it delivers completed/blocked/gave_up/worker_crashed/worker_timed_out events, advances cursors only after successful sends, unsubscribes completed/abnormal terminal events, deliberately retains blocked subscriptions, and leaves cursors/subscriptions untouched on send failure.",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/notifier.go defines Notifier, NotifySender, NotifyDelivery, NotifyRunResult, terminal event classification, bounded message formatting, and RunOnce over the existing NotifySubscription cursor APIs.",
+                  "Notifier.RunOnce uses ListNotifySubscriptions, UnseenEventsForSubscription, AdvanceNotifyCursor, and RemoveNotifySubscription without starting a live gateway loop or reading Hermes env/home state.",
+                  "Blocked events are deliverable but not terminal; completed, gave_up, crashed/timed_out compatibility names, worker_crashed, and worker_timed_out remove subscriptions only after successful delivery."
+                ],
+                "tests": [
+                  "internal/kanban/notifier_test.go:TestKanbanNotifierBlockedEventDoesNotUnsubscribe",
+                  "internal/kanban/notifier_test.go:TestKanbanNotifierCompletedEventUnsubscribesAfterDelivery",
+                  "internal/kanban/notifier_test.go:TestKanbanNotifierAbnormalEventsUnsubscribe",
+                  "internal/kanban/notifier_test.go:TestKanbanNotifierSendFailureDoesNotAdvanceCursorOrUnsubscribe"
+                ],
+                "red_green": [
+                  "RED: go test ./internal/kanban -run TestKanbanNotifier -count=1 failed because Notifier and NotifyDelivery were undefined.",
+                  "GREEN: go test ./internal/kanban -run TestKanbanNotifier -count=1 passed after adding the native notifier engine.",
+                  "GREEN: go test ./internal/kanban -run 'TestNotifySubscription|TestKanbanNotifier' -count=1 passed after gofmt."
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run 'TestNotifySubscription|TestKanbanNotifier' -count=1 -> ok",
+                  "go test ./internal/kanban -count=1 -> ok"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes:998676dd0 gateway/run.py _kanban_notifier_watcher + tests/hermes_cli/test_kanban_notify.py",
+                "note": "Hermes now treats blocked notifications as repeatable operator alerts rather than subscription-terminal events; Gormes adopts that semantic in its native notifier engine."
               }
             },
             {
@@ -53490,16 +53580,20 @@
               "done_signal": [
                 "Hero and metadata copy match the North Star and v1 differentiator; landing-page e2e tests green."
               ],
-              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 32, below the 90-row cap, so adding one row was allowed but unnecessary: existing runtime rows already cover the main Hermes parity surfaces, while the landing page still led with generic Hermes-compatible runtime copy after the README and v1 differentiator were updated. Planner pass promoted this existing docs/public row to P1, refreshed source refs, and deferred the old TD-blog-link acceptance to the separate `TD engineering blog scaffolded and live` row so builders do not create dead links. TDD then rewrote landing metadata, hero headline, hero paragraphs, scout-release stamp, and proof strip so methodology + 30-skill single-binary differentiator appear before Hermes compatibility.",
+              "note": "Reopened and deepened 2026-05-09 because the previous pass left the page title (\"Hermes-Compatible AI Agent Runtime in One Go Binary\") and hero opening line (\"Drop-in compatible with the Hermes agent ecosystem ...\") leading with Hermes parity instead of methodology — directly contradicting the row contract. New pass rewrote: page title + meta description, top nav (How it is built → Methodology), hero kicker (now methodology-forward + cyan-emphasized), hero headline (\"Autonomously porting Python to Go, in production.\"), hero paragraph 1 (TrebuchetDynamics methodology + \"Gormes is the receipt\"), hero paragraph 2 (the v1 30-skill / 1-binary / 3-hard-targets differentiator), hero secondary CTA (See how it is built → See the methodology), proof strip (3 differentiator chips with new .proof-item-pop visual emphasis ahead of release/license chips), methodology section headline (\"How the receipt is produced.\") and intro (\"The methodology is the product. Hermes-parity is supporting evidence the methodology works.\"), reordered methodology pillars (Reusable porting toolkit promoted ahead of Hermes-as-oracle; Hermes pillar reframed as \"parity oracle, not the contract\"), and fit-for copy (engineering teams curious about autonomous porting now lead). Playwright suite (6 tests) updated to pin the new copy + new .proof-item-pop class and is green.",
               "evidence": {
                 "implementation": [
-                  "webpages/landing/src/data/landing.js now titles the page as autonomous-porting methodology, describes Gormes as the TrebuchetDynamics receipt, and leads the hero with the validation-gated Python-to-Go porting loop.",
-                  "The second hero paragraph states the ratified v1 differentiator: 30 most-used Hermes skills unchanged in one 30 MB Go binary on Termux, Windows without Python, and locked-down Linux.",
-                  "The proof strip now foregrounds the 30-skill and platform differentiator while preserving install, release, license, offline-doctor, and autonomous-loop trust signals."
+                  "webpages/landing/src/data/landing.js: page.title now \"Gormes — Autonomously porting Python to Go, in production\"; description leads with TrebuchetDynamics methodology, then the receipt + 30-skill differentiator.",
+                  "webpages/landing/src/data/landing.js: heroHeadline now \"Autonomously porting Python to Go, in production.\"; heroLines[0] is the methodology lede ending in \"Gormes is the receipt\"; heroLines[1] is the ratified v1 differentiator (30 skills · 1 Go binary · Termux/Windows-without-Python/locked-down corp Linux); Hermes-compat phrasing demoted out of the hero opening.",
+                  "webpages/landing/src/data/landing.js: proofStrip restructured to objects with optional kind=\"pop\"; the three differentiator chips (30 Hermes skills curated · 1 Go binary · 3 hard targets) now render with a yellow-bordered pop variant ahead of release/license/offline-doctor chips.",
+                  "webpages/landing/src/data/landing.js: methodologyHeadline=\"How the receipt is produced.\"; methodologyIntro now states \"The methodology is the product. Hermes-parity is supporting evidence the methodology works.\"; methodologyPillars reordered so \"Reusable porting toolkit\" precedes \"Hermes is the parity oracle, not the contract\".",
+                  "webpages/landing/src/data/landing.js: nav now leads with \"Methodology\" instead of \"How it is built\"; secondaryCta label is \"See the methodology\".",
+                  "webpages/landing/src/pages/index.astro: hero kicker upgraded to cyan tracking-wide treatment for visual hierarchy; .proof-item template renders pop variant with .proof-item-pop class + yellow border/text when item.kind === \"pop\".",
+                  "webpages/landing/tests/home.spec.mjs: assertions pinned to the new title, headline, hero paragraphs, navigation, secondary CTA label, methodology headline + intro, reordered pillars, fit-for copy, and the three .proof-item-pop differentiator chips."
                 ],
                 "verification": [
-                  "RED: timeout 20m sh -c 'cd webpages/landing && npm run test:e2e -- --grep \"homepage renders\"' failed because the page title still said Hermes-Compatible AI Agent Runtime.",
-                  "GREEN: timeout 20m sh -c 'cd webpages/landing && npm run test:e2e -- --grep \"homepage renders\"' passed after the landing data update."
+                  "GREEN: timeout 90 npm run build → built 2 pages (1.30s) clean.",
+                  "GREEN: timeout 180 npm run test:e2e → 6 passed (5.8s) covering homepage redesign, built-with page, and four mobile viewports."
                 ]
               }
             }

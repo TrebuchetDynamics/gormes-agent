@@ -886,6 +886,7 @@ classification and row-backed implementation queue.
 - [x] Kanban chat board DB pin
 - [x] Kanban schema migration duplicate-column race guard
 - [x] Kanban notify subscription store and CLI
+- [x] Kanban notify delivery engine blocked retention
 - [x] Kanban stats command and board summary
 - [x] Kanban named-board workspace and log roots
 - [x] Kanban current-board task command routing
