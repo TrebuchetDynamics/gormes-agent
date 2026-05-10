@@ -7914,7 +7914,7 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "When path-hint construction fails (unreadable cache file), the helper omits that image's hint but still emits the default prompt; missing hints are logged at WARN level so operators see the gap.",
+              "degraded_mode": "When a cache file is unreadable, the helper omits that image_url part and does not advertise that path in native text hints; skipped-image counts are logged. Plain text projection still carries the existing channel attachment marker for memory and legacy UI compatibility.",
               "fixture": "internal/gateway/turn_adapter_test.go (extend existing TurnAdapter_Dispatch_PhotoAttachment* tests)",
               "source_refs": [
                 "./hermes-agent/agent/image_routing.py@998676dd0:230-295 build_native_content_parts (default prompt + path hints)",
@@ -7949,6 +7949,8 @@
                 "internal/hermes/image_routing_test.go",
                 "internal/gateway/turn_adapter.go",
                 "internal/gateway/turn_adapter_test.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/manager_photo_passthrough_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
