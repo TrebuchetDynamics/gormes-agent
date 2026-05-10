@@ -53619,6 +53619,75 @@
               }
             },
             {
+              "name": "Release notes SBOM attestation wording",
+              "priority": "P1",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "The generated GitHub release notes must describe the two attestation streams that the release workflow actually publishes: SPDX SBOM attestations and build-provenance attestations for every matrix tar.gz archive. The release page must not imply that only build provenance is attested once the workflow has both `Attest SBOM` and `Attest build provenance` steps.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If release notes omit SBOM attestation wording, operators can see SBOM files and build-provenance text but miss that SBOM documents are also bound to the matching archives in GitHub's attestation store.",
+              "fixture": "webpages/docs/install/release_workflow_test.go::TestReleaseWorkflowReleaseNotesNameSBOMAttestations",
+              "source_refs": [
+                ".github/workflows/release.yml:Attest SBOM",
+                ".github/workflows/release.yml:Attest build provenance",
+                ".github/workflows/release.yml:Build release notes",
+                "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowAttestsSBOMsForArchives",
+                "webpages/docs/install/release_workflow_test.go:TestReleaseWorkflowAttestsBuildProvenanceForArchives",
+                "docs/content/building-gormes/architecture_plan/progress.json:Single-binary cross-platform release pipeline"
+              ],
+              "ready_when": [
+                "Release SBOM attestation binding is complete and uses actions/attest@v4 with subject-path plus sbom-path.",
+                "Release build provenance attest action contract is complete and uses actions/attest@v4 with subject-path.",
+                "The release-note generation is a static workflow script that can be fixture-tested without publishing a tag."
+              ],
+              "not_ready_when": [
+                "The slice changes release publication policy, target matrix, installer asset selection, or remote GitHub attestation verification.",
+                "The release notes claim a live release or attestation was already published from the current development commit.",
+                "The fixture only checks for generic provenance wording and does not require SBOM-attestation wording."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "TestReleaseWorkflowReleaseNotesNameSBOMAttestations fails while the release notes mention only build-provenance attestations and passes after the notes name both SBOM and build-provenance attestations.",
+                "The release notes still include the SPDX SBOM section, artifact size/SHA table, and install-script URLs.",
+                "Existing release workflow tests for SBOM attestation, build-provenance attestation, release-note size table, and install-script publication remain green."
+              ],
+              "write_scope": [
+                ".github/workflows/release.yml",
+                "webpages/docs/install/release_workflow_test.go",
+                "docs/install/release_workflow_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./webpages/docs/install -run 'TestReleaseWorkflow(ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives|PublishesInstallScripts)' -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Release workflow tests prove the generated GitHub release notes explicitly name both SBOM and build-provenance attestations while preserving artifact table and install guidance."
+              ],
+              "note": "Complete 2026-05-10: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows. Planned rows were 21, below the 90-row cap. Runtime parity areas are complete or row-backed, TD publication rows remain operator-blocked, and the broad P1 release parent is too large to assign directly. The unblocked release/operator weakness was stale release-note trust wording: the workflow now has dedicated SBOM and build-provenance attestation steps, but generated release notes still said only build provenance attestations were published. TDD added a release workflow fixture that pins SBOM + build-provenance wording and updated the generated notes while preserving the SBOM section, artifact table, and install-script release assets.",
+              "evidence": {
+                "implementation": [
+                  ".github/workflows/release.yml: Build release notes now says SBOM and build-provenance attestations are published to the GitHub Attestations store.",
+                  "webpages/docs/install/release_workflow_test.go and hardlinked docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseNotesNameSBOMAttestations pins the trust wording and rejects the stale build-provenance-only line.",
+                  "webpages/docs/install/release_workflow_test.go: TestReleaseWorkflowReleaseNotesIncludeArchiveSize now preserves the updated attestation wording alongside the size/SHA artifact table."
+                ],
+                "verification": [
+                  "RED: go test ./webpages/docs/install -run TestReleaseWorkflowReleaseNotesNameSBOMAttestations -count=1 failed because release notes mentioned only build-provenance attestations.",
+                  "GREEN: go test ./webpages/docs/install -run TestReleaseWorkflowReleaseNotesNameSBOMAttestations -count=1 passed after workflow wording changed.",
+                  "GREEN: go test ./webpages/docs/install -run 'TestReleaseWorkflow(ReleaseNotesIncludeArchiveSize|ReleaseNotesNameSBOMAttestations|AttestsSBOMsForArchives|AttestsBuildProvenanceForArchives|PublishesInstallScripts)' -count=1 passed."
+                ]
+              }
+            },
+            {
               "name": "Release archive 30 MB size gate",
               "priority": "P1",
               "status": "complete",

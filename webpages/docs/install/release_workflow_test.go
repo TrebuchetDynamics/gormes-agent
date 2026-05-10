@@ -206,7 +206,7 @@ func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
 		"size=$(wc -c < \"$f\" | tr -d '[:space:]')",
 		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
 		"Software Bill of Materials (SPDX JSON) is included for each platform artifact.",
-		"Build provenance attestations are published to the GitHub Attestations store.",
+		"SBOM and build-provenance attestations are published to the GitHub Attestations store.",
 	}
 	for _, want := range wantAll {
 		if !strings.Contains(notesStep, want) {
@@ -221,6 +221,33 @@ func TestReleaseWorkflowReleaseNotesIncludeArchiveSize(t *testing.T) {
 	assertWorkflowOrder(t, notesStep,
 		"echo \"| Platform | Archive | Size | SHA-256 |\"",
 		"echo \"| ${name%.tar.gz} | [$name]($name) | \\`${size} bytes\\` | \\`${sha}\\` |\"",
+	)
+}
+
+func TestReleaseWorkflowReleaseNotesNameSBOMAttestations(t *testing.T) {
+	workflow := readRepoFileRelease(t, ".github/workflows/release.yml")
+	notesStep := workflowStepBlock(t, workflow, "- name: Build release notes")
+
+	wantAll := []string{
+		"echo \"## SBOM\"",
+		"Software Bill of Materials (SPDX JSON) is included for each platform artifact.",
+		"echo \"## Verification\"",
+		"SBOM and build-provenance attestations are published to the GitHub Attestations store.",
+	}
+	for _, want := range wantAll {
+		if !strings.Contains(notesStep, want) {
+			t.Errorf("Build release notes step missing %q", want)
+		}
+	}
+
+	stale := "Build provenance attestations are published to the GitHub Attestations store."
+	if strings.Contains(notesStep, stale) {
+		t.Errorf("release notes still imply only build provenance is attested; replace %q with SBOM + build-provenance wording", stale)
+	}
+
+	assertWorkflowOrder(t, notesStep,
+		"Software Bill of Materials (SPDX JSON) is included for each platform artifact.",
+		"SBOM and build-provenance attestations are published to the GitHub Attestations store.",
 	)
 }
 

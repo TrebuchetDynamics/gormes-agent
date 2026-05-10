@@ -252,7 +252,7 @@ jobs:
             echo "Software Bill of Materials (SPDX JSON) is included for each platform artifact."
             echo ""
             echo "## Verification"
-            echo "Build provenance attestations are published to the GitHub Attestations store."
+            echo "SBOM and build-provenance attestations are published to the GitHub Attestations store."
             echo ""
             echo "## Changes"
             echo "See [CHANGELOG.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/CHANGELOG.md) for full details."
