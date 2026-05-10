@@ -278,6 +278,7 @@ classification and row-backed implementation queue.
 - [x] Channel-neutral native runtime turn adapter
 - [x] Hermes gateway platform registry manifest
 - [x] MSGraph webhook platform manifest drift closeout
+- [x] Bundled platform plugin manifest drift guard
 - [x] Navivox stdio protocol control-plane tracer
 - [x] Navivox QR pairing descriptor CLI
 - [x] Navivox Flutter voice morph surface
