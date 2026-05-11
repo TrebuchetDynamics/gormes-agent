@@ -570,6 +570,43 @@ func (b *Bot) Send(ctx context.Context, chatID, text string) (string, error) {
 	return strconv.Itoa(msg.MessageID), nil
 }
 
+// SendPlain sends text without any parse mode — no MarkdownV2, no HTML.
+// Use for raw tool output, file paths, and URLs where MarkdownV2 escaping
+// would break the content (underscores in URLs, dashes in paths, etc.).
+func (b *Bot) SendPlain(ctx context.Context, chatID, text string) (string, error) {
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	msg := tgbotapi.NewMessage(id, text)
+	msg.ParseMode = "" // no parse mode — plain text
+	sent, err := b.client.Send(msg)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(sent.MessageID), nil
+}
+
+// SendPlainReply sends a plain-text reply without any parse mode.
+func (b *Bot) SendPlainReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
+	id, err := parseChatID(chatID)
+	if err != nil {
+		return "", err
+	}
+	replyID, err := strconv.Atoi(replyToMsgID)
+	if err != nil {
+		return "", fmt.Errorf("telegram: invalid reply msgID %q: %w", replyToMsgID, err)
+	}
+	msg := tgbotapi.NewMessage(id, text)
+	msg.ParseMode = ""
+	msg.ReplyToMessageID = replyID
+	sent, err := b.client.Send(msg)
+	if err != nil {
+		return "", err
+	}
+	return strconv.Itoa(sent.MessageID), nil
+}
+
 func (b *Bot) SendReply(ctx context.Context, chatID, replyToMsgID, text string) (string, error) {
 	_ = ctx
 	id, err := parseChatID(chatID)

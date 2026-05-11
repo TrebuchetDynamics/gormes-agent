@@ -163,9 +163,9 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 ## Status
 
-Latest public release: [v0.2.4](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.4).
+Latest public release: [v0.2.6](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.6).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~42.2 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~40.1 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -177,11 +177,11 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 0/3 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 3/4 subphases |
 <!-- PROGRESS:END -->
 
 </details>

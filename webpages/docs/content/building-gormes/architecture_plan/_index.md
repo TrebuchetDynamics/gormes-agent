@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 88/103 subphases shipped · 11 in progress · 4 planned
+**Overall:** 92/104 subphases shipped · 8 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,11 +95,11 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 0/3 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 3/4 subphases |
 
 ---
 
@@ -891,7 +891,7 @@ classification and row-backed implementation queue.
 - [x] V4A patch apply rollback for native patch tool
 - [x] Patch replace post-write verification
 
-### 5.M — Mixture of Agents 🔨
+### 5.M — Mixture of Agents ✅
 
 - [x] Multi-model coordination
 - [x] Hermes Kanban durable board core
@@ -907,10 +907,10 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard dispatch quick path
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
-- [ ] Kanban multi-board isolation
-- [ ] Kanban workspace context injection
-- [ ] Kanban run history persistence
-- [ ] Kanban notification delivery parity
+- [x] Kanban multi-board isolation
+- [x] Kanban workspace context injection
+- [x] Kanban run history persistence
+- [x] Kanban notification delivery parity
 - [x] Kanban chat board DB pin
 - [x] Kanban schema migration duplicate-column race guard
 - [x] Kanban notify subscription store and CLI
@@ -1263,7 +1263,8 @@ classification and row-backed implementation queue.
 
 - [x] Skill code execution runtime
 - [x] Skill dependency resolution and composition
-- [x] Skill validation on load with execution proof
+- [x] Agent personalities + enhanced display config
+- [x] Session auto-reset + STT config parity
 
 ## Phase 7 — Paused Channel Backlog 🔨
 
@@ -1377,17 +1378,21 @@ classification and row-backed implementation queue.
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
-### 9.A — Declarative Agent Middleware Chain 🔨
+### 9.A — Declarative Agent Middleware Chain ✅
 
-- [ ] Agent middleware chain framework
+- [x] Agent middleware chain framework
 
 ### 9.B — Sandbox Provider Abstraction + Virtual Path System ⏳
 
 - [ ] Sandbox provider interface and virtual path security
 
-### 9.C — Speech-to-Text Tool Wiring 🔨
+### 9.C — Hermes Config Parity — Personalities & Display ✅
 
-- [ ] Transcribe audio tool registration + local whisper provider
+- [x] Agent personalities + enhanced display config
+
+### 9.D — Speech-to-Text Tool Wiring ✅
+
+- [x] Transcribe audio tool registration + local whisper provider
 
 <!-- PROGRESS:END -->
 

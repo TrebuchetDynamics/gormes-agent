@@ -475,8 +475,9 @@ func (b *Bot) toThreadLifecycleEvent(ch *discordgo.Channel) (gateway.InboundEven
 }
 
 func (b *Bot) Send(_ context.Context, chatID, text string) (string, error) {
+	formatted := gateway.FormatFinalDiscordText(text)
 	msg, err := b.session.ChannelMessageSendComplex(chatID, &discordgo.MessageSend{
-		Content:         text,
+		Content:         formatted,
 		AllowedMentions: BuildAllowedMentionsFromEnv(),
 	})
 	if err != nil {
@@ -487,8 +488,9 @@ func (b *Bot) Send(_ context.Context, chatID, text string) (string, error) {
 
 func (b *Bot) SendReply(_ context.Context, chatID, replyToMsgID, text string) (string, error) {
 	replyToMsgID = strings.TrimSpace(replyToMsgID)
+	formatted := gateway.FormatFinalDiscordText(text)
 	data := &discordgo.MessageSend{
-		Content:         text,
+		Content:         formatted,
 		AllowedMentions: BuildAllowedMentionsFromEnv(),
 	}
 	mode := normalizeReplyToMode(b.cfg.ReplyToMode)

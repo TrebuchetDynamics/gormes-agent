@@ -77,10 +77,10 @@ jobs:
         working-directory: webpages/landing
         run: |
           grep -F 'data-site-runtime="astro-tailwind"' dist/index.html >/dev/null
-          grep -F "Autonomously porting Python to Go, in production." dist/index.html >/dev/null
-          grep -F "How the receipt is produced." dist/index.html >/dev/null
-          grep -F "THE METHODOLOGY" dist/index.html >/dev/null
-          grep -F "30 Hermes skills curated" dist/index.html >/dev/null
+          grep -F "Run AI agents from a single binary." dist/index.html >/dev/null
+          grep -F "Systematic porting with full test coverage." dist/index.html >/dev/null
+          grep -F "HOW IT'S BUILT" dist/index.html >/dev/null
+          grep -F "30 Hermes skills" dist/index.html >/dev/null
           grep -F "Validated rows shipped" dist/index.html >/dev/null
           grep -F "Current scout release:" dist/index.html >/dev/null
           grep -F "Runtime-ready" dist/index.html >/dev/null

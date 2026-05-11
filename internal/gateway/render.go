@@ -90,8 +90,10 @@ func FormatStreamTelegram(f kernel.RenderFrame) string {
 	return truncate(body + tail)
 }
 
-// FormatToolProgressTelegram renders escaped MarkdownV2 text for Telegram's
-// persistent tool-progress message.
+// FormatToolProgressTelegram renders plain tool-progress text for Telegram.
+// Does NOT use MarkdownV2 escaping because tool progress contains URLs, file
+// paths, and code snippets that would be broken by _ ( ) - escaping. The
+// Bot.Send fallback path strips MarkdownV2 if Telegram rejects the parse.
 func FormatToolProgressTelegram(f kernel.RenderFrame) string {
 	return FormatToolProgressTelegramMode(f, "all")
 }
@@ -101,7 +103,11 @@ func FormatToolProgressTelegramMode(f kernel.RenderFrame, mode string) string {
 	if strings.TrimSpace(progress) == "" {
 		return ""
 	}
-	return truncate(tgbotapi.EscapeText(tgbotapi.ModeMarkdownV2, progress))
+	// Tool progress is plain text with URLs, paths, and emoji — NOT markdown.
+	// Escaping for MarkdownV2 would break URLs (_ → \_) and make backslashes
+	// visible. Just truncate; the bot's sendWithParseFallback handles any
+	// MarkdownV2 parse failures by retrying without parse_mode.
+	return truncate(progress)
 }
 
 // FormatFinalTelegram renders the final assistant message for Telegram.

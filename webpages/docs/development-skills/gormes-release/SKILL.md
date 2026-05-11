@@ -139,9 +139,42 @@ timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
 6. Use `gormes-git` for commit, push, and PR setup once the release diff is
    green. Stage only the intended release scope unless the user explicitly
    asked to include all dirty work.
-7. Wait only with bounded polling. Merge the PR only after required remote
-   checks pass and the PR is mergeable.
-8. After merge, fetch `origin/main`, confirm `cmd/gormes/version.go` on main
+ 7. Wait only with bounded polling. Merge the PR only after required remote
+    checks pass and the PR is mergeable.
+
+    **Merge strategy detection:** GitHub repos may restrict allowed merge
+    strategies. Detect which strategy works before merging:
+
+    ```sh
+    # Check repo settings for allowed merge strategies
+    gh api repos/:owner/:repo --jq '.allow_merge_commit, .allow_squash_merge, .allow_rebase_merge'
+    ```
+
+    Then merge with the appropriate strategy:
+
+    ```sh
+    # Strategy 1: Merge commit (default when allowed)
+    gh pr merge <number> --merge --subject "Release v<VERSION>" --body "<body>"
+
+    # Strategy 2: Squash (use when merge commits are not allowed)
+    gh pr merge <number> --squash --subject "Release v<VERSION>" 2>&1
+
+    # Strategy 3: Rebase (use when only rebase is allowed)
+    gh pr merge <number> --rebase --subject "Release v<VERSION>" 2>&1
+    ```
+
+    If `--merge` fails with `GraphQL: Merge commits are not allowed`, retry
+    with `--squash`. If `--squash` also fails, try `--rebase`.
+
+    After the merge, verify the result:
+
+    ```sh
+    git fetch origin main
+    git log --oneline origin/main -3
+    gh pr view <number> --json state,mergedBy,mergedAt
+    ```
+
+ 8. After merge, fetch `origin/main`, confirm `cmd/gormes/version.go` on main
    matches the release version, then create and push the annotated tag:
 
 ```sh

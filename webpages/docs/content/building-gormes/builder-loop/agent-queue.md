@@ -27,47 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Agent middleware chain framework
-
-- Phase: 9 / 9.A
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `in_progress`
-- Priority: `P1`
-- Contract: Gormes gains a declarative middleware chain framework for the agent runtime (internal/hermes + internal/agent), inspired by DeerFlow's 19-middleware ordered chain with @Next/@Prev positioning and RuntimeFeatures-style toggle flags. Each middleware implements a single concern: thread-data setup, sandbox lifecycle, tool error handling, loop detection, memory injection, title generation, token usage tracking, clarification interception. Middlewares are assembled into an ordered chain by a factory that accepts a RuntimeFeatures struct where each feature = enabled (use built-in), disabled, or a custom Middleware instance. The middleware ordering is deterministic, and the chain is inspectable (dump to string for debugging).
-- Trust class: operator, system
-- Ready when: internal/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering., A RuntimeFeatures struct exists in internal/config or internal/agent/., At least 3 built-in middlewares are implemented and tested (e.g. ThreadData, ToolErrorHandling, LoopDetection)., The existing internal/agent/loop_detector.go is refactored into a middleware., go test ./internal/agent/ -count=1 is green after each middleware addition.
-- Not ready when: The middleware chain replaces or duplicates existing internal/hermes agent flow without clear migration path., The row tries to port all 19 DeerFlow middlewares in one slice — aim for 3-5 core middlewares first., The RuntimeFeatures struct uses Go generics for the bool\|Middleware union; use a wrapper type instead., Existing internal/hermes tests break without a validation plan.
-- Degraded mode: Without the middleware chain, the agent runtime uses hardcoded turn lifecycle without inspection, ordering, or feature toggles. Individual agents can still run but cannot customize their behavior pipeline.
-- Fixture: `internal/agent/middleware_test.go`
-- Write scope: `internal/agent/middleware.go`, `internal/agent/middleware_test.go`, `internal/agent/features.go`, `internal/agent/features_test.go`, `internal/agent/builtin.go`, `internal/hermes/`, `internal/kernel/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/agent -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Middleware interface, MiddlewareChain, RuntimeFeatures, and 3+ built-in middlewares are implemented and tested; the chain is integrated into the turn lifecycle.
-- Acceptance: MiddlewareChain assemblages middlewares in deterministic, inspectable order., RuntimeFeatures correctly maps enabled/disabled/custom to middleware inclusion., The LoopDetection feature toggles correctly between enabled, disabled, and custom instance., Tests prove the chain can be dumped as a human-readable ordering string., Integration into hermes.Client or kernel.Config allows turn-level Before/After hooks.
-- Source refs: ./deer-flow/backend/packages/harness/deerflow/agents/factory.py, ./deer-flow/backend/packages/harness/deerflow/agents/features.py, ./deer-flow/backend/packages/harness/deerflow/agents/middlewares/, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. Transcribe audio tool registration + local whisper provider
-
-- Phase: 9 / 9.C
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `in_progress`
-- Priority: `P1`
-- Contract: Gormes registers the existing transcribe_audio tool in the default tool registry so STT works by default with no API key. A LocalSTTProvider wraps the WASI whisper runtime (internal/wasi/whisper/) into the TranscriptionProvider interface with auto-downloading tiny.en model (~77MB from HuggingFace). Cloud STT providers (OpenAI, Groq, Mistral, XAI) are registered alongside and activate when their API keys are present.
-- Trust class: operator, system
-- Ready when: transcribe_audio tool exists in internal/tools/ but is unregistered., WASI whisper runtime exists in internal/wasi/whisper/., LocalSTTProvider wraps whisper into TranscriptionProvider interface., registry_audio.go registers the transcription tool with local provider.
-- Not ready when: The row attempts to add voice recording or voice mode — that is separate., The row requires cloud provider API keys for basic functionality.
-- Degraded mode: When the local whisper model is unavailable (first-run download failure or disk full), the transcribe_audio tool reports stt_provider_unavailable instead of crashing. Cloud providers (OpenAI, Groq, Mistral, XAI) still work if their API keys are configured.
-- Fixture: `internal/tools/transcription_providers_local.go`
-- Write scope: `internal/tools/transcription_providers_local.go`, `cmd/gormes/registry_audio.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go build ./cmd/gormes`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: transcribe_audio tool is registered by default; local whisper provider auto-downloads model on first use; no API key required for basic STT.
-- Acceptance: LocalSTTProvider implements TranscriptionProvider with Available() and Transcribe()., transcribe_audio tool is registered via MustRegister in the default tool registry., go build ./cmd/gormes succeeds with the non-slim build tag., go test ./internal/tools -count=1 stays green.
-- Source refs: ./internal/tools/transcription_tool.go, ./internal/tools/transcription_providers.go, ./internal/tools/transcription_providers_local.go, ./internal/wasi/whisper/transcriber.go, ./internal/wasi/whisper/model_cache.go, ./cmd/gormes/registry_audio.go
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 3. TD engineering blog scaffolded and live
+## 1. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -89,7 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 4. Tirith external security finding ingestion
+## 2. Tirith external security finding ingestion
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -109,7 +69,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py finding ingestion, ../hermes-agent/tests/test_tirith.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Unified security guard decision composer
+## 3. Unified security guard decision composer
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -129,87 +89,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Kanban multi-board isolation
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban dispatcher enforces board-scoped isolation: workers spawned for board A cannot see or mutate board B's tasks. The SQLite store uses per-board database files or namespaced tables, and the dispatcher validates the board name before spawning.
-- Trust class: operator, system
-- Ready when: Existing Kanban single-board surface is validated and the multi-board isolation contract is understood from Hermes upstream.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/multi_board.go`, `internal/kanban/multi_board_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanMultiBoard -count=1`
-- Done signal: Multi-board isolation tests pass and the dispatcher prevents cross-board task access.
-- Acceptance: TestKanbanMultiBoardIsolation proves worker A on board_alpha cannot query tasks from board_beta., TestKanbanMultiBoardDispatcherHonoursBoardBoundary proves the dispatcher rejects cross-board task assignments.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py multi-board isolation
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Kanban workspace context injection
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban worker spawning injects the board's workspace directory as the worker's working directory and loads the workspace's AGENTS.md/CLAUDE.md context, mirroring Hermes workspace-path isolation.
-- Trust class: operator, system
-- Ready when: Existing Kanban worker spawning path is understood and workspace/AGENTS.md loading is mapped.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/workspace_context.go`, `internal/kanban/workspace_context_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanWorkspace -count=1`
-- Done signal: Workspace context injection tests pass.
-- Acceptance: TestKanbanWorkspaceContextInjection proves a spawned worker's working directory matches the board's configured workspace., TestKanbanWorkspaceAGENTSLoad proves the worker loads AGENTS.md from the board workspace.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py workspace+agent dir injection
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 8. Kanban run history persistence
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban run history records spawn attempts, successes, failures, and completion evidence per task so operators and the dispatcher can inspect past runs and detect spin-loop failures.
-- Trust class: operator, system
-- Ready when: Existing Kanban run lifecycle is validated and Hermes run history schema is mapped.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/run_history.go`, `internal/kanban/run_history_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanRunHistory -count=1`
-- Done signal: Run history persistence passes all acceptance tests.
-- Acceptance: TestKanbanRunHistoryRecordsSpawn proves a spawn creates a run record with started_at and status=running., TestKanbanRunHistoryRecordsCompletion proves a completed run updates the record with finished_at and status=done., TestKanbanRunHistoryAutoBlockAfterConsecutiveFailures proves 5+ consecutive failures auto-block the task.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py run_history + auto-block
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 9. Kanban notification delivery parity
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban worker completion triggers notification delivery to the board owner's configured channel (Telegram/Discord/Slack) with task summary and run evidence.
-- Trust class: operator, system
-- Ready when: Existing Kanban completion path and gateway notification surface are validated.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/notifications.go`, `internal/kanban/notifications_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanNotification -count=1`
-- Done signal: Notification delivery passes tests with platform-specific message formatting.
-- Acceptance: TestKanbanNotificationOnComplete proves worker completion sends a notification message to the configured platform., TestKanbanNotificationOnFailure proves worker failure sends an error notification., TestKanbanNotificationThrottle proves rapid consecutive completions are throttled to one notification per board per minute.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py notify-* methods
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. Installer script serving and MIME validation
+## 4. Installer script serving and MIME validation
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -227,6 +107,67 @@ selection.
 - Done signal: All three installer scripts serve with correct MIME types and static export verification passes.
 - Acceptance: TestInstallShEmbeddedAndServed proves /install.sh serves with text/x-shellscript MIME and correct content., TestInstallPs1EmbeddedAndServed proves /install.ps1 serves with text/plain MIME., TestInstallCmdEmbeddedAndServed proves /install.cmd serves with text/plain MIME., TestInstallerStaticExport proves all three scripts appear in static_export output.
 - Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 5. DingTalk real SDK binding
+
+- Phase: 7 / 7.E
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Bind the Gormes DingTalk channel to a real DingTalk Stream Mode SDK (replacing the current stub/fake). Implement credential loading (AppKey/AppSecret from config.toml), receive loop via the SDK's callback, send lifecycle, and reconnection with the existing retry seam.
+- Trust class: operator, system
+- Ready when: A Go-compatible DingTalk Stream Mode SDK exists (or a REST fallback is decided) and the existing contract/adapter tests pass.
+- Not ready when: -
+- Degraded mode: If the SDK is unavailable or credentials are missing, the channel reports dingtalk_sdk_unavailable evidence and the gateway skips only this channel.
+- Fixture: `internal/channels/dingtalk/client_test.go`
+- Write scope: `internal/channels/dingtalk/bot.go`, `internal/channels/dingtalk/client.go`, `internal/channels/dingtalk/client_test.go`
+- Test commands: `go test ./internal/channels/dingtalk -run TestDingTalk -count=1`
+- Done signal: Real DingTalk SDK binding passes all acceptance tests with the existing integration test suite.
+- Acceptance: TestDingTalkCredentialResolution proves AppKey/AppSecret are resolved from config and env., TestDingTalkReceiveLoop proves incoming messages from the SDK are forwarded as gateway.InboundEvent., TestDingTalkSendLifecycle proves outbound messages reach the SDK send method., TestDingTalkReconnect proves connection loss triggers the retry seam without data loss.
+- Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 6. Agentic-porting-kit repo scaffold
+
+- Phase: 8 / 8.E
+- Owner: `skills`
+- Size: `large`
+- Status: `planned`
+- Priority: `P2`
+- Contract: The gormes-* skill set (gormes-planner, gormes-builder, gormes-tdd-slice, gormes-parity-auditor, gormes-references, gormes-skill-manager) is extracted into a separate public TrebuchetDynamics repo (`agentic-porting-kit` or equivalent), with a README that frames the kit as a generic Python→Go porting toolkit, a worked example using a small non-Hermes target, and a clear license. The kit must work standalone — its rows must be loadable by Codex or Claude Code in any repo, not just Gormes.
+- Trust class: operator
+- Ready when: All listed skills have a README of their own that does not assume the Gormes repo layout., Skills' references that hard-code Gormes paths have been parameterized or generalized.
+- Not ready when: Skills still hard-code paths under docs/content/building-gormes/., The extracted kit cannot be tested without cloning Gormes.
+- Degraded mode: Without extraction, the methodology is invisible to other teams; "the loop is the product" cannot be substantiated externally.
+- Fixture: `(separate repo: TrebuchetDynamics/agentic-porting-kit)`
+- Write scope: `(separate repo)`, `webpages/docs/development-skills/ (de-Gormes-fy paths)`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: -
+- No test required: Documentation/research/planning row — automated tests not applicable
+- Done signal: Repo URL recorded in success-plan.md and README.md; star count tracked monthly.
+- Acceptance: Public repo TrebuchetDynamics/agentic-porting-kit exists with the listed skills., Repo README explains the kit independent of Gormes/Hermes., A worked example demonstrates the kit on a non-Hermes target (any small Python project being ported to Go)., Skills can be loaded into a fresh Codex or Claude Code session and successfully plan-and-execute one row in the example target.
+- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 7. Sandbox provider interface and virtual path security
+
+- Phase: 9 / 9.B
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.
+- Trust class: operator, system
+- Ready when: internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them., A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution., LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups., Path traversal detection and output masking have test coverage.
+- Not ready when: The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan., The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first., The virtual path system hard-codes /mnt/ paths without configurable base directory support., Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required).
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/sandbox/provider.go`, `internal/sandbox/provider_test.go`, `internal/sandbox/sandbox.go`, `internal/sandbox/sandbox_test.go`, `internal/sandbox/local/provider.go`, `internal/sandbox/local/provider_test.go`, `internal/sandbox/paths.go`, `internal/sandbox/paths_test.go`, `internal/tools/`, `internal/config/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/sandbox/... -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: SandboxProvider interface is defined; LocalSandboxProvider is implemented with virtual path resolution, traversal protection, and output masking; existing tools tests remain green.
+- Acceptance: SandboxProvider interface exists with Acquire/Get/Release/Shutdown lifecycle., LocalSandboxProvider creates per-thread workspace/uploads/outputs directories and maps virtual paths., Path traversal (..) in virtual paths is rejected with a PermissionError-equivalent., Output masking replaces host paths with virtual paths in tool return values., Read-only path families (e.g. skills directory) cannot be written through the sandbox., Existing go test ./internal/tools -count=1 stays green after sandbox provider addition.
+- Source refs: ./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py, ./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox.py, ./deer-flow/backend/packages/harness/deerflow/sandbox/tools.py, ./deer-flow/backend/packages/harness/deerflow/sandbox/local/, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

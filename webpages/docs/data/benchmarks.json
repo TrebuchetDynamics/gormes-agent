@@ -1,23 +1,30 @@
 {
   "binary": {
     "build_flags": "CGO_ENABLED=0 -trimpath -ldflags=\"-s -w\"",
-    "commit": "32abdf8da",
+    "commit": "470aec6e4",
     "go_version": "1.26+",
-    "last_measured": "2026-05-10",
+    "last_measured": "2026-05-11",
     "linker": "static",
     "name": "gormes",
     "path": "bin/gormes",
-    "size_bytes": 44261163,
-    "size_mb": "42.2",
+    "size_bytes": 42053897,
+    "size_mb": "40.1",
     "stripped": true
   },
   "code": {
     "dependencies": 149,
-    "go_files": 811,
-    "go_lines": 211032,
-    "test_count": 5570
+    "go_files": 820,
+    "go_lines": 214079,
+    "test_count": 5668
   },
   "history": [
+    {
+      "commit": "b3ff41ff1",
+      "date": "2026-05-11",
+      "phase": "Phase 5 — The Final Purge",
+      "size_bytes": 44261163,
+      "size_mb": 42.2
+    },
     {
       "commit": "32abdf8da",
       "date": "2026-05-10",
@@ -130,9 +137,9 @@
     "wasi_whisper": {
       "audio_fixture": "internal/wasi/whisper/testdata/jfk.wav",
       "benchmark": "BenchmarkWhisperWASI/tiny.en",
-      "binary_size_delta_mb_vs_pre_wasi_baseline": 14.3,
-      "current_binary_size_bytes": 44261163,
-      "current_binary_size_mb": 42.2,
+      "binary_size_delta_mb_vs_pre_wasi_baseline": 12.2,
+      "current_binary_size_bytes": 42053897,
+      "current_binary_size_mb": 40.1,
       "last_measured": "2026-05-10",
       "models": [
         {

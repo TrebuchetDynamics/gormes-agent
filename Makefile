@@ -1,6 +1,6 @@
 .PHONY: build build-slim run test test-live lint fmt clean update-readme validate-progress generate-progress orchestrator-test orchestrator-test-all orchestrator-lint
 
-VERSION ?= 0.1.0
+VERSION ?= $(shell grep -E '^\s*Version\s*=\s*"' cmd/gormes/version.go | sed 's/.*"\(.*\)".*/\1/')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 GIT_DIRTY ?= $(shell git diff --quiet 2>/dev/null && git diff --cached --quiet 2>/dev/null && echo false || echo true)
 BUILD_FLAGS := -trimpath -ldflags="-s -w -X main.Version=$(VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.GitDirty=$(GIT_DIRTY)"

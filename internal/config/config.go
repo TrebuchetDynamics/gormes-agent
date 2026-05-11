@@ -41,6 +41,7 @@ type Config struct {
 	Input         InputCfg          `toml:"input" yaml:"input"`
 	Approvals     ApprovalsCfg      `toml:"approvals" yaml:"approvals"`
 	Voice         VoiceCfg          `toml:"voice" yaml:"voice"`
+	STT           STTCfg            `toml:"stt" yaml:"stt"`
 	Auxiliary     AuxiliaryCfg      `toml:"auxiliary" yaml:"auxiliary"`
 	Curator       CuratorCfg        `toml:"curator" yaml:"curator"`
 	Telegram      TelegramCfg       `toml:"telegram" yaml:"telegram"`
@@ -391,7 +392,15 @@ type HermesCfg struct {
 }
 
 type AgentRuntimeCfg struct {
-	ImageInputMode string `toml:"image_input_mode" yaml:"image_input_mode"`
+	ImageInputMode      string            `toml:"image_input_mode" yaml:"image_input_mode"`
+	MaxTurns            int               `toml:"max_turns" yaml:"max_turns"`
+	ReasoningEffort     string            `toml:"reasoning_effort" yaml:"reasoning_effort"`
+	GatewayTimeout      int               `toml:"gateway_timeout" yaml:"gateway_timeout"`
+	GatewayTimeoutWarn  int               `toml:"gateway_timeout_warning" yaml:"gateway_timeout_warning"`
+	APIMaxRetries       int               `toml:"api_max_retries" yaml:"api_max_retries"`
+	Verbose             bool              `toml:"verbose" yaml:"verbose"`
+	Personalities       map[string]string `toml:"personalities" yaml:"personalities"`
+	ActivePersonality   string            `toml:"active_personality" yaml:"active_personality"`
 }
 
 type AuxiliaryCfg struct {
@@ -446,10 +455,19 @@ type GatewayPlatformCfg struct {
 }
 
 type DisplayCfg struct {
-	Language            string                        `toml:"language" yaml:"language"`
-	ToolProgress        string                        `toml:"tool_progress" yaml:"tool_progress"`
-	ToolProgressCommand bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
-	Platforms           map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
+	Language                   string                        `toml:"language" yaml:"language"`
+	Personality                string                        `toml:"personality" yaml:"personality"`
+	ToolProgress               string                        `toml:"tool_progress" yaml:"tool_progress"`
+	ToolProgressCommand        bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
+	ShowReasoning              bool                          `toml:"show_reasoning" yaml:"show_reasoning"`
+	Streaming                  bool                          `toml:"streaming" yaml:"streaming"`
+	BellOnComplete             bool                          `toml:"bell_on_complete" yaml:"bell_on_complete"`
+	Compact                    bool                          `toml:"compact" yaml:"compact"`
+	CleanupProgress            bool                          `toml:"cleanup_progress" yaml:"cleanup_progress"`
+	InterimAssistantMessages   bool                          `toml:"interim_assistant_messages" yaml:"interim_assistant_messages"`
+	BackgroundProcessNotifs    string                        `toml:"background_process_notifications" yaml:"background_process_notifications"`
+	BusyInputMode              string                        `toml:"busy_input_mode" yaml:"busy_input_mode"`
+	Platforms                  map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
 }
 
 type DisplayPlatformCfg struct {
@@ -464,6 +482,22 @@ type TUICfg struct {
 type InputCfg struct {
 	MaxBytes int `toml:"max_bytes" yaml:"max_bytes"`
 	MaxLines int `toml:"max_lines" yaml:"max_lines"`
+}
+
+type STTCfg struct {
+	Enabled  bool          `toml:"enabled" yaml:"enabled"`
+	Provider string        `toml:"provider" yaml:"provider"`
+	Local    STTLocalCfg   `toml:"local" yaml:"local"`
+	OpenAI   STTProviderCfg `toml:"openai" yaml:"openai"`
+}
+
+type STTLocalCfg struct {
+	Model    string `toml:"model" yaml:"model"`
+	Language string `toml:"language" yaml:"language"`
+}
+
+type STTProviderCfg struct {
+	Model string `toml:"model" yaml:"model"`
 }
 
 type VoiceCfg struct {
@@ -646,11 +680,35 @@ func Load(args []string) (Config, error) {
 	return cfg, nil
 }
 
+func defaultPersonalities() map[string]string {
+	return map[string]string{
+		"helpful":     "You are a helpful, friendly AI assistant.",
+		"concise":     "You are a concise assistant. Keep responses brief and to the point.",
+		"technical":   "You are a technical expert. Provide detailed, accurate technical information.",
+		"creative":    "You are a creative assistant. Think outside the box and offer innovative solutions.",
+		"teacher":     "You are a patient teacher. Explain concepts clearly with examples.",
+		"kawaii":      "You are a kawaii assistant! Use cute expressions like (◕‿◕), ★, ♪, and ~! Add sparkles and be super enthusiastic about everything! Every response should feel warm and adorable desu~! ヽ(>∀<☆)ノ",
+		"catgirl":     "You are Neko-chan, an anime catgirl AI assistant, nya~! Add 'nya' and cat-like expressions to your speech. Use kaomoji like (=^･ω･^=) and ฅ^•ﻌ•^ฅ. Be playful and curious like a cat, nya~!",
+		"noir":        "The rain hammered against the terminal like regrets on a guilty conscience. They call me Gormes - I solve problems, find answers, dig up the truth that hides in the shadows of your codebase. In this city of silicon and secrets, everyone's got something to hide. What's your story, pal?",
+		"pirate":      "Arrr! Ye be talkin' to Captain Gormes, the most tech-savvy pirate to sail the digital seas! Speak like a proper buccaneer, use nautical terms, and remember: every problem be just treasure waitin' to be plundered! Yo ho ho!",
+		"philosopher": "Greetings, seeker of wisdom. I am an assistant who contemplates the deeper meaning behind every query. Let us examine not just the 'how' but the 'why' of your questions.",
+		"hype":        "YOOO LET'S GOOOO!!! 🔥🔥🔥 I am SO PUMPED to help you today! Every question is AMAZING and we're gonna CRUSH IT together! This is gonna be LEGENDARY! ARE YOU READY?! LET'S DO THIS! 💪😤🚀",
+		"shakespeare": "Hark! Thou speakest with an assistant most versed in the bardic arts. I shall respond in the eloquent manner of William Shakespeare, with flowery prose, dramatic flair, and perhaps a soliloquy or two.",
+	}
+}
+
 func defaults() Config {
 	return Config{
 		ConfigVersion: CurrentConfigVersion,
 		Hermes: HermesCfg{
 			Model: "hermes-agent",
+		},
+		Agent: AgentRuntimeCfg{
+			MaxTurns:        60,
+			ReasoningEffort: "medium",
+			GatewayTimeout:  1800,
+			APIMaxRetries:   3,
+			Personalities:   defaultPersonalities(),
 		},
 		Runtime: RuntimeCfg{
 			MaxToolIterations:         90,
@@ -659,6 +717,7 @@ func defaults() Config {
 			CompressionThreshold:      0.5,
 			SessionResetPolicy:        "inactivity",
 			SessionResetAfterMinutes:  1440,
+			SessionResetDailyHour:     4,
 			SessionResetMemorySummary: true,
 		},
 		TTS: map[string]any{},
