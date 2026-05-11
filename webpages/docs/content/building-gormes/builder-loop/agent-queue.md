@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Agent middleware chain framework
-
-- Phase: 9 / 9.A
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `in_progress`
-- Priority: `P1`
-- Contract: Gormes gains a declarative middleware chain framework for the agent runtime (internal/hermes + internal/agent), inspired by DeerFlow's 19-middleware ordered chain with @Next/@Prev positioning and RuntimeFeatures-style toggle flags. Each middleware implements a single concern: thread-data setup, sandbox lifecycle, tool error handling, loop detection, memory injection, title generation, token usage tracking, clarification interception. Middlewares are assembled into an ordered chain by a factory that accepts a RuntimeFeatures struct where each feature = enabled (use built-in), disabled, or a custom Middleware instance. The middleware ordering is deterministic, and the chain is inspectable (dump to string for debugging).
-- Trust class: operator, system
-- Ready when: internal/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering., A RuntimeFeatures struct exists in internal/config or internal/agent/., At least 3 built-in middlewares are implemented and tested (e.g. ThreadData, ToolErrorHandling, LoopDetection)., The existing internal/agent/loop_detector.go is refactored into a middleware., go test ./internal/agent/ -count=1 is green after each middleware addition.
-- Not ready when: The middleware chain replaces or duplicates existing internal/hermes agent flow without clear migration path., The row tries to port all 19 DeerFlow middlewares in one slice — aim for 3-5 core middlewares first., The RuntimeFeatures struct uses Go generics for the bool\|Middleware union; use a wrapper type instead., Existing internal/hermes tests break without a validation plan.
-- Degraded mode: Without the middleware chain, the agent runtime uses hardcoded turn lifecycle without inspection, ordering, or feature toggles. Individual agents can still run but cannot customize their behavior pipeline.
-- Fixture: `internal/agent/middleware_test.go`
-- Write scope: `internal/agent/middleware.go`, `internal/agent/middleware_test.go`, `internal/agent/features.go`, `internal/agent/features_test.go`, `internal/agent/builtin.go`, `internal/hermes/`, `internal/kernel/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/agent -count=1`, `go test ./internal/hermes -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Middleware interface, MiddlewareChain, RuntimeFeatures, and 3+ built-in middlewares are implemented and tested; the chain is integrated into the turn lifecycle.
-- Acceptance: MiddlewareChain assemblages middlewares in deterministic, inspectable order., RuntimeFeatures correctly maps enabled/disabled/custom to middleware inclusion., The LoopDetection feature toggles correctly between enabled, disabled, and custom instance., Tests prove the chain can be dumped as a human-readable ordering string., Integration into hermes.Client or kernel.Config allows turn-level Before/After hooks.
-- Source refs: ./deer-flow/backend/packages/harness/deerflow/agents/factory.py, ./deer-flow/backend/packages/harness/deerflow/agents/features.py, ./deer-flow/backend/packages/harness/deerflow/agents/middlewares/, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. Transcribe audio tool registration + local whisper provider
+## 1. Transcribe audio tool registration + local whisper provider
 
 - Phase: 9 / 9.C
 - Owner: `orchestrator`
@@ -67,7 +47,7 @@ selection.
 - Source refs: ./internal/tools/transcription_tool.go, ./internal/tools/transcription_providers.go, ./internal/tools/transcription_providers_local.go, ./internal/wasi/whisper/transcriber.go, ./internal/wasi/whisper/model_cache.go, ./cmd/gormes/registry_audio.go
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 3. TD engineering blog scaffolded and live
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -89,7 +69,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 4. Tirith external security finding ingestion
+## 3. Tirith external security finding ingestion
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -109,7 +89,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py finding ingestion, ../hermes-agent/tests/test_tirith.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Unified security guard decision composer
+## 4. Unified security guard decision composer
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -129,7 +109,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Kanban multi-board isolation
+## 5. Kanban multi-board isolation
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -149,7 +129,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py multi-board isolation
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Kanban workspace context injection
+## 6. Kanban workspace context injection
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -169,7 +149,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py workspace+agent dir injection
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Kanban run history persistence
+## 7. Kanban run history persistence
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -189,7 +169,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py run_history + auto-block
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Kanban notification delivery parity
+## 8. Kanban notification delivery parity
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -209,7 +189,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py notify-* methods
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Installer script serving and MIME validation
+## 9. Installer script serving and MIME validation
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -227,6 +207,26 @@ selection.
 - Done signal: All three installer scripts serve with correct MIME types and static export verification passes.
 - Acceptance: TestInstallShEmbeddedAndServed proves /install.sh serves with text/x-shellscript MIME and correct content., TestInstallPs1EmbeddedAndServed proves /install.ps1 serves with text/plain MIME., TestInstallCmdEmbeddedAndServed proves /install.cmd serves with text/plain MIME., TestInstallerStaticExport proves all three scripts appear in static_export output.
 - Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. DingTalk real SDK binding
+
+- Phase: 7 / 7.E
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Bind the Gormes DingTalk channel to a real DingTalk Stream Mode SDK (replacing the current stub/fake). Implement credential loading (AppKey/AppSecret from config.toml), receive loop via the SDK's callback, send lifecycle, and reconnection with the existing retry seam.
+- Trust class: operator, system
+- Ready when: A Go-compatible DingTalk Stream Mode SDK exists (or a REST fallback is decided) and the existing contract/adapter tests pass.
+- Not ready when: -
+- Degraded mode: If the SDK is unavailable or credentials are missing, the channel reports dingtalk_sdk_unavailable evidence and the gateway skips only this channel.
+- Fixture: `internal/channels/dingtalk/client_test.go`
+- Write scope: `internal/channels/dingtalk/bot.go`, `internal/channels/dingtalk/client.go`, `internal/channels/dingtalk/client_test.go`
+- Test commands: `go test ./internal/channels/dingtalk -run TestDingTalk -count=1`
+- Done signal: Real DingTalk SDK binding passes all acceptance tests with the existing integration test suite.
+- Acceptance: TestDingTalkCredentialResolution proves AppKey/AppSecret are resolved from config and env., TestDingTalkReceiveLoop proves incoming messages from the SDK are forwarded as gateway.InboundEvent., TestDingTalkSendLifecycle proves outbound messages reach the SDK send method., TestDingTalkReconnect proves connection loss triggers the retry seam without data loss.
+- Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

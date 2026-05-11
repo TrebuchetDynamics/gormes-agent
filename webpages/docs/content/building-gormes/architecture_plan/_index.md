@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 88/103 subphases shipped · 11 in progress · 4 planned
+**Overall:** 89/103 subphases shipped · 10 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 0/3 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 1/3 subphases |
 
 ---
 
@@ -1377,9 +1377,9 @@ classification and row-backed implementation queue.
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
-### 9.A — Declarative Agent Middleware Chain 🔨
+### 9.A — Declarative Agent Middleware Chain ✅
 
-- [ ] Agent middleware chain framework
+- [x] Agent middleware chain framework
 
 ### 9.B — Sandbox Provider Abstraction + Virtual Path System ⏳
 

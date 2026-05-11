@@ -181,7 +181,7 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 0/3 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 1/3 subphases |
 <!-- PROGRESS:END -->
 
 </details>
