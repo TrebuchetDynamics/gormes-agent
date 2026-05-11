@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 91/104 subphases shipped · 9 in progress · 4 planned
+**Overall:** 92/104 subphases shipped · 8 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 2/4 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 3/4 subphases |
 
 ---
 
@@ -1386,9 +1386,9 @@ classification and row-backed implementation queue.
 
 - [ ] Sandbox provider interface and virtual path security
 
-### 9.C — Hermes Config Parity — Personalities & Display 🔨
+### 9.C — Hermes Config Parity — Personalities & Display ✅
 
-- [ ] Agent personalities + enhanced display config
+- [x] Agent personalities + enhanced display config
 
 ### 9.D — Speech-to-Text Tool Wiring ✅
 

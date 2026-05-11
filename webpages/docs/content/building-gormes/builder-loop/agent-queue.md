@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Agent personalities + enhanced display config
-
-- Phase: 9 / 9.C
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `in_progress`
-- Priority: `P0`
-- Contract: Gormes gains Hermes-parity config surface for agent personalities (12 built-in personas with custom system prompts), display preferences (show_reasoning, streaming, bell_on_complete, compact, cleanup_progress, busy_input_mode, background_process_notifications), and agent runtime settings (max_turns, reasoning_effort, gateway_timeout, api_max_retries, verbose). Personality prompts are injected into BuildSystemPrompt.
-- Trust class: operator, system
-- Ready when: internal/config/config.go has AgentRuntimeCfg with Personalities, MaxTurns, ReasoningEffort, GatewayTimeout, APIMaxRetries, Verbose fields., internal/config/config.go has DisplayCfg with ShowReasoning, Streaming, BellOnComplete, Compact, CleanupProgress, BusyInputMode fields., defaultPersonalities() returns 12 built-in personas matching Hermes upstream., BuildSystemPrompt injects personality block when opts.Personality is non-empty., go build ./cmd/gormes succeeds.
-- Not ready when: -
-- Degraded mode: When no personality is configured, the agent uses the default identity prompt without personality injection.
-- Fixture: `internal/config/config.go`
-- Write scope: `internal/config/config.go`, `internal/hermes/prompt_assembly.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/config -count=1`, `go test ./internal/hermes -count=1`, `go build ./cmd/gormes`, `go run ./cmd/progress validate`
-- Done signal: Personality system prompt injection works; 12 built-in personas configured; display and agent config fields defined with defaults.
-- Acceptance: 12 built-in personalities are defined with Hermes-matching prompts., Personality field in PromptAssemblyOptions is injected into system prompt., Config defaults provide sensible values for all new fields., Build and tests pass.
-- Source refs: ./hermes-agent/cli-config.yaml.example, ./hermes-agent/hermes_cli/config.py, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. TD engineering blog scaffolded and live
+## 1. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -69,7 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Tirith external security finding ingestion
+## 2. Tirith external security finding ingestion
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -89,7 +69,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py finding ingestion, ../hermes-agent/tests/test_tirith.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Unified security guard decision composer
+## 3. Unified security guard decision composer
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -109,7 +89,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Installer script serving and MIME validation
+## 4. Installer script serving and MIME validation
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -129,7 +109,7 @@ selection.
 - Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. DingTalk real SDK binding
+## 5. DingTalk real SDK binding
 
 - Phase: 7 / 7.E
 - Owner: `docs`
@@ -149,7 +129,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Agentic-porting-kit repo scaffold
+## 6. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -170,7 +150,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Sandbox provider interface and virtual path security
+## 7. Sandbox provider interface and virtual path security
 
 - Phase: 9 / 9.B
 - Owner: `orchestrator`
