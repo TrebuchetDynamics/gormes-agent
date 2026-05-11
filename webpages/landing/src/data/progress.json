@@ -7228,7 +7228,7 @@
               ],
               "ready_when": [
                 "Telegram inline approval buttons + callback auth is complete so the Telegram callback router already accepts a new `mp:/mm:/mg:/mb:/mx:` family alongside the existing `ea:` family without changing existing approval routing.",
-                "Hermes provider registry manifest is complete and exposes the curated provider+model list the picker needs.",
+                "Hermes provider registry and alias manifest is complete and exposes the curated provider+model list the picker needs.",
                 "Hermes CLI nested parser inventory refresh classifies `_handle_model_command` as the row-backed gateway-handler residual for this row.",
                 "Tests can drive a fake Telegram client capturing send-message payloads + inline keyboard markup and a fake callback-query stream without a live Bot API token."
               ],
@@ -7241,7 +7241,7 @@
               ],
               "blocked_by": [
                 "Telegram inline approval buttons + callback auth",
-                "Hermes provider registry manifest",
+                "Hermes provider registry and alias manifest",
                 "Hermes CLI nested parser inventory refresh"
               ],
               "unblocks": [
