@@ -27,7 +27,47 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. TD engineering blog scaffolded and live
+## 1. Agent personalities + enhanced display config
+
+- Phase: 9 / 9.C
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `in_progress`
+- Priority: `P0`
+- Contract: Gormes gains Hermes-parity config surface for agent personalities (12 built-in personas with custom system prompts), display preferences (show_reasoning, streaming, bell_on_complete, compact, cleanup_progress, busy_input_mode, background_process_notifications), and agent runtime settings (max_turns, reasoning_effort, gateway_timeout, api_max_retries, verbose). Personality prompts are injected into BuildSystemPrompt.
+- Trust class: operator, system
+- Ready when: internal/config/config.go has AgentRuntimeCfg with Personalities, MaxTurns, ReasoningEffort, GatewayTimeout, APIMaxRetries, Verbose fields., internal/config/config.go has DisplayCfg with ShowReasoning, Streaming, BellOnComplete, Compact, CleanupProgress, BusyInputMode fields., defaultPersonalities() returns 12 built-in personas matching Hermes upstream., BuildSystemPrompt injects personality block when opts.Personality is non-empty., go build ./cmd/gormes succeeds.
+- Not ready when: -
+- Degraded mode: When no personality is configured, the agent uses the default identity prompt without personality injection.
+- Fixture: `internal/config/config.go`
+- Write scope: `internal/config/config.go`, `internal/hermes/prompt_assembly.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/config -count=1`, `go test ./internal/hermes -count=1`, `go build ./cmd/gormes`, `go run ./cmd/progress validate`
+- Done signal: Personality system prompt injection works; 12 built-in personas configured; display and agent config fields defined with defaults.
+- Acceptance: 12 built-in personalities are defined with Hermes-matching prompts., Personality field in PromptAssemblyOptions is injected into system prompt., Config defaults provide sensible values for all new fields., Build and tests pass.
+- Source refs: ./hermes-agent/cli-config.yaml.example, ./hermes-agent/hermes_cli/config.py, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 2. Session auto-reset + STT config parity
+
+- Phase: 6 / 6.L
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `in_progress`
+- Priority: `P1`
+- Contract: Gormes gains Hermes-parity session reset (auto-clear sessions on inactivity/daily boundary) and STT config surface. Session reset checks the configured policy before processing each message and auto-resets stale sessions. STT config exposes enabled/provider/local model/openai model in config.toml.
+- Trust class: operator, system
+- Ready when: ManagerConfig has SessionResetPolicy/SessionResetIdleMinutes/SessionResetDailyHour fields., checkAutoReset() evaluates inactivity/daily/both/none policies., Config struct has STTCfg with enabled/provider/local/openai fields., go build ./cmd/gormes succeeds.
+- Not ready when: Session reset policies are not implemented in manager.go., STT config fields are missing from config.go.
+- Degraded mode: When session_reset policy is 'none', sessions persist indefinitely (legacy behavior). When STT is not configured, transcription defaults to local provider with base model.
+- Fixture: `internal/gateway/manager.go`
+- Write scope: `internal/config/config.go`, `internal/gateway/manager.go`, `cmd/gormes/gateway.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/config -count=1`, `go test ./internal/gateway -count=1`, `go build ./cmd/gormes`, `go run ./cmd/progress validate`
+- Done signal: Session auto-reset works with inactivity/daily/both/none policies; STT config fields exposed in config.toml.
+- Acceptance: ManagerConfig has SessionResetPolicy/SessionResetIdleMinutes/SessionResetDailyHour fields., checkAutoReset() evaluates inactivity/daily/both/none policies before submitting turns., Config struct has STTCfg with enabled/provider/local/openai fields., Build and tests pass.
+- Source refs: ./hermes-agent/cli-config.yaml.example, ./hermes-agent/hermes_cli/config.py
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -49,7 +89,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 2. Tirith external security finding ingestion
+## 4. Tirith external security finding ingestion
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -69,7 +109,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py finding ingestion, ../hermes-agent/tests/test_tirith.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Unified security guard decision composer
+## 5. Unified security guard decision composer
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -87,46 +127,6 @@ selection.
 - Done signal: Unified guard composer passes all acceptance tests and is callable from gateway/cron/CLI.
 - Acceptance: TestGuardDenyOverridesAllow proves a Tirith deny blocks even when the path allowlist permits., TestGuardPolicyOverridesTirith proves a URL policy explicitly permits even when Tirith warns., TestGuardEmptyComposerAllows proves with no policies loaded, the guard allows and reports guard_no_policies evidence.
 - Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 4. Kanban workspace context injection
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban worker spawning injects the board's workspace directory as the worker's working directory and loads the workspace's AGENTS.md/CLAUDE.md context, mirroring Hermes workspace-path isolation.
-- Trust class: operator, system
-- Ready when: Existing Kanban worker spawning path is understood and workspace/AGENTS.md loading is mapped.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/workspace_context.go`, `internal/kanban/workspace_context_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanWorkspace -count=1`
-- Done signal: Workspace context injection tests pass.
-- Acceptance: TestKanbanWorkspaceContextInjection proves a spawned worker's working directory matches the board's configured workspace., TestKanbanWorkspaceAGENTSLoad proves the worker loads AGENTS.md from the board workspace.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py workspace+agent dir injection
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Kanban run history persistence
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban run history records spawn attempts, successes, failures, and completion evidence per task so operators and the dispatcher can inspect past runs and detect spin-loop failures.
-- Trust class: operator, system
-- Ready when: Existing Kanban run lifecycle is validated and Hermes run history schema is mapped.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/run_history.go`, `internal/kanban/run_history_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanRunHistory -count=1`
-- Done signal: Run history persistence passes all acceptance tests.
-- Acceptance: TestKanbanRunHistoryRecordsSpawn proves a spawn creates a run record with started_at and status=running., TestKanbanRunHistoryRecordsCompletion proves a completed run updates the record with finished_at and status=done., TestKanbanRunHistoryAutoBlockAfterConsecutiveFailures proves 5+ consecutive failures auto-block the task.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py run_history + auto-block
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 6. Kanban notification delivery parity

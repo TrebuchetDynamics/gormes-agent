@@ -25,48 +25,33 @@ export const page = {
   description:
     "One Go binary runs 30 Hermes skills on Termux, Windows, and locked-down Linux. No Python, no Docker, no dependency drift. Local SQLite memory, Telegram/Discord/Slack gateways, and an offline TUI — all in ~40 MB.",
   nav: [
-    { label: 'Why Gormes', href: '#why' },
     { label: 'Install', href: '#install' },
     { label: 'Trust', href: '#trust' },
-    { label: 'Roadmap', href: '#roadmap' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  heroKicker: 'GO-NATIVE · OFFLINE-FIRST · OPEN SOURCE',
+  heroKicker: 'GO-NATIVE · OFFLINE-FIRST · MIT LICENSE',
   heroHeadline: 'Run AI agents from a single binary.',
   heroLines: [
-    'One Go binary. 30 Hermes skills. Local SQLite memory. Telegram, Discord, and Slack gateways.',
-    'No Python runtime. No Docker daemon. No dependency drift. Runs on Termux, Windows, and locked-down corp Linux.',
-    'Build from source or run install.sh. Prove it works offline, then add your provider.',
+    'One static binary. No Python runtime. No Docker daemon. No dependency drift.',
   ],
   heroFilterStamp: 'Scout release.',
   heroFilterLine:
     'Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now. Release signing, voice/TTS, and full Hermes parity are still hardening.',
-  primaryCta: { label: 'Install in 30 seconds', href: '#install' },
+  primaryCta: { label: 'Install', href: '#install' },
   secondaryCta: {
-    label: 'See what works',
+    label: 'See features',
     href: '#built-for',
   },
   proofStrip: [
-    { label: '30 Hermes skills curated', kind: 'pop' },
+    { label: '30 Hermes skills', kind: 'pop' },
     { label: '1 Go binary', kind: 'pop' },
-    { label: `${testCount.toLocaleString()} tests passing`, kind: 'pop' },
-    { label: `${platformCount} platforms`, kind: 'pop' },
-    { label: 'Validation-gated autonomous loop' },
-    { label: releaseLabel },
+    { label: `${testCount.toLocaleString()} tests`, kind: 'pop' },
     { label: 'MIT License' },
-    { label: 'Offline doctor before credentials' },
-  ],
-  statsBar: [
-    { value: `${goFiles}`, label: 'Go files' },
-    { value: `${Math.round(goLines / 1000)}k`, label: 'Lines of code' },
-    { value: `${testCount.toLocaleString()}`, label: 'Tests' },
-    { value: `~${binarySizeMB} MB`, label: 'Static binary' },
-    { value: `${platformCount}`, label: 'Platforms' },
   ],
   methodologyLabel: 'HOW IT\'S BUILT',
-  methodologyHeadline: 'Autonomously ported from Python to Go.',
+  methodologyHeadline: 'Systematic porting with full test coverage.',
   methodologyIntro:
-    "Gormes is produced by an autonomous engineering loop: planner → builder → TDD-slice. Every commit passes go test, progress validate, and git diff --check. Hermes is the parity oracle; the methodology is the product.",
+    "Every generated change passes tests, parity checks, and repo validation before landing. Hermes is the parity oracle; engineering rigor is the differentiator.",
   methodologyMetricLabel: 'Loop output, measured today',
   methodologyMetrics: [
     {
@@ -88,19 +73,11 @@ export const page = {
   methodologyPillars: [
     {
       title: 'Validation-gated commits',
-      body: 'Every loop commit must pass go test ./..., go run ./cmd/progress validate, and git diff --check before landing on development. No silent failures, no skipped hooks.',
+      body: 'Every commit must pass go test, progress validate, and git diff --check before landing. No silent failures, no skipped hooks.',
     },
     {
-      title: 'progress.json as system of record',
-      body: 'A schema-validated, contract-typed plan tracks every bounded slice. The loop selects the next builder-ready row; nothing else. No side queues, no private TODOs.',
-    },
-    {
-      title: 'Reusable porting toolkit',
-      body: 'The skill set behind the loop (planner, builder, tdd-slice, parity-auditor, references, skill-manager) is generic Python-to-Go porting infrastructure. Open-source extraction is on the Q2 roadmap.',
-    },
-    {
-      title: 'Hermes is the parity oracle, not the contract',
-      body: 'Upstream Hermes is the Python reference behavior. The loop sweeps each release for gaps, classifies them, and turns them into TDD slices — but Gormes can decline upstream features that contradict the sharp v1.0 cut.',
+      title: 'Hermes is the parity oracle',
+      body: 'Upstream Hermes is the Python reference. The loop sweeps for gaps and turns them into test-driven slices.',
     },
   ],
   methodologyLink: {
@@ -109,7 +86,7 @@ export const page = {
   },
   installHeadline: 'Two install paths. One gormes command.',
   installIntro:
-    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install that publishes the stable gormes command. Both paths keep the first proof offline. No runtime Node or npm is needed to open the native UI.',
+    'Build from source when you want maximum inspection. Use install.sh when you want a source-backed managed install. Both paths keep the first proof offline.',
   installSteps: [
     {
       label: 'METHOD 1 · BUILD FROM SOURCE',
@@ -150,7 +127,7 @@ export const page = {
   fitCards: [
     {
       label: 'For',
-      body: 'Developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift — and engineering teams curious how an autonomous loop ports Python projects to Go in production.',
+      body: 'Developers and operators who need reliable, local agent infrastructure that survives restarts, bad networks, and dependency drift.',
     },
     {
       label: 'Not for yet',
@@ -159,24 +136,46 @@ export const page = {
   ],
   trustHeadline: 'Trust posture',
   trustItems: [
-    'Source build and inspectable install.sh are the two promoted scout-release paths.',
-    'Offline doctor runs before provider credentials or token spend.',
-    'Secrets stay local under the Gormes home, not in the landing workflow.',
-    'install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.',
-    'Tagged artifacts carry checksums; release signing and package-manager hardening are still in progress.',
-    'Every autonomous-loop commit passes a validation gate (go test, progress validate, git diff --check) before landing.',
-    binaryMeasureLabel,
-    'Progress and benchmark data sync from repo sources during every landing build.',
+    'Offline doctor runs before any token spend.',
+    'Secrets stay local under ~/.gormes.',
+    'Source-backed install.sh you can inspect before running.',
+    'Every commit passes go test, progress validate, and git diff --check.',
+    'Tagged releases with SHA-256 checksums.',
   ],
   builtForHeadline: 'What works today',
-  builtForItems: [
-    'Run a local agent UI with zero runtime dependencies on the offline path',
-    'Send one-shot prompts to a provider-compatible endpoint',
-    'Validate your environment before spending tokens',
-    'Run onboard/setup flows that surface config, providers, skills, agents, and channel bindings',
-    'Operate Telegram, Discord, and Slack paths from one binary when configured',
-    'Inspect and debug local SQLite memory ("Goncho")',
-    'Browse sessions, config, skills, logs, and audits from local operator surfaces',
+  builtForGroups: [
+    {
+      title: 'Runtime',
+      items: [
+        'Offline TUI with zero dependencies',
+        'One-shot provider turns',
+        'Built-in environment doctor',
+      ],
+    },
+    {
+      title: 'Memory & State',
+      items: [
+        'Local SQLite sessions ("Goncho")',
+        'Durable context across restarts',
+        'Session browser and debug tools',
+      ],
+    },
+    {
+      title: 'Gateways',
+      items: [
+        'Telegram bot integration',
+        'Discord bot integration',
+        'Slack app integration',
+      ],
+    },
+    {
+      title: 'Operations',
+      items: [
+        'Local dashboard at 127.0.0.1:43827',
+        'Security and secrets audit',
+        'Gateway logs and status',
+      ],
+    },
   ],
   supportHeadline: 'Gateway support status',
   supportRows: [
@@ -277,13 +276,14 @@ export const page = {
   finalCtaHeadline: 'Prove the runtime locally before you ever spend a token.',
   finalCtaBody:
     'Build from source or inspect install.sh, run the offline doctor, then add credentials only after the machine has proven itself.',
-  finalPrimaryCta: { label: 'Install now — it\'s free', href: '#install' },
+  finalPrimaryCta: { label: 'Install now', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',
     href: 'https://github.com/TrebuchetDynamics/gormes-agent',
   },
   footerNav: [
     { label: 'Docs', href: 'https://docs.gormes.ai/' },
+    { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
     { label: 'Company', href: 'https://trebuchetdynamics.com/' },
   ],
   footerRelease: releaseLabel,

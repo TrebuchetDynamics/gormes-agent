@@ -53918,6 +53918,17 @@
               "go build ./cmd/gormes",
               "go run ./cmd/progress validate"
             ],
+            "ready_when": [
+              "internal/config/config.go has AgentRuntimeCfg with Personalities, MaxTurns, ReasoningEffort, GatewayTimeout, APIMaxRetries, Verbose fields.",
+              "internal/config/config.go has DisplayCfg with ShowReasoning, Streaming, BellOnComplete, Compact, CleanupProgress, BusyInputMode fields.",
+              "defaultPersonalities() returns 12 built-in personas matching Hermes upstream.",
+              "BuildSystemPrompt injects personality block when opts.Personality is non-empty.",
+              "go build ./cmd/gormes succeeds."
+            ],
+            "not_ready_when": [
+              "Personality injection is incomplete or missing.",
+              "Default personality prompts don't match Hermes upstream."
+            ],
             "done_signal": [
               "Personality system prompt injection works; 12 built-in personas configured; display and agent config fields defined with defaults."
             ],
@@ -53963,6 +53974,16 @@
               "go test ./internal/gateway -count=1",
               "go build ./cmd/gormes",
               "go run ./cmd/progress validate"
+            ],
+            "ready_when": [
+              "ManagerConfig has SessionResetPolicy/SessionResetIdleMinutes/SessionResetDailyHour fields.",
+              "checkAutoReset() evaluates inactivity/daily/both/none policies.",
+              "Config struct has STTCfg with enabled/provider/local/openai fields.",
+              "go build ./cmd/gormes succeeds."
+            ],
+            "not_ready_when": [
+              "Session reset policies are not implemented in manager.go.",
+              "STT config fields are missing from config.go."
             ],
             "done_signal": [
               "Session auto-reset works with inactivity/daily/both/none policies; STT config fields exposed in config.toml."

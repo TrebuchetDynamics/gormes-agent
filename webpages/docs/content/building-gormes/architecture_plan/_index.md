@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 90/103 subphases shipped · 9 in progress · 4 planned
+**Overall:** 89/104 subphases shipped · 11 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -96,10 +96,10 @@ classification and row-backed implementation queue.
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 2/3 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 2/4 subphases |
 
 ---
 
@@ -908,8 +908,8 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
 - [x] Kanban multi-board isolation
-- [ ] Kanban workspace context injection
-- [ ] Kanban run history persistence
+- [x] Kanban workspace context injection
+- [x] Kanban run history persistence
 - [ ] Kanban notification delivery parity
 - [x] Kanban chat board DB pin
 - [x] Kanban schema migration duplicate-column race guard
@@ -1259,11 +1259,12 @@ classification and row-backed implementation queue.
 - [x] Iterative prompt mutation and scoring loop
 - [x] Behavioral pattern extraction from session logs
 
-### 6.L — Composable Skill Execution (Voyager) ✅
+### 6.L — Composable Skill Execution (Voyager) 🔨
 
 - [x] Skill code execution runtime
 - [x] Skill dependency resolution and composition
-- [x] Skill validation on load with execution proof
+- [x] Agent personalities + enhanced display config
+- [ ] Session auto-reset + STT config parity
 
 ## Phase 7 — Paused Channel Backlog 🔨
 
@@ -1385,7 +1386,11 @@ classification and row-backed implementation queue.
 
 - [ ] Sandbox provider interface and virtual path security
 
-### 9.C — Speech-to-Text Tool Wiring ✅
+### 9.C — Hermes Config Parity — Personalities & Display 🔨
+
+- [ ] Agent personalities + enhanced display config
+
+### 9.D — Speech-to-Text Tool Wiring ✅
 
 - [x] Transcribe audio tool registration + local whisper provider
 
