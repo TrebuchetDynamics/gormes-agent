@@ -14671,8 +14671,7 @@
                 "Tool-call normalization + continuation contract"
               ],
               "unblocks": [
-                "Google Code Assist project/quota resolver",
-                "Gemini Cloud Code provider transport"
+                "Google Code Assist project/quota resolver"
               ],
               "acceptance": [
                 "TestGeminiCloudCodeBuildRequestMapsMessagesAndSystem proves system, user, assistant, tool-call, and tool-result messages map to Gemini contents without losing IDs or JSON arguments.",
@@ -14904,7 +14903,6 @@
                 "Provider credential resolver seam"
               ],
               "unblocks": [
-                "Gemini Cloud Code provider transport",
                 "Google Code Assist OAuth login/import",
                 "Code Assist /gquota operator command"
               ],
@@ -23492,7 +23490,7 @@
                 "The slice bypasses the existing private-host and quoted-false SSRF guard helpers."
               ],
               "unblocks": [
-                "Chromedp",
+                "go-browser-harness Chromedp action backend",
                 "Rod",
                 "Browser provider bridge + Firecrawl fallback",
                 "Browser Use cloud + Go browser harness bridge"
@@ -23679,11 +23677,11 @@
                 "Errors include raw API keys, bearer tokens, session URLs, project IDs, or unbounded provider response bodies."
               ],
               "blocked_by": [
-                "Browser action contract",
+                "Browser action contract + event transcript",
                 "Browser hybrid private-URL local sidecar routing"
               ],
               "unblocks": [
-                "Chromedp",
+                "go-browser-harness Chromedp action backend",
                 "Rod"
               ],
               "acceptance": [
@@ -23868,7 +23866,7 @@
                 "Errors include raw BROWSER_USE_API_KEY values, profile/cookie material, CDP/connect URLs, live browser URLs, session IDs without redaction, or unbounded HTML/provider response bodies."
               ],
               "blocked_by": [
-                "Browser action contract",
+                "Browser action contract + event transcript",
                 "Browser hybrid private-URL local sidecar routing",
                 "Browser SSRF quoted-false guard"
               ],
@@ -25694,8 +25692,7 @@
               ],
               "unblocks": [
                 "TTS synthesis + voice-mode state",
-                "Gateway media transcription hooks",
-                "Voice attachment handling for Signal and QQ Bot"
+                "Gateway media transcription hooks"
               ],
               "acceptance": [
                 "TestTranscriptionValidateAudioInput proves missing files, directories, unsupported suffixes, and max-size violations return stable evidence and no provider is called.",
@@ -44193,8 +44190,7 @@
               ],
               "unblocks": [
                 "Gateway management CLI read-model closeout",
-                "Cron management CLI over native store",
-                "Webhook/platform management CLI helpers"
+                "Cron management CLI over native store"
               ],
               "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
               "completed_at": "2026-05-08T03:56:15Z"
@@ -44368,7 +44364,6 @@
               ],
               "unblocks": [
                 "Gateway mutating-subcommand unavailability stub",
-                "Webhook/platform management CLI helpers",
                 "Cron management CLI over native store"
               ],
               "acceptance": [
@@ -44431,8 +44426,7 @@
                 "Gateway management CLI read-model closeout"
               ],
               "unblocks": [
-                "Service restart active-status poller",
-                "Webhook/platform management CLI helpers"
+                "Service restart active-status poller"
               ],
               "acceptance": [
                 "`gormes gateway stop` reads validated runtime status, sends an interrupt only to the validated live gateway PID when active_agents is zero, waits for status to become non-live, and reports the validation status used for the stop result.",
@@ -53748,7 +53742,6 @@
               ],
               "unblocks": [
                 "Signal live transport smoke test",
-                "Voice attachment handling for Signal and QQ Bot",
                 "Channel health/status readout for paused adapters"
               ],
               "acceptance": [
@@ -55108,7 +55101,6 @@
               ],
               "unblocks": [
                 "QQ Bot live transport smoke test",
-                "Voice attachment handling for Signal and QQ Bot",
                 "Paused adapter channel health/status readout"
               ],
               "acceptance": [
