@@ -660,6 +660,9 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			Model:    cfg.Auxiliary.Vision.Model,
 			BaseURL:  cfg.Auxiliary.Vision.BaseURL,
 		},
+		SessionResetPolicy:      cfg.Runtime.SessionResetPolicy,
+		SessionResetIdleMinutes:  cfg.Runtime.SessionResetAfterMinutes,
+		SessionResetDailyHour:    cfg.Runtime.SessionResetDailyHour,
 		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
 			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))

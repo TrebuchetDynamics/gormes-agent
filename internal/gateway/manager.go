@@ -87,6 +87,11 @@ type ManagerConfig struct {
 	// overrides. Values take precedence over ToolProgressMode for the named platform.
 	ToolProgressModes map[string]string
 	SessionMap        session.Map
+	// SessionReset controls automatic session clearing on inactivity or daily
+	// boundary. Mirrors Hermes session_reset config section.
+	SessionResetPolicy       string // "inactivity", "daily", "both", "none" (default: "inactivity")
+	SessionResetIdleMinutes  int    // inactivity timeout (default: 1440 = 24h)
+	SessionResetDailyHour    int    // daily reset hour 0-23 (default: 4)
 	// AgentRouting enables OpenClaw-style agent/workspace bindings for live
 	// gateway turns. Zero value preserves legacy single-agent chat keys.
 	AgentRouting AgentRoutingConfig
@@ -2646,9 +2651,67 @@ func (m *Manager) rememberAllowedInboundSource(ctx context.Context, source Sessi
 	}
 }
 
+func (m *Manager) checkAutoReset(ctx context.Context, sessionKey string) {
+	policy := m.cfg.SessionResetPolicy
+	if policy == "" || policy == "none" {
+		return
+	}
+	if m.kernel == nil {
+		return
+	}
+	// Get session metadata to check last activity time.
+	sid := sessionKey
+	if resolved, err := resolveSession(ctx, m.cfg.SessionMap, sessionKey); err == nil && resolved.SessionID != "" {
+		sid = resolved.SessionID
+	}
+	meta, ok := m.getSessionMetadata(ctx, sid)
+	if !ok {
+		return
+	}
+
+	now := m.now()
+	idleMinutes := m.cfg.SessionResetIdleMinutes
+	if idleMinutes <= 0 {
+		idleMinutes = 1440
+	}
+	dailyHour := m.cfg.SessionResetDailyHour
+	if dailyHour < 0 || dailyHour > 23 {
+		dailyHour = 4
+	}
+
+	shouldReset := false
+	switch policy {
+	case "inactivity":
+		if meta.UpdatedAt > 0 && now.Sub(time.Unix(meta.UpdatedAt, 0)) > time.Duration(idleMinutes)*time.Minute {
+			shouldReset = true
+		}
+	case "daily":
+		if now.Hour() >= dailyHour && meta.UpdatedAt < dayStart(now, dailyHour).Unix() {
+			shouldReset = true
+		}
+	case "both":
+		if meta.UpdatedAt > 0 && now.Sub(time.Unix(meta.UpdatedAt, 0)) > time.Duration(idleMinutes)*time.Minute {
+			shouldReset = true
+		}
+		if !shouldReset && now.Hour() >= dailyHour && meta.UpdatedAt < dayStart(now, dailyHour).Unix() {
+			shouldReset = true
+		}
+	}
+
+	if shouldReset {
+		m.log.Info("auto-reset session", "key", sessionKey, "policy", policy)
+		_ = m.kernel.ResetSession()
+	}
+}
+
+func dayStart(t time.Time, hour int) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), hour, 0, 0, 0, t.Location())
+}
+
 func (m *Manager) submitPinned(ctx context.Context, ch Channel, ev InboundEvent) bool {
 	route := m.agentRouteForInbound(ev)
 	sessionKey := strings.TrimSpace(route.SessionKey)
+	m.checkAutoReset(ctx, sessionKey)
 	if sessionKey == "" {
 		sessionKey = ev.ChatKey()
 	}
