@@ -1699,3 +1699,197 @@ func TestManager_StartupIdleFrameDoesNotClearPinnedTurn(t *testing.T) {
 		t.Fatalf("failed provider frame must still clear active turn after stale startup idle")
 	}
 }
+
+func (f *fakeKernel) resetsSnapshot() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.resets
+}
+
+func TestCheckAutoReset_NonePolicyDoesNotReset(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	if err := smap.PutMetadata(context.Background(), session.Metadata{
+		SessionID: "test-session",
+		UpdatedAt: now.Add(-999 * time.Hour).Unix(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:         smap,
+		Now:                func() time.Time { return now },
+		SessionResetPolicy: "none",
+	}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "test-session")
+	if n := fk.resetsSnapshot(); n != 0 {
+		t.Errorf("none policy: resets = %d, want 0", n)
+	}
+}
+
+func TestCheckAutoReset_EmptyPolicyDoesNotReset(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	if err := smap.PutMetadata(context.Background(), session.Metadata{
+		SessionID: "test-session",
+		UpdatedAt: now.Add(-999 * time.Hour).Unix(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{SessionMap: smap, Now: func() time.Time { return now }}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "test-session")
+	if n := fk.resetsSnapshot(); n != 0 {
+		t.Errorf("empty policy: resets = %d, want 0", n)
+	}
+}
+
+func TestCheckAutoReset_InactivityPastThresholdResets(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	if err := smap.PutMetadata(context.Background(), session.Metadata{
+		SessionID: "test-session",
+		UpdatedAt: now.Add(-36 * time.Hour).Unix(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:              smap,
+		Now:                     func() time.Time { return now },
+		SessionResetPolicy:      "inactivity",
+		SessionResetIdleMinutes: 1440,
+	}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "test-session")
+	if n := fk.resetsSnapshot(); n != 1 {
+		t.Errorf("inactivity past threshold: resets = %d, want 1", n)
+	}
+}
+
+func TestCheckAutoReset_InactivityBelowThresholdDoesNotReset(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	if err := smap.PutMetadata(context.Background(), session.Metadata{
+		SessionID: "test-session",
+		UpdatedAt: now.Add(-1 * time.Hour).Unix(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:              smap,
+		Now:                     func() time.Time { return now },
+		SessionResetPolicy:      "inactivity",
+		SessionResetIdleMinutes: 1440,
+	}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "test-session")
+	if n := fk.resetsSnapshot(); n != 0 {
+		t.Errorf("inactivity below threshold: resets = %d, want 0", n)
+	}
+}
+
+func TestCheckAutoReset_DailyPastBoundaryResets(t *testing.T) {
+	now := time.Date(2026, 5, 10, 10, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	if err := smap.PutMetadata(context.Background(), session.Metadata{
+		SessionID: "test-session",
+		UpdatedAt: time.Date(2026, 5, 9, 2, 0, 0, 0, time.UTC).Unix(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:            smap,
+		Now:                   func() time.Time { return now },
+		SessionResetPolicy:    "daily",
+		SessionResetDailyHour: 4,
+	}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "test-session")
+	if n := fk.resetsSnapshot(); n != 1 {
+		t.Errorf("daily past boundary: resets = %d, want 1", n)
+	}
+}
+
+func TestCheckAutoReset_DailyBeforeBoundaryDoesNotReset(t *testing.T) {
+	now := time.Date(2026, 5, 10, 3, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	if err := smap.PutMetadata(context.Background(), session.Metadata{
+		SessionID: "test-session",
+		UpdatedAt: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC).Unix(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:            smap,
+		Now:                   func() time.Time { return now },
+		SessionResetPolicy:    "daily",
+		SessionResetDailyHour: 4,
+	}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "test-session")
+	if n := fk.resetsSnapshot(); n != 0 {
+		t.Errorf("daily before boundary: resets = %d, want 0", n)
+	}
+}
+
+func TestCheckAutoReset_BothInactivityResets(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	if err := smap.PutMetadata(context.Background(), session.Metadata{
+		SessionID: "test-session",
+		UpdatedAt: now.Add(-36 * time.Hour).Unix(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:              smap,
+		Now:                     func() time.Time { return now },
+		SessionResetPolicy:      "both",
+		SessionResetIdleMinutes: 1440,
+		SessionResetDailyHour:   4,
+	}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "test-session")
+	if n := fk.resetsSnapshot(); n != 1 {
+		t.Errorf("both/inactivity: resets = %d, want 1", n)
+	}
+}
+
+func TestCheckAutoReset_MissingMetadataDoesNotReset(t *testing.T) {
+	now := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	smap := session.NewMemMap()
+	fk := &fakeKernel{}
+
+	m := NewManagerWithSubmitter(ManagerConfig{
+		SessionMap:              smap,
+		Now:                     func() time.Time { return now },
+		SessionResetPolicy:      "inactivity",
+		SessionResetIdleMinutes: 1440,
+	}, fk, slog.Default())
+
+	m.checkAutoReset(context.Background(), "unknown-session")
+	if n := fk.resetsSnapshot(); n != 0 {
+		t.Errorf("missing metadata: resets = %d, want 0", n)
+	}
+}

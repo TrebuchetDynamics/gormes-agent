@@ -65,6 +65,12 @@ func TestLoad_BuiltinDefaults(t *testing.T) {
 	if !cfg.GatewayRestartNotificationEnabled("telegram") {
 		t.Error("gateway restart notification default = false, want true")
 	}
+	if cfg.STT.Enabled {
+		t.Error("default STT.Enabled = true, want false")
+	}
+	if cfg.STT.Provider != "" {
+		t.Errorf("default STT.Provider = %q, want empty", cfg.STT.Provider)
+	}
 }
 
 func TestLoad_GatewayRestartNotificationPlatformOverride(t *testing.T) {

@@ -72,7 +72,7 @@ func TestNativeTUIInstallCopyPromisesNoRuntimeNodeOrNPM(t *testing.T) {
 		t.Fatalf("read landing content: %v", err)
 	}
 	content := string(body)
-	if !strings.Contains(content, "No runtime Node or npm") {
+	if !strings.Contains(content, "without credentials, network calls, Python, Node,") {
 		t.Fatalf("landing install copy does not promise no runtime Node/npm dependency")
 	}
 	for _, forbidden := range []string{
