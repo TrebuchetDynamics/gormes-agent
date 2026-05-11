@@ -47,7 +47,27 @@ selection.
 - Source refs: ./deer-flow/backend/packages/harness/deerflow/agents/factory.py, ./deer-flow/backend/packages/harness/deerflow/agents/features.py, ./deer-flow/backend/packages/harness/deerflow/agents/middlewares/, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 2. TD engineering blog scaffolded and live
+## 2. Transcribe audio tool registration + local whisper provider
+
+- Phase: 9 / 9.C
+- Owner: `orchestrator`
+- Size: `small`
+- Status: `in_progress`
+- Priority: `P1`
+- Contract: Gormes registers the existing transcribe_audio tool in the default tool registry so STT works by default with no API key. A LocalSTTProvider wraps the WASI whisper runtime (internal/wasi/whisper/) into the TranscriptionProvider interface with auto-downloading tiny.en model (~77MB from HuggingFace). Cloud STT providers (OpenAI, Groq, Mistral, XAI) are registered alongside and activate when their API keys are present.
+- Trust class: operator, system
+- Ready when: transcribe_audio tool exists in internal/tools/ but is unregistered., WASI whisper runtime exists in internal/wasi/whisper/., LocalSTTProvider wraps whisper into TranscriptionProvider interface., registry_audio.go registers the transcription tool with local provider.
+- Not ready when: The row attempts to add voice recording or voice mode — that is separate., The row requires cloud provider API keys for basic functionality.
+- Degraded mode: When the local whisper model is unavailable (first-run download failure or disk full), the transcribe_audio tool reports stt_provider_unavailable instead of crashing. Cloud providers (OpenAI, Groq, Mistral, XAI) still work if their API keys are configured.
+- Fixture: `internal/tools/transcription_providers_local.go`
+- Write scope: `internal/tools/transcription_providers_local.go`, `cmd/gormes/registry_audio.go`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go build ./cmd/gormes`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: transcribe_audio tool is registered by default; local whisper provider auto-downloads model on first use; no API key required for basic STT.
+- Acceptance: LocalSTTProvider implements TranscriptionProvider with Available() and Transcribe()., transcribe_audio tool is registered via MustRegister in the default tool registry., go build ./cmd/gormes succeeds with the non-slim build tag., go test ./internal/tools -count=1 stays green.
+- Source refs: ./internal/tools/transcription_tool.go, ./internal/tools/transcription_providers.go, ./internal/tools/transcription_providers_local.go, ./internal/wasi/whisper/transcriber.go, ./internal/wasi/whisper/model_cache.go, ./cmd/gormes/registry_audio.go
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 3. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -69,7 +89,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Tirith external security finding ingestion
+## 4. Tirith external security finding ingestion
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -89,7 +109,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py finding ingestion, ../hermes-agent/tests/test_tirith.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Unified security guard decision composer
+## 5. Unified security guard decision composer
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -109,7 +129,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Kanban multi-board isolation
+## 6. Kanban multi-board isolation
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -129,7 +149,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py multi-board isolation
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Kanban workspace context injection
+## 7. Kanban workspace context injection
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -149,7 +169,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py workspace+agent dir injection
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Kanban run history persistence
+## 8. Kanban run history persistence
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -169,7 +189,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py run_history + auto-block
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Kanban notification delivery parity
+## 9. Kanban notification delivery parity
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -189,7 +209,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py notify-* methods
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Installer script serving and MIME validation
+## 10. Installer script serving and MIME validation
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -207,26 +227,6 @@ selection.
 - Done signal: All three installer scripts serve with correct MIME types and static export verification passes.
 - Acceptance: TestInstallShEmbeddedAndServed proves /install.sh serves with text/x-shellscript MIME and correct content., TestInstallPs1EmbeddedAndServed proves /install.ps1 serves with text/plain MIME., TestInstallCmdEmbeddedAndServed proves /install.cmd serves with text/plain MIME., TestInstallerStaticExport proves all three scripts appear in static_export output.
 - Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 10. DingTalk real SDK binding
-
-- Phase: 7 / 7.E
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Bind the Gormes DingTalk channel to a real DingTalk Stream Mode SDK (replacing the current stub/fake). Implement credential loading (AppKey/AppSecret from config.toml), receive loop via the SDK's callback, send lifecycle, and reconnection with the existing retry seam.
-- Trust class: operator, system
-- Ready when: A Go-compatible DingTalk Stream Mode SDK exists (or a REST fallback is decided) and the existing contract/adapter tests pass.
-- Not ready when: -
-- Degraded mode: If the SDK is unavailable or credentials are missing, the channel reports dingtalk_sdk_unavailable evidence and the gateway skips only this channel.
-- Fixture: `internal/channels/dingtalk/client_test.go`
-- Write scope: `internal/channels/dingtalk/bot.go`, `internal/channels/dingtalk/client.go`, `internal/channels/dingtalk/client_test.go`
-- Test commands: `go test ./internal/channels/dingtalk -run TestDingTalk -count=1`
-- Done signal: Real DingTalk SDK binding passes all acceptance tests with the existing integration test suite.
-- Acceptance: TestDingTalkCredentialResolution proves AppKey/AppSecret are resolved from config and env., TestDingTalkReceiveLoop proves incoming messages from the SDK are forwarded as gateway.InboundEvent., TestDingTalkSendLifecycle proves outbound messages reach the SDK send method., TestDingTalkReconnect proves connection loss triggers the retry seam without data loss.
-- Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

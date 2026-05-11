@@ -57517,74 +57517,132 @@
             }
           ]
         },
-        "9.B": {
-          "name": "Sandbox Provider Abstraction + Virtual Path System",
-          "items": [
-            {
-              "name": "Sandbox provider interface and virtual path security",
-              "priority": "P1",
-              "status": "planned",
-              "contract": "Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.",
-              "contract_status": "draft",
-              "slice_size": "medium",
-              "execution_owner": "orchestrator",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "source_refs": [
-                "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py",
-                "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox.py",
-                "./deer-flow/backend/packages/harness/deerflow/sandbox/tools.py",
-                "./deer-flow/backend/packages/harness/deerflow/sandbox/local/",
-                "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
-              ],
-              "ready_when": [
-                "internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them.",
-                "A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution.",
-                "LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups.",
-                "Path traversal detection and output masking have test coverage."
-              ],
-              "not_ready_when": [
-                "The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan.",
-                "The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first.",
-                "The virtual path system hard-codes /mnt/ paths without configurable base directory support.",
-                "Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required)."
-              ],
-              "acceptance": [
-                "SandboxProvider interface exists with Acquire/Get/Release/Shutdown lifecycle.",
-                "LocalSandboxProvider creates per-thread workspace/uploads/outputs directories and maps virtual paths.",
-                "Path traversal (..) in virtual paths is rejected with a PermissionError-equivalent.",
-                "Output masking replaces host paths with virtual paths in tool return values.",
-                "Read-only path families (e.g. skills directory) cannot be written through the sandbox.",
-                "Existing go test ./internal/tools -count=1 stays green after sandbox provider addition."
-              ],
-              "write_scope": [
-                "internal/sandbox/provider.go",
-                "internal/sandbox/provider_test.go",
-                "internal/sandbox/sandbox.go",
-                "internal/sandbox/sandbox_test.go",
-                "internal/sandbox/local/provider.go",
-                "internal/sandbox/local/provider_test.go",
-                "internal/sandbox/paths.go",
-                "internal/sandbox/paths_test.go",
-                "internal/tools/",
-                "internal/config/",
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "test_commands": [
-                "go test ./internal/sandbox/... -count=1",
-                "go test ./internal/tools -count=1",
-                "go run ./cmd/progress validate",
-                "git diff --check"
-              ],
-              "done_signal": [
-                "SandboxProvider interface is defined; LocalSandboxProvider is implemented with virtual path resolution, traversal protection, and output masking; existing tools tests remain green."
-              ]
-            }
-          ]
-        }
+      "9.B": {
+        "name": "Sandbox Provider Abstraction + Virtual Path System",
+        "items": [
+          {
+            "name": "Sandbox provider interface and virtual path security",
+            "priority": "P1",
+            "status": "planned",
+            "contract": "Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.",
+            "contract_status": "draft",
+            "slice_size": "medium",
+            "execution_owner": "orchestrator",
+            "trust_class": [
+              "operator",
+              "system"
+            ],
+            "source_refs": [
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/tools.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/local/",
+              "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+            ],
+            "ready_when": [
+              "internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them.",
+              "A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution.",
+              "LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups.",
+              "Path traversal detection and output masking have test coverage."
+            ],
+            "not_ready_when": [
+              "The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan.",
+              "The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first.",
+              "The virtual path system hard-codes /mnt/ paths without configurable base directory support.",
+              "Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required)."
+            ],
+            "acceptance": [
+              "SandboxProvider interface exists with Acquire/Get/Release/Shutdown lifecycle.",
+              "LocalSandboxProvider creates per-thread workspace/uploads/outputs directories and maps virtual paths.",
+              "Path traversal (..) in virtual paths is rejected with a PermissionError-equivalent.",
+              "Output masking replaces host paths with virtual paths in tool return values.",
+              "Read-only path families (e.g. skills directory) cannot be written through the sandbox.",
+              "Existing go test ./internal/tools -count=1 stays green after sandbox provider addition."
+            ],
+            "write_scope": [
+              "internal/sandbox/provider.go",
+              "internal/sandbox/provider_test.go",
+              "internal/sandbox/sandbox.go",
+              "internal/sandbox/sandbox_test.go",
+              "internal/sandbox/local/provider.go",
+              "internal/sandbox/local/provider_test.go",
+              "internal/sandbox/paths.go",
+              "internal/sandbox/paths_test.go",
+              "internal/tools/",
+              "internal/config/",
+              "docs/content/building-gormes/architecture_plan/progress.json"
+            ],
+            "test_commands": [
+              "go test ./internal/sandbox/... -count=1",
+              "go test ./internal/tools -count=1",
+              "go run ./cmd/progress validate",
+              "git diff --check"
+            ],
+            "done_signal": [
+              "SandboxProvider interface is defined; LocalSandboxProvider is implemented with virtual path resolution, traversal protection, and output masking; existing tools tests remain green."
+            ]
+          }
+        ]
+      },
+      "9.C": {
+        "name": "Speech-to-Text Tool Wiring",
+        "items": [
+          {
+            "name": "Transcribe audio tool registration + local whisper provider",
+            "priority": "P1",
+            "status": "in_progress",
+            "contract": "Gormes registers the existing transcribe_audio tool in the default tool registry so STT works by default with no API key. A LocalSTTProvider wraps the WASI whisper runtime (internal/wasi/whisper/) into the TranscriptionProvider interface with auto-downloading tiny.en model (~77MB from HuggingFace). Cloud STT providers (OpenAI, Groq, Mistral, XAI) are registered alongside and activate when their API keys are present.",
+            "contract_status": "validated",
+            "slice_size": "small",
+            "execution_owner": "orchestrator",
+            "degraded_mode": "When the local whisper model is unavailable (first-run download failure or disk full), the transcribe_audio tool reports stt_provider_unavailable instead of crashing. Cloud providers (OpenAI, Groq, Mistral, XAI) still work if their API keys are configured.",
+            "fixture": "internal/tools/transcription_providers_local.go",
+            "trust_class": [
+              "operator",
+              "system"
+            ],
+            "source_refs": [
+              "./internal/tools/transcription_tool.go",
+              "./internal/tools/transcription_providers.go",
+              "./internal/tools/transcription_providers_local.go",
+              "./internal/wasi/whisper/transcriber.go",
+              "./internal/wasi/whisper/model_cache.go",
+              "./cmd/gormes/registry_audio.go"
+            ],
+            "ready_when": [
+              "transcribe_audio tool exists in internal/tools/ but is unregistered.",
+              "WASI whisper runtime exists in internal/wasi/whisper/.",
+              "LocalSTTProvider wraps whisper into TranscriptionProvider interface.",
+              "registry_audio.go registers the transcription tool with local provider."
+            ],
+            "not_ready_when": [
+              "The row attempts to add voice recording or voice mode — that is separate.",
+              "The row requires cloud provider API keys for basic functionality."
+            ],
+            "acceptance": [
+              "LocalSTTProvider implements TranscriptionProvider with Available() and Transcribe().",
+              "transcribe_audio tool is registered via MustRegister in the default tool registry.",
+              "go build ./cmd/gormes succeeds with the non-slim build tag.",
+              "go test ./internal/tools -count=1 stays green."
+            ],
+            "write_scope": [
+              "internal/tools/transcription_providers_local.go",
+              "cmd/gormes/registry_audio.go",
+              "docs/content/building-gormes/architecture_plan/progress.json"
+            ],
+            "test_commands": [
+              "go build ./cmd/gormes",
+              "go test ./internal/tools -count=1",
+              "go run ./cmd/progress validate",
+              "git diff --check"
+            ],
+            "done_signal": [
+              "transcribe_audio tool is registered by default; local whisper provider auto-downloads model on first use; no API key required for basic STT."
+            ]
+          }
+        ]
       }
     }
   }
+}
 }
