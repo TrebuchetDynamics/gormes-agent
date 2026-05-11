@@ -56,6 +56,9 @@ type Options struct {
 	// nil keeps /kanban consumed with unavailable evidence; cmd/gormes wires
 	// this to the same Cobra command tree as `gormes kanban`.
 	KanbanSlash KanbanSlashFunc
+	// TodoReader returns the current session's active todo items for the TUI
+	// todo panel. nil disables the panel.
+	TodoReader func(sessionID string) []TodoItem
 	// OfflineSmoke keeps plain-text submits inside the TUI. It is used by
 	// `gormes --offline` so the demo path proves the native UI without
 	// contacting a provider or enqueueing a kernel turn.
@@ -114,6 +117,7 @@ type Model struct {
 	sessionExport  SessionExportFunc
 	clipboardWrite func(string) error
 	kanbanSlash    KanbanSlashFunc
+	todoReader     func(sessionID string) []TodoItem
 
 	slashRegistry *SlashRegistry
 
@@ -159,6 +163,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		sessionExport:  opts.SessionExport,
 		clipboardWrite: opts.ClipboardWrite,
 		kanbanSlash:    opts.KanbanSlash,
+		todoReader:     opts.TodoReader,
 		offlineSmoke:   opts.OfflineSmoke,
 		slashRegistry:  NewDefaultSlashRegistry(),
 	}

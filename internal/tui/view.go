@@ -67,11 +67,15 @@ func (m Model) View() string {
 	// Render the active modal panel if one is present.
 	panel := m.RenderActivePanel(m.width, m.height)
 
+	// Render todo panel if there are active tasks for the current session.
+	todoPanel := m.renderTodoPanel(convW)
+
 	return RenderHermesChrome(HermesChromeInput{
 		Width:        m.width,
 		Conversation: conv,
 		Spinner:      hint,
 		Panel:        panel,
+		TodoPanel:    todoPanel,
 		StatusBar:    statusBar,
 		Prompt:       prompt,
 	})
@@ -365,4 +369,15 @@ func statusSuffix(message string) string {
 		return ""
 	}
 	return " · " + message
+}
+
+func (m Model) renderTodoPanel(width int) string {
+	if m.todoReader == nil {
+		return ""
+	}
+	items := m.todoReader(m.SessionID())
+	if len(items) == 0 {
+		return ""
+	}
+	return RenderTodoPanel(items, width)
 }

@@ -43,6 +43,10 @@ type HermesChromeInput struct {
 	// above the status bar when active. Empty means no panel is active.
 	Panel string
 
+	// TodoPanel is the optional todo list rendered when the session has
+	// active (pending or in-progress) tasks. Empty means no todos to show.
+	TodoPanel string
+
 	// QueuedMessages and StickyPrompt are optional ComposerPane rows rendered
 	// above the status rule. They mirror Hermes Ink's queue and sticky prompt
 	// placement without coupling the pure chrome assembler to queue state.
@@ -75,6 +79,9 @@ func RenderHermesChrome(in HermesChromeInput) string {
 	}
 	if in.Spinner != "" {
 		parts = append(parts, in.Spinner)
+	}
+	if in.TodoPanel != "" {
+		parts = append(parts, in.TodoPanel)
 	}
 	if in.Panel != "" {
 		parts = append(parts, in.Panel)
