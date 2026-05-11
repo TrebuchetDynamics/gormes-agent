@@ -6,6 +6,7 @@ const binaryMeasuredAt = benchmarks?.binary?.last_measured || '';
 const goFiles = benchmarks?.code?.go_files || '';
 const goLines = benchmarks?.code?.go_lines || '';
 const testCount = benchmarks?.code?.test_count || '';
+const platformCount = benchmarks?.properties?.platforms?.length || 0;
 const releaseVersion = release?.version || '0.1.01';
 const releaseTag = release?.tag || `v${releaseVersion}`;
 const releaseDateAlias = release?.date_alias || '';
@@ -20,44 +21,52 @@ const codeBaseLabel = goFiles && goLines && testCount
   : '';
 
 export const page = {
-  title: 'Gormes — Autonomously porting Python to Go, in production',
+  title: 'Gormes — Run AI agents from a single binary',
   description:
-    "TrebuchetDynamics' autonomous engineering loop ports large Python codebases to Go in production. Gormes is the receipt — 30 Hermes skills unchanged in one Go binary on Termux, Windows-without-Python, and locked-down corp Linux.",
+    "One Go binary runs 30 Hermes skills on Termux, Windows, and locked-down Linux. No Python, no Docker, no dependency drift. Local SQLite memory, Telegram/Discord/Slack gateways, and an offline TUI — all in ~40 MB.",
   nav: [
-    { label: 'Methodology', href: '#methodology' },
+    { label: 'Why Gormes', href: '#why' },
     { label: 'Install', href: '#install' },
     { label: 'Trust', href: '#trust' },
     { label: 'Roadmap', href: '#roadmap' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
-  heroKicker: 'METHODOLOGY · OPEN SOURCE · MIT LICENSE',
-  heroHeadline: 'Autonomously porting Python to Go, in production.',
+  heroKicker: 'GO-NATIVE · OFFLINE-FIRST · OPEN SOURCE',
+  heroHeadline: 'Run AI agents from a single binary.',
   heroLines: [
-    "TrebuchetDynamics built an agentic engineering loop that ports large Python codebases to Go in production — under TDD discipline, validation-gated commits, and a contract-typed plan. Gormes is the receipt.",
-    'That receipt runs the 30 most-used Hermes skills unchanged in one Go binary on Termux, Windows-without-Python, and locked-down corp Linux. No pip, no venv, no Docker daemon.',
-    'Build from source or run install.sh, prove the machine offline, then add provider and gateway credentials.',
+    'One Go binary. 30 Hermes skills. Local SQLite memory. Telegram, Discord, and Slack gateways.',
+    'No Python runtime. No Docker daemon. No dependency drift. Runs on Termux, Windows, and locked-down corp Linux.',
+    'Build from source or run install.sh. Prove it works offline, then add your provider.',
   ],
   heroFilterStamp: 'Scout release.',
   heroFilterLine:
     'Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now. Release signing, voice/TTS, and full Hermes parity are still hardening.',
-  primaryCta: { label: 'Choose an install path', href: '#install' },
+  primaryCta: { label: 'Install in 30 seconds', href: '#install' },
   secondaryCta: {
-    label: 'See the methodology',
-    href: '#methodology',
+    label: 'See what works',
+    href: '#built-for',
   },
   proofStrip: [
     { label: '30 Hermes skills curated', kind: 'pop' },
     { label: '1 Go binary', kind: 'pop' },
-    { label: '3 hard targets: Termux / Windows / locked Linux', kind: 'pop' },
+    { label: `${testCount.toLocaleString()} tests passing`, kind: 'pop' },
+    { label: `${platformCount} platforms`, kind: 'pop' },
     { label: 'Validation-gated autonomous loop' },
     { label: releaseLabel },
     { label: 'MIT License' },
     { label: 'Offline doctor before credentials' },
   ],
-  methodologyLabel: 'THE METHODOLOGY',
-  methodologyHeadline: 'How the receipt is produced.',
+  statsBar: [
+    { value: `${goFiles}`, label: 'Go files' },
+    { value: `${Math.round(goLines / 1000)}k`, label: 'Lines of code' },
+    { value: `${testCount.toLocaleString()}`, label: 'Tests' },
+    { value: `~${binarySizeMB} MB`, label: 'Static binary' },
+    { value: `${platformCount}`, label: 'Platforms' },
+  ],
+  methodologyLabel: 'HOW IT\'S BUILT',
+  methodologyHeadline: 'Autonomously ported from Python to Go.',
   methodologyIntro:
-    "Gormes is the artifact TrebuchetDynamics' agentic engineering system produces. A planner → builder → TDD-slice loop runs around the clock, lands one bounded vertical slice at a time, and only commits when go test, progress validate, and git diff --check are all green. The methodology is the product. Hermes-parity is supporting evidence the methodology works.",
+    "Gormes is produced by an autonomous engineering loop: planner → builder → TDD-slice. Every commit passes go test, progress validate, and git diff --check. Hermes is the parity oracle; the methodology is the product.",
   methodologyMetricLabel: 'Loop output, measured today',
   methodologyMetrics: [
     {
@@ -141,7 +150,7 @@ export const page = {
   fitCards: [
     {
       label: 'For',
-      body: 'Engineering teams curious how an autonomous loop ports Python projects to Go in production — and developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift.',
+      body: 'Developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift — and engineering teams curious how an autonomous loop ports Python projects to Go in production.',
     },
     {
       label: 'Not for yet',
@@ -268,7 +277,7 @@ export const page = {
   finalCtaHeadline: 'Prove the runtime locally before you ever spend a token.',
   finalCtaBody:
     'Build from source or inspect install.sh, run the offline doctor, then add credentials only after the machine has proven itself.',
-  finalPrimaryCta: { label: 'Pick an install path', href: '#install' },
+  finalPrimaryCta: { label: 'Install now — it\'s free', href: '#install' },
   finalSecondaryCta: {
     label: 'Star on GitHub',
     href: 'https://github.com/TrebuchetDynamics/gormes-agent',

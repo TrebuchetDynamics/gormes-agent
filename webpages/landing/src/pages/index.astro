@@ -91,6 +91,22 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
               <a class={buttonPrimary} href={page.primaryCta.href}>{page.primaryCta.label}</a>
               <a class={buttonSecondary} href={page.secondaryCta.href}>{page.secondaryCta.label}</a>
             </div>
+            <div class="hero-install-snippet mt-6 max-w-xl">
+              <div class="flex items-center justify-between gap-3 rounded-t-md border border-white/10 bg-[#05070a] px-4 py-2">
+                <span class="font-mono text-xs font-bold text-[#eeece5]/50">INSTALL</span>
+                <button
+                  class="copy-btn inline-flex min-h-8 items-center rounded-md border border-white/15 px-3 py-1.5 font-mono text-xs font-bold text-[#eeece5]/70 transition hover:border-[#f0c84b]/70 hover:text-[#f0c84b]"
+                  type="button"
+                  data-copy-command
+                  aria-label="Copy install command"
+                >
+                  <span class="copy-label">Copy</span>
+                </button>
+              </div>
+              <pre class="cmd min-w-0 overflow-x-auto rounded-b-md border-x border-b border-white/10 bg-[#05070a] p-4 text-sm leading-6 text-[#eeece5]"><code>curl -fsSLO https://gormes.ai/install.sh
+less install.sh
+sh install.sh</code></pre>
+            </div>
             <div class="proof-strip mt-5 flex flex-wrap gap-2">
               {page.proofStrip.map((item) => (
                 <span
@@ -108,39 +124,64 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
         </div>
       </section>
 
-      <section id="methodology" class={`methodology border-b border-white/10 bg-gradient-to-b from-[#0d1117] to-[#090b0f] ${sectionPad}`}>
-        <div class={`${sectionShell} methodology-inner`}>
-          <p class="kicker mb-3 text-xs font-bold uppercase text-[#73cedd]">{page.methodologyLabel}</p>
-          <h2 class="section-title mb-5 max-w-3xl text-3xl font-bold leading-tight text-[#eeece5]">{page.methodologyHeadline}</h2>
-          <p class="methodology-intro max-w-3xl text-base leading-7 text-[#eeece5]/72">{page.methodologyIntro}</p>
+      <section id="stats" class="stats border-b border-white/10 bg-[#0d1117]">
+        <div class={`${sectionShell} stats-inner py-8`}>
+          <div class="stats-grid grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-5">
+            {page.statsBar.map((stat) => (
+              <article class="stat-item text-center">
+                <p class="stat-value font-mono text-2xl font-black text-[#73cedd] sm:text-3xl">{stat.value}</p>
+                <p class="stat-label mt-1 text-xs font-bold uppercase tracking-wider text-[#eeece5]/55">{stat.label}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
-          <div class="methodology-metrics mt-8">
-            <p class="font-mono text-xs font-bold uppercase text-[#f0c84b]">{page.methodologyMetricLabel}</p>
-            <div class="mt-4 grid gap-4 sm:grid-cols-3">
-              {page.methodologyMetrics.map((metric) => (
-                <article class={`${cardShell} methodology-metric`}>
-                  <p class="metric-value font-mono text-3xl font-black text-[#73cedd]">{metric.value}</p>
-                  <p class="metric-label mt-1 text-sm font-bold text-[#eeece5]">{metric.label}</p>
-                  <p class="metric-detail mt-2 text-xs leading-5 text-[#eeece5]/65">{metric.detail}</p>
+      <section id="why" class={`why border-b border-white/10 bg-[#10141b] ${sectionPad}`}>
+        <div class={`${sectionShell} why-inner`}>
+          <p class="kicker mb-3 text-xs font-bold uppercase text-[#eeece5]/50">{page.whyLabel}</p>
+          <h2 class="section-title mb-5 max-w-2xl text-2xl font-bold text-[#eeece5]">{page.whyPainHeadline}</h2>
+          <div class="pain-block max-w-3xl">
+            <p class="text-base text-[#eeece5]/70">{page.whyPainIntro}</p>
+            <ul class="why-pain-list mt-5 grid gap-3 sm:grid-cols-2">
+              {page.whyPainBullets.map((item) => (
+                <li class="border-l-2 border-[#df6f67] pl-4 text-sm leading-6 text-[#eeece5]/75">{item}</li>
+              ))}
+            </ul>
+          </div>
+          <h3 class="why-fix-subhead mt-10 text-lg font-bold text-[#f0c84b]">{page.whyFixSubhead}</h3>
+          <div class="features-grid mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {page.featureCards.map((card) => (
+              <article class={`${cardShell} feature-card min-w-0`}>
+                <h3 class="text-base font-bold text-[#eeece5]">{card.title}</h3>
+                <p class="mt-3 text-sm leading-6 text-[#eeece5]/70">{card.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="built-for" class={`built-for border-b border-white/10 ${sectionPad}`}>
+        <div class={`${sectionShell} built-for-inner`}>
+          <h2 class="section-title mb-6 text-2xl font-bold text-[#eeece5]">{page.builtForHeadline}</h2>
+          <ul class="built-for-list grid gap-3 sm:grid-cols-2">
+            {page.builtForItems.map((item) => (
+              <li class="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-[#eeece5]/75">
+                {item}
+              </li>
+            ))}
+          </ul>
+          <div class="support-status mt-8">
+            <h3 class="mb-4 text-lg font-bold text-[#f0c84b]">{page.supportHeadline}</h3>
+            <div class="grid gap-4 md:grid-cols-2">
+              {page.supportRows.map((row) => (
+                <article class={`${cardShell} support-card`}>
+                  <p class="font-mono text-xs font-bold uppercase text-[#73cedd]">{row.status}</p>
+                  <p class="mt-3 text-sm leading-6 text-[#eeece5]/70">{row.body}</p>
                 </article>
               ))}
             </div>
           </div>
-
-          <div class="methodology-pillars mt-10 grid gap-4 md:grid-cols-2">
-            {page.methodologyPillars.map((pillar) => (
-              <article class={`${cardShell} methodology-pillar`}>
-                <h3 class="text-base font-bold text-[#eeece5]">{pillar.title}</h3>
-                <p class="mt-3 text-sm leading-6 text-[#eeece5]/72">{pillar.body}</p>
-              </article>
-            ))}
-          </div>
-
-          <p class="methodology-link mt-7 text-sm font-bold text-[#f0c84b]">
-            <a class="hover:text-[#ffd968]" href={page.methodologyLink.href}>
-              {page.methodologyLink.label}
-            </a>
-          </p>
         </div>
       </section>
 
@@ -216,51 +257,39 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
         </div>
       </section>
 
-      <section id="built-for" class={`built-for border-b border-white/10 ${sectionPad}`}>
-        <div class={`${sectionShell} built-for-inner`}>
-          <h2 class="section-title mb-6 text-2xl font-bold text-[#eeece5]">{page.builtForHeadline}</h2>
-          <ul class="built-for-list grid gap-3 sm:grid-cols-2">
-            {page.builtForItems.map((item) => (
-              <li class="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-[#eeece5]/75">
-                {item}
-              </li>
-            ))}
-          </ul>
-          <div class="support-status mt-8">
-            <h3 class="mb-4 text-lg font-bold text-[#f0c84b]">{page.supportHeadline}</h3>
-            <div class="grid gap-4 md:grid-cols-2">
-              {page.supportRows.map((row) => (
-                <article class={`${cardShell} support-card`}>
-                  <p class="font-mono text-xs font-bold uppercase text-[#73cedd]">{row.status}</p>
-                  <p class="mt-3 text-sm leading-6 text-[#eeece5]/70">{row.body}</p>
+      <section id="methodology" class={`methodology border-b border-white/10 bg-gradient-to-b from-[#0d1117] to-[#090b0f] ${sectionPad}`}>
+        <div class={`${sectionShell} methodology-inner`}>
+          <p class="kicker mb-3 text-xs font-bold uppercase text-[#73cedd]">{page.methodologyLabel}</p>
+          <h2 class="section-title mb-5 max-w-3xl text-3xl font-bold leading-tight text-[#eeece5]">{page.methodologyHeadline}</h2>
+          <p class="methodology-intro max-w-3xl text-base leading-7 text-[#eeece5]/72">{page.methodologyIntro}</p>
+
+          <div class="methodology-metrics mt-8">
+            <p class="font-mono text-xs font-bold uppercase text-[#f0c84b]">{page.methodologyMetricLabel}</p>
+            <div class="mt-4 grid gap-4 sm:grid-cols-3">
+              {page.methodologyMetrics.map((metric) => (
+                <article class={`${cardShell} methodology-metric`}>
+                  <p class="metric-value font-mono text-3xl font-black text-[#73cedd]">{metric.value}</p>
+                  <p class="metric-label mt-1 text-sm font-bold text-[#eeece5]">{metric.label}</p>
+                  <p class="metric-detail mt-2 text-xs leading-5 text-[#eeece5]/65">{metric.detail}</p>
                 </article>
               ))}
             </div>
           </div>
-        </div>
-      </section>
 
-      <section id="why" class={`why border-b border-white/10 bg-[#10141b] ${sectionPad}`}>
-        <div class={`${sectionShell} why-inner`}>
-          <p class="kicker mb-3 text-xs font-bold uppercase text-[#eeece5]/50">{page.whyLabel}</p>
-          <h2 class="section-title mb-5 max-w-2xl text-2xl font-bold text-[#eeece5]">{page.whyPainHeadline}</h2>
-          <div class="pain-block max-w-3xl">
-            <p class="text-base text-[#eeece5]/70">{page.whyPainIntro}</p>
-            <ul class="why-pain-list mt-5 grid gap-3 sm:grid-cols-2">
-              {page.whyPainBullets.map((item) => (
-                <li class="border-l-2 border-[#df6f67] pl-4 text-sm leading-6 text-[#eeece5]/75">{item}</li>
-              ))}
-            </ul>
-          </div>
-          <h3 class="why-fix-subhead mt-10 text-lg font-bold text-[#f0c84b]">{page.whyFixSubhead}</h3>
-          <div class="features-grid mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {page.featureCards.map((card) => (
-              <article class={`${cardShell} feature-card min-w-0`}>
-                <h3 class="text-base font-bold text-[#eeece5]">{card.title}</h3>
-                <p class="mt-3 text-sm leading-6 text-[#eeece5]/70">{card.body}</p>
+          <div class="methodology-pillars mt-10 grid gap-4 md:grid-cols-2">
+            {page.methodologyPillars.map((pillar) => (
+              <article class={`${cardShell} methodology-pillar`}>
+                <h3 class="text-base font-bold text-[#eeece5]">{pillar.title}</h3>
+                <p class="mt-3 text-sm leading-6 text-[#eeece5]/72">{pillar.body}</p>
               </article>
             ))}
           </div>
+
+          <p class="methodology-link mt-7 text-sm font-bold text-[#f0c84b]">
+            <a class="hover:text-[#ffd968]" href={page.methodologyLink.href}>
+              {page.methodologyLink.label}
+            </a>
+          </p>
         </div>
       </section>
 
@@ -346,7 +375,7 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
           return;
         }
 
-        const step = button.closest('.install-step');
+        const step = button.closest('.install-step, .hero-install-snippet');
         const code = step?.querySelector('code')?.innerText || '';
         const label = button.querySelector('.copy-label');
         const original = label?.textContent || 'Copy';
