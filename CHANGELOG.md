@@ -8,6 +8,41 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-05-11
+
+Date alias: `v2026.5.11`.
+
+> **Cross-channel formatting, Hermes config parity, cron in gateway mode.**
+> Discord and Slack now get rich markdown formatting. Agent personalities,
+> session auto-reset, STT TOML config, and enhanced display settings reach
+> Hermes config parity. Cron jobs fire in gateway mode with Telegram delivery.
+
+### Added
+
+- **Cross-channel message formatting** (`Phase 9.A`): Shared `FormatFinalMarkdown`
+  renders headings, lists, code blocks, bold, italic, and links for Telegram
+  (MarkdownV2), Discord (Discord markdown), and Slack (mrkdwn).
+- **Middleware chain framework** (`internal/agent/`): `Middleware` interface,
+  `MiddlewareChain` with deterministic ordering, `RuntimeFeatures` with
+  `FeatureFlag` toggle, 5 built-in middlewares, kernel integration.
+- **Cron in gateway mode**: Scheduler now starts in `gormes gateway` with
+  Telegram delivery sink. `gormes cron list/status/remove` CLI commands.
+- **STT wiring**: `transcribe_audio` tool registered by default with local
+  WASI whisper provider. No API key required.
+- **Hermes config parity**: 12 built-in personalities, agent runtime settings,
+  enhanced display config (show_reasoning, streaming, bell_on_complete, etc.),
+  session auto-reset (inactivity/daily/both/none policies), STT TOML config.
+- **Tool progress plain text fix**: No more MarkdownV2 escaping in URLs and paths.
+- **Kanban notification delivery parity**: `ThrottledNotifySender` for rate-limited
+  Telegram notifications.
+- **Landing page redesign**: Updated copy, proof strip, and navigation.
+
+### Changed
+
+- Binary reduced from 42.2 MB to **40.1 MB** (stripped Go 1.26 build).
+- install.sh `--build` flag with release-quality `-trimpath -ldflags="-s -w"`.
+- Snowflake test → gormes-browser-harness migration.
+
 ## [0.2.6] - 2026-05-11
 
 Date alias: `v2026.5.11`.
@@ -800,7 +835,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.5...v0.2.6
 [0.1.05]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.04...v0.1.05
 [0.1.04]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.03...v0.1.04
