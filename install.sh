@@ -1297,8 +1297,8 @@ build_gormes() {
   fi
 
   mkdir -p "$(managed_bin_dir)"
-  # Embed git metadata so `gormes doctor` can report the real commit and
-  # dirty state instead of the compiled-in defaults ("unknown"/"false").
+  # Embed git metadata and version so `gormes version` reports the real
+  # values instead of compiled-in defaults.
   build_commit="$(git -C "$build_root" rev-parse --short HEAD 2>/dev/null || true)"
   [ -n "$build_commit" ] || build_commit="unknown"
   build_dirty="false"
@@ -1306,7 +1306,9 @@ build_gormes() {
     || ! git -C "$build_root" diff --cached --quiet 2>/dev/null; then
     build_dirty="true"
   fi
-  build_ldflags="-s -w -X main.GitCommit=${build_commit} -X main.GitDirty=${build_dirty}"
+  build_version="$(grep '^\s*var Version\s*=' "$build_root/cmd/gormes/version.go" 2>/dev/null | sed 's/.*"\(.*\)".*/\1/' || true)"
+  [ -n "$build_version" ] || build_version="0.0.0"
+  build_ldflags="-s -w -X main.Version=${build_version} -X main.GitCommit=${build_commit} -X main.GitDirty=${build_dirty}"
   log_info "Building gormes from ${build_root} (${cache_tag})"
   (
     cd "$build_root" || exit 1
