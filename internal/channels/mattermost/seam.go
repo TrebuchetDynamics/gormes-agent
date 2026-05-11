@@ -188,7 +188,7 @@ func (s *Seam) stripBotMention(text string) string {
 		before := result[:i]
 		after := result[i+len(pattern):]
 		if i > 0 && result[i-1] != ' ' {
-			after = after
+			continue
 		}
 		result = strings.TrimSpace(before + after)
 	}
