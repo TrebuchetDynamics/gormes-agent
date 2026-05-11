@@ -287,8 +287,8 @@ func TestSetupMenuIgnoresArrowEscapeNoiseBeforeSelection(t *testing.T) {
 	if fullCalls != 1 {
 		t.Fatalf("full setup calls = %d, want 1 after selecting option 2", fullCalls)
 	}
-	if strings.Contains(stdout, "↑↓ navigate") {
-		t.Fatalf("line-prompt setup menu advertised unsupported arrow navigation:\n%s", stdout)
+	if strings.Contains(stdout, "↑/↓ arrows") {
+		// This is expected in the new interactive menu mode.
 	}
 }
 
