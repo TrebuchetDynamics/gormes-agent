@@ -22607,11 +22607,7 @@
                 "A tool can declare write/process behavior without a state domain, rollback policy, and focused test command.",
                 "Paths outside the injected Gormes roots can be accepted in tests."
               ],
-              "unblocks": [
-                "File write/patch tool port",
-                "Checkpoint restore tool port",
-                "Terminal process execution port"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestStatefulToolMigrationQueueRegistersDomains proves file/session/checkpoint/process tool plans declare state domain, root policy, rollback policy, concurrency policy, and owner row.",
                 "TestStatefulToolMigrationQueueRejectsMissingRollback proves write-capable tools cannot become selectable without rollback/audit evidence.",
@@ -29182,11 +29178,7 @@
                 "Metadata discovery imports Python modules, executes `register(ctx)`, or requires the Teams platform adapter to be configured.",
                 "The plugin is treated as loaded/enabled by default or its runtime errors are hidden from status evidence."
               ],
-              "unblocks": [
-                "Teams pipeline durable store and list/show CLI",
-                "Teams pipeline Graph subscription maintenance CLI",
-                "Teams pipeline gateway notification scheduler binding"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestTeamsPipelinePluginMetadata_LoadsManifest proves the upstream manifest name, version, author, kind, platforms, and disabled state round-trip without runtime execution.",
                 "TestTeamsPipelinePluginMetadata_CLICommandCapability proves `register_cli_command(name=\"teams-pipeline\")` becomes a disabled `cli_command` capability with execution_disabled and teams_pipeline_runtime_unavailable evidence.",
@@ -29671,11 +29663,7 @@
                 "The slice merges this with pre_gateway_dispatch / pre_approval_request hooks; each is a separate row in the lifecycle-hook family.",
                 "Hook failures silently drop assistant output instead of surfacing hook_failure evidence."
               ],
-              "unblocks": [
-                "Plugin lifecycle hook: pre_gateway_dispatch",
-                "Plugin lifecycle hook: pre_approval_request and post_approval_response",
-                "Plugin lifecycle hook: post_tool_call duration_ms"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestTransformLLMOutput_RegisteredHooksRunInOrder proves two hooks run in registration order and observe each other's mutations.",
                 "TestTransformLLMOutput_HookErrorPreservesOriginal proves a panicking or error-returning hook does not drop the original output and emits hook_failure evidence.",
@@ -35729,11 +35717,7 @@
               "blocked_by": [
                 "Durable worker supervisor status seam"
               ],
-              "unblocks": [
-                "Kanban hallucination gate for worker-created-card claims",
-                "Kanban per-task max_retries override",
-                "Kanban worker auto-block on incomplete exit"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestKanbanWorker_HeartbeatStaleReclaim proves a worker whose heartbeat exceeds threshold is marked zombie and its task is re-enqueued with the retry budget decremented exactly once.",
                 "TestKanbanWorker_HeartbeatHealthyDoesNotReclaim proves an active worker is never reclaimed.",
@@ -39836,9 +39820,7 @@
                 "OAuth-capable provider lookup is hard-coded as a literal set instead of derived from ProviderConfig.AuthType field. (Hermes _OAUTH_CAPABLE_PROVIDERS is duplicated at auth_commands.py:36 and 173 — Gormes must avoid that drift by deriving from ProviderConfig.)"
               ],
               "unblocks": [
-                "Qwen OAuth provider runtime binding",
-                "Google Gemini CLI provider runtime binding",
-                "Nous provider auth refresh and agent-key recovery"
+                "Nous OAuth device code + refresh token + agent key provisioning"
               ],
               "acceptance": [
                 "TestGormesAuthAddAnthropicOAuth stores a manual:hermes_pkce entry with label derived from fake token claims, refresh token, expiry metadata, and no live keychain access.",
@@ -39924,12 +39906,9 @@
               "blocked_by": [
                 "Hermes auth command-tree manifest refresh",
                 "Hermes auth credential-pool command surface",
-                "First-party Spotify plugin metadata fixture"
+                "First-party Spotify plugin fixture"
               ],
-              "unblocks": [
-                "Spotify plugin backend runtime",
-                "Spotify tool handlers over providers.spotify auth"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGormesAuthSpotifyLoginPKCEStoresProviderState proves fake PKCE login writes providers.spotify with access/refresh/expiry/scope/api_base_url metadata and redacted output.",
                 "TestGormesAuthSpotifyStatusLoggedInAndLoggedOut proves status renders logged-in fields without secrets and reports logged out when providers.spotify is absent.",
@@ -40550,11 +40529,7 @@
                 "CLI banner/output formatting helpers",
                 "CLI terminal control-response sanitizer"
               ],
-              "unblocks": [
-                "CLI input-loop preview binding",
-                "Native TUI submitted-message preview parity",
-                "CLI prompt ergonomics closeout"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestUserMessagePreviewDefaultHeadTail proves a six-line prompt renders the first two and last two lines with a hidden-middle count.",
                 "TestUserMessagePreviewHideTail proves last_lines=0 renders only the configured first lines and a middle-count marker.",
@@ -45844,11 +45819,7 @@
                 "Hook errors abort the turn instead of being logged.",
                 "The implementation adds hook points without corresponding kernel fire sites."
               ],
-              "unblocks": [
-                "Plugin/extension observation of agent turn boundaries",
-                "Tool-call audit hooks at agent step granularity",
-                "Agent completion telemetry and logging"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "HookAgentStart fires exactly once per agent turn, before any tool calls.",
                 "HookAgentStep fires after each tool-batch outcome, carrying iteration index and tool result summary.",
