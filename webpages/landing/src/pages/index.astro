@@ -91,22 +91,6 @@ const buttonSecondary = `${buttonBase} btn-secondary border border-white/15 bg-w
               <a class={buttonPrimary} href={page.primaryCta.href}>{page.primaryCta.label}</a>
               <a class={buttonSecondary} href={page.secondaryCta.href}>{page.secondaryCta.label}</a>
             </div>
-            <div class="hero-install-snippet mt-6 max-w-xl">
-              <div class="flex items-center justify-between gap-3 rounded-t-md border border-white/10 bg-[#05070a] px-4 py-2">
-                <span class="font-mono text-xs font-bold text-[#eeece5]/50">INSTALL</span>
-                <button
-                  class="copy-btn inline-flex min-h-8 items-center rounded-md border border-white/15 px-3 py-1.5 font-mono text-xs font-bold text-[#eeece5]/70 transition hover:border-[#f0c84b]/70 hover:text-[#f0c84b]"
-                  type="button"
-                  data-copy-command
-                  aria-label="Copy install command"
-                >
-                  <span class="copy-label">Copy</span>
-                </button>
-              </div>
-              <pre class="cmd min-w-0 overflow-x-auto rounded-b-md border-x border-b border-white/10 bg-[#05070a] p-4 text-sm leading-6 text-[#eeece5]"><code>curl -fsSLO https://gormes.ai/install.sh
-less install.sh
-sh install.sh</code></pre>
-            </div>
             <div class="proof-strip mt-5 flex flex-wrap gap-2">
               {page.proofStrip.map((item) => (
                 <span
@@ -120,19 +104,6 @@ sh install.sh</code></pre>
                 </span>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="stats" class="stats border-b border-white/10 bg-[#0d1117]">
-        <div class={`${sectionShell} stats-inner py-8`}>
-          <div class="stats-grid grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-5">
-            {page.statsBar.map((stat) => (
-              <article class="stat-item text-center">
-                <p class="stat-value font-mono text-2xl font-black text-[#73cedd] sm:text-3xl">{stat.value}</p>
-                <p class="stat-label mt-1 text-xs font-bold uppercase tracking-wider text-[#eeece5]/55">{stat.label}</p>
-              </article>
-            ))}
           </div>
         </div>
       </section>
@@ -164,13 +135,16 @@ sh install.sh</code></pre>
       <section id="built-for" class={`built-for border-b border-white/10 ${sectionPad}`}>
         <div class={`${sectionShell} built-for-inner`}>
           <h2 class="section-title mb-6 text-2xl font-bold text-[#eeece5]">{page.builtForHeadline}</h2>
-          <ul class="built-for-list grid gap-3 sm:grid-cols-2">
-            {page.builtForItems.map((item) => (
-              <li class="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-[#eeece5]/75">
-                {item}
-              </li>
+          <div class="built-for-groups grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {page.builtForGroups.map((group) => (
+              <article class={`${cardShell} built-for-group`}>
+                <h3 class="font-mono text-xs font-bold uppercase text-[#f0c84b]">{group.title}</h3>
+                <ul class="mt-4 space-y-2 text-sm leading-6 text-[#eeece5]/75">
+                  {group.items.map((item) => <li>{item}</li>)}
+                </ul>
+              </article>
             ))}
-          </ul>
+          </div>
           <div class="support-status mt-8">
             <h3 class="mb-4 text-lg font-bold text-[#f0c84b]">{page.supportHeadline}</h3>
             <div class="grid gap-4 md:grid-cols-2">
@@ -375,7 +349,7 @@ sh install.sh</code></pre>
           return;
         }
 
-        const step = button.closest('.install-step, .hero-install-snippet');
+        const step = button.closest('.install-step');
         const code = step?.querySelector('code')?.innerText || '';
         const label = button.querySelector('.copy-label');
         const original = label?.textContent || 'Copy';
