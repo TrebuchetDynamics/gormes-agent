@@ -2,23 +2,43 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/kanbantools"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/sessionsearchtool"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/skills"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/subagent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
+
+type registryOptions struct {
+	searchDB       *sql.DB
+	searchSessions sessionsearchtool.SessionSearchDirectory
+}
+
+type registryOpt func(*registryOptions)
+
+func withSessionSearch(db *sql.DB, sessions sessionsearchtool.SessionSearchDirectory) registryOpt {
+	return func(o *registryOptions) {
+		o.searchDB = db
+		o.searchSessions = sessions
+	}
+}
 
 // buildDefaultRegistry returns a Registry populated with Gormes's built-in
 // Go-native tools. Context-specific toolsets such as Kanban stay hidden unless
 // their runtime gate is active. Consumer forks that want to add domain-specific
 // tools call reg.Register on the returned *Registry before passing it into the
 // kernel Config.
-func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childClient hermes.Client, childModel string) *tools.Registry {
+func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childClient hermes.Client, childModel string, opts ...registryOpt) *tools.Registry {
+	var o registryOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.EchoTool{})
 	reg.MustRegister(&tools.NowTool{})
@@ -70,6 +90,10 @@ func buildDefaultRegistry(parentCtx context.Context, cfg config.Config, childCli
 	reg.MustRegister(tools.NewVisionAnalyzeTool())
 	reg.MustRegister(tools.NewMemoryTool(tools.MemoryToolConfig{
 		MemoryDir: filepath.Join(config.GormesHome(), "memory"),
+	}))
+	reg.MustRegister(sessionsearchtool.NewSessionSearchTool(sessionsearchtool.SessionSearchToolConfig{
+		DB:       o.searchDB,
+		Sessions: o.searchSessions,
 	}))
 	for _, tool := range tools.NewSkillsTools(tools.SkillsToolsConfig{
 		Root:        cfg.SkillsRoot(),
