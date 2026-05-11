@@ -1686,10 +1686,7 @@
                 "Gateway manual reset session-boundary hooks",
                 "Session expiry hook cleanup retry evidence"
               ],
-              "unblocks": [
-                "Fresh-reset skill injection closeout",
-                "Channel session lifecycle status surface"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGatewayAutoResetReasonDecision proves idle, daily, suspended, and none decisions return stable reason strings without mutating explicit reset state.",
                 "TestGatewayAutoResetSessionMetadata proves replacement sessions record was_auto_reset, auto_reset_reason, and reset_had_activity based on prior token/message activity.",
@@ -2223,10 +2220,7 @@
                 "The slice exposes the constants under names that conflict with existing internal/hermes identifiers (verify by `grep -rn` before naming)."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "Live-turn tool-use enforcement guidance block (model-substring gated)",
-                "Live-turn environment hints block (WSL/Termux/Docker gated)"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGuidanceConstants_MemoryGuidance_ByteEquivalent: extracts MEMORY_GUIDANCE concatenated string from `../hermes-agent/agent/prompt_builder.py` and asserts equality to `hermes.MemoryGuidance`. Use a deterministic Python concatenation reproduction (parse the parenthesised literal block) so the test is self-contained without invoking Python.",
                 "TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent: same shape for SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance.",
@@ -7948,10 +7942,7 @@
                 "The slice starts live microphone capture, TTS playback, SSH streaming, or provider audio work.",
                 "The widget requires golden screenshots to prove basic behavior, ignores reduced-motion, or exposes no semantics for blind users."
               ],
-              "unblocks": [
-                "Navivox live voice-mode controls",
-                "Navivox Flutter TTS playback surface"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "`VoiceMorphSurface` supports idle, listening, thinking, speaking, and disabled states with distinct styles and semantic labels.",
                 "The painter receives clamped intensity and deterministic phase/style inputs that can later be driven by real audio amplitude.",
@@ -10341,10 +10332,7 @@
                 "Notify-to delivery routing",
                 "Manager remember-source hook"
               ],
-              "unblocks": [
-                "Adapter-specific sticker download/vision integration",
-                "Cron cross-platform mirror write integration"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestSelectDeliveryMirrorSession_PrefersExactUserAndThread proves session selection respects platform, chat, thread, and exact user identity.",
                 "TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser proves same-chat sessions with distinct users are not guessed.",
@@ -12178,10 +12166,7 @@
               "blocked_by": [
                 "Goncho dialectic chat contract"
               ],
-              "unblocks": [
-                "Internal agent chat transport",
-                "Hugo docs examples for streaming memory behavior"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Streaming response handlers accumulate chunks into a final response before persistence.",
                 "Partial chunks are never written as memory messages.",
@@ -12297,10 +12282,7 @@
               "not_ready_when": [
                 "The slice runs LLM deduction or induction, implements tree-based surprisal, starts background workers, or calls a hosted Honcho service."
               ],
-              "unblocks": [
-                "Goncho dream execution worker",
-                "Goncho dream status documentation"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Scheduler fixtures create at most one pending or in-progress dream per workspace/observer/observed tuple.",
                 "A dream is eligible only after at least 50 new conclusions since the last dream, an eight-hour cooldown, and the configured idle timeout.",
@@ -45892,11 +45874,7 @@
                 "The row is skipped before the credential_pool.go schema and the Hermes upstream auth.py contract are reconciled.",
                 "OAuth device code flow is implemented without redacted fixture coverage matching test_auth_nous_provider.py patterns."
               ],
-              "unblocks": [
-                "gormes auth add nous CLI command",
-                "Nous provider runtime credential resolution",
-                "Cross-profile Nous token sync (shared auth store)"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Device code login fixture proves the browser-based OAuth flow produces a valid access token and refresh token stored via SaveNousOAuthCredentials.",
                 "Refresh token rotation fixture proves expired access tokens are refreshed via X-Nous-Refresh-Token header and the new token pair is persisted.",
@@ -50036,11 +50014,7 @@
                 "Cold start is asserted only by manual stopwatch timing rather than a checked-in `go test -bench` fixture.",
                 "Lazy-init introduces a global mutable client cache without a clear lifetime/reset path."
               ],
-              "unblocks": [
-                "Config loader mtime cache for cold start",
-                "Tool definitions memoization for cold start",
-                "Dangerous-pattern precompilation for cold start"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "BenchmarkGormesColdStart exercises a representative cold path and fails if cold-start exceeds the documented budget on the developer baseline machine.",
                 "TestProviderClientLazyInit_DoesNotConstructUnselectedProvider proves selecting Anthropic does not construct OpenAI/Bedrock/Firecrawl clients on the cold path.",
