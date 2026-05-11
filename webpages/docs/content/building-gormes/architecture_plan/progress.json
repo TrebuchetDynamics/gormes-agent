@@ -7198,6 +7198,99 @@
                 "note": "2026-05-07 bounded all-topic weakness sweep selected this as the highest-priority builder-ready runtime row after the Telegram forum thread/retry row was downgraded to draft for missing SDK/thread delivery seams and the remaining open P1 event-bus row stayed a non-selectable umbrella parent. Complete: TDD added fakeable platform lifecycle helpers for HERMES_GATEWAY_PLATFORM_CONNECT_TIMEOUT parsing, timeout-bounded startup, retry queue evidence, reconnect success clearing, nonretryable removal, retryable attempt increments, status updates, manifest-backed connected-platform checkers, tuned HTTP keepalive env parsing, and a WhatsApp bridge typing response cleanup policy fixture without live SDKs or network clients."
               },
               "note": "Complete 2026-05-07: gateway lifecycle fixtures now prove Hermes-style platform startup isolation and retry state over fake connectors. The completed slice is a Go lifecycle/read-model seam; production channel startup can consume the helper in a later wiring row if broader manager integration is required."
+            },
+            {
+              "name": "Gateway /model interactive provider/model picker",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Gateway `/model` with no arguments opens an interactive two-step provider→model picker on channels that support inline keyboards (Telegram first; Discord later) and writes a per-session model/provider override that the live-turn provider payload sees on the next message. The handler shares the Hermes-compatible `⚙ Model Configuration` / `Select a provider:` / `Select a model:` header text and reuses the curated provider list from the Hermes provider registry manifest. Channels without inline-keyboard support and the existing `/model <name>` typed-arg path keep the current static-text behavior. The picker is the gateway slash-handler port of `_handle_model_command`; it does not duplicate the completed `gormes model` Cobra CLI picker, which persists `hermes.model`/`hermes.provider` to config TOML and is governed by row `Gormes model interactive provider/model picker`.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "On channels without inline keyboards the no-arg `/model` invocation continues to return the existing static `🤖 Model / 📡 Provider` text and the picker is reported as `gateway_model_picker_unavailable` evidence rather than silently dropping. If the provider registry manifest returns no providers, the handler falls back to the static text and reports `gateway_model_picker_empty_providers`. OpenRouter live-catalog filtering is out of scope for this slice: the picker uses the curated manifest models only and records `gateway_model_picker_openrouter_live_filter_pending` degraded evidence; a separate row may add live-catalog filtering parity with Hermes' `fetch_openrouter_models`. Picker selections apply as session-only overrides; the `--global` persistence path is reachable only through the typed-arg `/model <name> --global` path covered by a future row.",
+              "fixture": "internal/gateway/model_picker_test.go; internal/channels/telegram/model_picker_buttons_test.go",
+              "source_refs": [
+                "../hermes-agent/gateway/run.py@d4b26df8:_handle_model_command (no-arg picker dispatch)",
+                "../hermes-agent/gateway/platforms/telegram.py@d4b26df8:send_model_picker (provider stage text + buttons)",
+                "../hermes-agent/gateway/platforms/telegram.py@d4b26df8:_build_model_keyboard (model pagination)",
+                "../hermes-agent/gateway/platforms/telegram.py@d4b26df8:_handle_model_picker_callback (mp:/mm:/mg:/mb:/mx: routing)",
+                "../hermes-agent/hermes_cli/model_switch.py@d4b26df8:list_picker_providers (curated picker list)",
+                "internal/gateway/manager.go:1298:handleModelCommand current static-text handler",
+                "internal/channels/telegram/approval_buttons.go:87:handleCallbackQuery callback-router pattern Gormes already owns",
+                "internal/hermes/provider_registry_manifest.go:HermesProviderRegistryManifest curated provider list",
+                "internal/gateway/reasoning_command.go:SessionReasoningState per-session override precedent",
+                "docs/content/building-gormes/architecture_plan/progress.json:Gormes model interactive provider/model picker (CLI row 41975, coordinated)"
+              ],
+              "ready_when": [
+                "Telegram inline approval buttons + callback auth is complete so the Telegram callback router already accepts a new `mp:/mm:/mg:/mb:/mx:` family alongside the existing `ea:` family without changing existing approval routing.",
+                "Hermes provider registry manifest is complete and exposes the curated provider+model list the picker needs.",
+                "Hermes CLI nested parser inventory refresh classifies `_handle_model_command` as the row-backed gateway-handler residual for this row.",
+                "Tests can drive a fake Telegram client capturing send-message payloads + inline keyboard markup and a fake callback-query stream without a live Bot API token."
+              ],
+              "not_ready_when": [
+                "The slice mutates `hermes.model`/`hermes.provider` in TOML config (that is the `gormes model` Cobra row's job and the typed `/model <name> --global` path's job, not this no-arg picker).",
+                "The slice runs OAuth, device-code, or vendor-CLI import flows for any provider (all auth flows belong to `gormes auth add`).",
+                "The slice ports OpenRouter live-catalog filtering, custom-endpoint config plumbing, or any non-Telegram channel beyond the inline-keyboard fallback contract.",
+                "The picker callback family collides with the existing `ea:` exec-approval callback family or routes approval callbacks through the picker resolver.",
+                "The Cobra `gormes model` CLI picker behavior is changed; its row (`Gormes model interactive provider/model picker`) remains the persistence-only path."
+              ],
+              "blocked_by": [
+                "Telegram inline approval buttons + callback auth",
+                "Hermes provider registry manifest",
+                "Hermes CLI nested parser inventory refresh"
+              ],
+              "unblocks": [
+                "Gateway /model typed-arg switch + --global persistence",
+                "Discord /model interactive picker parity"
+              ],
+              "acceptance": [
+                "TestGatewayModelCommandNoArgsOpensTelegramPicker proves a no-arg `/model` from a Telegram source sends one message whose text contains `⚙ *Model Configuration*` and `Select a provider:` plus inline keyboard markup with one button per curated provider (`callback_data == \"mp:<slug>\"`) two per row and a final `mx` cancel button.",
+                "TestGatewayModelPickerProviderCallbackEditsToModelStage proves a `mp:<slug>` callback edits the same message in place to `Select a model:` text and replaces the keyboard with model buttons (`callback_data == \"mm:<idx>\"`) using the curated picker provider list, plus a `mb` back button and `mx` cancel.",
+                "TestGatewayModelPickerModelCallbackAppliesSessionOverride proves a `mm:<idx>` callback edits the message to a confirmation that names the chosen model+provider, applies a per-session override (new `SessionModelOverrideState` in the gateway manager) such that the next live-turn provider payload sees the chosen model/provider, and never writes to `hermes.model`/`hermes.provider` in TOML.",
+                "TestGatewayModelPickerCancelOrUnknownLeavesOverrideUnchanged proves `mx` cancel clears the pending picker without changing the session model override and proves `mp:<unknown>` returns a redacted error answer without mutating state.",
+                "TestGatewayModelCommandStaticFallbackForNonInlineChannel proves a no-arg `/model` from a channel without inline-keyboard support keeps the existing `🤖 Model / 📡 Provider` static text and reports `gateway_model_picker_unavailable` evidence.",
+                "TestGatewayModelPickerCallbackFamiliesAreIsolated proves an `ea:` exec-approval callback continues to route through the existing approval resolver, an `mp:`/`mm:`/`mg:`/`mb`/`mx` callback does not invoke the approval resolver, and the new family does not eat unrelated callback data.",
+                "TestHermesCLIParityManifest reclassifies `_handle_model_command` from `gateway-handler:row-backed` to `gateway-handler:implemented` once the row ships."
+              ],
+              "write_scope": [
+                "internal/gateway/manager.go",
+                "internal/gateway/model_picker.go",
+                "internal/gateway/model_picker_test.go",
+                "internal/channels/telegram/model_picker_buttons.go",
+                "internal/channels/telegram/model_picker_buttons_test.go",
+                "internal/channels/telegram/bot.go",
+                "internal/hermes/picker_providers.go",
+                "internal/hermes/picker_providers_test.go",
+                "cmd/gormes/hermes_cli_parity.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run 'TestGatewayModel(Command|Picker)' -count=1",
+                "go test ./internal/channels/telegram -run 'TestTelegramModelPicker|TestCallback' -count=1",
+                "go test ./internal/hermes -run 'TestPickerProviders' -count=1",
+                "go test ./cmd/gormes -run 'TestHermesCLIParityManifest' -count=1",
+                "go test ./internal/gateway ./internal/channels/telegram ./internal/hermes ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Gateway and Telegram fake-client fixtures prove the no-arg `/model` picker renders the Hermes-compatible header + two-stage inline keyboard, callback families stay isolated from `ea:` approvals, a chosen provider+model applies a per-session override (no TOML writes), cancel leaves the override unchanged, non-inline channels keep the static fallback, and the CLI parity manifest reclassifies `_handle_model_command` as implemented."
+              ],
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_refs": [
+                  "hermes:d4b26df8 gateway/run.py:_handle_model_command",
+                  "hermes:d4b26df8 gateway/platforms/telegram.py:send_model_picker + _handle_model_picker_callback",
+                  "hermes:d4b26df8 hermes_cli/model_switch.py:list_picker_providers"
+                ],
+                "note": "Hermes shape: two-step inline-keyboard picker with mp:/mm:/mg:/mb:/mx: callback family editing the same message in place; selection applies a per-session model/provider override visible to the next live turn. Gormes-owned port: same callback family + header text + per-session override seam, with curated provider list from the existing Hermes provider registry manifest. OpenRouter live-catalog filtering, --global TOML persistence, and Discord picker are explicitly deferred to follow-on rows. This row is the gateway slash-handler counterpart of the complete Cobra-CLI row `Gormes model interactive provider/model picker`; the two share the Hermes-compatible header but write into different surfaces (per-session override vs. TOML config)."
+              },
+              "note": "Authored 2026-05-10 from a gormes-hermes-parity sweep against hermes-agent d4b26df8 (current pinned submodule). User-reported regression: Gormes `/model` in a gateway channel showed only `🤖 Model: <m> / 📡 Provider: <p>` text instead of Hermes' interactive `Select a provider:` keyboard. Evidence boundary: upstream submodule, repo source, and progress.json only; no live homes, secrets, or `~/.gormes` read. Dead-code observation: `internal/tui/model_picker.go` already implements a Hermes-compatible 2-step `ModelPickerState`/`RenderModelPicker`/`UpdateModelPicker` overlay but has zero non-test callers; that overlay is a TUI/Bubble Tea path, not the gateway/Telegram inline-keyboard path. Its state machine is a useful reference shape but it is not a direct dependency of this row, and wiring it through TUI `/model` is a separate behavior atom worth its own row."
             }
           ],
           "drift_state": {

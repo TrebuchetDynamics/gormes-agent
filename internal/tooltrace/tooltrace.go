@@ -196,8 +196,13 @@ func quoteAndTruncate(toolName, s string, limit int) string {
 }
 
 func rightEdgePreviewTool(name string) bool {
+	// File-path arguments keep the tail (filename matters more than the
+	// directory chain). URLs and search queries keep the head: the domain
+	// or the first words of the query are the user-meaningful part, and a
+	// `"...et.com/market-data/..."` preview hides which site Gormes is
+	// actually visiting.
 	switch strings.TrimSpace(name) {
-	case "web_search", "web_extract", "web_crawl", "browser_navigate", "read_file", "write_file", "patch":
+	case "read_file", "write_file", "patch":
 		return true
 	default:
 		return false
