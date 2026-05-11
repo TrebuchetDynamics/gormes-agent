@@ -7192,10 +7192,10 @@
             },
             {
               "name": "Gateway /model interactive provider/model picker",
-              "status": "in_progress",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gateway `/model` with no arguments opens an interactive two-step provider\u2192model picker on channels that support inline keyboards (Telegram first; Discord later) and writes a per-session model/provider override that the live-turn provider payload sees on the next message. The handler shares the Hermes-compatible `\u2699 Model Configuration` / `Select a provider:` / `Select a model:` header text and reuses the curated provider list from the Hermes provider registry manifest. Channels without inline-keyboard support and the existing `/model <name>` typed-arg path keep the current static-text behavior. The picker is the gateway slash-handler port of `_handle_model_command`; it does not duplicate the completed `gormes model` Cobra CLI picker, which persists `hermes.model`/`hermes.provider` to config TOML and is governed by row `Gormes model interactive provider/model picker`.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [

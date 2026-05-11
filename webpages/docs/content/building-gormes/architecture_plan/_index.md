@@ -87,12 +87,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 86/100 subphases shipped · 11 in progress · 3 planned
+**Overall:** 87/100 subphases shipped · 10 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
+| Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
@@ -136,7 +136,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -180,7 +180,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing 🔨
+### 2.B.5 — Session Context + Delivery Routing ✅
 
 - [x] Gateway session store + SessionSource parity
 - [x] Gateway manual reset session-boundary hooks
@@ -261,7 +261,7 @@ classification and row-backed implementation queue.
 - [x] Telegram streaming edit Markdown safety
 - [x] Telegram guest mention allowlist bypass
 - [x] Gateway platform reconnect isolation + channel health limits
-- [ ] Gateway /model interactive provider/model picker
+- [x] Gateway /model interactive provider/model picker
 
 ### 2.B.10 — WeChat Adapter ✅
 
