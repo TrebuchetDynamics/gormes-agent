@@ -30485,10 +30485,11 @@
             },
             {
               "name": "Tirith external security finding ingestion",
-              "status": "planned",
+              "status": "complete",
+              "completed_at": "2026-05-11T14:10:00Z",
               "priority": "P3",
               "contract": "Port the Hermes Tirith external security finding ingestion path: load findings from a JSON file or env-sourced source, classify by severity, and expose a security guard decision that gateway/cron/CLI callers can query before executing dangerous commands.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -30522,7 +30523,35 @@
               "test_commands": [
                 "go test ./internal/security -run TestTirith -count=1"
               ],
-              "degraded_mode": "Missing or corrupt Tirith source returns tirith_unavailable evidence and falls back to the existing config-level allowlist rather than denying all commands."
+              "degraded_mode": "Missing or corrupt Tirith source returns tirith_unavailable evidence and falls back to the existing config-level allowlist rather than denying all commands.",
+              "note": "Complete: TDD implemented TirithClient in internal/security/tirith.go. Loads findings from JSON source, classifies by severity (critical->info), returns allow/deny decision. Missing source returns tirith_unavailable (allow), corrupt source returns tirith_corrupt_evidence (deny). Critical/high severities deny; medium/low/info allow. Tests prove all acceptance criteria and severity boundary.",
+              "evidence": {
+                "implementation": [
+                  "internal/security/tirith.go: NewTirithClient loads findings, sorts by severity, computes allow/deny decision",
+                  "internal/security/tirith.go: computeDecision implements severity threshold (critical/high -> deny, medium+ -> allow)",
+                  "internal/security/tirith.go: corrupted source -> tirith_corrupt_evidence with deny",
+                  "internal/security/tirith.go: missing source -> tirith_unavailable with allow (degraded mode)"
+                ],
+                "tests": [
+                  "internal/security/tirith_test.go: TestTirithLoadsFindings - parses and classifies 5 findings by severity",
+                  "internal/security/tirith_test.go: TestTirithEmptySourceReturnsSafeEvidence - empty/missing returns allow",
+                  "internal/security/tirith_test.go: TestTirithCorruptSourceDegrades - corrupt JSON returns deny with evidence",
+                  "internal/security/tirith_test.go: TestTirithDegradedMode - file-not-found returns tirith_unavailable allow",
+                  "internal/security/tirith_test.go: TestTirithSeverityDeny - proves each severity maps correctly"
+                ],
+                "verification": [
+                  "RED: go test ./internal/security -run TestTirith -count=1 failed (undefined types)",
+                  "GREEN: go test ./internal/security -run TestTirith -count=1 -> ok (5/5 tests pass)",
+                  "go test ./... -count=1 -> ok (full suite green)",
+                  "go run ./cmd/progress validate -> validated 9 phases",
+                  "git diff --check -> no issues"
+                ]
+              },
+              "provenance": {
+                "origin_type": "upstream",
+                "upstream_ref": "hermes-agent/agent/tirith.py",
+                "note": "Hermes Tirith external security finding ingestion ported as pure Go package."
+              }
             },
             {
               "name": "Unified security guard decision composer",

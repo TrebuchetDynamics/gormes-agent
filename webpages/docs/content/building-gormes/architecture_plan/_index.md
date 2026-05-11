@@ -847,7 +847,7 @@ classification and row-backed implementation queue.
 - [x] Background review toolset restriction
 - [x] Cron dangerous-command approval mode
 - [x] Cron approval mode config normalizer
-- [ ] Tirith external security finding ingestion
+- [x] Tirith external security finding ingestion
 - [ ] Unified security guard decision composer
 - [x] Shell blocklist (36+ dangerous patterns)
 - [x] Filesystem scoping (folder-level read/write restrictions)
