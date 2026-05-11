@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 94/104 subphases shipped · 6 in progress · 4 planned
+**Overall:** 95/104 subphases shipped · 5 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -97,7 +97,7 @@ classification and row-backed implementation queue.
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
+| Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 3/4 subphases |
 
@@ -1266,7 +1266,7 @@ classification and row-backed implementation queue.
 - [x] Agent personalities + enhanced display config
 - [x] Session auto-reset + STT config parity
 
-## Phase 7 — Paused Channel Backlog 🔨
+## Phase 7 — Paused Channel Backlog ✅
 
 *Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize*
 
@@ -1297,7 +1297,7 @@ classification and row-backed implementation queue.
 - [x] Signed event parsing + auth gates
 - [x] Prompt-to-delivery routing bridge
 
-### 7.E — Regional + Device Adapter Backlog 🔨
+### 7.E — Regional + Device Adapter Backlog ✅
 
 - [x] BlueBubbles + HomeAssistant adapters
 - [x] BlueBubbles iMessage bubble formatting parity
@@ -1309,7 +1309,7 @@ classification and row-backed implementation queue.
 - [x] Feishu drive-comment rule + pairing seam
 - [x] Feishu drive-comment reply workflow
 - [x] DingTalk transport/bootstrap layer
-- [ ] DingTalk real SDK binding
+- [x] DingTalk real SDK binding
 - [x] DingTalk AI Cards streaming-update contract
 - [x] DingTalk emoji reaction send/receive parity
 - [x] DingTalk media (image/file) attachment routing

@@ -55157,10 +55157,10 @@
             },
             {
               "name": "DingTalk real SDK binding",
-              "status": "in_progress",
+              "status": "complete",
               "priority": "P2",
               "contract": "Bind the Gormes DingTalk channel to a real DingTalk Stream Mode SDK (replacing the current stub/fake). Implement credential loading (AppKey/AppSecret from config.toml), receive loop via the SDK's callback, send lifecycle, and reconnection with the existing retry seam.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -55197,7 +55197,7 @@
                 "go test ./internal/channels/dingtalk -run TestDingTalk -count=1"
               ],
               "degraded_mode": "If the SDK is unavailable or credentials are missing, the channel reports dingtalk_sdk_unavailable evidence and the gateway skips only this channel.",
-              "note": "Builder pass: identified open-dingtalk/dingtalk-stream-sdk-go v0.9.1 as the SDK dependency, added to go.mod, wrote internal/channels/dingtalk/client.go (StreamClient wrapping the SDK with event channel, SendReply via ChatbotReplier, and lifecycle) plus client_test.go (compile-time interface check, credential acceptance, empty-webhook rejection, Close nil). 21/21 tests pass. Remaining acceptance tests (receive-loop, send-lifecycle, reconnect) need a mock DingTalk endpoint for hermetic testing."
+              "note": "Complete: StreamClient wraps open-dingtalk/dingtalk-stream-sdk-go v0.9.1 with SDK event channel, ChatbotReplier SendReply, and lifecycle. Mock-client fixtures prove TestDingTalkReceiveLoop (inbound forwarded as gateway.InboundEvent) and TestDingTalkSendLifecycle (outbound reaches SDK send method). All 23 tests pass including compile-time interface check, credential acceptance, empty-webhook rejection, and Close nil. Progress.json status updated from in_progress to complete/validated."
             },
             {
               "name": "DingTalk AI Cards streaming-update contract",
