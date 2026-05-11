@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. TD engineering blog scaffolded and live
+## 1. DingTalk real SDK binding
+
+- Phase: 7 / 7.E
+- Owner: `docs`
+- Size: `small`
+- Status: `in_progress`
+- Priority: `P2`
+- Contract: Bind the Gormes DingTalk channel to a real DingTalk Stream Mode SDK (replacing the current stub/fake). Implement credential loading (AppKey/AppSecret from config.toml), receive loop via the SDK's callback, send lifecycle, and reconnection with the existing retry seam.
+- Trust class: operator, system
+- Ready when: A Go-compatible DingTalk Stream Mode SDK exists (or a REST fallback is decided) and the existing contract/adapter tests pass.
+- Not ready when: -
+- Degraded mode: If the SDK is unavailable or credentials are missing, the channel reports dingtalk_sdk_unavailable evidence and the gateway skips only this channel.
+- Fixture: `internal/channels/dingtalk/client_test.go`
+- Write scope: `internal/channels/dingtalk/bot.go`, `internal/channels/dingtalk/client.go`, `internal/channels/dingtalk/client_test.go`
+- Test commands: `go test ./internal/channels/dingtalk -run TestDingTalk -count=1`
+- Done signal: Real DingTalk SDK binding passes all acceptance tests with the existing integration test suite.
+- Acceptance: TestDingTalkCredentialResolution proves AppKey/AppSecret are resolved from config and env., TestDingTalkReceiveLoop proves incoming messages from the SDK are forwarded as gateway.InboundEvent., TestDingTalkSendLifecycle proves outbound messages reach the SDK send method., TestDingTalkReconnect proves connection loss triggers the retry seam without data loss.
+- Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -48,26 +68,6 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
-
-## 2. DingTalk real SDK binding
-
-- Phase: 7 / 7.E
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Bind the Gormes DingTalk channel to a real DingTalk Stream Mode SDK (replacing the current stub/fake). Implement credential loading (AppKey/AppSecret from config.toml), receive loop via the SDK's callback, send lifecycle, and reconnection with the existing retry seam.
-- Trust class: operator, system
-- Ready when: A Go-compatible DingTalk Stream Mode SDK exists (or a REST fallback is decided) and the existing contract/adapter tests pass.
-- Not ready when: -
-- Degraded mode: If the SDK is unavailable or credentials are missing, the channel reports dingtalk_sdk_unavailable evidence and the gateway skips only this channel.
-- Fixture: `internal/channels/dingtalk/client_test.go`
-- Write scope: `internal/channels/dingtalk/bot.go`, `internal/channels/dingtalk/client.go`, `internal/channels/dingtalk/client_test.go`
-- Test commands: `go test ./internal/channels/dingtalk -run TestDingTalk -count=1`
-- Done signal: Real DingTalk SDK binding passes all acceptance tests with the existing integration test suite.
-- Acceptance: TestDingTalkCredentialResolution proves AppKey/AppSecret are resolved from config and env., TestDingTalkReceiveLoop proves incoming messages from the SDK are forwarded as gateway.InboundEvent., TestDingTalkSendLifecycle proves outbound messages reach the SDK send method., TestDingTalkReconnect proves connection loss triggers the retry seam without data loss.
-- Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 ## 3. Agentic-porting-kit repo scaffold
 
