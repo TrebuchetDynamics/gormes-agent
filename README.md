@@ -165,7 +165,7 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 Latest public release: [v0.2.6](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.6).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~42.2 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~40.1 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
 
 <details>
 <summary>Roadmap phase rollup</summary>
@@ -181,7 +181,7 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 1/3 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 2/3 subphases |
 <!-- PROGRESS:END -->
 
 </details>

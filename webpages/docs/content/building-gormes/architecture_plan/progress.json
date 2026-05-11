@@ -57590,7 +57590,7 @@
           {
             "name": "Transcribe audio tool registration + local whisper provider",
             "priority": "P1",
-            "status": "in_progress",
+            "status": "complete",
             "contract": "Gormes registers the existing transcribe_audio tool in the default tool registry so STT works by default with no API key. A LocalSTTProvider wraps the WASI whisper runtime (internal/wasi/whisper/) into the TranscriptionProvider interface with auto-downloading tiny.en model (~77MB from HuggingFace). Cloud STT providers (OpenAI, Groq, Mistral, XAI) are registered alongside and activate when their API keys are present.",
             "contract_status": "validated",
             "slice_size": "small",
@@ -57625,6 +57625,24 @@
               "go build ./cmd/gormes succeeds with the non-slim build tag.",
               "go test ./internal/tools -count=1 stays green."
             ],
+            "evidence": {
+              "implementation": [
+                "internal/tools/transcription_providers_local.go:LocalSTTProvider implements TranscriptionProvider with Available()/Transcribe()",
+                "cmd/gormes/registry_audio.go:registerAudioTools registers transcribe_audio via MustRegister in default tool registry"
+              ],
+              "tests": [
+                "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_RejectsEmptyPath",
+                "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_RejectsMissingFile",
+                "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_RejectsNonWAV",
+                "internal/tools/transcription_providers_local_test.go:TestLocalSTTProvider_Transcribe_JFKFixture"
+              ],
+              "verification": [
+                "go build ./cmd/gormes -> exit 0",
+                "go test ./internal/tools -count=1 -> PASS",
+                "go run ./cmd/progress validate -> validated 9 phases",
+                "git diff --check -> clean"
+              ]
+            },
             "write_scope": [
               "internal/tools/transcription_providers_local.go",
               "cmd/gormes/registry_audio.go",

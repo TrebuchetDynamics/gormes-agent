@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 89/103 subphases shipped · 10 in progress · 4 planned
+**Overall:** 90/103 subphases shipped · 9 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -99,7 +99,7 @@ classification and row-backed implementation queue.
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 1/3 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 2/3 subphases |
 
 ---
 
@@ -1385,9 +1385,9 @@ classification and row-backed implementation queue.
 
 - [ ] Sandbox provider interface and virtual path security
 
-### 9.C — Speech-to-Text Tool Wiring 🔨
+### 9.C — Speech-to-Text Tool Wiring ✅
 
-- [ ] Transcribe audio tool registration + local whisper provider
+- [x] Transcribe audio tool registration + local whisper provider
 
 <!-- PROGRESS:END -->
 
