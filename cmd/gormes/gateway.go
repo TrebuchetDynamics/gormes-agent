@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.etcd.io/bbolt"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
@@ -309,45 +311,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		Goncho:            gonchoStore,
 	}, hc, mstore, telemetry.New(), slog.Default())
 
-	// Phase 2.D — cron scheduler + executor + mirror (opt-in via cfg.Cron.Enabled).
-	if cfg.Cron.Enabled {
-		cronStore, cronErr := cron.NewStore(smap.DB())
-		if cronErr != nil {
-			return fmt.Errorf("cron: init store: %w", cronErr)
-		}
-		cronRunStore := cron.NewRunStore(mstore.DB())
-
-		cronExec := cron.NewExecutor(cron.ExecutorConfig{
-			Kernel:           k,
-			JobStore:         cronStore,
-			RunStore:         cronRunStore,
-			Sink:             cron.FuncSink(func(_ context.Context, text string) error { slog.Info("cron", "msg", text); return nil }),
-			CallTimeout:      cfg.Cron.CallTimeout,
-			CronApprovalMode: cfg.Approvals.CronMode,
-		}, slog.Default())
-
-		cronSched := cron.NewScheduler(cron.SchedulerConfig{
-			Store:    cronStore,
-			Executor: cronExec,
-		}, slog.Default())
-
-		if err := cronSched.Start(rootCtx); err != nil {
-			return fmt.Errorf("cron: start scheduler: %w", err)
-		}
-		defer func() {
-			shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
-			defer cancelShutdown()
-			cronSched.Stop(shutdownCtx)
-		}()
-
-		cronMirror := cron.NewMirror(cron.MirrorConfig{
-			JobStore: cronStore,
-			RunStore: cronRunStore,
-			Path:     cfg.CronMirrorPath(),
-			Interval: cfg.Cron.MirrorInterval,
-		}, slog.Default())
-		go cronMirror.Run(rootCtx)
-	}
+	// Phase 2.D — cron scheduler is initialized after channel registration below.
 
 	allowedChats, allowDiscovery, allowedWhitelists := gatewayPolicyMaps(cfg)
 	runtimeStatusPath := config.GatewayRuntimeStatusPath()
@@ -430,8 +394,91 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	})
 	go runGatewaySignalLoop(signals, kernel.ShutdownBudget, mgr, cancel, slog.Default(), os.Exit)
 
+	// Phase 2.D — cron scheduler + executor + mirror (opt-in via cfg.Cron.Enabled).
+	// Initialized after channel registration so delivery adapters are available.
+	if cfg.Cron.Enabled {
+		initGatewayCron(cfg, smap.DB(), mstore.DB(), k, rootCtx)
+	}
+
 	slog.Info("gormes gateway starting", "channels", mgr.ChannelCount(), "endpoint", cfg.Hermes.Endpoint, "hooks_root", hooksRoot, "loaded_hooks", len(loadedHooks), "boot_path", bootPath, "boot_queued", bootQueued, "secret_refs", len(secretSnapshot.Entries))
 	return mgr.Run(rootCtx)
+}
+
+// initGatewayCron starts the cron scheduler with multi-channel delivery.
+// Must be called after channels are registered so Telegram credentials are
+// available in the config.
+func initGatewayCron(cfg config.Config, smapDB *bbolt.DB, mstoreDB *sql.DB, k *kernel.Kernel, rootCtx context.Context) {
+	// Build a multi-protocol delivery sink.
+	var sink cron.DeliverySink
+
+	// Telegram delivery (most common).
+	tgToken := strings.TrimSpace(cfg.Telegram.BotToken)
+	tgChatID := cfg.Telegram.AllowedChatID
+	if tgToken != "" && tgChatID != 0 {
+		tgAPI, tgErr := tgbotapi.NewBotAPI(tgToken)
+		if tgErr == nil {
+			sink = cron.FuncSink(func(ctx context.Context, text string) error {
+				msg := tgbotapi.NewMessage(tgChatID, text)
+				msg.ParseMode = tgbotapi.ModeHTML
+				_, err := tgAPI.Send(msg)
+				return err
+			})
+			slog.Info("cron: telegram delivery ready", "chat_id", tgChatID)
+		} else {
+			slog.Warn("cron: telegram bot init failed", "err", tgErr)
+		}
+	}
+
+	// Fallback: log to slog when no channel sink is configured.
+	if sink == nil {
+		sink = cron.FuncSink(func(_ context.Context, text string) error {
+			slog.Info("cron delivery", "msg", text)
+			return nil
+		})
+	}
+
+	cronStore, cronErr := cron.NewStore(smapDB)
+	if cronErr != nil {
+		slog.Error("cron: init store", "err", cronErr)
+		return
+	}
+	cronRunStore := cron.NewRunStore(mstoreDB)
+
+	cronExec := cron.NewExecutor(cron.ExecutorConfig{
+		Kernel:           k,
+		JobStore:         cronStore,
+		RunStore:         cronRunStore,
+		Sink:             sink,
+		CallTimeout:      cfg.Cron.CallTimeout,
+		CronApprovalMode: cfg.Approvals.CronMode,
+	}, slog.Default())
+
+	cronSched := cron.NewScheduler(cron.SchedulerConfig{
+		Store:    cronStore,
+		Executor: cronExec,
+	}, slog.Default())
+
+	if err := cronSched.Start(rootCtx); err != nil {
+		slog.Error("cron: start scheduler", "err", err)
+		return
+	}
+	slog.Info("cron: scheduler started")
+
+	go func() {
+		<-rootCtx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+		defer cancel()
+		cronSched.Stop(shutdownCtx)
+	}()
+
+	cronMirror := cron.NewMirror(cron.MirrorConfig{
+		JobStore: cronStore,
+		RunStore: cronRunStore,
+		Path:     cfg.CronMirrorPath(),
+		Interval: cfg.Cron.MirrorInterval,
+	}, slog.Default())
+	go cronMirror.Run(rootCtx)
+	slog.Info("cron: mirror started")
 }
 
 func activateGatewaySecretRuntime(ctx context.Context, cfg config.Config, resolver gormesruntime.SecretStringResolver) (config.Config, gormesruntime.SecretRuntimeSnapshot, error) {
