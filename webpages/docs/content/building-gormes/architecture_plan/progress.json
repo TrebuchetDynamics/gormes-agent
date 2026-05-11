@@ -10057,7 +10057,6 @@
                 "Manager remember-source hook"
               ],
               "unblocks": [
-                "Cron delivery target planner",
                 "Mirror + sticker cache surfaces"
               ],
               "acceptance": [
@@ -10134,8 +10133,7 @@
               ],
               "unblocks": [
                 "Channel directory refresh + stale-target invalidation",
-                "Manager remember-source hook",
-                "Cron delivery target planner"
+                "Manager remember-source hook"
               ],
               "acceptance": [
                 "TestChannelDirectoryAtomicWriteAndLoad writes fixture entries through a temp root and proves reload sees either the old complete file or the new complete file, never a partial JSON body.",
@@ -10211,8 +10209,7 @@
               ],
               "unblocks": [
                 "Notify-to delivery routing",
-                "Discord forum media + polish parity",
-                "Cron delivery target planner"
+                "Discord forum media + polish parity"
               ],
               "acceptance": [
                 "TestChannelDirectoryRefreshMergesAdapterInventory proves Discord/Slack inventory and remembered session sources merge into a deterministic, sorted directory.",
@@ -10284,8 +10281,7 @@
               "blocked_by": [],
               "unblocks": [
                 "Channel directory refresh + stale-target invalidation",
-                "Notify-to delivery routing",
-                "Cron delivery target planner"
+                "Notify-to delivery routing"
               ],
               "acceptance": [
                 "TestManagerRememberSourceHook_PersistsAllowedInboundSource proves an allowed Telegram-shaped submit records platform, chat_id, chat_name, chat_type, user_id, user_name, thread_id, and message_id through a fake store before kernel submission.",
@@ -13296,7 +13292,7 @@
               ],
               "unblocks": [
                 "Bedrock Converse payload mapping (no AWS SDK)",
-                "Gemini",
+                "Gemini Cloud Code request/stream mapper",
                 "OpenRouter compatible-provider routing",
                 "Codex"
               ],
@@ -13726,7 +13722,7 @@
                 "Tool-call argument repair + schema sanitizer"
               ],
               "unblocks": [
-                "Gemini",
+                "Gemini Cloud Code request/stream mapper",
                 "OpenRouter compatible-provider routing",
                 "Google Code Assist",
                 "Raw tool-call parser fixture matrix"
@@ -15289,7 +15285,7 @@
                 "Codex stream repair + tool-call leak sanitizer"
               ],
               "unblocks": [
-                "Gemini",
+                "Gemini Cloud Code request/stream mapper",
                 "OpenRouter compatible-provider routing",
                 "Google Code Assist",
                 "Codex OAuth state + stale-token relogin"
@@ -23129,7 +23125,7 @@
               ],
               "unblocks": [
                 "OpenRouter compatible-provider routing",
-                "Gemini",
+                "Gemini Cloud Code request/stream mapper",
                 "Google Code Assist"
               ],
               "acceptance": [
@@ -23576,11 +23572,7 @@
                 "Browser action contract + event transcript",
                 "Go browser-harness Hermes browser_* tool wrappers"
               ],
-              "unblocks": [
-                "Browser /browser connect CDP parity",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "go-browser-harness package tests prove action JSON validation, backend dispatch, unavailable-backend evidence, and JSON result envelopes without starting Chrome.",
                 "Gormes internal/tools tests prove browser_navigate emits go-browser-harness --action-json with new_tab=true and never emits Python snippets by default.",
@@ -23697,8 +23689,7 @@
               "unblocks": [
                 "Chromedp",
                 "Rod",
-                "Browser action runtime provider selection",
-                "Browser provider status reporting"
+                "Browser action runtime provider selection"
               ],
               "acceptance": [
                 "TestBrowserProviderBridgeConfigGates proves Browserbase requires API key plus project ID, Firecrawl requires API key, and missing config produces browser_provider_unconfigured without constructing an HTTP request.",
@@ -23789,9 +23780,7 @@
                 "Browser hybrid private-URL local sidecar routing"
               ],
               "unblocks": [
-                "Browser action runtime provider selection",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs"
+                "Browser action runtime provider selection"
               ],
               "acceptance": [
                 "TestCamofoxConfigMode proves CAMOFOX_URL enables Camofox, blank BROWSER_CDP_URL does not suppress it, nonblank BROWSER_CDP_URL suppresses it, and missing CAMOFOX_URL returns browser_provider_unconfigured without HTTP calls.",
@@ -23891,10 +23880,7 @@
                 "Browser SSRF quoted-false guard"
               ],
               "unblocks": [
-                "Browser action runtime provider selection",
-                "Browser /browser connect CDP parity",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs"
+                "Browser action runtime provider selection"
               ],
               "acceptance": [
                 "TestBrowserUseConfigGates proves direct Browser Use credentials, managed gateway credentials, unconfigured degraded evidence, and deterministic cloud-provider preference without live network calls.",
@@ -23985,11 +23971,7 @@
                 "Browser action contract + event transcript",
                 "Browser Use cloud + Go browser harness bridge"
               ],
-              "unblocks": [
-                "Browser /browser connect CDP parity",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestBrowserHarnessToolsExposeHermesNames proves all core Hermes browser_* names are exposed with valid JSON schemas.",
                 "TestBrowserHarnessNavigateUsesNewTabAndEnvelope proves browser_navigate builds go-browser-harness --action-json argv, sets new_tab=true rather than emitting Python goto_url/new_tab snippets, sanitizes BU_NAME, and returns a bounded BrowserHarnessToolResponse.",
@@ -24675,8 +24657,7 @@
                 "go-browser-harness Chromedp action backend"
               ],
               "unblocks": [
-                "Browser artifact and console render contract revisit",
-                "Browser /browser connect CDP parity"
+                "Browser artifact and console render contract revisit"
               ],
               "acceptance": [
                 "A fake CDP transport test proves browser_console(expression) sends Runtime.evaluate with returnByValue=true and returns method=cdp_supervisor with structured result/result_type data for primitives and objects.",
