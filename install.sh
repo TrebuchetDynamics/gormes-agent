@@ -134,7 +134,7 @@ Gormes Unix installer
 
 Usage:
   install.sh [--branch NAME] [--home DIR] [--dir DIR] [--bin-dir DIR]
-  install.sh --from-source             # build from source instead of fetching release binary
+  install.sh --build                   # build from source instead of fetching release binary
   install.sh --local [--bin-dir DIR]
   install.sh --dry-run
   install.sh --uninstall [gormes uninstall flags]
@@ -146,7 +146,7 @@ Options:
   --bin-dir DIR  Published command directory
                    default (non-root): $HOME/.local/bin
                    default (root Linux): /usr/local/bin
-  --from-source  Build gormes from source instead of downloading the pre-built
+   --build, --from-source  Build gormes from source instead of downloading the pre-built
                  release binary from GitHub Releases. Slower but works for
                  unsupported platforms or pre-release branches.
                  (Env: GORMES_INSTALL_FROM_SOURCE=1)
@@ -565,7 +565,7 @@ parse_args() {
         LOCAL_SOURCE_DIR=$(pwd)
         shift
         ;;
-      --from-source)
+      --from-source|--build)
         FROM_SOURCE=1
         shift
         ;;
@@ -1306,11 +1306,11 @@ build_gormes() {
     || ! git -C "$build_root" diff --cached --quiet 2>/dev/null; then
     build_dirty="true"
   fi
-  build_ldflags="-X main.GitCommit=${build_commit} -X main.GitDirty=${build_dirty}"
+  build_ldflags="-s -w -X main.GitCommit=${build_commit} -X main.GitDirty=${build_dirty}"
   log_info "Building gormes from ${build_root} (${cache_tag})"
   (
     cd "$build_root" || exit 1
-    go build -ldflags "$build_ldflags" -o "$build_bin" ./cmd/gormes
+    CGO_ENABLED=0 go build -trimpath -ldflags "$build_ldflags" -o "$build_bin" ./cmd/gormes
   ) || fail "go build failed"
 
   printf '%s\n' "$cache_tag" > "${build_bin}.build-tag"
