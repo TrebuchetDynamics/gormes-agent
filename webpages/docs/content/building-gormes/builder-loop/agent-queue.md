@@ -49,27 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 2. Installer script serving and MIME validation
-
-- Phase: 5 / 5.P
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Wire install.sh, install.ps1, and install.cmd into the www.gormes.ai Go server with correct Content-Type headers (text/x-shellscript, text/plain, text/plain), cache-control, and static export. Tests verifies each script is embedded, served with the correct MIME, and static-exported.
-- Trust class: operator, system
-- Ready when: www.gormes.ai site server code is understood and the installer parity plan is reviewed.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `www.gormes.ai/internal/site/assets_test.go`
-- Write scope: `www.gormes.ai/internal/site/assets.go`, `www.gormes.ai/internal/site/assets_test.go`
-- Test commands: `go test ./www.gormes.ai/... -run TestInstallerAssets -count=1`
-- Done signal: All three installer scripts serve with correct MIME types and static export verification passes.
-- Acceptance: TestInstallShEmbeddedAndServed proves /install.sh serves with text/x-shellscript MIME and correct content., TestInstallPs1EmbeddedAndServed proves /install.ps1 serves with text/plain MIME., TestInstallCmdEmbeddedAndServed proves /install.cmd serves with text/plain MIME., TestInstallerStaticExport proves all three scripts appear in static_export output.
-- Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. DingTalk real SDK binding
+## 2. DingTalk real SDK binding
 
 - Phase: 7 / 7.E
 - Owner: `docs`
@@ -89,7 +69,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Agentic-porting-kit repo scaffold
+## 3. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -110,7 +90,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Sandbox provider interface and virtual path security
+## 4. Sandbox provider interface and virtual path security
 
 - Phase: 9 / 9.B
 - Owner: `orchestrator`

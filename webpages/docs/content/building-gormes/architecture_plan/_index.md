@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 93/104 subphases shipped · 7 in progress · 4 planned
+**Overall:** 94/104 subphases shipped · 6 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -1085,7 +1085,7 @@ classification and row-backed implementation queue.
 - [x] Agent lifecycle hooks (agent:start, agent:step, agent:end)
 - [x] Nous OAuth device code + refresh token + agent key provisioning
 
-### 5.P — Docker / Packaging 🔨
+### 5.P — Docker / Packaging ✅
 
 - [x] OCI image
 - [x] Homebrew
@@ -1093,7 +1093,7 @@ classification and row-backed implementation queue.
 - [x] Unix installer (install.sh) source-backed update flow
 - [x] Unix installer root/FHS layout policy
 - [x] Windows installer (install.ps1 + install.cmd) parity
-- [ ] Installer script serving and MIME validation
+- [x] Installer script serving and MIME validation
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
 - [x] Install isolation: skip system service install when sandbox bin dir is set
