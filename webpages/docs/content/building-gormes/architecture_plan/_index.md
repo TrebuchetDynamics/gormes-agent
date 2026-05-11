@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 85/100 subphases shipped · 12 in progress · 3 planned
+**Overall:** 86/100 subphases shipped · 11 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | 🔨 | 20/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 17/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -921,7 +921,7 @@ classification and row-backed implementation queue.
 - [x] Kanban worker heartbeat, reclaim, and zombie detection
 - [x] Hermes Kanban specify triage parity
 
-### 5.N — Misc Operator Tools 🔨
+### 5.N — Misc Operator Tools ✅
 
 - [x] Todo
 - [x] Clarify
@@ -968,7 +968,7 @@ classification and row-backed implementation queue.
 - [x] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
-- [ ] Per-agent channel bot tokens (Telegram/Discord/Slack)
+- [x] Per-agent channel bot tokens (Telegram/Discord/Slack)
 - [x] Cron env-ref expansion + parallel run state serialization
 - [x] Cron origin delivery isolation from session identity
 - [x] Cron script/workdir/inactivity execution binding

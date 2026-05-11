@@ -38714,10 +38714,10 @@
             },
             {
               "name": "Per-agent channel bot tokens (Telegram/Discord/Slack)",
-              "status": "in_progress",
+              "status": "complete",
               "priority": "P1",
               "contract": "Enable per-agent bot tokens for channel platforms so each agent can bind to its own Telegram bot, Discord bot, or Slack app. Config follows OpenClaw's channels.<platform>.accounts.<accountId>.token pattern: each account under a platform holds its own token, and the gateway spawns a separate adapter instance per account. Agent bindings reference account_id to route inbound messages from a specific bot to a specific agent. This is a Gormes-owned enhancement (not Hermes parity); Hermes uses one global token per platform type.",
-              "contract_status": "fixture_ready",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
