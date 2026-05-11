@@ -7810,10 +7810,8 @@
               ],
               "unblocks": [
                 "Gateway selected-agent override for channel events",
-                "Navivox chat.submit gateway binding",
                 "Navivox schema-driven config admin protocol",
-                "Navivox typed tool event stream",
-                "Navivox voice audio frame streaming"
+                "Navivox typed tool event stream"
               ],
               "acceptance": [
                 "Codec tests prove binary frames round-trip with ASCII NVOX magic, uint32 network-byte-order protocol/header lengths, JSON headers, exact payload_length handling, and byte-for-byte binary payload preservation.",
@@ -7893,9 +7891,7 @@
               ],
               "unblocks": [
                 "Navivox host setup apply with transient sudo",
-                "Navivox Flutter QR scanner and SSH bootstrap",
-                "Navivox pair.claim stdio event",
-                "Navivox chat.submit gateway binding"
+                "Navivox Flutter QR scanner and SSH bootstrap"
               ],
               "acceptance": [
                 "`gormes navivox pair --host 100.77.1.2 --port 2222 --user ada --device-name pixel-lab --qr=false` prints a clear operator-first pairing screen, server details, pairing code, fallback URI, and Tailscale recommendation.",
@@ -7961,7 +7957,6 @@
                 "The widget requires golden screenshots to prove basic behavior, ignores reduced-motion, or exposes no semantics for blind users."
               ],
               "unblocks": [
-                "Navivox voice audio frame streaming",
                 "Navivox live voice-mode controls",
                 "Navivox Flutter TTS playback surface"
               ],
@@ -14742,9 +14737,7 @@
                 "Tool-call normalization + continuation contract"
               ],
               "unblocks": [
-                "Multi-model coordination",
-                "OpenRouter pricing cache refresh",
-                "OpenRouter provider health probe"
+                "Multi-model coordination"
               ],
               "acceptance": [
                 "TestOpenRouterRuntimeResolutionHonorsProviderAndCustomBase proves provider=openrouter, provider=custom+OpenRouter URL, env base URL, and missing-key cases match Hermes runtime selection.",
@@ -14814,10 +14807,7 @@
                 "The change rewrites provider routing, model metadata, prompt-cache body semantics, or xAI native adapter behavior instead of only adding the OpenRouter header contract."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "OpenRouter provider health probe",
-                "OpenRouter pricing cache refresh"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestOpenRouterGrokPromptCacheAffinityHeader fails before OpenRouter Grok requests receive x-grok-conv-id and passes after x-ai/grok-* and xai/grok-* slugs use the session id.",
                 "The same fixture proves non-Grok OpenRouter models and Grok requests without a session id omit x-grok-conv-id.",
@@ -31735,8 +31725,7 @@
                 "File write/patch staleness registry + cwd tracking"
               ],
               "unblocks": [
-                "Hermes V4A patch fuzzy matching and move operations",
-                "Patch tool checkpoint rollback linkage"
+                "Hermes V4A patch fuzzy matching and move operations"
               ],
               "acceptance": [
                 "TestPatchToolV4AAppliesAddUpdateDelete validates a single V4A payload that updates a previously-read file, creates a new file, and deletes a previously-read file, returning files_modified/files_created/files_deleted evidence and the expected on-disk contents.",
@@ -31821,8 +31810,7 @@
                 "File write/patch staleness registry + cwd tracking"
               ],
               "unblocks": [
-                "Hermes V4A patch fuzzy matching and lint hooks",
-                "Patch tool checkpoint rollback linkage"
+                "Hermes V4A patch fuzzy matching and lint hooks"
               ],
               "acceptance": [
                 "TestPatchToolV4AMoveRenamesReadFile validates a previously-read source file moves to a new path, the source disappears, the destination content is preserved, and files_modified reports `old -> new`.",
@@ -38391,7 +38379,6 @@
                 "The row depends on external monitoring services."
               ],
               "unblocks": [
-                "Operator observability",
                 "Gateway discover/probe diagnostics"
               ],
               "acceptance": [
@@ -39324,7 +39311,6 @@
               ],
               "unblocks": [
                 "Navivox Flutter first-run remote host preparation",
-                "Navivox pair.claim stdio event",
                 "Navivox installed-host smoke checklist"
               ],
               "acceptance": [
@@ -45700,9 +45686,7 @@
                 "The row introduces a new logging framework.",
                 "The row requires live gateway for testing."
               ],
-              "unblocks": [
-                "Operator observability"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "gormes logs shows recent gateway log entries.",
                 "gormes logs -f follows live logs.",
@@ -47907,7 +47891,6 @@
                 "TUI running-agent placeholder surfaces interrupt + queued slash actions"
               ],
               "unblocks": [
-                "Native TUI queued-message delete/cancel binding",
                 "TUI queued submit dispatch while in-flight"
               ],
               "acceptance": [
@@ -48283,7 +48266,6 @@
                 "Native TUI Hermes bottom-pinned chrome layout"
               ],
               "unblocks": [
-                "Native TUI queued-message delete/cancel binding",
                 "TUI queued submit dispatch while in-flight",
                 "Native TUI Hermes slash completion helpers"
               ]
