@@ -7589,11 +7589,10 @@
               "unblocks": [
                 "Gateway, platform, webhook, and cron management CLI",
                 "Channel directory atomic persistence + lookup",
-                "Paused adapter channel health/status readout",
                 "Yuanbao gateway runtime + toolset registration",
-                "QQ Bot bootstrap + token/gateway fake transport",
-                "Matrix shared-chassis adapter",
-                "Mattermost shared-chassis adapter"
+                "QQ Bot transport/bootstrap layer",
+                "Matrix shared-chassis bot seam",
+                "Mattermost shared-chassis bot seam"
               ],
               "acceptance": [
                 "TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, msgraph_webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao.",
@@ -7729,10 +7728,7 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "LINE Messaging API adapter tracer",
-                "IRC shared-chassis adapter",
-                "Google Chat shared-chassis adapter",
-                "Platform plugin setup/status docs"
+                "Google Chat shared-chassis platform adapter seam"
               ],
               "acceptance": [
                 "TestHermesGatewayPlatformManifestCoversBundledPluginPlatforms fails before the manifest covers every `kind: platform` plugin directory under `hermes-agent/plugins/platforms` and passes after `google_chat`, `irc`, `line`, and `teams` are visible.",
@@ -7808,11 +7804,7 @@
                 "The implementation treats Navivox as a Hermes platform enum parity port instead of a Gormes-owned first-party channel.",
                 "Bad magic, invalid headers, or unsupported prelude versions are answered with in-band frames instead of failing the untrusted stream."
               ],
-              "unblocks": [
-                "Gateway selected-agent override for channel events",
-                "Navivox schema-driven config admin protocol",
-                "Navivox typed tool event stream"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Codec tests prove binary frames round-trip with ASCII NVOX magic, uint32 network-byte-order protocol/header lengths, JSON headers, exact payload_length handling, and byte-for-byte binary payload preservation.",
                 "Codec tests prove bad magic, unsupported prelude version, invalid JSON, oversized header/payload, and payload-length mismatch return typed errors.",
@@ -14886,13 +14878,8 @@
                 "Paid-tier project requirement is silently downgraded to free tier.",
                 "Retry-After and VPC-SC evidence is discarded or logged as raw Google response bodies."
               ],
-              "blocked_by": [
-                "Provider credential resolver seam"
-              ],
-              "unblocks": [
-                "Google Code Assist OAuth login/import",
-                "Code Assist /gquota operator command"
-              ],
+              "blocked_by": [],
+              "unblocks": [],
               "acceptance": [
                 "TestGoogleCodeAssistHeadersUseTokenProvider proves auth, content type, user agent model, and request metadata are derived from fakes without leaking tokens.",
                 "TestGoogleCodeAssistProjectContextPrecedence proves configured project beats env project, managed free-tier project is accepted, and paid tiers require explicit project IDs.",
@@ -16297,11 +16284,7 @@
                 "Compression token-budget trigger + summary sizing",
                 "Context references stable-handle store"
               ],
-              "unblocks": [
-                "CLI /compress runtime binding",
-                "Native TUI /compress command binding",
-                "Manual context-reference live expansion row"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestManualCompressionFeedbackNoop proves equal before/after messages render `No changes from compression` and unchanged approximate token text without a compressed-success marker.",
                 "TestManualCompressionFeedbackCompressedTokenDelta proves changed message counts render `Compressed: before -> after messages` plus approximate before/after token totals.",
@@ -16722,11 +16705,7 @@
               "blocked_by": [
                 "Context-file discovery + injection scan"
               ],
-              "unblocks": [
-                "Tool-result subdirectory hint injection binding",
-                "Subagent tool-result context hint parity",
-                "Cron workdir project-context parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestSubdirectoryHintsWorkingDirPreloaded proves the working directory is pre-marked as handled so startup context is not reloaded as a tool-result hint.",
                 "TestSubdirectoryHintsAncestorDiscovery proves reading backend/src/main.py discovers backend/AGENTS.md through a bounded ancestor walk and does not duplicate on a second read.",
@@ -24113,10 +24092,7 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Web extract safety and website-policy parity",
-                "Web extract auxiliary summarizer parity",
-                "Managed Firecrawl gateway runtime wiring",
-                "Toolset parity for web/search/safe research surfaces"
+                "Go-native Hermes web extract safety policy and summarizer"
               ],
               "acceptance": [
                 "TestWebToolsExposeHermesNamesAndSchemas proves web_search now advertises the Hermes `limit` parameter while retaining valid web_extract schema.",
@@ -31157,14 +31133,7 @@
                 "The implementation tries to port all six platforms in one pass instead of landing the shared config type + filter first, then adding per-platform wiring in follow-up child rows."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "Telegram allowed_chats whitelist adapter",
-                "Slack allowed_channels whitelist adapter",
-                "Discord allowed_channels whitelist adapter",
-                "Mattermost allowed_channels whitelist adapter",
-                "Matrix allowed_rooms whitelist adapter",
-                "DingTalk allowed_chats whitelist adapter"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestWhitelistConfig_LoadsFromConfigTOML: fake config with telegram.allowed_chats=['-1001','-1002'] loads WhitelistConfig{Enabled:true, IDs:['-1001','-1002']}.",
                 "TestWhitelistConfig_EmptyMeansAllAllowed: empty or absent whitelist config returns Enabled=false, and IsAllowed returns true for any chat ID.",
@@ -55064,8 +55033,7 @@
                 "QQ Bot shared-chassis bot seam"
               ],
               "unblocks": [
-                "QQ Bot live transport smoke test",
-                "Paused adapter channel health/status readout"
+                "QQ Bot live transport smoke test"
               ],
               "acceptance": [
                 "TestQQBotBootstrapConfigAndDependencyStatus proves explicit values win over env fallback, markdown/allowlist policy parses, dependency/credential failures are redacted, and app-id locks release on connect failure.",
