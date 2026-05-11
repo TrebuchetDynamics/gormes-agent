@@ -94,7 +94,7 @@ func TestServer_ServesInstallScript(t *testing.T) {
 		"managed_checkout_dir()",
 		"update_checkout()",
 		"git pull --ff-only origin \"$BRANCH\"",
-		`go build -ldflags "$build_ldflags" -o "$build_bin" ./cmd/gormes`,
+		`CGO_ENABLED=0 go build -trimpath -ldflags "$build_ldflags" -o "$build_bin" ./cmd/gormes`,
 		"fetch_release_binary()",
 		"run_setup_wizard()",
 		"--skip-setup",
