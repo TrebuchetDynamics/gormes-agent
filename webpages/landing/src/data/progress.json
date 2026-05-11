@@ -13297,7 +13297,7 @@
               "unblocks": [
                 "Bedrock Converse payload mapping (no AWS SDK)",
                 "Gemini",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex"
               ],
               "acceptance": [
@@ -13359,7 +13359,6 @@
               "unblocks": [
                 "Gormes model interactive provider/model picker",
                 "Hermes auth OAuth provider adapters",
-                "Provider auth selection for native gateway turns",
                 "Provider account usage read model + renderer",
                 "Hermes fallback provider chain CLI commands",
                 "Model metadata types",
@@ -13429,7 +13428,6 @@
               ],
               "unblocks": [
                 "Gormes model interactive provider/model picker",
-                "Provider auth selection for native gateway turns",
                 "OpenRouter/OpenAI-compatible model routing parity"
               ],
               "acceptance": [
@@ -13489,7 +13487,7 @@
               "unblocks": [
                 "DeepSeek/Kimi reasoning_content echo for tool-call replay",
                 "Bedrock stream event decoding (SSE fixtures)",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex"
               ],
               "acceptance": [
@@ -13535,7 +13533,7 @@
               ],
               "unblocks": [
                 "Cross-provider reasoning-tag sanitization",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex stream repair + tool-call leak sanitizer"
               ],
               "acceptance": [
@@ -13590,7 +13588,7 @@
                 "The slice attempts OpenRouter, Codex Responses, Bedrock, or generic reasoning-tag sanitization behavior beyond the DeepSeek/Kimi replay ordering bug."
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Cross-provider reasoning-tag sanitization",
                 "Codex stream repair + tool-call leak sanitizer"
               ],
@@ -13659,7 +13657,7 @@
                 "DeepSeek/Kimi cross-provider reasoning isolation"
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex stream repair + tool-call leak sanitizer"
               ],
               "acceptance": [
@@ -13729,7 +13727,7 @@
               ],
               "unblocks": [
                 "Gemini",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Google Code Assist",
                 "Raw tool-call parser fixture matrix"
               ],
@@ -15292,7 +15290,7 @@
               ],
               "unblocks": [
                 "Gemini",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Google Code Assist",
                 "Codex OAuth state + stale-token relogin"
               ],
@@ -15360,7 +15358,7 @@
               ],
               "unblocks": [
                 "Codex stream repair + tool-call leak sanitizer",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Bedrock stream event decoding (SSE fixtures)"
               ],
               "acceptance": [
@@ -18693,8 +18691,7 @@
               "blocked_by": [],
               "unblocks": [
                 "Anthropic OAuth/keychain credential discovery",
-                "Codex OAuth state + stale-token relogin",
-                "Provider auth selection for native gateway turns"
+                "Codex OAuth state + stale-token relogin"
               ],
               "acceptance": [
                 "TestCredentialPoolLoadRoundTrip stores and reloads neutral credential records under a temp Hermes profile while redacting token-bearing fields from status evidence.",
@@ -18768,7 +18765,6 @@
                 "Multi-account auth"
               ],
               "unblocks": [
-                "Provider auth selection for native gateway turns",
                 "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
@@ -19296,7 +19292,7 @@
                 "Provider interface + stream fixture harness"
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex OAuth state + stale-token relogin",
                 "Provider rate guard + budget telemetry"
               ],
@@ -19426,7 +19422,7 @@
                 "Unsupported temperature retry + Codex no-temperature guard"
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex OAuth state + stale-token relogin",
                 "Provider rate guard + budget telemetry"
               ],
@@ -20332,8 +20328,7 @@
               ],
               "unblocks": [
                 "Goncho memory integration into normal agent turn",
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "TestPythonFreeNormalAgentTurn seeds temp Goncho/memory state, sends one user input, consumes a fake provider tool-call event, executes a Go tool, resumes the fake provider, and returns a final assistant response.",
@@ -21145,7 +21140,6 @@
                 "Native runtime provider gateway binding"
               ],
               "unblocks": [
-                "Release readiness e2e gate",
                 "Hermes/Honcho Go runtime plan second-wave reconciliation",
                 "Gormes-owned runtime docs/API naming cleanup"
               ],
@@ -21373,8 +21367,7 @@
                 "Tests require live provider keys, models.dev network access, or a real compressor/provider call."
               ],
               "unblocks": [
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "TestFallbackConfigNormalizesOrderedList accepts one fallback object or an ordered list, drops incomplete entries, preserves first valid fallback_model, and stores the full fallback_chain for iteration.",
@@ -21458,8 +21451,7 @@
                 "Hermes fallback activation + classifier carve-outs"
               ],
               "unblocks": [
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "NormalizeFallbackModelConfig preserves base_url, api_key, key_env, and api_key_env metadata on valid fallback routes while still dropping incomplete routes.",
@@ -23136,7 +23128,7 @@
                 "The slice calls live providers or runs Python parser code at runtime."
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Gemini",
                 "Google Code Assist"
               ],
@@ -23587,8 +23579,7 @@
               "unblocks": [
                 "Browser /browser connect CDP parity",
                 "Browser provider status reporting",
-                "Browser-harness optional live smoke docs",
-                "Operator e2e gate"
+                "Browser-harness optional live smoke docs"
               ],
               "acceptance": [
                 "go-browser-harness package tests prove action JSON validation, backend dispatch, unavailable-backend evidence, and JSON result envelopes without starting Chrome.",
@@ -23997,8 +23988,7 @@
               "unblocks": [
                 "Browser /browser connect CDP parity",
                 "Browser provider status reporting",
-                "Browser-harness optional live smoke docs",
-                "Operator e2e gate"
+                "Browser-harness optional live smoke docs"
               ],
               "acceptance": [
                 "TestBrowserHarnessToolsExposeHermesNames proves all core Hermes browser_* names are exposed with valid JSON schemas.",
@@ -24086,8 +24076,7 @@
               ],
               "unblocks": [
                 "Managed Firecrawl gateway wiring for web tools",
-                "Toolset parity for web and safe research toolsets",
-                "Operator e2e gate"
+                "Toolset parity for web and safe research toolsets"
               ],
               "acceptance": [
                 "TestWebToolsExposeHermesNamesAndSchemas proves the package exposes valid Hermes-visible `web_search` and `web_extract` tool descriptors.",
@@ -24270,8 +24259,7 @@
               ],
               "unblocks": [
                 "Managed Firecrawl gateway runtime/OAuth routing",
-                "Toolset/status metadata parity for web provider availability",
-                "Operator e2e gate"
+                "Toolset/status metadata parity for web provider availability"
               ],
               "acceptance": [
                 "TestWebExtractToolBlocksEmbeddedSecretsBeforeHTTP proves secret-prefix URLs short-circuit with no provider request.",
@@ -24368,8 +24356,7 @@
               ],
               "unblocks": [
                 "Managed Firecrawl gateway runtime/OAuth routing",
-                "Toolset/status metadata parity for web provider availability",
-                "Operator e2e gate"
+                "Toolset/status metadata parity for web provider availability"
               ],
               "acceptance": [
                 "TestWebToolsExposeHermesNamesAndSchemas proves NewWebTools exposes web_crawl with url, instructions, and depth schema fields.",
@@ -24462,7 +24449,6 @@
                 "Go-native Hermes web extract safety policy and summarizer"
               ],
               "unblocks": [
-                "Operator e2e gate",
                 "Release-note web parity claim"
               ],
               "acceptance": [
@@ -28341,7 +28327,6 @@
                 "Shutdown and reconnect events race so reconnect wins over shutdown when both are set."
               ],
               "unblocks": [
-                "Release readiness e2e gate",
                 "Long-running MCP server stability"
               ],
               "acceptance": [
@@ -39863,7 +39848,6 @@
               ],
               "unblocks": [
                 "Hermes auth OAuth provider adapters",
-                "Provider auth selection for native gateway turns",
                 "Provider auth CLI status in doctor/status surfaces"
               ],
               "acceptance": [
@@ -39951,7 +39935,6 @@
                 "OAuth-capable provider lookup is hard-coded as a literal set instead of derived from ProviderConfig.AuthType field. (Hermes _OAUTH_CAPABLE_PROVIDERS is duplicated at auth_commands.py:36 and 173 — Gormes must avoid that drift by deriving from ProviderConfig.)"
               ],
               "unblocks": [
-                "Provider auth selection for native gateway turns",
                 "Qwen OAuth provider runtime binding",
                 "Google Gemini CLI provider runtime binding",
                 "Nous provider auth refresh and agent-key recovery"
@@ -42262,8 +42245,7 @@
                 "Gormes setup tools checklist command binding",
                 "Gormes setup gateway platform checklist command binding",
                 "Gormes setup terminal TTS and agent-settings section bindings",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupNoSectionInteractiveMenuShowsTopLevelChoices proves a TTY no-argument invocation asks `What would you like to do?`, defaults to Quick Setup, lists Quick Setup, Full Setup, Model & Provider, Terminal Backend, Messaging Platforms (Gateway), Tools, Agent Settings, and Exit, and choosing Exit returns code 0 without invoking model picker or config writes.",
@@ -42332,8 +42314,7 @@
               ],
               "unblocks": [
                 "Hermes setup entry-mode and reset semantics",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary proves Full Setup invokes the full-wizard seam and the summary mentions config.toml, the Gormes dotenv file, Gormes data roots, and `gormes` follow-up commands.",
@@ -42567,8 +42548,7 @@
               ],
               "unblocks": [
                 "Gormes setup full-wizard shell and branded summary",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupGatewayChecklistShowsCorePlatforms proves the checklist includes Telegram, Discord, and Slack with configured/not-configured status labels.",
@@ -42657,8 +42637,7 @@
               ],
               "unblocks": [
                 "Gormes setup full-wizard shell and branded summary",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupHermesParitySectionsAreImplementedNonInteractive proves terminal, TTS, and agent settings render Hermes-compatible choices including local/docker/modal/ssh/daytona/singularity, Edge/OpenAI/other TTS providers, max iterations, tool progress, compression threshold, and session reset policy.",
@@ -44996,8 +44975,7 @@
               ],
               "unblocks": [
                 "Hermes CLI update parity",
-                "Installed-runtime self-healing smoke",
-                "Release readiness e2e gate"
+                "Installed-runtime self-healing smoke"
               ],
               "acceptance": [
                 "TestUpdateCommandAutostashDirtyCheckout uses a fake git runner to prove dirty changes are stashed before pull and restored after success, with manual recovery guidance if restore conflicts.",
@@ -45473,9 +45451,7 @@
                 "The row requires live credentials for testing.",
                 "The row replaces existing setup without migration path."
               ],
-              "unblocks": [
-                "First-run user experience"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "gormes onboard is a real top-level command, not a setup alias.",
                 "Current output separates runtime skills from docs/development-skills and points users to gormes skills list.",
@@ -45550,7 +45526,6 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "First-run user experience",
                 "Interactive Onboarding"
               ],
               "acceptance": [
@@ -49447,8 +49422,7 @@
               ],
               "unblocks": [
                 "Dashboard API client contract",
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "TestAPIServerNormalizeMultimodal_TextOnlyCollapses proves text/input_text arrays become the same plain text used by existing logging and history fixtures.",
@@ -50138,8 +50112,7 @@
               ],
               "unblocks": [
                 "Dashboard API client contract",
-                "Hermes API server operator parity",
-                "Release readiness e2e gate"
+                "Hermes API server operator parity"
               ],
               "acceptance": [
                 "TestAPIServerJobsCompatListAndIncludeDisabled proves GET /api/jobs forwards include_disabled semantics to the native cron reader and returns stable job JSON.",
