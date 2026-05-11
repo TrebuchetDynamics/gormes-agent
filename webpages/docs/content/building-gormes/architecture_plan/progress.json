@@ -26818,10 +26818,10 @@
             },
             {
               "name": "Go-native OGG/Opus decoder decision",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "Research and decide whether to use a pure-Go OGG/Opus decoder (e.g. ogg/opus bindings) vs keeping the ffmpeg shim for Telegram voice messages. Produce a decision document listing tradeoffs: binary size impact, platform compatibility (Termux, Windows, locked-down Linux), latency vs ffmpeg, and maintenance burden. The row produces a decision, not code.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -26894,10 +26894,10 @@
             },
             {
               "name": "Pure-Go TTS decision research",
-              "status": "planned",
+              "status": "complete",
               "priority": "P3",
               "contract": "Research and record the architecture decision for local TTS: (a) pure-Go TTS via a Go speech synthesis library, (b) embed a small WASM TTS engine, or (c) keep the existing command-provider pattern with shell-out to edge-tts/piper. Document tradeoffs: binary size, voice quality, latency, platform compatibility. This row produces a decision document; no runtime code.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
