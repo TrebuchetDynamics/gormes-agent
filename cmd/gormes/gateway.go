@@ -21,6 +21,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/goncho"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
@@ -307,6 +308,46 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		ToolAudit:         toolAudit,
 		Goncho:            gonchoStore,
 	}, hc, mstore, telemetry.New(), slog.Default())
+
+	// Phase 2.D — cron scheduler + executor + mirror (opt-in via cfg.Cron.Enabled).
+	if cfg.Cron.Enabled {
+		cronStore, cronErr := cron.NewStore(smap.DB())
+		if cronErr != nil {
+			return fmt.Errorf("cron: init store: %w", cronErr)
+		}
+		cronRunStore := cron.NewRunStore(mstore.DB())
+
+		cronExec := cron.NewExecutor(cron.ExecutorConfig{
+			Kernel:           k,
+			JobStore:         cronStore,
+			RunStore:         cronRunStore,
+			Sink:             cron.FuncSink(func(_ context.Context, text string) error { slog.Info("cron", "msg", text); return nil }),
+			CallTimeout:      cfg.Cron.CallTimeout,
+			CronApprovalMode: cfg.Approvals.CronMode,
+		}, slog.Default())
+
+		cronSched := cron.NewScheduler(cron.SchedulerConfig{
+			Store:    cronStore,
+			Executor: cronExec,
+		}, slog.Default())
+
+		if err := cronSched.Start(rootCtx); err != nil {
+			return fmt.Errorf("cron: start scheduler: %w", err)
+		}
+		defer func() {
+			shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), kernel.ShutdownBudget)
+			defer cancelShutdown()
+			cronSched.Stop(shutdownCtx)
+		}()
+
+		cronMirror := cron.NewMirror(cron.MirrorConfig{
+			JobStore: cronStore,
+			RunStore: cronRunStore,
+			Path:     cfg.CronMirrorPath(),
+			Interval: cfg.Cron.MirrorInterval,
+		}, slog.Default())
+		go cronMirror.Run(rootCtx)
+	}
 
 	allowedChats, allowDiscovery, allowedWhitelists := gatewayPolicyMaps(cfg)
 	runtimeStatusPath := config.GatewayRuntimeStatusPath()
