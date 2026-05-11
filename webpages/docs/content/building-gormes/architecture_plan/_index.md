@@ -87,18 +87,19 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 86/100 subphases shipped · 11 in progress · 3 planned
+**Overall:** 88/103 subphases shipped · 11 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | 🔨 | 20/21 subphases |
+| Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 18/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
+| Phase 9 — Design & Security Hardening | 🔨 | 0/3 subphases |
 
 ---
 
@@ -136,7 +137,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway 🔨
+## Phase 2 — The Gateway ✅
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -180,7 +181,7 @@ classification and row-backed implementation queue.
 - [x] WhatsApp outbound pairing gate + raw peer mapping
 - [x] WhatsApp reconnect backoff + send retry policy
 
-### 2.B.5 — Session Context + Delivery Routing 🔨
+### 2.B.5 — Session Context + Delivery Routing ✅
 
 - [x] Gateway session store + SessionSource parity
 - [x] Gateway manual reset session-boundary hooks
@@ -261,7 +262,7 @@ classification and row-backed implementation queue.
 - [x] Telegram streaming edit Markdown safety
 - [x] Telegram guest mention allowlist bypass
 - [x] Gateway platform reconnect isolation + channel health limits
-- [ ] Gateway /model interactive provider/model picker
+- [x] Gateway /model interactive provider/model picker
 
 ### 2.B.10 — WeChat Adapter ✅
 
@@ -773,8 +774,9 @@ classification and row-backed implementation queue.
 - [x] WASI Whisper ffmpeg preprocess + fixed-window chunker
 - [x] Audio preprocessing and chunking pipeline
 - [x] Whisper benchmark harness + perf budget
-- [ ] Go-native audio decoding (ffmpeg replacement)
-- [ ] Pure-Go TTS path scoping
+- [x] Go-native OGG/Opus decoder decision
+- [ ] Go-native OGG/Opus decoder implementation
+- [x] Pure-Go TTS decision research
 
 ### 5.F — Skills System (Remaining) ✅
 
@@ -845,7 +847,8 @@ classification and row-backed implementation queue.
 - [x] Background review toolset restriction
 - [x] Cron dangerous-command approval mode
 - [x] Cron approval mode config normalizer
-- [ ] Tirith, path, URL, and website policy integration
+- [ ] Tirith external security finding ingestion
+- [ ] Unified security guard decision composer
 - [x] Shell blocklist (36+ dangerous patterns)
 - [x] Filesystem scoping (folder-level read/write restrictions)
 - [x] Permission approval UX (inline y/n/always)
@@ -860,9 +863,10 @@ classification and row-backed implementation queue.
 
 - [x] Sandboxed exec
 
-### 5.L — File Ops + Patches 🔨
+### 5.L — File Ops + Patches ✅
 
-- [ ] Atomic checkpoints
+- [x] Atomic file write helper with temp+rename pattern
+- [x] File tool atomic checkpoint integration
 - [x] Checkpoints CLI (status/list/prune/clear/clear-legacy)
 - [x] Checkpoint shadow-repo GC policy
 - [x] File read dedup cache invalidation and wrapper guard
@@ -903,7 +907,10 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard dispatch quick path
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
-- [ ] Hermes Kanban multi-board, workspace, and run-history parity
+- [ ] Kanban multi-board isolation
+- [ ] Kanban workspace context injection
+- [ ] Kanban run history persistence
+- [ ] Kanban notification delivery parity
 - [x] Kanban chat board DB pin
 - [x] Kanban schema migration duplicate-column race guard
 - [x] Kanban notify subscription store and CLI
@@ -968,6 +975,7 @@ classification and row-backed implementation queue.
 - [x] Prompt Fragment Include System
 - [x] Multi-agent gateway runtime activation
 - [x] Multi-agent auth and tool-policy runtime isolation
+- [x] Per-agent channel bot tokens (Telegram/Discord/Slack)
 - [x] Cron env-ref expansion + parallel run state serialization
 - [x] Cron origin delivery isolation from session identity
 - [x] Cron script/workdir/inactivity execution binding
@@ -1085,7 +1093,7 @@ classification and row-backed implementation queue.
 - [x] Unix installer (install.sh) source-backed update flow
 - [x] Unix installer root/FHS layout policy
 - [x] Windows installer (install.ps1 + install.cmd) parity
-- [ ] Installer site asset/route coverage
+- [ ] Installer script serving and MIME validation
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
 - [x] Install isolation: skip system service install when sandbox bin dir is set
@@ -1364,6 +1372,22 @@ classification and row-backed implementation queue.
 
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
+
+## Phase 9 — Design & Security Hardening 🔨
+
+*Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
+
+### 9.A — Declarative Agent Middleware Chain 🔨
+
+- [ ] Agent middleware chain framework
+
+### 9.B — Sandbox Provider Abstraction + Virtual Path System ⏳
+
+- [ ] Sandbox provider interface and virtual path security
+
+### 9.C — Speech-to-Text Tool Wiring 🔨
+
+- [ ] Transcribe audio tool registration + local whisper provider
 
 <!-- PROGRESS:END -->
 

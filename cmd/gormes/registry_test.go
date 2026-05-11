@@ -17,6 +17,13 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 )
 
+func TestBuildDefaultRegistryIncludesSessionSearch(t *testing.T) {
+	reg := buildDefaultRegistry(context.Background(), config.Config{}, nil, "")
+	if _, ok := reg.Get("session_search"); !ok {
+		t.Fatal("session_search not registered in default tool registry")
+	}
+}
+
 func TestBuildDefaultRegistryDelegationDisabled(t *testing.T) {
 	reg := buildDefaultRegistry(context.Background(), config.Config{}, nil, "")
 	if _, ok := reg.Get("delegate_task"); ok {

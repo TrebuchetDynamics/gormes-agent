@@ -1686,10 +1686,7 @@
                 "Gateway manual reset session-boundary hooks",
                 "Session expiry hook cleanup retry evidence"
               ],
-              "unblocks": [
-                "Fresh-reset skill injection closeout",
-                "Channel session lifecycle status surface"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGatewayAutoResetReasonDecision proves idle, daily, suspended, and none decisions return stable reason strings without mutating explicit reset state.",
                 "TestGatewayAutoResetSessionMetadata proves replacement sessions record was_auto_reset, auto_reset_reason, and reset_had_activity based on prior token/message activity.",
@@ -2223,11 +2220,7 @@
                 "The slice exposes the constants under names that conflict with existing internal/hermes identifiers (verify by `grep -rn` before naming)."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated)",
-                "Live-turn tool-use enforcement guidance block (model-substring gated)",
-                "Live-turn environment hints block (WSL/Termux/Docker gated)"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGuidanceConstants_MemoryGuidance_ByteEquivalent: extracts MEMORY_GUIDANCE concatenated string from `../hermes-agent/agent/prompt_builder.py` and asserts equality to `hermes.MemoryGuidance`. Use a deterministic Python concatenation reproduction (parse the parenthesised literal block) so the test is self-contained without invoking Python.",
                 "TestGuidanceConstants_SessionSearchGuidance_ByteEquivalent: same shape for SESSION_SEARCH_GUIDANCE -> SessionSearchGuidance.",
@@ -2322,9 +2315,7 @@
                 "The slice attempts to implement relevance-based memory retrieval or memory-nudge counter hydration; those are separate runtime surfaces."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated)"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "RED: `go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails before implementation with the missing upstream stale-artifact exclusion text.",
                 "GREEN: the same focused test passes after `internal/hermes.MemoryGuidance` includes the upstream PR/issue/SHA/7-day-stale exclusion sentence byte-for-byte.",
@@ -7201,10 +7192,10 @@
             },
             {
               "name": "Gateway /model interactive provider/model picker",
-              "status": "planned",
+              "status": "complete",
               "priority": "P1",
               "contract": "Gateway `/model` with no arguments opens an interactive two-step provider→model picker on channels that support inline keyboards (Telegram first; Discord later) and writes a per-session model/provider override that the live-turn provider payload sees on the next message. The handler shares the Hermes-compatible `⚙ Model Configuration` / `Select a provider:` / `Select a model:` header text and reuses the curated provider list from the Hermes provider registry manifest. Channels without inline-keyboard support and the existing `/model <name>` typed-arg path keep the current static-text behavior. The picker is the gateway slash-handler port of `_handle_model_command`; it does not duplicate the completed `gormes model` Cobra CLI picker, which persists `hermes.model`/`hermes.provider` to config TOML and is governed by row `Gormes model interactive provider/model picker`.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -7228,7 +7219,7 @@
               ],
               "ready_when": [
                 "Telegram inline approval buttons + callback auth is complete so the Telegram callback router already accepts a new `mp:/mm:/mg:/mb:/mx:` family alongside the existing `ea:` family without changing existing approval routing.",
-                "Hermes provider registry manifest is complete and exposes the curated provider+model list the picker needs.",
+                "Hermes provider registry and alias manifest is complete and exposes the curated provider+model list the picker needs.",
                 "Hermes CLI nested parser inventory refresh classifies `_handle_model_command` as the row-backed gateway-handler residual for this row.",
                 "Tests can drive a fake Telegram client capturing send-message payloads + inline keyboard markup and a fake callback-query stream without a live Bot API token."
               ],
@@ -7241,7 +7232,7 @@
               ],
               "blocked_by": [
                 "Telegram inline approval buttons + callback auth",
-                "Hermes provider registry manifest",
+                "Hermes provider registry and alias manifest",
                 "Hermes CLI nested parser inventory refresh"
               ],
               "unblocks": [
@@ -7592,11 +7583,10 @@
               "unblocks": [
                 "Gateway, platform, webhook, and cron management CLI",
                 "Channel directory atomic persistence + lookup",
-                "Paused adapter channel health/status readout",
                 "Yuanbao gateway runtime + toolset registration",
-                "QQ Bot bootstrap + token/gateway fake transport",
-                "Matrix shared-chassis adapter",
-                "Mattermost shared-chassis adapter"
+                "QQ Bot transport/bootstrap layer",
+                "Matrix shared-chassis bot seam",
+                "Mattermost shared-chassis bot seam"
               ],
               "acceptance": [
                 "TestHermesGatewayPlatformManifestCoversUpstream proves the manifest enumerates current Hermes Platform enum values: local, telegram, discord, whatsapp, slack, signal, mattermost, matrix, homeassistant, email, sms, dingtalk, api_server, webhook, msgraph_webhook, feishu, wecom, wecom_callback, weixin, bluebubbles, qqbot, and yuanbao.",
@@ -7732,10 +7722,7 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "LINE Messaging API adapter tracer",
-                "IRC shared-chassis adapter",
-                "Google Chat shared-chassis adapter",
-                "Platform plugin setup/status docs"
+                "Google Chat shared-chassis platform adapter seam"
               ],
               "acceptance": [
                 "TestHermesGatewayPlatformManifestCoversBundledPluginPlatforms fails before the manifest covers every `kind: platform` plugin directory under `hermes-agent/plugins/platforms` and passes after `google_chat`, `irc`, `line`, and `teams` are visible.",
@@ -7811,13 +7798,7 @@
                 "The implementation treats Navivox as a Hermes platform enum parity port instead of a Gormes-owned first-party channel.",
                 "Bad magic, invalid headers, or unsupported prelude versions are answered with in-band frames instead of failing the untrusted stream."
               ],
-              "unblocks": [
-                "Gateway selected-agent override for channel events",
-                "Navivox chat.submit gateway binding",
-                "Navivox schema-driven config admin protocol",
-                "Navivox typed tool event stream",
-                "Navivox voice audio frame streaming"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Codec tests prove binary frames round-trip with ASCII NVOX magic, uint32 network-byte-order protocol/header lengths, JSON headers, exact payload_length handling, and byte-for-byte binary payload preservation.",
                 "Codec tests prove bad magic, unsupported prelude version, invalid JSON, oversized header/payload, and payload-length mismatch return typed errors.",
@@ -7896,9 +7877,7 @@
               ],
               "unblocks": [
                 "Navivox host setup apply with transient sudo",
-                "Navivox Flutter QR scanner and SSH bootstrap",
-                "Navivox pair.claim stdio event",
-                "Navivox chat.submit gateway binding"
+                "Navivox Flutter QR scanner and SSH bootstrap"
               ],
               "acceptance": [
                 "`gormes navivox pair --host 100.77.1.2 --port 2222 --user ada --device-name pixel-lab --qr=false` prints a clear operator-first pairing screen, server details, pairing code, fallback URI, and Tailscale recommendation.",
@@ -7963,11 +7942,7 @@
                 "The slice starts live microphone capture, TTS playback, SSH streaming, or provider audio work.",
                 "The widget requires golden screenshots to prove basic behavior, ignores reduced-motion, or exposes no semantics for blind users."
               ],
-              "unblocks": [
-                "Navivox voice audio frame streaming",
-                "Navivox live voice-mode controls",
-                "Navivox Flutter TTS playback surface"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "`VoiceMorphSurface` supports idle, listening, thinking, speaking, and disabled states with distinct styles and semantic labels.",
                 "The painter receives clamped intensity and deterministic phase/style inputs that can later be driven by real audio amplitude.",
@@ -10057,7 +10032,6 @@
                 "Manager remember-source hook"
               ],
               "unblocks": [
-                "Cron delivery target planner",
                 "Mirror + sticker cache surfaces"
               ],
               "acceptance": [
@@ -10134,8 +10108,7 @@
               ],
               "unblocks": [
                 "Channel directory refresh + stale-target invalidation",
-                "Manager remember-source hook",
-                "Cron delivery target planner"
+                "Manager remember-source hook"
               ],
               "acceptance": [
                 "TestChannelDirectoryAtomicWriteAndLoad writes fixture entries through a temp root and proves reload sees either the old complete file or the new complete file, never a partial JSON body.",
@@ -10211,8 +10184,7 @@
               ],
               "unblocks": [
                 "Notify-to delivery routing",
-                "Discord forum media + polish parity",
-                "Cron delivery target planner"
+                "Discord forum media + polish parity"
               ],
               "acceptance": [
                 "TestChannelDirectoryRefreshMergesAdapterInventory proves Discord/Slack inventory and remembered session sources merge into a deterministic, sorted directory.",
@@ -10284,8 +10256,7 @@
               "blocked_by": [],
               "unblocks": [
                 "Channel directory refresh + stale-target invalidation",
-                "Notify-to delivery routing",
-                "Cron delivery target planner"
+                "Notify-to delivery routing"
               ],
               "acceptance": [
                 "TestManagerRememberSourceHook_PersistsAllowedInboundSource proves an allowed Telegram-shaped submit records platform, chat_id, chat_name, chat_type, user_id, user_name, thread_id, and message_id through a fake store before kernel submission.",
@@ -10361,10 +10332,7 @@
                 "Notify-to delivery routing",
                 "Manager remember-source hook"
               ],
-              "unblocks": [
-                "Adapter-specific sticker download/vision integration",
-                "Cron cross-platform mirror write integration"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestSelectDeliveryMirrorSession_PrefersExactUserAndThread proves session selection respects platform, chat, thread, and exact user identity.",
                 "TestSelectDeliveryMirrorSession_AmbiguousGroupWithoutUser proves same-chat sessions with distinct users are not guessed.",
@@ -12198,10 +12166,7 @@
               "blocked_by": [
                 "Goncho dialectic chat contract"
               ],
-              "unblocks": [
-                "Internal agent chat transport",
-                "Hugo docs examples for streaming memory behavior"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Streaming response handlers accumulate chunks into a final response before persistence.",
                 "Partial chunks are never written as memory messages.",
@@ -12317,10 +12282,7 @@
               "not_ready_when": [
                 "The slice runs LLM deduction or induction, implements tree-based surprisal, starts background workers, or calls a hosted Honcho service."
               ],
-              "unblocks": [
-                "Goncho dream execution worker",
-                "Goncho dream status documentation"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Scheduler fixtures create at most one pending or in-progress dream per workspace/observer/observed tuple.",
                 "A dream is eligible only after at least 50 new conclusions since the last dream, an eight-hour cooldown, and the configured idle timeout.",
@@ -12833,8 +12795,7 @@
               ],
               "unblocks": [
                 "Goncho HTTP route parity over OpenAPI v3",
-                "Goncho webhook delivery retry worker contract",
-                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+                "Goncho webhook delivery retry worker contract"
               ],
               "acceptance": [
                 "CreateScopedKey refuses disabled auth, non-admin callers, missing scope, and missing JWT secrets.",
@@ -12982,8 +12943,7 @@
                 "The implementation claims broad route coverage from globbed routers without proving each OpenAPI path/method."
               ],
               "unblocks": [
-                "Goncho CLI command-tree parity",
-                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+                "Goncho CLI command-tree parity"
               ],
               "acceptance": [
                 "OpenAPIRouteManifest enumerates all 45 Honcho v3 path/method routes from docs/v3/openapi.json with operationId and tag evidence.",
@@ -13065,8 +13025,7 @@
                 "The implementation claims command parity without reading upstream honcho-cli source files and tests."
               ],
               "unblocks": [
-                "Gateway, platform, webhook, and cron management CLI",
-                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+                "Gateway, platform, webhook, and cron management CLI"
               ],
               "acceptance": [
                 "gonchoCLICompatibilityManifest enumerates upstream global flags, shared scope flags, top-level commands, command groups, and subcommands from honcho-cli.",
@@ -13296,8 +13255,8 @@
               ],
               "unblocks": [
                 "Bedrock Converse payload mapping (no AWS SDK)",
-                "Gemini",
-                "OpenRouter",
+                "Gemini Cloud Code request/stream mapper",
+                "OpenRouter compatible-provider routing",
                 "Codex"
               ],
               "acceptance": [
@@ -13359,7 +13318,6 @@
               "unblocks": [
                 "Gormes model interactive provider/model picker",
                 "Hermes auth OAuth provider adapters",
-                "Provider auth selection for native gateway turns",
                 "Provider account usage read model + renderer",
                 "Hermes fallback provider chain CLI commands",
                 "Model metadata types",
@@ -13429,7 +13387,6 @@
               ],
               "unblocks": [
                 "Gormes model interactive provider/model picker",
-                "Provider auth selection for native gateway turns",
                 "OpenRouter/OpenAI-compatible model routing parity"
               ],
               "acceptance": [
@@ -13489,7 +13446,7 @@
               "unblocks": [
                 "DeepSeek/Kimi reasoning_content echo for tool-call replay",
                 "Bedrock stream event decoding (SSE fixtures)",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex"
               ],
               "acceptance": [
@@ -13535,7 +13492,7 @@
               ],
               "unblocks": [
                 "Cross-provider reasoning-tag sanitization",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex stream repair + tool-call leak sanitizer"
               ],
               "acceptance": [
@@ -13590,7 +13547,7 @@
                 "The slice attempts OpenRouter, Codex Responses, Bedrock, or generic reasoning-tag sanitization behavior beyond the DeepSeek/Kimi replay ordering bug."
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Cross-provider reasoning-tag sanitization",
                 "Codex stream repair + tool-call leak sanitizer"
               ],
@@ -13659,7 +13616,7 @@
                 "DeepSeek/Kimi cross-provider reasoning isolation"
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex stream repair + tool-call leak sanitizer"
               ],
               "acceptance": [
@@ -13728,9 +13685,9 @@
                 "Tool-call argument repair + schema sanitizer"
               ],
               "unblocks": [
-                "Gemini",
-                "OpenRouter",
-                "Google Code Assist",
+                "Gemini Cloud Code request/stream mapper",
+                "OpenRouter compatible-provider routing",
+                "Google Code Assist project/quota resolver",
                 "Raw tool-call parser fixture matrix"
               ],
               "acceptance": [
@@ -14680,8 +14637,7 @@
                 "Tool-call normalization + continuation contract"
               ],
               "unblocks": [
-                "Google Code Assist project/quota resolver",
-                "Gemini Cloud Code provider transport"
+                "Google Code Assist project/quota resolver"
               ],
               "acceptance": [
                 "TestGeminiCloudCodeBuildRequestMapsMessagesAndSystem proves system, user, assistant, tool-call, and tool-result messages map to Gemini contents without losing IDs or JSON arguments.",
@@ -14755,9 +14711,7 @@
                 "Tool-call normalization + continuation contract"
               ],
               "unblocks": [
-                "Multi-model coordination",
-                "OpenRouter pricing cache refresh",
-                "OpenRouter provider health probe"
+                "Multi-model coordination"
               ],
               "acceptance": [
                 "TestOpenRouterRuntimeResolutionHonorsProviderAndCustomBase proves provider=openrouter, provider=custom+OpenRouter URL, env base URL, and missing-key cases match Hermes runtime selection.",
@@ -14827,10 +14781,7 @@
                 "The change rewrites provider routing, model metadata, prompt-cache body semantics, or xAI native adapter behavior instead of only adding the OpenRouter header contract."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "OpenRouter provider health probe",
-                "OpenRouter pricing cache refresh"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestOpenRouterGrokPromptCacheAffinityHeader fails before OpenRouter Grok requests receive x-grok-conv-id and passes after x-ai/grok-* and xai/grok-* slugs use the session id.",
                 "The same fixture proves non-Grok OpenRouter models and Grok requests without a session id omit x-grok-conv-id.",
@@ -14909,14 +14860,8 @@
                 "Paid-tier project requirement is silently downgraded to free tier.",
                 "Retry-After and VPC-SC evidence is discarded or logged as raw Google response bodies."
               ],
-              "blocked_by": [
-                "Provider credential resolver seam"
-              ],
-              "unblocks": [
-                "Gemini Cloud Code provider transport",
-                "Google Code Assist OAuth login/import",
-                "Code Assist /gquota operator command"
-              ],
+              "blocked_by": [],
+              "unblocks": [],
               "acceptance": [
                 "TestGoogleCodeAssistHeadersUseTokenProvider proves auth, content type, user agent model, and request metadata are derived from fakes without leaking tokens.",
                 "TestGoogleCodeAssistProjectContextPrecedence proves configured project beats env project, managed free-tier project is accepted, and paid tiers require explicit project IDs.",
@@ -15291,9 +15236,9 @@
                 "Codex stream repair + tool-call leak sanitizer"
               ],
               "unblocks": [
-                "Gemini",
-                "OpenRouter",
-                "Google Code Assist",
+                "Gemini Cloud Code request/stream mapper",
+                "OpenRouter compatible-provider routing",
+                "Google Code Assist project/quota resolver",
                 "Codex OAuth state + stale-token relogin"
               ],
               "acceptance": [
@@ -15360,7 +15305,7 @@
               ],
               "unblocks": [
                 "Codex stream repair + tool-call leak sanitizer",
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Bedrock stream event decoding (SSE fixtures)"
               ],
               "acceptance": [
@@ -15674,10 +15619,11 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+              ],
+              "test_commands": []
             },
             {
               "name": "ContextEngine interface + status tool contract",
@@ -16279,10 +16225,11 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
-              ]
+              ],
+              "test_commands": []
             },
             {
               "name": "Manual compression feedback renderer + focus parser",
@@ -16321,11 +16268,7 @@
                 "Compression token-budget trigger + summary sizing",
                 "Context references stable-handle store"
               ],
-              "unblocks": [
-                "CLI /compress runtime binding",
-                "Native TUI /compress command binding",
-                "Manual context-reference live expansion row"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestManualCompressionFeedbackNoop proves equal before/after messages render `No changes from compression` and unchanged approximate token text without a compressed-success marker.",
                 "TestManualCompressionFeedbackCompressedTokenDelta proves changed message counts render `Compressed: before -> after messages` plus approximate before/after token totals.",
@@ -16393,9 +16336,7 @@
                 "The slice changes Goncho/Honcho memory extraction semantics; memory pre/post-compression observation remains a separate Phase 3/4 concern.",
                 "The slice edits any testdata fixture except internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json."
               ],
-              "unblocks": [
-                "ContextEngine compression-boundary notification"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "A new CompressionBoundary value carries old_session_id, new_session_id, reason, and compressed_at or equivalent stable lineage evidence.",
                 "DisabledContextEngine or an in-package fake can record one boundary callback and expose last boundary evidence through Status without contacting a provider.",
@@ -16748,11 +16689,7 @@
               "blocked_by": [
                 "Context-file discovery + injection scan"
               ],
-              "unblocks": [
-                "Tool-result subdirectory hint injection binding",
-                "Subagent tool-result context hint parity",
-                "Cron workdir project-context parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestSubdirectoryHintsWorkingDirPreloaded proves the working directory is pre-marked as handled so startup context is not reloaded as a tool-result hint.",
                 "TestSubdirectoryHintsAncestorDiscovery proves reading backend/src/main.py discovers backend/AGENTS.md through a bounded ancestor walk and does not duplicate on a second read.",
@@ -16827,7 +16764,6 @@
                 "The slice calls a provider, reads credentials, or infers available tools from the live registry instead of using injected test data."
               ],
               "unblocks": [
-                "Memory and session-search guidance assembly",
                 "Native full prompt assembly",
                 "Codex/Gemini prompt parity"
               ],
@@ -16907,11 +16843,9 @@
                 "Condition filtering treats missing available-tools/toolsets as restrictive; Hermes keeps backward compatibility by showing all skills when both filters are unknown."
               ],
               "blocked_by": [
-                "Phase 2.G skills runtime",
                 "SKILL.md frontmatter validation guard"
               ],
               "unblocks": [
-                "Memory and session-search guidance assembly",
                 "Native full prompt assembly"
               ],
               "acceptance": [
@@ -18693,8 +18627,7 @@
               "blocked_by": [],
               "unblocks": [
                 "Anthropic OAuth/keychain credential discovery",
-                "Codex OAuth state + stale-token relogin",
-                "Provider auth selection for native gateway turns"
+                "Codex OAuth state + stale-token relogin"
               ],
               "acceptance": [
                 "TestCredentialPoolLoadRoundTrip stores and reloads neutral credential records under a temp Hermes profile while redacting token-bearing fields from status evidence.",
@@ -18768,7 +18701,6 @@
                 "Multi-account auth"
               ],
               "unblocks": [
-                "Provider auth selection for native gateway turns",
                 "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
@@ -19296,7 +19228,7 @@
                 "Provider interface + stream fixture harness"
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex OAuth state + stale-token relogin",
                 "Provider rate guard + budget telemetry"
               ],
@@ -19426,7 +19358,7 @@
                 "Unsupported temperature retry + Codex no-temperature guard"
               ],
               "unblocks": [
-                "OpenRouter",
+                "OpenRouter compatible-provider routing",
                 "Codex OAuth state + stale-token relogin",
                 "Provider rate guard + budget telemetry"
               ],
@@ -20332,8 +20264,7 @@
               ],
               "unblocks": [
                 "Goncho memory integration into normal agent turn",
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "TestPythonFreeNormalAgentTurn seeds temp Goncho/memory state, sends one user input, consumes a fake provider tool-call event, executes a Go tool, resumes the fake provider, and returns a final assistant response.",
@@ -21145,7 +21076,6 @@
                 "Native runtime provider gateway binding"
               ],
               "unblocks": [
-                "Release readiness e2e gate",
                 "Hermes/Honcho Go runtime plan second-wave reconciliation",
                 "Gormes-owned runtime docs/API naming cleanup"
               ],
@@ -21373,8 +21303,7 @@
                 "Tests require live provider keys, models.dev network access, or a real compressor/provider call."
               ],
               "unblocks": [
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "TestFallbackConfigNormalizesOrderedList accepts one fallback object or an ordered list, drops incomplete entries, preserves first valid fallback_model, and stores the full fallback_chain for iteration.",
@@ -21458,8 +21387,7 @@
                 "Hermes fallback activation + classifier carve-outs"
               ],
               "unblocks": [
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "NormalizeFallbackModelConfig preserves base_url, api_key, key_env, and api_key_env metadata on valid fallback routes while still dropping incomplete routes.",
@@ -21853,7 +21781,7 @@
             {
               "name": "61-tool registry port",
               "status": "complete",
-              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
+              "no_test_required": "",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -21865,7 +21793,8 @@
                 "Stateful tool migration queue"
               ],
               "note": "Umbrella only: keep for inventory continuity. Execute via registry inventory, pure/core tools, stateful filesystem tools, network tools, and adapter-specific tool groups rather than one bulk port.",
-              "priority": "P2"
+              "priority": "P2",
+              "test_commands": []
             },
             {
               "name": "Tool registry inventory + schema parity harness",
@@ -22621,7 +22550,7 @@
                 "docs/content/building-gormes/architecture_plan/progress.json",
                 "docs/content/building-gormes/architecture_plan/subsystem-inventory.md"
               ],
-              "no_test_required": "Umbrella sequencing row only; executable behavior is tested by the Todo, Clarify, Debug helpers, and Stateful tool migration queue rows.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "The pure-core tool tranche is represented by concrete child rows and this umbrella is not selected for implementation."
               ],
@@ -22663,11 +22592,7 @@
                 "A tool can declare write/process behavior without a state domain, rollback policy, and focused test command.",
                 "Paths outside the injected Gormes roots can be accepted in tests."
               ],
-              "unblocks": [
-                "File write/patch tool port",
-                "Checkpoint restore tool port",
-                "Terminal process execution port"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestStatefulToolMigrationQueueRegistersDomains proves file/session/checkpoint/process tool plans declare state domain, root policy, rollback policy, concurrency policy, and owner row.",
                 "TestStatefulToolMigrationQueueRejectsMissingRollback proves write-capable tools cannot become selectable without rollback/audit evidence.",
@@ -22931,7 +22856,7 @@
                 "The slice treats broad `environments/**` coverage as complete without exact parser-family rows."
               ],
               "unblocks": [
-                "Docker",
+                "Docker execution backend (container lifecycle + mount policy)",
                 "Modal",
                 "Daytona",
                 "Singularity",
@@ -23136,9 +23061,9 @@
                 "The slice calls live providers or runs Python parser code at runtime."
               ],
               "unblocks": [
-                "OpenRouter",
-                "Gemini",
-                "Google Code Assist"
+                "OpenRouter compatible-provider routing",
+                "Gemini Cloud Code request/stream mapper",
+                "Google Code Assist project/quota resolver"
               ],
               "acceptance": [
                 "The manifest lists every upstream parser file with model family, expected input style, mapped/row-backed status, and target Go parser package.",
@@ -23282,7 +23207,7 @@
                 "The slice treats /new, /reset, or TUI session changes as new Docker task IDs for the top-level agent."
               ],
               "unblocks": [
-                "Docker"
+                "Docker execution backend (container lifecycle + mount policy)"
               ],
               "acceptance": [
                 "TestDockerContainerKey_TopLevelDefault: empty TaskID with IsSubagent=false and IsRollout=false returns \"default\".",
@@ -23325,11 +23250,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P2"
+              "priority": "P2",
+              "test_commands": []
             },
             {
               "name": "Daytona",
@@ -23340,11 +23266,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P2"
+              "priority": "P2",
+              "test_commands": []
             },
             {
               "name": "Singularity command/preflight contract",
@@ -23508,7 +23435,7 @@
                 "The slice bypasses the existing private-host and quoted-false SSRF guard helpers."
               ],
               "unblocks": [
-                "Chromedp",
+                "go-browser-harness Chromedp action backend",
                 "Rod",
                 "Browser provider bridge + Firecrawl fallback",
                 "Browser Use cloud + Go browser harness bridge"
@@ -23584,12 +23511,7 @@
                 "Browser action contract + event transcript",
                 "Go browser-harness Hermes browser_* tool wrappers"
               ],
-              "unblocks": [
-                "Browser /browser connect CDP parity",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs",
-                "Operator e2e gate"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "go-browser-harness package tests prove action JSON validation, backend dispatch, unavailable-backend evidence, and JSON result envelopes without starting Chrome.",
                 "Gormes internal/tools tests prove browser_navigate emits go-browser-harness --action-json with new_tab=true and never emits Python snippets by default.",
@@ -23658,11 +23580,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P2"
+              "priority": "P2",
+              "test_commands": []
             },
             {
               "name": "Browser provider bridge + Firecrawl fallback",
@@ -23700,14 +23623,12 @@
                 "Errors include raw API keys, bearer tokens, session URLs, project IDs, or unbounded provider response bodies."
               ],
               "blocked_by": [
-                "Browser action contract",
+                "Browser action contract + event transcript",
                 "Browser hybrid private-URL local sidecar routing"
               ],
               "unblocks": [
-                "Chromedp",
-                "Rod",
-                "Browser action runtime provider selection",
-                "Browser provider status reporting"
+                "go-browser-harness Chromedp action backend",
+                "Rod"
               ],
               "acceptance": [
                 "TestBrowserProviderBridgeConfigGates proves Browserbase requires API key plus project ID, Firecrawl requires API key, and missing config produces browser_provider_unconfigured without constructing an HTTP request.",
@@ -23797,11 +23718,7 @@
                 "Browser provider bridge + Firecrawl fallback",
                 "Browser hybrid private-URL local sidecar routing"
               ],
-              "unblocks": [
-                "Browser action runtime provider selection",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestCamofoxConfigMode proves CAMOFOX_URL enables Camofox, blank BROWSER_CDP_URL does not suppress it, nonblank BROWSER_CDP_URL suppresses it, and missing CAMOFOX_URL returns browser_provider_unconfigured without HTTP calls.",
                 "TestCamofoxManagedIdentityMatchesHermesUUID5 proves a fixed state root produces Hermes-compatible user_id/session_key values and that the same profile reuses user_id while task IDs change session_key.",
@@ -23895,16 +23812,11 @@
                 "Errors include raw BROWSER_USE_API_KEY values, profile/cookie material, CDP/connect URLs, live browser URLs, session IDs without redaction, or unbounded HTML/provider response bodies."
               ],
               "blocked_by": [
-                "Browser action contract",
+                "Browser action contract + event transcript",
                 "Browser hybrid private-URL local sidecar routing",
                 "Browser SSRF quoted-false guard"
               ],
-              "unblocks": [
-                "Browser action runtime provider selection",
-                "Browser /browser connect CDP parity",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestBrowserUseConfigGates proves direct Browser Use credentials, managed gateway credentials, unconfigured degraded evidence, and deterministic cloud-provider preference without live network calls.",
                 "TestBrowserUseCreateSessionMapsCDP proves managed /browsers creation maps provider id, CDP/live URLs, feature flags, idempotency, profile presence bits, and external-call evidence without leaking profile values.",
@@ -23994,12 +23906,7 @@
                 "Browser action contract + event transcript",
                 "Browser Use cloud + Go browser harness bridge"
               ],
-              "unblocks": [
-                "Browser /browser connect CDP parity",
-                "Browser provider status reporting",
-                "Browser-harness optional live smoke docs",
-                "Operator e2e gate"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestBrowserHarnessToolsExposeHermesNames proves all core Hermes browser_* names are exposed with valid JSON schemas.",
                 "TestBrowserHarnessNavigateUsesNewTabAndEnvelope proves browser_navigate builds go-browser-harness --action-json argv, sets new_tab=true rather than emitting Python goto_url/new_tab snippets, sanitizes BU_NAME, and returns a bounded BrowserHarnessToolResponse.",
@@ -24086,8 +23993,7 @@
               ],
               "unblocks": [
                 "Managed Firecrawl gateway wiring for web tools",
-                "Toolset parity for web and safe research toolsets",
-                "Operator e2e gate"
+                "Toolset parity for web and safe research toolsets"
               ],
               "acceptance": [
                 "TestWebToolsExposeHermesNamesAndSchemas proves the package exposes valid Hermes-visible `web_search` and `web_extract` tool descriptors.",
@@ -24170,10 +24076,7 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Web extract safety and website-policy parity",
-                "Web extract auxiliary summarizer parity",
-                "Managed Firecrawl gateway runtime wiring",
-                "Toolset parity for web/search/safe research surfaces"
+                "Go-native Hermes web extract safety policy and summarizer"
               ],
               "acceptance": [
                 "TestWebToolsExposeHermesNamesAndSchemas proves web_search now advertises the Hermes `limit` parameter while retaining valid web_extract schema.",
@@ -24269,9 +24172,7 @@
                 "Go-native Hermes web backend matrix and config resolver"
               ],
               "unblocks": [
-                "Managed Firecrawl gateway runtime/OAuth routing",
-                "Toolset/status metadata parity for web provider availability",
-                "Operator e2e gate"
+                "Toolset/status metadata parity for web provider availability"
               ],
               "acceptance": [
                 "TestWebExtractToolBlocksEmbeddedSecretsBeforeHTTP proves secret-prefix URLs short-circuit with no provider request.",
@@ -24367,9 +24268,7 @@
                 "Go-native Hermes web extract safety policy and summarizer"
               ],
               "unblocks": [
-                "Managed Firecrawl gateway runtime/OAuth routing",
-                "Toolset/status metadata parity for web provider availability",
-                "Operator e2e gate"
+                "Toolset/status metadata parity for web provider availability"
               ],
               "acceptance": [
                 "TestWebToolsExposeHermesNamesAndSchemas proves NewWebTools exposes web_crawl with url, instructions, and depth schema fields.",
@@ -24462,7 +24361,6 @@
                 "Go-native Hermes web extract safety policy and summarizer"
               ],
               "unblocks": [
-                "Operator e2e gate",
                 "Release-note web parity claim"
               ],
               "acceptance": [
@@ -24689,8 +24587,7 @@
                 "go-browser-harness Chromedp action backend"
               ],
               "unblocks": [
-                "Browser artifact and console render contract revisit",
-                "Browser /browser connect CDP parity"
+                "Browser artifact and console render contract revisit"
               ],
               "acceptance": [
                 "A fake CDP transport test proves browser_console(expression) sends Runtime.evaluate with returnByValue=true and returns method=cdp_supervisor with structured result/result_type data for primitives and objects.",
@@ -25604,11 +25501,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P3"
+              "priority": "P3",
+              "test_commands": []
             },
             {
               "name": "Voice mode environment detector + audio provider seam",
@@ -25736,8 +25634,7 @@
               ],
               "unblocks": [
                 "TTS synthesis + voice-mode state",
-                "Gateway media transcription hooks",
-                "Voice attachment handling for Signal and QQ Bot"
+                "Gateway media transcription hooks"
               ],
               "acceptance": [
                 "TestTranscriptionValidateAudioInput proves missing files, directories, unsupported suffixes, and max-size violations return stable evidence and no provider is called.",
@@ -26090,11 +25987,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P3"
+              "priority": "P3",
+              "test_commands": []
             },
             {
               "name": "Voice record-key config binding for native TUI",
@@ -26315,8 +26213,7 @@
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "test_commands": [],
-              "no_test_required": "Research and architectural-decision row; no Go code is written by this row directly. Each of the four downstream paths spawns its own builder/test rows.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "Row is closed with a note recording (a) which architectural path was selected, (b) the date, (c) the spawned implementation row IDs (if any), and (d) the rationale for choosing that path over the other three."
               ],
@@ -26918,114 +26815,108 @@
               }
             },
             {
-              "name": "Go-native audio decoding (ffmpeg replacement)",
+              "name": "Go-native OGG/Opus decoder decision",
+              "status": "complete",
               "priority": "P3",
-              "status": "planned",
-              "provenance": {
-                "origin_type": "gormes",
-                "note": "Spawned 2026-05-09 from path #3 (WASI productionization), Phase 3 'replace with Go-native decoding later if needed'. Honors the static-binary promise on platforms where ffmpeg is awkward (Termux, Windows-without-extra-tooling, locked-down corp Linux)."
-              },
-              "contract": "Replace Row E's ffmpeg shim with pure-Go audio decoding for the formats the Telegram channel actually delivers (OGG/Opus primarily; WAV and MP3 secondarily). After this row, the WASI STT path runs end-to-end on a fresh CGO_ENABLED=0 build with no external binary dependencies.",
-              "contract_status": "draft",
-              "slice_size": "large",
-              "execution_owner": "provider",
+              "contract": "Research and decide whether to use a pure-Go OGG/Opus decoder (e.g. ogg/opus bindings) vs keeping the ffmpeg shim for Telegram voice messages. Produce a decision document listing tradeoffs: binary size impact, platform compatibility (Termux, Windows, locked-down Linux), latency vs ffmpeg, and maintenance burden. The row produces a decision, not code.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
               "trust_class": [
                 "operator",
                 "system"
               ],
-              "degraded_mode": "Per-format degradation: if a particular codec (e.g. MP3) lacks a pure-Go decoder available under a compatible license, the preprocessor reports a typed degraded marker naming the codec and the resolver falls through to HTTP cloud for that single message — better than the all-or-nothing ffmpeg dependency.",
-              "fixture": "internal/wasi/whisper/audio/decode_test.go with vendored fixtures per codec",
-              "source_refs": [
-                "internal/wasi/whisper/audio/ (Row E's package home)",
-                "https://github.com/hraban/opus (cgo — ruled out by the static-binary stance)",
-                "https://github.com/jfreymuth/oggvorbis (pure Go OGG/Vorbis demux+decode)",
-                "https://github.com/pion/opus (pure Go Opus decoder, used by pion/webrtc — most likely candidate)",
-                "https://github.com/hajimehoshi/go-mp3 (pure Go MP3 decoder)"
-              ],
               "ready_when": [
-                "Row E 'Audio preprocessing and chunking pipeline' is complete and shipping ffmpeg-based preprocessing.",
-                "Operator feedback or telemetry shows ffmpeg-absence is a real blocker on a target platform (Termux, Windows-portable, etc.)."
+                "Hermes upstream OGG/Opus handling is mapped and the Gormes audio preprocessing surface is understood."
               ],
-              "not_ready_when": [
-                "Stakeholder has not selected a specific codec library set — this row needs a quick spike to pick OGG/Opus/MP3/WAV decoders before becoming builder-ready.",
-                "The slice depends on cgo-based audio libraries (would defeat path #3's whole point)."
-              ],
-              "blocked_by": [
-                "Audio preprocessing and chunking pipeline"
-              ],
-              "unblocks": [],
-              "acceptance": [
-                "Per-codec pure-Go decoders selected and pinned in go.mod; license compatibility documented in row note.",
-                "Preprocess() implementation in Row E updated to prefer Go-native decoders, with ffmpeg shim retained as an explicit secondary path (not removed).",
-                "Hermetic per-codec tests with vendored fixtures (small clips under 100 KB each) prove decode correctness.",
-                "End-to-end test: Telegram OGG/Opus voice fixture → pure-Go decode → 16kHz mono PCM → WASI Whisper → transcript, all under CGO_ENABLED=0 with no external binaries on PATH (test runs with PATH=/nonexistent for that subtest).",
-                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio ./internal/wasi/whisper ./cmd/gormes -count=1 passes."
-              ],
+              "not_ready_when": [],
               "write_scope": [
-                "internal/wasi/whisper/audio/",
-                "go.mod",
-                "go.sum",
-                "docs/content/building-gormes/architecture_plan/progress.json"
+                "docs/content/building-gormes/strategy/audio-decoder-decision.md"
               ],
-              "test_commands": [
-                "CGO_ENABLED=0 go build ./...",
-                "CGO_ENABLED=0 go test ./internal/wasi/whisper/audio -count=1 -timeout=5m",
-                "go run ./cmd/progress validate"
-              ],
+              "acceptance": [],
               "done_signal": [
-                "WASI STT path runs end-to-end on a CGO_ENABLED=0 build with PATH=/nonexistent (no ffmpeg, no whisper-cli, no external binaries) — proven by an integration test. Static-binary promise honored on every supported platform."
+                "Decision document exists in docs/ with tradeoff analysis and chosen path."
               ],
-              "note": "License audit is mandatory before merging — pion/opus is Apache-2.0 (compatible with Gormes MIT), jfreymuth/oggvorbis is BSD-3 (compatible), hajimehoshi/go-mp3 is Apache-2.0 (compatible). All clear if those are the picks, but record the pinned versions and license summary in row note when builder picks them."
-            },
-            {
-              "name": "Pure-Go TTS path scoping",
-              "priority": "P3",
-              "status": "planned",
-              "provenance": {
-                "origin_type": "gormes",
-                "note": "Spawned 2026-05-09 from path #3 (WASI productionization), Phase 5 of the stakeholder plan. Mirrors the Pure-Go STT exploration row's shape — research/decision row, not a builder slice."
-              },
-              "contract": "Track the parallel architectural question for outbound TTS: how should Gormes ship local text-to-speech given pure-Go TTS is even less mature than pure-Go STT? Document the three candidate paths (external TTS API / Piper sidecar process / experimental Piper or Kokoro WASM) with their tradeoffs so future planners and stakeholders have a clear decision surface.",
-              "contract_status": "draft",
-              "slice_size": "large",
-              "execution_owner": "provider",
-              "trust_class": [
-                "operator",
-                "system"
-              ],
-              "degraded_mode": "Without resolution, Gormes' local TTS story stays at: existing TTS providers in internal/tools (edge-tts default, OpenAI/Google/etc. cloud) — same as today.",
-              "fixture": "(no fixture — research/decision row)",
-              "source_refs": [
-                "internal/tools/tts_providers.go (current cloud TTS clients)",
-                "https://github.com/rhasspy/piper (Piper TTS upstream — neural, ONNX-based)",
-                "https://github.com/hexgrad/kokoro (Kokoro TTS — newer, also ONNX)",
-                "Stakeholder plan Phase 5 + milestones 7-8 (recorded on Pure-Go STT exploration row note)",
-                "docs/content/building-gormes/architecture_plan/progress.json (Pure-Go STT exploration row 5.E[10])"
-              ],
-              "ready_when": [
-                "Row D 'Wire Pure-Go Whisper into Telegram resolver' is shipped (validates the wazero+ggml-style WASI pipeline pattern works for STT before betting it works for TTS), AND",
-                "Stakeholder explicitly requests local TTS work (today the cloud TTS clients in internal/tools satisfy operator demand)."
-              ],
-              "not_ready_when": [
-                "Assigned as one combined builder slice (this is an exploration that resolves into one of three sub-rows).",
-                "A planner attempts to mark complete without naming which architectural choice was selected."
-              ],
+              "source_refs": [],
               "blocked_by": [],
               "unblocks": [],
-              "acceptance": [
-                "When a stakeholder selects path #1 (external TTS API): row closes with a note pointing at existing cloud TTS rows; no new code rows spawn.",
-                "When a stakeholder selects path #2 (Piper sidecar): row spawns a builder-ready row 'Add Piper sidecar process orchestration' with concrete write_scope, lifecycle ownership, and tests.",
-                "When a stakeholder selects path #3 (Piper/Kokoro WASM): row spawns a planner pass to scope the wazero+piper.wasm productionization, then a builder row mirroring the STT path Rows A-D shape."
+              "owner": "provider",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable"
+            },
+            {
+              "name": "Go-native OGG/Opus decoder implementation",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Implement the chosen pure-Go OGG/Opus decoder path. Replace the ffmpeg shim in internal/wasi/whisper/audio/preprocess.go with Go-native decoding for OGG/Opus audio files delivered by Telegram. The decoder must output PCM16 mono 16kHz WAV without spawning external processes.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
               ],
+              "ready_when": [
+                "Go-native OGG/Opus decoder decision row is complete."
+              ],
+              "not_ready_when": [],
               "write_scope": [
-                "docs/content/building-gormes/architecture_plan/progress.json"
+                "internal/tools/audio_decode.go",
+                "internal/tools/audio_decode_test.go",
+                "internal/wasi/whisper/audio/preprocess.go"
               ],
-              "test_commands": [],
-              "no_test_required": "Research and architectural-decision row; no Go code is written by this row directly. Each of the three downstream paths spawns its own builder/test rows.",
+              "acceptance": [
+                "TestOGGDecodeProducesPCM16Mono proves OGG/Opus input produces valid PCM16 mono 16kHz output.",
+                "TestOGGDecodeNoFFmpegRequired proves no ffmpeg subprocess is spawned.",
+                "TestOGGDecodeCorruptInput returns typed evidence without panic."
+              ],
               "done_signal": [
-                "Row is closed with a note recording (a) which architectural path was selected, (b) the date, (c) the spawned implementation row IDs (if any), and (d) the rationale."
+                "Telegram voice messages transcribe without ffmpeg on the system PATH."
               ],
-              "note": "Filed 2026-05-09 alongside Rows A-G as the TTS counterpart to the STT exploration. Path #1 (external TTS API) is the lowest-risk default and matches Gormes' current cloud TTS stance. Path #3 (WASM) is the cleanest pure-Go option but TTS WASM modules are larger than STT and have weaker prior art than whisper.cpp's WASM build. Recommend deferring this row until Row D ships and the WASI pipeline pattern has been proven in production for STT."
+              "source_refs": [
+                "internal/wasi/whisper/audio/preprocess.go:ConvertWithFFmpeg",
+                "../hermes-agent/tools/transcription_tool.py"
+              ],
+              "blocked_by": [
+                "Go-native OGG/Opus decoder decision"
+              ],
+              "unblocks": [],
+              "owner": "provider",
+              "size": "medium",
+              "fixture": "internal/tools/audio_decode_test.go",
+              "test_commands": [
+                "go test ./internal/tools -run 'TestAudioDecode' -count=1",
+                "go test ./internal/wasi/whisper -run 'TestTranscribe' -count=1"
+              ],
+              "degraded_mode": "If the Go decoder cannot handle a specific OGG variant, the tool returns audio_decode_format_unsupported evidence and the operator can install ffmpeg as a fallback."
+            },
+            {
+              "name": "Pure-Go TTS decision research",
+              "status": "complete",
+              "priority": "P3",
+              "contract": "Research and record the architecture decision for local TTS: (a) pure-Go TTS via a Go speech synthesis library, (b) embed a small WASM TTS engine, or (c) keep the existing command-provider pattern with shell-out to edge-tts/piper. Document tradeoffs: binary size, voice quality, latency, platform compatibility. This row produces a decision document; no runtime code.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "ready_when": [
+                "All TTS provider backends (edge, OpenAI, MiniMax, Piper, etc.) are mapped and their Go shell-out or API paths are understood."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "docs/content/building-gormes/strategy/tts-decision.md"
+              ],
+              "acceptance": [],
+              "done_signal": [
+                "Architecture decision record exists in docs/ with the chosen local TTS path."
+              ],
+              "source_refs": [],
+              "blocked_by": [],
+              "unblocks": [],
+              "owner": "provider",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable"
             }
           ],
           "drift_state": {
@@ -28341,7 +28232,6 @@
                 "Shutdown and reconnect events race so reconnect wins over shutdown when both are set."
               ],
               "unblocks": [
-                "Release readiness e2e gate",
                 "Long-running MCP server stability"
               ],
               "acceptance": [
@@ -29150,11 +29040,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P3"
+              "priority": "P3",
+              "test_commands": []
             },
             {
               "name": "Hermes plugin CLI lifecycle parity",
@@ -29271,11 +29162,7 @@
                 "Metadata discovery imports Python modules, executes `register(ctx)`, or requires the Teams platform adapter to be configured.",
                 "The plugin is treated as loaded/enabled by default or its runtime errors are hidden from status evidence."
               ],
-              "unblocks": [
-                "Teams pipeline durable store and list/show CLI",
-                "Teams pipeline Graph subscription maintenance CLI",
-                "Teams pipeline gateway notification scheduler binding"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestTeamsPipelinePluginMetadata_LoadsManifest proves the upstream manifest name, version, author, kind, platforms, and disabled state round-trip without runtime execution.",
                 "TestTeamsPipelinePluginMetadata_CLICommandCapability proves `register_cli_command(name=\"teams-pipeline\")` becomes a disabled `cli_command` capability with execution_disabled and teams_pipeline_runtime_unavailable evidence.",
@@ -29760,11 +29647,7 @@
                 "The slice merges this with pre_gateway_dispatch / pre_approval_request hooks; each is a separate row in the lifecycle-hook family.",
                 "Hook failures silently drop assistant output instead of surfacing hook_failure evidence."
               ],
-              "unblocks": [
-                "Plugin lifecycle hook: pre_gateway_dispatch",
-                "Plugin lifecycle hook: pre_approval_request and post_approval_response",
-                "Plugin lifecycle hook: post_tool_call duration_ms"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestTransformLLMOutput_RegisteredHooksRunInOrder proves two hooks run in registration order and observe each other's mutations.",
                 "TestTransformLLMOutput_HookErrorPreservesOriginal proves a panicking or error-returning hook does not drop the original output and emits hook_failure evidence.",
@@ -29807,7 +29690,7 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "source_refs": [
                 "./hermes-agent/tools/approval.py@93e25ceb1:_ApprovalEntry,_gateway_queues,resolve_gateway_approval,has_blocking_approval,clear_session",
                 "./hermes-agent/tools/tirith_security.py@93e25ceb1",
@@ -29818,7 +29701,8 @@
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows covering smart-approve LLM, tirith security integration, gateway blocking queues, and per-session allowlist persistence; the gateway FIFO queue child row owns the blocking-queue slice."
               ],
-              "priority": "P2"
+              "priority": "P2",
+              "test_commands": []
             },
             {
               "name": "Gateway approval FIFO queue resolver",
@@ -30600,19 +30484,88 @@
               }
             },
             {
-              "name": "Tirith, path, URL, and website policy integration",
+              "name": "Tirith external security finding ingestion",
               "status": "planned",
-              "note": "TDD: compose external security findings with dangerous-command warnings into one guard decision so gateway/cron/CLI replays cannot bypass one check after only another was approved.",
-              "slice_size": "umbrella",
+              "priority": "P3",
+              "contract": "Port the Hermes Tirith external security finding ingestion path: load findings from a JSON file or env-sourced source, classify by severity, and expose a security guard decision that gateway/cron/CLI callers can query before executing dangerous commands.",
+              "contract_status": "draft",
+              "slice_size": "small",
               "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "ready_when": [
+                "Hermes Tirith source files are mapped and the load/classify/allow/deny contract is understood."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/security/tirith.go",
+                "internal/security/tirith_test.go"
+              ],
+              "acceptance": [
+                "TestTirithLoadsFindings proves findings are parsed and classified by severity.",
+                "TestTirithEmptySourceReturnsSafeEvidence proves empty/missing source returns safe (allow) with typed evidence.",
+                "TestTirithCorruptSourceDegrades proves corrupt findings return deny with tirith_corrupt_evidence."
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Tirith finding ingestion passes all acceptance tests."
               ],
-              "priority": "P3"
+              "source_refs": [
+                "../hermes-agent/agent/tirith.py finding ingestion",
+                "../hermes-agent/tests/test_tirith.py"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "owner": "tools",
+              "fixture": "internal/security/tirith_test.go",
+              "test_commands": [
+                "go test ./internal/security -run TestTirith -count=1"
+              ],
+              "degraded_mode": "Missing or corrupt Tirith source returns tirith_unavailable evidence and falls back to the existing config-level allowlist rather than denying all commands."
+            },
+            {
+              "name": "Unified security guard decision composer",
+              "status": "planned",
+              "priority": "P3",
+              "contract": "Compose Tirith findings, path-based allowlists, URL safety rules, and website policies into one security guard decision that gateway/cron/CLI can call before executing any tool. The composer resolves conflicts deterministically (deny wins over allow, policy overrides Tirith) and always returns typed evidence explaining the decision.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "ready_when": [
+                "Tirith external security finding ingestion row is complete.",
+                "URL safety rules and website policy surfaces are mapped."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/security/guard.go",
+                "internal/security/guard_test.go"
+              ],
+              "acceptance": [
+                "TestGuardDenyOverridesAllow proves a Tirith deny blocks even when the path allowlist permits.",
+                "TestGuardPolicyOverridesTirith proves a URL policy explicitly permits even when Tirith warns.",
+                "TestGuardEmptyComposerAllows proves with no policies loaded, the guard allows and reports guard_no_policies evidence."
+              ],
+              "done_signal": [
+                "Unified guard composer passes all acceptance tests and is callable from gateway/cron/CLI."
+              ],
+              "source_refs": [
+                "../hermes-agent/agent/tirith.py decision composer",
+                "internal/tools/url_safety.go",
+                "internal/tools/website_policy.go"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "owner": "tools",
+              "fixture": "internal/security/guard_test.go",
+              "test_commands": [
+                "go test ./internal/security -run TestUnifiedGuard -count=1"
+              ],
+              "degraded_mode": "If any policy source is unavailable, the composer continues with the remaining sources and reports guard_partial_evidence."
             },
             {
               "name": "Shell blocklist (36+ dangerous patterns)",
@@ -31222,14 +31175,7 @@
                 "The implementation tries to port all six platforms in one pass instead of landing the shared config type + filter first, then adding per-platform wiring in follow-up child rows."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "Telegram allowed_chats whitelist adapter",
-                "Slack allowed_channels whitelist adapter",
-                "Discord allowed_channels whitelist adapter",
-                "Mattermost allowed_channels whitelist adapter",
-                "Matrix allowed_rooms whitelist adapter",
-                "DingTalk allowed_chats whitelist adapter"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestWhitelistConfig_LoadsFromConfigTOML: fake config with telegram.allowed_chats=['-1001','-1002'] loads WhitelistConfig{Enabled:true, IDs:['-1001','-1002']}.",
                 "TestWhitelistConfig_EmptyMeansAllAllowed: empty or absent whitelist config returns Enabled=false, and IsAllowed returns true for any chat ID.",
@@ -31313,27 +31259,86 @@
           "name": "File Ops + Patches",
           "items": [
             {
-              "name": "Atomic checkpoints",
-              "status": "planned",
-              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
-              "slice_size": "umbrella",
+              "name": "Atomic file write helper with temp+rename pattern",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Implement a reusable atomic file write helper that writes to a temp file in the same directory and renames into place, matching Hermes' atomic write semantics. The helper validates the target directory, handles partial-write cleanup, and never overwrites the original until the temp write succeeds.",
+              "contract_status": "validated",
+              "slice_size": "small",
               "execution_owner": "tools",
-              "not_ready_when": [
-                "The row is assigned as one checkpoint/file/patch migration instead of the checkpoint policy, read-dedup guard, and patch/write slices below."
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "unblocks": [
-                "Checkpoint shadow-repo GC policy",
-                "File read dedup cache invalidation and wrapper guard"
+              "ready_when": [
+                "Hermes atomic_write semantics are mapped and the existing config writer atomic pattern is reviewed."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/tools/atomic_write.go",
+                "internal/tools/atomic_write_test.go"
+              ],
+              "acceptance": [
+                "TestAtomicWriteNominal proves a successful write via temp+rename leaves the target with the correct content and no temp file.",
+                "TestAtomicWritePartialCleanup proves a write failure cleans up the temp file and leaves the original untouched.",
+                "TestAtomicWriteNonExistentDir proves a missing target directory returns a typed error without creating a temp file.",
+                "TestAtomicWriteConcurrentRaces proves two concurrent writes to the same target both succeed (last rename wins) without corruption."
+              ],
+              "done_signal": [
+                "Atomic write helper passes all tests and is usable by config writer, checkpoint, and any tool that writes files."
               ],
               "source_refs": [
-                "../hermes-agent/hermes_cli/checkpoints.py",
-                "../hermes-agent/tools/checkpoint_manager.py",
-                "../hermes-agent/tools/file_operations.py",
-                "../hermes-agent/tools/file_tools.py",
-                "../hermes-agent/tools/patch_parser.py"
+                "../hermes-agent/hermes_cli/config.py@b816fd4e2:atomic_write",
+                "internal/tools/config_writer.go atomic rename pattern"
               ],
-              "note": "Umbrella only: port `tools/{file_operations,file_tools,checkpoint_manager,patch_parser}.py` through dependency-ordered rows. Child rows delivered so far: Checkpoint shadow-repo GC policy (complete), File read dedup cache invalidation and wrapper guard (complete), Checkpoints CLI (status/list/prune/clear/clear-legacy) (complete), Native file task tool surface (complete). Hermes checkpoints CLI (hermes_cli/checkpoints.py, 244 lines) provides 5 subcommands: status, list, prune, clear, clear-legacy. Remaining: write-capable file tools (file_operations.py file_tools.py) and patch parser (patch_parser.py). 2026-05-09 parity sweep corrected the stale child status in this umbrella note; 2026-05-09 follow-up against Hermes f6d45e5df found that Gormes' native `patch` tool still only accepts replace-mode edits while Hermes exposes mode=patch V4A multi-file patches through file_tools.py and patch_parser.py, now tracked by child row `V4A patch mode for native patch tool`. 2026-05-09 refresh against Hermes f1f42a7b9 found the remaining builder-ready V4A gap: Hermes validates and applies `*** Move File: old -> new` while Gormes parsed but rejected move operations; child row `V4A move operation for native patch tool` is now complete. 2026-05-09 all-topic sweep against Hermes 0cafe7d50 found the next small source-backed tools gap: Hermes write_file and patch run structured post-write lint-delta checks, while Gormes native write/patch returned ok for malformed JSON/YAML/TOML edits; child row `Structured lint delta for native write/patch tools` is now complete. 2026-05-09 sweep against Hermes dae94fa65 found the remaining small ready lint gap: Hermes also runs `_lint_python_inproc` through the same lint-delta path for `.py` writes/patches, while Gormes still omitted lint evidence for Python files; child row `Python syntax lint delta for native write/patch tools` is now complete. 2026-05-10 all-topic sweep against Hermes fef1a4124 found the next small ready lint gap: Hermes falls back to shell linters for `.js`, `.ts`, `.go`, and `.rs` post-edit checks, while Gormes still stopped at in-process lint evidence; child row `Shell lint delta for native write/patch tools` is now complete. 2026-05-10 sweep against Hermes 44cdf555a found the next small ready patch UX gap: Hermes surfaces nearby-section hints for replace-mode `old_string` misses, while Gormes returned a bare error; child row `Patch replace no-match did-you-mean hint` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' replace mode applies core fuzzy line/whitespace/indentation/escape strategies, while Gormes still required an exact `old_string`; child row `Core fuzzy replace strategies for native patch tool` is now complete. 2026-05-10 all-topic sweep against Hermes 44cdf555a found the next small ready unicode patch gap: Hermes normalizes smart quotes, apostrophes, en/em dashes, ellipses, and non-breaking spaces before fuzzy replace matching; child row `Unicode-normalized fuzzy replace for native patch tool` is now complete. 2026-05-10 follow-up sweep against Hermes 44cdf555a found the next small ready patch gap: Hermes' block-anchor strategy matches same first/last lines with a similarity threshold over the middle; child row `Block-anchor fuzzy replace for native patch tool` is now complete. 2026-05-10 bounded all-topic sweep against Hermes 44cdf555a found the next small checkpoint gap: Hermes' file operations run behind checkpoint rollback while Gormes V4A apply errors could leave already-applied actions in place; child row `V4A patch apply rollback for native patch tool` is now complete. 2026-05-10 bounded all-topic sweep against Hermes 44cdf555a found the next small replace-mode matching gap: Hermes' final context-aware strategy applies same-line-count blocks where at least half of the lines meet 0.80 similarity; child row `Context-aware fuzzy replace for native patch tool` is now complete. The umbrella remains planned because full file_operations.py parity remains row-backed.",
-              "priority": "P2"
+              "blocked_by": [],
+              "unblocks": [],
+              "test_commands": [
+                "go test ./internal/tools -run TestAtomicWrite -count=1"
+              ],
+              "degraded_mode": "On rename failure the temp file is left for operator recovery and the error includes both paths.",
+              "fixture": "internal/tools/atomic_write_test.go"
+            },
+            {
+              "name": "File tool atomic checkpoint integration",
+              "status": "complete",
+              "priority": "P2",
+              "contract": "Integrate the atomic write helper into file_tools operations that write user files: write_file, edit_file, patch, and template rendering use temp+rename so crashes during writes cannot leave partial or corrupted user files.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "ready_when": [
+                "Atomic file write helper row is complete.",
+                "Existing file_tools write path is understood."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/tools/file_tools.go",
+                "internal/tools/file_tools_test.go"
+              ],
+              "acceptance": [
+                "TestWriteFileAtomic proves write_file uses the atomic helper and a kill signal during write leaves the original file intact.",
+                "TestEditFileAtomic proves edit_file uses atomic writes for the final save step.",
+                "TestPatchFileAtomic proves patch operations use atomic writes."
+              ],
+              "done_signal": [
+                "File write/edit/patch tools all use atomic writes and tests prove crash-safety."
+              ],
+              "source_refs": [
+                "../hermes-agent/tools/file_tools.py@b816fd4e2 atomic write usage",
+                "internal/tools/file_tools.go"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "test_commands": [
+                "go test ./internal/tools -run 'TestFileTool|TestAtomicWrite' -count=1"
+              ],
+              "degraded_mode": "If the atomic helper fails, the tool returns explicit atomic_write_failed evidence with the temp file path so the operator can recover content.",
+              "fixture": "internal/tools/file_tools_atomic_test.go"
             },
             {
               "name": "Checkpoints CLI (status/list/prune/clear/clear-legacy)",
@@ -31790,8 +31795,7 @@
                 "File write/patch staleness registry + cwd tracking"
               ],
               "unblocks": [
-                "Hermes V4A patch fuzzy matching and move operations",
-                "Patch tool checkpoint rollback linkage"
+                "Hermes V4A patch fuzzy matching and move operations"
               ],
               "acceptance": [
                 "TestPatchToolV4AAppliesAddUpdateDelete validates a single V4A payload that updates a previously-read file, creates a new file, and deletes a previously-read file, returning files_modified/files_created/files_deleted evidence and the expected on-disk contents.",
@@ -31876,8 +31880,7 @@
                 "File write/patch staleness registry + cwd tracking"
               ],
               "unblocks": [
-                "Hermes V4A patch fuzzy matching and lint hooks",
-                "Patch tool checkpoint rollback linkage"
+                "Hermes V4A patch fuzzy matching and lint hooks"
               ],
               "acceptance": [
                 "TestPatchToolV4AMoveRenamesReadFile validates a previously-read source file moves to a new path, the source disappears, the destination content is preserved, and files_modified reports `old -> new`.",
@@ -32048,7 +32051,6 @@
               ],
               "unblocks": [
                 "Checkpoint restore tool parity",
-                "Terminal backend config parity",
                 "Safe multi-agent file editing"
               ],
               "acceptance": [
@@ -32139,7 +32141,6 @@
                 "Native file task tool surface"
               ],
               "unblocks": [
-                "Terminal backend config parity",
                 "Gateway working-directory operator parity"
               ],
               "acceptance": [
@@ -32210,8 +32211,7 @@
                 "Terminal cwd config bridge"
               ],
               "unblocks": [
-                "File write/patch staleness registry + cwd tracking",
-                "Terminal backend config parity"
+                "File write/patch staleness registry + cwd tracking"
               ],
               "acceptance": [
                 "TestTerminalToolRecoversWhenConfiguredWorkdirDeleted creates and removes a configured nested cwd, then proves terminal execution runs from the nearest existing ancestor and reports cwd_recovered evidence.",
@@ -33049,9 +33049,7 @@
                 "Block-anchor fuzzy replace for native patch tool",
                 "V4A fuzzy hunk matching for native patch tool"
               ],
-              "unblocks": [
-                "Full file_operations.py parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestPatchToolFuzzyReplaceContextAwareHighLineSimilarity proves a unique block whose first/last lines are not exact anchors still applies when at least half its lines meet Hermes' 0.80 per-line similarity threshold.",
                 "TestPatchToolFuzzyReplaceContextAwareAmbiguousRequiresReplaceAll proves multiple threshold-qualified context-aware candidates fail without replace_all and replace all candidates when replace_all=true.",
@@ -33137,9 +33135,7 @@
               "blocked_by": [
                 "V4A fuzzy hunk matching for native patch tool"
               ],
-              "unblocks": [
-                "Full file_operations.py parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestPatchToolV4ARollbackOnApplyFailure proves a later V4A apply failure restores an earlier updated file and returns status=patch_apply_failed with rolled_back=true.",
                 "TestPatchToolV4ARollbackRemovesCreatedFiles proves a created file from an earlier action is removed when a later apply action fails.",
@@ -33224,9 +33220,7 @@
                 "Context-aware fuzzy replace for native patch tool",
                 "V4A patch apply rollback for native patch tool"
               ],
-              "unblocks": [
-                "Full file_operations.py parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestPatchToolReplacePostWriteVerificationNoPersist injects a successful no-op write, proves the tool returns a post-write verification error instead of status ok, and proves the original file bytes remain unchanged.",
                 "TestPatchToolReplacePostWriteVerificationReadFailure injects a verify-read failure after a successful write and proves the tool returns a bounded verification error without file-state success evidence.",
@@ -34518,55 +34512,150 @@
               }
             },
             {
-              "name": "Hermes Kanban multi-board, workspace, and run-history parity",
-              "priority": "P2",
+              "name": "Kanban multi-board isolation",
               "status": "planned",
-              "contract": "Inventory parent for Hermes Kanban multi-board, workspace, run-history, notification, stats/watch/tail, and retention surfaces. Gormes executes this through narrow child rows; the parent must not be assigned as one combined builder slice.",
-              "contract_status": "validated",
-              "slice_size": "umbrella",
+              "priority": "P2",
+              "contract": "Kanban dispatcher enforces board-scoped isolation: workers spawned for board A cannot see or mutate board B's tasks. The SQLite store uses per-board database files or namespaced tables, and the dispatcher validates the board name before spawning.",
+              "contract_status": "draft",
+              "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
                 "operator",
-                "child-agent",
-                "gateway",
                 "system"
               ],
-              "degraded_mode": "Child rows must preserve Gormes-owned board namespaces and return typed evidence for unsupported board names, workspace collisions, missing log files, invalid notification subscriptions, and retention denial without deleting active task state or crossing into Hermes home directories.",
-              "fixture": "Child rows under Phase 5.M carry the executable fixtures.",
-              "source_refs": [
-                "./hermes-agent/hermes_cli/kanban.py@a7e7921db:boards/workspace/log/runs/gc commands",
-                "./hermes-agent/hermes_cli/kanban_db.py@a7e7921db:board registry, workspace helpers, run history, notification subscriptions, and retention GC",
-                "./hermes-agent/tests/hermes_cli/test_kanban_db.py@a7e7921db:board/workspace/run/notification tests",
-                "./hermes-agent/tests/hermes_cli/test_kanban_cli.py@a7e7921db:kanban operator command tests",
-                "docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Tools, Sandboxes, And Security / Operator tools"
-              ],
               "ready_when": [
-                "This parent is used only for source-backed inventory continuity and the Kanban child rows remain present below it.",
-                "A planner pass may split another child row when a specific Hermes Kanban atom remains unimplemented or stale."
+                "Existing Kanban single-board surface is validated and the multi-board isolation contract is understood from Hermes upstream."
               ],
-              "not_ready_when": [
-                "The row is assigned as one broad multi-board/workspace/run-history/notification/stats/watch/tail/GC implementation slice.",
-                "A child row would read HERMES_KANBAN_BOARD, HERMES_KANBAN_DB, ~/.hermes, or Hermes profile paths as live state instead of using Gormes-owned board state.",
-                "A child row can delete active-task logs, workspaces, events, board databases, or operator directories without explicit terminal-status and retention checks."
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/kanban/multi_board.go",
+                "internal/kanban/multi_board_test.go"
               ],
               "acceptance": [
-                "Completed child rows prove board registry/list/create/switch/show/rename/remove, current-board routing, one-off --board routing, named-board workspace/log roots, run-history readout, worker heartbeat/reclaim, and specify triage behavior.",
-                "Remaining child rows, if any, must be one behavior each and cite exact Hermes Kanban functions/tests plus Gormes write scope.",
-                "The parent remains non-selectable until every child row is complete and progress evidence can close the broad surface honestly."
+                "TestKanbanMultiBoardIsolation proves worker A on board_alpha cannot query tasks from board_beta.",
+                "TestKanbanMultiBoardDispatcherHonoursBoardBoundary proves the dispatcher rejects cross-board task assignments."
               ],
-              "note": "Planner refresh 2026-05-09: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows against Hermes a7e7921db and Honcho e659b6b. Executable planned rows were below the 90-row cap. The prior Kanban parent was builder-shaped but too broad; it is now an inventory parent, and the new source-backed child row `Kanban GC terminal event and worker-log retention` owns the remaining small GC slice from hermes_cli/kanban.py and kanban_db.py. 2026-05-09 refresh against Hermes f6d45e5df and Honcho e659b6b found recent upstream deltas for Telegram edit safety, profile clone-all exclusions, Feishu update prompts, Google Chat sender_type filtering, provider argument coercion, browser async-loop handling, release metadata, and public surfaces already complete or row-backed. Planned rows are 14, below the 90-row cap. The remaining unimplemented source-backed Kanban operator atom is `kanban stats`: Hermes exposes per-status, per-assignee, and oldest-ready-age board summaries through hermes_cli/kanban.py:_cmd_stats and hermes_cli/kanban_db.py:board_stats; the new child row `Kanban stats command and board summary` owns that small CLI/store slice before watch/tail/notification work. 2026-05-09 refresh against Hermes 0cafe7d50 and Honcho e659b6b found recent gateway slash-confirm, Telegram Markdown safety, Google Chat relay, profile clone-all, Feishu prompt-card, update-check, and Kanban stats/GC deltas complete or row-backed. Planned rows are 14, below the 90-row cap, so one source-backed P2 row is allowed: `Kanban notify subscription store and CLI` owns notify-subscribe/list/unsubscribe persistence and read/write commands without implementing dispatcher delivery, watch, or tail. 2026-05-10 refresh against Hermes 998676dd0 and Honcho e659b6b found CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows complete or row-backed except fresh Kanban notifier drift: Hermes a4036654f keeps blocked notifications non-terminal so a later unblock->block cycle still delivers. Planned rows are 22, below the 90-row cap; the new source-backed P1 child row `Kanban notify delivery engine blocked retention` owns the bounded delivery-engine slice before gateway scheduling, watch, or tail.",
-              "write_scope": [
-                "docs/content/building-gormes/architecture_plan/progress.json"
-              ],
-              "no_test_required": "Inventory-only parent row; executable child rows carry focused tests and progress evidence.",
               "done_signal": [
-                "Parent row remains non-selectable and source-backed while the dependency-ordered child rows provide the runnable implementation and tests."
+                "Multi-board isolation tests pass and the dispatcher prevents cross-board task access."
               ],
-              "provenance": {
-                "origin_type": "upstream",
-                "upstream_ref": "hermes:a7e7921db hermes_cli/kanban.py + hermes_cli/kanban_db.py",
-                "note": "Hermes supplies the expanded Kanban operator contract; Gormes ports it through Gormes-owned, child-row slices rather than one broad row."
-              }
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban.py multi-board isolation"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "test_commands": [
+                "go test ./internal/kanban -run TestKanbanMultiBoard -count=1"
+              ]
+            },
+            {
+              "name": "Kanban workspace context injection",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Kanban worker spawning injects the board's workspace directory as the worker's working directory and loads the workspace's AGENTS.md/CLAUDE.md context, mirroring Hermes workspace-path isolation.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "ready_when": [
+                "Existing Kanban worker spawning path is understood and workspace/AGENTS.md loading is mapped."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/kanban/workspace_context.go",
+                "internal/kanban/workspace_context_test.go"
+              ],
+              "acceptance": [
+                "TestKanbanWorkspaceContextInjection proves a spawned worker's working directory matches the board's configured workspace.",
+                "TestKanbanWorkspaceAGENTSLoad proves the worker loads AGENTS.md from the board workspace."
+              ],
+              "done_signal": [
+                "Workspace context injection tests pass."
+              ],
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban.py workspace+agent dir injection"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "test_commands": [
+                "go test ./internal/kanban -run TestKanbanWorkspace -count=1"
+              ]
+            },
+            {
+              "name": "Kanban run history persistence",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Kanban run history records spawn attempts, successes, failures, and completion evidence per task so operators and the dispatcher can inspect past runs and detect spin-loop failures.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "ready_when": [
+                "Existing Kanban run lifecycle is validated and Hermes run history schema is mapped."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/kanban/run_history.go",
+                "internal/kanban/run_history_test.go"
+              ],
+              "acceptance": [
+                "TestKanbanRunHistoryRecordsSpawn proves a spawn creates a run record with started_at and status=running.",
+                "TestKanbanRunHistoryRecordsCompletion proves a completed run updates the record with finished_at and status=done.",
+                "TestKanbanRunHistoryAutoBlockAfterConsecutiveFailures proves 5+ consecutive failures auto-block the task."
+              ],
+              "done_signal": [
+                "Run history persistence passes all acceptance tests."
+              ],
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban.py run_history + auto-block"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "test_commands": [
+                "go test ./internal/kanban -run TestKanbanRunHistory -count=1"
+              ]
+            },
+            {
+              "name": "Kanban notification delivery parity",
+              "status": "planned",
+              "priority": "P2",
+              "contract": "Kanban worker completion triggers notification delivery to the board owner's configured channel (Telegram/Discord/Slack) with task summary and run evidence.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "ready_when": [
+                "Existing Kanban completion path and gateway notification surface are validated."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/kanban/notifications.go",
+                "internal/kanban/notifications_test.go"
+              ],
+              "acceptance": [
+                "TestKanbanNotificationOnComplete proves worker completion sends a notification message to the configured platform.",
+                "TestKanbanNotificationOnFailure proves worker failure sends an error notification.",
+                "TestKanbanNotificationThrottle proves rapid consecutive completions are throttled to one notification per board per minute."
+              ],
+              "done_signal": [
+                "Notification delivery passes tests with platform-specific message formatting."
+              ],
+              "source_refs": [
+                "../hermes-agent/hermes_cli/kanban.py notify-* methods"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "test_commands": [
+                "go test ./internal/kanban -run TestKanbanNotification -count=1"
+              ]
             },
             {
               "name": "Kanban chat board DB pin",
@@ -35836,11 +35925,7 @@
               "blocked_by": [
                 "Durable worker supervisor status seam"
               ],
-              "unblocks": [
-                "Kanban hallucination gate for worker-created-card claims",
-                "Kanban per-task max_retries override",
-                "Kanban worker auto-block on incomplete exit"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestKanbanWorker_HeartbeatStaleReclaim proves a worker whose heartbeat exceeds threshold is marked zombie and its task is re-enqueued with the retry budget decremented exactly once.",
                 "TestKanbanWorker_HeartbeatHealthyDoesNotReclaim proves an active worker is never reclaimed.",
@@ -36687,7 +36772,6 @@
               ],
               "unblocks": [
                 "Steer slash command registry + queue fallback",
-                "ContextEngine compression-boundary notification",
                 "Custom provider model-switch key_env write guard",
                 "Native TUI /save XDG export helper",
                 "Native TUI conversation viewport tail helper"
@@ -36760,7 +36844,7 @@
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "no_test_required": "Inventory-only parent row; child rows carry the executable cron parser, safety, action-envelope, context_from, and delivery fixtures.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "Parent row remains non-selectable and source-backed while the dependency-ordered child rows provide the runnable implementation and tests."
               ],
@@ -37353,7 +37437,8 @@
                 "The row is assigned directly instead of the smaller `Cron prompt/script safety + pre-run script contract` helper row above."
               ],
               "note": "Deprecated umbrella retained for roadmap continuity; the executable safety helper is the earlier row with the same title and full contract metadata. Do not assign this duplicate note-only row.",
-              "contract_status": "validated"
+              "contract_status": "validated",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable"
             },
             {
               "name": "Cron multi-target delivery + media/live-adapter fallback",
@@ -38456,7 +38541,6 @@
                 "The row depends on external monitoring services."
               ],
               "unblocks": [
-                "Operator observability",
                 "Gateway discover/probe diagnostics"
               ],
               "acceptance": [
@@ -38566,9 +38650,7 @@
                 "The row requires live channel connections for capability discovery.",
                 "The implementation hardcodes a separate per-channel capability table instead of deriving support from the manifest."
               ],
-              "unblocks": [
-                "Channel configuration UX"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "`gormes channels capabilities --channel telegram` shows Telegram support, intents, scopes, supported features, format limitations, and configured status from a fixture config.",
                 "`gormes channels capabilities` renders every manifest channel in stable order and marks unconfigured channels as not configured without opening runtime stores.",
@@ -38629,9 +38711,7 @@
                 "The row broadens Teams runtime delivery beyond configured-state reporting.",
                 "The implementation hardcodes a channel capability report outside the platform manifest instead of keeping manifest-derived support metadata."
               ],
-              "unblocks": [
-                "Channel configuration UX"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "HermesGatewayPlatformManifest includes `teams` as a source-backed plugin channel with row-backed/partial support metadata.",
                 "`gormes channels capabilities --channel teams` marks Teams configured when `[teams].enabled = true` and includes only redacted status detail.",
@@ -38857,6 +38937,75 @@
                 "implementation": "internal/gateway/agent_isolation.go, internal/gateway/manager.go, internal/gateway/agent_router.go, internal/kernel/frame.go, internal/kernel/kernel.go, internal/kernel/tool_safety.go, internal/skills/status.go, internal/tools/tool.go, cmd/gormes/gateway.go, cmd/gormes/provider_client.go",
                 "tests": "go test ./internal/gateway -run MultiAgent.*Isolation -count=1; go test ./internal/kernel ./internal/skills ./internal/tools -run Agent -count=1; go test ./cmd/gormes -run 'Gateway.*Agent|Test.*gatewayAgent|TestGateway|ProviderHTTPClient' -count=1",
                 "note": "Validated 2026-05-02: gateway can build/reuse independent routed runtimes keyed by agent session, hand each runtime a policy-filtered tool registry, per-agent tool safety policy, per-agent skill allowlist, auth-home/auth-store/model snapshot, and redacted failure evidence. Provider credential-pool lookup can use the agent auth home; providers that currently rely only on global static endpoint/api_key config remain bound by their provider adapter until explicit per-agent static credential fields are added."
+              }
+            },
+            {
+              "name": "Per-agent channel bot tokens (Telegram/Discord/Slack)",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Enable per-agent bot tokens for channel platforms so each agent can bind to its own Telegram bot, Discord bot, or Slack app. Config follows OpenClaw's channels.<platform>.accounts.<accountId>.token pattern: each account under a platform holds its own token, and the gateway spawns a separate adapter instance per account. Agent bindings reference account_id to route inbound messages from a specific bot to a specific agent. This is a Gormes-owned enhancement (not Hermes parity); Hermes uses one global token per platform type.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": [
+                "operator",
+                "gateway",
+                "system"
+              ],
+              "degraded_mode": "If per-account tokens are not configured, the gateway falls back to the existing global platform token and legacy single-agent routing. Missing account-specific tokens report channel_account_token_missing evidence without blocking other accounts or the default route.",
+              "fixture": "internal/gateway/manager_multi_agent_token_test.go",
+              "source_refs": [
+                "openclaw:src/config/types.channels.ts",
+                "openclaw:docs/concepts/multi-agent.md",
+                "internal/config/config.go:TelegramCfg,DiscordCfg,SlackCfg",
+                "internal/config/agents.go:AgentBindingMatchCfg.AccountID",
+                "internal/gateway/agent_router.go:AgentRouter.Resolve",
+                "cmd/gormes/gateway.go:defaultGatewayChannelFactories",
+                "internal/channels/telegram/startup_lifecycle.go:gatewayTelegramTokenLocker"
+              ],
+              "blocked_by": [
+                "Multi-agent auth and tool-policy runtime isolation"
+              ],
+              "ready_when": [
+                "Multi-agent auth and tool-policy runtime isolation is complete.",
+                "AgentRouter and AccountID routing are already functional in production.",
+                "The config loader can accept nested per-platform account maps or the slice introduces a backward-compatible config extension."
+              ],
+              "not_ready_when": [
+                "The slice breaks existing single-token gateway configs.",
+                "The slice adds account multiplexing inside channel adapters instead of spawning separate adapter instances per account.",
+                "The slice claims per-agent auth/profile isolation without the existing isolation row."
+              ],
+              "acceptance": [
+                "Config fixture proves multiple Telegram bot tokens can be declared under channels.telegram.accounts and load without affecting the global telegram.bot_token fallback.",
+                "Gateway fixture proves two Telegram adapters with different tokens start in one gateway process and push InboundEvent with distinct AccountIDs.",
+                "AgentRouter fixture proves inbound messages from account 'alerts' route to the 'alerts' agent while account 'main' routes to the 'main' agent.",
+                "Token lock fixture proves two adapters using different tokens do not conflict on the token-lock store.",
+                "Missing per-account token reports channel_account_token_missing evidence and skips only that account adapter."
+              ],
+              "write_scope": [
+                "internal/config/config.go",
+                "internal/config/agents.go",
+                "cmd/gormes/gateway.go",
+                "internal/gateway/manager.go",
+                "internal/gateway/agent_router.go",
+                "internal/channels/telegram/",
+                "internal/channels/discord/",
+                "internal/channels/slack/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/gateway -run MultiAgent.*Token -count=1",
+                "go test ./internal/config -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "A single gateway process can host multiple Telegram/Discord/Slack bot instances with independent tokens, route inbound messages to distinct agents by account, and degrade safely when an account token is missing."
+              ],
+              "evidence": {
+                "implementation": "internal/config/config.go (TelegramAccountCfg, DiscordAccountCfg, SlackAccountCfg, Accounts maps), internal/channels/telegram/bot.go (AccountID in Name() and InboundEvent), internal/channels/discord/bot.go (AccountID in Name()), internal/channels/slack/channel.go (AccountID in Name() and InboundEvent), cmd/gormes/gateway.go (per-account registration loops for Telegram/Discord/Slack)",
+                "tests": "go test ./internal/config -run 'TestLoad_TelegramPerAccountTokens|TestLoad_SlackPerAccountTokens'; go test ./internal/channels/telegram -run TestBot_ToInboundEvent_AccountID; go test ./cmd/gormes -run 'TestRegisterConfiguredGatewayChannels_TelegramPerAccountTokens|TestRegisterConfiguredGatewayChannels_DiscordPerAccountTokens|TestRegisterConfiguredGatewayChannels_SlackPerAccountTokens|TestRegisterConfiguredGatewayChannels_MissingAccountTokenReportsDegraded'; go test ./internal/gateway -run TestTokenScopedGatewayLockRejectsSameTokenAndAllowsDifferentScopes",
+                "note": "Telegram, Discord, and Slack per-account tokens are implemented. Acceptance #1, #2 pass for all three platforms. #3 (AgentRouter) is already covered by existing multi-agent tests. #4 (token lock) is covered by TestTokenScopedGatewayLockRejectsSameTokenAndAllowsDifferentScopes. #5 (degraded mode for missing token) is covered by TestRegisterConfiguredGatewayChannels_MissingAccountTokenReportsDegraded."
               }
             },
             {
@@ -39393,7 +39542,6 @@
               ],
               "unblocks": [
                 "Navivox Flutter first-run remote host preparation",
-                "Navivox pair.claim stdio event",
                 "Navivox installed-host smoke checklist"
               ],
               "acceptance": [
@@ -39528,7 +39676,7 @@
             {
               "name": "49-file CLI tree port",
               "status": "complete",
-              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
+              "no_test_required": "",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -39548,7 +39696,8 @@
                 "Diagnostics, backup, logs, and status CLI"
               ],
               "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
-              "completed_at": "2026-05-08T03:56:15Z"
+              "completed_at": "2026-05-08T03:56:15Z",
+              "test_commands": []
             },
             {
               "name": "Hermes CLI command-tree parity manifest",
@@ -39863,7 +40012,6 @@
               ],
               "unblocks": [
                 "Hermes auth OAuth provider adapters",
-                "Provider auth selection for native gateway turns",
                 "Provider auth CLI status in doctor/status surfaces"
               ],
               "acceptance": [
@@ -39951,10 +40099,7 @@
                 "OAuth-capable provider lookup is hard-coded as a literal set instead of derived from ProviderConfig.AuthType field. (Hermes _OAUTH_CAPABLE_PROVIDERS is duplicated at auth_commands.py:36 and 173 — Gormes must avoid that drift by deriving from ProviderConfig.)"
               ],
               "unblocks": [
-                "Provider auth selection for native gateway turns",
-                "Qwen OAuth provider runtime binding",
-                "Google Gemini CLI provider runtime binding",
-                "Nous provider auth refresh and agent-key recovery"
+                "Nous OAuth device code + refresh token + agent key provisioning"
               ],
               "acceptance": [
                 "TestGormesAuthAddAnthropicOAuth stores a manual:hermes_pkce entry with label derived from fake token claims, refresh token, expiry metadata, and no live keychain access.",
@@ -40040,12 +40185,9 @@
               "blocked_by": [
                 "Hermes auth command-tree manifest refresh",
                 "Hermes auth credential-pool command surface",
-                "First-party Spotify plugin metadata fixture"
+                "First-party Spotify plugin fixture"
               ],
-              "unblocks": [
-                "Spotify plugin backend runtime",
-                "Spotify tool handlers over providers.spotify auth"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGormesAuthSpotifyLoginPKCEStoresProviderState proves fake PKCE login writes providers.spotify with access/refresh/expiry/scope/api_base_url metadata and redacted output.",
                 "TestGormesAuthSpotifyStatusLoggedInAndLoggedOut proves status renders logged-in fields without secrets and reports logged out when providers.spotify is absent.",
@@ -40666,11 +40808,7 @@
                 "CLI banner/output formatting helpers",
                 "CLI terminal control-response sanitizer"
               ],
-              "unblocks": [
-                "CLI input-loop preview binding",
-                "Native TUI submitted-message preview parity",
-                "CLI prompt ergonomics closeout"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestUserMessagePreviewDefaultHeadTail proves a six-line prompt renders the first two and last two lines with a hidden-middle count.",
                 "TestUserMessagePreviewHideTail proves last_lines=0 renders only the configured first lines and a middle-count marker.",
@@ -41130,7 +41268,7 @@
             {
               "name": "Config, profile, auth, and setup command surfaces",
               "status": "complete",
-              "no_test_required": "Inventory-only umbrella placeholder, executed through child rows.",
+              "no_test_required": "",
               "slice_size": "umbrella",
               "execution_owner": "tools",
               "not_ready_when": [
@@ -41170,7 +41308,8 @@
                 "Gormes agent template reset command"
               ],
               "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
-              "completed_at": "2026-05-08T03:56:15Z"
+              "completed_at": "2026-05-08T03:56:15Z",
+              "test_commands": []
             },
             {
               "name": "Gormes agent template reset command",
@@ -42262,8 +42401,7 @@
                 "Gormes setup tools checklist command binding",
                 "Gormes setup gateway platform checklist command binding",
                 "Gormes setup terminal TTS and agent-settings section bindings",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupNoSectionInteractiveMenuShowsTopLevelChoices proves a TTY no-argument invocation asks `What would you like to do?`, defaults to Quick Setup, lists Quick Setup, Full Setup, Model & Provider, Terminal Backend, Messaging Platforms (Gateway), Tools, Agent Settings, and Exit, and choosing Exit returns code 0 without invoking model picker or config writes.",
@@ -42332,8 +42470,7 @@
               ],
               "unblocks": [
                 "Hermes setup entry-mode and reset semantics",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupTopLevelFullWizardRoutesThroughWizardAndSummary proves Full Setup invokes the full-wizard seam and the summary mentions config.toml, the Gormes dotenv file, Gormes data roots, and `gormes` follow-up commands.",
@@ -42567,8 +42704,7 @@
               ],
               "unblocks": [
                 "Gormes setup full-wizard shell and branded summary",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupGatewayChecklistShowsCorePlatforms proves the checklist includes Telegram, Discord, and Slack with configured/not-configured status labels.",
@@ -42657,8 +42793,7 @@
               ],
               "unblocks": [
                 "Gormes setup full-wizard shell and branded summary",
-                "Interactive Onboarding",
-                "First-run user experience"
+                "Interactive Onboarding"
               ],
               "acceptance": [
                 "TestSetupHermesParitySectionsAreImplementedNonInteractive proves terminal, TTS, and agent settings render Hermes-compatible choices including local/docker/modal/ssh/daytona/singularity, Edge/OpenAI/other TTS providers, max iterations, tool progress, compression threshold, and session reset policy.",
@@ -44250,9 +44385,7 @@
                 "The row is assigned as one management-CLI migration instead of separate gateway read-model, cron admin, webhook helper, and platform command slices."
               ],
               "unblocks": [
-                "Gateway management CLI read-model closeout",
-                "Cron management CLI over native store",
-                "Webhook/platform management CLI helpers"
+                "Gateway management CLI read-model closeout"
               ],
               "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
               "completed_at": "2026-05-08T03:56:15Z"
@@ -44425,9 +44558,7 @@
                 "The slice invokes systemd/sc.exe, opens live channel clients, changes service restart polling, or creates another gateway state file."
               ],
               "unblocks": [
-                "Gateway mutating-subcommand unavailability stub",
-                "Webhook/platform management CLI helpers",
-                "Cron management CLI over native store"
+                "Gateway mutating-subcommand unavailability stub"
               ],
               "acceptance": [
                 "TestGatewayStatusCommand_RendersConfiguredChannelsFromReadModels in cmd/gormes/gateway_status_test.go renders configured Telegram/Discord/Slack channels, pairing status, runtime validation, and missing-state evidence from fake stores.",
@@ -44489,8 +44620,7 @@
                 "Gateway management CLI read-model closeout"
               ],
               "unblocks": [
-                "Service restart active-status poller",
-                "Webhook/platform management CLI helpers"
+                "Service restart active-status poller"
               ],
               "acceptance": [
                 "`gormes gateway stop` reads validated runtime status, sends an interrupt only to the validated live gateway PID when active_agents is zero, waits for status to become non-live, and reports the validation status used for the stop result.",
@@ -44795,9 +44925,7 @@
                 "The row is assigned as one combined diagnostics/backup/logs/status migration instead of log snapshot, status summary, backup manifest, and optional upload slices."
               ],
               "unblocks": [
-                "CLI log snapshot reader",
-                "CLI status summary over native stores",
-                "Backup manifest dry-run contract"
+                "CLI log snapshot reader"
               ],
               "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
               "completed_at": "2026-05-08T03:56:15Z"
@@ -44919,9 +45047,7 @@
                 "The slice includes checkpoints/, *.db-wal, *.db-shm, or *.db-journal files in a default backup manifest.",
                 "The slice changes log redaction or support-upload behavior."
               ],
-              "unblocks": [
-                "Backup manifest dry-run contract"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestBackupPolicy_DefaultSkipsPreUpdateBackup proves no backup is requested when neither --backup nor --no-backup is set.",
                 "TestBackupPolicy_ExplicitBackupEnables proves --backup requests a backup and emits backup_forced evidence.",
@@ -44996,8 +45122,7 @@
               ],
               "unblocks": [
                 "Hermes CLI update parity",
-                "Installed-runtime self-healing smoke",
-                "Release readiness e2e gate"
+                "Installed-runtime self-healing smoke"
               ],
               "acceptance": [
                 "TestUpdateCommandAutostashDirtyCheckout uses a fake git runner to prove dirty changes are stashed before pull and restored after success, with manual recovery guidance if restore conflicts.",
@@ -45083,9 +45208,7 @@
                 "The slice changes any other doctor check's behaviour.",
                 "The slice ports Hermes Python config.yaml reading."
               ],
-              "unblocks": [
-                "CLI status summary over native stores"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestDoctorCustomEndpointAllSet: cfg with Endpoint='https://example.invalid', APIKey='secret', Model='m' returns CheckResult{Name='Custom endpoint', Status=StatusPass, Summary contains 'configured'} and no items are flagged Warn.",
                 "TestDoctorCustomEndpointMissingAPIKey: cfg with Endpoint set, APIKey empty, Model='m' returns Status=StatusWarn with an item Name='api_key' Status=StatusWarn Note='missing'.",
@@ -45345,10 +45468,7 @@
               "blocked_by": [
                 "CLI log redactor for known secret shapes"
               ],
-              "unblocks": [
-                "CLI status summary over native stores",
-                "Backup manifest dry-run contract"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestSnapshotLogs_MissingFileSetsMissingTrue: nonexistent path under t.TempDir() yields LogSection{Missing: true, Truncated: false, Unreadable: \"\"} and the function does not return an error.",
                 "TestSnapshotLogs_SmallFileSetsHeadOnlyTruncatedFalse: a 100-byte file with default opts yields Head with the full content, Tail==nil, Truncated=false.",
@@ -45473,9 +45593,7 @@
                 "The row requires live credentials for testing.",
                 "The row replaces existing setup without migration path."
               ],
-              "unblocks": [
-                "First-run user experience"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "gormes onboard is a real top-level command, not a setup alias.",
                 "Current output separates runtime skills from docs/development-skills and points users to gormes skills list.",
@@ -45550,7 +45668,6 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "First-run user experience",
                 "Interactive Onboarding"
               ],
               "acceptance": [
@@ -45793,9 +45910,7 @@
                 "The row introduces a new logging framework.",
                 "The row requires live gateway for testing."
               ],
-              "unblocks": [
-                "Operator observability"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "gormes logs shows recent gateway log entries.",
                 "gormes logs -f follows live logs.",
@@ -45984,11 +46099,7 @@
                 "Hook errors abort the turn instead of being logged.",
                 "The implementation adds hook points without corresponding kernel fire sites."
               ],
-              "unblocks": [
-                "Plugin/extension observation of agent turn boundaries",
-                "Tool-call audit hooks at agent step granularity",
-                "Agent completion telemetry and logging"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "HookAgentStart fires exactly once per agent turn, before any tool calls.",
                 "HookAgentStep fires after each tool-batch outcome, carrying iteration index and tool result summary.",
@@ -46061,11 +46172,7 @@
                 "The row is skipped before the credential_pool.go schema and the Hermes upstream auth.py contract are reconciled.",
                 "OAuth device code flow is implemented without redacted fixture coverage matching test_auth_nous_provider.py patterns."
               ],
-              "unblocks": [
-                "gormes auth add nous CLI command",
-                "Nous provider runtime credential resolution",
-                "Cross-profile Nous token sync (shared auth store)"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "Device code login fixture proves the browser-based OAuth flow produces a valid access token and refresh token stored via SaveNousOAuthCredentials.",
                 "Refresh token rotation fixture proves expired access tokens are refreshed via X-Nous-Refresh-Token header and the new token pair is persisted.",
@@ -46581,19 +46688,45 @@
               "completed_at": "2026-05-08T00:00:00Z"
             },
             {
-              "name": "Installer site asset/route coverage",
+              "name": "Installer script serving and MIME validation",
               "status": "planned",
-              "note": "TDD slice 3 of installer parity (`docs/superpowers/plans/2026-04-23-gormes-installer-parity.md`): extend `www.gormes.ai/internal/site/{assets,server,content,static_export}.go` and matching `assets_test.go`/`static_export_test.go` coverage so `/install.sh`, `/install.ps1`, and `/install.cmd` all embed, load, serve, and static-export with the correct MIME and cache behavior. Update landing-page install copy (`content.go` + `home.spec.mjs`) and the top-level `README.md` / `www.gormes.ai/README.md` install guidance only after the script slices land. This slice freezes the public install-surface contract so downstream docs/site builds do not regress.",
-              "slice_size": "umbrella",
+              "priority": "P3",
+              "contract": "Wire install.sh, install.ps1, and install.cmd into the www.gormes.ai Go server with correct Content-Type headers (text/x-shellscript, text/plain, text/plain), cache-control, and static export. Tests verifies each script is embedded, served with the correct MIME, and static-exported.",
+              "contract_status": "draft",
+              "slice_size": "small",
               "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "ready_when": [
+                "www.gormes.ai site server code is understood and the installer parity plan is reviewed."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "www.gormes.ai/internal/site/assets.go",
+                "www.gormes.ai/internal/site/assets_test.go"
+              ],
+              "acceptance": [
+                "TestInstallShEmbeddedAndServed proves /install.sh serves with text/x-shellscript MIME and correct content.",
+                "TestInstallPs1EmbeddedAndServed proves /install.ps1 serves with text/plain MIME.",
+                "TestInstallCmdEmbeddedAndServed proves /install.cmd serves with text/plain MIME.",
+                "TestInstallerStaticExport proves all three scripts appear in static_export output."
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "All three installer scripts serve with correct MIME types and static export verification passes."
               ],
-              "priority": "P3"
+              "source_refs": [
+                "www.gormes.ai/internal/site/assets.go",
+                "docs/superpowers/plans/2026-04-23-gormes-installer-parity.md"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "owner": "docs",
+              "fixture": "www.gormes.ai/internal/site/assets_test.go",
+              "test_commands": [
+                "go test ./www.gormes.ai/... -run TestInstallerAssets -count=1"
+              ]
             },
             {
               "name": "Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary",
@@ -48000,7 +48133,6 @@
                 "TUI running-agent placeholder surfaces interrupt + queued slash actions"
               ],
               "unblocks": [
-                "Native TUI queued-message delete/cancel binding",
                 "TUI queued submit dispatch while in-flight"
               ],
               "acceptance": [
@@ -48376,7 +48508,6 @@
                 "Native TUI Hermes bottom-pinned chrome layout"
               ],
               "unblocks": [
-                "Native TUI queued-message delete/cancel binding",
                 "TUI queued submit dispatch while in-flight",
                 "Native TUI Hermes slash completion helpers"
               ]
@@ -49447,8 +49578,7 @@
               ],
               "unblocks": [
                 "Dashboard API client contract",
-                "Provider-tool-memory golden transcript suite",
-                "Release readiness e2e gate"
+                "Provider-tool-memory golden transcript suite"
               ],
               "acceptance": [
                 "TestAPIServerNormalizeMultimodal_TextOnlyCollapses proves text/input_text arrays become the same plain text used by existing logging and history fixtures.",
@@ -50138,8 +50268,7 @@
               ],
               "unblocks": [
                 "Dashboard API client contract",
-                "Hermes API server operator parity",
-                "Release readiness e2e gate"
+                "Hermes API server operator parity"
               ],
               "acceptance": [
                 "TestAPIServerJobsCompatListAndIncludeDisabled proves GET /api/jobs forwards include_disabled semantics to the native cron reader and returns stable job JSON.",
@@ -50209,11 +50338,7 @@
                 "Cold start is asserted only by manual stopwatch timing rather than a checked-in `go test -bench` fixture.",
                 "Lazy-init introduces a global mutable client cache without a clear lifetime/reset path."
               ],
-              "unblocks": [
-                "Config loader mtime cache for cold start",
-                "Tool definitions memoization for cold start",
-                "Dangerous-pattern precompilation for cold start"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "BenchmarkGormesColdStart exercises a representative cold path and fails if cold-start exceeds the documented budget on the developer baseline machine.",
                 "TestProviderClientLazyInit_DoesNotConstructUnselectedProvider proves selecting Anthropic does not construct OpenAI/Bedrock/Firecrawl clients on the cold path.",
@@ -50986,7 +51111,7 @@
               "write_scope": [
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "no_test_required": "Inventory-only parent row; executable child rows carry focused event-bus adapter tests.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "The parent remains non-selectable while channel-specific child rows provide runnable implementation and tests."
               ],
@@ -51833,11 +51958,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P3"
+              "priority": "P3",
+              "test_commands": []
             }
           ]
         },
@@ -51939,9 +52065,7 @@
                 "The slice changes skill selection scoring, candidate promotion, learning-loop distillation, or semantic lookup behavior.",
                 "The validator treats MISSING_OPEN, EMPTY_FRONTMATTER, YAML_PARSE, NULL_BYTES, NESTED_QUOTES, or SLUG_MISMATCH as warnings while still injecting the skill."
               ],
-              "blocked_by": [
-                "Phase 2.G skills runtime"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Portable SKILL.md format"
               ],
@@ -52070,8 +52194,7 @@
               ],
               "blocked_by": [
                 "SKILL.md frontmatter validation guard",
-                "Hermes creative skill metadata compatibility",
-                "Phase 2.G skills runtime"
+                "Hermes creative skill metadata compatibility"
               ],
               "unblocks": [
                 "LLM-assisted pattern distillation",
@@ -52694,11 +52817,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P3"
+              "priority": "P3",
+              "test_commands": []
             }
           ]
         },
@@ -52992,11 +53116,12 @@
               "not_ready_when": [
                 "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "no_test_required": "",
               "done_signal": [
                 "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
               ],
-              "priority": "P2"
+              "priority": "P2",
+              "test_commands": []
             },
             {
               "name": "Native skills list/view tool surface",
@@ -53824,7 +53949,6 @@
               ],
               "unblocks": [
                 "Signal live transport smoke test",
-                "Voice attachment handling for Signal and QQ Bot",
                 "Channel health/status readout for paused adapters"
               ],
               "acceptance": [
@@ -54146,8 +54270,7 @@
                 "reply_mode=off still sets root_id, or reply_mode=thread drops root_id for replies."
               ],
               "unblocks": [
-                "Mattermost REST/WS bootstrap layer",
-                "Mattermost media upload contract"
+                "Mattermost REST/WS bootstrap layer"
               ],
               "acceptance": [
                 "TestMattermostSeamParsePostedEvent proves double-encoded posted events yield gateway text, channel ID, sender ID, message ID, chat type, and canonical root_id thread ID.",
@@ -54385,8 +54508,7 @@
                 "Mattermost shared-chassis bot seam"
               ],
               "unblocks": [
-                "Mattermost live transport binding",
-                "Mattermost media upload contract"
+                "Mattermost live transport binding"
               ],
               "acceptance": [
                 "TestMattermostBootstrapConfigAndAuth probes fake users/me and proves missing token/url and auth failure degrade with redacted evidence.",
@@ -54555,8 +54677,7 @@
               ],
               "unblocks": [
                 "Feishu drive-comment rule + pairing seam",
-                "Feishu drive-comment reply workflow",
-                "Feishu live SDK binding"
+                "Feishu drive-comment reply workflow"
               ],
               "acceptance": [
                 "TestFeishuBootstrapConnectionModeSelectsWebhookOrWebsocket proves config/env select the intended lifecycle without live clients.",
@@ -54630,7 +54751,6 @@
                 "Feishu transport/bootstrap layer"
               ],
               "unblocks": [
-                "Feishu live SDK binding",
                 "Gateway update prompt watcher parity"
               ],
               "acceptance": [
@@ -54796,7 +54916,6 @@
                 "Feishu transport/bootstrap layer"
               ],
               "unblocks": [
-                "Feishu live SDK binding",
                 "Native gateway agent invocation for document comments"
               ],
               "acceptance": [
@@ -54841,17 +54960,46 @@
             {
               "name": "DingTalk real SDK binding",
               "status": "planned",
-              "note": "TDD: bind the frozen Stream Mode/runtime contract to the real DingTalk SDK, credential checks, receive loop, and send lifecycle without widening the already-tested session-webhook retry seam.",
-              "slice_size": "umbrella",
+              "priority": "P2",
+              "contract": "Bind the Gormes DingTalk channel to a real DingTalk Stream Mode SDK (replacing the current stub/fake). Implement credential loading (AppKey/AppSecret from config.toml), receive loop via the SDK's callback, send lifecycle, and reconnection with the existing retry seam.",
+              "contract_status": "draft",
+              "slice_size": "small",
               "execution_owner": "docs",
-              "not_ready_when": [
-                "The row is inventory-only and must not be selected until a planner pass replaces this note with a builder-ready contract packet."
+              "trust_class": [
+                "operator",
+                "system"
               ],
-              "no_test_required": "Inventory-only progress placeholder; execution requires a future planner split with exact source_refs, write_scope, acceptance, and tests.",
+              "ready_when": [
+                "A Go-compatible DingTalk Stream Mode SDK exists (or a REST fallback is decided) and the existing contract/adapter tests pass."
+              ],
+              "not_ready_when": [],
+              "write_scope": [
+                "internal/channels/dingtalk/bot.go",
+                "internal/channels/dingtalk/client.go",
+                "internal/channels/dingtalk/client_test.go"
+              ],
+              "acceptance": [
+                "TestDingTalkCredentialResolution proves AppKey/AppSecret are resolved from config and env.",
+                "TestDingTalkReceiveLoop proves incoming messages from the SDK are forwarded as gateway.InboundEvent.",
+                "TestDingTalkSendLifecycle proves outbound messages reach the SDK send method.",
+                "TestDingTalkReconnect proves connection loss triggers the retry seam without data loss."
+              ],
               "done_signal": [
-                "A future planner split replaces this inventory placeholder with one or more builder-ready rows."
+                "Real DingTalk SDK binding passes all acceptance tests with the existing integration test suite."
               ],
-              "priority": "P2"
+              "source_refs": [
+                "../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter",
+                "internal/channels/dingtalk/"
+              ],
+              "blocked_by": [],
+              "unblocks": [],
+              "owner": "channels",
+              "fixture": "internal/channels/dingtalk/client_test.go",
+              "test_commands": [
+                "go test ./internal/channels/dingtalk -run TestDingTalk -count=1"
+              ],
+              "degraded_mode": "If the SDK is unavailable or credentials are missing, the channel reports dingtalk_sdk_unavailable evidence and the gateway skips only this channel.",
+              "note": "A real DingTalk SDK binding with app credential loading (AppKey/AppSecret), receive/send lifecycle via Stream Mode, and reconnection retry. Go-compatible SDK or REST fallback still pending."
             },
             {
               "name": "DingTalk AI Cards streaming-update contract",
@@ -55186,9 +55334,7 @@
                 "QQ Bot shared-chassis bot seam"
               ],
               "unblocks": [
-                "QQ Bot live transport smoke test",
-                "Voice attachment handling for Signal and QQ Bot",
-                "Paused adapter channel health/status readout"
+                "QQ Bot live transport smoke test"
               ],
               "acceptance": [
                 "TestQQBotBootstrapConfigAndDependencyStatus proves explicit values win over env fallback, markdown/allowlist policy parses, dependency/credential failures are redacted, and app-id locks release on connect failure.",
@@ -55262,7 +55408,6 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Google Chat Workspace transport binding",
                 "Google Chat approval keyboard parity"
               ],
               "acceptance": [
@@ -55325,7 +55470,6 @@
                 "Google Chat shared-chassis platform adapter seam"
               ],
               "unblocks": [
-                "Google Chat Workspace transport binding",
                 "Plugin standalone sender out-of-process cron delivery"
               ],
               "acceptance": [
@@ -55392,9 +55536,7 @@
                 "Google Chat relay sender-type self-filter",
                 "Plugin standalone sender cron delivery fallback"
               ],
-              "unblocks": [
-                "Google Chat Workspace transport binding"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGoogleChatStandaloneSenderValidatesResourceNames proves invalid spaces/users/thread resource names fail before token or poster calls, while spaces/<id>, users/<id>, and spaces/<id>/threads/<id> are accepted.",
                 "TestGoogleChatStandaloneSenderPostsTextOnlyMessage proves a valid cron target builds https://chat.googleapis.com/v1/{chat_id}/messages, uses Authorization: Bearer <token>, posts JSON with text and optional thread.name, returns the message name, and ignores media attachments on the standalone path.",
@@ -55466,9 +55608,7 @@
               "blocked_by": [
                 "Google Chat shared-chassis platform adapter seam"
               ],
-              "unblocks": [
-                "Google Chat Workspace transport binding"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint proves PluginMetadata().InstallHint uses the direct Google dependency install command from Hermes fef1a4124 docs.",
                 "Existing Google Chat metadata, relay, standalone sender, and delivery-without-transport fixtures remain green.",
@@ -55563,8 +55703,7 @@
                 "DNS / Cloudflare / hosting config (operator-only)",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "test_commands": [],
-              "no_test_required": "Documentation/infrastructure row; success is the URL being live and the feed being reachable, validated by the acceptance checklist.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "Public blog URL + feed URL recorded in success-plan.md and README.md."
               ],
@@ -55608,8 +55747,7 @@
                 "scripts/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "test_commands": [],
-              "no_test_required": "Integration row; success is measured by an end-to-end test post propagating, not unit tests.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "Social account URL + automation method recorded in success-plan.md."
               ],
@@ -55892,8 +56030,7 @@
                 "docs/content/building-gormes/strategy/writeups/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "test_commands": [],
-              "no_test_required": "Content row; the loop can produce structural drafts and example diff walkthroughs but final voice is operator-only. Acceptance is human-checked publication.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "Public URL recorded in success-plan.md and README.md; submission record archived under docs/content/building-gormes/strategy/writeups/."
               ],
@@ -55950,8 +56087,7 @@
                 "docs/content/building-gormes/strategy/v1-differentiator.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "test_commands": [],
-              "no_test_required": "Strategic decision row; the artifact is a written-down decision.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "v1-differentiator.md exists, fits the schema above, and is referenced from README.md and landing-page hero."
               ],
@@ -57089,8 +57225,7 @@
                 "webpages/docs/development-skills/ (de-Gormes-fy paths)",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "test_commands": [],
-              "no_test_required": "Cross-repo extraction; success is measured by the kit working standalone in a fresh checkout, not unit tests inside Gormes.",
+              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
               "done_signal": [
                 "Repo URL recorded in success-plan.md and README.md; star count tracked monthly."
               ],
@@ -57302,6 +57437,212 @@
           ]
         }
       }
+    },
+    "9": {
+      "name": "Phase 9 — Design & Security Hardening",
+      "deliverable": "Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.",
+      "subphases": {
+        "9.A": {
+          "name": "Declarative Agent Middleware Chain",
+          "items": [
+            {
+              "name": "Agent middleware chain framework",
+              "priority": "P1",
+              "status": "in_progress",
+              "contract": "Gormes gains a declarative middleware chain framework for the agent runtime (internal/hermes + internal/agent), inspired by DeerFlow's 19-middleware ordered chain with @Next/@Prev positioning and RuntimeFeatures-style toggle flags. Each middleware implements a single concern: thread-data setup, sandbox lifecycle, tool error handling, loop detection, memory injection, title generation, token usage tracking, clarification interception. Middlewares are assembled into an ordered chain by a factory that accepts a RuntimeFeatures struct where each feature = enabled (use built-in), disabled, or a custom Middleware instance. The middleware ordering is deterministic, and the chain is inspectable (dump to string for debugging).",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "orchestrator",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "source_refs": [
+                "./deer-flow/backend/packages/harness/deerflow/agents/factory.py",
+                "./deer-flow/backend/packages/harness/deerflow/agents/features.py",
+                "./deer-flow/backend/packages/harness/deerflow/agents/middlewares/",
+                "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+              ],
+              "ready_when": [
+                "internal/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering.",
+                "A RuntimeFeatures struct exists in internal/config or internal/agent/.",
+                "At least 3 built-in middlewares are implemented and tested (e.g. ThreadData, ToolErrorHandling, LoopDetection).",
+                "The existing internal/agent/loop_detector.go is refactored into a middleware.",
+                "go test ./internal/agent/ -count=1 is green after each middleware addition."
+              ],
+              "not_ready_when": [
+                "The middleware chain replaces or duplicates existing internal/hermes agent flow without clear migration path.",
+                "The row tries to port all 19 DeerFlow middlewares in one slice — aim for 3-5 core middlewares first.",
+                "The RuntimeFeatures struct uses Go generics for the bool|Middleware union; use a wrapper type instead.",
+                "Existing internal/hermes tests break without a validation plan."
+              ],
+              "acceptance": [
+                "MiddlewareChain assemblages middlewares in deterministic, inspectable order.",
+                "RuntimeFeatures correctly maps enabled/disabled/custom to middleware inclusion.",
+                "The LoopDetection feature toggles correctly between enabled, disabled, and custom instance.",
+                "Tests prove the chain can be dumped as a human-readable ordering string.",
+                "Integration into hermes.Client or kernel.Config allows turn-level Before/After hooks."
+              ],
+              "write_scope": [
+                "internal/agent/middleware.go",
+                "internal/agent/middleware_test.go",
+                "internal/agent/features.go",
+                "internal/agent/features_test.go",
+                "internal/agent/builtin.go",
+                "internal/hermes/",
+                "internal/kernel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/agent -count=1",
+                "go test ./internal/hermes -count=1",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Middleware interface, MiddlewareChain, RuntimeFeatures, and 3+ built-in middlewares are implemented and tested; the chain is integrated into the turn lifecycle."
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/agent/middleware.go: Middleware interface, MiddlewareChain type with Add/Names/Dump/Before/After",
+                  "internal/agent/features.go: RuntimeFeatures struct, FeatureFlag enum, AssembleFromFeatures() factory",
+                  "internal/agent/builtin.go: 5 built-in middlewares (thread_data, tool_error, loop_detector, memory, subagent)",
+                  "internal/agent/loop_detector.go: existing LoopDetector wrapped via loopDetectAdapter (unchanged core logic)",
+                  "internal/agent/middleware_test.go: 11 tests covering empty chain, ordering, Before/After lifecycle, abort-on-error, Add, loop detector adapter, RuntimeFeatures assembly, disabled/custom features, context data propagation, Dump()"
+                ],
+                "tests": "go test ./internal/agent -count=1 (20 tests pass)"
+              },
+              "degraded_mode": "Without the middleware chain, the agent runtime uses hardcoded turn lifecycle without inspection, ordering, or feature toggles. Individual agents can still run but cannot customize their behavior pipeline.",
+              "fixture": "internal/agent/middleware_test.go"
+            }
+          ]
+        },
+      "9.B": {
+        "name": "Sandbox Provider Abstraction + Virtual Path System",
+        "items": [
+          {
+            "name": "Sandbox provider interface and virtual path security",
+            "priority": "P1",
+            "status": "planned",
+            "contract": "Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.",
+            "contract_status": "draft",
+            "slice_size": "medium",
+            "execution_owner": "orchestrator",
+            "trust_class": [
+              "operator",
+              "system"
+            ],
+            "source_refs": [
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/tools.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/local/",
+              "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+            ],
+            "ready_when": [
+              "internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them.",
+              "A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution.",
+              "LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups.",
+              "Path traversal detection and output masking have test coverage."
+            ],
+            "not_ready_when": [
+              "The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan.",
+              "The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first.",
+              "The virtual path system hard-codes /mnt/ paths without configurable base directory support.",
+              "Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required)."
+            ],
+            "acceptance": [
+              "SandboxProvider interface exists with Acquire/Get/Release/Shutdown lifecycle.",
+              "LocalSandboxProvider creates per-thread workspace/uploads/outputs directories and maps virtual paths.",
+              "Path traversal (..) in virtual paths is rejected with a PermissionError-equivalent.",
+              "Output masking replaces host paths with virtual paths in tool return values.",
+              "Read-only path families (e.g. skills directory) cannot be written through the sandbox.",
+              "Existing go test ./internal/tools -count=1 stays green after sandbox provider addition."
+            ],
+            "write_scope": [
+              "internal/sandbox/provider.go",
+              "internal/sandbox/provider_test.go",
+              "internal/sandbox/sandbox.go",
+              "internal/sandbox/sandbox_test.go",
+              "internal/sandbox/local/provider.go",
+              "internal/sandbox/local/provider_test.go",
+              "internal/sandbox/paths.go",
+              "internal/sandbox/paths_test.go",
+              "internal/tools/",
+              "internal/config/",
+              "docs/content/building-gormes/architecture_plan/progress.json"
+            ],
+            "test_commands": [
+              "go test ./internal/sandbox/... -count=1",
+              "go test ./internal/tools -count=1",
+              "go run ./cmd/progress validate",
+              "git diff --check"
+            ],
+            "done_signal": [
+              "SandboxProvider interface is defined; LocalSandboxProvider is implemented with virtual path resolution, traversal protection, and output masking; existing tools tests remain green."
+            ]
+          }
+        ]
+      },
+      "9.C": {
+        "name": "Speech-to-Text Tool Wiring",
+        "items": [
+          {
+            "name": "Transcribe audio tool registration + local whisper provider",
+            "priority": "P1",
+            "status": "in_progress",
+            "contract": "Gormes registers the existing transcribe_audio tool in the default tool registry so STT works by default with no API key. A LocalSTTProvider wraps the WASI whisper runtime (internal/wasi/whisper/) into the TranscriptionProvider interface with auto-downloading tiny.en model (~77MB from HuggingFace). Cloud STT providers (OpenAI, Groq, Mistral, XAI) are registered alongside and activate when their API keys are present.",
+            "contract_status": "validated",
+            "slice_size": "small",
+            "execution_owner": "orchestrator",
+            "degraded_mode": "When the local whisper model is unavailable (first-run download failure or disk full), the transcribe_audio tool reports stt_provider_unavailable instead of crashing. Cloud providers (OpenAI, Groq, Mistral, XAI) still work if their API keys are configured.",
+            "fixture": "internal/tools/transcription_providers_local.go",
+            "trust_class": [
+              "operator",
+              "system"
+            ],
+            "source_refs": [
+              "./internal/tools/transcription_tool.go",
+              "./internal/tools/transcription_providers.go",
+              "./internal/tools/transcription_providers_local.go",
+              "./internal/wasi/whisper/transcriber.go",
+              "./internal/wasi/whisper/model_cache.go",
+              "./cmd/gormes/registry_audio.go"
+            ],
+            "ready_when": [
+              "transcribe_audio tool exists in internal/tools/ but is unregistered.",
+              "WASI whisper runtime exists in internal/wasi/whisper/.",
+              "LocalSTTProvider wraps whisper into TranscriptionProvider interface.",
+              "registry_audio.go registers the transcription tool with local provider."
+            ],
+            "not_ready_when": [
+              "The row attempts to add voice recording or voice mode — that is separate.",
+              "The row requires cloud provider API keys for basic functionality."
+            ],
+            "acceptance": [
+              "LocalSTTProvider implements TranscriptionProvider with Available() and Transcribe().",
+              "transcribe_audio tool is registered via MustRegister in the default tool registry.",
+              "go build ./cmd/gormes succeeds with the non-slim build tag.",
+              "go test ./internal/tools -count=1 stays green."
+            ],
+            "write_scope": [
+              "internal/tools/transcription_providers_local.go",
+              "cmd/gormes/registry_audio.go",
+              "docs/content/building-gormes/architecture_plan/progress.json"
+            ],
+            "test_commands": [
+              "go build ./cmd/gormes",
+              "go test ./internal/tools -count=1",
+              "go run ./cmd/progress validate",
+              "git diff --check"
+            ],
+            "done_signal": [
+              "transcribe_audio tool is registered by default; local whisper provider auto-downloads model on first use; no API key required for basic STT."
+            ]
+          }
+        ]
+      }
     }
   }
+}
 }

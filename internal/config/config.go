@@ -74,19 +74,27 @@ type UpdatesCfg struct {
 	BackupKeep      int  `toml:"backup_keep" yaml:"backup_keep"`
 }
 
+type TelegramAccountCfg struct {
+	BotToken      string  `toml:"bot_token" yaml:"bot_token"`
+	AllowedChatID int64   `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	AllowedUserIDs []int64 `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
+}
+
 type TelegramCfg struct {
-	BotToken               string     `toml:"bot_token" yaml:"bot_token"`
-	BotTokenRef            *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
-	AllowedChatID          int64      `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
-	AllowedChats           any        `toml:"allowed_chats" yaml:"allowed_chats"`
-	AllowedUserIDs         []int64    `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
-	RequireMention         bool       `toml:"require_mention" yaml:"require_mention"`
-	GuestMode              bool       `toml:"guest_mode" yaml:"guest_mode"`
-	BotUsername            string     `toml:"bot_username" yaml:"bot_username"`
-	CoalesceMs             int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FreshFinalAfterSeconds float64    `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
-	Notifications          string     `toml:"notifications" yaml:"notifications"`
-	FirstRunDiscovery      bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	BotToken               string                      `toml:"bot_token" yaml:"bot_token"`
+	BotTokenRef            *SecretRef                  `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
+	Accounts               map[string]TelegramAccountCfg `toml:"accounts" yaml:"accounts"`
+	AccountID              string                      `toml:"-" yaml:"-"`
+	AllowedChatID          int64                       `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	AllowedChats           any                         `toml:"allowed_chats" yaml:"allowed_chats"`
+	AllowedUserIDs         []int64                     `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
+	RequireMention         bool                        `toml:"require_mention" yaml:"require_mention"`
+	GuestMode              bool                        `toml:"guest_mode" yaml:"guest_mode"`
+	BotUsername            string                      `toml:"bot_username" yaml:"bot_username"`
+	CoalesceMs             int                         `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FreshFinalAfterSeconds float64                     `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
+	Notifications          string                      `toml:"notifications" yaml:"notifications"`
+	FirstRunDiscovery      bool                        `toml:"first_run_discovery" yaml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
 	MemoryQueueCap int `toml:"memory_queue_cap" yaml:"memory_queue_cap"`
@@ -126,23 +134,31 @@ func (c TelegramCfg) AllowedChatIDs() []string {
 }
 
 // DiscordCfg drives the Discord channel adapter.
+type DiscordAccountCfg struct {
+	Token            string   `toml:"token" yaml:"token"`
+	AllowedChannelID string   `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	AllowedChannels  []string `toml:"allowed_channels" yaml:"allowed_channels"`
+}
+
 type DiscordCfg struct {
-	Token                string     `toml:"token" yaml:"token"`
-	TokenRef             *SecretRef `toml:"token_ref" yaml:"token_ref" json:"token_ref,omitempty"`
-	AllowedChannelID     string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
-	AllowedChannels      any        `toml:"allowed_channels" yaml:"allowed_channels"`
-	IgnoredChannels      any        `toml:"ignored_channels" yaml:"ignored_channels"`
-	FreeResponseChannels any        `toml:"free_response_channels" yaml:"free_response_channels"`
-	NoThreadChannels     any        `toml:"no_thread_channels" yaml:"no_thread_channels"`
-	ChannelSkillBindings any        `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
-	ChannelPrompts       any        `toml:"channel_prompts" yaml:"channel_prompts"`
-	RequireMention       any        `toml:"require_mention" yaml:"require_mention"`
-	AutoThread           any        `toml:"auto_thread" yaml:"auto_thread"`
-	ReplyToMode          string     `toml:"reply_to_mode" yaml:"reply_to_mode"`
-	AllowBots            string     `toml:"allow_bots" yaml:"allow_bots"`
-	ServerActions        []string   `toml:"server_actions" yaml:"server_actions"`
-	CoalesceMs           int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FirstRunDiscovery    bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	Token                string                      `toml:"token" yaml:"token"`
+	TokenRef             *SecretRef                  `toml:"token_ref" yaml:"token_ref" json:"token_ref,omitempty"`
+	Accounts             map[string]DiscordAccountCfg `toml:"accounts" yaml:"accounts"`
+	AllowedChannelID     string                      `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	AllowedChannels      any                         `toml:"allowed_channels" yaml:"allowed_channels"`
+	IgnoredChannels      any                         `toml:"ignored_channels" yaml:"ignored_channels"`
+	FreeResponseChannels any                         `toml:"free_response_channels" yaml:"free_response_channels"`
+	NoThreadChannels     any                         `toml:"no_thread_channels" yaml:"no_thread_channels"`
+	ChannelSkillBindings any                         `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
+	ChannelPrompts       any                         `toml:"channel_prompts" yaml:"channel_prompts"`
+	RequireMention       any                         `toml:"require_mention" yaml:"require_mention"`
+	AutoThread           any                         `toml:"auto_thread" yaml:"auto_thread"`
+	ReplyToMode          string                      `toml:"reply_to_mode" yaml:"reply_to_mode"`
+	AllowBots            string                      `toml:"allow_bots" yaml:"allow_bots"`
+	ServerActions        []string                    `toml:"server_actions" yaml:"server_actions"`
+	CoalesceMs           int                         `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery    bool                        `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	AccountID            string                      `toml:"-" yaml:"-"`
 }
 
 func (c DiscordCfg) Enabled() bool {
@@ -202,23 +218,31 @@ func (c DiscordCfg) AllowBotsValue() string {
 	}
 }
 
+type SlackAccountCfg struct {
+	BotToken         string `toml:"bot_token" yaml:"bot_token"`
+	AppToken         string `toml:"app_token" yaml:"app_token"`
+	AllowedChannelID string `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+}
+
 // SlackCfg drives the Slack Socket Mode channel adapter.
 type SlackCfg struct {
-	Enabled              bool       `toml:"enabled" yaml:"enabled"`
-	BotToken             string     `toml:"bot_token" yaml:"bot_token"`
-	BotTokenRef          *SecretRef `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
-	AppToken             string     `toml:"app_token" yaml:"app_token"`
-	AppTokenRef          *SecretRef `toml:"app_token_ref" yaml:"app_token_ref" json:"app_token_ref,omitempty"`
-	AllowedChannelID     string     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
-	AllowedChannels      any        `toml:"allowed_channels" yaml:"allowed_channels"`
-	CoalesceMs           int        `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FirstRunDiscovery    bool       `toml:"first_run_discovery" yaml:"first_run_discovery"`
-	RequireMention       any        `toml:"require_mention" yaml:"require_mention"`
-	StrictMention        any        `toml:"strict_mention" yaml:"strict_mention"`
-	ReplyInThread        bool       `toml:"reply_in_thread" yaml:"reply_in_thread"`
-	FreeResponseChannels any        `toml:"free_response_channels" yaml:"free_response_channels"`
-	ChannelSkillBindings any        `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
-	ChannelPrompts       any        `toml:"channel_prompts" yaml:"channel_prompts"`
+	Enabled              bool                       `toml:"enabled" yaml:"enabled"`
+	BotToken             string                     `toml:"bot_token" yaml:"bot_token"`
+	BotTokenRef          *SecretRef                 `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
+	AppToken             string                     `toml:"app_token" yaml:"app_token"`
+	AppTokenRef          *SecretRef                 `toml:"app_token_ref" yaml:"app_token_ref" json:"app_token_ref,omitempty"`
+	Accounts             map[string]SlackAccountCfg `toml:"accounts" yaml:"accounts"`
+	AllowedChannelID     string                     `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	AllowedChannels      any                        `toml:"allowed_channels" yaml:"allowed_channels"`
+	CoalesceMs           int                        `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery    bool                       `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	RequireMention       any                        `toml:"require_mention" yaml:"require_mention"`
+	StrictMention        any                        `toml:"strict_mention" yaml:"strict_mention"`
+	ReplyInThread        bool                       `toml:"reply_in_thread" yaml:"reply_in_thread"`
+	FreeResponseChannels any                        `toml:"free_response_channels" yaml:"free_response_channels"`
+	ChannelSkillBindings any                        `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
+	ChannelPrompts       any                        `toml:"channel_prompts" yaml:"channel_prompts"`
+	AccountID            string                     `toml:"-" yaml:"-"`
 }
 
 func (c SlackCfg) AllowedChannelIDs() []string {

@@ -548,6 +548,136 @@ func TestLoad_TelegramHermesEnvAliases(t *testing.T) {
 	}
 }
 
+func TestLoad_TelegramPerAccountTokens(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	dir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[telegram]
+bot_token = "global:token"
+
+[telegram.accounts.main]
+bot_token = "main:token"
+allowed_chat_id = 111
+
+[telegram.accounts.mineru]
+bot_token = "mineru:token"
+allowed_chat_id = 222
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cfg.Telegram.BotToken != "global:token" {
+		t.Errorf("global BotToken = %q, want global:token", cfg.Telegram.BotToken)
+	}
+
+	if len(cfg.Telegram.Accounts) != 2 {
+		t.Fatalf("Accounts len = %d, want 2", len(cfg.Telegram.Accounts))
+	}
+
+	mainAcct, ok := cfg.Telegram.Accounts["main"]
+	if !ok {
+		t.Fatal("missing account 'main'")
+	}
+	if mainAcct.BotToken != "main:token" {
+		t.Errorf("main.BotToken = %q, want main:token", mainAcct.BotToken)
+	}
+	if mainAcct.AllowedChatID != 111 {
+		t.Errorf("main.AllowedChatID = %d, want 111", mainAcct.AllowedChatID)
+	}
+
+	mineruAcct, ok := cfg.Telegram.Accounts["mineru"]
+	if !ok {
+		t.Fatal("missing account 'mineru'")
+	}
+	if mineruAcct.BotToken != "mineru:token" {
+		t.Errorf("mineru.BotToken = %q, want mineru:token", mineruAcct.BotToken)
+	}
+	if mineruAcct.AllowedChatID != 222 {
+		t.Errorf("mineru.AllowedChatID = %d, want 222", mineruAcct.AllowedChatID)
+	}
+}
+
+func TestLoad_SlackPerAccountTokens(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	dir := filepath.Join(cfgHome, "gormes")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.toml"), []byte(`
+[slack]
+bot_token = "global:bot"
+app_token = "global:app"
+
+[slack.accounts.main]
+bot_token = "main:bot"
+app_token = "main:app"
+allowed_channel_id = "C111"
+
+[slack.accounts.mineru]
+bot_token = "mineru:bot"
+app_token = "mineru:app"
+allowed_channel_id = "C222"
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cfg.Slack.BotToken != "global:bot" {
+		t.Errorf("global BotToken = %q, want global:bot", cfg.Slack.BotToken)
+	}
+	if cfg.Slack.AppToken != "global:app" {
+		t.Errorf("global AppToken = %q, want global:app", cfg.Slack.AppToken)
+	}
+
+	if len(cfg.Slack.Accounts) != 2 {
+		t.Fatalf("Accounts len = %d, want 2", len(cfg.Slack.Accounts))
+	}
+
+	mainAcct, ok := cfg.Slack.Accounts["main"]
+	if !ok {
+		t.Fatal("missing account 'main'")
+	}
+	if mainAcct.BotToken != "main:bot" {
+		t.Errorf("main.BotToken = %q, want main:bot", mainAcct.BotToken)
+	}
+	if mainAcct.AppToken != "main:app" {
+		t.Errorf("main.AppToken = %q, want main:app", mainAcct.AppToken)
+	}
+	if mainAcct.AllowedChannelID != "C111" {
+		t.Errorf("main.AllowedChannelID = %q, want C111", mainAcct.AllowedChannelID)
+	}
+
+	mineruAcct, ok := cfg.Slack.Accounts["mineru"]
+	if !ok {
+		t.Fatal("missing account 'mineru'")
+	}
+	if mineruAcct.BotToken != "mineru:bot" {
+		t.Errorf("mineru.BotToken = %q, want mineru:bot", mineruAcct.BotToken)
+	}
+	if mineruAcct.AppToken != "mineru:app" {
+		t.Errorf("mineru.AppToken = %q, want mineru:app", mineruAcct.AppToken)
+	}
+	if mineruAcct.AllowedChannelID != "C222" {
+		t.Errorf("mineru.AllowedChannelID = %q, want C222", mineruAcct.AllowedChannelID)
+	}
+}
+
 func TestLoad_IgnoresHermesConfigYAML(t *testing.T) {
 	cfgHome := t.TempDir()
 	hermesHome := t.TempDir()

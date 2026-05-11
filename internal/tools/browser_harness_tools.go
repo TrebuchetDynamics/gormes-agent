@@ -39,6 +39,10 @@ type BrowserHarnessToolsConfig struct {
 	Budget    ToolResultBudgetConfig
 	Timeout   time.Duration
 	MediaType string
+	// ResultCache optionally caches idempotent browser action results
+	// (snapshot/extract) by URL to avoid re-fetching the same page within
+	// the TTL window. nil disables caching.
+	ResultCache *BrowserResultCache
 }
 
 // BrowserHarnessToolResponse is the JSON payload returned by browser_* harness
@@ -141,6 +145,14 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", t.name, err)
 	}
+
+	// Cache lookup for idempotent read-style actions.
+	if t.cfg.ResultCache != nil && IsCacheableBrowserAction(action.Kind) && action.URL != "" {
+		if cached, ok := t.cfg.ResultCache.Get(action.Kind, action.URL); ok {
+			return append(json.RawMessage(nil), cached...), nil
+		}
+	}
+
 	taskID := stringArg(in, "task_id")
 	bridge := BrowserHarnessBridge{
 		Command:  t.cfg.Command,
@@ -172,7 +184,8 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", t.name, err)
 	}
-	return json.Marshal(BrowserHarnessToolResponse{
+
+	out, err := json.Marshal(BrowserHarnessToolResponse{
 		Tool:           t.name,
 		Evidence:       result.Evidence,
 		ResultEvidence: result.Envelope.Evidence,
@@ -181,6 +194,19 @@ func (t *BrowserHarnessTool) Execute(ctx context.Context, args json.RawMessage) 
 		Bytes:          result.Envelope.Tool.Bytes,
 		ToolEvidence:   result.Envelope.Tool,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache store for successful idempotent actions.
+	if t.cfg.ResultCache != nil && IsCacheableBrowserAction(action.Kind) && action.URL != "" {
+		t.cfg.ResultCache.Set(action.Kind, action.URL, out)
+	}
+	// Invalidate cache on mutating actions.
+	if t.cfg.ResultCache != nil && IsInvalidatingBrowserAction(action.Kind) && action.URL != "" {
+		t.cfg.ResultCache.Invalidate(action.URL)
+	}
+	return out, nil
 }
 
 func (t *BrowserHarnessTool) buildCommandRequest(args map[string]any) (BrowserHarnessCommandRequest, BrowserAction, error) {

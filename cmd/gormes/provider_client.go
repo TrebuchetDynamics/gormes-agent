@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
@@ -20,7 +21,26 @@ var providerPool = provider.NewClientPool()
 // calls for the same provider return the cached instance.
 func getOrCreateProviderClient(cfg config.Config, providerName string) (hermes.Client, error) {
 	providerPool.Register(providerName, func() (hermes.Client, error) {
-		return newProviderHTTPClient(cfg, providerName)
+		client, err := newProviderHTTPClient(cfg, providerName)
+		if err != nil {
+			return nil, err
+		}
+		// Wire credential exhaustion callback: on 429/401, mark the credential
+		// exhausted in the pool and invalidate the cached client so the next
+		// request selects a fresh credential.
+		normalized := normalizeProviderName(providerName)
+		hermes.SetOnCredentialExhausted(client, func(statusCode int, reason string, _ http.Header) {
+			pool, _, loadErr := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: normalized})
+			if loadErr != nil {
+				return
+			}
+			pool.MarkExhaustedAndRotate(config.CredentialExhaustion{
+				StatusCode: statusCode,
+				Reason:     reason,
+			})
+			providerPool.Invalidate(normalized)
+		})
+		return client, nil
 	})
 	return providerPool.Get(providerName)
 }

@@ -135,6 +135,27 @@ func TestBot_ToInboundEvent_Submit(t *testing.T) {
 	}
 }
 
+func TestBot_ToInboundEvent_AccountID(t *testing.T) {
+	mc := newMockClient()
+	b := New(Config{AllowedChatID: 42, AccountID: "mineru"}, mc, nil)
+	inbox := make(chan gateway.InboundEvent, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = b.Run(ctx, inbox) }()
+
+	mc.pushTextUpdate(42, "hello from mineru")
+
+	select {
+	case ev := <-inbox:
+		if ev.AccountID != "mineru" {
+			t.Errorf("AccountID = %q, want mineru", ev.AccountID)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("no inbound event")
+	}
+}
+
 func TestBot_ToInboundEvent_TopicCommandPreservesPrivateMetadata(t *testing.T) {
 	mc := newMockClient()
 	b := New(Config{AllowedChatID: 42}, mc, nil)

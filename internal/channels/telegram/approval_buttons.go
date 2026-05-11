@@ -88,6 +88,9 @@ func (b *Bot) handleCallbackQuery(ctx context.Context, query *tgbotapi.CallbackQ
 	if query == nil {
 		return false
 	}
+	if prefix, value, ok := parseModelPickerCallback(query.Data); ok {
+		return b.handleModelPickerCallback(ctx, query, prefix, value)
+	}
 	choice, approvalID, ok := parseTelegramApprovalCallbackData(query.Data)
 	if !ok {
 		return false
@@ -353,4 +356,37 @@ func truncateTelegramApprovalRunes(value string, max int) string {
 		return string(runes[:max])
 	}
 	return string(runes[:max-3]) + "..."
+}
+
+func (b *Bot) handleModelPickerCallback(ctx context.Context, query *tgbotapi.CallbackQuery, prefix, value string) bool {
+	if b.cfg.ModelPickerResolver == nil {
+		return false
+	}
+	resp, err := b.cfg.ModelPickerResolver.HandleModelPickerCallback(ctx, gateway.ModelPickerCallback{
+		ChatID:    strconv.FormatInt(query.Message.Chat.ID, 10),
+		Prefix:    prefix,
+		Value:     value,
+		MessageID: query.Message.MessageID,
+	})
+	if err != nil {
+		_ = b.answerCallback(query.ID, "Picker error")
+		return true
+	}
+	if resp.Finished {
+		if resp.Changed {
+			_ = b.answerCallback(query.ID, "Model updated")
+		} else {
+			_ = b.answerCallback(query.ID, "Cancelled")
+		}
+	}
+	if resp.Text != "" {
+		edit := tgbotapi.NewEditMessageText(query.Message.Chat.ID, query.Message.MessageID, resp.Text)
+		edit.ParseMode = "Markdown"
+		if b.client != nil {
+			if _, doErr := b.client.Request(edit); doErr != nil {
+				b.log.Warn("model picker edit failed", "err", doErr)
+			}
+		}
+	}
+	return true
 }

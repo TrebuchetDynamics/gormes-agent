@@ -111,3 +111,39 @@ func TestRenderTodoPanel_WidthRespected(t *testing.T) {
 		}
 	}
 }
+
+func TestModel_RenderTodoPanel(t *testing.T) {
+	m := Model{
+		todoReader: func(sessionID string) []TodoItem {
+			if sessionID == "s1" {
+				return []TodoItem{
+					{Text: "Task one", Status: TodoStatusPending},
+					{Text: "Task two", Status: TodoStatusDone},
+				}
+			}
+			return nil
+		},
+		sessionID: "s1",
+	}
+
+	got := m.renderTodoPanel(80)
+	if !strings.Contains(got, "Task one") {
+		t.Errorf("renderTodoPanel should contain 'Task one', got:\n%s", got)
+	}
+	if !strings.Contains(got, "Task two") {
+		t.Errorf("renderTodoPanel should contain 'Task two', got:\n%s", got)
+	}
+
+	m.sessionID = "s2"
+	got = m.renderTodoPanel(80)
+	if got != "" {
+		t.Errorf("renderTodoPanel for empty session should be empty, got:\n%s", got)
+	}
+
+	m.todoReader = nil
+	m.sessionID = "s1"
+	got = m.renderTodoPanel(80)
+	if got != "" {
+		t.Errorf("renderTodoPanel with nil reader should be empty, got:\n%s", got)
+	}
+}

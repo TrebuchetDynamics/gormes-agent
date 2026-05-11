@@ -3,6 +3,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -26,6 +27,22 @@ func registerAudioTools(reg *tools.Registry, cfg config.Config) {
 		Provider:       provider,
 		ProviderConfig: cfg.TTS,
 	}, ttsProviders)))
+
+	// Register STT transcription tool with local whisper as default.
+	transcriptionCacheDir := filepath.Join(config.GormesHome(), "cache", "whisper")
+	if override := os.Getenv("GORMES_STT_CACHE_DIR"); override != "" {
+		transcriptionCacheDir = override
+	}
+	sttProviders := map[string]tools.TranscriptionProvider{}
+	sttProviders["local"] = tools.NewLocalSTTProvider(transcriptionCacheDir)
+	tools.RegisterTranscriptionProviders(sttProviders, tools.TranscriptionProviderConfig{
+		APIKey:  os.Getenv("GORMES_STT_OPENAI_KEY"),
+		BaseURL: os.Getenv("GORMES_STT_OPENAI_BASE_URL"),
+		Model:   "",
+	})
+	reg.MustRegister(tools.NewTranscriptionTool(tools.NewTranscriptionRunner(tools.TranscriptionConfig{
+		Disabled: false,
+	}, sttProviders)))
 }
 
 func audioToolsEnabled() bool { return true }

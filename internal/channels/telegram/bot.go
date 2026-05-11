@@ -55,6 +55,7 @@ type Config struct {
 	// BotUserID is optional and lets Telegram text_mention entities target the
 	// bot by user ID when Telegram does not emit an @username mention.
 	BotUserID int64
+	AccountID string
 	// Notifications controls Telegram push behavior. "important" is the
 	// Hermes-compatible default: placeholders/progress are silent while final
 	// sends and approval prompts still notify. "all" preserves legacy behavior.
@@ -62,7 +63,8 @@ type Config struct {
 	// DynamicCommands are optional runtime-discovered commands (for example
 	// enabled skill slash commands) appended to the canonical Hermes menu.
 	DynamicCommands  []gateway.PlatformCommand
-	ApprovalResolver gateway.ApprovalResolver
+	ApprovalResolver     gateway.ApprovalResolver
+	ModelPickerResolver  gateway.ModelPickerResolver
 	// TokenLockDir stores machine-local same-token polling locks. Empty uses
 	// the gateway package default; cmd/gormes passes config.GatewayLockDir.
 	TokenLockDir string
@@ -134,7 +136,12 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	}
 }
 
-func (b *Bot) Name() string { return "telegram" }
+func (b *Bot) Name() string {
+	if b.cfg.AccountID != "" {
+		return "telegram:" + b.cfg.AccountID
+	}
+	return "telegram"
+}
 
 func telegramReactionsEnabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("TELEGRAM_REACTIONS"))) {
@@ -349,6 +356,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		Kind:        kind,
 		Text:        body,
 		Attachments: attachments,
+		AccountID:   b.cfg.AccountID,
 	}
 	if guestBypass {
 		ev.AllowlistBypassReason = gateway.AllowlistBypassTelegramGuestMention

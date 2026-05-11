@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -356,3 +357,18 @@ const (
 // (LM Studio, Open WebUI) that don't implement /v1/runs.
 var ErrRunEventsNotSupported = errors.New("hermes: /v1/runs not supported by this server")
 var ErrProviderUnavailable = errors.New("hermes: provider unavailable")
+
+// CredentialExhaustedFunc is the callback type invoked when an HTTP client
+// receives a status that indicates the current credential should be marked
+// exhausted and rotated (429 rate limit, 401 unauthorized).
+type CredentialExhaustedFunc func(statusCode int, reason string, headers http.Header)
+
+// SetOnCredentialExhausted sets the exhaustion callback on a Client that
+// supports it (currently *httpClient). The callback is invoked when the
+// client receives a 429 or 401 response, so the caller can mark the
+// credential exhausted in the credential pool and rotate.
+func SetOnCredentialExhausted(client Client, fn CredentialExhaustedFunc) {
+	if hc, ok := client.(*httpClient); ok {
+		hc.onCredentialExhausted = fn
+	}
+}

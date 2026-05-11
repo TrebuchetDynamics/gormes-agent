@@ -135,3 +135,39 @@ func atomicReplaceCheckRoot(path, root string) error {
 	}
 	return nil
 }
+
+// AtomicWrite creates a temp file, writes data to it, and atomically renames
+// it to targetPath. On failure the temp file is removed and an error is
+// returned. Existing file permissions are preserved; first writes use 0644.
+func AtomicWrite(targetPath string, data []byte) error {
+	dir := filepath.Dir(targetPath)
+	f, err := os.CreateTemp(dir, ".gormes-write-*")
+	if err != nil {
+		return &AtomicReplaceError{Code: AtomicWriteFailed, Op: "create temp", Err: err}
+	}
+	tmpPath := f.Name()
+	cleanup := func() { os.Remove(tmpPath) }
+
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		cleanup()
+		return &AtomicReplaceError{Code: AtomicWriteFailed, Op: "write temp", Err: err}
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		cleanup()
+		return &AtomicReplaceError{Code: AtomicWriteFailed, Op: "sync temp", Err: err}
+	}
+	if err := f.Close(); err != nil {
+		cleanup()
+		return &AtomicReplaceError{Code: AtomicWriteFailed, Op: "close temp", Err: err}
+	}
+
+	result, err := AtomicReplace(tmpPath, targetPath, AtomicReplaceOptions{FirstWriteMode: 0644})
+	if err != nil {
+		cleanup()
+		return err
+	}
+	_ = result
+	return nil
+}

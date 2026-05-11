@@ -134,3 +134,73 @@ func readAtomicReplaceFile(t *testing.T, path string) string {
 	}
 	return string(body)
 }
+
+func TestAtomicWrite_Nominal(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "test.txt")
+	data := []byte("hello world")
+
+	if err := AtomicWrite(target, data); err != nil {
+		t.Fatalf("AtomicWrite: %v", err)
+	}
+
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != string(data) {
+		t.Fatalf("content = %q, want %q", got, data)
+	}
+	if _, err := os.Stat(target + ".tmp"); err == nil {
+		t.Fatal("temp file should be gone after successful write")
+	}
+}
+
+func TestAtomicWrite_PreservesExistingPerms(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "test.txt")
+	if err := os.WriteFile(target, []byte("orig"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := AtomicWrite(target, []byte("updated")); err != nil {
+		t.Fatalf("AtomicWrite: %v", err)
+	}
+
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("perms = %o, want 0600", info.Mode().Perm())
+	}
+}
+
+func TestAtomicWrite_PartialTempCleaned(t *testing.T) {
+	dir := t.TempDir()
+	orig := filepath.Join(dir, "orig.txt")
+	if err := os.WriteFile(orig, []byte("original"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	target := filepath.Join(dir, "target.txt")
+	if err := AtomicWrite(target, []byte("good")); err != nil {
+		t.Fatalf("AtomicWrite: %v", err)
+	}
+
+	got, _ := os.ReadFile(target)
+	if string(got) != "good" {
+		t.Fatalf("content = %q, want good", got)
+	}
+	if _, err := os.Stat(target + ".tmp"); err == nil {
+		t.Error("temp file leaked after successful write")
+	}
+}
+
+func TestAtomicWrite_NonExistentDir(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "missing", "test.txt")
+	err := AtomicWrite(target, []byte("data"))
+	if err == nil {
+		t.Fatal("expected error for non-existent directory")
+	}
+}

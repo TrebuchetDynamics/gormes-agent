@@ -32,6 +32,7 @@ type ChannelConfig struct {
 	ChannelSkillBindings any
 	ChannelPrompts       any
 	LookupEnv            func(string) string
+	AccountID            string
 }
 
 var (
@@ -60,7 +61,12 @@ func NewChannel(client Client, log *slog.Logger, cfgs ...ChannelConfig) *Channel
 	}
 }
 
-func (c *Channel) Name() string { return "slack" }
+func (c *Channel) Name() string {
+	if c.cfg.AccountID != "" {
+		return "slack:" + c.cfg.AccountID
+	}
+	return "slack"
+}
 
 func (c *Channel) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
 	selfID, err := c.client.AuthTest(ctx)
@@ -149,9 +155,13 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 			c.log.Warn(slackRichTextUnavailableCode, "source", ev.Source, "reason", ev.Reason)
 		}
 	}
+	accountID := strings.TrimSpace(c.cfg.AccountID)
+	if accountID == "" {
+		accountID = strings.TrimSpace(e.TeamID)
+	}
 	return gateway.InboundEvent{
 		Platform:    "slack",
-		AccountID:   strings.TrimSpace(e.TeamID),
+		AccountID:   accountID,
 		ChatID:      channelID,
 		ChatType:    slackChatType(e.ChannelID, e.ChatType),
 		UserID:      userID,

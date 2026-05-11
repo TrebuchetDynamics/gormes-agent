@@ -72,10 +72,15 @@ var (
 	fileLintRunCommand = runFileLintCommand
 	fileTaskMkdirAll   = os.MkdirAll
 	fileTaskReadFile   = os.ReadFile
-	fileTaskWriteFile  = os.WriteFile
+	fileTaskWriteFile  = atomicFileTaskWrite
 	fileTaskRemove     = os.Remove
 	fileTaskRename     = os.Rename
 )
+
+func atomicFileTaskWrite(name string, data []byte, perm os.FileMode) error {
+	return AtomicWrite(name, data)
+}
+
 
 type ReadFileToolConfig = FileTaskToolConfig
 
@@ -565,7 +570,7 @@ func (t *WriteFileTool) Execute(ctx context.Context, args json.RawMessage) (json
 	if err := os.MkdirAll(filepath.Dir(resolved), 0o755); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "create parent directories: " + err.Error()})
 	}
-	if err := os.WriteFile(resolved, []byte(in.Content), defaultWriteFileFileMode); err != nil {
+	if err := AtomicWrite(resolved, []byte(in.Content)); err != nil {
 		return marshalToolPayload(map[string]any{"path": rel, "error": "write file: " + err.Error()})
 	}
 	state, _ := registry.record(root, t.cfg.TaskID, cwd, rel, resolved)
