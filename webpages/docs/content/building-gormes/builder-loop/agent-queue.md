@@ -89,27 +89,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. Kanban multi-board isolation
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban dispatcher enforces board-scoped isolation: workers spawned for board A cannot see or mutate board B's tasks. The SQLite store uses per-board database files or namespaced tables, and the dispatcher validates the board name before spawning.
-- Trust class: operator, system
-- Ready when: Existing Kanban single-board surface is validated and the multi-board isolation contract is understood from Hermes upstream.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/multi_board.go`, `internal/kanban/multi_board_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanMultiBoard -count=1`
-- Done signal: Multi-board isolation tests pass and the dispatcher prevents cross-board task access.
-- Acceptance: TestKanbanMultiBoardIsolation proves worker A on board_alpha cannot query tasks from board_beta., TestKanbanMultiBoardDispatcherHonoursBoardBoundary proves the dispatcher rejects cross-board task assignments.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py multi-board isolation
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 5. Kanban workspace context injection
+## 4. Kanban workspace context injection
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -129,7 +109,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py workspace+agent dir injection
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Kanban run history persistence
+## 5. Kanban run history persistence
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -149,7 +129,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py run_history + auto-block
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Kanban notification delivery parity
+## 6. Kanban notification delivery parity
 
 - Phase: 5 / 5.M
 - Owner: `orchestrator`
@@ -169,7 +149,7 @@ selection.
 - Source refs: ../hermes-agent/hermes_cli/kanban.py notify-* methods
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Installer script serving and MIME validation
+## 7. Installer script serving and MIME validation
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -189,7 +169,7 @@ selection.
 - Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. DingTalk real SDK binding
+## 8. DingTalk real SDK binding
 
 - Phase: 7 / 7.E
 - Owner: `docs`
@@ -209,7 +189,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Agentic-porting-kit repo scaffold
+## 9. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -228,6 +208,26 @@ selection.
 - Done signal: Repo URL recorded in success-plan.md and README.md; star count tracked monthly.
 - Acceptance: Public repo TrebuchetDynamics/agentic-porting-kit exists with the listed skills., Repo README explains the kit independent of Gormes/Hermes., A worked example demonstrates the kit on a non-Hermes target (any small Python project being ported to Go)., Skills can be loaded into a fresh Codex or Claude Code session and successfully plan-and-execute one row in the example target.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Sandbox provider interface and virtual path security
+
+- Phase: 9 / 9.B
+- Owner: `orchestrator`
+- Size: `medium`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.
+- Trust class: operator, system
+- Ready when: internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them., A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution., LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups., Path traversal detection and output masking have test coverage.
+- Not ready when: The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan., The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first., The virtual path system hard-codes /mnt/ paths without configurable base directory support., Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required).
+- Degraded mode: -
+- Fixture: `-`
+- Write scope: `internal/sandbox/provider.go`, `internal/sandbox/provider_test.go`, `internal/sandbox/sandbox.go`, `internal/sandbox/sandbox_test.go`, `internal/sandbox/local/provider.go`, `internal/sandbox/local/provider_test.go`, `internal/sandbox/paths.go`, `internal/sandbox/paths_test.go`, `internal/tools/`, `internal/config/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/sandbox/... -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`, `git diff --check`
+- Done signal: SandboxProvider interface is defined; LocalSandboxProvider is implemented with virtual path resolution, traversal protection, and output masking; existing tools tests remain green.
+- Acceptance: SandboxProvider interface exists with Acquire/Get/Release/Shutdown lifecycle., LocalSandboxProvider creates per-thread workspace/uploads/outputs directories and maps virtual paths., Path traversal (..) in virtual paths is rejected with a PermissionError-equivalent., Output masking replaces host paths with virtual paths in tool return values., Read-only path families (e.g. skills directory) cannot be written through the sandbox., Existing go test ./internal/tools -count=1 stays green after sandbox provider addition.
+- Source refs: ./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py, ./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox.py, ./deer-flow/backend/packages/harness/deerflow/sandbox/tools.py, ./deer-flow/backend/packages/harness/deerflow/sandbox/local/, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

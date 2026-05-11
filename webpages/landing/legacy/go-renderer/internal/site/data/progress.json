@@ -34513,10 +34513,10 @@
             },
             {
               "name": "Kanban multi-board isolation",
-              "status": "planned",
               "priority": "P2",
+              "status": "complete",
               "contract": "Kanban dispatcher enforces board-scoped isolation: workers spawned for board A cannot see or mutate board B's tasks. The SQLite store uses per-board database files or namespaced tables, and the dispatcher validates the board name before spawning.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -34545,7 +34545,19 @@
               "unblocks": [],
               "test_commands": [
                 "go test ./internal/kanban -run TestKanbanMultiBoard -count=1"
-              ]
+              ],
+              "note": "TDD landed: internal/kanban/multi_board.go exposes ErrCrossBoardTask, ValidateTaskBoard, BoardDispatcher, and NewBoardDispatcher. ValidateTaskBoard is a pure function that checks task board membership against a store. BoardDispatcher opens a per-board store and binds the Dispatcher lifecycle to it, providing natural per-DB isolation. TestKanbanMultiBoardIsolation proves two stores on separate DB files have no cross-visibility. TestKanbanMultiBoardDispatcherHonoursBoardBoundary proves cross-board task rejection via ValidateTaskBoard and that a dispatcher for an empty board has zero spawns.",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/multi_board.go: ErrCrossBoardTask sentinel, ValidateTaskBoard pure helper, BoardDispatcher struct with per-board store isolation, NewBoardDispatcher constructor"
+                ],
+                "verification": [
+                  "RED: go test ./internal/kanban -run TestKanbanMultiBoard -count=1 failed with undefined: ValidateTaskBoard and undefined: NewBoardDispatcher",
+                  "GREEN: go test ./internal/kanban -run TestKanbanMultiBoard -count=1 passed (2/2)",
+                  "GREEN: go test ./internal/kanban -count=1 passed (full package)",
+                  "GREEN: go run ./cmd/progress validate passed"
+                ]
+              }
             },
             {
               "name": "Kanban workspace context injection",

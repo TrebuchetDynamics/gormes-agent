@@ -907,7 +907,7 @@ classification and row-backed implementation queue.
 - [x] Kanban dashboard dispatch quick path
 - [x] Kanban dashboard task run history endpoint
 - [x] Kanban dispatcher status in gateway /status
-- [ ] Kanban multi-board isolation
+- [x] Kanban multi-board isolation
 - [ ] Kanban workspace context injection
 - [ ] Kanban run history persistence
 - [ ] Kanban notification delivery parity
