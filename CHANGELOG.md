@@ -8,6 +8,45 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-05-11
+
+Date alias: `v2026.5.11`.
+
+> **Declarative middleware chain framework + STT wiring with local whisper.**
+> Phase 9 ships two owned architecture improvements from DeerFlow pattern
+> analysis: an ordered, inspectable middleware chain with RuntimeFeatures
+> toggle flags, and the first step toward a sandbox provider abstraction.
+> Speech-to-text now works by default via WASI whisper (no API key required).
+
+### Added
+
+- **Middleware chain framework** (`internal/agent/`): `Middleware` interface
+  with Before/After lifecycle hooks, `MiddlewareChain` with deterministic
+  ordering and `Dump()` inspectability, `RuntimeFeatures` with
+  `FeatureFlag` (Enabled/Disabled) and `CustomMiddleware` overrides.
+  `AssembleFromFeatures()` factory builds ordered chains from declarative
+  feature structs. Includes 5 built-in middlewares: thread_data, tool_error,
+  loop_detector (wraps existing LoopDetector), memory, subagent.
+  (`b5d2b7f1f`)
+- **Kernel integration**: `AgentMiddleware` field on `kernel.Config` with
+  Before/After hooks called in `runTurn()` turn lifecycle.
+- **STT tool wiring** (`Phase 9.C`): `transcribe_audio` tool registered in
+  default tool registry. `LocalSTTProvider` wraps WASI whisper runtime with
+  auto-downloading tiny.en model (~77MB from HuggingFace). Cloud providers
+  (OpenAI, Groq, Mistral, XAI) activate when API keys are present.
+  (`3b44ec379`, `532d583ce`, `35eb1f769`)
+- **Phase 9 planning**: Design & Security Hardening phase with builder-ready
+  rows for middleware chain, sandbox provider, and STT wiring.
+  (`2b1bbcf2b`)
+
+### Developer
+
+- `go test ./internal/tools -run TestLocalSTTProvider_Transcribe_JFKFixture`
+  proves the full STT pipeline: model download → WASM runtime → WAV decode →
+  transcription, asserting JFK speech excerpts.
+- `go test ./internal/agent -count=1` covers middleware chain assembly,
+  ordering, lifecycle, abort-on-error, feature toggling, and dump output.
+
 ## [0.2.5] - 2026-05-10
 
 Date alias: `v2026.5.10` (second same-day patch over v0.2.4; shared
@@ -761,7 +800,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.05...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.5...v0.2.6
 [0.1.05]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.04...v0.1.05
 [0.1.04]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.03...v0.1.04
 [0.1.03]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.02...v0.1.03
