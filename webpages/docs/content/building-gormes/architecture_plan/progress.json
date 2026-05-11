@@ -57446,6 +57446,140 @@
           ]
         }
       }
+    },
+    "9": {
+    "name": "Phase 9 — Design & Security Hardening",
+    "deliverable": "Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.",
+    "subphases": {
+      "9.A": {
+        "name": "Declarative Agent Middleware Chain",
+        "items": [
+          {
+            "name": "Agent middleware chain framework",
+            "priority": "P1",
+            "status": "planned",
+            "contract": "Gormes gains a declarative middleware chain framework for the agent runtime (internal/hermes + internal/agent), inspired by DeerFlow's 19-middleware ordered chain with @Next/@Prev positioning and RuntimeFeatures-style toggle flags. Each middleware implements a single concern: thread-data setup, sandbox lifecycle, tool error handling, loop detection, memory injection, title generation, token usage tracking, clarification interception. Middlewares are assembled into an ordered chain by a factory that accepts a RuntimeFeatures struct where each feature = enabled (use built-in), disabled, or a custom Middleware instance. The middleware ordering is deterministic, and the chain is inspectable (dump to string for debugging).",
+            "contract_status": "draft",
+            "slice_size": "medium",
+            "execution_owner": "orchestrator",
+            "trust_class": [
+              "operator",
+              "system"
+            ],
+            "source_refs": [
+              "./deer-flow/backend/packages/harness/deerflow/agents/factory.py",
+              "./deer-flow/backend/packages/harness/deerflow/agents/features.py",
+              "./deer-flow/backend/packages/harness/deerflow/agents/middlewares/",
+              "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+            ],
+            "ready_when": [
+              "internal/agent/ has a Middleware interface and a MiddlewareChain type with deterministic ordering.",
+              "A RuntimeFeatures struct exists in internal/config or internal/agent/.",
+              "At least 3 built-in middlewares are implemented and tested (e.g. ThreadData, ToolErrorHandling, LoopDetection).",
+              "The existing internal/agent/loop_detector.go is refactored into a middleware.",
+              "go test ./internal/agent/ -count=1 is green after each middleware addition."
+            ],
+            "not_ready_when": [
+              "The middleware chain replaces or duplicates existing internal/hermes agent flow without clear migration path.",
+              "The row tries to port all 19 DeerFlow middlewares in one slice — aim for 3-5 core middlewares first.",
+              "The RuntimeFeatures struct uses Go generics for the bool|Middleware union; use a wrapper type instead.",
+              "Existing internal/hermes tests break without a validation plan."
+            ],
+            "acceptance": [
+              "A Middleware type exists with a BeforeAgent/AfterAgent lifecycle (or equivalent Around hook).",
+              "MiddlewareChain assembles middlewares in a deterministic, inspectable order.",
+              "RuntimeFeatures correctly maps enabled/disabled/custom to middleware inclusion.",
+              "The LoopDetection feature toggles correctly between enabled, disabled, and custom instance.",
+              "A test proves the chain can be dumped as a human-readable ordering string."
+            ],
+            "write_scope": [
+              "internal/agent/middleware.go",
+              "internal/agent/middleware_test.go",
+              "internal/agent/features.go",
+              "internal/agent/features_test.go",
+              "internal/hermes/",
+              "docs/content/building-gormes/architecture_plan/progress.json"
+            ],
+            "test_commands": [
+              "go test ./internal/agent -count=1",
+              "go test ./internal/hermes -count=1",
+              "go run ./cmd/progress validate",
+              "git diff --check"
+            ],
+            "done_signal": [
+              "At least 3 core middlewares are wired into the agent runtime; the chain is inspectable and togglable via RuntimeFeatures; validating middleware ordering by name."
+            ]
+          }
+        ]
+      },
+      "9.B": {
+        "name": "Sandbox Provider Abstraction + Virtual Path System",
+        "items": [
+          {
+            "name": "Sandbox provider interface and virtual path security",
+            "priority": "P1",
+            "status": "planned",
+            "contract": "Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.",
+            "contract_status": "draft",
+            "slice_size": "medium",
+            "execution_owner": "orchestrator",
+            "trust_class": [
+              "operator",
+              "system"
+            ],
+            "source_refs": [
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/tools.py",
+              "./deer-flow/backend/packages/harness/deerflow/sandbox/local/",
+              "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+            ],
+            "ready_when": [
+              "internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them.",
+              "A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution.",
+              "LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups.",
+              "Path traversal detection and output masking have test coverage."
+            ],
+            "not_ready_when": [
+              "The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan.",
+              "The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first.",
+              "The virtual path system hard-codes /mnt/ paths without configurable base directory support.",
+              "Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required)."
+            ],
+            "acceptance": [
+              "SandboxProvider interface exists with Acquire/Get/Release/Shutdown lifecycle.",
+              "LocalSandboxProvider creates per-thread workspace/uploads/outputs directories and maps virtual paths.",
+              "Path traversal (..) in virtual paths is rejected with a PermissionError-equivalent.",
+              "Output masking replaces host paths with virtual paths in tool return values.",
+              "Read-only path families (e.g. skills directory) cannot be written through the sandbox.",
+              "Existing go test ./internal/tools -count=1 stays green after sandbox provider addition."
+            ],
+            "write_scope": [
+              "internal/sandbox/provider.go",
+              "internal/sandbox/provider_test.go",
+              "internal/sandbox/sandbox.go",
+              "internal/sandbox/sandbox_test.go",
+              "internal/sandbox/local/provider.go",
+              "internal/sandbox/local/provider_test.go",
+              "internal/sandbox/paths.go",
+              "internal/sandbox/paths_test.go",
+              "internal/tools/",
+              "internal/config/",
+              "docs/content/building-gormes/architecture_plan/progress.json"
+            ],
+            "test_commands": [
+              "go test ./internal/sandbox/... -count=1",
+              "go test ./internal/tools -count=1",
+              "go run ./cmd/progress validate",
+              "git diff --check"
+            ],
+            "done_signal": [
+              "SandboxProvider interface is defined; LocalSandboxProvider is implemented with virtual path resolution, traversal protection, and output masking; existing tools tests remain green."
+            ]
+          }
+        ]
+      }
     }
   }
+}
 }

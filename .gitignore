@@ -1,3 +1,6 @@
+# ── Generated codemap files (clog builder context) ────
+codemap.md
+
 # ── Build outputs (Makefile writes to bin/) ──────────
 bin/
 /gormes

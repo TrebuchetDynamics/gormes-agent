@@ -140,6 +140,17 @@ All planner and builder skills talk through these files. **Do not bypass them.**
 | Changing the row schema or rendered docs | `internal/progress/` and the schema doc rendered at `docs/content/building-gormes/builder-loop/progress-schema.md` |
 | Onboarding to the architecture with no prior context | this file, then `docs/content/building-gormes/_index.md` |
 
+## Repository Map
+
+A full codemap is available at `codemap.md` in the project root.
+
+Before working on any task, read `codemap.md` to understand:
+- Project architecture and entry points
+- Directory responsibilities and design patterns
+- Data flow and integration points between modules
+
+For deep work on a specific folder, also read that folder's `codemap.md`.
+
 <!-- karpathy-guidelines:start -->
 ## Karpathy-Inspired Agent Guardrails
 
