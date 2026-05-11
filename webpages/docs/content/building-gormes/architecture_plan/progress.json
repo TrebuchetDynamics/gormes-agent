@@ -31264,10 +31264,10 @@
           "items": [
             {
               "name": "Atomic file write helper with temp+rename pattern",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Implement a reusable atomic file write helper that writes to a temp file in the same directory and renames into place, matching Hermes' atomic write semantics. The helper validates the target directory, handles partial-write cleanup, and never overwrites the original until the temp write succeeds.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
@@ -31305,10 +31305,10 @@
             },
             {
               "name": "File tool atomic checkpoint integration",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Integrate the atomic write helper into file_tools operations that write user files: write_file, edit_file, patch, and template rendering use temp+rename so crashes during writes cannot leave partial or corrupted user files.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
