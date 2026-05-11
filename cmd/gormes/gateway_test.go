@@ -587,3 +587,262 @@ func TestGatewayManagerConfig_TitleModelNonNilWithBoltMap(t *testing.T) {
 		t.Error("TitleStore is nil; production gateway cannot persist auto-titles")
 	}
 }
+
+func TestRegisterConfiguredGatewayChannels_TelegramPerAccountTokens(t *testing.T) {
+	var registered []string
+	factories := gatewayChannelFactories{
+		Telegram: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
+			registered = append(registered, cfg.Telegram.BotToken+":"+cfg.Telegram.AccountID)
+			return &telegramPerAccountFakeChannel{name: "telegram", accountID: cfg.Telegram.AccountID}, nil
+		},
+	}
+
+	cfg := config.Config{
+		Telegram: config.TelegramCfg{
+			BotToken: "global:token",
+			Accounts: map[string]config.TelegramAccountCfg{
+				"main":   {BotToken: "main:token", AllowedChatID: 111},
+				"mineru": {BotToken: "mineru:token", AllowedChatID: 222},
+			},
+		},
+	}
+
+	mgr := gateway.NewManager(gateway.ManagerConfig{}, nil, slog.Default())
+	allowedChats := map[string]string{}
+	allowDiscovery := map[string]bool{}
+	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
+
+	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	if err != nil {
+		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
+	}
+
+	if count != 2 {
+		t.Errorf("registered count = %d, want 2", count)
+	}
+	if len(registered) != 2 {
+		t.Fatalf("factory calls = %d, want 2", len(registered))
+	}
+
+	want := map[string]bool{"main:token:main": true, "mineru:token:mineru": true}
+	for _, r := range registered {
+		if !want[r] {
+			t.Errorf("unexpected factory call %q, want one of %v", r, want)
+		}
+		delete(want, r)
+	}
+	if len(want) > 0 {
+		t.Errorf("missing expected factory calls: %v", want)
+	}
+}
+
+type telegramPerAccountFakeChannel struct {
+	name      string
+	accountID string
+}
+
+func (c *telegramPerAccountFakeChannel) Name() string {
+	if c.accountID != "" {
+		return c.name + ":" + c.accountID
+	}
+	return c.name
+}
+func (c *telegramPerAccountFakeChannel) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+func (c *telegramPerAccountFakeChannel) Send(ctx context.Context, chatID, text string) (string, error) {
+	return "", nil
+}
+
+func TestRegisterConfiguredGatewayChannels_DiscordPerAccountTokens(t *testing.T) {
+	var registered []string
+	factories := gatewayChannelFactories{
+		Discord: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
+			registered = append(registered, cfg.Discord.Token+":"+cfg.Discord.AccountID)
+			return &discordPerAccountFakeChannel{name: "discord", accountID: cfg.Discord.AccountID}, nil
+		},
+	}
+
+	cfg := config.Config{
+		Discord: config.DiscordCfg{
+			Token: "global:token",
+			Accounts: map[string]config.DiscordAccountCfg{
+				"main":   {Token: "main:token", AllowedChannelID: "111"},
+				"mineru": {Token: "mineru:token", AllowedChannelID: "222"},
+			},
+		},
+	}
+
+	mgr := gateway.NewManager(gateway.ManagerConfig{}, nil, slog.Default())
+	allowedChats := map[string]string{}
+	allowDiscovery := map[string]bool{}
+	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
+
+	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	if err != nil {
+		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
+	}
+
+	if count != 2 {
+		t.Errorf("registered count = %d, want 2", count)
+	}
+	if len(registered) != 2 {
+		t.Fatalf("factory calls = %d, want 2", len(registered))
+	}
+
+	want := map[string]bool{"main:token:main": true, "mineru:token:mineru": true}
+	for _, r := range registered {
+		if !want[r] {
+			t.Errorf("unexpected factory call %q, want one of %v", r, want)
+		}
+		delete(want, r)
+	}
+	if len(want) > 0 {
+		t.Errorf("missing expected factory calls: %v", want)
+	}
+}
+
+type discordPerAccountFakeChannel struct {
+	name      string
+	accountID string
+}
+
+func (c *discordPerAccountFakeChannel) Name() string {
+	if c.accountID != "" {
+		return c.name + ":" + c.accountID
+	}
+	return c.name
+}
+func (c *discordPerAccountFakeChannel) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+func (c *discordPerAccountFakeChannel) Send(ctx context.Context, chatID, text string) (string, error) {
+	return "", nil
+}
+
+func TestRegisterConfiguredGatewayChannels_SlackPerAccountTokens(t *testing.T) {
+	var registered []string
+	factories := gatewayChannelFactories{
+		Slack: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
+			registered = append(registered, cfg.Slack.BotToken+":"+cfg.Slack.AppToken+":"+cfg.Slack.AccountID)
+			return &slackPerAccountFakeChannel{name: "slack", accountID: cfg.Slack.AccountID}, nil
+		},
+	}
+
+	cfg := config.Config{
+		Slack: config.SlackCfg{
+			Enabled:  true,
+			BotToken: "global:bot",
+			AppToken: "global:app",
+			Accounts: map[string]config.SlackAccountCfg{
+				"main":   {BotToken: "main:bot", AppToken: "main:app", AllowedChannelID: "C111"},
+				"mineru": {BotToken: "mineru:bot", AppToken: "mineru:app", AllowedChannelID: "C222"},
+			},
+		},
+	}
+
+	mgr := gateway.NewManager(gateway.ManagerConfig{}, nil, slog.Default())
+	allowedChats := map[string]string{}
+	allowDiscovery := map[string]bool{}
+	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
+
+	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	if err != nil {
+		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
+	}
+
+	if count != 2 {
+		t.Errorf("registered count = %d, want 2", count)
+	}
+	if len(registered) != 2 {
+		t.Fatalf("factory calls = %d, want 2", len(registered))
+	}
+
+	want := map[string]bool{"main:bot:main:app:main": true, "mineru:bot:mineru:app:mineru": true}
+	for _, r := range registered {
+		if !want[r] {
+			t.Errorf("unexpected factory call %q, want one of %v", r, want)
+		}
+		delete(want, r)
+	}
+	if len(want) > 0 {
+		t.Errorf("missing expected factory calls: %v", want)
+	}
+}
+
+type slackPerAccountFakeChannel struct {
+	name      string
+	accountID string
+}
+
+func (c *slackPerAccountFakeChannel) Name() string {
+	if c.accountID != "" {
+		return c.name + ":" + c.accountID
+	}
+	return c.name
+}
+func (c *slackPerAccountFakeChannel) Run(ctx context.Context, inbox chan<- gateway.InboundEvent) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+func (c *slackPerAccountFakeChannel) Send(ctx context.Context, chatID, text string) (string, error) {
+	return "", nil
+}
+
+func TestRegisterConfiguredGatewayChannels_MissingAccountTokenReportsDegraded(t *testing.T) {
+	var registered []string
+	factories := gatewayChannelFactories{
+		Telegram: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
+			registered = append(registered, cfg.Telegram.BotToken+":"+cfg.Telegram.AccountID)
+			return &telegramPerAccountFakeChannel{name: "telegram", accountID: cfg.Telegram.AccountID}, nil
+		},
+	}
+
+	cfg := config.Config{
+		Telegram: config.TelegramCfg{
+			BotToken: "global:token",
+			Accounts: map[string]config.TelegramAccountCfg{
+				"main":   {BotToken: "main:token", AllowedChatID: 111},
+				"mineru": {BotToken: "", AllowedChatID: 222},
+			},
+		},
+	}
+
+	mgr := gateway.NewManager(gateway.ManagerConfig{}, nil, slog.Default())
+	allowedChats := map[string]string{}
+	allowDiscovery := map[string]bool{}
+	status := gateway.NewRuntimeStatusStore(filepath.Join(t.TempDir(), "status.json"))
+
+	count, err := registerConfiguredGatewayChannels(mgr, cfg, allowedChats, allowDiscovery, factories, status, slog.Default())
+	if err != nil {
+		t.Fatalf("registerConfiguredGatewayChannels: %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("registered count = %d, want 1", count)
+	}
+	if len(registered) != 1 {
+		t.Fatalf("factory calls = %d, want 1", len(registered))
+	}
+	if registered[0] != "main:token:main" {
+		t.Errorf("factory call = %q, want main:token:main", registered[0])
+	}
+
+	snap, err := status.ReadRuntimeStatusSnapshot(context.Background())
+	if err != nil {
+		t.Fatalf("ReadRuntimeStatusSnapshot: %v", err)
+	}
+
+	foundDegraded := false
+	for _, p := range snap.Status.Platforms {
+		if p.State == gateway.PlatformStateFailed && strings.Contains(p.ErrorMessage, "mineru") {
+			foundDegraded = true
+			break
+		}
+	}
+	if !foundDegraded {
+		t.Errorf("expected degraded status for missing mineru token, got platforms=%+v", snap.Status.Platforms)
+	}
+}

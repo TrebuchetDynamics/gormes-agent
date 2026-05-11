@@ -51,6 +51,7 @@ type Config struct {
 	// AttachmentHTTPClient fetches SSRF-gated URL fallbacks in tests and
 	// production. Empty uses a bounded default client.
 	AttachmentHTTPClient *http.Client
+	AccountID             string
 	// SkillCollector returns the current gateway-visible skill command set for
 	// Discord autocomplete refreshes. Nil means this adapter has no cached skill
 	// group to refresh.
@@ -119,7 +120,12 @@ func New(cfg Config, session discordSession, log *slog.Logger) *Bot {
 	return b
 }
 
-func (b *Bot) Name() string { return "discord" }
+func (b *Bot) Name() string {
+	if b.cfg.AccountID != "" {
+		return "discord:" + b.cfg.AccountID
+	}
+	return "discord"
+}
 
 func isForumChannel(ch *discordgo.Channel) bool {
 	return ch != nil && ch.Type == discordgo.ChannelTypeGuildForum

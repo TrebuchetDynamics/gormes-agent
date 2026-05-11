@@ -276,7 +276,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	}
 	signal.Notify(signals, shutdownSignals...)
 	defer signal.Stop(signals)
-	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model)
+	reg := buildDefaultRegistry(rootCtx, cfg, hc, cfg.Hermes.Model, withSessionSearch(mstore.DB(), smap))
 	toolAudit := audit.NewJSONLWriter(config.ToolAuditLogPath())
 
 	// Initialize Goncho for cross-session memory persistence.
@@ -352,7 +352,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
 		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
-		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model)
+		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
 		if nextCfg.AgentRouting.Enabled {
 			nextCfg.AgentRuntimeFactory = newGatewayAgentRuntimeFactory(rootCtx, next, mstore, gonchoStore)
@@ -483,6 +483,7 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				FreeResponseChannels: cfg.Slack.FreeResponseChannels,
 				ChannelSkillBindings: cfg.Slack.ChannelSkillBindings,
 				ChannelPrompts:       cfg.Slack.ChannelPrompts,
+				AccountID:            cfg.Slack.AccountID,
 			}), nil
 		},
 		Teams: func(config.Config, *slog.Logger) (gateway.Channel, error) {
@@ -691,7 +692,8 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 	}
 	registered := 0
 
-	if cfg.Telegram.BotToken != "" {
+	tgAccounts := cfg.Telegram.Accounts
+	if len(tgAccounts) == 0 && cfg.Telegram.BotToken != "" {
 		if factories.Telegram == nil {
 			return registered, fmt.Errorf("register telegram: missing channel factory")
 		}
@@ -709,8 +711,39 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 		registered++
 		log.Info("gateway: telegram channel enabled", "allowed_chat_id", cfg.Telegram.AllowedChatID, "allowed_user_count", len(cfg.Telegram.AllowedUserIDs))
 	}
+	for accountID, acct := range tgAccounts {
+		if acct.BotToken == "" {
+			writeGatewayChannelDegraded(status, "telegram", fmt.Sprintf("telegram account %s: missing bot_token", accountID))
+			log.Warn("gateway: telegram account disabled by missing token", "account", accountID)
+			continue
+		}
+		if factories.Telegram == nil {
+			return registered, fmt.Errorf("register telegram: missing channel factory")
+		}
+		acctCfg := cfg
+		acctCfg.Telegram.BotToken = acct.BotToken
+		acctCfg.Telegram.AllowedChatID = acct.AllowedChatID
+		acctCfg.Telegram.AllowedUserIDs = acct.AllowedUserIDs
+		acctCfg.Telegram.AccountID = accountID
+		ch, err := factories.Telegram(acctCfg, log)
+		if err != nil {
+			writeGatewayChannelDegraded(status, "telegram", fmt.Sprintf("telegram account %s: startup failed: %s", accountID, err.Error()))
+			log.Warn("gateway: telegram account startup failed", "account", accountID, "err", err)
+			continue
+		}
+		if err := mgr.Register(ch); err != nil {
+			return registered, fmt.Errorf("register telegram account %s: %w", accountID, err)
+		}
+		if acct.AllowedChatID != 0 {
+			allowedChats["telegram:"+accountID] = strconv.FormatInt(acct.AllowedChatID, 10)
+		}
+		allowDiscovery["telegram:"+accountID] = cfg.Telegram.FirstRunDiscovery
+		registered++
+		log.Info("gateway: telegram account enabled", "account", accountID, "allowed_chat_id", acct.AllowedChatID, "allowed_user_count", len(acct.AllowedUserIDs))
+	}
 
-	if cfg.Discord.Enabled() {
+	discordAccounts := cfg.Discord.Accounts
+	if len(discordAccounts) == 0 && cfg.Discord.Enabled() {
 		if factories.Discord == nil {
 			return registered, fmt.Errorf("register discord: missing channel factory")
 		}
@@ -728,8 +761,39 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 		registered++
 		log.Info("gateway: discord channel enabled", "allowed_channel_id", cfg.Discord.AllowedChannelID)
 	}
+	for accountID, acct := range discordAccounts {
+		if acct.Token == "" {
+			writeGatewayChannelDegraded(status, "discord", fmt.Sprintf("discord account %s: missing token", accountID))
+			log.Warn("gateway: discord account disabled by missing token", "account", accountID)
+			continue
+		}
+		if factories.Discord == nil {
+			return registered, fmt.Errorf("register discord: missing channel factory")
+		}
+		acctCfg := cfg
+		acctCfg.Discord.Token = acct.Token
+		acctCfg.Discord.AllowedChannelID = acct.AllowedChannelID
+		acctCfg.Discord.AllowedChannels = acct.AllowedChannels
+		acctCfg.Discord.AccountID = accountID
+		ch, err := factories.Discord(acctCfg, log)
+		if err != nil {
+			writeGatewayChannelDegraded(status, "discord", fmt.Sprintf("discord account %s: startup failed: %s", accountID, err.Error()))
+			log.Warn("gateway: discord account startup failed", "account", accountID, "err", err)
+			continue
+		}
+		if err := mgr.Register(ch); err != nil {
+			return registered, fmt.Errorf("register discord account %s: %w", accountID, err)
+		}
+		if acct.AllowedChannelID != "" {
+			allowedChats["discord:"+accountID] = acct.AllowedChannelID
+		}
+		allowDiscovery["discord:"+accountID] = cfg.Discord.FirstRunDiscovery
+		registered++
+		log.Info("gateway: discord account enabled", "account", accountID, "allowed_channel_id", acct.AllowedChannelID)
+	}
 
-	if cfg.Slack.Enabled {
+	slackAccounts := cfg.Slack.Accounts
+	if len(slackAccounts) == 0 && cfg.Slack.Enabled {
 		if cfg.Slack.AllowedChannelID != "" {
 			allowedChats["slack"] = cfg.Slack.AllowedChannelID
 		}
@@ -756,6 +820,36 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 				log.Info("gateway: slack channel enabled", "allowed_channel_id", cfg.Slack.AllowedChannelID)
 			}
 		}
+	}
+	for accountID, acct := range slackAccounts {
+		if acct.BotToken == "" || acct.AppToken == "" {
+			writeGatewayChannelDegraded(status, "slack", fmt.Sprintf("slack account %s: missing bot_token or app_token", accountID))
+			log.Warn("gateway: slack account disabled by missing token", "account", accountID)
+			continue
+		}
+		if factories.Slack == nil {
+			return registered, fmt.Errorf("register slack: missing channel factory")
+		}
+		acctCfg := cfg
+		acctCfg.Slack.BotToken = acct.BotToken
+		acctCfg.Slack.AppToken = acct.AppToken
+		acctCfg.Slack.AllowedChannelID = acct.AllowedChannelID
+		acctCfg.Slack.AccountID = accountID
+		ch, err := factories.Slack(acctCfg, log)
+		if err != nil {
+			writeGatewayChannelDegraded(status, "slack", fmt.Sprintf("slack account %s: startup failed: %s", accountID, err.Error()))
+			log.Warn("gateway: slack account startup failed", "account", accountID, "err", err)
+			continue
+		}
+		if err := mgr.Register(ch); err != nil {
+			return registered, fmt.Errorf("register slack account %s: %w", accountID, err)
+		}
+		if acct.AllowedChannelID != "" {
+			allowedChats["slack:"+accountID] = acct.AllowedChannelID
+		}
+		allowDiscovery["slack:"+accountID] = cfg.Slack.FirstRunDiscovery
+		registered++
+		log.Info("gateway: slack account enabled", "account", accountID, "allowed_channel_id", acct.AllowedChannelID)
 	}
 
 	if cfg.Teams.Enabled {

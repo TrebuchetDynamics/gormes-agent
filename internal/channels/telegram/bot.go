@@ -55,6 +55,7 @@ type Config struct {
 	// BotUserID is optional and lets Telegram text_mention entities target the
 	// bot by user ID when Telegram does not emit an @username mention.
 	BotUserID int64
+	AccountID string
 	// Notifications controls Telegram push behavior. "important" is the
 	// Hermes-compatible default: placeholders/progress are silent while final
 	// sends and approval prompts still notify. "all" preserves legacy behavior.
@@ -134,7 +135,12 @@ func New(cfg Config, client telegramClient, log *slog.Logger) *Bot {
 	}
 }
 
-func (b *Bot) Name() string { return "telegram" }
+func (b *Bot) Name() string {
+	if b.cfg.AccountID != "" {
+		return "telegram:" + b.cfg.AccountID
+	}
+	return "telegram"
+}
 
 func telegramReactionsEnabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("TELEGRAM_REACTIONS"))) {
@@ -349,6 +355,7 @@ func (b *Bot) toInboundEvent(ctx context.Context, u tgbotapi.Update) (gateway.In
 		Kind:        kind,
 		Text:        body,
 		Attachments: attachments,
+		AccountID:   b.cfg.AccountID,
 	}
 	if guestBypass {
 		ev.AllowlistBypassReason = gateway.AllowlistBypassTelegramGuestMention
