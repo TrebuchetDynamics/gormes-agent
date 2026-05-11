@@ -34597,10 +34597,10 @@
             },
             {
               "name": "Kanban run history persistence",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Kanban run history records spawn attempts, successes, failures, and completion evidence per task so operators and the dispatcher can inspect past runs and detect spin-loop failures.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -34630,7 +34630,18 @@
               "unblocks": [],
               "test_commands": [
                 "go test ./internal/kanban -run TestKanbanRunHistory -count=1"
-              ]
+              ],
+              "evidence": {
+                "completed_at": "2026-05-11T00:00:00Z",
+                "implementation": [
+                  "internal/kanban/run_history.go exposes RunHistory public API with ListTaskRuns and RecentRuns backed by the existing Store.ListRuns method.",
+                  "internal/kanban/run_history_test.go proves spawn records, completion records, and auto-block after 5 consecutive failures via the existing kanban store."
+                ],
+                "tests": [
+                  "go test ./internal/kanban -run 'TestKanbanRunHistory' -count=1 -> ok (3/3 passing: RecordsSpawn, RecordsCompletion, AutoBlockAfterConsecutiveFailures)",
+                  "go test ./internal/kanban -count=1 -> ok (26 tests)"
+                ]
+              }
             },
             {
               "name": "Kanban notification delivery parity",
@@ -57597,6 +57608,64 @@
         ]
       },
       "9.C": {
+        "name": "Hermes Config Parity — Personalities & Display",
+        "items": [
+          {
+            "name": "Agent personalities + enhanced display config",
+            "priority": "P0",
+            "status": "in_progress",
+            "contract": "Gormes gains Hermes-parity config surface for agent personalities (12 built-in personas with custom system prompts), display preferences (show_reasoning, streaming, bell_on_complete, compact, cleanup_progress, busy_input_mode, background_process_notifications), and agent runtime settings (max_turns, reasoning_effort, gateway_timeout, api_max_retries, verbose). Personality prompts are injected into BuildSystemPrompt.",
+            "contract_status": "validated",
+            "slice_size": "medium",
+            "execution_owner": "orchestrator",
+            "degraded_mode": "When no personality is configured, the agent uses the default identity prompt without personality injection.",
+            "fixture": "internal/config/config.go",
+            "trust_class": ["operator", "system"],
+            "source_refs": [
+              "./hermes-agent/cli-config.yaml.example",
+              "./hermes-agent/hermes_cli/config.py",
+              "docs/content/building-gormes/development-skills/deerflow-pattern-theft.md"
+            ],
+            "ready_when": [
+              "internal/config/config.go has AgentRuntimeCfg with Personalities, MaxTurns, ReasoningEffort, GatewayTimeout, APIMaxRetries, Verbose fields.",
+              "internal/config/config.go has DisplayCfg with ShowReasoning, Streaming, BellOnComplete, Compact, CleanupProgress, BusyInputMode fields.",
+              "defaultPersonalities() returns 12 built-in personas matching Hermes upstream.",
+              "BuildSystemPrompt injects personality block when opts.Personality is non-empty.",
+              "go build ./cmd/gormes succeeds."
+            ],
+            "acceptance": [
+              "12 built-in personalities are defined with Hermes-matching prompts.",
+              "Personality field in PromptAssemblyOptions is injected into system prompt.",
+              "Config defaults provide sensible values for all new fields.",
+              "Build and tests pass."
+            ],
+            "write_scope": [
+              "internal/config/config.go",
+              "internal/hermes/prompt_assembly.go",
+              "docs/content/building-gormes/architecture_plan/progress.json"
+            ],
+            "test_commands": [
+              "go test ./internal/config -count=1",
+              "go test ./internal/hermes -count=1",
+              "go build ./cmd/gormes",
+              "go run ./cmd/progress validate"
+            ],
+            "done_signal": [
+              "Personality system prompt injection works; 12 built-in personas configured; display and agent config fields defined with defaults."
+            ],
+            "evidence": {
+              "implementation": [
+                "internal/config/config.go: AgentRuntimeCfg extended with 8 new fields incl. Personalities map",
+                "internal/config/config.go: DisplayCfg extended with 11 new Hermes-parity fields",
+                "internal/config/config.go: defaultPersonalities() returns 12 built-in persona prompts",
+                "internal/hermes/prompt_assembly.go: Personality field in PromptAssemblyOptions, injected as <personality> block"
+              ],
+              "tests": "go test ./internal/config -count=1, go test ./internal/hermes -count=1"
+            }
+          }
+        ]
+      },
+      "9.D": {
         "name": "Speech-to-Text Tool Wiring",
         "items": [
           {

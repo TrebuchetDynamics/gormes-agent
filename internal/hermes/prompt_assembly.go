@@ -13,6 +13,7 @@ type PromptAssemblyOptions struct {
 	ModelGuidanceOpts      ModelPromptGuidanceOptions
 	TurnMetadataOpts       TurnMetadataOptions
 	DurableUserContextOpts DurableUserContextOptions
+	Personality            string // optional personality system prompt override
 }
 
 type PromptAssemblyResult struct {
@@ -39,6 +40,14 @@ func BuildSystemPrompt(opts PromptAssemblyOptions) PromptAssemblyResult {
 		Included: true,
 		Reason:   identity.Source,
 	})
+
+	if p := strings.TrimSpace(opts.Personality); p != "" {
+		block := "<personality>\n" + p + "\n</personality>"
+		blocks = append(blocks, block)
+		evidence = append(evidence, PromptBlockEvidence{
+			Block: "personality", Included: true, Reason: "config",
+		})
+	}
 
 	if ctx, report := BuildContextFilesPrompt(opts.ContextFilesOpts); ctx != "" {
 		blocks = append(blocks, ctx)
