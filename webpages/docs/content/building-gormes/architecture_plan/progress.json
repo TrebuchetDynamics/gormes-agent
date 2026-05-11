@@ -53945,7 +53945,7 @@
           {
             "name": "Session auto-reset + STT config parity",
             "priority": "P1",
-            "status": "in_progress",
+            "status": "complete",
             "contract": "Gormes gains Hermes-parity session reset (auto-clear sessions on inactivity/daily boundary) and STT config surface. Session reset checks the configured policy before processing each message and auto-resets stale sessions. STT config exposes enabled/provider/local model/openai model in config.toml.",
             "contract_status": "validated",
             "slice_size": "small",
@@ -53987,7 +53987,17 @@
             ],
             "done_signal": [
               "Session auto-reset works with inactivity/daily/both/none policies; STT config fields exposed in config.toml."
-            ]
+            ],
+            "evidence": {
+              "implementation": [
+                "internal/config/config.go: STTCfg with Enabled, Provider, Local.Model, Local.Language, OpenAI.Model fields",
+                "internal/config/config.go: SessionResetPolicy/AfterMinutes/DailyHour fields in RuntimeCfg",
+                "internal/gateway/manager.go: SessionResetPolicy/IdleMinutes/DailyHour fields in ManagerConfig",
+                "internal/gateway/manager.go: checkAutoReset() evaluates inactivity/daily/both/none policies",
+                "internal/gateway/manager_test.go: TestCheckAutoReset_* covers all policy branches"
+              ],
+              "tests": "go test ./internal/config -count=1 | go test ./internal/gateway -run TestCheckAutoReset -count=1 | go build ./cmd/gormes"
+            }
           }
           ],
           "drift_state": {
