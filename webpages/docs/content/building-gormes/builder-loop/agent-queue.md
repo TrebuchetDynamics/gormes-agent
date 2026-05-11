@@ -47,27 +47,7 @@ selection.
 - Source refs: ./hermes-agent/cli-config.yaml.example, ./hermes-agent/hermes_cli/config.py, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 2. Session auto-reset + STT config parity
-
-- Phase: 6 / 6.L
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `in_progress`
-- Priority: `P1`
-- Contract: Gormes gains Hermes-parity session reset (auto-clear sessions on inactivity/daily boundary) and STT config surface. Session reset checks the configured policy before processing each message and auto-resets stale sessions. STT config exposes enabled/provider/local model/openai model in config.toml.
-- Trust class: operator, system
-- Ready when: ManagerConfig has SessionResetPolicy/SessionResetIdleMinutes/SessionResetDailyHour fields., checkAutoReset() evaluates inactivity/daily/both/none policies., Config struct has STTCfg with enabled/provider/local/openai fields., go build ./cmd/gormes succeeds.
-- Not ready when: Session reset policies are not implemented in manager.go., STT config fields are missing from config.go.
-- Degraded mode: When session_reset policy is 'none', sessions persist indefinitely (legacy behavior). When STT is not configured, transcription defaults to local provider with base model.
-- Fixture: `internal/gateway/manager.go`
-- Write scope: `internal/config/config.go`, `internal/gateway/manager.go`, `cmd/gormes/gateway.go`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/config -count=1`, `go test ./internal/gateway -count=1`, `go build ./cmd/gormes`, `go run ./cmd/progress validate`
-- Done signal: Session auto-reset works with inactivity/daily/both/none policies; STT config fields exposed in config.toml.
-- Acceptance: ManagerConfig has SessionResetPolicy/SessionResetIdleMinutes/SessionResetDailyHour fields., checkAutoReset() evaluates inactivity/daily/both/none policies before submitting turns., Config struct has STTCfg with enabled/provider/local/openai fields., Build and tests pass.
-- Source refs: ./hermes-agent/cli-config.yaml.example, ./hermes-agent/hermes_cli/config.py
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 3. TD engineering blog scaffolded and live
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -89,7 +69,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 4. Tirith external security finding ingestion
+## 3. Tirith external security finding ingestion
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -109,7 +89,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py finding ingestion, ../hermes-agent/tests/test_tirith.py
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Unified security guard decision composer
+## 4. Unified security guard decision composer
 
 - Phase: 5 / 5.J
 - Owner: `docs`
@@ -129,27 +109,7 @@ selection.
 - Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Kanban notification delivery parity
-
-- Phase: 5 / 5.M
-- Owner: `orchestrator`
-- Size: `small`
-- Status: `planned`
-- Priority: `P2`
-- Contract: Kanban worker completion triggers notification delivery to the board owner's configured channel (Telegram/Discord/Slack) with task summary and run evidence.
-- Trust class: operator, system
-- Ready when: Existing Kanban completion path and gateway notification surface are validated.
-- Not ready when: -
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/kanban/notifications.go`, `internal/kanban/notifications_test.go`
-- Test commands: `go test ./internal/kanban -run TestKanbanNotification -count=1`
-- Done signal: Notification delivery passes tests with platform-specific message formatting.
-- Acceptance: TestKanbanNotificationOnComplete proves worker completion sends a notification message to the configured platform., TestKanbanNotificationOnFailure proves worker failure sends an error notification., TestKanbanNotificationThrottle proves rapid consecutive completions are throttled to one notification per board per minute.
-- Source refs: ../hermes-agent/hermes_cli/kanban.py notify-* methods
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 7. Installer script serving and MIME validation
+## 5. Installer script serving and MIME validation
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -169,7 +129,7 @@ selection.
 - Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. DingTalk real SDK binding
+## 6. DingTalk real SDK binding
 
 - Phase: 7 / 7.E
 - Owner: `docs`
@@ -189,7 +149,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Agentic-porting-kit repo scaffold
+## 7. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -210,7 +170,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Sandbox provider interface and virtual path security
+## 8. Sandbox provider interface and virtual path security
 
 - Phase: 9 / 9.B
 - Owner: `orchestrator`

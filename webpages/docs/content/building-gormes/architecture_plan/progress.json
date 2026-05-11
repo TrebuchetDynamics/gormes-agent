@@ -34668,10 +34668,10 @@
             },
             {
               "name": "Kanban notification delivery parity",
-              "status": "planned",
+              "status": "complete",
               "priority": "P2",
               "contract": "Kanban worker completion triggers notification delivery to the board owner's configured channel (Telegram/Discord/Slack) with task summary and run evidence.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "orchestrator",
               "trust_class": [
@@ -34694,6 +34694,24 @@
               "done_signal": [
                 "Notification delivery passes tests with platform-specific message formatting."
               ],
+              "note": "Complete 2026-05-11: added ThrottledNotifySender that wraps NotifySender with per-board rate limiting (default 1 min). Three acceptance tests cover completion notification, failure notification, and throttle suppression across rapid consecutive events.",
+              "evidence": {
+                "implementation": [
+                  "internal/kanban/notifications.go:ThrottledNotifySender (per-board rate-limited sender)",
+                  "internal/kanban/notifications.go:NewThrottledNotifySender (constructor with default 1 min rate)",
+                  "internal/kanban/notifications.go:NewThrottledNotifySenderWithClock (testable constructor with fake clock)",
+                  "internal/kanban/notifications.go:DefaultNotifyThrottleRate (1 minute constant)"
+                ],
+                "tests": [
+                  "internal/kanban/notifications_test.go:TestKanbanNotificationOnComplete",
+                  "internal/kanban/notifications_test.go:TestKanbanNotificationOnFailure",
+                  "internal/kanban/notifications_test.go:TestKanbanNotificationThrottle"
+                ],
+                "verification": [
+                  "go test ./internal/kanban -run 'TestKanbanNotification' -count=1 -> ok",
+                  "go test ./internal/kanban -count=1 -> ok"
+                ]
+              },
               "source_refs": [
                 "../hermes-agent/hermes_cli/kanban.py notify-* methods"
               ],

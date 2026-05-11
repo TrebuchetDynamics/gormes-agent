@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 89/104 subphases shipped · 11 in progress · 4 planned
+**Overall:** 91/104 subphases shipped · 9 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,8 +95,8 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 19/23 subphases |
-| Phase 6 — The Learning Loop (Soul) | 🔨 | 8/12 subphases |
+| Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
+| Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
 | Phase 9 — Design & Security Hardening | 🔨 | 2/4 subphases |
@@ -891,7 +891,7 @@ classification and row-backed implementation queue.
 - [x] V4A patch apply rollback for native patch tool
 - [x] Patch replace post-write verification
 
-### 5.M — Mixture of Agents 🔨
+### 5.M — Mixture of Agents ✅
 
 - [x] Multi-model coordination
 - [x] Hermes Kanban durable board core
@@ -910,7 +910,7 @@ classification and row-backed implementation queue.
 - [x] Kanban multi-board isolation
 - [x] Kanban workspace context injection
 - [x] Kanban run history persistence
-- [ ] Kanban notification delivery parity
+- [x] Kanban notification delivery parity
 - [x] Kanban chat board DB pin
 - [x] Kanban schema migration duplicate-column race guard
 - [x] Kanban notify subscription store and CLI
@@ -1259,12 +1259,12 @@ classification and row-backed implementation queue.
 - [x] Iterative prompt mutation and scoring loop
 - [x] Behavioral pattern extraction from session logs
 
-### 6.L — Composable Skill Execution (Voyager) 🔨
+### 6.L — Composable Skill Execution (Voyager) ✅
 
 - [x] Skill code execution runtime
 - [x] Skill dependency resolution and composition
 - [x] Agent personalities + enhanced display config
-- [ ] Session auto-reset + STT config parity
+- [x] Session auto-reset + STT config parity
 
 ## Phase 7 — Paused Channel Backlog 🔨
 
