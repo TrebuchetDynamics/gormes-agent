@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/agent"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
@@ -94,6 +95,11 @@ type Config struct {
 	// Hooks receive the raw LLM output and may reshape, redact, or filter it.
 	// First non-empty string result wins; errors are logged and original preserved.
 	TransformLLMOutput plugins.TransformLLMOutputRunner
+	// AgentMiddleware is an ordered chain of middlewares that run Before and After
+	// each agent turn. Before hooks run in chain order before the turn starts;
+	// a Before error aborts the turn. After hooks run in reverse chain order
+	// after the turn completes (or fails). Nil means no middlewares are active.
+	AgentMiddleware *agent.MiddlewareChain
 }
 
 // AgentLifecyclePoint identifies the lifecycle stage.
@@ -349,6 +355,27 @@ func (k *Kernel) Run(ctx context.Context) error {
 func (k *Kernel) runTurn(ctx context.Context, text string, contentParts []hermes.MessageContentPart, sessionContext, cronJobID, model, reasoningOverride string) {
 	prov := newProvenance(k.cfg.Endpoint)
 	defer func() { k.pendingSteers = nil }()
+
+	// 0a. Middleware chain: Before hooks (chain order).
+	if chain := k.cfg.AgentMiddleware; chain != nil {
+		mwCtx := &agent.MiddlewareContext{
+			ThreadID:  k.cfg.ChatKey,
+			SessionID: k.sessionID,
+			Model:     model,
+		}
+		if err := chain.Before(mwCtx); err != nil {
+			k.lastError = err.Error()
+			k.emitFrame(err.Error())
+			return
+		}
+		defer func() {
+			if afterErr := chain.After(mwCtx); afterErr != nil {
+				k.lastError = afterErr.Error()
+				k.emitFrame("middleware after error: " + afterErr.Error())
+			}
+		}()
+	}
+
 	if k.cfg.AgentLifecycleHook != nil {
 		sid := k.sessionID
 		defer func() {
