@@ -2224,7 +2224,6 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated)",
                 "Live-turn tool-use enforcement guidance block (model-substring gated)",
                 "Live-turn environment hints block (WSL/Termux/Docker gated)"
               ],
@@ -2322,9 +2321,7 @@
                 "The slice attempts to implement relevance-based memory retrieval or memory-nudge counter hydration; those are separate runtime surfaces."
               ],
               "blocked_by": [],
-              "unblocks": [
-                "Live-turn tool guidance constants block (memory/session_search/skills, tool-availability gated)"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "RED: `go test ./internal/hermes -run TestGuidanceConstants_MemoryGuidance_ByteEquivalent -count=1` fails before implementation with the missing upstream stale-artifact exclusion text.",
                 "GREEN: the same focused test passes after `internal/hermes.MemoryGuidance` includes the upstream PR/issue/SHA/7-day-stale exclusion sentence byte-for-byte.",
@@ -16382,9 +16379,7 @@
                 "The slice changes Goncho/Honcho memory extraction semantics; memory pre/post-compression observation remains a separate Phase 3/4 concern.",
                 "The slice edits any testdata fixture except internal/hermes/testdata/context_status/disabled_pressure_unknown_tool.json."
               ],
-              "unblocks": [
-                "ContextEngine compression-boundary notification"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "A new CompressionBoundary value carries old_session_id, new_session_id, reason, and compressed_at or equivalent stable lineage evidence.",
                 "DisabledContextEngine or an in-package fake can record one boundary callback and expose last boundary evidence through Status without contacting a provider.",
@@ -16816,7 +16811,6 @@
                 "The slice calls a provider, reads credentials, or infers available tools from the live registry instead of using injected test data."
               ],
               "unblocks": [
-                "Memory and session-search guidance assembly",
                 "Native full prompt assembly",
                 "Codex/Gemini prompt parity"
               ],
@@ -16899,7 +16893,6 @@
                 "SKILL.md frontmatter validation guard"
               ],
               "unblocks": [
-                "Memory and session-search guidance assembly",
                 "Native full prompt assembly"
               ],
               "acceptance": [
@@ -22913,7 +22906,7 @@
                 "The slice treats broad `environments/**` coverage as complete without exact parser-family rows."
               ],
               "unblocks": [
-                "Docker",
+                "Docker execution backend (container lifecycle + mount policy)",
                 "Modal",
                 "Daytona",
                 "Singularity",
@@ -23264,7 +23257,7 @@
                 "The slice treats /new, /reset, or TUI session changes as new Docker task IDs for the top-level agent."
               ],
               "unblocks": [
-                "Docker"
+                "Docker execution backend (container lifecycle + mount policy)"
               ],
               "acceptance": [
                 "TestDockerContainerKey_TopLevelDefault: empty TaskID with IsSubagent=false and IsRollout=false returns \"default\".",
@@ -24229,7 +24222,6 @@
                 "Go-native Hermes web backend matrix and config resolver"
               ],
               "unblocks": [
-                "Managed Firecrawl gateway runtime/OAuth routing",
                 "Toolset/status metadata parity for web provider availability"
               ],
               "acceptance": [
@@ -24326,7 +24318,6 @@
                 "Go-native Hermes web extract safety policy and summarizer"
               ],
               "unblocks": [
-                "Managed Firecrawl gateway runtime/OAuth routing",
                 "Toolset/status metadata parity for web provider availability"
               ],
               "acceptance": [
@@ -36632,7 +36623,6 @@
               ],
               "unblocks": [
                 "Steer slash command registry + queue fallback",
-                "ContextEngine compression-boundary notification",
                 "Custom provider model-switch key_env write guard",
                 "Native TUI /save XDG export helper",
                 "Native TUI conversation viewport tail helper"
@@ -38511,9 +38501,7 @@
                 "The row requires live channel connections for capability discovery.",
                 "The implementation hardcodes a separate per-channel capability table instead of deriving support from the manifest."
               ],
-              "unblocks": [
-                "Channel configuration UX"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "`gormes channels capabilities --channel telegram` shows Telegram support, intents, scopes, supported features, format limitations, and configured status from a fixture config.",
                 "`gormes channels capabilities` renders every manifest channel in stable order and marks unconfigured channels as not configured without opening runtime stores.",
@@ -38574,9 +38562,7 @@
                 "The row broadens Teams runtime delivery beyond configured-state reporting.",
                 "The implementation hardcodes a channel capability report outside the platform manifest instead of keeping manifest-derived support metadata."
               ],
-              "unblocks": [
-                "Channel configuration UX"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "HermesGatewayPlatformManifest includes `teams` as a source-backed plugin channel with row-backed/partial support metadata.",
                 "`gormes channels capabilities --channel teams` marks Teams configured when `[teams].enabled = true` and includes only redacted status detail.",
@@ -44189,8 +44175,7 @@
                 "The row is assigned as one management-CLI migration instead of separate gateway read-model, cron admin, webhook helper, and platform command slices."
               ],
               "unblocks": [
-                "Gateway management CLI read-model closeout",
-                "Cron management CLI over native store"
+                "Gateway management CLI read-model closeout"
               ],
               "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
               "completed_at": "2026-05-08T03:56:15Z"
@@ -44363,8 +44348,7 @@
                 "The slice invokes systemd/sc.exe, opens live channel clients, changes service restart polling, or creates another gateway state file."
               ],
               "unblocks": [
-                "Gateway mutating-subcommand unavailability stub",
-                "Cron management CLI over native store"
+                "Gateway mutating-subcommand unavailability stub"
               ],
               "acceptance": [
                 "TestGatewayStatusCommand_RendersConfiguredChannelsFromReadModels in cmd/gormes/gateway_status_test.go renders configured Telegram/Discord/Slack channels, pairing status, runtime validation, and missing-state evidence from fake stores.",
@@ -54063,8 +54047,7 @@
                 "reply_mode=off still sets root_id, or reply_mode=thread drops root_id for replies."
               ],
               "unblocks": [
-                "Mattermost REST/WS bootstrap layer",
-                "Mattermost media upload contract"
+                "Mattermost REST/WS bootstrap layer"
               ],
               "acceptance": [
                 "TestMattermostSeamParsePostedEvent proves double-encoded posted events yield gateway text, channel ID, sender ID, message ID, chat type, and canonical root_id thread ID.",
@@ -54302,8 +54285,7 @@
                 "Mattermost shared-chassis bot seam"
               ],
               "unblocks": [
-                "Mattermost live transport binding",
-                "Mattermost media upload contract"
+                "Mattermost live transport binding"
               ],
               "acceptance": [
                 "TestMattermostBootstrapConfigAndAuth probes fake users/me and proves missing token/url and auth failure degrade with redacted evidence.",
