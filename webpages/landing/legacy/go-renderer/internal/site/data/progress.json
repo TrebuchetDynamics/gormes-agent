@@ -23688,8 +23688,7 @@
               ],
               "unblocks": [
                 "Chromedp",
-                "Rod",
-                "Browser action runtime provider selection"
+                "Rod"
               ],
               "acceptance": [
                 "TestBrowserProviderBridgeConfigGates proves Browserbase requires API key plus project ID, Firecrawl requires API key, and missing config produces browser_provider_unconfigured without constructing an HTTP request.",
@@ -23779,9 +23778,7 @@
                 "Browser provider bridge + Firecrawl fallback",
                 "Browser hybrid private-URL local sidecar routing"
               ],
-              "unblocks": [
-                "Browser action runtime provider selection"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestCamofoxConfigMode proves CAMOFOX_URL enables Camofox, blank BROWSER_CDP_URL does not suppress it, nonblank BROWSER_CDP_URL suppresses it, and missing CAMOFOX_URL returns browser_provider_unconfigured without HTTP calls.",
                 "TestCamofoxManagedIdentityMatchesHermesUUID5 proves a fixed state root produces Hermes-compatible user_id/session_key values and that the same profile reuses user_id while task IDs change session_key.",
@@ -23879,9 +23876,7 @@
                 "Browser hybrid private-URL local sidecar routing",
                 "Browser SSRF quoted-false guard"
               ],
-              "unblocks": [
-                "Browser action runtime provider selection"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestBrowserUseConfigGates proves direct Browser Use credentials, managed gateway credentials, unconfigured degraded evidence, and deterministic cloud-provider preference without live network calls.",
                 "TestBrowserUseCreateSessionMapsCDP proves managed /browsers creation maps provider id, CDP/live URLs, feature flags, idempotency, profile presence bits, and external-call evidence without leaking profile values.",
@@ -44755,9 +44750,7 @@
                 "The row is assigned as one combined diagnostics/backup/logs/status migration instead of log snapshot, status summary, backup manifest, and optional upload slices."
               ],
               "unblocks": [
-                "CLI log snapshot reader",
-                "CLI status summary over native stores",
-                "Backup manifest dry-run contract"
+                "CLI log snapshot reader"
               ],
               "note": "Closed 2026-05-08T03:56:15Z: all child rows are complete (84/84 shipped). Umbrella is inert — no remaining work.",
               "completed_at": "2026-05-08T03:56:15Z"
@@ -44879,9 +44872,7 @@
                 "The slice includes checkpoints/, *.db-wal, *.db-shm, or *.db-journal files in a default backup manifest.",
                 "The slice changes log redaction or support-upload behavior."
               ],
-              "unblocks": [
-                "Backup manifest dry-run contract"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestBackupPolicy_DefaultSkipsPreUpdateBackup proves no backup is requested when neither --backup nor --no-backup is set.",
                 "TestBackupPolicy_ExplicitBackupEnables proves --backup requests a backup and emits backup_forced evidence.",
@@ -45042,9 +45033,7 @@
                 "The slice changes any other doctor check's behaviour.",
                 "The slice ports Hermes Python config.yaml reading."
               ],
-              "unblocks": [
-                "CLI status summary over native stores"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestDoctorCustomEndpointAllSet: cfg with Endpoint='https://example.invalid', APIKey='secret', Model='m' returns CheckResult{Name='Custom endpoint', Status=StatusPass, Summary contains 'configured'} and no items are flagged Warn.",
                 "TestDoctorCustomEndpointMissingAPIKey: cfg with Endpoint set, APIKey empty, Model='m' returns Status=StatusWarn with an item Name='api_key' Status=StatusWarn Note='missing'.",
@@ -45304,10 +45293,7 @@
               "blocked_by": [
                 "CLI log redactor for known secret shapes"
               ],
-              "unblocks": [
-                "CLI status summary over native stores",
-                "Backup manifest dry-run contract"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestSnapshotLogs_MissingFileSetsMissingTrue: nonexistent path under t.TempDir() yields LogSection{Missing: true, Truncated: false, Unreadable: \"\"} and the function does not return an error.",
                 "TestSnapshotLogs_SmallFileSetsHeadOnlyTruncatedFalse: a 100-byte file with default opts yields Head with the full content, Tail==nil, Truncated=false.",
@@ -54509,8 +54495,7 @@
               ],
               "unblocks": [
                 "Feishu drive-comment rule + pairing seam",
-                "Feishu drive-comment reply workflow",
-                "Feishu live SDK binding"
+                "Feishu drive-comment reply workflow"
               ],
               "acceptance": [
                 "TestFeishuBootstrapConnectionModeSelectsWebhookOrWebsocket proves config/env select the intended lifecycle without live clients.",
@@ -54584,7 +54569,6 @@
                 "Feishu transport/bootstrap layer"
               ],
               "unblocks": [
-                "Feishu live SDK binding",
                 "Gateway update prompt watcher parity"
               ],
               "acceptance": [
@@ -54750,7 +54734,6 @@
                 "Feishu transport/bootstrap layer"
               ],
               "unblocks": [
-                "Feishu live SDK binding",
                 "Native gateway agent invocation for document comments"
               ],
               "acceptance": [
@@ -55216,7 +55199,6 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Google Chat Workspace transport binding",
                 "Google Chat approval keyboard parity"
               ],
               "acceptance": [
@@ -55279,7 +55261,6 @@
                 "Google Chat shared-chassis platform adapter seam"
               ],
               "unblocks": [
-                "Google Chat Workspace transport binding",
                 "Plugin standalone sender out-of-process cron delivery"
               ],
               "acceptance": [
@@ -55346,9 +55327,7 @@
                 "Google Chat relay sender-type self-filter",
                 "Plugin standalone sender cron delivery fallback"
               ],
-              "unblocks": [
-                "Google Chat Workspace transport binding"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGoogleChatStandaloneSenderValidatesResourceNames proves invalid spaces/users/thread resource names fail before token or poster calls, while spaces/<id>, users/<id>, and spaces/<id>/threads/<id> are accepted.",
                 "TestGoogleChatStandaloneSenderPostsTextOnlyMessage proves a valid cron target builds https://chat.googleapis.com/v1/{chat_id}/messages, uses Authorization: Bearer <token>, posts JSON with text and optional thread.name, returns the message name, and ignores media attachments on the standalone path.",
@@ -55420,9 +55399,7 @@
               "blocked_by": [
                 "Google Chat shared-chassis platform adapter seam"
               ],
-              "unblocks": [
-                "Google Chat Workspace transport binding"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestGoogleChatPluginMetadataMatchesHermesDocsInstallHint proves PluginMetadata().InstallHint uses the direct Google dependency install command from Hermes fef1a4124 docs.",
                 "Existing Google Chat metadata, relay, standalone sender, and delivery-without-transport fixtures remain green.",
