@@ -9,7 +9,7 @@ hide_table_of_contents: true
 
 Source data: `hermes-agent/website/src/data/userStories.json`
 
-This static mirror summarizes 121 verified upstream user stories from the
+This static mirror summarizes 237 verified upstream user stories from the
 Hermes website data file. The upstream site renders the full interactive grid;
 this archive keeps the source-backed count, category shape, and recent examples
 visible without copying the whole quote database.
@@ -18,11 +18,16 @@ visible without copying the whole quote database.
 
 | Category | Stories |
 |---|---:|
-| `personal-assistant` | 24 |
-| `dev-workflow` | 20 |
-| `integrations` | 15 |
-| `meta` | 11 |
-| `business-ops` | 8 |
+| `dev-workflow` | 60 |
+| `personal-assistant` | 40 |
+| `creative` | 18 |
+| `meta` | 18 |
+| `integrations` | 25 |
+| `business-ops` | 13 |
+| `cost-optimization` | 11 |
+| `research` | 8 |
+| `messaging` | 8 |
+| `enterprise` | 9 |
 
 ## Fresh Representative Entries
 

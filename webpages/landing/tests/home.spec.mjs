@@ -6,8 +6,9 @@ const landingBenchmarks = JSON.parse(readFileSync(new URL('../src/data/benchmark
 const rootBenchmarks = JSON.parse(readFileSync(new URL('../../../benchmarks.json', import.meta.url), 'utf8'));
 const logoSvg = readFileSync(new URL('../public/static/gormes-agent-logo-blue.svg', import.meta.url), 'utf8');
 const releaseTag = release.tag || `v${release.version}`;
-const releaseLabel = release.date_alias
-  ? `Current scout release: ${releaseTag} (${release.date_alias})`
+const releaseDateAlias = release.date_alias || '';
+const releaseLabel = releaseDateAlias
+  ? `Current scout release: ${releaseTag} (${releaseDateAlias})`
   : `Current scout release: ${releaseTag}`;
 const releaseLabelPattern = new RegExp(escapeRegExp(releaseLabel));
 
@@ -27,47 +28,43 @@ test('homepage renders the redesigned landing', async ({ page }) => {
 
   await page.goto('/');
 
-  await expect(page).toHaveTitle('Gormes — Autonomously porting Python to Go, in production');
+  await expect(page).toHaveTitle('Gormes — Run AI agents from a single binary');
   await expect(page.locator('html[data-site-runtime="astro-tailwind"]')).toHaveCount(1);
-  // Hero leads with the autonomous-porting methodology and the v1 differentiator;
-  // Hermes parity is supporting evidence, not the lede.
-  await expect(page.getByRole('heading', { name: 'Autonomously porting Python to Go, in production.' })).toBeVisible();
-  await expect(page.getByText("TrebuchetDynamics built an agentic engineering loop that ports large Python codebases to Go in production — under TDD discipline, validation-gated commits, and a contract-typed plan. Gormes is the receipt.")).toBeVisible();
-  await expect(page.getByText('That receipt runs the 30 most-used Hermes skills unchanged in one Go binary on Termux, Windows-without-Python, and locked-down corp Linux. No pip, no venv, no Docker daemon.')).toBeVisible();
-  await expect(page.getByText('Build from source or run install.sh, prove the machine offline, then add provider and gateway credentials.')).toBeVisible();
+  // Hero leads with the outcome (single binary, no Python) not the methodology.
+  await expect(page.getByRole('heading', { name: 'Run AI agents from a single binary.' })).toBeVisible();
+  await expect(page.getByText('One Go binary. 30 Hermes skills. Local SQLite memory. Telegram, Discord, and Slack gateways.')).toBeVisible();
+  await expect(page.getByText('No Python runtime. No Docker daemon. No dependency drift. Runs on Termux, Windows, and locked-down corp Linux.')).toBeVisible();
+  await expect(page.getByText('Build from source or run install.sh. Prove it works offline, then add your provider.')).toBeVisible();
   await expect(page.getByText('Scout release.')).toBeVisible();
   await expect(page.getByText('Offline TUI, onboarding, provider turns, local SQLite memory, dashboard, and Telegram/Discord/Slack gateway paths are available now.')).toBeVisible();
   await expect(page.getByText('Release signing, voice/TTS, and full Hermes parity are still hardening.')).toBeVisible();
-  await expect(page.locator('.topnav a')).toHaveText(['Methodology', 'Install', 'Trust', 'Roadmap', 'GitHub']);
+  await expect(page.locator('.topnav a')).toHaveText(['Why Gormes', 'Install', 'Trust', 'Roadmap', 'GitHub']);
   await expect(page.getByRole('img', { name: 'GORMES-AGENT' })).toHaveAttribute('src', '/static/gormes-agent-logo-blue.svg');
   await expect(page.locator('img[src="/static/go-gopher-bear-lowpoly.png"]')).toHaveCount(1);
-  await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Choose an install path');
-  await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('See the methodology');
+  await expect(page.locator('.hero-ctas .btn-primary')).toHaveText('Install in 30 seconds');
+  await expect(page.locator('.hero-ctas .btn-secondary')).toHaveText('See what works');
   // The differentiator chips are visually emphasized in the proof strip.
   await expect(page.locator('.proof-item-pop').getByText('30 Hermes skills curated', { exact: true })).toBeVisible();
   await expect(page.locator('.proof-item-pop').getByText('1 Go binary', { exact: true })).toBeVisible();
-  await expect(page.locator('.proof-item-pop').getByText('3 hard targets: Termux / Windows / locked Linux', { exact: true })).toBeVisible();
+  await expect(page.locator('.proof-item-pop').getByText(`${landingBenchmarks.code.test_count.toLocaleString()} tests passing`, { exact: true })).toBeVisible();
+  await expect(page.locator('.proof-item-pop').getByText(`${landingBenchmarks.properties.platforms.length} platforms`, { exact: true })).toBeVisible();
 
-  // Methodology section — the receipt-producing engine.
-  await expect(page.getByRole('heading', { name: 'How the receipt is produced.' })).toBeVisible();
-  await expect(page.getByText("Gormes is the artifact TrebuchetDynamics' agentic engineering system produces.")).toBeVisible();
-  await expect(page.getByText('The methodology is the product. Hermes-parity is supporting evidence the methodology works.')).toBeVisible();
-  await expect(page.getByText('Loop output, measured today')).toBeVisible();
-  await expect(page.locator('.methodology-metric').getByText('Validated rows shipped', { exact: true })).toBeVisible();
-  await expect(page.locator('.methodology-metric').getByText('770+', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Validation-gated commits' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'progress.json as system of record' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Reusable porting toolkit' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Hermes is the parity oracle, not the contract' })).toBeVisible();
-  await expect(page.getByText('Read how the loop works ->')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Who this is for' })).toBeVisible();
-  await expect(page.getByText('Engineering teams curious how an autonomous loop ports Python projects to Go in production')).toBeVisible();
-  await expect(page.getByText('Teams that require signed enterprise releases, full Hermes parity, voice/TTS, or broad channel parity today.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Trust posture' })).toBeVisible();
-  await expect(page.getByText('Source build and inspectable install.sh are the two promoted scout-release paths.')).toBeVisible();
-  await expect(page.getByText('install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.')).toBeVisible();
-  await expect(page.getByText(`Current measured Linux build: ~${landingBenchmarks.binary.size_mb} MB (${landingBenchmarks.binary.last_measured})`)).toBeVisible();
-  await expect(page.getByText('Progress and benchmark data sync from repo sources during every landing build.')).toBeVisible();
+  // Stats bar
+  await expect(page.locator('.stats-grid')).toBeVisible();
+  await expect(page.locator('.stat-item')).toHaveCount(5);
+  await expect(page.locator('.stat-value').getByText(`${landingBenchmarks.code.go_files}`, { exact: true })).toBeVisible();
+  await expect(page.locator('.stat-value').getByText(`${landingBenchmarks.code.test_count.toLocaleString()}`, { exact: true })).toBeVisible();
+
+  // Why section — moved before methodology
+  await expect(page.getByRole('heading', { name: 'Python-stack agents fail for boring reasons.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gormes cuts out that failure class' })).toBeVisible();
+  await expect(page.getByText('The model is not usually the fragile part. Operations are:')).toBeVisible();
+  await expect(page.getByText('dev, staging, and prod stop matching')).toBeVisible();
+  await expect(page.getByText('virtualenvs and package wheels drift across hosts')).toBeVisible();
+  await expect(page.getByText('long turns die on dropped streams')).toBeVisible();
+  await expect(page.getByText('tool wiring fails after tokens are already burning')).toBeVisible();
+
+  // Built-for section
   await expect(page.getByRole('heading', { name: 'What works today' })).toBeVisible();
   await expect(page.getByText('Run a local agent UI with zero runtime dependencies on the offline path')).toBeVisible();
   await expect(page.getByText('Send one-shot prompts to a provider-compatible endpoint')).toBeVisible();
@@ -81,25 +78,8 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('.support-card').getByText('In roadmap validation', { exact: true })).toBeVisible();
   await expect(page.getByText('Telegram, Discord, and Slack.', { exact: true })).toBeVisible();
   await expect(page.getByText('WhatsApp, WeChat, Signal, Matrix, and Mattermost.', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Python-stack agents fail for boring reasons.' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Gormes cuts out that failure class' })).toBeVisible();
-  await expect(page.getByText('The model is not usually the fragile part. Operations are:')).toBeVisible();
-  await expect(page.getByText('dev, staging, and prod stop matching')).toBeVisible();
-  await expect(page.getByText('virtualenvs and package wheels drift across hosts')).toBeVisible();
-  await expect(page.getByText('long turns die on dropped streams')).toBeVisible();
-  await expect(page.getByText('tool wiring fails after tokens are already burning')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Core runtime shipped. Production hardening and broader parity are in progress.' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Shipped in scout' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Hardening now' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Later', exact: true })).toBeVisible();
-  await expect(page.getByText('Source-backed install.sh and setup handoff')).toBeVisible();
-  await expect(page.getByText('Onboard/setup flows', { exact: true })).toBeVisible();
-  await expect(page.getByText('Local SQLite memory and sessions')).toBeVisible();
-  await expect(page.getByText('Logs, security audit, and secrets audit')).toBeVisible();
-  await expect(page.getByText('Learning loop and operator feedback paths')).toBeVisible();
-  await expect(page.getByText('Release checksums, signing, and package-manager lanes')).toBeVisible();
-  await expect(page.getByText('Next milestone')).toBeVisible();
-  await expect(page.getByText('Production-stable Go-native runtime with signed releases and broader Hermes parity')).toBeVisible();
+
+  // Install section
   await expect(page.getByRole('heading', { name: 'Two install paths. One gormes command.' })).toBeVisible();
   await expect(page.getByText('Build from source when you want maximum inspection.')).toBeVisible();
   await expect(page.getByText('Use install.sh when you want a source-backed managed install that publishes the stable gormes command.')).toBeVisible();
@@ -124,6 +104,33 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.locator('#install').getByText('./bin/gormes')).toHaveCount(0);
   await expect(page.locator('#install').getByText('GORMES_ENDPOINT=')).toHaveCount(0);
   await expect(page.getByText('Both paths end at the same gormes command. install.sh also runs gormes setup when a terminal is available.')).toBeVisible();
+
+  // Hero install snippet
+  await expect(page.locator('.hero-install-snippet code')).toContainText('curl -fsSLO https://gormes.ai/install.sh');
+
+  // Trust section
+  await expect(page.getByRole('heading', { name: 'Who this is for' })).toBeVisible();
+  await expect(page.getByText('Developers and operators who want local, inspectable agent infrastructure that survives restarts, bad networks, and dependency drift')).toBeVisible();
+  await expect(page.getByText('Teams that require signed enterprise releases, full Hermes parity, voice/TTS, or broad channel parity today.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Trust posture' })).toBeVisible();
+  await expect(page.getByText('Source build and inspectable install.sh are the two promoted scout-release paths.')).toBeVisible();
+  await expect(page.getByText('install.sh clones or updates a managed source checkout, builds gormes, verifies the command, and can hand off to setup.')).toBeVisible();
+  await expect(page.getByText(`Current measured Linux build: ~${landingBenchmarks.binary.size_mb} MB (${landingBenchmarks.binary.last_measured})`)).toBeVisible();
+  await expect(page.getByText('Progress and benchmark data sync from repo sources during every landing build.')).toBeVisible();
+
+  // Methodology section — moved after trust
+  await expect(page.getByRole('heading', { name: "Autonomously ported from Python to Go." })).toBeVisible();
+  await expect(page.getByText("Gormes is produced by an autonomous engineering loop: planner → builder → TDD-slice. Every commit passes go test, progress validate, and git diff --check. Hermes is the parity oracle; the methodology is the product.")).toBeVisible();
+  await expect(page.getByText('Loop output, measured today')).toBeVisible();
+  await expect(page.locator('.methodology-metric').getByText('Validated rows shipped', { exact: true })).toBeVisible();
+  await expect(page.locator('.methodology-metric').getByText('770+', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Validation-gated commits' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'progress.json as system of record' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Reusable porting toolkit' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hermes is the parity oracle, not the contract' })).toBeVisible();
+  await expect(page.getByText('Read how the loop works ->')).toBeVisible();
+
+  // Feature cards
   await expect(page.getByRole('heading', { name: 'Single Binary Runtime' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Offline Proof', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Built-In Doctor' })).toBeVisible();
@@ -132,13 +139,32 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Visible Limits' })).toBeVisible();
   await expect(page.getByText('Full Hermes parity, broad channel parity, voice/TTS, MCP/plugin parity')).toBeVisible();
   await expect(page.getByText('Read the install docs ->')).toBeVisible();
-  // New conversion sections
-  await expect(page.locator('.proof-item').getByText('Validation-gated autonomous loop', { exact: true })).toBeVisible();
-  await expect(page.locator('.proof-item').getByText(releaseLabel, { exact: true })).toBeVisible();
-  await expect(page.locator('.footer-left').getByText(releaseLabelPattern)).toBeVisible();
+
+  // Roadmap
+  await expect(page.getByRole('heading', { name: 'Core runtime shipped. Production hardening and broader parity are in progress.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Shipped in scout' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hardening now' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Later', exact: true })).toBeVisible();
+  await expect(page.getByText('Source-backed install.sh and setup handoff')).toBeVisible();
+  await expect(page.getByText('Onboard/setup flows', { exact: true })).toBeVisible();
+  await expect(page.getByText('Local SQLite memory and sessions')).toBeVisible();
+  await expect(page.getByText('Logs, security audit, and secrets audit')).toBeVisible();
+  await expect(page.getByText('Learning loop and operator feedback paths')).toBeVisible();
+  await expect(page.getByText('Release checksums, signing, and package-manager lanes')).toBeVisible();
+  await expect(page.getByText('Next milestone')).toBeVisible();
+  await expect(page.getByText('Production-stable Go-native runtime with signed releases and broader Hermes parity')).toBeVisible();
+
+  // Explore + Final CTA
   await expect(page.getByRole('heading', { name: 'Explore' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Prove the runtime locally before you ever spend a token.' })).toBeVisible();
   await expect(page.getByText('Build from source or inspect install.sh, run the offline doctor, then add credentials only after the machine has proven itself.')).toBeVisible();
+
+  // Proof strip general items
+  await expect(page.locator('.proof-item').getByText('Validation-gated autonomous loop', { exact: true })).toBeVisible();
+  await expect(page.locator('.proof-item').getByText(releaseLabel, { exact: true })).toBeVisible();
+  await expect(page.locator('.footer-left').getByText(releaseLabelPattern)).toBeVisible();
+
+  // Stale content regression guards
   await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toHaveCount(0);
   await expect(page.getByText('Run Hermes Through a Go Operator Console.')).toHaveCount(0);
   await expect(page.getByText('Why Hermes breaks in production')).toHaveCount(0);
@@ -146,8 +172,9 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
-  // Copy buttons require a tiny inline clipboard script — bounded to the two install methods.
-  await expect(page.locator('button.copy-btn')).toHaveCount(2);
+
+  // Copy buttons: hero snippet + 2 install methods = 3 total
+  await expect(page.locator('button.copy-btn')).toHaveCount(3);
 });
 
 test('built-with page lists truthful deployments and submission template', async ({ page }) => {
@@ -184,7 +211,7 @@ for (const vp of MOBILE_VIEWPORTS) {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Autonomously porting Python to Go, in production.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Run AI agents from a single binary.' })).toBeVisible();
     await expect(page.getByText('git clone https://github.com/TrebuchetDynamics/gormes-agent.git')).toBeVisible();
 
     const heroLayout = await page.evaluate(() => {
@@ -206,10 +233,10 @@ for (const vp of MOBILE_VIEWPORTS) {
     expect(pageOverflow, `page body overflows at ${vp.width}px`).toBeFalsy();
 
     // Copy buttons stay visible + tappable on every supported viewport.
-    // Two install methods: source build and install.sh.
+    // Three copy buttons: hero snippet + two install methods.
     const copyButtons = page.locator('button.copy-btn');
-    await expect(copyButtons).toHaveCount(2);
-    for (let i = 0; i < 2; i++) {
+    await expect(copyButtons).toHaveCount(3);
+    for (let i = 0; i < 3; i++) {
       const btn = copyButtons.nth(i);
       await expect(btn).toBeVisible();
       const box = await btn.boundingBox();
