@@ -83,3 +83,14 @@ func (p *ClientPool) Reset() {
 	defer p.mu.Unlock()
 	p.clients = make(map[string]hermes.Client)
 }
+
+// Invalidate removes the cached client for a single provider so the next
+// Get call re-invokes the factory. This is the production-safe mechanism
+// for credential rotation: when a provider credential is exhausted, the
+// caller invalidates the cached client and the next request selects a new
+// credential from the pool.
+func (p *ClientPool) Invalidate(name string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.clients, name)
+}

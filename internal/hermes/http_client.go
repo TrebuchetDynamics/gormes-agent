@@ -25,6 +25,9 @@ type httpClient struct {
 	temperatureRetry          ProviderTemperatureRetryStatus
 	parameterRetry            ProviderUnsupportedParameterRetryStatus
 	visionUnsupportedSessions map[string]bool
+	rateGuardMu               sync.Mutex
+	rateGuard                 GuardState
+	onCredentialExhausted     func(statusCode int, reason string, headers http.Header)
 }
 
 // NewHTTPClient returns a Client that talks HTTP+SSE to a
@@ -71,6 +74,20 @@ func (c *httpClient) ProviderStatus() ProviderStatus {
 	status.TemperatureRetry = c.temperatureRetry
 	status.UnsupportedParameterRetry = c.parameterRetry
 	c.mu.Unlock()
+	c.rateGuardMu.Lock()
+	rg := c.rateGuard
+	c.rateGuardMu.Unlock()
+	if rg.LastKnownClass == RateLimitGenuineQuota {
+		status.Capabilities.RateGuard = CapabilityStatus{
+			Available: true,
+			Reason:    string(StatusNousRateLimited),
+		}
+	} else if rg.LastKnownClass == RateLimitUpstreamCapacity {
+		status.Capabilities.RateGuard = CapabilityStatus{
+			Available: true,
+			Reason:    string(StatusNousUpstreamCapacity),
+		}
+	}
 	return status
 }
 
@@ -156,6 +173,12 @@ func (c *httpClient) OpenStream(ctx context.Context, req ChatRequest) (Stream, e
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		httpErr := newHTTPError(resp.StatusCode, string(raw), resp.Header)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			c.updateRateGuardFrom429(resp.Header)
+		}
+		if resp.StatusCode == http.StatusUnauthorized {
+			c.handleUnauthorized(resp.Header)
+		}
 		if retryReq, ok := c.planVisionUnsupportedRetry(req, httpErr); ok {
 			retryBody, retryDescriptors, err := c.buildOpenAICompatibleChatRequestBody(retryReq)
 			if err != nil {
@@ -301,6 +324,12 @@ func (c *httpClient) openCodexResponsesStream(ctx context.Context, req ChatReque
 		raw, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		httpErr := newHTTPError(resp.StatusCode, string(raw), resp.Header)
+		if resp.StatusCode == http.StatusTooManyRequests {
+			c.updateRateGuardFrom429(resp.Header)
+		}
+		if resp.StatusCode == http.StatusUnauthorized {
+			c.handleUnauthorized(resp.Header)
+		}
 		if retryReq, ok := c.planVisionUnsupportedRetry(req, httpErr); ok {
 			retryProviderReq, err := transport.BuildRequest(retryReq)
 			if err != nil {
@@ -373,6 +402,9 @@ func (c *httpClient) doChatCompletions(ctx context.Context, req ChatRequest, bod
 }
 
 func (c *httpClient) doProviderPost(ctx context.Context, sessionID, model, endpointPath string, body []byte, accept string) (*http.Response, error) {
+	if err := c.checkRateGuard(); err != nil {
+		return nil, err
+	}
 	// Header-phase budget enforced by Transport.ResponseHeaderTimeout (5s).
 	// The request ctx governs the full response lifetime including body reads —
 	// do NOT cancel it after Do returns or streaming breaks.
@@ -688,6 +720,35 @@ func baseURLHostname(rawBaseURL string) string {
 		}
 	}
 	return strings.ToLower(strings.TrimSuffix(parsed.Hostname(), "."))
+}
+
+func (c *httpClient) checkRateGuard() error {
+	c.rateGuardMu.Lock()
+	state := c.rateGuard
+	c.rateGuardMu.Unlock()
+	if state.LastKnownClass != RateLimitGenuineQuota {
+		return nil
+	}
+	if time.Since(state.LastKnownAt) < 5*time.Minute {
+		return fmt.Errorf("rate_guard_active: provider is rate-limited (class=%s since=%s)", state.LastKnownClass, state.LastKnownAt.Format(time.RFC3339))
+	}
+	return nil
+}
+
+func (c *httpClient) updateRateGuardFrom429(headers http.Header) {
+	c.rateGuardMu.Lock()
+	defer c.rateGuardMu.Unlock()
+	c.rateGuard = ApplyClassification(c.rateGuard, time.Now(), Classify429(headers))
+	classification := string(c.rateGuard.LastKnownClass)
+	if c.onCredentialExhausted != nil && c.rateGuard.LastKnownClass != RateLimitInsufficientEvidence {
+		c.onCredentialExhausted(http.StatusTooManyRequests, classification, headers)
+	}
+}
+
+func (c *httpClient) handleUnauthorized(headers http.Header) {
+	if c.onCredentialExhausted != nil {
+		c.onCredentialExhausted(http.StatusUnauthorized, "auth_unauthorized", headers)
+	}
 }
 
 // OpenRunEvents subscribes to SSE stream for a run's events.
