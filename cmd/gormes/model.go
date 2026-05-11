@@ -116,6 +116,30 @@ func defaultModelProviderEntries() ([]cli.ProviderMenuEntry, error) {
 }
 
 func promptProviderChoice(in *os.File, out *os.File, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
+	// Use arrow-key interactive menu when stdin is a real terminal.
+	if term.IsTerminal(int(in.Fd())) {
+		menu := cli.NewInteractiveMenu(out, in, "Select provider (q to cancel):")
+		menu.WithHeader("Choose a provider")
+		opts := make([]cli.MenuOption, len(entries))
+		for i, e := range entries {
+			opts[i] = cli.MenuOption{ID: fmt.Sprintf("%d", i), Label: e.Label, Enabled: true}
+		}
+		menu.WithOptions(opts).WithDefaultIndex(defaultIndex)
+		selected, err := menu.Run()
+		if err != nil {
+			return -1, err
+		}
+		if selected == "" {
+			return -1, cli.ErrModelPickerCancelled
+		}
+		idx, _ := strconv.Atoi(selected)
+		if idx >= 0 && idx < len(entries) {
+			return idx, nil
+		}
+		return -1, fmt.Errorf("invalid provider choice")
+	}
+
+	// Fallback: line-buffered input for CI, tests, piped stdin.
 	cli.ClearScreen(out)
 	cli.PrintHeader(out, "Choose a provider")
 	for i, entry := range entries {
