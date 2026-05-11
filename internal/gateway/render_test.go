@@ -130,7 +130,7 @@ func TestFormatToolProgressPlain_ToolTraceFixtureMatrix(t *testing.T) {
 	}
 }
 
-func TestFormatToolProgressPlain_TruncatedWebPreviewsKeepRightEdge(t *testing.T) {
+func TestFormatToolProgressPlain_TruncatedWebPreviewsKeepLeftEdge(t *testing.T) {
 	f := kernel.RenderFrame{SoulEvents: []kernel.SoulEntry{
 		{At: time.Now(), Text: "tool: web_extract: https://docs.openclaw.ai/concepts/multi-agent"},
 		{At: time.Now(), Text: "tool: browser_navigate: https://docs.openclaw.ai/concepts/multi-agent"},
@@ -139,12 +139,12 @@ func TestFormatToolProgressPlain_TruncatedWebPreviewsKeepRightEdge(t *testing.T)
 
 	got := FormatToolProgressPlain(f)
 	for _, want := range []string{
-		`📄 web_extract: "...docs.openclaw.ai/concepts/multi-agent"`,
-		`🌐 browser_navigate: "...docs.openclaw.ai/concepts/multi-agent"`,
-		`🔍 web_search: "...concepts/multi-agent strings in tools"`,
+		`📄 web_extract: "https://docs.openclaw.ai/concepts/mul..."`,
+		`🌐 browser_navigate: "https://docs.openclaw.ai/concepts/mul..."`,
+		`🔍 web_search: "site:docs.openclaw.ai/concepts/multi-..."`,
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("FormatToolProgressPlain missing right-edge preview %q in:\n%s", want, got)
+			t.Fatalf("FormatToolProgressPlain missing left-edge preview %q in:\n%s", want, got)
 		}
 	}
 }
@@ -191,8 +191,8 @@ func TestFormatToolProgressPlain_MineruGatewayTranscriptShape(t *testing.T) {
 	for _, want := range []string{
 		`📚 skill_view: "gormes-hermes-parity"`,
 		`⏰ cronjob: "list"`,
-		`🌐 browser_navigate: "...www.reddit.com/r/WebAfterAI/s/example"`,
-		`🌐 browser_navigate: "...old.reddit.com/r/WebAfterAI/s/example"`,
+		`🌐 browser_navigate: "https://www.reddit.com/r/WebAfterAI/s..."`,
+		`🌐 browser_navigate: "https://old.reddit.com/r/WebAfterAI/s..."`,
 		`💻 terminal: "curl -L https://example.test/post.json"`,
 		`📸 browser_snapshot...`,
 		`💻 terminal: "curl -L https://example.test/post.json" (×2)`,
