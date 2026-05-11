@@ -49,27 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 2. Unified security guard decision composer
-
-- Phase: 5 / 5.J
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P3`
-- Contract: Compose Tirith findings, path-based allowlists, URL safety rules, and website policies into one security guard decision that gateway/cron/CLI can call before executing any tool. The composer resolves conflicts deterministically (deny wins over allow, policy overrides Tirith) and always returns typed evidence explaining the decision.
-- Trust class: operator, system
-- Ready when: Tirith external security finding ingestion row is complete., URL safety rules and website policy surfaces are mapped.
-- Not ready when: -
-- Degraded mode: If any policy source is unavailable, the composer continues with the remaining sources and reports guard_partial_evidence.
-- Fixture: `internal/security/guard_test.go`
-- Write scope: `internal/security/guard.go`, `internal/security/guard_test.go`
-- Test commands: `go test ./internal/security -run TestUnifiedGuard -count=1`
-- Done signal: Unified guard composer passes all acceptance tests and is callable from gateway/cron/CLI.
-- Acceptance: TestGuardDenyOverridesAllow proves a Tirith deny blocks even when the path allowlist permits., TestGuardPolicyOverridesTirith proves a URL policy explicitly permits even when Tirith warns., TestGuardEmptyComposerAllows proves with no policies loaded, the guard allows and reports guard_no_policies evidence.
-- Source refs: ../hermes-agent/agent/tirith.py decision composer, internal/tools/url_safety.go, internal/tools/website_policy.go
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
-## 3. Installer script serving and MIME validation
+## 2. Installer script serving and MIME validation
 
 - Phase: 5 / 5.P
 - Owner: `docs`
@@ -89,7 +69,7 @@ selection.
 - Source refs: www.gormes.ai/internal/site/assets.go, docs/superpowers/plans/2026-04-23-gormes-installer-parity.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. DingTalk real SDK binding
+## 3. DingTalk real SDK binding
 
 - Phase: 7 / 7.E
 - Owner: `docs`
@@ -109,7 +89,7 @@ selection.
 - Source refs: ../hermes-agent/gateway/platforms/dingtalk.py Stream Mode adapter, internal/channels/dingtalk/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. Agentic-porting-kit repo scaffold
+## 4. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
@@ -130,7 +110,7 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Sandbox provider interface and virtual path security
+## 5. Sandbox provider interface and virtual path security
 
 - Phase: 9 / 9.B
 - Owner: `orchestrator`

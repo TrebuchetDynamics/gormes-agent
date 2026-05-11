@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 92/104 subphases shipped · 8 in progress · 4 planned
+**Overall:** 93/104 subphases shipped · 7 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
+| Phase 5 — The Final Purge | 🔨 | 21/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -833,7 +833,7 @@ classification and row-backed implementation queue.
 - [x] Extension Lifecycle Hook System
 - [x] Plugin lifecycle hook: transform_llm_output
 
-### 5.J — Approval / Security Guards 🔨
+### 5.J — Approval / Security Guards ✅
 
 - [x] Dangerous action gating
 - [x] Gateway approval FIFO queue resolver
@@ -848,7 +848,7 @@ classification and row-backed implementation queue.
 - [x] Cron dangerous-command approval mode
 - [x] Cron approval mode config normalizer
 - [x] Tirith external security finding ingestion
-- [ ] Unified security guard decision composer
+- [x] Unified security guard decision composer
 - [x] Shell blocklist (36+ dangerous patterns)
 - [x] Filesystem scoping (folder-level read/write restrictions)
 - [x] Permission approval UX (inline y/n/always)
