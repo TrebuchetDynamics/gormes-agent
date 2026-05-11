@@ -37,10 +37,11 @@ Examples:
 		Use:   "list",
 		Short: "List all cron jobs with status and last run time",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := openCronStore(*dbFlag)
+			store, smap, err := openCronStore(*dbFlag)
 			if err != nil {
 				return err
 			}
+			defer smap.Close()
 			return runCronList(store)
 		},
 	}
@@ -50,10 +51,11 @@ Examples:
 		Short: "Remove a cron job by ID (prefix matching supported)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := openCronStore(*dbFlag)
+			store, smap, err := openCronStore(*dbFlag)
 			if err != nil {
 				return err
 			}
+			defer smap.Close()
 			return runCronRemove(store, args[0])
 		},
 	}
@@ -63,9 +65,12 @@ Examples:
 		Short: "Show detailed job info and recent run history",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, runStore, err := openCronStoreWithRuns(*dbFlag)
+			store, runStore, smap, err := openCronStoreWithRuns(*dbFlag)
 			if err != nil {
 				return err
+			}
+			if smap != nil {
+				defer smap.Close()
 			}
 			return runCronStatus(store, runStore, args[0])
 		},
@@ -75,23 +80,7 @@ Examples:
 	return cmd
 }
 
-func openCronStore(dbPath string) (*cron.Store, error) {
-	if dbPath == "" {
-		dbPath = config.SessionDBPath()
-	}
-	smap, err := session.OpenBolt(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open session DB %s: %w", dbPath, err)
-	}
-	store, err := cron.NewStore(smap.DB())
-	if err != nil {
-		smap.Close()
-		return nil, fmt.Errorf("open cron store: %w", err)
-	}
-	return store, nil
-}
-
-func openCronStoreWithRuns(dbPath string) (*cron.Store, *cron.RunStore, error) {
+func openCronStore(dbPath string) (*cron.Store, *session.BoltMap, error) {
 	if dbPath == "" {
 		dbPath = config.SessionDBPath()
 	}
@@ -104,7 +93,23 @@ func openCronStoreWithRuns(dbPath string) (*cron.Store, *cron.RunStore, error) {
 		smap.Close()
 		return nil, nil, fmt.Errorf("open cron store: %w", err)
 	}
-	return store, cron.NewRunStore(nil), nil
+	return store, smap, nil
+}
+
+func openCronStoreWithRuns(dbPath string) (*cron.Store, *cron.RunStore, *session.BoltMap, error) {
+	if dbPath == "" {
+		dbPath = config.SessionDBPath()
+	}
+	smap, err := session.OpenBolt(dbPath)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("open session DB %s: %w", dbPath, err)
+	}
+	store, err := cron.NewStore(smap.DB())
+	if err != nil {
+		smap.Close()
+		return nil, nil, nil, fmt.Errorf("open cron store: %w", err)
+	}
+	return store, nil, smap, nil // RunStore needs sql.DB; not wired here yet
 }
 
 func runCronList(store *cron.Store) error {
