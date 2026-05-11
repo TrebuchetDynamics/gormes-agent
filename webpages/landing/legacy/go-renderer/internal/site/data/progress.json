@@ -12829,8 +12829,7 @@
               ],
               "unblocks": [
                 "Goncho HTTP route parity over OpenAPI v3",
-                "Goncho webhook delivery retry worker contract",
-                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+                "Goncho webhook delivery retry worker contract"
               ],
               "acceptance": [
                 "CreateScopedKey refuses disabled auth, non-admin callers, missing scope, and missing JWT secrets.",
@@ -12978,8 +12977,7 @@
                 "The implementation claims broad route coverage from globbed routers without proving each OpenAPI path/method."
               ],
               "unblocks": [
-                "Goncho CLI command-tree parity",
-                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+                "Goncho CLI command-tree parity"
               ],
               "acceptance": [
                 "OpenAPIRouteManifest enumerates all 45 Honcho v3 path/method routes from docs/v3/openapi.json with operationId and tag evidence.",
@@ -13061,8 +13059,7 @@
                 "The implementation claims command parity without reading upstream honcho-cli source files and tests."
               ],
               "unblocks": [
-                "Gateway, platform, webhook, and cron management CLI",
-                "Honcho webhooks, keys, telemetry, and deploy divergence matrices"
+                "Gateway, platform, webhook, and cron management CLI"
               ],
               "acceptance": [
                 "gonchoCLICompatibilityManifest enumerates upstream global flags, shared scope flags, top-level commands, command groups, and subcommands from honcho-cli.",
@@ -13724,7 +13721,7 @@
               "unblocks": [
                 "Gemini Cloud Code request/stream mapper",
                 "OpenRouter compatible-provider routing",
-                "Google Code Assist",
+                "Google Code Assist project/quota resolver",
                 "Raw tool-call parser fixture matrix"
               ],
               "acceptance": [
@@ -15287,7 +15284,7 @@
               "unblocks": [
                 "Gemini Cloud Code request/stream mapper",
                 "OpenRouter compatible-provider routing",
-                "Google Code Assist",
+                "Google Code Assist project/quota resolver",
                 "Codex OAuth state + stale-token relogin"
               ],
               "acceptance": [
@@ -16901,7 +16898,6 @@
                 "Condition filtering treats missing available-tools/toolsets as restrictive; Hermes keeps backward compatibility by showing all skills when both filters are unknown."
               ],
               "blocked_by": [
-                "Phase 2.G skills runtime",
                 "SKILL.md frontmatter validation guard"
               ],
               "unblocks": [
@@ -23126,7 +23122,7 @@
               "unblocks": [
                 "OpenRouter compatible-provider routing",
                 "Gemini Cloud Code request/stream mapper",
-                "Google Code Assist"
+                "Google Code Assist project/quota resolver"
               ],
               "acceptance": [
                 "The manifest lists every upstream parser file with model family, expected input style, mapped/row-backed status, and target Go parser package.",
@@ -32009,7 +32005,6 @@
               ],
               "unblocks": [
                 "Checkpoint restore tool parity",
-                "Terminal backend config parity",
                 "Safe multi-agent file editing"
               ],
               "acceptance": [
@@ -32100,7 +32095,6 @@
                 "Native file task tool surface"
               ],
               "unblocks": [
-                "Terminal backend config parity",
                 "Gateway working-directory operator parity"
               ],
               "acceptance": [
@@ -32171,8 +32165,7 @@
                 "Terminal cwd config bridge"
               ],
               "unblocks": [
-                "File write/patch staleness registry + cwd tracking",
-                "Terminal backend config parity"
+                "File write/patch staleness registry + cwd tracking"
               ],
               "acceptance": [
                 "TestTerminalToolRecoversWhenConfiguredWorkdirDeleted creates and removes a configured nested cwd, then proves terminal execution runs from the nearest existing ancestor and reports cwd_recovered evidence.",
@@ -33010,9 +33003,7 @@
                 "Block-anchor fuzzy replace for native patch tool",
                 "V4A fuzzy hunk matching for native patch tool"
               ],
-              "unblocks": [
-                "Full file_operations.py parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestPatchToolFuzzyReplaceContextAwareHighLineSimilarity proves a unique block whose first/last lines are not exact anchors still applies when at least half its lines meet Hermes' 0.80 per-line similarity threshold.",
                 "TestPatchToolFuzzyReplaceContextAwareAmbiguousRequiresReplaceAll proves multiple threshold-qualified context-aware candidates fail without replace_all and replace all candidates when replace_all=true.",
@@ -33098,9 +33089,7 @@
               "blocked_by": [
                 "V4A fuzzy hunk matching for native patch tool"
               ],
-              "unblocks": [
-                "Full file_operations.py parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestPatchToolV4ARollbackOnApplyFailure proves a later V4A apply failure restores an earlier updated file and returns status=patch_apply_failed with rolled_back=true.",
                 "TestPatchToolV4ARollbackRemovesCreatedFiles proves a created file from an earlier action is removed when a later apply action fails.",
@@ -33185,9 +33174,7 @@
                 "Context-aware fuzzy replace for native patch tool",
                 "V4A patch apply rollback for native patch tool"
               ],
-              "unblocks": [
-                "Full file_operations.py parity"
-              ],
+              "unblocks": [],
               "acceptance": [
                 "TestPatchToolReplacePostWriteVerificationNoPersist injects a successful no-op write, proves the tool returns a post-write verification error instead of status ok, and proves the original file bytes remain unchanged.",
                 "TestPatchToolReplacePostWriteVerificationReadFailure injects a verify-read failure after a successful write and proves the tool returns a bounded verification error without file-state success evidence.",
@@ -51879,9 +51866,7 @@
                 "The slice changes skill selection scoring, candidate promotion, learning-loop distillation, or semantic lookup behavior.",
                 "The validator treats MISSING_OPEN, EMPTY_FRONTMATTER, YAML_PARSE, NULL_BYTES, NESTED_QUOTES, or SLUG_MISMATCH as warnings while still injecting the skill."
               ],
-              "blocked_by": [
-                "Phase 2.G skills runtime"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Portable SKILL.md format"
               ],
@@ -52010,8 +51995,7 @@
               ],
               "blocked_by": [
                 "SKILL.md frontmatter validation guard",
-                "Hermes creative skill metadata compatibility",
-                "Phase 2.G skills runtime"
+                "Hermes creative skill metadata compatibility"
               ],
               "unblocks": [
                 "LLM-assisted pattern distillation",
