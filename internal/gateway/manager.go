@@ -298,6 +298,9 @@ type Manager struct {
 
 	telegramTopicMu             sync.Mutex
 	telegramTopicCapabilityHint map[string]time.Time
+
+	modelPickerResolver ModelPickerResolver
+	modelOverride      SessionModelOverride
 }
 
 type channelRunFailure struct {
@@ -568,6 +571,8 @@ func newManagerInternal(cfg ManagerConfig, k kernelSubmitter, log *slog.Logger) 
 		agentRuntimeRender:          make(chan kernel.RenderFrame, kernel.RenderMailboxCap),
 		typingActionLast:            map[string]time.Time{},
 		telegramTopicCapabilityHint: map[string]time.Time{},
+		modelPickerResolver:         NewModelPickerResolver(&SessionModelOverride{}),
+		modelOverride:               SessionModelOverride{},
 	}
 }
 
@@ -1296,12 +1301,25 @@ func (m *Manager) handleSessionsCommand(ctx context.Context, ch Channel, ev Inbo
 }
 
 func (m *Manager) handleModelCommand(ctx context.Context, ch Channel, ev InboundEvent) {
+	isTelegram := strings.HasPrefix(ch.Name(), "telegram")
+	if m.modelPickerResolver != nil && isTelegram {
+		resp, err := m.modelPickerResolver.OpenModelPicker(ctx, ModelPickerRequest{ChatID: ev.ChatID})
+		if err == nil {
+			_, _ = m.sendWithHooks(ctx, ch, ev.ChatID, resp.Text)
+			return
+		}
+	}
 	model := "unknown"
 	provider := "unknown"
-	if m.cfg.LiveTurnActiveModel != nil {
+	over := m.modelOverride
+	if over.Model != "" {
+		model = over.Model
+	} else if m.cfg.LiveTurnActiveModel != nil {
 		model = m.cfg.LiveTurnActiveModel()
 	}
-	if m.cfg.LiveTurnActiveProvider != nil {
+	if over.Provider != "" {
+		provider = over.Provider
+	} else if m.cfg.LiveTurnActiveProvider != nil {
 		provider = m.cfg.LiveTurnActiveProvider()
 	}
 	if model == "" {

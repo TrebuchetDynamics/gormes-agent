@@ -441,17 +441,18 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				return nil, err
 			}
 			return telegram.New(telegram.Config{
-				AllowedChatID:     cfg.Telegram.AllowedChatID,
-				AllowedChatIDs:    cfg.Telegram.AllowedChatIDs(),
-				AllowedUserIDs:    cfg.Telegram.AllowedUserIDs,
-				FirstRunDiscovery: cfg.Telegram.FirstRunDiscovery,
-				RequireMention:    cfg.Telegram.RequireMention,
-				GuestMode:         cfg.Telegram.GuestMode,
-				BotUsername:       cfg.Telegram.BotUsername,
-				Notifications:     cfg.Telegram.Notifications,
-				AudioTranscriber:  resolveTelegramAudioTranscriber(),
-				DynamicCommands:   gatewayTelegramDynamicCommands(context.Background(), cfg),
-				TokenLockDir:      config.GatewayLockDir(),
+				AllowedChatID:        cfg.Telegram.AllowedChatID,
+				AllowedChatIDs:       cfg.Telegram.AllowedChatIDs(),
+				AllowedUserIDs:       cfg.Telegram.AllowedUserIDs,
+				FirstRunDiscovery:    cfg.Telegram.FirstRunDiscovery,
+				RequireMention:       cfg.Telegram.RequireMention,
+				GuestMode:            cfg.Telegram.GuestMode,
+				BotUsername:          cfg.Telegram.BotUsername,
+				Notifications:        cfg.Telegram.Notifications,
+				AudioTranscriber:     resolveTelegramAudioTranscriber(),
+				DynamicCommands:      gatewayTelegramDynamicCommands(context.Background(), cfg),
+				TokenLockDir:         config.GatewayLockDir(),
+				ModelPickerResolver:  gateway.NewModelPickerResolver(&gateway.SessionModelOverride{}),
 			}, tc, log), nil
 		},
 		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {

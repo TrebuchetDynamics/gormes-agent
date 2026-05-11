@@ -63,7 +63,8 @@ type Config struct {
 	// DynamicCommands are optional runtime-discovered commands (for example
 	// enabled skill slash commands) appended to the canonical Hermes menu.
 	DynamicCommands  []gateway.PlatformCommand
-	ApprovalResolver gateway.ApprovalResolver
+	ApprovalResolver     gateway.ApprovalResolver
+	ModelPickerResolver  gateway.ModelPickerResolver
 	// TokenLockDir stores machine-local same-token polling locks. Empty uses
 	// the gateway package default; cmd/gormes passes config.GatewayLockDir.
 	TokenLockDir string
