@@ -181,7 +181,8 @@ func (c *Channel) toInboundEvent(e Event) (gateway.InboundEvent, bool) {
 }
 
 func (c *Channel) Send(ctx context.Context, chatID, text string) (string, error) {
-	return c.client.PostMessage(ctx, chatID, c.threadForChannel(chatID), text)
+	formatted := gateway.FormatFinalSlackText(text)
+	return c.client.PostMessage(ctx, chatID, c.threadForChannel(chatID), formatted)
 }
 
 func (c *Channel) SendMedia(ctx context.Context, chatID, replyToMsgID string, media gateway.OutboundMedia) (string, error) {
