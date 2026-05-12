@@ -1,4 +1,4 @@
-package tools
+package budget
 
 import (
 	"encoding/json"
@@ -242,4 +242,3 @@ func TestToolResultBudget_PathSanitization(t *testing.T) {
 		}
 	}
 }
-
