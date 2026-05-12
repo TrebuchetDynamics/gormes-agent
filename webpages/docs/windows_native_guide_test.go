@@ -12,7 +12,7 @@ func TestWindowsNativeGuideMatchesInstallerContract(t *testing.T) {
 	install := readFirstExisting(t, "../scripts/install.ps1", "../../scripts/install.ps1")
 
 	for _, want := range []string{
-		"irm https://gormes.ai/install.ps1 | iex",
+		"irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex",
 		"powershell -ExecutionPolicy Bypass -File .\\install.ps1",
 		"%LOCALAPPDATA%\\gormes",
 		"-DryRun",

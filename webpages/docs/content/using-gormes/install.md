@@ -29,7 +29,7 @@ Requires Go 1.26+.
 ## Method 2: install.sh
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh
+curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
 less install.sh
 sh install.sh
 gormes doctor --offline
@@ -44,7 +44,7 @@ the managed checkout and rebuild the command.
 If you intentionally want the one-line convenience form:
 
 ```bash
-curl -fsSL https://gormes.ai/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
 ```
 
 Use `sh install.sh --skip-setup` or set `GORMES_SKIP_SETUP=1` when you want to
@@ -59,7 +59,7 @@ so operators can avoid bootstrap scripts.
 Convenience form:
 
 ```powershell
-irm https://gormes.ai/install.ps1 | iex
+irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex
 ```
 
 Inspect-first form:

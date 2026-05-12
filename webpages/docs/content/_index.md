@@ -35,7 +35,7 @@ gormes --offline
 Or inspect and run `install.sh` on Linux/macOS/WSL2:
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh
+curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
 less install.sh
 sh install.sh
 gormes doctor --offline
@@ -44,7 +44,7 @@ gormes doctor --offline
 Or inspect and run `install.ps1` on native Windows:
 
 ```powershell
-irm https://gormes.ai/install.ps1 -OutFile install.ps1
+irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 gormes doctor --offline
