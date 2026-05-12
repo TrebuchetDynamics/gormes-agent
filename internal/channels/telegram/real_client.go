@@ -103,6 +103,9 @@ func (r *realClient) DownloadFile(ctx context.Context, filePath string) ([]byte,
 }
 
 func (r *realClient) StopReceivingUpdates() {
+	// The telegram-bot-api library panics on double-close of the updates
+	// channel. Guard against this race during shutdown paths.
+	defer func() { recover() }()
 	r.api.StopReceivingUpdates()
 }
 
