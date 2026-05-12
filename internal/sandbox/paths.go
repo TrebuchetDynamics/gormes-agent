@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -69,6 +70,26 @@ func (r *VirtualPathResolver) HostToVirtual(hostPath string) (string, error) {
 	}
 
 	return r.virtualRoot + "/" + rel, nil
+}
+
+// MaskOutput replaces host filesystem paths in the given string with their
+// virtual path equivalents, preventing host path leakage into agent return values.
+func (r *VirtualPathResolver) MaskOutput(input string) string {
+	if input == "" {
+		return ""
+	}
+	// Match the hostRoot optionally followed by path components.
+	pattern := regexp.QuoteMeta(r.hostRoot) + `(?:/\S*)?`
+	re := regexp.MustCompile(pattern)
+
+	return re.ReplaceAllStringFunc(input, func(match string) string {
+		virtual, err := r.HostToVirtual(match)
+		if err != nil {
+			// Leave unrecognized paths unchanged (e.g. prefix-matching false positives).
+			return match
+		}
+		return virtual
+	})
 }
 
 // PathFamily returns the access family for a given virtual path.

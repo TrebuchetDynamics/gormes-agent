@@ -104,6 +104,58 @@ func TestVirtualPathResolver_HostToVirtual_RejectsOutside(t *testing.T) {
 	}
 }
 
+func TestVirtualPathResolver_MaskOutput_ReplacesHostPaths(t *testing.T) {
+	r := NewVirtualPathResolver("/mnt/user-data", "/host/data")
+
+	input := "/host/data/workspace/myfile.txt"
+	want := "/mnt/user-data/workspace/myfile.txt"
+	got := r.MaskOutput(input)
+	if got != want {
+		t.Errorf("MaskOutput(%q) = %q, want %q", input, got, want)
+	}
+}
+
+func TestVirtualPathResolver_MaskOutput_MultiplePaths(t *testing.T) {
+	r := NewVirtualPathResolver("/mnt/user-data", "/host/data")
+
+	input := "Wrote /host/data/workspace/a.go and /host/data/outputs/b.json"
+	want := "Wrote /mnt/user-data/workspace/a.go and /mnt/user-data/outputs/b.json"
+	got := r.MaskOutput(input)
+	if got != want {
+		t.Errorf("MaskOutput(%q) = %q, want %q", input, got, want)
+	}
+}
+
+func TestVirtualPathResolver_MaskOutput_LeavesNonHostPaths(t *testing.T) {
+	r := NewVirtualPathResolver("/mnt/user-data", "/host/data")
+
+	input := "Found at /etc/passwd and /usr/local/bin"
+	got := r.MaskOutput(input)
+	if got != input {
+		t.Errorf("MaskOutput should leave non-host paths unchanged, got %q", got)
+	}
+}
+
+func TestVirtualPathResolver_MaskOutput_EmptyString(t *testing.T) {
+	r := NewVirtualPathResolver("/mnt/user-data", "/host/data")
+
+	got := r.MaskOutput("")
+	if got != "" {
+		t.Errorf("MaskOutput(\"\") = %q, want \"\"", got)
+	}
+}
+
+func TestVirtualPathResolver_MaskOutput_PathWithinToolOutput(t *testing.T) {
+	r := NewVirtualPathResolver("/mnt/user-data", "/host/data")
+
+	input := "Tool completed. File saved to /host/data/workspace/result.csv (42 bytes)"
+	want := "Tool completed. File saved to /mnt/user-data/workspace/result.csv (42 bytes)"
+	got := r.MaskOutput(input)
+	if got != want {
+		t.Errorf("MaskOutput(%q) = %q, want %q", input, got, want)
+	}
+}
+
 func TestVirtualPathResolver_PathFamily(t *testing.T) {
 	r := NewVirtualPathResolver("/mnt/user-data", "/host/data")
 
