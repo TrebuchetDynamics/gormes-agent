@@ -51,7 +51,7 @@ type Config struct {
 	// AttachmentHTTPClient fetches SSRF-gated URL fallbacks in tests and
 	// production. Empty uses a bounded default client.
 	AttachmentHTTPClient *http.Client
-	AccountID             string
+	AccountID            string
 	// SkillCollector returns the current gateway-visible skill command set for
 	// Discord autocomplete refreshes. Nil means this adapter has no cached skill
 	// group to refresh.
@@ -96,6 +96,7 @@ var (
 	_ gateway.MediaSender        = (*Bot)(nil)
 	_ gateway.PlaceholderCapable = (*Bot)(nil)
 	_ gateway.ReactionCapable    = (*Bot)(nil)
+	_ gateway.ThreadSender       = (*Bot)(nil)
 )
 
 func New(cfg Config, session discordSession, log *slog.Logger) *Bot {

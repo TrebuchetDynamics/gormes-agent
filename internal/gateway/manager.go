@@ -89,9 +89,9 @@ type ManagerConfig struct {
 	SessionMap        session.Map
 	// SessionReset controls automatic session clearing on inactivity or daily
 	// boundary. Mirrors Hermes session_reset config section.
-	SessionResetPolicy       string // "inactivity", "daily", "both", "none" (default: "inactivity")
-	SessionResetIdleMinutes  int    // inactivity timeout (default: 1440 = 24h)
-	SessionResetDailyHour    int    // daily reset hour 0-23 (default: 4)
+	SessionResetPolicy      string // "inactivity", "daily", "both", "none" (default: "inactivity")
+	SessionResetIdleMinutes int    // inactivity timeout (default: 1440 = 24h)
+	SessionResetDailyHour   int    // daily reset hour 0-23 (default: 4)
 	// AgentRouting enables OpenClaw-style agent/workspace bindings for live
 	// gateway turns. Zero value preserves legacy single-agent chat keys.
 	AgentRouting AgentRoutingConfig
@@ -213,6 +213,9 @@ type ManagerConfig struct {
 	// Nil treats capabilities as unchecked and lets store-backed activation
 	// continue.
 	TelegramTopicCapabilities TelegramTopicCapabilitiesFunc
+	// DynamicAgentRegistry persists runtime-spawned agents and bindings for
+	// channel-native /spawn flows. Nil keeps /spawn unavailable.
+	DynamicAgentRegistry SpawnAgentRegistry
 }
 
 type KernelSubmitter interface {
@@ -305,7 +308,7 @@ type Manager struct {
 	telegramTopicCapabilityHint map[string]time.Time
 
 	modelPickerResolver ModelPickerResolver
-	modelOverride      SessionModelOverride
+	modelOverride       SessionModelOverride
 }
 
 type channelRunFailure struct {
@@ -1028,6 +1031,9 @@ func (m *Manager) handleInbound(ctx context.Context, ev InboundEvent) error {
 	case EventKanban:
 		m.handleKanbanCommand(ctx, ch, ev)
 		return nil
+	case EventSpawn:
+		m.handleSpawnCommand(ctx, ch, ev)
+		return nil
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)
 		return nil
@@ -1091,7 +1097,7 @@ func (m *Manager) handleSlashSubmitCommand(ctx context.Context, ch Channel, ev I
 	}
 	commandEvent := ev
 	commandEvent.Kind = cmd.Kind
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventReasoning || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn {
 		commandEvent.Text = body
 	} else {
 		commandEvent.Text = ""
@@ -1183,6 +1189,9 @@ func (m *Manager) dispatchCommandEvent(ctx context.Context, ch Channel, ev Inbou
 		return true
 	case EventKanban:
 		m.handleKanbanCommand(ctx, ch, ev)
+		return true
+	case EventSpawn:
+		m.handleSpawnCommand(ctx, ch, ev)
 		return true
 	case EventReload:
 		m.handleReloadCommand(ctx, ch, ev)

@@ -148,7 +148,7 @@ func discordCommandCarriesArgs(cmd gateway.CommandDef) bool {
 	switch cmd.Kind {
 	case gateway.EventSteer, gateway.EventTitle, gateway.EventSessions, gateway.EventProfile,
 		gateway.EventSkills, gateway.EventReasoning, gateway.EventBusy, gateway.EventTTS,
-		gateway.EventGoal, gateway.EventTopic, gateway.EventModel:
+		gateway.EventGoal, gateway.EventTopic, gateway.EventModel, gateway.EventSpawn:
 		return true
 	default:
 		return cmd.ActiveTurnPolicy == gateway.CommandActiveTurnPolicyUnavailable

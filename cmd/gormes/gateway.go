@@ -279,6 +279,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 			slog.Warn("memory store close", "err", err)
 		}
 	}()
+	dynamicAgentRegistry, err := goncho.NewDynamicAgentRegistry(mstore.DB())
+	if err != nil {
+		return fmt.Errorf("dynamic agent registry: %w", err)
+	}
 
 	baseHC, err := newGatewayHermesClient(cfg)
 	if err != nil {
@@ -372,6 +376,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
 		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
+		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
 		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
 		if nextCfg.AgentRouting.Enabled {
@@ -382,6 +387,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return nextCfg, nil
 	}
 	mgrCfg := gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
+	mgrCfg.DynamicAgentRegistry = dynamicAgentRegistry
 	mgrCfg.ToolRegistry = reg
 	mgrCfg.SkillRuntime = skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
 	if mgrCfg.AgentRouting.Enabled {
