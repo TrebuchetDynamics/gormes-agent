@@ -1570,7 +1570,7 @@ func normalizeGatewayProxyURL(raw string) string {
 	return strings.TrimRight(strings.TrimSpace(raw), "/")
 }
 
-func xdgConfigHome() string {
+func XDGConfigHome() string {
 	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
 		return v
 	}

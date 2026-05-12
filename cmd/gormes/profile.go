@@ -564,23 +564,32 @@ func newProfileSelectorFromSeams(seams profileCommandSeams) cli.ProfileSelector 
 // newProfileCommandWithSeams.
 func defaultProfileCommandSeams() profileCommandSeams {
 	activePath := filepath.Join(config.GormesHome(), "active_profile")
-	xdgRoot := filepath.Dir(config.GormesHome())
 	return profileCommandSeams{
 		ReadActiveProfileName: func() (string, error) {
 			return cli.ReadActiveProfile(activePath)
 		},
 		ValidateProfileName: cli.ValidateProfileName,
 		ResolveProfileRoot: func(name string) (string, error) {
-			return cli.ResolveProfileRoot(name, xdgRoot)
+			if name == "default" {
+				return config.GormesHome(), nil
+			}
+			if err := cli.ValidateProfileName(name); err != nil {
+				return "", err
+			}
+			return filepath.Join(config.GormesHome(), "profiles", name), nil
 		},
 		WriteActiveProfile: func(name string) error {
 			return cli.WriteActiveProfile(activePath, name)
 		},
 		CreateProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
+			if name == "default" {
+				return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
+			}
 			return cli.CreateProfile(cli.ProfileCreateOptions{
-				Name:          name,
-				XDGConfigHome: xdgRoot,
-				CloneAll:      cloneAll,
+				Name:       name,
+				TargetRoot: filepath.Join(config.GormesHome(), "profiles", name),
+				SourceRoot: config.GormesHome(),
+				CloneAll:   cloneAll,
 			})
 		},
 		ListKnownProfiles: func() ([]string, error) {

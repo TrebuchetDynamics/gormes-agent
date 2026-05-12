@@ -19,6 +19,8 @@ var (
 type ProfileCreateOptions struct {
 	Name          string
 	XDGConfigHome string
+	TargetRoot    string
+	SourceRoot    string
 	CloneAll      bool
 }
 
@@ -61,14 +63,22 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 	if err := ValidateProfileName(name); err != nil {
 		return ProfileCreateResult{}, err
 	}
-	xdgRoot := strings.TrimSpace(options.XDGConfigHome)
-	if xdgRoot == "" {
-		return ProfileCreateResult{}, ErrProfileXDGRootRequired
+
+	var targetRoot string
+	var err error
+	if strings.TrimSpace(options.TargetRoot) != "" {
+		targetRoot = options.TargetRoot
+	} else {
+		xdgRoot := strings.TrimSpace(options.XDGConfigHome)
+		if xdgRoot == "" {
+			return ProfileCreateResult{}, ErrProfileXDGRootRequired
+		}
+		targetRoot, err = ResolveProfileRoot(name, xdgRoot)
+		if err != nil {
+			return ProfileCreateResult{}, err
+		}
 	}
-	targetRoot, err := ResolveProfileRoot(name, xdgRoot)
-	if err != nil {
-		return ProfileCreateResult{}, err
-	}
+
 	if _, err := os.Stat(targetRoot); err == nil {
 		return ProfileCreateResult{}, fmt.Errorf("%w: %s", ErrProfileCreateTargetExists, targetRoot)
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -76,9 +86,18 @@ func CreateProfile(options ProfileCreateOptions) (ProfileCreateResult, error) {
 	}
 
 	if options.CloneAll {
-		sourceRoot, err := ResolveProfileRoot("default", xdgRoot)
-		if err != nil {
-			return ProfileCreateResult{}, err
+		var sourceRoot string
+		if strings.TrimSpace(options.SourceRoot) != "" {
+			sourceRoot = options.SourceRoot
+		} else {
+			xdgRoot := strings.TrimSpace(options.XDGConfigHome)
+			if xdgRoot == "" {
+				return ProfileCreateResult{}, ErrProfileXDGRootRequired
+			}
+			sourceRoot, err = ResolveProfileRoot("default", xdgRoot)
+			if err != nil {
+				return ProfileCreateResult{}, err
+			}
 		}
 		if info, err := os.Stat(sourceRoot); err != nil || !info.IsDir() {
 			if err == nil {
