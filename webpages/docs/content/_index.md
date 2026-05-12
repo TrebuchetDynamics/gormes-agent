@@ -53,8 +53,10 @@ gormes doctor --offline
 After any path, add only what you need:
 
 ```bash
+gormes onboard
 gormes setup provider
 gormes --oneshot "hello"
+gormes config show
 gormes gateway status
 ```
 
@@ -74,12 +76,14 @@ What makes it different?
 
 ## What you can do today
 
-- Run a local agent UI with zero runtime dependencies on the offline path.
-- Send one-shot prompts to a provider-compatible endpoint.
-- Validate your environment before spending tokens.
-- Run onboard/setup flows that surface config, providers, skills, agents, and channel bindings.
-- Operate configured Telegram, Discord, or Slack agents from one binary.
-- Inspect and debug agent memory locally with Goncho.
+- Run a local agent UI with zero runtime dependencies on the offline path: `gormes --offline`.
+- Send one-shot prompts to a provider-compatible endpoint: `gormes --oneshot "..."`.
+- Validate your environment before spending tokens: `gormes doctor --offline`, `gormes onboard`.
+- Configure providers, models, agents, workspaces, and bindings from the CLI: `gormes setup [section]`.
+- Inspect and edit the native config: `gormes config show`, `gormes config get`, `gormes config set`, `gormes config check`.
+- Operate configured Telegram, Discord, or Slack agents from one binary: `gormes gateway`, `gormes gateway status`, `gormes gateway reload`.
+- Isolate work by named profile: `gormes profile create`, `gormes profile use`, `gormes --profile <name>`.
+- Inspect memory, sessions, skills, logs, security, and durable task boards from local operator commands.
 - Browse sessions, config, skills, logs, and audits in local operator surfaces.
 
 ## Support labels
@@ -120,21 +124,14 @@ This docs surface is the operator and developer manual for Gormes. It starts wit
 
 | | |
 |---|---|
-| **[Getting Started](getting-started/)** | Build or install Gormes, run doctor, and complete a local smoke test |
-| **[First Run](getting-started/first-run/)** | Run offline diagnostics, configure a provider, and complete the first model turn |
-| **[Configuration](getting-started/configuration/)** | Native `GORMES_HOME`, `config.toml`, `.env`, and runtime paths |
-| **[Provider Setup](guides/provider-setup/)** | Configure provider/model credentials and understand readiness labels |
-| **[Gateway Operations](guides/gateway-operations/)** | Run and inspect persistent messaging channels |
-| **[Telegram Bot](guides/telegram-bot/)** | Configure and debug the runtime-ready Telegram channel |
-| **[CLI Reference](reference/cli/)** | Current top-level commands and operator subcommands |
-| **[Config Reference](reference/config/)** | Native config sections, setup commands, and credential storage |
-| **[Environment](reference/environment/)** | Environment variables for config, providers, gateway, and install |
-| **[Providers](reference/providers/)** | Provider support taxonomy and upstream Hermes parity context |
-| **[Architecture](architecture/)** | Runtime model, gateway pipeline, tool execution, and memory boundaries |
-| **[Roadmap & Parity](parity/)** | Current status, known gaps, and Hermes/Honcho compatibility tracking |
+| **[Start here](start-here/)** | Install, authenticate, and run your first turn in under two minutes. |
+| **[Install](install/)** | Pick a path: `install.sh`, `install.ps1`, or build from source. |
+| **[Configure](configure/)** | `GORMES_HOME`, `config.toml`, env vars, providers, Telegram, and paths. |
+| **[CLI reference](cli/)** | One page per top-level command, audited against the binary. |
+| **[Recipes](recipes/)** | Copy-paste walkthroughs for the most common Gormes tasks. |
+| **[Troubleshooting](troubleshooting/)** | Doctor, common errors, and log locations. |
 
 ## Learn more
 
-- [Operate Gormes](guides/) for provider setup, gateway operations, web tools, and debugging.
-- [Reference](reference/) for exact CLI, config, environment, provider, path, and log details.
+- [Why Gormes](why-gormes/) for the operational philosophy behind the Go-native runtime.
 - [Building Gormes](building-gormes/) for implementation plans, progress, and parity evidence.

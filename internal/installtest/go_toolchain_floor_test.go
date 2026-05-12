@@ -54,14 +54,10 @@ func TestInstallersRequireCurrentGoToolchain(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		"docs/content/getting-started/installation.md",
-		"docs/content/using-gormes/install.md",
-		"docs/content/using-gormes/quickstart.md",
-		"docs/content/reference/environment.md",
-		"webpages/docs/content/getting-started/installation.md",
-		"webpages/docs/content/using-gormes/install.md",
-		"webpages/docs/content/using-gormes/quickstart.md",
-		"webpages/docs/content/reference/environment.md",
+		"docs/content/install/from-source.md",
+		"docs/content/start-here/_index.md",
+		"webpages/docs/content/install/from-source.md",
+		"webpages/docs/content/start-here/_index.md",
 	} {
 		body := readFileFromRoot(t, root, rel)
 		if !strings.Contains(body, "Go 1.26+") && !strings.Contains(body, "default `1.26.0`") {

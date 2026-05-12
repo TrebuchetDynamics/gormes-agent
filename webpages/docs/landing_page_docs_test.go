@@ -95,16 +95,30 @@ func TestDocsHarnessAllowsNativeGormesManifestoPage(t *testing.T) {
 		t.Fatalf("nativeDocsPages should explicitly allow why-gormes.md")
 	}
 	// Native Gormes pages live under why-gormes.md OR the building-gormes/
-	// (contributor-facing) and using-gormes/ (operator-facing) sections.
+	// (contributor-facing) and operator-facing sections (start-here/,
+	// install/, troubleshooting/, and the legacy using-gormes/ mirror).
 	// Everything else is a mirrored upstream doc under upstream-hermes/.
+	nativePrefixes := []string{
+		"building-gormes/",
+		"using-gormes/",
+		"start-here/",
+		"install/",
+		"troubleshooting/",
+	}
 	for page := range nativeDocsPages {
 		if page == "_index.md" || page == "why-gormes.md" {
 			continue
 		}
-		if strings.HasPrefix(page, "building-gormes/") || strings.HasPrefix(page, "using-gormes/") {
-			continue
+		ok := false
+		for _, prefix := range nativePrefixes {
+			if strings.HasPrefix(page, prefix) {
+				ok = true
+				break
+			}
 		}
-		t.Fatalf("nativeDocsPages contains unexpected entry (must be _index.md, why-gormes.md, or under building-gormes/ or using-gormes/): %q", page)
+		if !ok {
+			t.Fatalf("nativeDocsPages contains unexpected entry (must be _index.md, why-gormes.md, or under one of %v): %q", nativePrefixes, page)
+		}
 	}
 }
 
@@ -113,7 +127,12 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 	wants := []string{
 		`title: "Gormes Documentation"`,
 		"# Gormes",
-		"[Getting Started](getting-started/)",
+		"[Start here](start-here/)",
+		"[Install](install/)",
+		"[Configure](configure/)",
+		"[CLI reference](cli/)",
+		"[Recipes](recipes/)",
+		"[Troubleshooting](troubleshooting/)",
 		"Go-native runtime",
 		"## What is Gormes?",
 		"Offline proof path",
@@ -122,8 +141,6 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 		"Runtime-ready",
 		"## Trust posture",
 		"Source build and inspectable",
-		"Upstream Hermes Archive",
-		"Roadmap & Parity",
 	}
 	for _, want := range wants {
 		if !strings.Contains(raw, want) {
@@ -177,71 +194,62 @@ func TestGormesOperatorSetupChannelProviderDocs(t *testing.T) {
 	})
 
 	home := readDoc(t, "content/_index.md")
-	gettingStarted := readDoc(t, "content/getting-started/_index.md")
-	for label, raw := range map[string]string{
-		"content/_index.md":                 home,
-		"content/getting-started/_index.md": gettingStarted,
-	} {
-		assertContainsAll(t, label, raw, []string{
-			"First Run",
-			"Configuration",
-			"Provider Setup",
-			"Gateway Operations",
-			"Telegram Bot",
-			"CLI",
-			"Config",
-			"Environment",
-			"Providers",
-		})
-	}
+	assertContainsAll(t, "content/_index.md", home, []string{
+		"Start here",
+		"Install",
+		"Configure",
+		"CLI reference",
+		"Recipes",
+		"Troubleshooting",
+		"Telegram",
+		"providers",
+	})
 
-	firstRun := readDoc(t, "content/getting-started/first-run.md")
-	providerSetup := readDoc(t, "content/guides/provider-setup.md")
-	for label, raw := range map[string]string{
-		"content/getting-started/first-run.md": firstRun,
-		"content/guides/provider-setup.md":     providerSetup,
-	} {
-		assertContainsAll(t, label, raw, []string{
-			"gormes setup provider",
-			"gormes setup model",
-			"gormes model",
-			"gormes config set",
-			"gormes auth",
-			".env",
-			"gormes --oneshot",
-			"gormes doctor",
-		})
-	}
+	startHere := readDoc(t, "content/start-here/_index.md")
+	providerSetup := readDoc(t, "content/configure/providers.md")
+	assertContainsAll(t, "content/start-here/_index.md", startHere, []string{
+		"gormes auth",
+		"gormes --oneshot",
+		"gormes doctor",
+	})
+	assertContainsAll(t, "content/configure/providers.md", providerSetup, []string{
+		"gormes setup provider",
+		"gormes setup model",
+		"gormes model",
+		"gormes config set",
+		"gormes auth",
+		".env",
+		"gormes --oneshot",
+		"gormes doctor",
+	})
 
-	gatewayOps := readDoc(t, "content/guides/gateway-operations.md")
-	telegram := readDoc(t, "content/guides/telegram-bot.md")
-	cli := readDoc(t, "content/reference/cli.md")
+	telegram := readDoc(t, "content/configure/telegram.md")
+	cli := readDoc(t, "content/cli/_index.md")
 	for label, raw := range map[string]string{
-		"content/guides/gateway-operations.md": gatewayOps,
-		"content/guides/telegram-bot.md":       telegram,
-		"content/reference/cli.md":             cli,
+		"content/cli/_index.md": cli,
 	} {
 		assertContainsAll(t, label, raw, []string{
 			"Runtime-ready",
-			"row-backed",
+			"Row-backed",
 			"gormes gateway status",
 			"gormes whatsapp",
 		})
 	}
+	assertContainsAll(t, "content/configure/telegram.md", telegram, []string{
+		"gormes gateway status",
+	})
 
-	providers := readDoc(t, "content/reference/providers.md")
-	assertContainsAll(t, "content/reference/providers.md", providers, []string{
-		"upstream-hermes/integrations/providers",
-		"upstream-hermes/reference/model-catalog",
-		"runtime-implemented providers",
-		"row-backed parity entries",
+	providers := readDoc(t, "content/configure/providers.md")
+	assertContainsAll(t, "content/configure/providers.md", providers, []string{
+		"gormes setup provider",
+		"gormes auth add",
 	})
 
 	for _, rel := range []string{
-		"content/getting-started/first-run.md",
-		"content/getting-started/configuration.md",
-		"content/guides/telegram-bot.md",
-		"content/reference/config.md",
+		"content/start-here/_index.md",
+		"content/configure/_index.md",
+		"content/configure/telegram.md",
+		"content/configure/config-file.md",
 	} {
 		raw := readDoc(t, rel)
 		if strings.Contains(raw, `bot_token = "`) || strings.Contains(raw, `app_token = "`) {
