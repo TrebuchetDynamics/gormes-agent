@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 95/104 subphases shipped · 5 in progress · 4 planned
+**Overall:** 96/104 subphases shipped · 4 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,7 +95,7 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 22/23 subphases |
+| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
 | Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
@@ -683,7 +683,7 @@ classification and row-backed implementation queue.
 - [x] P95 latency-aware failover
 - [x] Capability-based model tier routing
 
-## Phase 5 — The Final Purge 🔨
+## Phase 5 — The Final Purge ✅
 
 *Python tool scripts ported to Go or WASM*
 
@@ -753,7 +753,7 @@ classification and row-backed implementation queue.
 - [x] FAL image generation queue REST binding
 - [x] Native video_analyze tool contract
 
-### 5.E — TTS / Voice / Transcription 🔨
+### 5.E — TTS / Voice / Transcription ✅
 
 - [x] Voice mode port
 - [x] Voice mode environment detector + audio provider seam
@@ -775,7 +775,7 @@ classification and row-backed implementation queue.
 - [x] Audio preprocessing and chunking pipeline
 - [x] Whisper benchmark harness + perf budget
 - [x] Go-native OGG/Opus decoder decision
-- [ ] Go-native OGG/Opus decoder implementation
+- [x] Go-native OGG/Opus decoder implementation
 - [x] Pure-Go TTS decision research
 
 ### 5.F — Skills System (Remaining) ✅
