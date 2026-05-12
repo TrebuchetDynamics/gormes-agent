@@ -87,12 +87,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 97/104 subphases shipped · 4 in progress · 3 planned
+**Overall:** 97/105 subphases shipped · 4 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | ✅ | 21/21 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | ✅ | 23/23 subphases |
@@ -137,7 +137,7 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
@@ -388,6 +388,13 @@ classification and row-backed implementation queue.
 - [x] Kernel injection + usage log
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
+
+### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX ⏳
+
+- [ ] Goncho-backed dynamic agent registry
+- [ ] gormes agent spawn/list/inspect/bind/unbind CLI
+- [ ] Telegram /spawn opens forum topic bound to spawned agent
+- [ ] Discord /spawn opens thread bound to spawned agent
 
 ## Phase 3 — The Black Box (Memory) ✅
 

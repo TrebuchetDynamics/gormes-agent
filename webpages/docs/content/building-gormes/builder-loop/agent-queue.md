@@ -27,7 +27,28 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. TD engineering blog scaffolded and live
+## 1. Goncho-backed dynamic agent registry
+
+- Phase: 2 / 2.H
+- Owner: `memory`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: internal/goncho/dynamic_agents.go exposes a DynamicAgentRegistry (Create, Get, List, Bind, Unbind, Resolve) persisting agents and channel/peer bindings in new SQLite tables alongside Goncho memory. The gateway's existing agentRouter consults the registry as an overlay on top of config.AgentsCfg/AgentBindingCfg: static config wins on AgentID conflict (operator-defined identity), but dynamic bindings supplement runtime peer matches that static config does not cover. Public Go interface stays small; persistence, migration, and conflict semantics stay hidden behind the registry boundary.
+- Trust class: operator
+- Ready when: config.AgentsCfg and config.AgentBindingCfg remain the static-config source of truth; the registry overlays runtime entries without rewriting config.toml., Existing internal/goncho schema migrations apply cleanly under a new migration adding dynamic_agents and dynamic_agent_bindings tables., The registry interface is testable with a tempdir SQLite DB; no live channel adapter or gateway integration test is needed for this slice.
+- Not ready when: The slice edits internal/config/agents.go schema, internal/gateway/agent_runtime.go resolver semantics beyond a single overlay-lookup hook, or any platform adapter., The slice writes to config.toml, persists agent state in cleartext outside Goncho, or shares storage with cross-session memory rows., The slice changes static-vs-dynamic conflict order — static config must win on AgentID conflict so operator-defined identity is not silently shadowed.
+- Degraded mode: Without runtime mutation, every new agent persona requires editing config.toml and reloading; in-chat spawn UX from rows 2.H.2-4 cannot exist.
+- Fixture: `internal/goncho/dynamic_agents_test.go tempdir SQLite + fake clock`
+- Write scope: `internal/goncho/dynamic_agents.go`, `internal/goncho/dynamic_agents_test.go`, `internal/goncho/migrations/ (one new migration file)`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/goncho -run '^TestDynamicAgentRegistry_' -count=1`, `go test ./internal/goncho -count=1`, `go run ./cmd/progress validate`
+- Done signal: Registry interface, persistence migration, and four named tests land in internal/goncho with the wider goncho suite still green; no runtime change in cmd/gormes or gateway in this row.
+- Acceptance: TestDynamicAgentRegistry_CreateRoundTrips proves Create + Get returns the same AgentRecord with stable ID and persona seed across a registry reopen., TestDynamicAgentRegistry_BindResolvesByPeer proves Bind + Resolve returns the dynamic AgentID for a (channel, chat_id, thread_id) match., TestDynamicAgentRegistry_StaticConfigWinsOnIDConflict proves an overlapping static AgentCfg.ID is returned by the resolver even when a dynamic record with the same ID exists., TestDynamicAgentRegistry_UnbindRemovesMatch proves Unbind removes the persisted binding and Resolve falls back to static config (or returns not-found).
+- Source refs: https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native, internal/goncho/local_markdown_memory.go (AgentID partition key precedent), internal/config/agents.go (AgentsCfg, AgentCfg, AgentBindingCfg schema this layers on top of), internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)
+- Unblocks: gormes agent spawn/list/inspect/bind/unbind CLI, Telegram /spawn opens forum topic bound to spawned agent
+- Why now: Unblocks gormes agent spawn/list/inspect/bind/unbind CLI, Telegram /spawn opens forum topic bound to spawned agent.
+
+## 2. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -49,7 +70,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 2. Agentic-porting-kit repo scaffold
+## 3. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

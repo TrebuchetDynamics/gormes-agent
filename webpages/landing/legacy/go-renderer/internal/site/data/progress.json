@@ -10801,6 +10801,253 @@
               "status": "complete"
             }
           ]
+        },
+        "2.H": {
+          "name": "Gormes-owned: Dynamic agents and per-thread spawn UX",
+          "priority": "P2",
+          "items": [
+            {
+              "name": "Goncho-backed dynamic agent registry",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned divergence inspired by OpenYabby's runtime agent-spawn pattern (https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native). Layers a SQLite-backed runtime registry on top of existing static config.AgentsCfg/AgentBindingCfg; no Hermes parity contract."
+              },
+              "contract": "internal/goncho/dynamic_agents.go exposes a DynamicAgentRegistry (Create, Get, List, Bind, Unbind, Resolve) persisting agents and channel/peer bindings in new SQLite tables alongside Goncho memory. The gateway's existing agentRouter consults the registry as an overlay on top of config.AgentsCfg/AgentBindingCfg: static config wins on AgentID conflict (operator-defined identity), but dynamic bindings supplement runtime peer matches that static config does not cover. Public Go interface stays small; persistence, migration, and conflict semantics stay hidden behind the registry boundary.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without runtime mutation, every new agent persona requires editing config.toml and reloading; in-chat spawn UX from rows 2.H.2-4 cannot exist.",
+              "fixture": "internal/goncho/dynamic_agents_test.go tempdir SQLite + fake clock",
+              "source_refs": [
+                "https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native",
+                "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
+                "internal/config/agents.go (AgentsCfg, AgentCfg, AgentBindingCfg schema this layers on top of)",
+                "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)"
+              ],
+              "ready_when": [
+                "config.AgentsCfg and config.AgentBindingCfg remain the static-config source of truth; the registry overlays runtime entries without rewriting config.toml.",
+                "Existing internal/goncho schema migrations apply cleanly under a new migration adding dynamic_agents and dynamic_agent_bindings tables.",
+                "The registry interface is testable with a tempdir SQLite DB; no live channel adapter or gateway integration test is needed for this slice."
+              ],
+              "not_ready_when": [
+                "The slice edits internal/config/agents.go schema, internal/gateway/agent_runtime.go resolver semantics beyond a single overlay-lookup hook, or any platform adapter.",
+                "The slice writes to config.toml, persists agent state in cleartext outside Goncho, or shares storage with cross-session memory rows.",
+                "The slice changes static-vs-dynamic conflict order — static config must win on AgentID conflict so operator-defined identity is not silently shadowed."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "gormes agent spawn/list/inspect/bind/unbind CLI",
+                "Telegram /spawn opens forum topic bound to spawned agent"
+              ],
+              "acceptance": [
+                "TestDynamicAgentRegistry_CreateRoundTrips proves Create + Get returns the same AgentRecord with stable ID and persona seed across a registry reopen.",
+                "TestDynamicAgentRegistry_BindResolvesByPeer proves Bind + Resolve returns the dynamic AgentID for a (channel, chat_id, thread_id) match.",
+                "TestDynamicAgentRegistry_StaticConfigWinsOnIDConflict proves an overlapping static AgentCfg.ID is returned by the resolver even when a dynamic record with the same ID exists.",
+                "TestDynamicAgentRegistry_UnbindRemovesMatch proves Unbind removes the persisted binding and Resolve falls back to static config (or returns not-found)."
+              ],
+              "write_scope": [
+                "internal/goncho/dynamic_agents.go",
+                "internal/goncho/dynamic_agents_test.go",
+                "internal/goncho/migrations/ (one new migration file)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run '^TestDynamicAgentRegistry_' -count=1",
+                "go test ./internal/goncho -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Registry interface, persistence migration, and four named tests land in internal/goncho with the wider goncho suite still green; no runtime change in cmd/gormes or gateway in this row."
+              ],
+              "note": "Data foundation row. The CLI surface (2.H.2) and channel slices (2.H.3, 2.H.4) build on this; do not start them until this row is validated."
+            },
+            {
+              "name": "gormes agent spawn/list/inspect/bind/unbind CLI",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned operator surface for the dynamic registry from 2.H.1. Mirrors the JSON-and-text convention used by gormes profile and gormes navivox pair --json."
+              },
+              "contract": "cmd/gormes/agent.go gains subcommands spawn, list, inspect, bind, and unbind that drive the DynamicAgentRegistry from 2.H.1. Each subcommand accepts --json for fleet automation with leading build provenance. spawn takes a name, optional --persona text, optional --skills and --model. bind matches by --channel, --peer-kind, --peer-id, and optional --thread-id. list shows agents and bindings (or only bindings with --bindings). inspect resolves a peer tuple back to the agent that would handle it. The existing 'gormes agent reset' subcommand stays untouched.",
+              "contract_status": "draft",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "fixture": "cmd/gormes/agent_spawn_test.go tempdir Goncho home",
+              "source_refs": [
+                "cmd/gormes/agent.go (existing agent command parent + reset child)",
+                "cmd/gormes/profile.go (newProfileCommandWithSeams pattern, seam injection, --json provenance shape)",
+                "cmd/gormes/navivox.go (--json with build provenance shape: navivoxPairReportJSON)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1)"
+              ],
+              "ready_when": [
+                "2.H.1 ships a usable DynamicAgentRegistry interface and migration.",
+                "The CLI can be tested entirely through executeOneshotFlagCommand with a tempdir GORMES_HOME; no live channel adapter is needed.",
+                "Existing cmd/gormes/agent.go subcommand registration pattern admits new sibling commands without restructuring."
+              ],
+              "not_ready_when": [
+                "The slice touches gateway routing, channel adapters, or runtime kernel state.",
+                "The slice persists CLI flags in config.toml or alters the static config schema.",
+                "The slice merges new behavior into the existing 'gormes agent reset' command instead of adding sibling subcommands."
+              ],
+              "blocked_by": [
+                "Goncho-backed dynamic agent registry"
+              ],
+              "unblocks": [
+                "Telegram /spawn opens forum topic bound to spawned agent",
+                "Discord /spawn opens thread bound to spawned agent"
+              ],
+              "acceptance": [
+                "TestAgentSpawn_PersistsAndListsRecord proves 'gormes agent spawn <name> --persona ...' returns an ID and 'gormes agent list --json' contains that ID with build provenance.",
+                "TestAgentBind_ResolvesByPeer proves 'gormes agent bind <id> --channel telegram --peer-kind group --peer-id -100123 --thread-id 7' followed by 'gormes agent inspect --channel telegram --peer-id -100123 --thread-id 7 --json' resolves to that agent.",
+                "TestAgentUnbind_RemovesMatch proves 'gormes agent unbind --channel ... --peer-id ... --thread-id ...' clears the binding and inspect returns the agent_not_bound evidence code.",
+                "TestAgentSpawnRejectsInvalidID proves spawn with a name not matching the static config.AgentsCfg ID pattern returns a non-zero exit and an actionable error."
+              ],
+              "write_scope": [
+                "cmd/gormes/agent.go",
+                "cmd/gormes/agent_spawn_test.go",
+                "cmd/gormes/agent_bind_test.go",
+                "cmd/gormes/agent_inspect_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestAgent(Spawn|Bind|Unbind|Inspect)' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Five new agent subcommands (spawn, list, inspect, bind, unbind) ship with --json shapes that include build provenance and four named tests green; existing agent reset behavior unchanged."
+              ],
+              "note": "Operator surface. After this row a fleet can spawn, bind, and inspect dynamic agents from the CLI without yet routing a real channel message — the channel rows (2.H.3, 2.H.4) wire the in-chat slash UX."
+            },
+            {
+              "name": "Telegram /spawn opens forum topic bound to spawned agent",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned vertical slice that makes the OpenYabby-style in-chat agent spawn UX visible on Telegram. Reuses existing forum-topic send paths (internal/channels/telegram thread_send_test.go) and slash-command dispatch (subphase 2.F.1)."
+              },
+              "contract": "When an operator-tier user runs '/spawn <name> [persona text...]' in a Telegram supergroup with forum topics enabled, the gateway slash handler (a) creates a new agent via 2.H.1's DynamicAgentRegistry with the supplied name and optional persona seed, (b) calls Telegram createForumTopic to create a topic named after the agent, (c) binds the new (channel=telegram, chat_id=<supergroup>, thread_id=<new topic>) tuple to the spawned agent, and (d) sends one acknowledgement message inside the new topic confirming the agent is ready. If the chat is not a forum-enabled supergroup, the handler returns an actionable agent_spawn_requires_forum operator evidence string and does not create a registry record. The slash command is rejected with agent_spawn_not_authorized for non-operator tiers.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": ["operator"],
+              "degraded_mode": "If createForumTopic fails (rate limit, missing permission), the handler reports the API error and does not leave a stranded registry record — registry write is committed only after the topic exists.",
+              "fixture": "internal/channels/telegram/spawn_test.go fake Telegram client + tempdir Goncho",
+              "source_refs": [
+                "https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native (donor UX)",
+                "internal/channels/telegram/thread_send_test.go (existing message_thread_id send proof)",
+                "internal/channels/telegram/bot.go (Telegram client wrapper, raw Send / SendMessageThreadID paths)",
+                "internal/gateway/slash_*.go (slash dispatch from subphase 2.F.1)",
+                "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — already routes by thread_id)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1)",
+                "cmd/gormes/agent.go (CLI surface from 2.H.2 — same registry mutation, different entry point)"
+              ],
+              "ready_when": [
+                "2.H.1 and 2.H.2 are validated; the registry and CLI behavior are stable.",
+                "Telegram createForumTopic and editForumTopic helpers exist in internal/channels/telegram or can be added behind the existing raw-call seam without touching unrelated send paths.",
+                "Slash-command dispatch from 2.F.1 admits a new '/spawn' handler without restructuring the dispatcher."
+              ],
+              "not_ready_when": [
+                "The slice writes new behavior into internal/gateway/agent_runtime.go's resolver beyond the overlay hook already added in 2.H.1.",
+                "The slice fabricates a Telegram topic without using the real createForumTopic API call (the fake client must record the same parameters the real client would send).",
+                "The slice persists a registry agent or binding when the Telegram createForumTopic call fails.",
+                "The slice accepts /spawn from a non-operator-tier user."
+              ],
+              "blocked_by": [
+                "Goncho-backed dynamic agent registry",
+                "gormes agent spawn/list/inspect/bind/unbind CLI"
+              ],
+              "unblocks": [
+                "Discord /spawn opens thread bound to spawned agent"
+              ],
+              "acceptance": [
+                "TestTelegramSpawnSlash_CreatesTopicAndBindsAgent records a /spawn invocation against a fake Telegram client and proves: (a) createForumTopic was called with the agent's name, (b) a registry record was created with the supplied persona, (c) the (channel, chat_id, new thread_id) tuple is bound to the new agent, (d) one acknowledgement was sent inside the new topic with message_thread_id set.",
+                "TestTelegramSpawnSlash_RejectsNonForumChat proves /spawn in a non-forum chat returns agent_spawn_requires_forum evidence and does not write a registry record.",
+                "TestTelegramSpawnSlash_RollsBackOnTopicCreationFailure proves a createForumTopic API error leaves the registry empty and the user gets the upstream error in an actionable form.",
+                "TestTelegramSpawnSlash_RejectsNonOperatorTier proves a non-operator caller gets agent_spawn_not_authorized and no registry or topic state changes."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/spawn.go",
+                "internal/channels/telegram/spawn_test.go",
+                "internal/gateway/slash_spawn.go",
+                "internal/gateway/slash_spawn_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run '^TestTelegramSpawnSlash_' -count=1",
+                "go test ./internal/gateway -run '^TestSlashSpawn_' -count=1",
+                "go test ./internal/channels/telegram ./internal/gateway -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "/spawn slash command lands in Telegram with four named tests green and registry rollback on API failure proven; existing thread_send_test.go and slash dispatch tests remain green."
+              ],
+              "note": "First channel vertical slice. The Discord row (2.H.4) is intentionally a sibling so the pattern (slash dispatch + thread creation + registry bind + ack) can be reused, not re-invented."
+            },
+            {
+              "name": "Discord /spawn opens thread bound to spawned agent",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned sibling of 2.H.3. Reuses existing Discord ThreadID admission and send paths (internal/channels/discord/bot.go ParticipatedThreadIDs)."
+              },
+              "contract": "Same UX as 2.H.3 on Discord: '/spawn <name> [persona]' in a guild text channel creates a new public thread named after the agent, binds the new (channel=discord, guild_id, channel_id, thread_id) tuple to a new dynamic agent, and sends one ack in the thread. The handler rejects /spawn in DMs with agent_spawn_requires_guild_channel and rejects non-operator callers with agent_spawn_not_authorized.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": ["operator"],
+              "fixture": "internal/channels/discord/spawn_test.go fake discordgo session + tempdir Goncho",
+              "source_refs": [
+                "internal/channels/discord/bot.go (ThreadID send paths, ParticipatedThreadIDs admission)",
+                "internal/channels/discord/admission_policy.go (admission state to extend, not rewrite)",
+                "internal/channels/telegram/spawn.go (pattern from 2.H.3 — reuse, do not re-invent)",
+                "internal/gateway/slash_spawn.go (dispatch from 2.H.3)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1)"
+              ],
+              "ready_when": [
+                "2.H.3 is validated and the slash-dispatch + registry-bind pattern is stable.",
+                "internal/channels/discord/bot.go exposes a thread-create call (or one can be added behind the existing raw-discordgo seam) without changing unrelated participation policy."
+              ],
+              "not_ready_when": [
+                "The slice rewrites admission_policy.go semantics or alters how ParticipatedThreadIDs is maintained.",
+                "The slice copies-and-pastes Telegram spawn logic instead of routing both adapters through the shared gateway slash handler.",
+                "The slice persists a registry binding when the Discord StartThread call fails."
+              ],
+              "blocked_by": [
+                "Telegram /spawn opens forum topic bound to spawned agent"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestDiscordSpawnSlash_CreatesThreadAndBindsAgent proves StartThread is called, the registry records a new agent, the (channel, guild_id, channel_id, thread_id) is bound, and one ack lands in the new thread.",
+                "TestDiscordSpawnSlash_RejectsDirectMessage proves /spawn in a DM returns agent_spawn_requires_guild_channel and writes nothing.",
+                "TestDiscordSpawnSlash_RollsBackOnThreadCreationFailure proves a discordgo StartThread error leaves the registry empty.",
+                "TestDiscordSpawnSlash_RejectsNonOperatorTier proves a non-operator caller gets agent_spawn_not_authorized and no state changes."
+              ],
+              "write_scope": [
+                "internal/channels/discord/spawn.go",
+                "internal/channels/discord/spawn_test.go",
+                "internal/gateway/slash_spawn.go (extension only — shared handler dispatches to platform-specific spawn implementations)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/discord -run '^TestDiscordSpawnSlash_' -count=1",
+                "go test ./internal/gateway -run '^TestSlashSpawn_' -count=1",
+                "go test ./internal/channels/discord ./internal/gateway -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "/spawn slash command lands in Discord with four named tests green; the shared slash handler dispatches to both Telegram (2.H.3) and Discord without per-platform duplication."
+              ],
+              "note": "Slack and WhatsApp spawn rows are intentionally not drafted yet. Slack's adapter is currently thread_ts-blind on outbound (no thread_ts references in internal/channels) — that has to land first as a prerequisite slice. WhatsApp's adapter is roadmap/experimental in Gormes and the 'agent thread' UX is the original OpenYabby pattern, so it makes sense as the showcase row once the chassis is proven on the two runtime-ready channels."
+            }
+          ]
         }
       }
     },
