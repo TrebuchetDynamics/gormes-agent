@@ -110,7 +110,7 @@ func TestReleaseWorkflowSmokeChecksBinaryVersionMetadata(t *testing.T) {
 
 	wantAll := []string{
 		"binary_path=\"dist/${target}/${exe}\"",
-		"if [ \"$GOOS\" = \"$(go env GOOS)\" ] && [ \"$GOARCH\" = \"$(go env GOARCH)\" ]; then",
+		"if [ \"$GOOS\" = \"$(go env GOHOSTOS)\" ] && [ \"$GOARCH\" = \"$(go env GOHOSTARCH)\" ]; then",
 		"version_json=$(\"$binary_path\" version --json)",
 		"grep \"\\\"version\\\": \\\"${VERSION}\\\"\"",
 		"grep \"\\\"git_commit\\\": \\\"${GIT_COMMIT}\\\"\"",
