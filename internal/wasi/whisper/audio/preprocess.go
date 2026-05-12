@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -85,30 +84,6 @@ func Preprocess(ctx context.Context, audioBytes []byte, mediaType string, opts P
 		return PCM{}, &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(outputPath), Err: fmt.Errorf("read converted wav: %w", err)}
 	}
 	return decodePCM16Mono16kWAV(raw, filepath.Base(outputPath))
-}
-
-func ConvertWithFFmpeg(ctx context.Context, inputPath, outputPath string) error {
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		return &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: errors.New("ffmpeg not found")}
-	}
-	cmd := exec.CommandContext(ctx, ffmpeg, "-y", "-i", inputPath, "-ar", "16000", "-ac", "1", outputPath)
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return nil
-	}
-	if ctx.Err() != nil {
-		return &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: ctx.Err()}
-	}
-	detail := strings.TrimSpace(string(out))
-	if detail == "" {
-		detail = err.Error()
-	}
-	if len(detail) > 300 {
-		detail = detail[:300] + "...(truncated)"
-	}
-	detail = redactPathText(detail, inputPath, outputPath)
-	return &PreprocessError{Code: AudioPreprocessUnavailable, Path: filepath.Base(inputPath), Err: fmt.Errorf("ffmpeg failed: %s", detail)}
 }
 
 func decodePCM16Mono16kWAV(raw []byte, label string) (PCM, error) {
