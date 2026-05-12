@@ -899,6 +899,317 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Skill-driven planning/building is Gormes-owned control-plane architecture. It replaces the deleted loop binaries while preserving progress.json as the only backlog."
           }
+        },
+        "1.E": {
+          "name": "Gormes-owned: Unified Bubble Tea admin TUI",
+          "priority": "P2",
+          "items": [
+            {
+              "name": "Shared Bubble Tea wizard step chassis under internal/tui/wizard",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Step-type chassis is the reusable foundation under both the unified admin TUI screens (1.E.3+) and any future stand-alone wizards. Separating the chassis from the shell keeps step UI testable in isolation via charmbracelet/x/exp/teatest."
+              },
+              "contract": "internal/tui/wizard exposes a small Wizard interface (Run(ctx, steps...) (Result, error)) that drives a sequence of Step values — Text, MultiLine, Password, Pick (single-select), Confirm — under a Bubble Tea program. The chassis owns: (a) TTY detection (refuse to start when stdin is not a terminal, return a typed ErrRequiresTTY so callers emit *_requires_tty evidence), (b) bypass-when-fully-specified (callers compose 'if all inputs already supplied via flags, do not run the wizard'), (c) Ctrl-C / escape returning ErrAbort, (d) golden-snapshot testability via charmbracelet/x/exp/teatest. The chassis must not import any cmd/gormes package; admin-TUI screens (1.E.3+) compose it from their screen models, and stand-alone command callers can compose it independently if needed.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the chassis, every admin-TUI screen would reinvent step UI, TTY detection, and golden testing; the admin-shell rows (1.E.2-1.E.5) cannot land cleanly.",
+              "fixture": "internal/tui/wizard/wizard_test.go teatest scripts",
+              "source_refs": [
+                "internal/tui/model.go (existing Bubble Tea root model — reuse style conventions)",
+                "internal/tui/model_picker.go (existing single-select picker — extract reusable Step)",
+                "github.com/charmbracelet/bubbletea v1.3.10 (already in go.mod)",
+                "github.com/charmbracelet/bubbles v1.0.0 (already in go.mod — textinput, list)",
+                "github.com/charmbracelet/x/exp/teatest (already in go.mod — golden-script harness)",
+                "cmd/gormes/navivox.go runNavivoxSetupHostApply (existing *_requires_tty evidence pattern)"
+              ],
+              "ready_when": [
+                "go.mod already has bubbletea/bubbles/lipgloss/teatest; no new dependency is required for this slice.",
+                "The chassis interface fits inside internal/tui/wizard/ as a sibling package and does not edit existing internal/tui/model.go or hermes_chrome.go behavior.",
+                "Callers can compose the chassis without importing cmd/gormes — the API works for any package that has a *cobra.Command (or just stdio handles)."
+              ],
+              "not_ready_when": [
+                "The slice edits the main Bubble Tea TUI (internal/tui/model.go, hermes_chrome.go, etc.) or the legacy setup/onboard readline prompts.",
+                "The slice persists wizard state to disk or shares storage with sessions/memory.",
+                "The slice adds new third-party dependencies; the chassis must run on the pre-existing Bubble Tea version pin."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Unified admin TUI shell with tab navigation",
+                "Admin TUI: Setup health screen with missing-config callouts",
+                "Admin TUI: Chat tab with keybinding to jump in from any screen",
+                "Admin TUI: Agents screen wired to the 2.H dynamic registry"
+              ],
+              "acceptance": [
+                "TestWizardChassis_TextStepCapturesInput drives a single-step text wizard through teatest and asserts the captured string and clean exit.",
+                "TestWizardChassis_PickerStepReturnsSelection drives a picker step with three options through teatest and asserts the selected ID is returned.",
+                "TestWizardChassis_ConfirmStepHonorsKeybindings drives a confirm step and asserts both yes/no paths return the expected bool.",
+                "TestWizardChassis_NonInteractiveReturnsErrRequiresTTY asserts Run on a non-TTY stdin returns errors.Is(err, wizard.ErrRequiresTTY) without prompting.",
+                "TestWizardChassis_AbortReturnsErrAbort asserts Ctrl-C / escape during a step returns errors.Is(err, wizard.ErrAbort)."
+              ],
+              "write_scope": [
+                "internal/tui/wizard/wizard.go",
+                "internal/tui/wizard/steps.go",
+                "internal/tui/wizard/wizard_test.go",
+                "internal/tui/wizard/testdata/ (teatest golden frames)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/wizard -run '^TestWizardChassis_' -count=1",
+                "go test ./internal/tui/wizard -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "internal/tui/wizard package ships the Wizard + Step interfaces with five named tests green; no edits to internal/tui/model.go or cmd/gormes in this row."
+              ],
+              "note": "Foundation row. Apply-to-command rows (1.E.2-1.E.5) all blocked_by this one. Setup/onboard rewrites in Bubble Tea are intentionally NOT in scope here — those have established prompt flows and would risk regression; future rows can revisit them after the chassis ships."
+            },
+            {
+              "name": "Unified admin TUI shell with tab navigation",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. New `gormes admin` command opens a Bubble Tea TUI whose only job at this slice is the shell: top tab bar, status bar, keybindings, focus/quit handling, and a placeholder Welcome screen. Sibling screens (1.E.3 Setup health, 1.E.4 Chat, 1.E.5 Agents) register against this shell."
+              },
+              "contract": "cmd/gormes/admin.go adds a new top-level `gormes admin` command that opens a Bubble Tea program in internal/tui/admin. The shell owns: (a) a top tab bar listing registered Screen titles, (b) a status bar showing the active screen + global hints, (c) a keybinding map (`tab`/`shift+tab` to cycle screens, digit keys `1..9` for direct jump, `?` for help, `q`/`ctrl+c` to quit), (d) a Screen interface (Title(), Init() tea.Cmd, Update(tea.Msg) (Screen, tea.Cmd), View() string, ShortHelp() []KeyHelp), (e) registry for ordered screen insertion, (f) TTY detection so non-TTY invocations exit with admin_tui_requires_tty evidence instead of hanging. At this slice the shell ships with one Welcome screen as proof; the three concrete screens land in 1.E.3-1.E.5.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the shell, every admin screen would have to ship its own keybindings/navigation/quit handling; 1.E.3-1.E.5 cannot land cleanly. Operators stuck on `gormes setup`/`gormes onboard`/per-subcommand flows cannot see config drift or jump to chat in one place.",
+              "fixture": "internal/tui/admin/shell_test.go teatest scripts + cmd/gormes/admin_test.go entry point test",
+              "source_refs": [
+                "internal/tui/wizard (1.E.1 step chassis — admin screens compose Step values for forms)",
+                "internal/tui/model.go (existing chat TUI — donor style; admin shell is a sibling Bubble Tea program, not an extension of model.go)",
+                "internal/tui/hermes_chrome.go (existing top/bottom bar conventions — visual donor only)",
+                "cmd/gormes/main.go (root command registration — adds newAdminCommand sibling)"
+              ],
+              "ready_when": [
+                "1.E.1 chassis is validated and the Step interface is stable.",
+                "The admin shell lives under internal/tui/admin/ as a sibling to internal/tui/wizard; it does not edit the existing chat TUI root in internal/tui/model.go.",
+                "The new cmd/gormes/admin.go cobra command compiles and runs as a no-arg `gormes admin` entry point."
+              ],
+              "not_ready_when": [
+                "The slice edits internal/tui/model.go, hermes_chrome.go, or any existing chat TUI behavior.",
+                "The slice ships any of the concrete screens (Setup health, Chat, Agents) inline — those are 1.E.3, 1.E.4, 1.E.5.",
+                "The slice prompts on a non-TTY stdin instead of returning admin_tui_requires_tty evidence."
+              ],
+              "blocked_by": [
+                "Shared Bubble Tea wizard step chassis under internal/tui/wizard"
+              ],
+              "unblocks": [
+                "Admin TUI: Setup health screen with missing-config callouts",
+                "Admin TUI: Chat tab with keybinding to jump in from any screen",
+                "Admin TUI: Agents screen wired to the 2.H dynamic registry"
+              ],
+              "acceptance": [
+                "TestAdminShell_TabBarCyclesScreens registers two stub screens and drives a teatest TTY through tab/shift-tab and asserts the active screen index moves in both directions.",
+                "TestAdminShell_DigitKeysJumpToScreen registers three stub screens and asserts pressing '1', '2', '3' jumps directly to the corresponding screen.",
+                "TestAdminShell_HelpOverlayShowsRegisteredKeybindings asserts pressing '?' renders the merged help overlay with each registered screen's ShortHelp entries.",
+                "TestAdminShell_QuitKeyExitsCleanly asserts pressing 'q' or ctrl+c quits the program with exit 0 and leaves no terminal state behind.",
+                "TestAdminCommand_NonTTYReturnsRequiresTTYEvidence asserts `gormes admin` on a non-TTY stdin pipe exits non-zero with admin_tui_requires_tty evidence on stderr, with no Bubble Tea program ever started."
+              ],
+              "write_scope": [
+                "cmd/gormes/admin.go",
+                "cmd/gormes/admin_test.go",
+                "cmd/gormes/main.go",
+                "internal/tui/admin/shell.go",
+                "internal/tui/admin/screen.go",
+                "internal/tui/admin/welcome.go",
+                "internal/tui/admin/shell_test.go",
+                "internal/tui/admin/testdata/ (teatest golden frames)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminShell_' -count=1",
+                "go test ./cmd/gormes -run '^TestAdminCommand_' -count=1",
+                "go test ./internal/tui/admin ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` opens the shell with one Welcome screen, tab navigation works, five named tests green; the chat TUI (internal/tui/model.go) and existing setup/onboard prompts are untouched."
+              ],
+              "note": "Shell is the deep module that hides Bubble Tea program lifecycle, tab navigation, help overlay, and quit handling so concrete screens (1.E.3-1.E.5) stay small. Future screens (profiles, auth, kanban, mcp, cron, secrets, plugins, config) land as siblings of 1.E.5 once the chassis-in-screen pattern is proven."
+            },
+            {
+              "name": "Admin TUI: Setup health screen with missing-config callouts",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Anchors the user's explicit ask: show what is missing so the operator can act. Wraps the existing doctor checks in an actionable interactive screen instead of one-shot CLI output."
+              },
+              "contract": "internal/tui/admin/screen_health.go ships a Setup screen (the default-focused tab) that lists health items derived from internal/doctor + config presence + the dynamic agent registry. Each item renders as one row with: severity icon (✓/!/✗), short title, one-line detail, and optional [Fix] action key. Items include: provider configured, auth credentials present, agent template seeded, default agent created, Goncho memory.db reachable, gateway tokens (Telegram/Discord/Slack), profile initialized. Pressing Enter on a row with a [Fix] action launches the matching 1.E.1 wizard inline (e.g., Fix on 'no provider' opens a provider+key wizard; result writes through the same auth/config call as `gormes auth add` / `gormes setup provider`). The screen refreshes on focus and after any successful Fix. Read-only checks (memory.db reachable) have no Fix action. No new persistence surface — the screen reads existing config and registry state.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the health screen, operators rely on `gormes doctor --offline` output and CLI exit codes to discover misconfiguration; the user's explicit 'show missing config' anchor is unmet.",
+              "fixture": "internal/tui/admin/health_test.go teatest fixtures + tempdir GORMES_HOME",
+              "source_refs": [
+                "internal/doctor/ (existing health checks; the screen reuses, does not duplicate)",
+                "internal/config/config.go (provider/auth/profile config presence)",
+                "internal/auth/ (auth store contract)",
+                "internal/agenttemplate/ (template seed detection)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1 — read for default-agent presence)",
+                "internal/tui/wizard (1.E.1 — Fix action launches a Step sequence)",
+                "internal/tui/admin/shell.go (1.E.2 shell)"
+              ],
+              "ready_when": [
+                "1.E.1 chassis and 1.E.2 shell are validated.",
+                "doctor health checks already expose a programmatic API the screen can consume (or one can be added behind a small adapter without touching doctor's CLI contract).",
+                "The screen can be tested entirely with a tempdir GORMES_HOME — no live provider call needed."
+              ],
+              "not_ready_when": [
+                "The slice rewrites internal/doctor checks or alters the `gormes doctor --offline` CLI output.",
+                "The slice introduces new persistence outside the existing auth/config/registry stores.",
+                "The slice runs Fix actions in non-TTY mode or hides items the doctor would otherwise surface."
+              ],
+              "blocked_by": [
+                "Unified admin TUI shell with tab navigation"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminHealth_RendersMissingProviderAndAuthCallouts opens the admin TUI with a tempdir GORMES_HOME (no provider configured, no auth) and asserts the Setup tab shows ✗ rows for 'no provider' and 'no auth credentials' with non-empty [Fix] actions.",
+                "TestAdminHealth_RendersHealthyChecksWithoutFix opens the admin TUI with a fully-configured tempdir GORMES_HOME and asserts every health row renders ✓ with no [Fix] action.",
+                "TestAdminHealth_FixActionRunsWizardAndRefreshesRow drives a teatest TTY: focus the 'no provider' row → Enter → fill provider wizard → close → assert (a) the auth store now contains the entered key, (b) the same row re-renders as ✓ on the next refresh.",
+                "TestAdminHealth_RefreshKeyRecomputesChecks asserts pressing 'r' on the Setup screen recomputes the health list (e.g., after the operator manually edits config.toml outside the TUI)."
+              ],
+              "write_scope": [
+                "internal/tui/admin/screen_health.go",
+                "internal/tui/admin/health_test.go",
+                "internal/tui/admin/testdata/ (teatest frames)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminHealth_' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Setup health screen lands as the default-focused tab in `gormes admin` with four named tests green; doctor CLI output and existing setup/onboard prompts are unchanged."
+              ],
+              "note": "Anchors the user's 'show missing config' ask. Pairs naturally with 1.E.4 (Chat tab) so the operator can move from 'I see what is missing' to 'I am chatting with the agent' without leaving the TUI."
+            },
+            {
+              "name": "Admin TUI: Chat tab with keybinding to jump in from any screen",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Anchors the user's explicit ask: open chat easily. A first-pass chat surface inside the admin TUI; the full-featured chat TUI in `gormes` (internal/tui/model.go) remains the separate dedicated experience."
+              },
+              "contract": "internal/tui/admin/screen_chat.go ships a Chat screen registered as a tab in the admin shell, plus a global keybinding (`c` from any other screen) that switches focus to it. The screen renders: a scroll buffer of messages from the active session, a single-line input (or expanding textarea via bubbles/textarea), and a status line showing the current agent. Sending a message routes through the existing one-shot provider call path used by `gormes --oneshot`; responses stream into the scroll buffer. The active agent defaults to the static config default; an operator can press `a` to swap to a runtime-spawned agent from the 2.H.1 registry. Chat history is in-memory for the admin TUI session (not yet persisted to Goncho session — that follow-up row will land when admin TUI scope justifies it). The admin Chat tab is intentionally small: full session history, tool calls, slash commands, and the rich chrome stay in the dedicated `gormes` TUI.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the chat tab, every admin TUI session forces operators to leave the TUI (exit, run `gormes`) to test a configured provider; the user's explicit 'open chat easily' anchor is unmet.",
+              "fixture": "internal/tui/admin/chat_test.go teatest fixtures + fake provider seam",
+              "source_refs": [
+                "internal/tui/model.go (existing chat TUI — pattern donor; this row builds a slim sibling, not an embedding)",
+                "internal/tui/composer_ingress.go (existing composer pattern)",
+                "internal/provider/ (one-shot provider call path the chat send wires through)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1 — chat reads to populate agent swap)",
+                "internal/tui/admin/shell.go (1.E.2 shell — registers chat as a tab + handles 'c' global key)"
+              ],
+              "ready_when": [
+                "1.E.2 shell is validated and the global keybinding seam admits a screen-scoped 'jump to me' shortcut.",
+                "The provider-call path admits a fake seam for tests so chat_test.go does not require a live provider.",
+                "Existing chat TUI behavior in internal/tui/model.go is unchanged."
+              ],
+              "not_ready_when": [
+                "The slice rewrites internal/tui/model.go or claims feature parity with the dedicated chat TUI.",
+                "The slice persists chat history outside the in-memory admin session at this slice.",
+                "The slice makes live network calls in tests instead of using a fake provider seam."
+              ],
+              "blocked_by": [
+                "Unified admin TUI shell with tab navigation"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminChat_GlobalKeyJumpsFromOtherScreen drives a teatest TTY: start on the Setup tab, press 'c', assert the Chat tab is now focused and the scroll buffer is rendered.",
+                "TestAdminChat_SendsMessageThroughFakeProvider drives a teatest TTY through send → fake provider returns canned response → asserts the scroll buffer contains both user + assistant lines.",
+                "TestAdminChat_AgentSwapKeyOpensPicker drives a teatest TTY: with a seeded dynamic registry (1.E.1 helpers), press 'a', assert the agent picker overlay renders the list returned by DynamicAgentRegistry.List, pick one, assert the active-agent status line updates.",
+                "TestAdminChat_EscapeReturnsToPreviousScreen drives a teatest TTY: from Chat, press Esc, assert the previously focused tab is re-activated."
+              ],
+              "write_scope": [
+                "internal/tui/admin/screen_chat.go",
+                "internal/tui/admin/chat_test.go",
+                "internal/tui/admin/testdata/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminChat_' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Chat tab lands with a working send path through a fake provider, the 'c' global keybinding jumps to it from any screen, four named tests green; the dedicated `gormes` chat TUI remains untouched."
+              ],
+              "note": "Anchors the user's 'open chat easily' ask. Intentionally a slim chat — the dedicated `gormes` chat TUI keeps the full feature set. A later row can promote this tab to full parity if operators stop launching the dedicated TUI."
+            },
+            {
+              "name": "Admin TUI: Agents screen wired to the 2.H dynamic registry",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Closes the 2.H operator surface inside the unified admin TUI: list / spawn / bind / unbind / inspect from one screen, instead of multiple CLI subcommands."
+              },
+              "contract": "internal/tui/admin/screen_agents.go ships an Agents tab listing DynamicAgentRegistry.List output. Keybindings: 'n' opens a Spawn wizard (Text name → MultiLine persona → Confirm) that writes through goncho.DynamicAgentRegistry.Create; 'b' opens a Bind wizard (Pick agent → Pick channel → Pick peer kind → Text peer ID → Text optional thread → Confirm) that writes through Bind; 'u' opens an Unbind confirm dialog for the currently-selected binding; 'i' opens an Inspect overlay showing the resolved agent for a peer tuple. The screen renders an empty-state CTA ('press n to spawn your first agent') when the registry is empty. All wizards compose 1.E.1 Step values; no new persistence surface is added.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "fixture": "internal/tui/admin/agents_test.go teatest fixtures + tempdir Goncho",
+              "source_refs": [
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1 — Create/List/Bind/Unbind/Resolve)",
+                "cmd/gormes/agent.go (2.H.2 CLI — the screen mirrors its surface area, does not call into it)",
+                "internal/tui/wizard (1.E.1 step chassis)",
+                "internal/tui/admin/shell.go (1.E.2 shell)"
+              ],
+              "ready_when": [
+                "1.E.1, 1.E.2, and 1.E.3 are validated.",
+                "Existing 2.H.2 CLI tests stay green untouched — the Agents screen is a parallel surface, not a replacement for the CLI."
+              ],
+              "not_ready_when": [
+                "The slice modifies the 2.H.2 cobra subcommands or the 2.H.1 registry contract.",
+                "The slice persists agent state outside the existing Goncho registry tables.",
+                "The slice imports cmd/gormes (the screen depends on internal/goncho directly, not the CLI handler)."
+              ],
+              "blocked_by": [
+                "Admin TUI: Setup health screen with missing-config callouts"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminAgents_EmptyRegistryShowsSpawnCTA drives a teatest TTY with an empty tempdir registry and asserts the screen renders the spawn CTA hint.",
+                "TestAdminAgents_SpawnWizardCreatesRecord drives the spawn wizard end-to-end ('n' → name → persona → confirm) and asserts the registry holds the expected record.",
+                "TestAdminAgents_BindWizardWritesBinding drives the bind wizard with a seeded agent and asserts a Resolve(match) call returns the bound agent ID.",
+                "TestAdminAgents_UnbindRemovesBinding drives the unbind keybinding and asserts the binding is gone via Resolve."
+              ],
+              "write_scope": [
+                "internal/tui/admin/screen_agents.go",
+                "internal/tui/admin/agents_test.go",
+                "internal/tui/admin/testdata/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminAgents_' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Agents tab lands with spawn/bind/unbind/inspect keybindings, four named tests green; 2.H.2 CLI tests remain untouched."
+              ],
+              "note": "First non-foundational screen that ties the admin TUI to a concrete Gormes-owned subsystem (2.H). Follow-up screens (Profiles, Auth, Kanban, MCP, Cron, Secrets, Plugins, Config edit) land as siblings under 1.E once this pattern is proven — drafted as future rows when operator demand justifies them, not in this initial cluster."
+            }
+          ]
         }
       }
     },

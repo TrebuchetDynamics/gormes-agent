@@ -87,11 +87,11 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 97/105 subphases shipped · 5 in progress · 3 planned
+**Overall:** 97/106 subphases shipped · 5 in progress · 4 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 4/4 subphases |
+| Phase 1 — The Dashboard | 🔨 | 4/5 subphases |
 | Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
@@ -103,7 +103,7 @@ classification and row-backed implementation queue.
 
 ---
 
-## Phase 1 — The Dashboard ✅
+## Phase 1 — The Dashboard 🔨
 
 *Tactical bridge: Go TUI over Python's api_server HTTP+SSE boundary*
 
@@ -136,6 +136,14 @@ classification and row-backed implementation queue.
 - [x] Skill-manager selection matrix hardening
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
+
+### 1.E — Gormes-owned: Unified Bubble Tea admin TUI ⏳
+
+- [ ] Shared Bubble Tea wizard step chassis under internal/tui/wizard
+- [ ] Unified admin TUI shell with tab navigation
+- [ ] Admin TUI: Setup health screen with missing-config callouts
+- [ ] Admin TUI: Chat tab with keybinding to jump in from any screen
+- [ ] Admin TUI: Agents screen wired to the 2.H dynamic registry
 
 ## Phase 2 — The Gateway 🔨
 
