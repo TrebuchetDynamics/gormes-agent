@@ -140,7 +140,7 @@ classification and row-backed implementation queue.
 ### 1.E — Gormes-owned: Unified Bubble Tea admin TUI 🔨
 
 - [x] Shared Bubble Tea wizard step chassis under internal/tui/wizard
-- [ ] Unified admin TUI shell with tab navigation
+- [x] Unified admin TUI shell with tab navigation
 - [ ] Admin TUI: Setup health screen with missing-config callouts
 - [ ] Admin TUI: Chat tab with keybinding to jump in from any screen
 - [ ] Admin TUI: Agents screen wired to the 2.H dynamic registry

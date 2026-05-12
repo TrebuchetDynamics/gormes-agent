@@ -308,7 +308,7 @@ Docs: https://docs.gormes.ai`,
 		newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand(),
 		newCompletionCommand(), newCronCommand(), newWebhookCommand(), newHooksCommand(),
 		newDumpCommand(), newDebugCommand(), newBackupCommand(), newImportCommand(),
-		newPairingCommand(), newToolsCommand(), newInsightsCommand(),
+		newPairingCommand(), newToolsCommand(), newInsightsCommand(), newAdminCommand(),
 	)
 	installParentUnknownSubcommandGuards(root)
 	return root

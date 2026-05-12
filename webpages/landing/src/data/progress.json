@@ -971,13 +971,13 @@
             {
               "name": "Unified admin TUI shell with tab navigation",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned. New `gormes admin` command opens a Bubble Tea TUI whose only job at this slice is the shell: top tab bar, status bar, keybindings, focus/quit handling, and a placeholder Welcome screen. Sibling screens (1.E.3 Setup health, 1.E.4 Chat, 1.E.5 Agents) register against this shell."
               },
               "contract": "cmd/gormes/admin.go adds a new top-level `gormes admin` command that opens a Bubble Tea program in internal/tui/admin. The shell owns: (a) a top tab bar listing registered Screen titles, (b) a status bar showing the active screen + global hints, (c) a keybinding map (`tab`/`shift+tab` to cycle screens, digit keys `1..9` for direct jump, `?` for help, `q`/`ctrl+c` to quit), (d) a Screen interface (Title(), Init() tea.Cmd, Update(tea.Msg) (Screen, tea.Cmd), View() string, ShortHelp() []KeyHelp), (e) registry for ordered screen insertion, (f) TTY detection so non-TTY invocations exit with admin_tui_requires_tty evidence instead of hanging. At this slice the shell ships with one Welcome screen as proof; the three concrete screens land in 1.E.3-1.E.5.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": ["operator"],
@@ -1034,7 +1034,7 @@
               "done_signal": [
                 "`gormes admin` opens the shell with one Welcome screen, tab navigation works, five named tests green; the chat TUI (internal/tui/model.go) and existing setup/onboard prompts are untouched."
               ],
-              "note": "Shell is the deep module that hides Bubble Tea program lifecycle, tab navigation, help overlay, and quit handling so concrete screens (1.E.3-1.E.5) stay small. Future screens (profiles, auth, kanban, mcp, cron, secrets, plugins, config) land as siblings of 1.E.5 once the chassis-in-screen pattern is proven."
+              "note": "Complete 2026-05-12: shipped the unified admin TUI shell and `gormes admin` entry point. internal/tui/admin now owns the Screen interface, ordered shell registry, tab/shift-tab cycling, 1-9 direct jumps, merged help overlay, q/Ctrl-C clean quit handling, TTY-gated Run with ErrRequiresTTY, and the placeholder Welcome screen. cmd/gormes/admin.go registers the top-level command and emits admin_tui_requires_tty evidence on non-TTY stdin. Concrete Setup health, Chat, and Agents tabs remain in their follow-up rows; internal/tui/model.go, hermes_chrome.go, setup/onboard prompts, and persistence were not changed."
             },
             {
               "name": "Admin TUI: Setup health screen with missing-config callouts",
