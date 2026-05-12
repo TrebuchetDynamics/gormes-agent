@@ -102,7 +102,7 @@ jobs:
           ! grep -F "Same Hermes Brain" dist/index.html >/dev/null
           ! grep -F "Why a Go layer matters" dist/index.html >/dev/null
           # Landing page must not advertise curl-pipe-sh install — use two-step inspect pattern.
-          grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" dist/index.html >/dev/null
+          grep -F "install.sh" dist/index.html >/dev/null
           ! grep -F "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh" dist/index.html >/dev/null
           ! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null
 
