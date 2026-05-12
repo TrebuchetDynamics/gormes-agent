@@ -907,13 +907,13 @@
             {
               "name": "Shared Bubble Tea wizard step chassis under internal/tui/wizard",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned. Step-type chassis is the reusable foundation under both the unified admin TUI screens (1.E.3+) and any future stand-alone wizards. Separating the chassis from the shell keeps step UI testable in isolation via charmbracelet/x/exp/teatest."
               },
               "contract": "internal/tui/wizard exposes a small Wizard interface (Run(ctx, steps...) (Result, error)) that drives a sequence of Step values — Text, MultiLine, Password, Pick (single-select), Confirm — under a Bubble Tea program. The chassis owns: (a) TTY detection (refuse to start when stdin is not a terminal, return a typed ErrRequiresTTY so callers emit *_requires_tty evidence), (b) bypass-when-fully-specified (callers compose 'if all inputs already supplied via flags, do not run the wizard'), (c) Ctrl-C / escape returning ErrAbort, (d) golden-snapshot testability via charmbracelet/x/exp/teatest. The chassis must not import any cmd/gormes package; admin-TUI screens (1.E.3+) compose it from their screen models, and stand-alone command callers can compose it independently if needed.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": ["operator"],
@@ -966,7 +966,7 @@
               "done_signal": [
                 "internal/tui/wizard package ships the Wizard + Step interfaces with five named tests green; no edits to internal/tui/model.go or cmd/gormes in this row."
               ],
-              "note": "Foundation row. Apply-to-command rows (1.E.2-1.E.5) all blocked_by this one. Setup/onboard rewrites in Bubble Tea are intentionally NOT in scope here — those have established prompt flows and would risk regression; future rows can revisit them after the chassis ships."
+              "note": "Complete 2026-05-12: shipped internal/tui/wizard as the reusable Bubble Tea wizard chassis for the unified admin TUI. The package exposes typed Step constructors for Text, MultiLine, Password, Pick, and Confirm, a Runner/Wizard API with ErrRequiresTTY and ErrAbort sentinels, Result helpers, prefilled-step bypass for fully specified CLI flag flows, and teatest-driven coverage for text capture, picker selection, yes/no confirmation, non-TTY refusal, abort handling, and bypass without launching Bubble Tea. No cmd/gormes, internal/tui/model.go, setup/onboard prompt, persistence, or dependency changes were made."
             },
             {
               "name": "Unified admin TUI shell with tab navigation",

@@ -27,28 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Shared Bubble Tea wizard step chassis under internal/tui/wizard
-
-- Phase: 1 / 1.E
-- Owner: `tools`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P2`
-- Contract: internal/tui/wizard exposes a small Wizard interface (Run(ctx, steps...) (Result, error)) that drives a sequence of Step values — Text, MultiLine, Password, Pick (single-select), Confirm — under a Bubble Tea program. The chassis owns: (a) TTY detection (refuse to start when stdin is not a terminal, return a typed ErrRequiresTTY so callers emit *_requires_tty evidence), (b) bypass-when-fully-specified (callers compose 'if all inputs already supplied via flags, do not run the wizard'), (c) Ctrl-C / escape returning ErrAbort, (d) golden-snapshot testability via charmbracelet/x/exp/teatest. The chassis must not import any cmd/gormes package; admin-TUI screens (1.E.3+) compose it from their screen models, and stand-alone command callers can compose it independently if needed.
-- Trust class: operator
-- Ready when: go.mod already has bubbletea/bubbles/lipgloss/teatest; no new dependency is required for this slice., The chassis interface fits inside internal/tui/wizard/ as a sibling package and does not edit existing internal/tui/model.go or hermes_chrome.go behavior., Callers can compose the chassis without importing cmd/gormes — the API works for any package that has a *cobra.Command (or just stdio handles).
-- Not ready when: The slice edits the main Bubble Tea TUI (internal/tui/model.go, hermes_chrome.go, etc.) or the legacy setup/onboard readline prompts., The slice persists wizard state to disk or shares storage with sessions/memory., The slice adds new third-party dependencies; the chassis must run on the pre-existing Bubble Tea version pin.
-- Degraded mode: Without the chassis, every admin-TUI screen would reinvent step UI, TTY detection, and golden testing; the admin-shell rows (1.E.2-1.E.5) cannot land cleanly.
-- Fixture: `internal/tui/wizard/wizard_test.go teatest scripts`
-- Write scope: `internal/tui/wizard/wizard.go`, `internal/tui/wizard/steps.go`, `internal/tui/wizard/wizard_test.go`, `internal/tui/wizard/testdata/ (teatest golden frames)`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tui/wizard -run '^TestWizardChassis_' -count=1`, `go test ./internal/tui/wizard -count=1`, `go run ./cmd/progress validate`
-- Done signal: internal/tui/wizard package ships the Wizard + Step interfaces with five named tests green; no edits to internal/tui/model.go or cmd/gormes in this row.
-- Acceptance: TestWizardChassis_TextStepCapturesInput drives a single-step text wizard through teatest and asserts the captured string and clean exit., TestWizardChassis_PickerStepReturnsSelection drives a picker step with three options through teatest and asserts the selected ID is returned., TestWizardChassis_ConfirmStepHonorsKeybindings drives a confirm step and asserts both yes/no paths return the expected bool., TestWizardChassis_NonInteractiveReturnsErrRequiresTTY asserts Run on a non-TTY stdin returns errors.Is(err, wizard.ErrRequiresTTY) without prompting., TestWizardChassis_AbortReturnsErrAbort asserts Ctrl-C / escape during a step returns errors.Is(err, wizard.ErrAbort).
-- Source refs: internal/tui/model.go (existing Bubble Tea root model — reuse style conventions), internal/tui/model_picker.go (existing single-select picker — extract reusable Step), github.com/charmbracelet/bubbletea v1.3.10 (already in go.mod), github.com/charmbracelet/bubbles v1.0.0 (already in go.mod — textinput, list), github.com/charmbracelet/x/exp/teatest (already in go.mod — golden-script harness), cmd/gormes/navivox.go runNavivoxSetupHostApply (existing *_requires_tty evidence pattern)
-- Unblocks: Unified admin TUI shell with tab navigation, Admin TUI: Setup health screen with missing-config callouts, Admin TUI: Chat tab with keybinding to jump in from any screen, Admin TUI: Agents screen wired to the 2.H dynamic registry
-- Why now: Unblocks Unified admin TUI shell with tab navigation, Admin TUI: Setup health screen with missing-config callouts, Admin TUI: Chat tab with keybinding to jump in from any screen, Admin TUI: Agents screen wired to the 2.H dynamic registry.
-
-## 2. TD engineering blog scaffolded and live
+## 1. TD engineering blog scaffolded and live
 
 - Phase: 8 / 8.A
 - Owner: `docs`
@@ -70,7 +49,7 @@ selection.
 - Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
 - Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
 
-## 3. Agentic-porting-kit repo scaffold
+## 2. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

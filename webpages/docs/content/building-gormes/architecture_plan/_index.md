@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 97/106 subphases shipped · 5 in progress · 4 planned
+**Overall:** 97/106 subphases shipped · 6 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -137,9 +137,9 @@ classification and row-backed implementation queue.
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
 
-### 1.E — Gormes-owned: Unified Bubble Tea admin TUI ⏳
+### 1.E — Gormes-owned: Unified Bubble Tea admin TUI 🔨
 
-- [ ] Shared Bubble Tea wizard step chassis under internal/tui/wizard
+- [x] Shared Bubble Tea wizard step chassis under internal/tui/wizard
 - [ ] Unified admin TUI shell with tab navigation
 - [ ] Admin TUI: Setup health screen with missing-config callouts
 - [ ] Admin TUI: Chat tab with keybinding to jump in from any screen
