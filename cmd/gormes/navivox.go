@@ -405,6 +405,12 @@ type navivoxHostSetupCommand struct {
 }
 
 func runNavivoxSetupHostApply(cmd *cobra.Command, opts navivoxHostSetupOptions) error {
+	if !opts.Yes {
+		if file, ok := cmd.InOrStdin().(*os.File); ok && !term.IsTerminal(int(file.Fd())) {
+			fmt.Fprintln(cmd.ErrOrStderr(), "navivox_setup_requires_tty: run `gormes navivox setup-host --apply --yes` for non-interactive apply")
+			return fmt.Errorf("navivox_setup_requires_tty")
+		}
+	}
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Navivox host setup")
 	fmt.Fprintln(out)
