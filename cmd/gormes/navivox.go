@@ -655,14 +655,36 @@ func runNavivoxHostSetupCommand(ctx context.Context, c navivoxHostSetupCommand) 
 	return cmd.Run()
 }
 
+// navivoxPairHostSeams hides the host-detection probes behind a small
+// surface so tests can drive the Tailscale → LAN → loopback fallback
+// chain deterministically. The default seam delegates to the real
+// network/process probes.
+type navivoxPairHostSeams struct {
+	LookupTailscaleIPv4   func(context.Context) string
+	LookupNonLoopbackIPv4 func() string
+}
+
+func (s navivoxPairHostSeams) withDefaults() navivoxPairHostSeams {
+	if s.LookupTailscaleIPv4 == nil {
+		s.LookupTailscaleIPv4 = navivoxTailscaleIPv4
+	}
+	if s.LookupNonLoopbackIPv4 == nil {
+		s.LookupNonLoopbackIPv4 = firstNonLoopbackIPv4
+	}
+	return s
+}
+
+var navivoxPairHostResolver = (navivoxPairHostSeams{}).withDefaults()
+
 func resolveNavivoxPairHost(ctx context.Context, explicit string) (host string, source string, err error) {
 	if strings.TrimSpace(explicit) != "" {
 		return strings.TrimSpace(explicit), "manual", nil
 	}
-	if ip := navivoxTailscaleIPv4(ctx); ip != "" {
+	seams := navivoxPairHostResolver.withDefaults()
+	if ip := seams.LookupTailscaleIPv4(ctx); ip != "" {
 		return ip, "tailscale", nil
 	}
-	if ip := firstNonLoopbackIPv4(); ip != "" {
+	if ip := seams.LookupNonLoopbackIPv4(); ip != "" {
 		return ip, "lan", nil
 	}
 	return "127.0.0.1", "loopback", nil

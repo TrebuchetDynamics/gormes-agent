@@ -203,6 +203,126 @@ func TestNavivoxPairCommand_JSONEmitsStructuredPairingDescriptor(t *testing.T) {
 	}
 }
 
+// TestNavivoxPairHostAutoDetectPrefersTailscale proves
+// `gormes navivox pair --json` (without --host) advertises the host
+// returned by Tailscale and labels host_source="tailscale" — the
+// behavior the renderer's "Source:" line and the JSON field document.
+func TestNavivoxPairHostAutoDetectPrefersTailscale(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	restore := withNavivoxPairHostResolverTestSeams(t, navivoxPairHostSeams{
+		LookupTailscaleIPv4:   func(context.Context) string { return "100.77.1.2" },
+		LookupNonLoopbackIPv4: func() string { return "192.168.1.50" },
+	})
+	defer restore()
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"navivox", "pair",
+		"--device-name", "test-device",
+		"--user", "ada",
+		"--qr=false",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("navivox pair --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Host       string `json:"host"`
+		HostSource string `json:"host_source"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Host != "100.77.1.2" {
+		t.Errorf("host = %q, want 100.77.1.2 (tailscale)", got.Host)
+	}
+	if got.HostSource != "tailscale" {
+		t.Errorf("host_source = %q, want tailscale", got.HostSource)
+	}
+}
+
+// TestNavivoxPairHostAutoDetectFallsBackToLAN proves the resolver
+// uses the first non-loopback IPv4 when Tailscale is unavailable.
+func TestNavivoxPairHostAutoDetectFallsBackToLAN(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	restore := withNavivoxPairHostResolverTestSeams(t, navivoxPairHostSeams{
+		LookupTailscaleIPv4:   func(context.Context) string { return "" },
+		LookupNonLoopbackIPv4: func() string { return "192.168.1.50" },
+	})
+	defer restore()
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"navivox", "pair",
+		"--device-name", "test-device",
+		"--user", "ada",
+		"--qr=false",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("navivox pair --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Host       string `json:"host"`
+		HostSource string `json:"host_source"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Host != "192.168.1.50" {
+		t.Errorf("host = %q, want 192.168.1.50 (lan)", got.Host)
+	}
+	if got.HostSource != "lan" {
+		t.Errorf("host_source = %q, want lan", got.HostSource)
+	}
+}
+
+// TestNavivoxPairHostAutoDetectFallsBackToLoopback proves the resolver
+// degrades to 127.0.0.1/loopback when no network address is available,
+// instead of failing or emitting an empty host.
+func TestNavivoxPairHostAutoDetectFallsBackToLoopback(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	restore := withNavivoxPairHostResolverTestSeams(t, navivoxPairHostSeams{
+		LookupTailscaleIPv4:   func(context.Context) string { return "" },
+		LookupNonLoopbackIPv4: func() string { return "" },
+	})
+	defer restore()
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd,
+		"navivox", "pair",
+		"--device-name", "test-device",
+		"--user", "ada",
+		"--qr=false",
+		"--json",
+	)
+	if err != nil {
+		t.Fatalf("navivox pair --json: %v\nstderr=%s", err, stderr)
+	}
+	var got struct {
+		Host       string `json:"host"`
+		HostSource string `json:"host_source"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("invalid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Host != "127.0.0.1" {
+		t.Errorf("host = %q, want 127.0.0.1 (loopback)", got.Host)
+	}
+	if got.HostSource != "loopback" {
+		t.Errorf("host_source = %q, want loopback", got.HostSource)
+	}
+}
+
+func withNavivoxPairHostResolverTestSeams(t *testing.T, seams navivoxPairHostSeams) func() {
+	t.Helper()
+	prev := navivoxPairHostResolver
+	navivoxPairHostResolver = seams.withDefaults()
+	return func() {
+		navivoxPairHostResolver = prev
+	}
+}
+
 func TestNavivoxSetupHostPlanPrioritizesTailscaleAndSudoSafety(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 	cmd := newRootCommandWithRuntime(rootRuntime{})
