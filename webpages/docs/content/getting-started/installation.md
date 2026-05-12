@@ -24,7 +24,7 @@ offline diagnostics before adding credentials.
 ## Method 2: install.sh
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh
+curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
 less install.sh
 sh install.sh
 gormes doctor --offline
@@ -38,11 +38,11 @@ when a terminal is available. Rerun the same command to update.
 If you intentionally want the one-line convenience form:
 
 ```bash
-curl -fsSL https://gormes.ai/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash
 ```
 
 To defer setup, run `sh install.sh --skip-setup` after the inspectable download
-or `curl -fsSL https://gormes.ai/install.sh | bash -s -- --skip-setup`. By
+or `curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | bash -s -- --skip-setup`. By
 default the installer keeps code under `~/.gormes/gormes-agent`, publishes to
 `~/.local/bin/gormes`, and uses `/usr/local/lib/gormes-agent` plus
 `/usr/local/bin/gormes` for new root Linux installs. If no terminal is

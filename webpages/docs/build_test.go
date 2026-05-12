@@ -191,7 +191,7 @@ func TestAstroBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	if !strings.Contains(text, "git clone https://github.com/TrebuchetDynamics/gormes-agent.git") {
 		t.Fatalf("built index.html missing current install command")
 	}
-	if strings.Contains(text, "curl -fsSL https://gormes.ai/install.sh | sh") {
+	if strings.Contains(text, "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh") {
 		t.Fatalf("built index.html still contains curl-pipe install command")
 	}
 	if strings.Contains(text, "brew install trebuchet/gormes") {
@@ -238,7 +238,7 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 	for _, reject := range []string{
 		"connect a Hermes backend",
 		"Run Hermes Through a Go Operator Console",
-		"curl -fsSL https://gormes.ai/install.sh | sh",
+		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh",
 	} {
 		if strings.Contains(text, reject) {
 			t.Fatalf("built index.html contains stale token %q", reject)
@@ -337,7 +337,7 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		"npm run build",
 		"Verify homepage content",
 		`grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" dist/index.html >/dev/null`,
-		`! grep -F "curl -fsSL https://gormes.ai/install.sh | sh" dist/index.html >/dev/null`,
+		`! grep -F "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh" dist/index.html >/dev/null`,
 		`! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null`,
 		"cloudflare/wrangler-action@v3",
 		"command: pages project create gormes-docs --production-branch=main",

@@ -96,7 +96,7 @@ export const page = {
     {
       label: 'METHOD 2 · INSTALL.SH',
       command:
-        'curl -fsSLO https://gormes.ai/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
+        'curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh\nless install.sh\nsh install.sh\ngormes doctor --offline',
     },
   ],
   installFootnote:

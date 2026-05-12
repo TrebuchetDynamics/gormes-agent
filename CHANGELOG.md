@@ -8,6 +8,24 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-05-11
+
+Date alias: `v2026.5.11`.
+
+> **Install URLs switched to GitHub for trust. Sandbox provider, DingTalk channel, interactive menus.**
+
+### Added
+- SandboxProvider interface with LocalSandboxProvider and VirtualPathResolver
+- DingTalk StreamClient with SDK event channel and lifecycle
+- Arrow-key navigation in setup menu and provider selection
+- Migration options (Hermes/OpenClaw) in setup menu
+- Guard composer for Tirith + allowlist + URL policy
+
+### Changed
+- All install URLs point to `raw.githubusercontent.com` instead of `gormes.ai`
+- `gormes migrate hermes --yes` now auto-discovers source (same as `--dry-run`)
+- Deploy workflow verifies landing page doesn't advertise curl-pipe-sh install
+
 ## [0.2.7] - 2026-05-11
 
 Date alias: `v2026.5.11`.
@@ -835,7 +853,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.8...HEAD
+[0.2.8]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.5...v0.2.6
 [0.1.05]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.1.04...v0.1.05

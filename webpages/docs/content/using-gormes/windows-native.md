@@ -20,7 +20,7 @@ homes, so they can coexist.
 Open PowerShell or Windows Terminal:
 
 ```powershell
-irm https://gormes.ai/install.ps1 | iex
+irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex
 ```
 
 No admin rights are required. By default, Gormes installs under
@@ -33,13 +33,13 @@ user PATH is visible.
 For the safer inspect-first path:
 
 ```powershell
-irm https://gormes.ai/install.ps1 -OutFile install.ps1
+irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 gormes doctor --offline
 ```
 
-The script served from `https://gormes.ai/install.ps1` is the same source as
+The script served from `https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1` is the same source as
 `scripts/install.ps1` in the repository and the public site fixture pins that
 copy.
 
@@ -48,7 +48,7 @@ copy.
 Pass options with the scriptblock form:
 
 ```powershell
-& ([scriptblock]::Create((irm https://gormes.ai/install.ps1))) -DryRun -Branch main
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1))) -DryRun -Branch main
 ```
 
 | Option | Purpose |

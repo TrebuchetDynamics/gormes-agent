@@ -169,7 +169,7 @@ model = "claude-sonnet-4-20250514"
 ## Installer
 
 ```bash
-curl -fsSLO https://gormes.ai/install.sh
+curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
 less install.sh
 sh install.sh
 ```

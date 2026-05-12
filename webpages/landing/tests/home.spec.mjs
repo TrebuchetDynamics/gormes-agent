@@ -104,7 +104,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(sourceBuildCommand).toContainText('export PATH="$PWD/bin:$PATH"');
   await expect(sourceBuildCommand).toContainText('gormes doctor --offline');
   await expect(sourceBuildCommand).toContainText('gormes --offline');
-  await expect(installScriptCommand).toContainText('curl -fsSLO https://gormes.ai/install.sh');
+  await expect(installScriptCommand).toContainText('curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh');
   await expect(installScriptCommand).toContainText('less install.sh');
   await expect(installScriptCommand).toContainText('sh install.sh');
   await expect(installScriptCommand).toContainText('gormes doctor --offline');
@@ -169,7 +169,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Requires Hermes backend at localhost:8642.')).toHaveCount(0);
   await expect(page.getByText('Run Hermes Through a Go Operator Console.')).toHaveCount(0);
   await expect(page.getByText('Why Hermes breaks in production')).toHaveCount(0);
-  await expect(page.getByText('irm https://gormes.ai/install.ps1 | iex')).toHaveCount(0);
+  await expect(page.getByText('irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex')).toHaveCount(0);
   await expect(page.getByText('curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh')).toHaveCount(0);
   await expect(page.getByText('Deeper reference material lives at')).toHaveCount(0);
   await expect(page.locator('link[href="/static/site.css"]')).toHaveCount(0);
