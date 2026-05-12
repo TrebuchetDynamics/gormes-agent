@@ -70,24 +70,4 @@ selection.
 - Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/docs/development-skills/gormes-planner/SKILL.md, webpages/docs/development-skills/gormes-builder/SKILL.md, webpages/docs/development-skills/gormes-tdd-slice/SKILL.md, webpages/docs/development-skills/gormes-parity-auditor/SKILL.md, webpages/docs/development-skills/gormes-references/SKILL.md, webpages/docs/development-skills/gormes-skill-manager/SKILL.md
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. Sandbox provider interface and virtual path security
-
-- Phase: 9 / 9.B
-- Owner: `orchestrator`
-- Size: `medium`
-- Status: `planned`
-- Priority: `P1`
-- Contract: Gormes gains a sandbox provider abstraction layer over the existing tool execution environment (internal/tools/, internal/tools/environment_*.go, internal/tools/filesystem_scope.go), inspired by DeerFlow's SandboxProvider/Sandbox interface pair with virtual path security. The SandboxProvider interface defines acquire/get/release/shutdown lifecycle. A LocalSandboxProvider implementation provides filesystem-level isolation with per-thread virtual path mapping. The virtual path system uses a /mnt/user-data/{workspace,uploads,outputs} prefix that resolves to host paths with path-traversal rejection, path-family enforcement (read-only vs read-write), and output masking (host paths never leak into agent return values). Existing internal/tools/IsolationLevel (process/container/vm) and FilesystemScope continue to work — the sandbox provider wraps them rather than replacing them.
-- Trust class: operator, system
-- Ready when: internal/tools/ has existing IsolationLevel, FilesystemScope, and EnvironmentContract — the sandbox provider wraps these rather than replacing them., A VirtualPathResolver or equivalent exists for /mnt/user-data/ prefix resolution., LocalSandboxProvider implements the SandboxProvider interface at minimum — Docker/VM providers are follow-ups., Path traversal detection and output masking have test coverage.
-- Not ready when: The sandbox provider duplicates or replaces internal/tools/ environment contracts without a migration plan., The row attempts to port the full Docker AioSandboxProvider in one slice — local filesystem provider first., The virtual path system hard-codes /mnt/ paths without configurable base directory support., Output masking regex patterns cause catastrophic backtracking (RE2-safe patterns required).
-- Degraded mode: -
-- Fixture: `-`
-- Write scope: `internal/sandbox/provider.go`, `internal/sandbox/provider_test.go`, `internal/sandbox/sandbox.go`, `internal/sandbox/sandbox_test.go`, `internal/sandbox/local/provider.go`, `internal/sandbox/local/provider_test.go`, `internal/sandbox/paths.go`, `internal/sandbox/paths_test.go`, `internal/tools/`, `internal/config/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/sandbox/... -count=1`, `go test ./internal/tools -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: SandboxProvider interface is defined; LocalSandboxProvider is implemented with virtual path resolution, traversal protection, and output masking; existing tools tests remain green.
-- Acceptance: SandboxProvider interface exists with Acquire/Get/Release/Shutdown lifecycle., LocalSandboxProvider creates per-thread workspace/uploads/outputs directories and maps virtual paths., Path traversal (..) in virtual paths is rejected with a PermissionError-equivalent., Output masking replaces host paths with virtual paths in tool return values., Read-only path families (e.g. skills directory) cannot be written through the sandbox., Existing go test ./internal/tools -count=1 stays green after sandbox provider addition.
-- Source refs: ./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox.py, internal/sandbox/provider.go, ./deer-flow/backend/packages/harness/deerflow/sandbox/local/, ./deer-flow/backend/packages/harness/deerflow/sandbox/tools.py, ./deer-flow/backend/packages/harness/deerflow/sandbox/sandbox_provider.py, internal/sandbox/sandbox.go, internal/sandbox/paths.go, docs/content/building-gormes/development-skills/deerflow-pattern-theft.md
-- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
-
 <!-- PROGRESS:END -->
