@@ -156,22 +156,23 @@ func runMigrateHermesDryRun(cmd *cobra.Command, source string) error {
 // runMigrateHermesApply binds the manifest builder to the writer. The
 // destination defaults to GormesHome; tests pass --dest to keep
 // writes inside t.TempDir().
+// Source discovery is delegated to BuildManifest so apply and dry-run
+// use the same explicit --source > $HERMES_HOME > ~/.hermes chain.
 func runMigrateHermesApply(cmd *cobra.Command, source, dest string, overwrite bool) error {
-	source = strings.TrimSpace(source)
-	if source == "" {
-		return newExitCodeError(2, errors.New("gormes migrate hermes --yes: --source is required"))
-	}
 	existingEnv := collectGormesEnvSnapshot()
 	manifest, err := migratehermes.BuildManifest(migratehermes.Options{
-		Source:            source,
+		Source:            strings.TrimSpace(source),
 		ExistingGormesEnv: existingEnv,
 	})
 	if err != nil {
 		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: %w", err))
 	}
-
-	cfgBody, _ := os.ReadFile(filepath.Join(source, "config.yaml"))
-	envBody, _ := os.ReadFile(filepath.Join(source, ".env"))
+	if manifest.Source.SelectedPath == "" {
+		return newExitCodeError(2, fmt.Errorf("gormes migrate hermes: no Hermes source found; pass --source /path/to/hermes-home or set HERMES_HOME"))
+	}
+	sourcePath := manifest.Source.SelectedPath
+	cfgBody, _ := os.ReadFile(filepath.Join(sourcePath, "config.yaml"))
+	envBody, _ := os.ReadFile(filepath.Join(sourcePath, ".env"))
 
 	destDir := strings.TrimSpace(dest)
 	if destDir == "" {

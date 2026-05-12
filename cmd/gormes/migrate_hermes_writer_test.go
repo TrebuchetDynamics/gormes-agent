@@ -88,7 +88,7 @@ func TestMigrateHermesWriter_JSONIncludesBuildProvenance(t *testing.T) {
 	}
 }
 
-func TestMigrateHermesWriter_CommandWiring(t *testing.T) {
+func TestMigrateHermesWriter_UsesExplicitSource(t *testing.T) {
 	root := setupMigrateHermesWriterEnv(t)
 	src := filepath.Join(root, "hermes-src")
 	writeMigrateWriterFixture(t, src)
@@ -127,6 +127,69 @@ func TestMigrateHermesWriter_CommandWiring(t *testing.T) {
 	// Destination should now contain a config.toml under <dest>/config.toml.
 	if _, statErr := os.Stat(filepath.Join(dest, "config.toml")); statErr != nil {
 		t.Fatalf("dest/config.toml missing after --yes: %v", statErr)
+	}
+}
+
+func TestMigrateHermesWriter_UsesHermesHomeEnvSource(t *testing.T) {
+	root := setupMigrateHermesWriterEnv(t)
+	src := filepath.Join(root, "hermes-env-src")
+	writeMigrateWriterFixture(t, src)
+	t.Setenv("HERMES_HOME", src)
+	dest := filepath.Join(root, "dest")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	_, stdout, stderr, err := executeMigrateHermes("hermes", "--yes", "--dest", dest)
+	if err != nil {
+		t.Fatalf("migrate hermes --yes using HERMES_HOME: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if _, statErr := os.Stat(filepath.Join(dest, "config.toml")); statErr != nil {
+		t.Fatalf("dest/config.toml missing after HERMES_HOME apply: %v", statErr)
+	}
+	if strings.Contains(stdout, "tg-secret") || strings.Contains(stdout, "sk-deadbeef") {
+		t.Fatalf("stdout leaked secret bytes: %s", stdout)
+	}
+}
+
+func TestMigrateHermesWriter_UsesDefaultHomeDotHermesSource(t *testing.T) {
+	root := setupMigrateHermesWriterEnv(t)
+	src := filepath.Join(os.Getenv("HOME"), ".hermes")
+	writeMigrateWriterFixture(t, src)
+	dest := filepath.Join(root, "dest")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	_, stdout, stderr, err := executeMigrateHermes("hermes", "--yes", "--dest", dest)
+	if err != nil {
+		t.Fatalf("migrate hermes --yes using ~/.hermes: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if _, statErr := os.Stat(filepath.Join(dest, "config.toml")); statErr != nil {
+		t.Fatalf("dest/config.toml missing after ~/.hermes apply: %v", statErr)
+	}
+	if strings.Contains(stdout, "tg-secret") || strings.Contains(stdout, "sk-deadbeef") {
+		t.Fatalf("stdout leaked secret bytes: %s", stdout)
+	}
+}
+
+func TestMigrateHermesWriter_NoDiscoveredSourceGivesHelpfulError(t *testing.T) {
+	root := setupMigrateHermesWriterEnv(t)
+	dest := filepath.Join(root, "dest")
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	_, stdout, stderr, err := executeMigrateHermes("hermes", "--yes", "--dest", dest)
+	if err == nil {
+		t.Fatalf("missing source should fail; stdout=%s stderr=%s", stdout, stderr)
+	}
+	combined := err.Error() + stderr
+	if !strings.Contains(combined, "no Hermes source found") || !strings.Contains(combined, "--source /path/to/hermes-home") || !strings.Contains(combined, "HERMES_HOME") {
+		t.Fatalf("error should explain how to configure source; got: %s", combined)
+	}
+	if strings.Contains(combined, "--source is required") {
+		t.Fatalf("error regressed to hard-required --source wording: %s", combined)
 	}
 }
 

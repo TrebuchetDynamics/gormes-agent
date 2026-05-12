@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 92/104 subphases shipped · 8 in progress · 4 planned
+**Overall:** 97/104 subphases shipped · 4 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -95,11 +95,11 @@ classification and row-backed implementation queue.
 | Phase 2 — The Gateway | ✅ | 21/21 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
-| Phase 5 — The Final Purge | 🔨 | 20/23 subphases |
+| Phase 5 — The Final Purge | ✅ | 23/23 subphases |
 | Phase 6 — The Learning Loop (Soul) | 🔨 | 9/12 subphases |
-| Phase 7 — Paused Channel Backlog | 🔨 | 4/5 subphases |
+| Phase 7 — Paused Channel Backlog | ✅ | 5/5 subphases |
 | Phase 8 — Reputation & Publication | 🔨 | 3/7 subphases |
-| Phase 9 — Design & Security Hardening | 🔨 | 3/4 subphases |
+| Phase 9 — Design & Security Hardening | ✅ | 4/4 subphases |
 
 ---
 
@@ -683,7 +683,7 @@ classification and row-backed implementation queue.
 - [x] P95 latency-aware failover
 - [x] Capability-based model tier routing
 
-## Phase 5 — The Final Purge 🔨
+## Phase 5 — The Final Purge ✅
 
 *Python tool scripts ported to Go or WASM*
 
@@ -753,7 +753,7 @@ classification and row-backed implementation queue.
 - [x] FAL image generation queue REST binding
 - [x] Native video_analyze tool contract
 
-### 5.E — TTS / Voice / Transcription 🔨
+### 5.E — TTS / Voice / Transcription ✅
 
 - [x] Voice mode port
 - [x] Voice mode environment detector + audio provider seam
@@ -775,7 +775,7 @@ classification and row-backed implementation queue.
 - [x] Audio preprocessing and chunking pipeline
 - [x] Whisper benchmark harness + perf budget
 - [x] Go-native OGG/Opus decoder decision
-- [ ] Go-native OGG/Opus decoder implementation
+- [x] Go-native OGG/Opus decoder implementation
 - [x] Pure-Go TTS decision research
 
 ### 5.F — Skills System (Remaining) ✅
@@ -833,7 +833,7 @@ classification and row-backed implementation queue.
 - [x] Extension Lifecycle Hook System
 - [x] Plugin lifecycle hook: transform_llm_output
 
-### 5.J — Approval / Security Guards 🔨
+### 5.J — Approval / Security Guards ✅
 
 - [x] Dangerous action gating
 - [x] Gateway approval FIFO queue resolver
@@ -847,8 +847,8 @@ classification and row-backed implementation queue.
 - [x] Background review toolset restriction
 - [x] Cron dangerous-command approval mode
 - [x] Cron approval mode config normalizer
-- [ ] Tirith external security finding ingestion
-- [ ] Unified security guard decision composer
+- [x] Tirith external security finding ingestion
+- [x] Unified security guard decision composer
 - [x] Shell blocklist (36+ dangerous patterns)
 - [x] Filesystem scoping (folder-level read/write restrictions)
 - [x] Permission approval UX (inline y/n/always)
@@ -1085,7 +1085,7 @@ classification and row-backed implementation queue.
 - [x] Agent lifecycle hooks (agent:start, agent:step, agent:end)
 - [x] Nous OAuth device code + refresh token + agent key provisioning
 
-### 5.P — Docker / Packaging 🔨
+### 5.P — Docker / Packaging ✅
 
 - [x] OCI image
 - [x] Homebrew
@@ -1093,7 +1093,7 @@ classification and row-backed implementation queue.
 - [x] Unix installer (install.sh) source-backed update flow
 - [x] Unix installer root/FHS layout policy
 - [x] Windows installer (install.ps1 + install.cmd) parity
-- [ ] Installer script serving and MIME validation
+- [x] Installer script serving and MIME validation
 - [x] Install isolation: GORMES_BIN_DIR is an authoritative sandbox boundary
 - [x] Install isolation: skip shell-rc PATH write when bin dir is under /tmp
 - [x] Install isolation: skip system service install when sandbox bin dir is set
@@ -1266,7 +1266,7 @@ classification and row-backed implementation queue.
 - [x] Agent personalities + enhanced display config
 - [x] Session auto-reset + STT config parity
 
-## Phase 7 — Paused Channel Backlog 🔨
+## Phase 7 — Paused Channel Backlog ✅
 
 *Deferred non-priority channel adapters after Telegram, Discord, Slack, WhatsApp, and WeChat stabilize*
 
@@ -1297,7 +1297,7 @@ classification and row-backed implementation queue.
 - [x] Signed event parsing + auth gates
 - [x] Prompt-to-delivery routing bridge
 
-### 7.E — Regional + Device Adapter Backlog 🔨
+### 7.E — Regional + Device Adapter Backlog ✅
 
 - [x] BlueBubbles + HomeAssistant adapters
 - [x] BlueBubbles iMessage bubble formatting parity
@@ -1309,7 +1309,7 @@ classification and row-backed implementation queue.
 - [x] Feishu drive-comment rule + pairing seam
 - [x] Feishu drive-comment reply workflow
 - [x] DingTalk transport/bootstrap layer
-- [ ] DingTalk real SDK binding
+- [x] DingTalk real SDK binding
 - [x] DingTalk AI Cards streaming-update contract
 - [x] DingTalk emoji reaction send/receive parity
 - [x] DingTalk media (image/file) attachment routing
@@ -1374,7 +1374,7 @@ classification and row-backed implementation queue.
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening 🔨
+## Phase 9 — Design & Security Hardening ✅
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
@@ -1382,9 +1382,9 @@ classification and row-backed implementation queue.
 
 - [x] Agent middleware chain framework
 
-### 9.B — Sandbox Provider Abstraction + Virtual Path System ⏳
+### 9.B — Sandbox Provider Abstraction + Virtual Path System ✅
 
-- [ ] Sandbox provider interface and virtual path security
+- [x] Sandbox provider interface and virtual path security
 
 ### 9.C — Hermes Config Parity — Personalities & Display ✅
 

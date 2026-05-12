@@ -82,6 +82,8 @@ const (
 	setupActionGateway       setupAction = "gateway"
 	setupActionTools         setupAction = "tools"
 	setupActionAgent         setupAction = "agent"
+	setupActionMigrateHermes   setupAction = "migrate_hermes"
+	setupActionMigrateOpenClaw setupAction = "migrate_openclaw"
 	setupActionExit          setupAction = "exit"
 )
 
@@ -336,11 +338,59 @@ func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bo
 		return seams.RunSetupTools(cmd, nonInteractive)
 	case setupActionAgent:
 		return runSetupAgentSettingsSection(cmd, nonInteractive)
+	case setupActionMigrateHermes:
+		return runSetupMigrate(cmd, "hermes")
+	case setupActionMigrateOpenClaw:
+		return runSetupMigrate(cmd, "openclaw")
 	case setupActionExit:
 		return nil
 	default:
 		return setupSectionUnsupported(cmd, string(action))
 	}
+}
+
+func runSetupMigrate(cmd *cobra.Command, kind string) error {
+	out := cmd.OutOrStdout()
+	cli.PrintHeader(out, fmt.Sprintf("Migrate from %s", kind))
+	fmt.Fprintln(out)
+	source := ""
+	switch kind {
+	case "hermes":
+		if home, err := os.UserHomeDir(); err == nil {
+			candidate := filepath.Join(home, ".hermes")
+			if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
+				source = candidate
+			}
+		}
+		if source == "" {
+			source = os.Getenv("HERMES_HOME")
+		}
+	case "openclaw":
+		if home, err := os.UserHomeDir(); err == nil {
+			for _, dir := range []string{".openclaw", ".clawdbot", ".moltbot"} {
+				candidate := filepath.Join(home, dir)
+				if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
+					source = candidate
+					break
+				}
+			}
+		}
+	}
+	if source == "" {
+		fmt.Fprintf(out, "No %s source found. Pass --source or set %s_HOME.\n\n", kind, strings.ToUpper(kind))
+		fmt.Fprintln(out, "Run this outside the setup menu:")
+		fmt.Fprintf(out, "  gormes migrate %s --dry-run          # preview what would be migrated\n", kind)
+		fmt.Fprintf(out, "  gormes migrate %s --yes              # apply migration\n", kind)
+		fmt.Fprintf(out, "  gormes migrate %s --yes --source PATH  # specify source directory\n\n", kind)
+		return nil
+	}
+	fmt.Fprintf(out, "Found %s at: %s\n", kind, source)
+	fmt.Fprintln(out, "Migration is handled via the dedicated command:")
+	fmt.Fprintf(out, "  gormes migrate %s --dry-run          # preview what would be migrated\n", kind)
+	fmt.Fprintf(out, "  gormes migrate %s --yes --source %s  # apply migration\n\n", kind, source)
+	fmt.Fprintln(out, "The migration command does not overwrite files without --overwrite.")
+	fmt.Fprintln(out, "It reports conflicts and skipped secrets so you can review before applying.")
+	return nil
 }
 
 func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
@@ -419,6 +469,8 @@ func setupTopLevelOptions() []setupMenuOption {
 		{Action: setupActionGateway, Label: "Messaging Platforms (Gateway)"},
 		{Action: setupActionTools, Label: "Tools"},
 		{Action: setupActionAgent, Label: "Agent Settings"},
+		{Action: setupActionMigrateHermes, Label: "Migrate from Hermes"},
+		{Action: setupActionMigrateOpenClaw, Label: "Migrate from OpenClaw"},
 		{Action: setupActionExit, Label: "Exit"},
 	}
 }
@@ -427,7 +479,7 @@ func printSetupTopLevelMenu(cmd *cobra.Command, options []setupMenuOption, defau
 	out := cmd.OutOrStdout()
 	cli.ClearScreen(out)
 	cli.PrintHeader(out, "What would you like to do?")
-	fmt.Fprintln(out, cli.Dim(out, "  Enter a number/name, or q to cancel."))
+	fmt.Fprintln(out, cli.Dim(out, "  Use ↑/↓ arrows to navigate, Enter to select, or type a number."))
 	fmt.Fprintln(out)
 	for i, option := range options {
 		var prefix, label string
@@ -444,12 +496,43 @@ func printSetupTopLevelMenu(cmd *cobra.Command, options []setupMenuOption, defau
 }
 
 func promptSetupAction(cmd *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
+	// Only use interactive arrow-key menu when stdin is a real terminal.
+	// Tests and CI use pipes which cannot support raw-mode input.
+	if stdin, ok := cmd.InOrStdin().(*os.File); ok && term.IsTerminal(int(stdin.Fd())) {
+		menu := cli.NewInteractiveMenu(cmd.OutOrStdout(), stdin, "Select option:")
+		menu.WithHeader("What would you like to do?")
+		cliOpts := make([]cli.MenuOption, len(options))
+		for i, o := range options {
+			cliOpts[i] = cli.MenuOption{ID: string(o.Action), Label: o.Label, Enabled: true}
+		}
+		menu.WithOptions(cliOpts).WithDefaultIndex(defaultOption)
+
+		selected, err := menu.Run()
+		if err == nil {
+			if selected == "" {
+				return setupActionExit, nil
+			}
+			for _, o := range options {
+				if string(o.Action) == selected {
+					return o.Action, nil
+				}
+			}
+		}
+	}
+	// Fallback to line-buffered input (for tests, CI, piped stdin).
+	return promptSetupActionText(cmd, options, defaultOption)
+}
+
+// promptSetupActionText is the fallback line-input version used when
+// terminal raw mode is unavailable (piped stdin, CI, etc.).
+func promptSetupActionText(cmd *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
+	printSetupTopLevelMenu(cmd, options, defaultOption)
 	defaultText := strconv.Itoa(defaultOption + 1)
 	answer, err := promptString(cmd, fmt.Sprintf("Select option [%s]: ", defaultText), defaultText)
 	if err != nil {
 		return "", err
 	}
-	answer = strings.ToLower(strings.TrimSpace(stripSetupInputNoise(answer)))
+	answer = strings.ToLower(strings.TrimSpace(cli.StripANSI(answer)))
 	if answer == "" {
 		return options[defaultOption].Action, nil
 	}

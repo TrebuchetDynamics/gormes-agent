@@ -701,8 +701,8 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 	if longTail.Priority != "P4" {
 		t.Fatalf("Phase 7.E priority = %q, want P4", longTail.Priority)
 	}
-	if got := longTail.DerivedStatus(); got != StatusInProgress {
-		t.Fatalf("Phase 7.E = %q, want in_progress", got)
+	if got := longTail.DerivedStatus(); got != StatusComplete {
+		t.Fatalf("Phase 7.E = %q, want complete", got)
 	}
 	longTailItems := itemsByName(longTail.Items)
 	blueBubblesHA := longTailItems["BlueBubbles + HomeAssistant adapters"]
@@ -755,11 +755,11 @@ func TestLoad_RealFile_Phase2ExecutionQueue(t *testing.T) {
 		t.Fatalf("Phase 7.E DingTalk transport/bootstrap note = %q, want DecideRuntime/ReplySender detail", dingTalkTransport.Note)
 	}
 	dingTalkSDK := longTailItems["DingTalk real SDK binding"]
-	if dingTalkSDK.Status != StatusPlanned {
-		t.Fatalf("Phase 7.E DingTalk real SDK binding status = %q, want planned", dingTalkSDK.Status)
+	if dingTalkSDK.Status != StatusComplete {
+		t.Fatalf("Phase 7.E DingTalk real SDK binding status = %q, want complete", dingTalkSDK.Status)
 	}
-	if !strings.Contains(dingTalkSDK.Note, "real DingTalk SDK") {
-		t.Fatalf("Phase 7.E DingTalk real SDK binding note = %q, want real SDK detail", dingTalkSDK.Note)
+	if !strings.Contains(dingTalkSDK.Note, "dingtalk-stream-sdk-go") {
+		t.Fatalf("Phase 7.E DingTalk real SDK binding note = %q, want dingtalk-stream-sdk-go detail", dingTalkSDK.Note)
 	}
 	dingTalkCards := longTailItems["DingTalk AI Cards streaming-update contract"]
 	if dingTalkCards.Status != StatusComplete {
