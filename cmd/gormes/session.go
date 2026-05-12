@@ -38,6 +38,16 @@ func newSessionCommand() *cobra.Command {
 		newSessionDeleteCommand(),
 		newSessionPruneCommand(),
 		newSessionBrowseCommand(),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "stats",
+			Short: "Show Hermes-compatible session statistics",
+			Row:   "Session shutdown memory transcript handoff",
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "rename <session-id> <title>",
+			Short: "Rename a persisted session",
+			Row:   "Session shutdown memory transcript handoff",
+		}),
 	)
 	return cmd
 }

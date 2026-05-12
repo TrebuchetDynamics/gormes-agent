@@ -295,7 +295,21 @@ Docs: https://docs.gormes.ai`,
 		flag.NoOptDefVal = "last"
 	}
 	root.Flags().String("remote", "", "connect the TUI to a remote Gormes gateway over SSE (consumes /events; bypasses local kernel and provider setup)")
-	root.AddCommand(newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(), newChannelsCommand(), newWhatsAppCommand(), newSlackCommand(), newSessionCommand(), newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime), newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(), newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(), newLogoutCommand(), newConfigCommand(), newFallbackCommand(), newSecretsCommand(), newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(), newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(), newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(), newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand(), newCompletionCommand(), newCronCommand())
+	root.AddCommand(
+		newDoctorCommand(), newVersionCommand(), newTelegramCommand(), newGatewayCommand(),
+		newChannelsCommand(), newWhatsAppCommand(), newSlackCommand(), newSessionCommand(),
+		newMemoryCommand(), newGonchoCommand(), newKanbanCommand(), newChatCommand(runtime),
+		newCuratorCommand(), newACPCommand(), newSystemCommand(), newAgentCommand(),
+		newNavivoxCommand(), newUsageCommand(), newStatusCommand(), newAuthCommand(),
+		newLogoutCommand(), newConfigCommand(), newFallbackCommand(), newSecretsCommand(),
+		newSecurityCommand(), newMigrateCommand(), newClawCommand(), newProfileCommand(),
+		newModelCommand(), newSetupCommand(), newOnboardCommand(), newSkillsCommand(),
+		newPluginsCommand(), newMCPCommand(), newDashboardCommand(), newUpdateCommand(),
+		newRestoreCommand(), newUninstallCommand(), newLogsCommand(), newCheckpointsCommand(),
+		newCompletionCommand(), newCronCommand(), newWebhookCommand(), newHooksCommand(),
+		newDumpCommand(), newDebugCommand(), newBackupCommand(), newImportCommand(),
+		newPairingCommand(), newToolsCommand(), newInsightsCommand(),
+	)
 	installParentUnknownSubcommandGuards(root)
 	return root
 }

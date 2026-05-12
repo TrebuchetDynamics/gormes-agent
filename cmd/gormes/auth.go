@@ -49,7 +49,16 @@ func newAuthCommand() *cobra.Command {
 	cmd.AddCommand(newAuthResetCommand())
 	cmd.AddCommand(newAuthStatusCommand())
 	cmd.AddCommand(newAuthLogoutCommand())
+	cmd.AddCommand(newAuthSpotifyCommand())
 	return cmd
+}
+
+func newAuthSpotifyCommand() *cobra.Command {
+	return newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+		Use:   "spotify",
+		Short: "Manage Spotify service-provider OAuth",
+		Row:   "Hermes auth Spotify service-provider subcommand",
+	})
 }
 
 func newAuthAddCommand() *cobra.Command {

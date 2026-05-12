@@ -58,6 +58,13 @@ func newGatewayCommand() *cobra.Command {
 	for _, name := range gatewayMutatingUnavailableSubcommands {
 		cmd.AddCommand(newGatewayMutatingUnavailableCommand(name))
 	}
+	for _, name := range gatewayRowBackedUnavailableSubcommands {
+		cmd.AddCommand(newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   name,
+			Short: fmt.Sprintf("Manage gateway %s through a row-backed Hermes parity command", name),
+			Row:   hermesGatewayCronRow,
+		}))
+	}
 	return cmd
 }
 
@@ -75,6 +82,13 @@ var gatewayMutatingUnavailableSubcommands = []string{
 	"restart",
 	"install",
 	"uninstall",
+}
+
+var gatewayRowBackedUnavailableSubcommands = []string{
+	"run",
+	"setup",
+	"migrate-legacy",
+	"list",
 }
 
 func newGatewayMutatingUnavailableCommand(name string) *cobra.Command {

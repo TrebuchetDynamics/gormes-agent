@@ -60,7 +60,66 @@ func newKanbanCommand() *cobra.Command {
 		newKanbanLinkCommand(),
 		newKanbanBoardsCommand(),
 	)
+	cmd.AddCommand(newKanbanRowBackedCommands()...)
 	return cmd
+}
+
+func newKanbanRowBackedCommands() []*cobra.Command {
+	return []*cobra.Command{
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "assign <task-id> <agent>",
+			Short: "Assign a Kanban task to an agent",
+			Row:   hermesKanbanRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:         "unlink <task-id> <target>",
+			Short:       "Unlink a Kanban task reference",
+			Row:         hermesKanbanRow,
+			Destructive: true,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "comment <task-id> <text>",
+			Short: "Add a Kanban task comment",
+			Row:   hermesKanbanRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:         "archive <task-id>",
+			Short:       "Archive a Kanban task",
+			Row:         hermesKanbanRow,
+			Destructive: true,
+			FlagSet:     hermesUnavailableYesFlag,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "dispatch",
+			Short: "Dispatch queued Kanban work",
+			Row:   hermesKanbanRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "daemon",
+			Short: "Run the Kanban dispatch daemon",
+			Row:   hermesKanbanRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "watch",
+			Short: "Watch Kanban board changes",
+			Row:   hermesKanbanRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "heartbeat",
+			Short: "Record a Kanban worker heartbeat",
+			Row:   hermesKanbanRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "assignees",
+			Short: "List Kanban assignees",
+			Row:   hermesKanbanRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "context <task-id>",
+			Short: "Show Kanban task context",
+			Row:   hermesKanbanRow,
+		}),
+	}
 }
 
 type kanbanBoardOverrideContextKey struct{}
@@ -150,8 +209,9 @@ func newKanbanListCommand() *cobra.Command {
 	var assignee string
 	var jsonOut bool
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List durable Kanban tasks",
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List durable Kanban tasks",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			store, err := openKanbanStore(cmd.Context())
 			if err != nil {

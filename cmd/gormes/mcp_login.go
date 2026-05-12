@@ -60,7 +60,48 @@ func newMCPCommandWithRuntime(runtime mcpLoginRuntime) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON on invalid invocation: {build, action: 'unknown_subcommand', error}")
 	cmd.AddCommand(newMCPLoginCommand(runtime))
+	cmd.AddCommand(newMCPRowBackedCommands()...)
 	return cmd
+}
+
+func newMCPRowBackedCommands() []*cobra.Command {
+	return []*cobra.Command{
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "serve",
+			Short: "Run a Hermes-compatible MCP server",
+			Row:   hermesACPMCPRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "add <name>",
+			Short: "Add an MCP server",
+			Row:   hermesACPMCPRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:         "remove <name>",
+			Aliases:     []string{"rm"},
+			Short:       "Remove an MCP server",
+			Row:         hermesACPMCPRow,
+			Destructive: true,
+			FlagSet:     hermesUnavailableYesFlag,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:     "list",
+			Aliases: []string{"ls"},
+			Short:   "List MCP servers",
+			Row:     hermesACPMCPRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "test <name>",
+			Short: "Test an MCP server",
+			Row:   hermesACPMCPRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:     "configure <name>",
+			Aliases: []string{"config"},
+			Short:   "Configure an MCP server",
+			Row:     hermesACPMCPRow,
+		}),
+	}
 }
 
 func newMCPLoginCommand(runtime mcpLoginRuntime) *cobra.Command {

@@ -272,11 +272,11 @@ func newNavivoxSetupHostCommand() *cobra.Command {
 // inventory the recommended path and per-distro SSH install
 // commands without scraping the multi-line preflight prose.
 type navivoxSetupHostPlanReportJSON struct {
-	Build       buildProvenanceJSON                 `json:"build"`
-	Recommended navivoxSetupHostRecommendedJSON     `json:"recommended"`
-	SSHService  map[string][]string                 `json:"ssh_service"`
-	SudoNote    string                              `json:"sudo_note"`
-	PairCommand string                              `json:"pair_command"`
+	Build       buildProvenanceJSON             `json:"build"`
+	Recommended navivoxSetupHostRecommendedJSON `json:"recommended"`
+	SSHService  map[string][]string             `json:"ssh_service"`
+	SudoNote    string                          `json:"sudo_note"`
+	PairCommand string                          `json:"pair_command"`
 }
 
 type navivoxSetupHostRecommendedJSON struct {

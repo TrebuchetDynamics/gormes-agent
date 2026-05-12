@@ -47,9 +47,10 @@ Examples:
 	}
 
 	removeCmd := &cobra.Command{
-		Use:   "remove <job-id>",
-		Short: "Remove a cron job by ID (prefix matching supported)",
-		Args:  cobra.ExactArgs(1),
+		Use:     "remove <job-id>",
+		Aliases: []string{"rm", "delete"},
+		Short:   "Remove a cron job by ID (prefix matching supported)",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, smap, err := openCronStore(*dbFlag)
 			if err != nil {
@@ -76,7 +77,42 @@ Examples:
 		},
 	}
 
-	cmd.AddCommand(listCmd, removeCmd, statusCmd)
+	cmd.AddCommand(
+		listCmd,
+		removeCmd,
+		statusCmd,
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:     "create",
+			Aliases: []string{"add"},
+			Short:   "Create a scheduled cron job",
+			Row:     hermesGatewayCronRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "edit <job-id>",
+			Short: "Edit a scheduled cron job",
+			Row:   hermesGatewayCronRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "pause <job-id>",
+			Short: "Pause a scheduled cron job",
+			Row:   hermesGatewayCronRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "resume <job-id>",
+			Short: "Resume a scheduled cron job",
+			Row:   hermesGatewayCronRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "run <job-id>",
+			Short: "Run a scheduled cron job now",
+			Row:   hermesGatewayCronRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "tick",
+			Short: "Run one scheduler tick",
+			Row:   hermesGatewayCronRow,
+		}),
+	)
 	return cmd
 }
 
@@ -228,4 +264,3 @@ func findJob(store *cron.Store, id string) *cron.Job {
 	}
 	return nil
 }
-

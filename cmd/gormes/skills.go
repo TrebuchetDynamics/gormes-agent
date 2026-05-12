@@ -23,8 +23,8 @@ import (
 // audit per-profile counts. Build provenance leads — same convention
 // as the rest of the `--json` arc.
 type skillsSyncReportJSON struct {
-	Build     buildProvenanceJSON           `json:"build"`
-	Summaries []skillsSyncSummaryJSON       `json:"summaries"`
+	Build     buildProvenanceJSON     `json:"build"`
+	Summaries []skillsSyncSummaryJSON `json:"summaries"`
 }
 
 type skillsSyncSummaryJSON struct {
@@ -62,7 +62,104 @@ func newSkillsCommandWithProfileSync(syncSeams skillsProfileSyncSeams) *cobra.Co
 		BuildProvenance: func() any { return newBuildProvenance() },
 	})
 	cmd.AddCommand(newSkillsSyncCommand(syncSeams))
+	cmd.AddCommand(newSkillsRowBackedCommands()...)
 	return cmd
+}
+
+func newSkillsRowBackedCommands() []*cobra.Command {
+	return []*cobra.Command{
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "browse",
+			Short: "Browse the Hermes skills hub",
+			Row:   hermesSkillsRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "search <query>",
+			Short: "Search the Hermes skills hub",
+			Row:   hermesSkillsRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "inspect <name>",
+			Short: "Inspect a skill manifest",
+			Row:   hermesSkillsRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "check",
+			Short: "Check installed skill health",
+			Row:   hermesSkillsRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "update <name>",
+			Short: "Update an installed skill",
+			Row:   hermesSkillsRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "audit",
+			Short: "Audit installed skills",
+			Row:   hermesSkillsRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:         "uninstall <name>",
+			Short:       "Uninstall a skill",
+			Row:         hermesSkillsRow,
+			Destructive: true,
+			FlagSet:     hermesUnavailableYesFlag,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:         "reset",
+			Short:       "Reset installed skills",
+			Row:         hermesSkillsRow,
+			Destructive: true,
+			FlagSet:     hermesUnavailableYesFlag,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "publish <path>",
+			Short: "Publish a skill",
+			Row:   hermesSkillsRow,
+		}),
+		newHermesUnavailableParent(
+			"snapshot",
+			"Manage skill snapshots",
+			newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+				Use:   "export",
+				Short: "Export a skill snapshot",
+				Row:   hermesSkillsRow,
+			}),
+			newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+				Use:   "import <path>",
+				Short: "Import a skill snapshot",
+				Row:   hermesSkillsRow,
+			}),
+		),
+		newHermesUnavailableParent(
+			"tap",
+			"Manage skill taps",
+			newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+				Use:     "list",
+				Aliases: []string{"ls"},
+				Short:   "List configured skill taps",
+				Row:     hermesSkillsRow,
+			}),
+			newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+				Use:   "add <url>",
+				Short: "Add a skill tap",
+				Row:   hermesSkillsRow,
+			}),
+			newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+				Use:         "remove <name>",
+				Aliases:     []string{"rm"},
+				Short:       "Remove a skill tap",
+				Row:         hermesSkillsRow,
+				Destructive: true,
+				FlagSet:     hermesUnavailableYesFlag,
+			}),
+		),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "config",
+			Short: "Show skill hub configuration",
+			Row:   hermesSkillsRow,
+		}),
+	}
 }
 
 func newSkillsSyncCommand(seams skillsProfileSyncSeams) *cobra.Command {

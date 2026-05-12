@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
+	"github.com/spf13/cobra"
 )
 
 func TestHermesCLIParityManifest(t *testing.T) {
@@ -166,6 +168,67 @@ func TestHermesCLIParityManifestNoUnknowns(t *testing.T) {
 		if entry.Status == hermesCLIRowBacked && entry.Residual == "" {
 			t.Fatalf("row-backed entry %q missing residual/row evidence", key)
 		}
+	}
+}
+
+func TestHermesCLIParityManifestParserCommandsResolveInCobra(t *testing.T) {
+	root := newRootCommandWithRuntime(rootRuntime{})
+	var missing []string
+	for _, entry := range hermesCLIParityManifest() {
+		if !shouldResolveHermesCLIParserEntry(entry) {
+			continue
+		}
+		if _, ok := resolveCobraPath(root, entry.Path); !ok {
+			missing = append(missing, strings.Join(entry.Path, " ")+" ["+string(entry.Status)+"]")
+		}
+	}
+	if len(missing) > 0 {
+		t.Fatalf("active Hermes parser entries must resolve in the Gormes Cobra tree; missing:\n%s", strings.Join(missing, "\n"))
+	}
+}
+
+func TestHermesCLIParityRowBackedCommandsEmitStructuredUnavailableJSON(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cases := [][]string{
+		{"webhook", "subscribe", "--json"},
+		{"hooks", "revoke", "--json"},
+		{"tools", "list", "--json"},
+		{"mcp", "list", "--json"},
+		{"skills", "tap", "add", "--json"},
+		{"memory", "reset", "--json"},
+		{"kanban", "assign", "--json"},
+	}
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			stdout, stderr, err := executeRootCommandForTest(newRootCommandWithRuntime(rootRuntime{}), args...)
+			if err == nil {
+				t.Fatalf("row-backed command `%s` must exit non-zero; stdout=%s stderr=%s", strings.Join(args, " "), stdout, stderr)
+			}
+			if code := exitCodeFromError(err); code != 2 {
+				t.Fatalf("row-backed command `%s` exit code = %d, want 2; err=%v stderr=%s", strings.Join(args, " "), code, err, stderr)
+			}
+			var got struct {
+				Build struct {
+					Version string `json:"version"`
+				} `json:"build"`
+				Action  string `json:"action"`
+				Command string `json:"command"`
+				Status  string `json:"status"`
+				Row     string `json:"row"`
+				Error   string `json:"error"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+				t.Fatalf("row-backed command `%s` must emit parseable JSON: %v\nstdout=%s\nstderr=%s", strings.Join(args, " "), err, stdout, stderr)
+			}
+			if got.Build.Version == "" || got.Action != "hermes_command_unavailable" || got.Status != string(hermesCLIRowBacked) || got.Row == "" || got.Command == "" {
+				t.Fatalf("row-backed command `%s` report = %+v, want build/action/status/row/command", strings.Join(args, " "), got)
+			}
+			if !strings.Contains(got.Error, "row-backed") {
+				t.Fatalf("row-backed command `%s` error = %q, want row-backed evidence", strings.Join(args, " "), got.Error)
+			}
+		})
 	}
 }
 
@@ -430,4 +493,58 @@ func findHermesCLIEntry(path []string) (hermesCLIParityEntry, bool) {
 		}
 	}
 	return hermesCLIParityEntry{}, false
+}
+
+func shouldResolveHermesCLIParserEntry(entry hermesCLIParityEntry) bool {
+	if entry.Status != hermesCLIImplemented && entry.Status != hermesCLIRowBacked {
+		return false
+	}
+	switch entry.Kind {
+	case hermesCLICommand, hermesCLICommandSet, hermesCLIAlias:
+	default:
+		return false
+	}
+	if entry.Dynamic || len(entry.Path) == 0 {
+		return false
+	}
+	if strings.HasPrefix(entry.Path[0], "/") || entry.Path[0] == "gateway-handler" {
+		return false
+	}
+	if len(entry.Path) == 1 && strings.HasPrefix(entry.SourceRef, "gateway/run.py:") {
+		return false
+	}
+	if strings.Join(entry.Path, " ") == "migrate ooenclaw" {
+		return false
+	}
+	return true
+}
+
+func resolveCobraPath(root *cobra.Command, path []string) (*cobra.Command, bool) {
+	current := root
+	for _, part := range path {
+		var next *cobra.Command
+		for _, child := range current.Commands() {
+			if child.Hidden {
+				continue
+			}
+			if child.Name() == part || cobraCommandHasAlias(child, part) {
+				next = child
+				break
+			}
+		}
+		if next == nil {
+			return nil, false
+		}
+		current = next
+	}
+	return current, true
+}
+
+func cobraCommandHasAlias(cmd *cobra.Command, alias string) bool {
+	for _, candidate := range cmd.Aliases {
+		if candidate == alias {
+			return true
+		}
+	}
+	return false
 }
