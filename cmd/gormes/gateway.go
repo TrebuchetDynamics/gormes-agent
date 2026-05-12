@@ -44,6 +44,7 @@ func newGatewayCommand() *cobra.Command {
 		Short:        "Run Gormes as a multi-channel messaging gateway",
 		Long:         "Runs every configured channel through one gateway.Manager that drives the same kernel + tool loop as the TUI.",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 		RunE:         runGateway,
 	}
 	cmd.AddCommand(
