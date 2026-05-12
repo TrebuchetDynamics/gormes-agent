@@ -26,13 +26,13 @@
 **Linux, macOS, WSL2:**
 
 ```bash
-curl -fsSL https://gormes.ai/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh
 ```
 
 **Windows (native PowerShell):**
 
 ```powershell
-irm https://gormes.ai/install.ps1 | iex
+irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 | iex
 ```
 
 > **Inspect first:** download the script, read it, then run it. Both installers are user-scoped — no root or admin paths.
