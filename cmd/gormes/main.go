@@ -235,7 +235,7 @@ Agents and profiles:
   gormes setup workspace            print workspace setup guidance
   gormes setup bindings             print channel-to-agent binding guidance
   gormes profile list               list known profiles
-  gormes profile set <name>         switch active profile
+  gormes profile use <name>         switch active profile
 
 Memory and sessions:
   gormes memory status              inspect memory store
@@ -402,9 +402,11 @@ func applyProfileStartupFlag(cmd *cobra.Command) error {
 	if err := cli.ValidateProfileName(name); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile_name_invalid: %w", err))
 	}
-	root, err := cli.ResolveProfileRoot(name, filepath.Dir(config.GormesHome()))
-	if err != nil {
-		return newExitCodeError(2, fmt.Errorf("profile_name_invalid: %w", err))
+	var root string
+	if name == "default" {
+		root = config.GormesHome()
+	} else {
+		root = filepath.Join(config.GormesHome(), "profiles", name)
 	}
 	if err := os.Setenv("GORMES_HOME", root); err != nil {
 		return newExitCodeError(2, fmt.Errorf("profile: set GORMES_HOME: %w", err))
