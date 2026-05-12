@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 97/105 subphases shipped · 4 in progress · 4 planned
+**Overall:** 97/105 subphases shipped · 5 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -389,9 +389,9 @@ classification and row-backed implementation queue.
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
 
-### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX ⏳
+### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX 🔨
 
-- [ ] Goncho-backed dynamic agent registry
+- [x] Goncho-backed dynamic agent registry
 - [ ] gormes agent spawn/list/inspect/bind/unbind CLI
 - [ ] Telegram /spawn opens forum topic bound to spawned agent
 - [ ] Discord /spawn opens thread bound to spawned agent

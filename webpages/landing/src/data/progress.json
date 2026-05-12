@@ -10809,13 +10809,13 @@
             {
               "name": "Goncho-backed dynamic agent registry",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned divergence inspired by OpenYabby's runtime agent-spawn pattern (https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native). Layers a SQLite-backed runtime registry on top of existing static config.AgentsCfg/AgentBindingCfg; no Hermes parity contract."
               },
-              "contract": "internal/goncho/dynamic_agents.go exposes a DynamicAgentRegistry (Create, Get, List, Bind, Unbind, Resolve) persisting agents and channel/peer bindings in new SQLite tables alongside Goncho memory. The gateway's existing agentRouter consults the registry as an overlay on top of config.AgentsCfg/AgentBindingCfg: static config wins on AgentID conflict (operator-defined identity), but dynamic bindings supplement runtime peer matches that static config does not cover. Public Go interface stays small; persistence, migration, and conflict semantics stay hidden behind the registry boundary.",
-              "contract_status": "draft",
+              "contract": "internal/goncho/dynamic_agents.go exposes a DynamicAgentRegistry (Create, Get, List, Bind, Unbind, Resolve) persisting agents and channel/peer bindings in new SQLite tables alongside Goncho memory. The gateway's existing agentRouter consults the registry as an overlay on top of config.AgentsCfg/AgentBindingCfg: static config wins on AgentID conflict (enforced at Create via CreateAgentOptions.ReservedIDs — operator-defined identity in config.toml cannot be silently shadowed), but dynamic bindings supplement runtime peer matches that static config does not cover. Public Go interface stays small; persistence and conflict semantics stay hidden behind the registry boundary.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "memory",
               "trust_class": ["operator"],
@@ -10851,7 +10851,6 @@
               "write_scope": [
                 "internal/goncho/dynamic_agents.go",
                 "internal/goncho/dynamic_agents_test.go",
-                "internal/goncho/migrations/ (one new migration file)",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -10860,9 +10859,9 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Registry interface, persistence migration, and four named tests land in internal/goncho with the wider goncho suite still green; no runtime change in cmd/gormes or gateway in this row."
+                "Registry interface, inline DDL bootstrap, and four named tests landed in internal/goncho with the wider goncho suite and the full ./... gate green; no runtime change in cmd/gormes or gateway in this row."
               ],
-              "note": "Data foundation row. The CLI surface (2.H.2) and channel slices (2.H.3, 2.H.4) build on this; do not start them until this row is validated."
+              "note": "Data foundation row. Implementation used the existing inline-DDL convention (mirrors internal/goncho/webhooks.go ensureWebhookEndpointTable) instead of a separate migrations/ directory; the write_scope was tightened accordingly. The static-vs-dynamic conflict invariant is enforced at Create time via CreateAgentOptions.ReservedIDs rather than at Resolve time — simpler boundary that keeps the registry unaware of static config schema. The CLI surface (2.H.2) and channel slices (2.H.3, 2.H.4) build on this."
             },
             {
               "name": "gormes agent spawn/list/inspect/bind/unbind CLI",
