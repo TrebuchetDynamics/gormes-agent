@@ -148,7 +148,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries = append(entries, hermesKanbanCommands()...)
 	entries = append(entries, hermesClawCommands()...)
 	entries = append(entries, hermesCuratorCommands()...)
-	entries = append(entries, hermesNestedCommands("profile", "hermes_cli/main.py:profile_subparsers", "Gormes profile command binding", []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import"})...)
+	entries = append(entries, hermesProfileCommands()...)
 	entries = append(entries, hermesOwnedPath([]string{"agent", "reset"}, "cmd/gormes/agent.go:reset", "Gormes-owned default agent template reset command"))
 
 	entries = append(entries, hermesGatewayHandlers()...)
@@ -264,6 +264,33 @@ func hermesCuratorCommands() []hermesCLIParityEntry {
 		entry := hermesRowPath([]string{"curator", command}, hermesCLICommand, source+":"+command, row, "curator "+command+" is implemented over native Gormes curator state")
 		entry.Status = hermesCLIImplemented
 		entry.Target = "cmd/gormes curator " + command
+		markHermesCLIEntryFlags(&entry)
+		out = append(out, entry)
+	}
+	return out
+}
+
+func hermesProfileCommands() []hermesCLIParityEntry {
+	const row = "Gormes profile command binding"
+	const source = "hermes_cli/main.py:profile_subparsers"
+	implemented := []struct {
+		name     string
+		target   string
+		residual string
+	}{
+		{name: "list", target: "cmd/gormes profile list", residual: "profile list is implemented over native Gormes profile roots"},
+		{name: "use", target: "cmd/gormes profile use", residual: "profile use is implemented as the canonical sticky active-profile switch; profile set remains a Gormes compatibility alias"},
+		{name: "create", target: "cmd/gormes profile create", residual: "profile create is implemented for named Gormes profile roots with clone-all support"},
+		{name: "show", target: "cmd/gormes profile show", residual: "profile show is implemented over the active Gormes profile with redacted root output"},
+		{name: "info", target: "cmd/gormes profile info", residual: "profile info is implemented for distribution.yaml metadata"},
+	}
+	out := make([]hermesCLIParityEntry, 0, 12)
+	for _, command := range implemented {
+		entry := hermesImplementedPath([]string{"profile", command.name}, hermesCLICommand, source+":"+command.name, command.target, command.residual)
+		out = append(out, entry)
+	}
+	for _, command := range []string{"delete", "alias", "rename", "export", "import", "install", "update"} {
+		entry := hermesRowPath([]string{"profile", command}, hermesCLICommand, source+":"+command, row, "profile "+command+" is registered in Gormes as a deterministic row-backed unavailable command; full behavior remains row-backed")
 		markHermesCLIEntryFlags(&entry)
 		out = append(out, entry)
 	}

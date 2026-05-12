@@ -35,12 +35,12 @@ func TestRootHelpDoesNotAdvertiseUnimplementedShortcuts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
-	for _, forbidden := range []string{"gormes agent create", "gormes agent edit", "gormes mcp list", "gormes mcp add", "gormes profile use"} {
+	for _, forbidden := range []string{"gormes agent create", "gormes agent edit", "gormes mcp list", "gormes mcp add", "gormes profile set"} {
 		if strings.Contains(stdout, forbidden) {
 			t.Fatalf("root help advertised unimplemented shortcut %q:\n%s", forbidden, stdout)
 		}
 	}
-	for _, want := range []string{"gormes agent reset", "gormes mcp login <server>", "gormes profile set <name>"} {
+	for _, want := range []string{"gormes agent reset", "gormes mcp login <server>", "gormes profile use <name>"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("root help missing implemented shortcut %q:\n%s", want, stdout)
 		}

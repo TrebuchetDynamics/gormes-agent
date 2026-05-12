@@ -110,7 +110,7 @@ func TestHermesCLIParityManifestNestedParserInventoryMatchesHermes(t *testing.T)
 			{"curator", "status"}, {"curator", "run"}, {"curator", "pause"}, {"curator", "resume"}, {"curator", "pin"}, {"curator", "unpin"}, {"curator", "restore"}, {"curator", "list-archived"}, {"curator", "archive"}, {"curator", "prune"}, {"curator", "backup"}, {"curator", "rollback"},
 		},
 		"profile": {
-			{"profile", "list"}, {"profile", "use"}, {"profile", "create"}, {"profile", "delete"}, {"profile", "show"}, {"profile", "alias"}, {"profile", "rename"}, {"profile", "export"}, {"profile", "import"},
+			{"profile", "list"}, {"profile", "use"}, {"profile", "create"}, {"profile", "delete"}, {"profile", "show"}, {"profile", "alias"}, {"profile", "rename"}, {"profile", "export"}, {"profile", "import"}, {"profile", "install"}, {"profile", "update"}, {"profile", "info"},
 		},
 	}
 	for group, paths := range want {
@@ -353,6 +353,35 @@ func TestHermesCLIParityManifestGatewayStopIsImplemented(t *testing.T) {
 	}
 	if !strings.Contains(entry.Residual, "validated runtime PID") {
 		t.Fatalf("gateway stop residual = %q, want validated runtime PID evidence", entry.Residual)
+	}
+}
+
+func TestHermesCLIParityManifestProfileCommandsMatchCurrentSurface(t *testing.T) {
+	for _, path := range [][]string{
+		{"profile", "list"},
+		{"profile", "use"},
+		{"profile", "create"},
+		{"profile", "show"},
+		{"profile", "info"},
+	} {
+		entry := requireHermesCLIEntry(t, path)
+		if entry.Status != hermesCLIImplemented || !strings.Contains(entry.Target, "cmd/gormes profile") {
+			t.Fatalf("profile command %v = %+v, want implemented cmd/gormes profile target", path, entry)
+		}
+	}
+	for _, path := range [][]string{
+		{"profile", "delete"},
+		{"profile", "alias"},
+		{"profile", "rename"},
+		{"profile", "export"},
+		{"profile", "import"},
+		{"profile", "install"},
+		{"profile", "update"},
+	} {
+		entry := requireHermesCLIEntry(t, path)
+		if entry.Status != hermesCLIRowBacked || !strings.Contains(entry.Residual, "row-backed") {
+			t.Fatalf("profile command %v = %+v, want row-backed residual", path, entry)
+		}
 	}
 }
 

@@ -235,6 +235,47 @@ func TestGormesProfileSetValidatesNameThenUpdatesStore(t *testing.T) {
 	})
 }
 
+func TestGormesProfileUseIsCanonicalAndSetRemainsAlias(t *testing.T) {
+	fake := &profileCommandFakeSeams{
+		knownProfiles: []string{"default", "work"},
+		resolveProfileRoot: func(name string) (string, error) {
+			return "/home/operator-secret/.config/gormes/profiles/" + name, nil
+		},
+	}
+	stdout, stderr, err := runProfileTestCommand(t, fake.defaults(), "use", "work", "--json")
+	if err != nil {
+		t.Fatalf("profile use --json: %v\nstdout=%s stderr=%s", err, stdout, stderr)
+	}
+	var got struct {
+		Action string `json:"action"`
+		Active string `json:"active"`
+		Root   string `json:"root"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("profile use --json must emit JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Action != "use" || got.Active != "work" || got.Root != ".../work" {
+		t.Fatalf("profile use JSON = %+v, want action=use active=work root=.../work", got)
+	}
+	if strings.Contains(stdout+stderr, "/home/operator-secret") {
+		t.Fatalf("profile use leaked raw path:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if got := fake.writeActiveProfileCalls; len(got) != 1 || got[0] != "work" {
+		t.Fatalf("profile use write calls = %v, want [work]", got)
+	}
+
+	aliasFake := &profileCommandFakeSeams{
+		knownProfiles: []string{"default", "work"},
+	}
+	stdout, stderr, err = runProfileTestCommand(t, aliasFake.defaults(), "set", "work", "--json")
+	if err != nil {
+		t.Fatalf("profile set compatibility alias: %v\nstdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, `"action": "set"`) {
+		t.Fatalf("profile set alias should keep action=set for existing automation; stdout=%s", stdout)
+	}
+}
+
 // TestGormesProfileSet_JSONEmitsStructuredOutcome proves
 // `gormes profile set <name> --json` returns a parseable
 // `{build, action, active, root}` document so fleet automation
@@ -340,6 +381,42 @@ func TestGormesProfileCreateCloneAllCommand(t *testing.T) {
 	}
 	if got.Root != ".../cloned" {
 		t.Fatalf("root = %q, want redacted .../cloned", got.Root)
+	}
+}
+
+func TestGormesProfileHermesLifecycleCommandsResolveUnavailableJSON(t *testing.T) {
+	cases := [][]string{
+		{"delete", "work", "--yes", "--json"},
+		{"alias", "work", "--remove", "--json"},
+		{"rename", "work", "research", "--json"},
+		{"export", "work", "--output", "work.tar.gz", "--json"},
+		{"import", "work.tar.gz", "--name", "restored", "--json"},
+		{"install", "./dist", "--name", "telemetry", "--alias", "--force", "--yes", "--json"},
+		{"update", "telemetry", "--force-config", "--yes", "--json"},
+	}
+	for _, args := range cases {
+		args := args
+		t.Run(strings.Join(args[:1], "_"), func(t *testing.T) {
+			stdout, stderr, err := runProfileTestCommand(t, (&profileCommandFakeSeams{}).defaults(), args...)
+			if err == nil {
+				t.Fatalf("profile %s should be row-backed unavailable; stdout=%s stderr=%s", strings.Join(args, " "), stdout, stderr)
+			}
+			var got struct {
+				Action  string `json:"action"`
+				Command string `json:"command"`
+				Status  string `json:"status"`
+			}
+			if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+				t.Fatalf("profile %s --json must emit parseable unavailable report: %v\nstdout=%s\nstderr=%s",
+					strings.Join(args, " "), jsonErr, stdout, stderr)
+			}
+			if got.Action != "profile_command_unavailable" || got.Status != "row_backed" {
+				t.Fatalf("profile %s report = %+v, want unavailable row-backed", strings.Join(args, " "), got)
+			}
+			if got.Command != "gormes profile "+args[0] {
+				t.Fatalf("profile %s command = %q, want %q", strings.Join(args, " "), got.Command, "gormes profile "+args[0])
+			}
+		})
 	}
 }
 
