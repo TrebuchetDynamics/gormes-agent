@@ -142,6 +142,54 @@ func TestMemoryStatusCommand_EmptyDatabase_NoSchemaIsZeroState(t *testing.T) {
 	}
 }
 
+func TestMemoryStatusCommand_CorruptDatabaseSelfHealsToZeroState(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dataHome, "config"))
+	gormesHome := filepath.Join(dataHome, "gormes")
+	t.Setenv("GORMES_HOME", gormesHome)
+	if err := os.MkdirAll(gormesHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(gormesHome, "memory.db")
+	if err := os.WriteFile(dbPath, []byte("not sqlite"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"memory", "status", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("memory status --json must self-heal corrupt memory.db; got %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+
+	var got struct {
+		Extractor struct {
+			QueueDepth      int `json:"queue_depth"`
+			DeadLetterCount int `json:"dead_letter_count"`
+		} `json:"extractor"`
+	}
+	if jsonErr := json.Unmarshal(stdout.Bytes(), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout.String())
+	}
+	if got.Extractor.QueueDepth != 0 || got.Extractor.DeadLetterCount != 0 {
+		t.Fatalf("self-healed corrupt memory DB should report zero queue state, got %+v", got.Extractor)
+	}
+	combined := stdout.String() + stderr.String()
+	if strings.Contains(combined, "file is not a database") || strings.Contains(combined, "SQL logic error") {
+		t.Fatalf("raw sqlite corruption leaked to operator: %q", combined)
+	}
+	backups, err := filepath.Glob(dbPath + ".corrupt-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("corrupt memory.db must be preserved as one quarantine backup, got %v", backups)
+	}
+}
+
 // TestMemoryStatusCommand_MissingDatabase_JSONEmitsZeroState keeps the
 // JSON surface symmetric: SREs scraping
 // `gormes memory status --json` from a freshly-imaged host should see

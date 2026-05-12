@@ -285,7 +285,10 @@ Docs: https://docs.gormes.ai`,
 	root.Flags().String("provider", "", "provider override for --oneshot or TUI startup; also settable via GORMES_INFERENCE_PROVIDER")
 	root.Flags().String("endpoint", "", "provider endpoint override for --oneshot or TUI startup; invocation-only and also settable via GORMES_ENDPOINT")
 	root.Flags().String("api-key", "", "provider API key override for --oneshot or TUI startup; invocation-only and never persisted")
-	root.Flags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
+	root.PersistentFlags().Bool("offline", false, "run the TUI as a local smoke test without provider health checks or network submits")
+	if flag := root.PersistentFlags().Lookup("offline"); flag != nil && root.Flags().Lookup("offline") == nil {
+		root.Flags().AddFlag(flag)
+	}
 	root.Flags().String("resume", "", "override persisted session_id for the TUI's default key")
 	root.Flags().StringP("continue", "c", "", "resolve a session id or unique prefix and resume it")
 	if flag := root.Flags().Lookup("continue"); flag != nil {
@@ -1081,6 +1084,20 @@ func openTUISessionMap(cmd *cobra.Command) (session.Map, *session.BoltMap, error
 			"session persistence unavailable: %v\nrunning TUI with in-memory session state; run `gormes gateway stop` to release the persisted session DB, or `gormes gateway status` to inspect the owner. persisted_path=%s\n",
 			err, path)
 		return session.NewMemMap(), nil, nil
+	}
+	if errors.Is(err, session.ErrDBCorrupt) {
+		backup, healErr := quarantineCorruptStateFile(path, nil)
+		if healErr != nil {
+			return nil, nil, fmt.Errorf("%w; self-heal failed: %v", err, healErr)
+		}
+		smap, retryErr := session.OpenBolt(path)
+		if retryErr != nil {
+			return nil, nil, fmt.Errorf("%w; self-heal backup=%s retry failed: %v", err, backup, retryErr)
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"session persistence self-healed: corrupt sessions.db quarantined at %s; recreated persisted session DB at %s\n",
+			backup, path)
+		return smap, smap, nil
 	}
 	return nil, nil, err
 }
