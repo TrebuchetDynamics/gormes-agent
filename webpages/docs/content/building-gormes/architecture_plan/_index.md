@@ -392,7 +392,7 @@ classification and row-backed implementation queue.
 ### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX 🔨
 
 - [x] Goncho-backed dynamic agent registry
-- [ ] gormes agent spawn/list/inspect/bind/unbind CLI
+- [x] gormes agent spawn/list/inspect/bind/unbind CLI
 - [ ] Telegram /spawn opens forum topic bound to spawned agent
 - [ ] Discord /spawn opens thread bound to spawned agent
 

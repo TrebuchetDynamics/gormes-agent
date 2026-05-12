@@ -10866,13 +10866,13 @@
             {
               "name": "gormes agent spawn/list/inspect/bind/unbind CLI",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned operator surface for the dynamic registry from 2.H.1. Mirrors the JSON-and-text convention used by gormes profile and gormes navivox pair --json."
               },
-              "contract": "cmd/gormes/agent.go gains subcommands spawn, list, inspect, bind, and unbind that drive the DynamicAgentRegistry from 2.H.1. Each subcommand accepts --json for fleet automation with leading build provenance. spawn takes a name, optional --persona text, optional --skills and --model. bind matches by --channel, --peer-kind, --peer-id, and optional --thread-id. list shows agents and bindings (or only bindings with --bindings). inspect resolves a peer tuple back to the agent that would handle it. The existing 'gormes agent reset' subcommand stays untouched.",
-              "contract_status": "draft",
+              "contract": "cmd/gormes/agent.go gains subcommands spawn, list, inspect, bind, and unbind that drive the DynamicAgentRegistry from 2.H.1. Each subcommand accepts --json for fleet automation with leading build provenance. spawn takes a name and optional --persona text. bind matches by --channel, --peer-kind, --peer-id, and optional --thread-id. list shows runtime-spawned agents. inspect resolves a peer tuple back to the agent that would handle it (exits 0 with bound=false in --json mode for unbound peers; exits 1 with agent_not_bound on stderr in text mode). unbind is idempotent. The existing 'gormes agent reset' subcommand stays untouched. --skills/--model flags from the draft contract are deferred to a follow-up row when static-config equivalent semantics are nailed down.",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": ["operator"],
@@ -10919,9 +10919,9 @@
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Five new agent subcommands (spawn, list, inspect, bind, unbind) ship with --json shapes that include build provenance and four named tests green; existing agent reset behavior unchanged."
+                "Five new agent subcommands (spawn, list, inspect, bind, unbind) shipped with --json shapes that include build provenance and five named tests green (TestAgentSpawn_PersistsAndListsRecord, TestAgentSpawnRejectsInvalidID, TestAgentBind_ResolvesByPeer, TestAgentUnbind_RemovesMatch, TestAgentInspect_JSONReportsUnboundCleanly); existing agent reset behavior unchanged."
               ],
-              "note": "Operator surface. After this row a fleet can spawn, bind, and inspect dynamic agents from the CLI without yet routing a real channel message — the channel rows (2.H.3, 2.H.4) wire the in-chat slash UX."
+              "note": "Operator surface. After this row a fleet can spawn, bind, and inspect dynamic agents from the CLI without yet routing a real channel message — the channel rows (2.H.3, 2.H.4) wire the in-chat slash UX. The CLI routes the SQLite open through the shared sqlOpenGoncho helper (regression-tested) so busy_timeout and WAL match the gateway path; the deferred --skills/--model flags will land alongside a row that nails down dynamic-vs-static semantics for them."
             },
             {
               "name": "Telegram /spawn opens forum topic bound to spawned agent",
