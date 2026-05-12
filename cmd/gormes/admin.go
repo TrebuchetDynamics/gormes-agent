@@ -22,7 +22,7 @@ func newAdminCommand() *cobra.Command {
 				fmt.Fprintln(cmd.ErrOrStderr(), "admin_tui_requires_tty: run `gormes admin` from an interactive terminal")
 				return newExitCodeError(2, admin.ErrRequiresTTY)
 			}
-			err := admin.Run(in, cmd.OutOrStdout(), admin.NewWelcomeScreen())
+			err := admin.Run(in, cmd.OutOrStdout(), admin.NewDefaultScreens()...)
 			if errors.Is(err, admin.ErrRequiresTTY) {
 				fmt.Fprintln(cmd.ErrOrStderr(), "admin_tui_requires_tty: run `gormes admin` from an interactive terminal")
 				return newExitCodeError(2, err)

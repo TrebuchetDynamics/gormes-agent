@@ -26,9 +26,10 @@ var ErrRequiresTTY = errors.New("admin_tui_requires_tty")
 // Shell is the Bubble Tea root model for the admin TUI. Tests drive it
 // directly via teatest.NewTestModel; production callers use Run.
 type Shell struct {
-	mu      sync.Mutex
-	screens []Screen
-	active  int
+	mu       sync.Mutex
+	screens  []Screen
+	active   int
+	previous int
 
 	width  int
 	height int
@@ -95,17 +96,20 @@ func (s *Shell) handleGlobalKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 		s.mu.Unlock()
 		return tea.Quit, true
 	case tea.KeyTab:
-		s.advance(1)
-		return nil, true
+		return s.advance(1), true
 	case tea.KeyShiftTab:
-		s.advance(-1)
-		return nil, true
+		return s.advance(-1), true
 	case tea.KeyRunes:
 		if len(msg.Runes) == 1 {
 			r := msg.Runes[0]
 			if r >= '1' && r <= '9' {
-				if s.jumpTo(int(r - '1')) {
-					return nil, true
+				if cmd, ok := s.jumpTo(int(r - '1')); ok {
+					return cmd, true
+				}
+			}
+			if r == 'c' && !s.isActiveTitle("Chat") {
+				if cmd, ok := s.jumpToTitle("Chat"); ok {
+					return cmd, true
 				}
 			}
 			if r == '?' {
@@ -119,6 +123,10 @@ func (s *Shell) handleGlobalKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 				return tea.Quit, true
 			}
 		}
+	case tea.KeyEscape:
+		if cmd, ok := s.returnToPreviousFrom("Chat"); ok {
+			return cmd, true
+		}
 	}
 	return nil, false
 }
@@ -129,24 +137,62 @@ func (s *Shell) toggleHelp() {
 	s.helpOpen = !s.helpOpen
 }
 
-func (s *Shell) jumpTo(idx int) bool {
+func (s *Shell) jumpTo(idx int) (tea.Cmd, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if idx < 0 || idx >= len(s.screens) {
-		return false
+		return nil, false
 	}
-	s.active = idx
-	return true
+	return s.setActiveLocked(idx), true
 }
 
-func (s *Shell) advance(delta int) {
+func (s *Shell) jumpToTitle(title string) (tea.Cmd, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, sc := range s.screens {
+		if strings.EqualFold(sc.Title(), title) {
+			return s.setActiveLocked(i), true
+		}
+	}
+	return nil, false
+}
+
+func (s *Shell) isActiveTitle(title string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.active >= 0 && s.active < len(s.screens) && strings.EqualFold(s.screens[s.active].Title(), title)
+}
+
+func (s *Shell) returnToPreviousFrom(title string) (tea.Cmd, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.active < 0 || s.active >= len(s.screens) || !strings.EqualFold(s.screens[s.active].Title(), title) {
+		return nil, false
+	}
+	if s.previous < 0 || s.previous >= len(s.screens) || s.previous == s.active {
+		return nil, false
+	}
+	return s.setActiveLocked(s.previous), true
+}
+
+func (s *Shell) advance(delta int) tea.Cmd {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.screens) == 0 {
-		return
+		return nil
 	}
 	n := len(s.screens)
-	s.active = ((s.active+delta)%n + n) % n
+	next := ((s.active+delta)%n + n) % n
+	return s.setActiveLocked(next)
+}
+
+func (s *Shell) setActiveLocked(idx int) tea.Cmd {
+	if idx < 0 || idx >= len(s.screens) || idx == s.active {
+		return nil
+	}
+	s.previous = s.active
+	s.active = idx
+	return s.screens[s.active].Init()
 }
 
 func (s *Shell) forwardToActive(msg tea.Msg) (tea.Model, tea.Cmd) {
