@@ -1039,24 +1039,24 @@
             {
               "name": "Admin TUI: Setup health screen with missing-config callouts",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned. Anchors the user's explicit ask: show what is missing so the operator can act. Wraps the existing doctor checks in an actionable interactive screen instead of one-shot CLI output."
               },
               "contract": "internal/tui/admin/screen_health.go ships a Setup screen (the default-focused tab) that lists health items derived from internal/doctor + config presence + the dynamic agent registry. Each item renders as one row with: severity icon (✓/!/✗), short title, one-line detail, and optional [Fix] action key. Items include: provider configured, auth credentials present, agent template seeded, default agent created, Goncho memory.db reachable, gateway tokens (Telegram/Discord/Slack), profile initialized. Pressing Enter on a row with a [Fix] action launches the matching 1.E.1 wizard inline (e.g., Fix on 'no provider' opens a provider+key wizard; result writes through the same auth/config call as `gormes auth add` / `gormes setup provider`). The screen refreshes on focus and after any successful Fix. Read-only checks (memory.db reachable) have no Fix action. No new persistence surface — the screen reads existing config and registry state.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": ["operator"],
               "degraded_mode": "Without the health screen, operators rely on `gormes doctor --offline` output and CLI exit codes to discover misconfiguration; the user's explicit 'show missing config' anchor is unmet.",
-              "fixture": "internal/tui/admin/health_test.go teatest fixtures + tempdir GORMES_HOME",
+              "fixture": "internal/tui/admin/health_test.go teatest + tempdir GORMES_HOME",
               "source_refs": [
                 "internal/doctor/ (existing health checks; the screen reuses, does not duplicate)",
                 "internal/config/config.go (provider/auth/profile config presence)",
-                "internal/auth/ (auth store contract)",
+                "internal/config/credential_pool.go (auth store contract)",
                 "internal/agenttemplate/ (template seed detection)",
-                "internal/goncho/dynamic_agents.go (registry from 2.H.1 — read for default-agent presence)",
+                "internal/config/agents.go (default-agent registry)",
                 "internal/tui/wizard (1.E.1 — Fix action launches a Step sequence)",
                 "internal/tui/admin/shell.go (1.E.2 shell)"
               ],
@@ -1081,9 +1081,9 @@
                 "TestAdminHealth_RefreshKeyRecomputesChecks asserts pressing 'r' on the Setup screen recomputes the health list (e.g., after the operator manually edits config.toml outside the TUI)."
               ],
               "write_scope": [
+                "cmd/gormes/admin.go",
                 "internal/tui/admin/screen_health.go",
                 "internal/tui/admin/health_test.go",
-                "internal/tui/admin/testdata/ (teatest frames)",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -1094,18 +1094,18 @@
               "done_signal": [
                 "Setup health screen lands as the default-focused tab in `gormes admin` with four named tests green; doctor CLI output and existing setup/onboard prompts are unchanged."
               ],
-              "note": "Anchors the user's 'show missing config' ask. Pairs naturally with 1.E.4 (Chat tab) so the operator can move from 'I see what is missing' to 'I am chatting with the agent' without leaving the TUI."
+              "note": "Complete 2026-05-12: shipped the Setup health tab as the default `gormes admin` screen. The screen renders profile, provider, auth, default-agent, agent-template, Goncho memory.db, and Telegram/Discord/Slack token rows with doctor.Status glyphs and [Fix] only on provider/auth gaps. The inline provider fix flow uses the 1.E.1 wizard Step sequence, writes config.toml, .env, and the credential pool, then refreshes the same row to ✓. Read-only checks such as memory.db reachable do not expose Fix. Doctor CLI output plus existing setup/onboard prompts are unchanged."
             },
             {
               "name": "Admin TUI: Chat tab with keybinding to jump in from any screen",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned. Anchors the user's explicit ask: open chat easily. A first-pass chat surface inside the admin TUI; the full-featured chat TUI in `gormes` (internal/tui/model.go) remains the separate dedicated experience."
               },
               "contract": "internal/tui/admin/screen_chat.go ships a Chat screen registered as a tab in the admin shell, plus a global keybinding (`c` from any other screen) that switches focus to it. The screen renders: a scroll buffer of messages from the active session, a single-line input (or expanding textarea via bubbles/textarea), and a status line showing the current agent. Sending a message routes through the existing one-shot provider call path used by `gormes --oneshot`; responses stream into the scroll buffer. The active agent defaults to the static config default; an operator can press `a` to swap to a runtime-spawned agent from the 2.H.1 registry. Chat history is in-memory for the admin TUI session (not yet persisted to Goncho session — that follow-up row will land when admin TUI scope justifies it). The admin Chat tab is intentionally small: full session history, tool calls, slash commands, and the rich chrome stay in the dedicated `gormes` TUI.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": ["operator"],
@@ -1139,9 +1139,10 @@
                 "TestAdminChat_EscapeReturnsToPreviousScreen drives a teatest TTY: from Chat, press Esc, assert the previously focused tab is re-activated."
               ],
               "write_scope": [
+                "internal/tui/admin/shell.go",
+                "internal/tui/admin/screen_health.go",
                 "internal/tui/admin/screen_chat.go",
                 "internal/tui/admin/chat_test.go",
-                "internal/tui/admin/testdata/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -1152,18 +1153,18 @@
               "done_signal": [
                 "Chat tab lands with a working send path through a fake provider, the 'c' global keybinding jumps to it from any screen, four named tests green; the dedicated `gormes` chat TUI remains untouched."
               ],
-              "note": "Anchors the user's 'open chat easily' ask. Intentionally a slim chat — the dedicated `gormes` chat TUI keeps the full feature set. A later row can promote this tab to full parity if operators stop launching the dedicated TUI."
+              "note": "Complete 2026-05-12: shipped the slim Chat tab as the second default `gormes admin` screen. The shell now supports global `c` jump to Chat from other tabs, Esc return to the previous tab, and focus Init on tab switches. The Chat screen keeps in-memory user/assistant lines, sends through an injectable responder seam (defaulting to the configured Hermes provider client), preserves typed `c` characters while focused, and exposes an `a` picker backed by Goncho DynamicAgentRegistry.List. Four named TestAdminChat_* tests are green; the dedicated `gormes` chat TUI in internal/tui/model.go was not changed."
             },
             {
               "name": "Admin TUI: Agents screen wired to the 2.H dynamic registry",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned. Closes the 2.H operator surface inside the unified admin TUI: list / spawn / bind / unbind / inspect from one screen, instead of multiple CLI subcommands."
               },
               "contract": "internal/tui/admin/screen_agents.go ships an Agents tab listing DynamicAgentRegistry.List output. Keybindings: 'n' opens a Spawn wizard (Text name → MultiLine persona → Confirm) that writes through goncho.DynamicAgentRegistry.Create; 'b' opens a Bind wizard (Pick agent → Pick channel → Pick peer kind → Text peer ID → Text optional thread → Confirm) that writes through Bind; 'u' opens an Unbind confirm dialog for the currently-selected binding; 'i' opens an Inspect overlay showing the resolved agent for a peer tuple. The screen renders an empty-state CTA ('press n to spawn your first agent') when the registry is empty. All wizards compose 1.E.1 Step values; no new persistence surface is added.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": ["operator"],
@@ -1194,9 +1195,9 @@
                 "TestAdminAgents_UnbindRemovesBinding drives the unbind keybinding and asserts the binding is gone via Resolve."
               ],
               "write_scope": [
+                "internal/tui/admin/screen_health.go",
                 "internal/tui/admin/screen_agents.go",
                 "internal/tui/admin/agents_test.go",
-                "internal/tui/admin/testdata/",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
@@ -1207,7 +1208,7 @@
               "done_signal": [
                 "Agents tab lands with spawn/bind/unbind/inspect keybindings, four named tests green; 2.H.2 CLI tests remain untouched."
               ],
-              "note": "First non-foundational screen that ties the admin TUI to a concrete Gormes-owned subsystem (2.H). Follow-up screens (Profiles, Auth, Kanban, MCP, Cron, Secrets, Plugins, Config edit) land as siblings under 1.E once this pattern is proven — drafted as future rows when operator demand justifies them, not in this initial cluster."
+              "note": "Complete 2026-05-12: shipped the Agents tab as the third default `gormes admin` screen, lazily initialized when focused. The screen lists Goncho DynamicAgentRegistry records, shows the empty-registry spawn CTA, and provides inline Step-based spawn, bind, unbind, and inspect flows without importing cmd/gormes or changing the 2.H.2 CLI. Spawn writes through DynamicAgentRegistry.Create, bind writes through Bind, and unbind removes the last TUI-created binding through Unbind. Four named TestAdminAgents_* tests are green against tempdir memory.db fixtures."
             }
           ]
         }
@@ -11237,13 +11238,13 @@
             {
               "name": "Telegram /spawn opens forum topic bound to spawned agent",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned vertical slice that makes the OpenYabby-style in-chat agent spawn UX visible on Telegram. Reuses existing forum-topic send paths (internal/channels/telegram thread_send_test.go) and slash-command dispatch (subphase 2.F.1)."
               },
               "contract": "When an operator-tier user runs '/spawn <name> [persona text...]' in a Telegram supergroup with forum topics enabled, the gateway slash handler (a) creates a new agent via 2.H.1's DynamicAgentRegistry with the supplied name and optional persona seed, (b) calls Telegram createForumTopic to create a topic named after the agent, (c) binds the new (channel=telegram, chat_id=<supergroup>, thread_id=<new topic>) tuple to the spawned agent, and (d) sends one acknowledgement message inside the new topic confirming the agent is ready. If the chat is not a forum-enabled supergroup, the handler returns an actionable agent_spawn_requires_forum operator evidence string and does not create a registry record. The slash command is rejected with agent_spawn_not_authorized for non-operator tiers.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": ["operator"],
@@ -11298,18 +11299,18 @@
               "done_signal": [
                 "/spawn slash command lands in Telegram with four named tests green and registry rollback on API failure proven; existing thread_send_test.go and slash dispatch tests remain green."
               ],
-              "note": "First channel vertical slice. The Discord row (2.H.4) is intentionally a sibling so the pattern (slash dispatch + thread creation + registry bind + ack) can be reused, not re-invented."
+              "note": "Complete 2026-05-12: shipped Telegram /spawn as the first channel-native dynamic-agent slice. Gateway now recognizes /spawn, preserves slash args, enforces operator-tier checks, and dispatches through a shared SlashSpawnRequest handler. Telegram Bot implements CreateForumTopic via the existing raw UploadFiles Bot API seam, then creates the dynamic agent only after topic creation succeeds, binds channel=telegram/peer_kind=group/chat_id/thread_id, and sends agent_spawned evidence inside the new topic. Four named TestTelegramSpawnSlash_* fixtures prove topic creation + bind + ack, non-forum rejection, API-failure no-registry-write behavior, and non-operator rejection; TestSlashSpawn_* covers parser/dispatch evidence."
             },
             {
               "name": "Discord /spawn opens thread bound to spawned agent",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes",
                 "note": "Gormes-owned sibling of 2.H.3. Reuses existing Discord ThreadID admission and send paths (internal/channels/discord/bot.go ParticipatedThreadIDs)."
               },
               "contract": "Same UX as 2.H.3 on Discord: '/spawn <name> [persona]' in a guild text channel creates a new public thread named after the agent, binds the new (channel=discord, guild_id, channel_id, thread_id) tuple to a new dynamic agent, and sends one ack in the thread. The handler rejects /spawn in DMs with agent_spawn_requires_guild_channel and rejects non-operator callers with agent_spawn_not_authorized.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": ["operator"],
@@ -11355,7 +11356,7 @@
               "done_signal": [
                 "/spawn slash command lands in Discord with four named tests green; the shared slash handler dispatches to both Telegram (2.H.3) and Discord without per-platform duplication."
               ],
-              "note": "Slack and WhatsApp spawn rows are intentionally not drafted yet. Slack's adapter is currently thread_ts-blind on outbound (no thread_ts references in internal/channels) — that has to land first as a prerequisite slice. WhatsApp's adapter is roadmap/experimental in Gormes and the 'agent thread' UX is the original OpenYabby pattern, so it makes sense as the showcase row once the chassis is proven on the two runtime-ready channels."
+              "note": "Complete 2026-05-12: shipped Discord /spawn as the sibling channel-native dynamic-agent slice. The shared gateway SlashSpawnRequest handler now dispatches both Telegram and Discord while keeping operator-tier checks, usage parsing, and registry writes centralized. Discord Bot implements a direct CreateThread helper over ThreadStartComplex (no seed-message fallback on failure) plus ThreadSender delivery to the new thread channel. Four named TestDiscordSpawnSlash_* fixtures prove StartThread + bind + agent_spawned ack, DM rejection with agent_spawn_requires_guild_channel, StartThread failure with no registry record, and non-operator rejection; TestSlashSpawn_DiscordRejectsDirectMessage covers the shared handler rejection path."
             }
           ]
         }

@@ -17,15 +17,13 @@ test('docs home renders through Starlight with operator-first content', async ({
 
   const nav = page.getByRole('navigation', { name: 'Main' });
   for (const label of [
-    'Getting Started',
-    'Operate',
-    'Using Gormes',
-    'Reference',
-    'Architecture',
-    'Development',
-    'Parity',
-    'Building Gormes',
-    'Upstream Hermes Archive',
+    'Start here',
+    'Install',
+    'Configure',
+    'CLI reference',
+    'Recipes',
+    'Troubleshooting',
+    'Why Gormes',
   ]) {
     await expect(nav.getByText(label, { exact: true }).first()).toBeVisible();
   }
