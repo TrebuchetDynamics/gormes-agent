@@ -757,6 +757,46 @@ case_termux_detection_drives_plan() {
     "$SANDBOX/logs/dryrun-prefix-only.log"
 }
 
+case_root_linux_install_uses_usr_local() {
+  # Operator running install.sh as root on Linux lands in a different bin
+  # dir (/usr/local/bin) and managed checkout (/usr/local/lib/gormes-agent)
+  # than the default user install. install.sh:265 reads the effective UID
+  # via effective_uid(), which honors GORMES_INSTALL_EFFECTIVE_UID — spoof
+  # root for the plan check without needing sudo. The actual install would
+  # write to /usr/local/bin which a non-root test can't do; --dry-run
+  # validates the plan branch.
+  #
+  # Combine --verbose with --from-source --dry-run so the assertions can
+  # see both:
+  #   - "root_linux_install: yes" / "effective_uid: 0" (verbose plan
+  #     diagnostics from print_verbose_plan)
+  #   - "published_binary: /usr/local/bin/gormes" (pick_bin_dir:314)
+  #   - "checkout: /usr/local/lib/gormes-agent" (managed_checkout_dir:290,
+  #     only printed under source-build, so we force --from-source)
+
+  GORMES_INSTALL_EFFECTIVE_UID=0 \
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --verbose --from-source --dry-run \
+    > "$SANDBOX/logs/dryrun.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "--verbose --from-source --dry-run exit code"
+
+  # Verbose plan explicitly reports the root-install detection.
+  assert_grep "root_linux_install: yes" "$SANDBOX/logs/dryrun.log"
+  assert_grep "effective_uid: 0" "$SANDBOX/logs/dryrun.log"
+
+  # Root + no-legacy-checkout overrides pick_bin_dir (install.sh:313) and
+  # managed_checkout_dir (install.sh:290).
+  assert_grep "published_binary: /usr/local/bin/gormes" "$SANDBOX/logs/dryrun.log"
+  assert_grep "checkout: /usr/local/lib/gormes-agent" "$SANDBOX/logs/dryrun.log"
+
+  # The user-install default bin dir must NOT appear when root is detected
+  # and no GORMES_BIN_DIR/GORMES_PREFIX is set.
+  assert_no_grep "published_binary: $HOME/.local/bin/gormes" "$SANDBOX/logs/dryrun.log"
+}
+
 case_uninstall_dry_run_previews_no_deletion() {
   # Install first.
   GORMES_INSTALL_HOME="$SANDBOX/home" \
@@ -897,6 +937,7 @@ CASES=(
   no_curl_or_wget_falls_back_to_git_source_build
   no_systemd_install_skips_service
   termux_detection_drives_plan
+  root_linux_install_uses_usr_local
   uninstall_dry_run_previews_no_deletion
   uninstall_lifecycle
 )
