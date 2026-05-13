@@ -496,6 +496,80 @@ case_source_build_clone() {
   assert_no_production_state_changes
 }
 
+case_no_curl_or_wget_falls_back_to_git_source_build() {
+  # Operator guarantee: a host with neither curl nor wget on PATH still gets
+  # a working install via the source-build fallback. install.sh's binary-fetch
+  # path needs curl or wget for both tag resolution (API call OR releases/latest
+  # redirect) and the asset download; git uses its own HTTPS implementation and
+  # doesn't depend on either. With curl/wget absent, tag resolution fails first
+  # at install.sh:1093 ("could not resolve latest release tag"), binary-fetch
+  # aborts, source-build kicks in, git clones, Go builds, install succeeds.
+  capture_prestate
+
+  local shim="$SANDBOX/path-no-curl-wget"
+  mkdir -p "$shim"
+  # Include git + go so the source-build fallback can run. Omit curl and wget.
+  local needed tool real
+  needed=(
+    sh bash uname mkdir rm ln mv cp chmod sleep
+    tar gzip gunzip awk grep sed head tail cat tr cut sort
+    id hostname printf date dirname basename true false test '['
+    sha256sum shasum stat readlink which env mktemp file
+    git go tput touch chown find xargs ps kill wait
+  )
+  for tool in "${needed[@]}"; do
+    real=$(command -v "$tool" 2>/dev/null || true)
+    if [ -n "$real" ]; then
+      ln -sf "$real" "$shim/$tool"
+    fi
+  done
+
+  if PATH="$shim" command -v curl >/dev/null 2>&1; then
+    printf '    ! shim PATH still has curl: %s\n' "$(PATH=$shim command -v curl)" >&2
+    return 1
+  fi
+  if PATH="$shim" command -v wget >/dev/null 2>&1; then
+    printf '    ! shim PATH still has wget: %s\n' "$(PATH=$shim command -v wget)" >&2
+    return 1
+  fi
+  if ! PATH="$shim" command -v git >/dev/null 2>&1; then
+    printf '    ! shim PATH missing git (needed for source-build clone)\n' >&2
+    return 1
+  fi
+  if ! PATH="$shim" command -v go >/dev/null 2>&1; then
+    printf '    ! shim PATH missing go (needed for source-build compile)\n' >&2
+    return 1
+  fi
+
+  PATH="$shim" \
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_BIN_DIR="$SANDBOX/bin" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --skip-setup --restart-gateway never \
+    > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+
+  # binary-fetch must have failed at tag resolution (the redirect fallback
+  # also needs curl/wget; both branches abort, the tag stays empty, and
+  # install.sh logs "could not resolve latest release tag").
+  assert_grep "could not resolve latest release tag" "$SANDBOX/logs/install.log"
+  assert_grep "binary-fetch failed; falling back to source build" "$SANDBOX/logs/install.log"
+
+  # Source-build must have run: clone via git, build via go.
+  assert_grep "Cloned via" "$SANDBOX/logs/install.log"
+  assert_file_exists "$SANDBOX/home/gormes-agent/.git"
+  assert_executable "$SANDBOX/bin/gormes"
+
+  PATH="$shim" GORMES_HOME="$SANDBOX/home" \
+    "$SANDBOX/bin/gormes" version > "$SANDBOX/logs/version.log" 2>&1
+  assert_grep '^gormes ' "$SANDBOX/logs/version.log"
+
+  capture_poststate
+  assert_no_production_state_changes
+}
+
 case_branch_forces_source_build() {
   # install.sh:1030 — any --branch other than main forces source-build because
   # release binaries are only published from main. Use a real non-main branch
@@ -674,6 +748,7 @@ CASES=(
   source_build_local
   source_build_clone
   branch_forces_source_build
+  no_curl_or_wget_falls_back_to_git_source_build
   uninstall_dry_run_previews_no_deletion
   uninstall_lifecycle
 )
