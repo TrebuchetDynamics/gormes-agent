@@ -695,6 +695,68 @@ case_no_systemd_install_skips_service() {
   assert_no_production_state_changes
 }
 
+case_termux_detection_drives_plan() {
+  # Operator running install.sh in Termux: install.sh:240 detects via
+  # TERMUX_VERSION or $PREFIX containing /com.termux/files/usr. Detection
+  # branches:
+  #   - pick_bin_dir uses $PREFIX/bin  (install.sh:309)
+  #   - prereqs call ensure_termux_core_packages instead of ensure_go/git
+  #     (install.sh:636) — guarded so non-termux CI doesn't try pkg
+  #   - release_platform_arch returns android-arm64 on aarch64/arm64 or
+  #     empty (forcing source-build) on x86_64  (install.sh:980)
+  #
+  # We can't run a real Termux install on a generic Linux runner, but we
+  # CAN exercise the dry-run plan with TERMUX_VERSION + PREFIX set and
+  # prove the detection branches still produce a coherent plan. Locks in
+  # the detection contract against accidental removal of Termux support
+  # in a future install.sh refactor.
+
+  local fake_prefix="$SANDBOX/termux-prefix"
+  mkdir -p "$fake_prefix/bin"
+
+  TERMUX_VERSION="0.118.1" \
+  PREFIX="$fake_prefix" \
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --dry-run > "$SANDBOX/logs/dryrun.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "--dry-run exit code"
+
+  # The bin dir on Termux is $PREFIX/bin (install.sh:309 — `is_termux &&
+  # [ -n "$PREFIX" ]`). That's the clearest single signal that detection
+  # fired correctly.
+  assert_grep "published_binary: $fake_prefix/bin/gormes" "$SANDBOX/logs/dryrun.log"
+
+  # Asset-slug logic must reflect host arch within the Termux branch.
+  local arch
+  arch=$(uname -m)
+  case "$arch" in
+    aarch64|arm64)
+      assert_grep "install_method: binary-fetch" "$SANDBOX/logs/dryrun.log"
+      assert_grep "android-arm64" "$SANDBOX/logs/dryrun.log"
+      ;;
+    *)
+      # Termux-detected on a non-arm64 host: no android-amd64 asset is
+      # published, so install.sh must fall to source-build with a
+      # "no published release asset" reason.
+      assert_grep "install_method: source-build" "$SANDBOX/logs/dryrun.log"
+      assert_grep "no published release asset" "$SANDBOX/logs/dryrun.log"
+      ;;
+  esac
+
+  # Detection via $PREFIX path pattern (without TERMUX_VERSION) must also
+  # work — same path operators get from termux-app itself.
+  PREFIX="/data/data/com.termux/files/usr" \
+  GORMES_INSTALL_HOME="$SANDBOX/home2" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --dry-run > "$SANDBOX/logs/dryrun-prefix-only.log" 2>&1
+  assert_eq "$?" 0 "--dry-run exit code (PREFIX-only detection)"
+  assert_grep "published_binary: /data/data/com.termux/files/usr/bin/gormes" \
+    "$SANDBOX/logs/dryrun-prefix-only.log"
+}
+
 case_uninstall_dry_run_previews_no_deletion() {
   # Install first.
   GORMES_INSTALL_HOME="$SANDBOX/home" \
@@ -834,6 +896,7 @@ CASES=(
   branch_forces_source_build
   no_curl_or_wget_falls_back_to_git_source_build
   no_systemd_install_skips_service
+  termux_detection_drives_plan
   uninstall_dry_run_previews_no_deletion
   uninstall_lifecycle
 )
