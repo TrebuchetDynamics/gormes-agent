@@ -52,7 +52,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
 		{Path: []string{"whatsapp"}, Kind: hermesCLICommand, Status: hermesCLIImplemented, SourceRef: "hermes_cli/main.py:whatsapp", Target: "cmd/gormes whatsapp", Row: "WhatsApp top-level pairing wizard shell", Residual: "top-level WhatsApp wizard shell and plan output are implemented; bundling/running the live Baileys QR bridge remains row-backed"},
 		hermesRowCommand("slack", "hermes_cli/main.py:slack", "Gateway, platform, webhook, and cron management CLI", "Slack platform management remains row-backed"),
-		hermesExcludedCommand("login", "hermes_cli/auth.py:login_command", "Hermes top-level login is removed; use `gormes auth add <provider> --type oauth`, `gormes model`, or `gormes setup` parity rows"),
+		hermesImplementedPath([]string{"login"}, hermesCLICommand, "hermes_cli/main.py:login_parser + hermes_cli/auth.py:_login_openai_codex", "cmd/gormes login", "top-level login is a redacted compatibility shortcut for Hermes provider OAuth; `--provider openai-codex` delegates to the Gormes-owned Codex OAuth credential pool"),
 		hermesProviderLogoutCommand(),
 		hermesCommandSet("auth", "hermes_cli/auth_commands.py:auth_command", "provider auth subcommands remain row-backed", "Hermes auth credential-pool command surface"),
 		hermesImplementedCommand("status", "hermes_cli/main.py:status", "cmd/gormes gateway status"),

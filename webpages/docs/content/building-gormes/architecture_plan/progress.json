@@ -1209,6 +1209,64 @@
                 "Agents tab lands with spawn/bind/unbind/inspect keybindings, four named tests green; 2.H.2 CLI tests remain untouched."
               ],
               "note": "Complete 2026-05-12: shipped the Agents tab as the third default `gormes admin` screen, lazily initialized when focused. The screen lists Goncho DynamicAgentRegistry records, shows the empty-registry spawn CTA, and provides inline Step-based spawn, bind, unbind, and inspect flows without importing cmd/gormes or changing the 2.H.2 CLI. Spawn writes through DynamicAgentRegistry.Create, bind writes through Bind, and unbind removes the last TUI-created binding through Unbind. Four named TestAdminAgents_* tests are green against tempdir memory.db fixtures."
+            },
+            {
+              "name": "Admin TUI: Commands catalog over the root CLI tree",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Makes the unified admin TUI a discoverability surface for the whole Gormes CLI without changing the execution semantics of the individual Cobra commands."
+              },
+              "contract": "cmd/gormes/admin.go walks the live Cobra root command tree at `gormes admin` startup and passes a deterministic list of non-hidden commands into internal/tui/admin. internal/tui/admin/screen_commands.go registers a Commands tab after Setup, Chat, and Agents. The tab renders command count, command use lines, short descriptions, selection movement, and a selected-command detail pane. The screen is read-only: operators discover commands in the unified TUI, then run mutating commands explicitly from the shell. The dedicated root `gormes` chat TUI remains unchanged.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the Commands tab, the admin TUI covers setup, chat, and agents but still forces operators back to `gormes --help` or scattered subcommand help to discover the rest of the CLI surface.",
+              "fixture": "internal/tui/admin/commands_test.go teatest fixture + cmd/gormes/admin_test.go command-tree catalog assertion",
+              "source_refs": [
+                "cmd/gormes/main.go (root Cobra command registration)",
+                "cmd/gormes/admin.go (admin command entry point and live command catalog builder)",
+                "internal/tui/admin/shell.go (screen registry and tab navigation)",
+                "internal/tui/admin/screen_commands.go (read-only command catalog screen)"
+              ],
+              "ready_when": [
+                "1.E.2 shell is validated and default screen construction can accept runtime-provided data.",
+                "The root Cobra command tree is available from `cmd.Root()` at `gormes admin` runtime.",
+                "The slice can stay read-only and avoid invoking mutating commands inside the TUI."
+              ],
+              "not_ready_when": [
+                "The slice changes root `gormes` startup behavior away from the dedicated chat TUI.",
+                "The slice duplicates command implementations or calls cmd/gormes handlers from internal/tui/admin.",
+                "The slice exposes hidden/internal commands in the operator catalog."
+              ],
+              "blocked_by": [
+                "Unified admin TUI shell with tab navigation"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminCommands_RendersWholeCLICatalog drives the Commands screen through teatest and asserts count, command use lines, descriptions, and selected-command detail rendering.",
+                "TestAdminDefaultScreensIncludesCommandsTab asserts the default admin screen registry includes Setup, Chat, Agents, and Commands in order when command entries are supplied.",
+                "TestAdminCommandCatalogCoversRootCommandTree asserts the live root Cobra catalog includes representative top-level and nested commands such as admin, auth add, gateway status, kanban list, login, mcp login, and session export while excluding hidden help commands."
+              ],
+              "write_scope": [
+                "cmd/gormes/admin.go",
+                "cmd/gormes/admin_test.go",
+                "internal/tui/admin/screen_commands.go",
+                "internal/tui/admin/commands_test.go",
+                "internal/tui/admin/screen_health.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin ./cmd/gormes -run 'TestAdminCommands|TestAdminDefaultScreensIncludesCommandsTab|TestAdminCommandCatalogCoversRootCommandTree' -count=1",
+                "go test ./internal/tui/admin ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` registers a read-only Commands tab built from the live root Cobra command tree, three named tests are green, and existing root chat TUI semantics remain unchanged."
+              ],
+              "note": "Complete 2026-05-12: shipped the read-only Commands tab in the unified admin TUI. cmd/gormes/admin.go now builds a sorted command catalog from the live Cobra root tree, excluding hidden/help commands, and passes it into internal/tui/admin via WithCommandEntries. internal/tui/admin/screen_commands.go renders command count, use lines, descriptions, keyboard selection, and selected-command details. TestAdminCommands_RendersWholeCLICatalog, TestAdminDefaultScreensIncludesCommandsTab, and TestAdminCommandCatalogCoversRootCommandTree are green."
             }
           ]
         }
@@ -41989,7 +42047,7 @@
                 "Gormes auth add openai-codex strict isolation contract",
                 "Gormes auth add bedrock open-question planning note",
                 "Gormes top-level logout provider shortcut",
-                "Gormes login removed-command typo suggestion contract",
+                "Gormes top-level login provider shortcut",
                 "Gormes model interactive provider/model picker",
                 "Gormes setup minimal sectioned wizard slice",
                 "Gormes setup top-level chooser menu",
@@ -42730,7 +42788,7 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Gormes login removed-command typo suggestion contract"
+                "Gormes top-level login provider shortcut"
               ],
               "acceptance": [
                 "TestLogoutTopLevelAcceptsAllowedProviders proves `--provider nous`, `--provider openai-codex`, and `--provider spotify` each invoke the shared logout helper and clear only the named provider's auth state.",
@@ -42831,52 +42889,51 @@
               ]
             },
             {
-              "name": "Gormes login removed-command typo suggestion contract",
+              "name": "Gormes top-level login provider shortcut",
               "status": "complete",
               "priority": "P2",
-              "contract": "`gormes login` is NOT registered as a Cobra command. When an operator types `gormes login` (with or without legacy flags such as `--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`), Cobra surfaces unknown-command, and Gormes emits a deterministic suggestion `did you mean \"gormes auth add <provider> --type oauth\"?` (parallel to the `gormes migrate ooenclaw -> gormes migrate openclaw` typo-suggestion contract). The legacy Hermes `--provider` flag set is recognized contextually in the suggestion message but not parsed.",
+              "contract": "`gormes login --provider openai-codex` is registered as a top-level Cobra command and delegates to the same Gormes-owned Codex OAuth credential-pool flow as `gormes auth add openai-codex --type oauth`. The command accepts Hermes' legacy provider-login flags (`--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`) and passes the relevant values through to the OAuth adapter. Bare `gormes login` requires an explicit provider and performs no auth side effects. Unsupported provider values return redacted allow-list guidance without echoing the supplied value.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "`unknown_command_login_suggested_auth_add` typed evidence is emitted; the suggestion redacts any provider name strings that could leak through if the operator passed `--provider <secret>`-shaped tokens; downstream invocation parsers continue to resolve real subcommands without interference.",
-              "fixture": "cmd/gormes/login_typo_suggestion_test.go",
+              "degraded_mode": "`auth_login_provider_required` and `auth_login_provider_unsupported` typed evidence are emitted without opening browsers, contacting providers, mutating auth.json, or leaking provider argument values. Existing `gormes auth add` remains the canonical provider-auth command and top-level login is only a compatibility shortcut for Hermes provider OAuth.",
+              "fixture": "cmd/gormes/login_command_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/auth.py:3848-3853:login_command",
-                "../hermes-agent/hermes_cli/main.py:8186-8227:login_parser",
+                "../hermes-agent/hermes_cli/main.py:9657-9700:login_parser",
+                "../hermes-agent/hermes_cli/auth.py:4488-4560:_login_openai_codex",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command openai-codex OAuth branch",
                 "cmd/gormes/main.go:newRootCommandWithRuntime",
-                "cmd/gormes/main.go:rootCommandArgs",
-                "cmd/gormes/login_typo_suggestion_test.go",
-                "cmd/gormes/auth_command_test.go:TestGormesLoginPrintsUnknownCommandSuggestion",
+                "cmd/gormes/login.go",
+                "cmd/gormes/login_command_test.go",
+                "cmd/gormes/auth_command_test.go:TestGormesLoginTopLevelCommandIsRegistered",
                 "cmd/gormes/hermes_cli_parity.go:55",
-                "internal/cli/typo_suggestions.go",
-                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
-                "cmd/gormes/login_typo_suggestion_test.go",
-                "internal/cli/typo_suggestions_test.go"
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
               ],
               "ready_when": [
-                "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/excluded guidance (parity manifest line 55 already encodes this with hermesCLIExcluded).",
-                "Gormes top-level logout provider shortcut row defines the parallelism between removed `login` and live `logout`.",
-                "Tests can capture stdout/stderr from a Cobra invocation; no live OAuth or provider network is required."
+                "Hermes login parser shape is source-backed and the `openai-codex` branch is active through Hermes provider-auth helpers.",
+                "Gormes auth add openai-codex strict isolation contract is complete and owns token storage, config updates, Codex CLI import fallback, and redaction.",
+                "Tests can capture stdout/stderr from a Cobra invocation with fake OAuth seams; no live OAuth or provider network is required."
               ],
               "not_ready_when": [
-                "The slice registers a Cobra command named \"login\" instead of relying on Cobra's unknown-command path.",
-                "The slice silently aliases gormes login to gormes auth add without a deterministic suggestion message.",
-                "The slice performs OAuth work, opens browsers, contacts portal_url, or mutates auth.json.",
-                "The suggestion message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
+                "The slice duplicates Codex token persistence instead of delegating to the existing auth add OAuth path.",
+                "The slice accepts unsupported provider values or echoes secret-shaped provider argument values.",
+                "The slice runs device-code login or mutates auth.json when `--provider` is missing.",
+                "The slice changes `gormes auth add` positional semantics."
               ],
               "acceptance": [
-                "TestGormesLoginUnknownCommandEmitsTypoSuggestion proves `gormes login` returns a non-zero exit with the deterministic suggestion message `did you mean \"gormes auth add <provider> --type oauth\"?`.",
-                "TestGormesLoginWithProviderFlagsEmitsSuggestion proves `gormes login --provider openai-codex` produces the same suggestion (the legacy flags are recognized contextually in the suggestion text, not parsed by Cobra).",
-                "TestGormesLoginIsNotRegisteredAsCobraCommand proves `cobra.Command.Find` for `login` resolves only to the root and no registered `login` subcommand or alias exists.",
-                "TestGormesLoginSuggestionParityWithMigrateTypo proves the suggestion pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, no silent execution of the suggested command, no OAuth side effects.",
-                "TestGormesLoginSuggestionRedactsProviderArgValues proves no fixture provider-name string passed via `--provider <value>` leaks into stdout/stderr beyond the literal suggestion template."
+                "TestGormesLoginCodexProviderDelegatesToOAuthAdd proves `gormes login --provider openai-codex --no-browser` invokes the existing Codex OAuth add flow, saves one redacted credential-pool entry, and updates `hermes.provider=openai-codex` without leaking access or refresh tokens.",
+                "TestGormesLoginIsRegisteredAsCobraCommand and TestGormesLoginTopLevelCommandIsRegistered prove `login` is a real top-level Cobra command.",
+                "TestGormesLoginRequiresExplicitProviderWithoutSideEffects proves bare `gormes login` returns `auth_login_provider_required` guidance and does not invoke device-code login or write credentials.",
+                "TestGormesLoginRejectsUnsupportedProviderWithoutLeakingValue proves unsupported provider values return `auth_login_provider_unsupported allowed=nous|openai-codex` without echoing the supplied value.",
+                "TestHermesCLIParityManifestProviderAuthCommandsMatchHermes proves the parity manifest now classifies top-level login as implemented and redacts secrets."
               ],
-              "note": "Validated: gormes no longer registers a top-level login Cobra command; executeRootCommand emits deterministic unknown-command guidance did you mean \"gormes auth add <provider> --type oauth\"? for login with or without legacy provider flags, while redacting provider argument values and performing no OAuth side effects. Evidence: go test ./cmd/gormes -run ^TestGormesLogin -count=1; go test ./internal/cli -run ^TestTypoSuggestion -count=1.",
+              "note": "Updated 2026-05-12: operator parity request promoted top-level login from removed-command guidance to a real provider-auth compatibility shortcut. `cmd/gormes/login.go` registers `gormes login --provider <provider>`, requires an explicit provider, allow-lists `nous|openai-codex`, redacts unsupported provider values, and delegates to `runAuthAddCommand` with OAuth options so Codex token storage/config updates stay in the existing Gormes-owned credential-pool path. The old pre-Cobra `TypoSuggestion(login)` hook now returns no suggestion so the registered command can run.",
               "write_scope": [
-                "cmd/gormes/login_typo_suggestion_test.go",
+                "cmd/gormes/login.go",
+                "cmd/gormes/login_command_test.go",
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_command_test.go",
                 "cmd/gormes/main.go",
@@ -42887,18 +42944,18 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestGormesLogin' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesLogin|TestHermesCLIParityManifestProviderAuthCommandsMatchHermes|TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions' -count=1",
                 "go test ./internal/cli -run '^TestTypoSuggestion' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Login typo-suggestion fixtures prove no Cobra `login` registration, deterministic unknown-command suggestion message with and without legacy `--provider` tokens, parity with `migrate ooenclaw`, provider-arg-value redaction, and no auth side effects."
+                "Login fixtures prove `gormes login --provider openai-codex` works through the existing Codex OAuth add path, top-level login is registered, bare login has no side effects, unsupported-provider guidance is redacted, and the parity manifest marks login implemented."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:hermes_cli/auth.py:3848-3853 login_command + main.py:8186-8227 login_parser shim (Q1B decision: do not port the shim — use Cobra unknown-command typo suggestion instead)",
-                "note": "Hermes keeps a deprecated parser as a deliberate shim; Gormes' Q1B decision is to provide a typo guide via Cobra's unknown-command path rather than register a `login` subparser. The parity rule with `gormes migrate ooenclaw` (never silent, always explicit redirect) still holds."
+                "upstream_ref": "hermes:hermes_cli/main.py:9657-9700 login_parser + hermes_cli/auth.py:4488-4560 _login_openai_codex + hermes_cli/auth_commands.py openai-codex OAuth add",
+                "note": "Hermes exposes the parser shape operators still type and has a source-backed OpenAI Codex login helper. Gormes keeps the token lifecycle native by delegating the top-level shortcut to the existing `auth add openai-codex --type oauth` implementation instead of introducing a second token store."
               }
             },
             {
@@ -46500,7 +46557,7 @@
               "name": "Hermes CLI alias and suggestion fidelity matrix",
               "priority": "P2",
               "status": "complete",
-              "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes login` and `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases.",
+              "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases; `gormes login --provider openai-codex` is now a registered provider-auth compatibility command rather than an alias.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -46518,7 +46575,7 @@
                 "../hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:typed alias, catalog alias, exact-vs-prefix, ambiguous-prefix, and skill-dispatch fixtures",
                 "cmd/gormes/hermes_cli_parity.go",
                 "cmd/gormes/hermes_cli_parity_test.go",
-                "cmd/gormes/login_typo_suggestion_test.go",
+                "cmd/gormes/login_command_test.go",
                 "cmd/gormes/migrate_openclaw_test.go",
                 "internal/cli/command_registry.go",
                 "internal/cli/command_registry_policy_test.go",
@@ -46547,7 +46604,7 @@
                 "49-file CLI tree port"
               ],
               "acceptance": [
-                "TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions proves top-level unknown commands, removed `login`, and `migrate ooenclaw` render deterministic guidance, preserve exit semantics, and do not become silent aliases.",
+                "TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions proves top-level unknown commands, unsupported `login --provider <unknown>` redacted guidance, and `migrate ooenclaw` render deterministic guidance, preserve exit semantics, and do not become silent aliases.",
                 "TestHermesCommandAliasFidelity_SlashRegistryAliasAndPrefix proves `/provider` resolves to `/model`, unique prefixes preserve arguments, exact command names win over longer prefix matches, and ambiguous prefixes list bounded candidates.",
                 "TestHermesCommandAliasFidelity_QuickCommandAliasPreservesArgsAndDetectsCycles proves configured quick-command alias targets retain user arguments and report alias cycles/unsupported targets without recursion loops.",
                 "TestGatewayCommandAliasFidelity_CanonicalHooksKeepRawCommand proves gateway alias dispatch fires hooks/handlers against the canonical command while preserving the typed raw_command and raw_args.",
@@ -46574,7 +46631,7 @@
               "done_signal": [
                 "Alias/suggestion fixtures prove CLI, gateway, and TUI slash command resolution follows Hermes-visible canonicalization, prefix, ambiguity, quick-command alias, plugin/skill fallback, and unknown-command guidance without provider submission leaks."
               ],
-              "note": "Complete: TDD added `internal/cli/command_alias.go` and `internal/cli/command_alias_test.go` to pin exact command, typed alias, unique-prefix, exact-vs-prefix, ambiguous-prefix, unknown-command, and quick-command alias/cycle behavior without provider/config runtime state. `internal/gateway/commands.go` now exposes canonical gateway dispatch evidence with typed `raw_command`/`raw_args` plus bounded unknown-slash guidance reused by `internal/gateway/manager.go`. `internal/tui/slash_dispatch.go` now consumes the shared resolver for default-registry fallbacks; `internal/tui/slash_commands_test.go` proves `/provider -> /model`, unique prefix preservation, exact `/status` precedence over `/statusbar`, bounded ambiguous `/stat`, and unknown slash handling. `cmd/gormes/command_alias_fidelity_test.go` pins top-level unknown command, removed `login`, and `migrate ooenclaw` as explicit guidance paths rather than silent aliases.",
+              "note": "Complete: TDD added `internal/cli/command_alias.go` and `internal/cli/command_alias_test.go` to pin exact command, typed alias, unique-prefix, exact-vs-prefix, ambiguous-prefix, unknown-command, and quick-command alias/cycle behavior without provider/config runtime state. `internal/gateway/commands.go` now exposes canonical gateway dispatch evidence with typed `raw_command`/`raw_args` plus bounded unknown-slash guidance reused by `internal/gateway/manager.go`. `internal/tui/slash_dispatch.go` now consumes the shared resolver for default-registry fallbacks; `internal/tui/slash_commands_test.go` proves `/provider -> /model`, unique prefix preservation, exact `/status` precedence over `/statusbar`, bounded ambiguous `/stat`, and unknown slash handling. `cmd/gormes/command_alias_fidelity_test.go` pins top-level unknown command, unsupported `login --provider <unknown>` redacted guidance, and `migrate ooenclaw` as explicit guidance paths rather than silent aliases.",
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:hermes_cli/commands.py + cli.py process_command + gateway/run.py command canonicalization + ui-tui createSlashHandler",

@@ -168,7 +168,7 @@ Status values:
 | `setup` | Partial | `cmd/gormes setup`; Phase `5.O`: `Gormes setup minimal sectioned wizard slice` | Minimal section UX is visible; model delegates to the shared picker or noninteractive defaults, while non-model sections return typed unsupported evidence. |
 | `whatsapp` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Platform management surface not yet visible as a root command. |
 | `slack` | Row-backed | Phase `5.O`: `Gateway, platform, webhook, and cron management CLI` | Current Hermes nested command is `slack manifest`. |
-| `login` | Excluded/deprecated | Phase `5.O`: `Gormes login removed-command typo suggestion contract` | Not registered as a command; unknown-command output suggests `gormes auth add <provider> --type oauth` and never runs OAuth. |
+| `login` | Implemented | Phase `5.O`: `Gormes top-level login provider shortcut` | Registered as a redacted compatibility shortcut; `gormes login --provider openai-codex` delegates to the existing Codex OAuth credential-pool flow. |
 | `logout` | Row-backed | Phase `5.O`: `Gormes top-level logout provider shortcut`; auth rows | `gormes auth logout` exists; top-level shortcut remains separate parity work. |
 | `auth` | Partial | Phase `5.O`: auth command rows; `hermes-auth-cli-parity.md` | API-key and pool operations exist; Codex device-code OAuth is in progress/native, while Anthropic, Nous, Google Gemini CLI, Qwen, and Spotify remain row-backed. |
 | `status` | Partial | Phase `5.O`: `Diagnostics, backup, logs, and status CLI`; gateway status rows | Current equivalent is `gormes gateway status`, not full Hermes root status. |
@@ -233,7 +233,7 @@ Codex CLI token import may exist only as an explicitly labeled emergency bridge.
 | `model` | Interactive provider/model picker; upstream invokes provider login as needed. | Implemented as selection-only `gormes model`; use `gormes auth add <provider>` for auth. | Phase `5.O`: `Gormes model interactive provider/model picker`. |
 | `setup model` | Wizard path into provider/model setup. | Implemented as `gormes setup model`, delegating to the shared picker or env/config defaults with `--non-interactive`. | Phase `5.O`: `Gormes setup minimal sectioned wizard slice`. |
 | `mcp login <name>` | OAuth re-auth for OAuth MCP servers only. | Planned. | Phase `5.O`: `Gormes mcp login OAuth re-auth bridge`. |
-| top-level `login` | Hermes keeps a deprecated shim; Gormes owns the Q1B decision to avoid registering it. | Not visible; `gormes login` exits non-zero through unknown-command suggestion `gormes auth add <provider> --type oauth`. | Phase `5.O`: `Gormes login removed-command typo suggestion contract`. |
+| top-level `login` | Hermes keeps the legacy parser surface operators still type. | Implemented as `gormes login --provider <provider>` with an explicit `nous|openai-codex` allow-list; `openai-codex` delegates to the existing Gormes-owned OAuth add flow, while bare login and unsupported providers return redacted guidance. | Phase `5.O`: `Gormes top-level login provider shortcut`. |
 
 ## Runtime parity notes from live Telegram dogfood
 

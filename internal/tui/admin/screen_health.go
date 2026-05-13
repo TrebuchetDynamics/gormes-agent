@@ -77,11 +77,34 @@ func NewSetupHealthScreen(opts ...HealthOption) *SetupHealthScreen {
 	return s
 }
 
+type defaultScreensConfig struct {
+	commandEntries []CommandEntry
+}
+
+// DefaultScreensOption configures the production admin screen registry.
+type DefaultScreensOption func(*defaultScreensConfig)
+
+// WithCommandEntries adds the root CLI command catalog to the Commands tab.
+func WithCommandEntries(entries []CommandEntry) DefaultScreensOption {
+	return func(cfg *defaultScreensConfig) {
+		cfg.commandEntries = cloneCommandEntries(entries)
+	}
+}
+
 // NewDefaultScreens returns the ordered admin screen registry. The Setup
 // health screen is intentionally first so `gormes admin` opens on actionable
 // configuration state.
-func NewDefaultScreens() []Screen {
-	return []Screen{NewSetupHealthScreen(), NewChatScreen(), NewAgentsScreen()}
+func NewDefaultScreens(opts ...DefaultScreensOption) []Screen {
+	var cfg defaultScreensConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return []Screen{
+		NewSetupHealthScreen(),
+		NewChatScreen(),
+		NewAgentsScreen(),
+		NewCommandsScreen(cfg.commandEntries),
+	}
 }
 
 func (s *SetupHealthScreen) Title() string { return "Setup" }

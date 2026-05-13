@@ -339,8 +339,8 @@ func TestHermesCLIParityManifestClawCleanupImplemented(t *testing.T) {
 
 func TestHermesCLIParityManifestProviderAuthCommandsMatchHermes(t *testing.T) {
 	login := requireHermesCLIEntry(t, []string{"login"})
-	if login.Status != hermesCLIExcluded || !strings.Contains(strings.ToLower(login.Residual), "removed") {
-		t.Fatalf("top-level login = %+v, want excluded removed-command compatibility entry", login)
+	if login.Status != hermesCLIImplemented || login.Target != "cmd/gormes login" || !login.RedactsSecrets {
+		t.Fatalf("top-level login = %+v, want implemented redacted login compatibility entry", login)
 	}
 
 	logout := requireHermesCLIEntry(t, []string{"logout"})

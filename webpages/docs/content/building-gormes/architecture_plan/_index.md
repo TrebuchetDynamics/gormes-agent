@@ -144,6 +144,7 @@ classification and row-backed implementation queue.
 - [x] Admin TUI: Setup health screen with missing-config callouts
 - [x] Admin TUI: Chat tab with keybinding to jump in from any screen
 - [x] Admin TUI: Agents screen wired to the 2.H dynamic registry
+- [x] Admin TUI: Commands catalog over the root CLI tree
 
 ## Phase 2 — The Gateway ✅
 
@@ -1038,7 +1039,7 @@ classification and row-backed implementation queue.
 - [x] Model and profile selector seam (Cobra + gateway)
 - [x] Gormes top-level logout provider shortcut
 - [x] Top-level logout configured-provider fallback
-- [x] Gormes login removed-command typo suggestion contract
+- [x] Gormes top-level login provider shortcut
 - [x] Gormes model interactive provider/model picker
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu

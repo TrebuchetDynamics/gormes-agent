@@ -535,22 +535,16 @@ func TestGormesAuthBareReadoutListsCredentialPools(t *testing.T) {
 	}
 }
 
-func TestGormesLoginPrintsRemovedCommandGuidance(t *testing.T) {
+func TestGormesLoginTopLevelCommandIsRegistered(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
 	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeRootCommandForTest(cmd, "login", "--provider", "openai-codex")
-	if err == nil {
-		t.Fatalf("login removed-command typo path returned nil error: stdout=%s stderr=%s", stdout, stderr)
+	found, _, err := cmd.Find([]string{"login", "--provider", "openai-codex"})
+	if err != nil {
+		t.Fatalf("Find login: %v", err)
 	}
-	combined := stdout + stderr + err.Error()
-	for _, want := range []string{"unknown command", "did you mean", "gormes auth add <provider> --type oauth"} {
-		if !strings.Contains(combined, want) {
-			t.Fatalf("combined output missing %q:\nstdout=%s\nstderr=%s\nerr=%v", want, stdout, stderr, err)
-		}
-	}
-	if strings.Contains(combined, "openai-codex") {
-		t.Fatalf("login suggestion leaked provider argument:\n%s", combined)
+	if found == nil || found.Name() != "login" {
+		t.Fatalf("found command = %#v, want top-level login command", found)
 	}
 }
 
