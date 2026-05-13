@@ -154,6 +154,7 @@ gormes doctor --offline
 - `gormes doctor --offline` and `gormes --offline` prove local readiness before any token spend.
 - Provider secrets stay local under `~/.gormes/.env`; config under `~/.gormes/config.toml`.
 - Tagged releases publish a single static binary per target plus SHA-256 checksums and SBOMs (release signing and package-manager lanes are still hardening).
+- The `curl … | sh` install path is validated by an end-to-end suite ([`tests/install/e2e.sh`](tests/install/e2e.sh)) covering API outage with redirect fallback, SHA-256 mismatch abort, SSH-origin update fallback to public HTTPS, hosts without Go/curl/wget/systemd, Termux detection, sudo'd root install, and `--uninstall --dry-run` preview. Runnable locally or via the [`install-e2e`](.github/workflows/install-e2e.yml) workflow on demand.
 
 ## How It's Built
 
@@ -168,9 +169,9 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 ## Status
 
-Latest public release: [v0.2.6](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.6).
+Latest public release: [v0.2.9](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.9).
 
-CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~40.1 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
+CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~40.4 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
 
 <details>
 <summary>Roadmap phase rollup</summary>
