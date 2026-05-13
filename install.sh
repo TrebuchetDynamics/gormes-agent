@@ -31,6 +31,7 @@ REPO_URL_SSH="${GORMES_REPO_URL_SSH:-git@github.com:TrebuchetDynamics/gormes-age
 REPO_URL_HTTPS="${GORMES_REPO_URL_HTTPS:-https://github.com/TrebuchetDynamics/gormes-agent.git}"
 RELEASES_API_URL="${GORMES_RELEASES_API_URL:-https://api.github.com/repos/TrebuchetDynamics/gormes-agent/releases/latest}"
 RELEASES_DOWNLOAD_BASE="${GORMES_RELEASES_DOWNLOAD_BASE:-https://github.com/TrebuchetDynamics/gormes-agent/releases/download}"
+RELEASES_LATEST_URL="${GORMES_RELEASES_LATEST_URL:-https://github.com/TrebuchetDynamics/gormes-agent/releases/latest}"
 BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.26.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
@@ -1054,24 +1055,41 @@ fetch_release_binary() {
     return 1
   fi
 
-  # Resolve the latest release tag from GitHub API. Use a strict fail-on-empty
-  # parse so a malformed response triggers the source-build fallback.
+  # Resolve the latest release tag. Prefer api.github.com (versioned, durable),
+  # but fall back to the public releases/latest redirect on github.com when the
+  # API is blocked, throttled, or unreachable — that endpoint serves a plain
+  # 302 to /releases/tag/<tag> and only requires github.com itself, which the
+  # asset downloads need anyway.
   log_info "Resolving latest release tag from ${RELEASES_API_URL}"
   frb_api_body=""
   if has curl; then
-    frb_api_body=$(curl -fsSL --retry 3 --retry-delay 1 --retry-connrefused \
+    frb_api_body=$(curl -fsSL --connect-timeout 5 --max-time 20 \
+      --retry 2 --retry-delay 1 --retry-connrefused \
       -H 'Accept: application/vnd.github+json' "$RELEASES_API_URL" 2>/dev/null) || frb_api_body=""
   elif has wget; then
-    frb_api_body=$(wget -q --tries=3 --timeout=20 --header='Accept: application/vnd.github+json' \
+    frb_api_body=$(wget -q --tries=2 --timeout=20 --header='Accept: application/vnd.github+json' \
       -O - "$RELEASES_API_URL" 2>/dev/null) || frb_api_body=""
   fi
-  if [ -z "$frb_api_body" ]; then
-    log "fetch_release_binary: could not reach GitHub API; aborting"
-    return 1
+  frb_tag=""
+  if [ -n "$frb_api_body" ]; then
+    frb_tag=$(printf '%s\n' "$frb_api_body" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
   fi
-  frb_tag=$(printf '%s\n' "$frb_api_body" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
   if [ -z "$frb_tag" ]; then
-    log "fetch_release_binary: could not parse tag_name from GitHub API response; aborting"
+    log_warn "GitHub API unreachable or unparseable; trying ${RELEASES_LATEST_URL} redirect"
+    if has curl; then
+      frb_tag=$(curl -fsLI --connect-timeout 5 --max-time 20 -o /dev/null \
+        -w '%{url_effective}\n' "$RELEASES_LATEST_URL" 2>/dev/null \
+        | sed -n 's|.*/releases/tag/\([^/[:space:]]\{1,\}\).*|\1|p' \
+        | tail -1)
+    elif has wget; then
+      # wget -S prints response headers including Location: lines while following redirects.
+      frb_tag=$(wget -S --tries=2 --timeout=20 -O /dev/null "$RELEASES_LATEST_URL" 2>&1 \
+        | sed -n 's|.*Location:[[:space:]]*.*/releases/tag/\([^/[:space:]]\{1,\}\).*|\1|p' \
+        | tail -1)
+    fi
+  fi
+  if [ -z "$frb_tag" ]; then
+    log "fetch_release_binary: could not resolve latest release tag (API and redirect both failed); aborting"
     return 1
   fi
   frb_ver="${frb_tag#v}"
@@ -1082,22 +1100,22 @@ fetch_release_binary() {
   frb_tmp=$(new_tmp_dir)
   log_info "Downloading ${frb_asset} (${frb_tag})"
   if has curl; then
-    curl -fsSL --retry 3 --retry-delay 1 --retry-connrefused \
+    curl -fsSL --connect-timeout 10 --retry 3 --retry-delay 1 --retry-connrefused \
       -o "${frb_tmp}/${frb_asset}" "$frb_url" || {
         log "fetch_release_binary: download failed for ${frb_url}"
         return 1
       }
-    curl -fsSL --retry 3 --retry-delay 1 --retry-connrefused \
+    curl -fsSL --connect-timeout 10 --retry 3 --retry-delay 1 --retry-connrefused \
       -o "${frb_tmp}/${frb_asset}.sha256" "$frb_sha_url" || {
         log "fetch_release_binary: download failed for ${frb_sha_url}"
         return 1
       }
   elif has wget; then
-    wget -q --tries=3 --timeout=20 -O "${frb_tmp}/${frb_asset}" "$frb_url" || {
+    wget -q --tries=3 --timeout=30 -O "${frb_tmp}/${frb_asset}" "$frb_url" || {
       log "fetch_release_binary: download failed for ${frb_url}"
       return 1
     }
-    wget -q --tries=3 --timeout=20 -O "${frb_tmp}/${frb_asset}.sha256" "$frb_sha_url" || {
+    wget -q --tries=3 --timeout=30 -O "${frb_tmp}/${frb_asset}.sha256" "$frb_sha_url" || {
       log "fetch_release_binary: download failed for ${frb_sha_url}"
       return 1
     }
@@ -1219,9 +1237,22 @@ update_checkout() {
       autostash_ref="$(git rev-parse --verify refs/stash 2>/dev/null || true)"
     fi
 
-    git fetch origin
-    git checkout "$BRANCH"
-    git pull --ff-only origin "$BRANCH"
+    # Gormes is a public repo, so SSH access is never required to fetch updates.
+    # If the existing origin is SSH (or any remote is unreachable), make the
+    # SSH attempt fail fast and fall back to the public HTTPS URL rather than
+    # hanging on a 2-minute TCP timeout.
+    GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=5}"
+    export GIT_SSH_COMMAND
+
+    if ! git fetch origin; then
+      log_warn "git fetch origin failed; falling back to public HTTPS (${REPO_URL_HTTPS})"
+      git fetch "$REPO_URL_HTTPS" "$BRANCH" || exit 1
+      git checkout "$BRANCH"
+      git merge --ff-only FETCH_HEAD || exit 1
+    else
+      git checkout "$BRANCH"
+      git pull --ff-only origin "$BRANCH"
+    fi
 
     if [ -n "$autostash_ref" ]; then
       log_info "Restoring stashed local changes"
