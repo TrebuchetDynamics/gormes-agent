@@ -27,29 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. TD engineering blog scaffolded and live
-
-- Phase: 8 / 8.A
-- Owner: `docs`
-- Size: `small`
-- Status: `planned`
-- Priority: `P1`
-- Contract: TrebuchetDynamics has a publicly reachable engineering blog with a working Atom/RSS feed, an /about page that names the org and the methodology, and a deploy pipeline so a markdown commit becomes a published post without manual intervention. Hosting choice is owner's call (Astro/Hugo/Eleventy + Cloudflare/Vercel/GitHub Pages); the row is done when a stranger can subscribe to a feed and read one published post.
-- Trust class: operator
-- Ready when: Hosting choice and blog framework are decided (operator decision; not loop-driven)., A subdomain or path on an existing TD-controlled domain is available.
-- Not ready when: The blog is private, password-protected, or behind authentication., There is no Atom/RSS feed at a stable URL., The first post is empty or placeholder text rather than the writeup #1 draft or a real introduction.
-- Degraded mode: Without a publication outlet, every loop commit is invisible in the reputation market; the strategy described in success-plan.md cannot start.
-- Fixture: `webpages/blog/ (or chosen blog repo path)`
-- Write scope: `webpages/blog/ (or external blog repo path)`, `DNS / Cloudflare / hosting config (operator-only)`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: -
-- No test required: Documentation/research/planning row — automated tests not applicable
-- Done signal: Public blog URL + feed URL recorded in success-plan.md and README.md.
-- Acceptance: Blog is reachable at a public URL with at least one real (non-placeholder) post., An Atom or RSS feed exists at a stable, discoverable URL., Publishing a new post is a markdown-commit-and-merge operation; no console click-through required., An /about page exists that names TrebuchetDynamics and points at gormes-agent + agentic-porting-kit.
-- Source refs: docs/content/building-gormes/strategy/success-plan.md, webpages/landing/
-- Unblocks: Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline
-- Why now: Unblocks Engineering writeup #1: autonomous Hermes-porting loop, Monthly digest pipeline.
-
-## 2. Agentic-porting-kit repo scaffold
+## 1. Agentic-porting-kit repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

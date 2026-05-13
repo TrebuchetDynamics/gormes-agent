@@ -400,12 +400,17 @@ func TestCIWorkflowInstallsDocsNodeDependenciesBeforeGoTests(t *testing.T) {
 	for _, want := range []string{
 		"actions/setup-node@v4",
 		"node-version: '22'",
-		"cache-dependency-path: webpages/docs/package-lock.json",
+		"webpages/docs/package-lock.json",
+		"webpages/blog/package-lock.json",
 		"name: Install docs dependencies",
 		"working-directory: webpages/docs",
+		"name: Install blog dependencies",
+		"working-directory: webpages/blog",
 		"npm ci",
 		"name: Run Go tests",
 		"go test ./... -count=1",
+		"name: Test engineering blog",
+		"npm run test",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("CI workflow missing %q", want)

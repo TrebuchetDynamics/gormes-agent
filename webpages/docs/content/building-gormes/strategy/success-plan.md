@@ -136,6 +136,14 @@ If nothing else gets done, do these:
 
 If item 1 takes longer than a weekend, that is the signal that **publication is the actual blocker**, not engineering. Solve that first.
 
+### Publication Stack
+
+- Blog URL: <https://engineering.trebuchetdynamics.com/>
+- Feed URL: <https://engineering.trebuchetdynamics.com/feed.xml>
+- Source path: `webpages/blog/`
+- Deploy path: `.github/workflows/deploy-td-blog.yml` builds the Astro site and deploys `webpages/blog/dist` to Cloudflare Pages on `main`.
+- First post: "Autonomous Hermes-porting loop" at `/posts/autonomous-hermes-porting-loop/`.
+
 ## Mapping To `progress.json`
 
 Phase 8 (`Reputation & Publication`) carries the executable rows for this plan. Subphases:

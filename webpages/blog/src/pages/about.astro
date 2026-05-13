@@ -1,0 +1,39 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+---
+
+<SiteLayout title="About TrebuchetDynamics Engineering">
+  <section class="hero">
+    <div>
+      <p class="eyebrow">About</p>
+      <h1>TrebuchetDynamics publishes the loop, not just the output.</h1>
+      <p class="lede">
+        This site documents how TrebuchetDynamics uses validation-gated agentic
+        engineering to port large Python systems to Go without losing test
+        discipline or operator trust.
+      </p>
+    </div>
+    <figure class="hero-visual">
+      <img src="/static/go-gopher-bear-lowpoly.png" width="640" height="640" alt="Low-poly Gormes runtime mascot" />
+    </figure>
+  </section>
+
+  <section class="about-grid">
+    <div class="panel">
+      <h2>Methodology</h2>
+      <p>
+        The current reference artifact is <a href="https://github.com/TrebuchetDynamics/gormes-agent">gormes-agent</a>:
+        a Go-native agent runtime ported against Hermes behavior through small
+        progress rows, failing tests, generated docs, and CI gates.
+      </p>
+    </div>
+    <div class="panel">
+      <h2>Toolkit</h2>
+      <p>
+        The planned <a href="https://github.com/TrebuchetDynamics/agentic-porting-kit">agentic-porting-kit</a>
+        will extract the reusable planner, builder, parity-auditor, and TDD
+        skill workflows so the method can be applied outside Gormes.
+      </p>
+    </div>
+  </section>
+</SiteLayout>

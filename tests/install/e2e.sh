@@ -494,6 +494,62 @@ case_source_build_clone() {
   assert_no_production_state_changes
 }
 
+case_uninstall_dry_run_previews_no_deletion() {
+  # Install first.
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_BIN_DIR="$SANDBOX/bin" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --skip-setup --restart-gateway never \
+    > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+  assert_executable "$SANDBOX/bin/gormes"
+
+  # Snapshot every installed file/symlink so we can prove dry-run touched none.
+  find "$SANDBOX/bin" "$SANDBOX/home" \( -type f -o -type l \) 2>/dev/null \
+    | sort > "$SANDBOX/logs/pre-inventory.txt"
+  local pre_count
+  pre_count=$(wc -l < "$SANDBOX/logs/pre-inventory.txt")
+
+  # Dry-run uninstall. install.sh detects --dry-run and skips its
+  # apply-by-default behavior — the underlying `gormes uninstall --dry-run`
+  # prints the artifacts that *would* be removed and returns without
+  # touching the filesystem.
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_BIN_DIR="$SANDBOX/bin" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --uninstall --dry-run \
+    > "$SANDBOX/logs/uninstall.log" 2>&1
+  rc=$?
+  assert_eq "$rc" 0 "uninstall --dry-run exit code"
+
+  # Preview markers from `gormes uninstall --dry-run`: header announces
+  # artifact count, and at minimum the published-binary section appears.
+  assert_grep "uninstall dry-run: [0-9]+ artifact" "$SANDBOX/logs/uninstall.log"
+  assert_grep "\[published-binary\]" "$SANDBOX/logs/uninstall.log"
+  # An actual deletion would log "uninstall complete: N removed". Dry-run
+  # must not — its absence is the contract under test.
+  assert_no_grep "uninstall complete:" "$SANDBOX/logs/uninstall.log"
+
+  # Binary must still be executable.
+  assert_executable "$SANDBOX/bin/gormes"
+
+  # Post-inventory must be byte-identical to pre-inventory.
+  find "$SANDBOX/bin" "$SANDBOX/home" \( -type f -o -type l \) 2>/dev/null \
+    | sort > "$SANDBOX/logs/post-inventory.txt"
+  local post_count
+  post_count=$(wc -l < "$SANDBOX/logs/post-inventory.txt")
+  assert_eq "$post_count" "$pre_count" "sandbox file count unchanged"
+  if ! diff -q "$SANDBOX/logs/pre-inventory.txt" \
+                "$SANDBOX/logs/post-inventory.txt" >/dev/null 2>&1; then
+    printf '    ! sandbox inventory changed during --uninstall --dry-run\n' >&2
+    diff "$SANDBOX/logs/pre-inventory.txt" "$SANDBOX/logs/post-inventory.txt" >&2 || true
+    return 1
+  fi
+}
+
 case_uninstall_lifecycle() {
   # Install first.
   GORMES_INSTALL_HOME="$SANDBOX/home" \
@@ -574,6 +630,7 @@ CASES=(
   ssh_origin_update_fallback
   source_build_local
   source_build_clone
+  uninstall_dry_run_previews_no_deletion
   uninstall_lifecycle
 )
 

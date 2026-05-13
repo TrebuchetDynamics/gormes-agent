@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 99/106 subphases shipped · 4 in progress · 3 planned
+**Overall:** 99/106 subphases shipped · 5 in progress · 2 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1345,9 +1345,9 @@ classification and row-backed implementation queue.
 
 *TrebuchetDynamics has a credible public face (blog, writeups, talks) that documents Gormes's autonomous-porting methodology and one or two sharp differentiators. Reputation is built through publication cadence, not parity scope.*
 
-### 8.A — Publication Infrastructure ⏳
+### 8.A — Publication Infrastructure 🔨
 
-- [ ] TD engineering blog scaffolded and live
+- [x] TD engineering blog scaffolded and live
 - [ ] TD social presence connected to blog feed
 
 ### 8.B — Repository Messaging ✅
