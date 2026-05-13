@@ -23,6 +23,12 @@ type Screen interface {
 	ShortHelp() []KeyHelp
 }
 
+// KeyCapturingScreen can ask the shell to deliver focused keypresses before
+// global shortcuts are considered. This is used by text-entry modes.
+type KeyCapturingScreen interface {
+	CapturesKey(tea.KeyMsg) bool
+}
+
 // KeyHelp is one row in the help overlay: a list of keys and a short
 // description of what they do on the active screen.
 type KeyHelp struct {

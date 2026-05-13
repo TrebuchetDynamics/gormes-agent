@@ -66,6 +66,67 @@ func TestAdminCommands_EnterRunsSafeCommandInline(t *testing.T) {
 	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
 }
 
+func TestAdminCommands_SearchFiltersAndRunsSelectedMatch(t *testing.T) {
+	entries := []CommandEntry{
+		{Path: "auth status", Use: "gormes auth status <provider>", Short: "show redacted provider auth status", Runnable: true, RunLabel: "gormes auth status openai-codex"},
+		{Path: "gateway status", Use: "gormes gateway status", Short: "check gateway runtime state", Runnable: true, RunLabel: "gormes gateway status"},
+		{Path: "kanban list", Use: "gormes kanban list", Short: "list tasks", Runnable: true, RunLabel: "gormes kanban list"},
+	}
+	ran := false
+	screen := NewCommandsScreen(entries, WithCommandRunner(func(entry CommandEntry) CommandRunResult {
+		ran = true
+		if entry.Path != "gateway status" {
+			t.Fatalf("runner entry path = %q, want gateway status", entry.Path)
+		}
+		return CommandRunResult{RunLabel: entry.RunLabel, Output: "gateway runtime: stopped\n"}
+	}))
+	tm := teatest.NewTestModel(t, New(screen), teatest.WithInitialTermSize(100, 30))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	tm.Type("gate")
+
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return bytes.Contains(out, []byte("Search: gate")) &&
+			bytes.Contains(out, []byte("1 of 3 commands")) &&
+			bytes.Contains(out, []byte("gormes gateway status")) &&
+			bytes.Contains(out, []byte("Selected: gormes gateway status"))
+	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return bytes.Contains(out, []byte("Command output: gormes gateway status")) &&
+			bytes.Contains(out, []byte("gateway runtime: stopped"))
+	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+	if !ran {
+		t.Fatal("expected runner to be called")
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
+}
+
+func TestAdminCommands_SearchCapturesGlobalShortcutRunes(t *testing.T) {
+	entries := []CommandEntry{
+		{Path: "auth login", Use: "gormes auth login openai-codex", Short: "authenticate openai codex"},
+	}
+	shell := New(NewCommandsScreen(entries), &stubScreen{name: "Chat"})
+	tm := teatest.NewTestModel(t, shell, teatest.WithInitialTermSize(100, 30))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	tm.Type("codex")
+
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return bytes.Contains(out, []byte("Search: codex")) &&
+			bytes.Contains(out, []byte("Selected: gormes auth login openai-codex"))
+	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+	if got := shell.ActiveIndex(); got != 0 {
+		t.Fatalf("active index after command search = %d, want Commands tab", got)
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
+}
+
 func TestAdminCommands_EnterRejectsNonRunnableCommand(t *testing.T) {
 	entries := []CommandEntry{
 		{Path: "auth add", Use: "gormes auth add <provider>", Short: "Add a provider credential"},

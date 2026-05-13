@@ -81,11 +81,27 @@ func (s *Shell) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.mu.Unlock()
 		return s, nil
 	case tea.KeyMsg:
+		if s.activeScreenCapturesKey(msg) {
+			return s.forwardToActive(msg)
+		}
 		if cmd, handled := s.handleGlobalKey(msg); handled {
 			return s, cmd
 		}
 	}
 	return s.forwardToActive(msg)
+}
+
+func (s *Shell) activeScreenCapturesKey(msg tea.KeyMsg) bool {
+	s.mu.Lock()
+	if s.active < 0 || s.active >= len(s.screens) {
+		s.mu.Unlock()
+		return false
+	}
+	current := s.screens[s.active]
+	s.mu.Unlock()
+
+	capturing, ok := current.(KeyCapturingScreen)
+	return ok && capturing.CapturesKey(msg)
 }
 
 func (s *Shell) handleGlobalKey(msg tea.KeyMsg) (tea.Cmd, bool) {

@@ -146,6 +146,7 @@ classification and row-backed implementation queue.
 - [x] Admin TUI: Agents screen wired to the 2.H dynamic registry
 - [x] Admin TUI: Commands catalog over the root CLI tree
 - [x] Admin TUI: Safe command execution from the Commands tab
+- [x] Admin TUI: Searchable Commands palette
 
 ## Phase 2 — The Gateway ✅
 

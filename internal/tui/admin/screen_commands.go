@@ -38,11 +38,13 @@ type commandRunFinishedMsg struct {
 
 // CommandsScreen lists the Gormes CLI command tree inside the admin TUI.
 type CommandsScreen struct {
-	entries  []CommandEntry
-	selected int
-	runner   CommandRunner
-	running  string
-	result   *CommandRunResult
+	entries   []CommandEntry
+	selected  int
+	runner    CommandRunner
+	running   string
+	result    *CommandRunResult
+	query     string
+	searching bool
 }
 
 // CommandScreenOption configures the command catalog tab.
@@ -72,6 +74,18 @@ func (s *CommandsScreen) Title() string { return "Commands" }
 
 func (s *CommandsScreen) Init() tea.Cmd { return nil }
 
+func (s *CommandsScreen) CapturesKey(msg tea.KeyMsg) bool {
+	if !s.searching {
+		return false
+	}
+	switch msg.Type {
+	case tea.KeyCtrlC, tea.KeyTab, tea.KeyShiftTab:
+		return false
+	default:
+		return true
+	}
+}
+
 func (s *CommandsScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 	switch msg := msg.(type) {
 	case commandRunFinishedMsg:
@@ -82,21 +96,25 @@ func (s *CommandsScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 		s.running = ""
 		s.result = &result
 	case tea.KeyMsg:
+		if s.searching {
+			return s.updateSearchKey(msg)
+		}
+		if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && msg.Runes[0] == '/' {
+			s.searching = true
+			s.query = ""
+			s.selected = 0
+			s.result = nil
+			return s, nil
+		}
 		switch msg.String() {
 		case "up", "k":
-			if s.selected > 0 {
-				s.selected--
-			}
+			s.moveSelected(-1)
 		case "down", "j":
-			if s.selected < len(s.entries)-1 {
-				s.selected++
-			}
+			s.moveSelected(1)
 		case "home":
 			s.selected = 0
 		case "end":
-			if len(s.entries) > 0 {
-				s.selected = len(s.entries) - 1
-			}
+			s.selectEnd()
 		case "enter":
 			return s, s.runSelectedCmd()
 		}
@@ -104,18 +122,56 @@ func (s *CommandsScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 	return s, nil
 }
 
+func (s *CommandsScreen) updateSearchKey(msg tea.KeyMsg) (Screen, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEscape:
+		s.searching = false
+		s.query = ""
+		s.selected = 0
+		s.result = nil
+	case tea.KeyBackspace, tea.KeyCtrlH:
+		s.removeQueryRune()
+	case tea.KeyUp:
+		s.moveSelected(-1)
+	case tea.KeyDown:
+		s.moveSelected(1)
+	case tea.KeyHome:
+		s.selected = 0
+	case tea.KeyEnd:
+		s.selectEnd()
+	case tea.KeyEnter:
+		return s, s.runSelectedCmd()
+	case tea.KeySpace:
+		s.appendQuery(" ")
+	case tea.KeyRunes:
+		s.appendQuery(string(msg.Runes))
+	}
+	return s, nil
+}
+
 func (s *CommandsScreen) View() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "CLI commands (%d commands)\n", len(s.entries))
+	visible := s.visibleEntries()
+	if s.searching || s.query != "" {
+		fmt.Fprintf(&b, "CLI commands (%d of %d commands)\n", len(visible), len(s.entries))
+		fmt.Fprintf(&b, "Search: %s\n", s.query)
+	} else {
+		fmt.Fprintf(&b, "CLI commands (%d commands)\n", len(s.entries))
+	}
 	if len(s.entries) == 0 {
 		b.WriteString("No commands discovered.\n")
 		return b.String()
 	}
-	start, end := commandWindow(s.selected, len(s.entries), 12)
+	if len(visible) == 0 {
+		fmt.Fprintf(&b, "No commands match %q.\n", s.query)
+		return b.String()
+	}
+	selected := clampedSelected(s.selected, len(visible))
+	start, end := commandWindow(selected, len(visible), 12)
 	for i := start; i < end; i++ {
-		entry := s.entries[i]
+		entry := visible[i]
 		marker := " "
-		if i == s.selected {
+		if i == selected {
 			marker = ">"
 		}
 		fmt.Fprintf(&b, "%s %s", marker, entry.Use)
@@ -124,7 +180,7 @@ func (s *CommandsScreen) View() string {
 		}
 		b.WriteByte('\n')
 	}
-	entry := s.entries[s.selected]
+	entry := visible[selected]
 	b.WriteByte('\n')
 	fmt.Fprintf(&b, "Selected: %s\n", entry.Use)
 	if entry.Short != "" {
@@ -158,16 +214,18 @@ func (s *CommandsScreen) View() string {
 func (s *CommandsScreen) ShortHelp() []KeyHelp {
 	return []KeyHelp{
 		{Keys: []string{"enter"}, Description: "run safe command"},
+		{Keys: []string{"/"}, Description: "search commands"},
+		{Keys: []string{"esc"}, Description: "clear search"},
 		{Keys: []string{"up", "down"}, Description: "select command"},
 		{Keys: []string{"home", "end"}, Description: "jump to start/end"},
 	}
 }
 
 func (s *CommandsScreen) runSelectedCmd() tea.Cmd {
-	if len(s.entries) == 0 || s.selected < 0 || s.selected >= len(s.entries) {
+	entry, ok := s.selectedEntry()
+	if !ok {
 		return nil
 	}
-	entry := s.entries[s.selected]
 	label := commandRunLabel(entry)
 	if !entry.Runnable || s.runner == nil {
 		s.result = &CommandRunResult{
@@ -185,6 +243,89 @@ func (s *CommandsScreen) runSelectedCmd() tea.Cmd {
 		}
 		return commandRunFinishedMsg{result: result}
 	}
+}
+
+func (s *CommandsScreen) selectedEntry() (CommandEntry, bool) {
+	visible := s.visibleEntries()
+	if len(visible) == 0 {
+		return CommandEntry{}, false
+	}
+	s.clampSelected(len(visible))
+	return visible[s.selected], true
+}
+
+func (s *CommandsScreen) visibleEntries() []CommandEntry {
+	query := strings.TrimSpace(s.query)
+	if query == "" {
+		return s.entries
+	}
+	out := make([]CommandEntry, 0, len(s.entries))
+	for _, entry := range s.entries {
+		if matchesCommandEntry(entry, query) {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+func matchesCommandEntry(entry CommandEntry, query string) bool {
+	query = strings.ToLower(query)
+	return strings.Contains(strings.ToLower(entry.Path), query) ||
+		strings.Contains(strings.ToLower(entry.Use), query) ||
+		strings.Contains(strings.ToLower(entry.Short), query) ||
+		strings.Contains(strings.ToLower(entry.RunLabel), query)
+}
+
+func (s *CommandsScreen) appendQuery(text string) {
+	if text == "" {
+		return
+	}
+	s.query += text
+	s.selected = 0
+	s.result = nil
+}
+
+func (s *CommandsScreen) removeQueryRune() {
+	if s.query == "" {
+		return
+	}
+	runes := []rune(s.query)
+	s.query = string(runes[:len(runes)-1])
+	s.selected = 0
+	s.result = nil
+}
+
+func (s *CommandsScreen) moveSelected(delta int) {
+	visible := s.visibleEntries()
+	if len(visible) == 0 {
+		s.selected = 0
+		return
+	}
+	s.selected += delta
+	s.clampSelected(len(visible))
+}
+
+func (s *CommandsScreen) selectEnd() {
+	visible := s.visibleEntries()
+	if len(visible) == 0 {
+		s.selected = 0
+		return
+	}
+	s.selected = len(visible) - 1
+}
+
+func (s *CommandsScreen) clampSelected(total int) {
+	s.selected = clampedSelected(s.selected, total)
+}
+
+func clampedSelected(selected, total int) int {
+	if total <= 0 || selected < 0 {
+		return 0
+	}
+	if selected >= total {
+		return total - 1
+	}
+	return selected
 }
 
 func commandRunLabel(entry CommandEntry) string {

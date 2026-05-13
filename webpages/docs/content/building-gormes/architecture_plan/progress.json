@@ -1328,7 +1328,62 @@
               "done_signal": [
                 "`gormes admin` can execute the safe Commands-tab allowlist inline, non-runnable commands fail closed, five named tests are green, and internal/tui/admin remains Cobra-free."
               ],
-              "note": "Complete 2026-05-12: shipped safe inline execution from the admin Commands tab. CommandEntry now carries Runnable/RunLabel metadata, CommandsScreen accepts an injected CommandRunner, Enter runs allowlisted commands and renders inline output, and non-runnable entries render an explicit refusal. cmd/gormes/admin.go marks only doctor, auth status, gateway status, and kanban list as runnable; doctor is forced offline, auth status resolves the configured provider, and the runner executes through a fresh Cobra root with buffered stdio. Focused TUI and cmd/gormes tests are green."
+              "note": "Complete 2026-05-12: shipped safe inline execution from the admin Commands tab. CommandEntry now carries Runnable/RunLabel metadata, CommandsScreen accepts an injected CommandRunner, Enter runs allowlisted commands and renders inline output, and non-runnable entries render an explicit refusal. cmd/gormes/admin.go marks only doctor, auth status resolves the configured provider, and the runner executes through a fresh Cobra root with buffered stdio. Focused TUI and cmd/gormes tests are green."
+            },
+            {
+              "name": "Admin TUI: Searchable Commands palette",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Makes the unified admin Commands tab usable as the single CLI palette instead of a long read-only list."
+              },
+              "contract": "internal/tui/admin/screen_commands.go lets operators press `/` in the Commands tab, type a query, filter the live command catalog by path/use/description/run label, move through the filtered result set with arrow/home/end keys, press Enter to run the selected safe command through the existing injected runner, and press Escape to clear search. While search text entry is active, the shell delivers focused keypresses to the Commands screen before global rune shortcuts so queries such as `codex` do not jump tabs or quit the admin TUI. Ctrl-C and tab navigation remain global.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without search, the Commands tab can render and safely run commands, but operators still have to scroll through the whole CLI tree to find routine commands.",
+              "fixture": "internal/tui/admin/commands_test.go teatest search fixtures",
+              "source_refs": [
+                "internal/tui/admin/screen_commands.go (search state, filtered selection, Enter on selected match)",
+                "internal/tui/admin/shell.go (focused key capture before global shortcuts)",
+                "internal/tui/admin/screen.go (optional KeyCapturingScreen contract)"
+              ],
+              "ready_when": [
+                "The read-only command catalog and safe inline execution rows are complete.",
+                "The Commands screen owns selection and runner injection without importing Cobra.",
+                "The shell can route focused text-entry keypresses without weakening Ctrl-C or tab navigation."
+              ],
+              "not_ready_when": [
+                "The slice changes root `gormes` startup behavior away from the dedicated chat TUI.",
+                "Search can run commands outside the existing safe allowlist.",
+                "Search text entry consumes Ctrl-C or prevents normal tab navigation."
+              ],
+              "blocked_by": [
+                "Admin TUI: Safe command execution from the Commands tab"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminCommands_SearchFiltersAndRunsSelectedMatch presses `/`, types `gate`, asserts a one-result filtered view, presses Enter, and proves the selected safe match runs inline.",
+                "TestAdminCommands_SearchCapturesGlobalShortcutRunes types `codex` into command search with a Chat tab present and proves the global `c` shortcut does not steal focus during search."
+              ],
+              "write_scope": [
+                "internal/tui/admin/screen.go",
+                "internal/tui/admin/shell.go",
+                "internal/tui/admin/screen_commands.go",
+                "internal/tui/admin/commands_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminCommands_Search' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` Commands tab behaves as a searchable command palette: `/` filters, Enter runs the filtered safe selection, Escape clears search, and search text is not stolen by global rune shortcuts."
+              ],
+              "note": "Complete 2026-05-13: shipped searchable command palette behavior for the unified admin Commands tab. CommandsScreen now tracks search state, filters command entries by path/use/description/run label, clamps selection to the filtered result set, runs the selected safe match via the existing runner, and clears search with Escape. The admin shell now supports an optional KeyCapturingScreen contract so focused text entry receives runes before global shortcuts while preserving Ctrl-C and tab navigation."
             }
           ]
         }
