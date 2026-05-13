@@ -4,11 +4,15 @@ package tools
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/wasi/whisper"
 )
 
 func TestLocalSTTProvider_Available(t *testing.T) {
@@ -52,13 +56,27 @@ func TestLocalSTTProvider_Transcribe_JFKFixture(t *testing.T) {
 	if _, err := os.Stat(jfkPath); err != nil {
 		t.Skip("jfk.wav test fixture not available:", err)
 	}
+	cacheDir := localSTTFixtureModelCacheDir(t)
+	modelPath := filepath.Join(cacheDir, whisper.TinyEnModelArtifact.Filename)
+	if _, err := os.Stat(modelPath); err != nil {
+		if os.IsNotExist(err) {
+			t.Skipf("WASI Whisper tiny.en model is not cached at %s; run internal/wasi/whisper integration tests or set GORMES_WASI_WHISPER_MODEL_CACHE", modelPath)
+		}
+		t.Fatalf("stat cached model: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	p := NewLocalSTTProvider(t.TempDir())
+	p := NewLocalSTTProvider(cacheDir)
+	p.client = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("network disabled in local STT provider fixture test")
+	})}
 	result, err := p.Transcribe(ctx, TranscriptionProviderRequest{AudioPath: jfkPath})
 	if err != nil {
+		if modelDownloadUnavailable(err) {
+			t.Skipf("WASI Whisper tiny.en model unavailable from cache %s: %v", cacheDir, err)
+		}
 		t.Fatalf("Transcribe jfk.wav: %v", err)
 	}
 	if result.Transcript == "" {
@@ -77,4 +95,21 @@ func TestLocalSTTProvider_Transcribe_JFKFixture(t *testing.T) {
 			t.Fatalf("transcript missing %q:\n%s", want, result.Transcript)
 		}
 	}
+}
+
+func localSTTFixtureModelCacheDir(t *testing.T) string {
+	t.Helper()
+	if cacheDir := strings.TrimSpace(os.Getenv("GORMES_WASI_WHISPER_MODEL_CACHE")); cacheDir != "" {
+		return cacheDir
+	}
+	userCache, err := os.UserCacheDir()
+	if err != nil {
+		t.Skipf("resolve user cache dir: %v", err)
+	}
+	return filepath.Join(userCache, "gormes", "wasi-whisper")
+}
+
+func modelDownloadUnavailable(err error) bool {
+	var cacheErr *whisper.ModelCacheError
+	return errors.As(err, &cacheErr) && cacheErr.Code == whisper.ModelCacheDownloadFailed
 }
