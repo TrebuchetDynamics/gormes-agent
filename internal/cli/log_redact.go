@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"regexp"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 )
 
 var (
@@ -19,30 +21,8 @@ var (
 // RedactLine replaces known secret-shaped byte spans with "[REDACTED]".
 // It returns the input slice unchanged when no redactions are applied.
 func RedactLine(line []byte) ([]byte, int) {
-	out := line
-	total := 0
-
-	for _, re := range []*regexp.Regexp{
-		logBearerTokenRE,
-		logAPIKeyValueRE,
-		logXAPIKeyValueRE,
-	} {
-		var count int
-		out, count = redactPrefixedLogSecret(out, re)
-		total += count
-	}
-
-	for _, re := range []*regexp.Regexp{
-		logTelegramBotRE,
-		logSlackTokenRE,
-		logOpenAIKeyRE,
-	} {
-		var count int
-		out, count = redactWholeLogSecret(out, re)
-		total += count
-	}
-
-	return out, total
+	out, total := redaction.RedactSecretsWithCount(string(line), string(logRedactedMarker))
+	return []byte(out), total
 }
 
 func redactPrefixedLogSecret(line []byte, re *regexp.Regexp) ([]byte, int) {

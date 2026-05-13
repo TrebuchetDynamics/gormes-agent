@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 )
 
 // Browser action and evidence vocabulary stays provider-neutral: live browser
@@ -131,7 +133,22 @@ func ValidateBrowserAction(action BrowserAction) BrowserActionDecision {
 // BuildBrowserResultEnvelope bounds provider output and returns structured
 // evidence suitable for prompt context, channel delivery, and audit logs.
 func BuildBrowserResultEnvelope(input BrowserResultInput) (BrowserResultEnvelope, error) {
-	text, evidence, err := FormatToolResult(input.Budget, input.Output, input.MediaType)
+	output := input.Output
+	outputLabel := ""
+	if browserOutputIsLabelableText(input.MediaType) && !browserOutputLooksStructured(output) {
+		sanitized := redaction.SanitizeUntrustedContent("browser_output", string(input.Output))
+		if sanitized.PromptInjection || sanitized.Redacted {
+			output = []byte(sanitized.Text)
+		} else if label, _, ok := strings.Cut(sanitized.Text, "\n"); ok {
+			outputLabel = label
+		}
+	} else if browserOutputIsText(input.MediaType) {
+		output = []byte(redaction.RedactSecrets(string(input.Output)))
+	}
+	text, evidence, err := FormatToolResult(input.Budget, output, input.MediaType)
+	if outputLabel != "" && strings.TrimSpace(text) != "" {
+		text = outputLabel + "\n" + text
+	}
 	text = sanitizeBrowserArtifactText(text)
 	evidence.Preview = sanitizeBrowserArtifactText(evidence.Preview)
 	resultEvidence := BrowserEvidenceResultOK
@@ -209,7 +226,7 @@ var browserSensitiveTokenPattern = regexp.MustCompile(`(?i)(plain-[a-z0-9_-]*(?:
 func sanitizeBrowserPageState(state BrowserPageState) BrowserPageState {
 	state.URL = sanitizeBrowserURL(state.URL)
 	state.Title = sanitizeBrowserArtifactText(state.Title)
-	state.Text = sanitizeBrowserArtifactText(state.Text)
+	state.Text = redaction.SanitizeUntrustedFragment("browser_text", sanitizeBrowserArtifactText(state.Text))
 	state.Console = sanitizeBrowserLines(state.Console)
 	state.Errors = sanitizeBrowserLines(state.Errors)
 	if strings.TrimSpace(state.ScreenshotPath) != "" {
@@ -235,8 +252,34 @@ func sanitizeBrowserArtifactText(text string) string {
 		return ""
 	}
 	text = redactBrowserURLs(text)
+	text = redaction.RedactSecrets(text)
 	text = browserSensitiveTokenPattern.ReplaceAllString(text, "[redacted]")
 	return text
+}
+
+func browserOutputIsText(mediaType string) bool {
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	if mediaType == "" {
+		return true
+	}
+	return strings.HasPrefix(mediaType, "text/") ||
+		strings.Contains(mediaType, "json") ||
+		strings.Contains(mediaType, "xml") ||
+		strings.Contains(mediaType, "html") ||
+		strings.Contains(mediaType, "markdown")
+}
+
+func browserOutputIsLabelableText(mediaType string) bool {
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	if mediaType == "" {
+		return true
+	}
+	return strings.HasPrefix(mediaType, "text/")
+}
+
+func browserOutputLooksStructured(output []byte) bool {
+	trimmed := strings.TrimSpace(string(output))
+	return strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")
 }
 
 func redactBrowserURLs(text string) string {

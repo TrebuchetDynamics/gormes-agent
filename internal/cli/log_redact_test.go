@@ -102,6 +102,34 @@ func TestRedactLine_OpenAIStyleKey(t *testing.T) {
 	}
 }
 
+func TestRedactLine_CommonEnvironmentSecrets(t *testing.T) {
+	in := []byte("OPENAI_API_KEY=sk-test-abcdefghijklmnopqrstuvwxyz DATABASE_URL=postgres://user:pass@example.test/db AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+
+	got, count := RedactLine(in)
+
+	if count < 3 {
+		t.Fatalf("RedactLine count = %d, want at least 3; got %q", count, got)
+	}
+	for _, leaked := range [][]byte{
+		[]byte("sk-test-abcdefghijklmnopqrstuvwxyz"),
+		[]byte("postgres://user:pass"),
+		[]byte("wJalrXUtnFEMI"),
+	} {
+		if bytes.Contains(got, leaked) {
+			t.Fatalf("RedactLine leaked %q in %q", leaked, got)
+		}
+	}
+	for _, want := range [][]byte{
+		[]byte("OPENAI_API_KEY=[REDACTED]"),
+		[]byte("DATABASE_URL=[REDACTED]"),
+		[]byte("AWS_SECRET_ACCESS_KEY=[REDACTED]"),
+	} {
+		if !bytes.Contains(got, want) {
+			t.Fatalf("RedactLine output missing %q in %q", want, got)
+		}
+	}
+}
+
 func TestRedactLine_NoMatchPreservesInput(t *testing.T) {
 	in := []byte("INFO gateway: request completed status=200")
 

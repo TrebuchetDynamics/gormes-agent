@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 )
 
 const (
@@ -265,13 +267,7 @@ func sanitizeAuditError(text string) string {
 
 // RedactText applies the shared audit redaction vocabulary to free-form text.
 func RedactText(text string) string {
-	text = auditSecretPattern.ReplaceAllStringFunc(text, func(match string) string {
-		lower := strings.ToLower(match)
-		if strings.HasPrefix(lower, "bearer ") {
-			return match[:7] + "[redacted]"
-		}
-		return "[redacted]"
-	})
+	text = redaction.RedactSecrets(text)
 	return auditHomePathPattern.ReplaceAllString(text, "[redacted-home]")
 }
 

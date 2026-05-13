@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 )
 
 const (
@@ -431,6 +433,9 @@ var memoryThreatPatterns = []struct {
 var memoryInvisibleChars = []rune{'\u200b', '\u200c', '\u200d', '\u2060', '\ufeff', '\u202a', '\u202b', '\u202c', '\u202d', '\u202e'}
 
 func scanMemoryContent(content string) string {
+	if redaction.UnsafePersistentMemoryContent(content) {
+		return MemoryEvidenceUnsafeContent
+	}
 	for _, char := range memoryInvisibleChars {
 		if strings.ContainsRune(content, char) {
 			return MemoryEvidenceUnsafeContent
