@@ -80,7 +80,9 @@ assert_executable() {
 
 assert_grep() {
   local pat=$1 file=$2
-  if ! grep -qE "$pat" "$file" 2>/dev/null; then
+  # `--` separates options from positional args so patterns starting with `-`
+  # (e.g. `--branch development`) aren't parsed by grep as flags.
+  if ! grep -qE -- "$pat" "$file" 2>/dev/null; then
     printf '    ! pattern not found: %s\n      in: %s\n' "$pat" "$file" >&2
     return 1
   fi
@@ -88,9 +90,9 @@ assert_grep() {
 
 assert_no_grep() {
   local pat=$1 file=$2
-  if grep -qE "$pat" "$file" 2>/dev/null; then
+  if grep -qE -- "$pat" "$file" 2>/dev/null; then
     printf '    ! pattern unexpectedly present: %s\n      in: %s\n' "$pat" "$file" >&2
-    grep -nE "$pat" "$file" | head -5 >&2
+    grep -nE -- "$pat" "$file" | head -5 >&2
     return 1
   fi
 }
@@ -494,6 +496,47 @@ case_source_build_clone() {
   assert_no_production_state_changes
 }
 
+case_branch_forces_source_build() {
+  # install.sh:1030 — any --branch other than main forces source-build because
+  # release binaries are only published from main. Use a real non-main branch
+  # (development) so the clone actually has something to fetch, and verify
+  # the checkout lands on that branch.
+  capture_prestate
+
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_BIN_DIR="$SANDBOX/bin" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --branch development --skip-setup --restart-gateway never \
+    > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+
+  # Plan and method should both reflect source-build with the --branch reason.
+  assert_grep "install_method: source-build" "$SANDBOX/logs/install.log"
+  assert_grep "--branch development.*release binaries are only published from main" \
+    "$SANDBOX/logs/install.log"
+  assert_grep "branch: development" "$SANDBOX/logs/install.log"
+  # Binary-fetch must NOT have been attempted.
+  assert_no_grep "Resolving latest release tag" "$SANDBOX/logs/install.log"
+  assert_no_grep "Installed gormes .* from release" "$SANDBOX/logs/install.log"
+
+  # Clone must land on the requested branch.
+  assert_file_exists "$SANDBOX/home/gormes-agent/.git"
+  local branch
+  branch=$(git -C "$SANDBOX/home/gormes-agent" rev-parse --abbrev-ref HEAD 2>/dev/null)
+  assert_eq "$branch" "development" "checked-out branch"
+
+  assert_executable "$SANDBOX/bin/gormes"
+  local ver
+  ver=$(GORMES_HOME="$SANDBOX/home" "$SANDBOX/bin/gormes" version 2>&1)
+  printf '%s\n' "$ver" > "$SANDBOX/logs/version.log"
+  assert_grep '^gormes ' "$SANDBOX/logs/version.log"
+
+  capture_poststate
+  assert_no_production_state_changes
+}
+
 case_uninstall_dry_run_previews_no_deletion() {
   # Install first.
   GORMES_INSTALL_HOME="$SANDBOX/home" \
@@ -630,6 +673,7 @@ CASES=(
   ssh_origin_update_fallback
   source_build_local
   source_build_clone
+  branch_forces_source_build
   uninstall_dry_run_previews_no_deletion
   uninstall_lifecycle
 )
