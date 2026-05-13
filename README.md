@@ -160,6 +160,7 @@ gormes doctor --offline
 Gormes is the artifact of an autonomous-porting methodology — a validation-gated planner → builder → TDD-slice loop that ports Hermes to Go one bounded vertical at a time. The runtime is the product; the methodology is the supporting evidence.
 
 - Strategy: [Gormes Success Plan](docs/content/building-gormes/strategy/success-plan.md)
+- Engineering blog: [TrebuchetDynamics Engineering](https://engineering.trebuchetdynamics.com/) ([RSS](https://engineering.trebuchetdynamics.com/feed.xml))
 - Differentiator: [v1.0 differentiator](docs/content/building-gormes/strategy/v1-differentiator.md)
 - Toolkit extraction (`agentic-porting-kit`): tracked as a Phase 8 row; until that public repo exists, the [repo-local development skills](docs/development-skills/) are the inspectable placeholder.
 

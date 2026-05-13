@@ -1,0 +1,83 @@
+name: Deploy TrebuchetDynamics Engineering Blog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'webpages/blog/**'
+      - '.github/workflows/deploy-td-blog.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: td-engineering-blog-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.repository == 'TrebuchetDynamics/gormes-agent'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webpages/blog/package-lock.json
+
+      - name: Install dependencies
+        working-directory: webpages/blog
+        run: npm ci
+
+      - name: Build Astro blog
+        working-directory: webpages/blog
+        run: npm run build
+
+      - name: Verify build artifacts
+        working-directory: webpages/blog
+        run: |
+          test -f dist/index.html
+          test -f dist/about/index.html
+          test -f dist/feed.xml
+          test -f dist/posts/autonomous-hermes-porting-loop/index.html
+          grep -F "TrebuchetDynamics Engineering" dist/index.html >/dev/null
+          grep -F "How an autonomous loop ships Hermes-parity slices" dist/posts/autonomous-hermes-porting-loop/index.html >/dev/null
+
+      - name: Ensure Pages project exists
+        uses: cloudflare/wrangler-action@v3
+        continue-on-error: true
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create td-engineering-blog --production-branch=main
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy webpages/blog/dist --project-name=td-engineering-blog --branch=main --commit-dirty=true
+
+      - name: Attach engineering.trebuchetdynamics.com
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -u
+          domain=engineering.trebuchetdynamics.com
+          echo "attaching ${domain}"
+          response=$(curl -sS -o /tmp/cf-blog-resp.json -w "%{http_code}" -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/td-engineering-blog/domains" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"${domain}\"}")
+          case "$response" in
+            200|201) echo "attached" ;;
+            409|400) echo "already attached (status $response); skipping" ;;
+            *) echo "unexpected status $response"; cat /tmp/cf-blog-resp.json; exit 1 ;;
+          esac

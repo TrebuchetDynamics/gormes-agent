@@ -32,7 +32,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: webpages/docs/package-lock.json
+          cache-dependency-path: |
+            webpages/docs/package-lock.json
+            webpages/blog/package-lock.json
 
       - name: Download modules
         run: go mod download
@@ -41,8 +43,16 @@ jobs:
         working-directory: webpages/docs
         run: npm ci
 
+      - name: Install blog dependencies
+        working-directory: webpages/blog
+        run: npm ci
+
       - name: Run Go tests
         run: go test ./... -count=1
+
+      - name: Test engineering blog
+        working-directory: webpages/blog
+        run: npm run test
 
       - name: Validate progress
         run: go run ./cmd/progress validate

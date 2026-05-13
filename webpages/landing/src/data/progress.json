@@ -56616,12 +56616,12 @@
             {
               "name": "TD engineering blog scaffolded and live",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
               "contract": "TrebuchetDynamics has a publicly reachable engineering blog with a working Atom/RSS feed, an /about page that names the org and the methodology, and a deploy pipeline so a markdown commit becomes a published post without manual intervention. Hosting choice is owner's call (Astro/Hugo/Eleventy + Cloudflare/Vercel/GitHub Pages); the row is done when a stranger can subscribe to a feed and read one published post.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "docs",
               "trust_class": [
@@ -56631,7 +56631,9 @@
               "fixture": "webpages/blog/ (or chosen blog repo path)",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
-                "webpages/landing/"
+                "webpages/landing/",
+                "webpages/blog/",
+                ".github/workflows/deploy-td-blog.yml"
               ],
               "ready_when": [
                 "Hosting choice and blog framework are decided (operator decision; not loop-driven).",
@@ -56654,15 +56656,21 @@
                 "An /about page exists that names TrebuchetDynamics and points at gormes-agent + agentic-porting-kit."
               ],
               "write_scope": [
-                "webpages/blog/ (or external blog repo path)",
-                "DNS / Cloudflare / hosting config (operator-only)",
+                "webpages/blog/",
+                ".github/workflows/deploy-td-blog.yml",
+                ".github/workflows/ci.yml",
+                "README.md",
+                "docs/content/building-gormes/strategy/success-plan.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
+              "test_commands": [
+                "cd webpages/blog && npm run test",
+                "go run ./cmd/progress validate"
+              ],
               "done_signal": [
                 "Public blog URL + feed URL recorded in success-plan.md and README.md."
               ],
-              "note": "Source: success-plan.md 30-day action sprint item #1. Operator-driven; the loop can scaffold a static-site generator and commit a starter post, but hosting/DNS choices are taste decisions."
+              "note": "Complete 2026-05-13: scaffolded the TrebuchetDynamics Engineering Blog under webpages/blog as a static Astro site at https://engineering.trebuchetdynamics.com/ with a discoverable RSS feed at /feed.xml, an /about page naming TrebuchetDynamics, gormes-agent, and the planned agentic-porting-kit, plus one real starter post about the autonomous Hermes-porting loop. Added a Cloudflare Pages deploy workflow so a markdown commit merged to main builds and deploys the blog without console click-through. DNS attachment remains operator-owned through the workflow's Cloudflare secrets. Evidence: cd webpages/blog && npm run test."
             },
             {
               "name": "TD social presence connected to blog feed",

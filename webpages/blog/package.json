@@ -1,0 +1,14 @@
+{
+  "name": "td-engineering-blog",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../scripts/with-compatible-node.mjs astro dev --host 127.0.0.1 --port 8090",
+    "build": "node ../scripts/with-compatible-node.mjs astro build",
+    "preview": "node ../scripts/with-compatible-node.mjs astro preview --host 127.0.0.1 --port 8090",
+    "test": "npm run build && node --test tests/build-output.test.mjs"
+  },
+  "devDependencies": {
+    "astro": "^6.2.1"
+  }
+}

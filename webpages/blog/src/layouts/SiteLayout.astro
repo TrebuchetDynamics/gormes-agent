@@ -1,0 +1,44 @@
+---
+import '../styles/global.css';
+
+const {
+  title = 'TrebuchetDynamics Engineering',
+  description = 'Engineering notes from the validation-gated agentic porting loop behind Gormes.',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="alternate" type="application/rss+xml" title="TrebuchetDynamics Engineering" href="/feed.xml" />
+    <meta property="og:site_name" content="TrebuchetDynamics Engineering" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="https://engineering.trebuchetdynamics.com/static/go-gopher-bear-lowpoly.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="TrebuchetDynamics Engineering home">
+        <img src="/static/gormes-agent-logo-blue.svg" width="116" height="36" alt="GORMES-AGENT" />
+        <span>TrebuchetDynamics Engineering</span>
+      </a>
+      <nav aria-label="Primary">
+        <a href="/">Posts</a>
+        <a href="/about/">About</a>
+        <a href="/feed.xml">RSS</a>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <span>Validation-gated agentic engineering, published from markdown.</span>
+      <a href="https://github.com/TrebuchetDynamics/gormes-agent">gormes-agent</a>
+    </footer>
+  </body>
+</html>
