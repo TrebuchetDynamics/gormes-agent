@@ -1267,6 +1267,68 @@
                 "`gormes admin` registers a read-only Commands tab built from the live root Cobra command tree, three named tests are green, and existing root chat TUI semantics remain unchanged."
               ],
               "note": "Complete 2026-05-12: shipped the read-only Commands tab in the unified admin TUI. cmd/gormes/admin.go now builds a sorted command catalog from the live Cobra root tree, excluding hidden/help commands, and passes it into internal/tui/admin via WithCommandEntries. internal/tui/admin/screen_commands.go renders command count, use lines, descriptions, keyboard selection, and selected-command details. TestAdminCommands_RendersWholeCLICatalog, TestAdminDefaultScreensIncludesCommandsTab, and TestAdminCommandCatalogCoversRootCommandTree are green."
+            },
+            {
+              "name": "Admin TUI: Safe command execution from the Commands tab",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Turns the whole-CLI catalog into an operator command palette for safe/read-only commands while keeping mutating commands explicit at the shell."
+              },
+              "contract": "internal/tui/admin/screen_commands.go accepts an injected CommandRunner and marks only allowlisted CommandEntry values as Runnable. Pressing Enter on a runnable entry runs it through the injected runner and renders stdout/stderr/error output inline; pressing Enter on non-runnable entries renders a refusal that tells the operator to run mutating commands from the shell. cmd/gormes/admin.go owns the allowlist and production runner: `doctor` runs as `gormes doctor --offline`, `auth status` resolves the configured provider, `gateway status` runs directly, and `kanban list` runs directly through a fresh Cobra root with buffered stdio. internal/tui/admin still does not import Cobra or command implementations.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without safe inline execution, the Commands tab is only discoverability; operators still need to leave `gormes admin` for routine read-only checks such as doctor, auth status, gateway status, and kanban list.",
+              "fixture": "internal/tui/admin/commands_test.go teatest runner fixtures + cmd/gormes/admin_test.go safe allowlist and runner tests",
+              "source_refs": [
+                "cmd/gormes/admin.go (safe allowlist, dynamic auth status args, buffered Cobra runner)",
+                "internal/tui/admin/screen_commands.go (Enter key, inline output, non-runnable refusal)",
+                "cmd/gormes/doctor.go (`doctor --offline` safe check)",
+                "cmd/gormes/auth.go (`auth status <provider>` redacted status)",
+                "cmd/gormes/gateway_status.go (`gateway status` read-only runtime summary)",
+                "cmd/gormes/kanban.go (`kanban list` read-only task listing)"
+              ],
+              "ready_when": [
+                "The read-only Commands catalog row is complete.",
+                "The command runner can be injected into internal/tui/admin without importing cmd/gormes from internal packages.",
+                "Safe commands are explicit and non-runnable commands fail closed."
+              ],
+              "not_ready_when": [
+                "The slice executes arbitrary Cobra commands from the TUI.",
+                "The slice runs mutating commands such as auth add, gateway stop, or kanban create inline.",
+                "The slice changes root `gormes` startup behavior away from the dedicated chat TUI."
+              ],
+              "blocked_by": [
+                "Admin TUI: Commands catalog over the root CLI tree"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminCommands_EnterRunsSafeCommandInline drives the Commands screen through teatest, presses Enter on a runnable entry, and asserts inline command output renders.",
+                "TestAdminCommands_EnterRejectsNonRunnableCommand presses Enter on a mutating command and asserts the TUI refuses to run it inline.",
+                "TestAdminCommandCatalogMarksOnlySafeCommandsRunnable asserts doctor, auth status, gateway status, and kanban list are runnable while auth add, gateway stop, and kanban create are not.",
+                "TestAdminCommandRunnerExecutesSafeCommandAndRejectsMutating proves the production runner executes `kanban list` with buffered output and rejects a mutating command.",
+                "TestAdminCommandRunArgsResolveConfiguredAuthProvider proves the `auth status` safe runner resolves the configured provider into concrete Cobra args."
+              ],
+              "write_scope": [
+                "cmd/gormes/admin.go",
+                "cmd/gormes/admin_test.go",
+                "internal/tui/admin/screen_commands.go",
+                "internal/tui/admin/commands_test.go",
+                "internal/tui/admin/screen_health.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin ./cmd/gormes -run 'TestAdminCommands|TestAdminDefaultScreensIncludesCommandsTab|TestAdminCommandCatalogMarksOnlySafeCommandsRunnable|TestAdminCommandRunnerExecutesSafeCommandAndRejectsMutating|TestAdminCommandRunArgsResolveConfiguredAuthProvider' -count=1",
+                "go test ./internal/tui/admin ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` can execute the safe Commands-tab allowlist inline, non-runnable commands fail closed, five named tests are green, and internal/tui/admin remains Cobra-free."
+              ],
+              "note": "Complete 2026-05-12: shipped safe inline execution from the admin Commands tab. CommandEntry now carries Runnable/RunLabel metadata, CommandsScreen accepts an injected CommandRunner, Enter runs allowlisted commands and renders inline output, and non-runnable entries render an explicit refusal. cmd/gormes/admin.go marks only doctor, auth status, gateway status, and kanban list as runnable; doctor is forced offline, auth status resolves the configured provider, and the runner executes through a fresh Cobra root with buffered stdio. Focused TUI and cmd/gormes tests are green."
             }
           ]
         }

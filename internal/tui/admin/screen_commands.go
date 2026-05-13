@@ -12,24 +12,60 @@ import (
 // catalog. cmd/gormes builds these from the live Cobra command tree so this
 // package stays independent of Cobra and command implementations.
 type CommandEntry struct {
-	Path  string
-	Use   string
-	Short string
+	Path     string
+	Use      string
+	Short    string
+	Runnable bool
+	RunLabel string
+}
+
+// CommandRunner executes one safe, read-only command selected from the command
+// catalog. cmd/gormes injects the production runner so this package stays
+// independent of Cobra.
+type CommandRunner func(CommandEntry) CommandRunResult
+
+// CommandRunResult is the inline output rendered after a safe command run.
+type CommandRunResult struct {
+	RunLabel string
+	Output   string
+	Error    string
+	ExitCode int
+}
+
+type commandRunFinishedMsg struct {
+	result CommandRunResult
 }
 
 // CommandsScreen lists the Gormes CLI command tree inside the admin TUI.
 type CommandsScreen struct {
 	entries  []CommandEntry
 	selected int
+	runner   CommandRunner
+	running  string
+	result   *CommandRunResult
+}
+
+// CommandScreenOption configures the command catalog tab.
+type CommandScreenOption func(*CommandsScreen)
+
+// WithCommandRunner lets the command catalog execute safe commands inline.
+func WithCommandRunner(runner CommandRunner) CommandScreenOption {
+	return func(s *CommandsScreen) {
+		s.runner = runner
+	}
 }
 
 // NewCommandsScreen returns the command catalog tab.
-func NewCommandsScreen(entries []CommandEntry) *CommandsScreen {
+func NewCommandsScreen(entries []CommandEntry, opts ...CommandScreenOption) *CommandsScreen {
 	entries = cloneCommandEntries(entries)
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].Path < entries[j].Path
 	})
-	return &CommandsScreen{entries: entries}
+	s := &CommandsScreen{entries: entries}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *CommandsScreen) Title() string { return "Commands" }
@@ -38,6 +74,13 @@ func (s *CommandsScreen) Init() tea.Cmd { return nil }
 
 func (s *CommandsScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 	switch msg := msg.(type) {
+	case commandRunFinishedMsg:
+		result := msg.result
+		if result.RunLabel == "" {
+			result.RunLabel = s.running
+		}
+		s.running = ""
+		s.result = &result
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up", "k":
@@ -54,6 +97,8 @@ func (s *CommandsScreen) Update(msg tea.Msg) (Screen, tea.Cmd) {
 			if len(s.entries) > 0 {
 				s.selected = len(s.entries) - 1
 			}
+		case "enter":
+			return s, s.runSelectedCmd()
 		}
 	}
 	return s, nil
@@ -85,15 +130,71 @@ func (s *CommandsScreen) View() string {
 	if entry.Short != "" {
 		fmt.Fprintf(&b, "%s\n", entry.Short)
 	}
-	b.WriteString("Run this command from your shell; mutating commands stay explicit.\n")
+	if entry.Runnable {
+		fmt.Fprintf(&b, "Enter: run %s\n", commandRunLabel(entry))
+	} else {
+		b.WriteString("Run this command from your shell; mutating commands stay explicit.\n")
+	}
+	if s.running != "" {
+		fmt.Fprintf(&b, "\nRunning: %s\n", s.running)
+	}
+	if s.result != nil {
+		fmt.Fprintf(&b, "\n")
+		if s.result.Error != "" {
+			fmt.Fprintf(&b, "Command failed: %s\n%s\n", s.result.RunLabel, s.result.Error)
+		} else {
+			fmt.Fprintf(&b, "Command output: %s\n", s.result.RunLabel)
+		}
+		if strings.TrimSpace(s.result.Output) != "" {
+			b.WriteString(s.result.Output)
+			if !strings.HasSuffix(s.result.Output, "\n") {
+				b.WriteByte('\n')
+			}
+		}
+	}
 	return b.String()
 }
 
 func (s *CommandsScreen) ShortHelp() []KeyHelp {
 	return []KeyHelp{
+		{Keys: []string{"enter"}, Description: "run safe command"},
 		{Keys: []string{"up", "down"}, Description: "select command"},
 		{Keys: []string{"home", "end"}, Description: "jump to start/end"},
 	}
+}
+
+func (s *CommandsScreen) runSelectedCmd() tea.Cmd {
+	if len(s.entries) == 0 || s.selected < 0 || s.selected >= len(s.entries) {
+		return nil
+	}
+	entry := s.entries[s.selected]
+	label := commandRunLabel(entry)
+	if !entry.Runnable || s.runner == nil {
+		s.result = &CommandRunResult{
+			RunLabel: label,
+			Error:    "Command is not runnable inside gormes admin; run it from your shell so mutating commands stay explicit.",
+		}
+		return nil
+	}
+	s.running = label
+	s.result = nil
+	return func() tea.Msg {
+		result := s.runner(entry)
+		if result.RunLabel == "" {
+			result.RunLabel = label
+		}
+		return commandRunFinishedMsg{result: result}
+	}
+}
+
+func commandRunLabel(entry CommandEntry) string {
+	if entry.RunLabel != "" {
+		return entry.RunLabel
+	}
+	if entry.Use != "" {
+		return entry.Use
+	}
+	return "gormes " + entry.Path
 }
 
 func commandWindow(selected, total, size int) (int, int) {
@@ -116,11 +217,15 @@ func cloneCommandEntries(entries []CommandEntry) []CommandEntry {
 		entry.Path = strings.TrimSpace(entry.Path)
 		entry.Use = strings.TrimSpace(entry.Use)
 		entry.Short = strings.TrimSpace(entry.Short)
+		entry.RunLabel = strings.TrimSpace(entry.RunLabel)
 		if entry.Path == "" && entry.Use == "" {
 			continue
 		}
 		if entry.Use == "" {
 			entry.Use = "gormes " + entry.Path
+		}
+		if entry.Runnable && entry.RunLabel == "" {
+			entry.RunLabel = entry.Use
 		}
 		out = append(out, entry)
 	}

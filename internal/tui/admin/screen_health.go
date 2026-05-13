@@ -79,6 +79,7 @@ func NewSetupHealthScreen(opts ...HealthOption) *SetupHealthScreen {
 
 type defaultScreensConfig struct {
 	commandEntries []CommandEntry
+	commandRunner  CommandRunner
 }
 
 // DefaultScreensOption configures the production admin screen registry.
@@ -88,6 +89,14 @@ type DefaultScreensOption func(*defaultScreensConfig)
 func WithCommandEntries(entries []CommandEntry) DefaultScreensOption {
 	return func(cfg *defaultScreensConfig) {
 		cfg.commandEntries = cloneCommandEntries(entries)
+	}
+}
+
+// WithCommandCatalogRunner lets the production admin shell execute safe
+// commands from the Commands tab.
+func WithCommandCatalogRunner(runner CommandRunner) DefaultScreensOption {
+	return func(cfg *defaultScreensConfig) {
+		cfg.commandRunner = runner
 	}
 }
 
@@ -103,7 +112,7 @@ func NewDefaultScreens(opts ...DefaultScreensOption) []Screen {
 		NewSetupHealthScreen(),
 		NewChatScreen(),
 		NewAgentsScreen(),
-		NewCommandsScreen(cfg.commandEntries),
+		NewCommandsScreen(cfg.commandEntries, WithCommandRunner(cfg.commandRunner)),
 	}
 }
 

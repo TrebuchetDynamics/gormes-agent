@@ -12,7 +12,7 @@ import (
 func TestAdminCommands_RendersWholeCLICatalog(t *testing.T) {
 	entries := []CommandEntry{
 		{Path: "auth add", Use: "gormes auth add <provider>", Short: "Add a provider credential"},
-		{Path: "gateway status", Use: "gormes gateway status", Short: "check gateway runtime state"},
+		{Path: "gateway status", Use: "gormes gateway status", Short: "check gateway runtime state", Runnable: true},
 		{Path: "kanban list", Use: "gormes kanban list", Short: "list tasks"},
 	}
 	shell := New(NewCommandsScreen(entries))
@@ -29,6 +29,57 @@ func TestAdminCommands_RendersWholeCLICatalog(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
 		return bytes.Contains(out, []byte("Selected: gormes gateway status")) &&
 			bytes.Contains(out, []byte("check gateway runtime state"))
+	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
+}
+
+func TestAdminCommands_EnterRunsSafeCommandInline(t *testing.T) {
+	entries := []CommandEntry{
+		{Path: "gateway status", Use: "gormes gateway status", Short: "check gateway runtime state", Runnable: true, RunLabel: "gormes gateway status"},
+	}
+	ran := false
+	screen := NewCommandsScreen(entries, WithCommandRunner(func(entry CommandEntry) CommandRunResult {
+		ran = true
+		if entry.Path != "gateway status" {
+			t.Fatalf("runner entry path = %q, want gateway status", entry.Path)
+		}
+		return CommandRunResult{RunLabel: entry.RunLabel, Output: "gateway runtime: stopped\n"}
+	}))
+	tm := teatest.NewTestModel(t, New(screen), teatest.WithInitialTermSize(100, 30))
+
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return bytes.Contains(out, []byte("Enter: run gormes gateway status"))
+	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return bytes.Contains(out, []byte("Command output: gormes gateway status")) &&
+			bytes.Contains(out, []byte("gateway runtime: stopped"))
+	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
+	if !ran {
+		t.Fatal("expected runner to be called")
+	}
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
+}
+
+func TestAdminCommands_EnterRejectsNonRunnableCommand(t *testing.T) {
+	entries := []CommandEntry{
+		{Path: "auth add", Use: "gormes auth add <provider>", Short: "Add a provider credential"},
+	}
+	screen := NewCommandsScreen(entries, WithCommandRunner(func(entry CommandEntry) CommandRunResult {
+		t.Fatalf("runner should not be called for non-runnable command: %#v", entry)
+		return CommandRunResult{}
+	}))
+	tm := teatest.NewTestModel(t, New(screen), teatest.WithInitialTermSize(100, 30))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+	teatest.WaitFor(t, tm.Output(), func(out []byte) bool {
+		return bytes.Contains(out, []byte("Command is not runnable inside gormes admin")) &&
+			bytes.Contains(out, []byte("mutating commands stay explicit"))
 	}, teatest.WithDuration(2*time.Second), teatest.WithCheckInterval(10*time.Millisecond))
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
