@@ -611,6 +611,90 @@ case_branch_forces_source_build() {
   assert_no_production_state_changes
 }
 
+case_no_systemd_install_skips_service() {
+  # Operator guarantee: a host without systemctl (Docker minimal images, WSL1,
+  # busybox-init Linux) gets a clean install with the system service step
+  # silently skipped. install.sh:1884 guards the systemd-install branch on
+  # `has systemctl && systemctl --user >/dev/null 2>&1`; on a no-systemctl
+  # host both halves fail and install.sh falls through to `elif Darwin` (no)
+  # and exits the function without writing anything.
+  #
+  # This case CANNOT use GORMES_BIN_DIR — that env triggers the boundary
+  # short-circuit at install.sh:1881 which skips the systemd branch entirely,
+  # bypassing the no-systemctl check we want to exercise. Instead we redirect
+  # HOME into the sandbox so install.sh's normal production writes
+  # ($HOME/.local/bin/gormes, $HOME/.bashrc, $HOME/.config/systemd/user/) all
+  # land inside SANDBOX without touching the operator's real home.
+  capture_prestate
+
+  local shim="$SANDBOX/path-no-systemctl"
+  mkdir -p "$shim"
+  # Full toolset MINUS systemctl. Need curl/wget for binary-fetch happy path.
+  local needed tool real
+  needed=(
+    sh bash uname mkdir rm ln mv cp chmod sleep
+    curl wget tar gzip gunzip awk grep sed head tail cat tr cut sort
+    id hostname printf date dirname basename true false test '['
+    sha256sum shasum stat readlink which env mktemp file
+    git tput touch chown find xargs ps kill wait
+  )
+  for tool in "${needed[@]}"; do
+    real=$(command -v "$tool" 2>/dev/null || true)
+    if [ -n "$real" ]; then
+      ln -sf "$real" "$shim/$tool"
+    fi
+  done
+
+  if PATH="$shim" command -v systemctl >/dev/null 2>&1; then
+    printf '    ! shim PATH still has systemctl: %s\n' \
+      "$(PATH=$shim command -v systemctl)" >&2
+    return 1
+  fi
+  if ! PATH="$shim" command -v curl >/dev/null 2>&1; then
+    printf '    ! shim PATH missing curl (need it for binary-fetch)\n' >&2
+    return 1
+  fi
+
+  local fake_home="$SANDBOX/fake-home"
+  mkdir -p "$fake_home"
+
+  # NO GORMES_BIN_DIR / GORMES_PREFIX here — those would trigger
+  # install.sh's sandbox-boundary short-circuit and skip the systemd
+  # branch we want to exercise. HOME redirection alone keeps every
+  # production write inside the sandbox.
+  PATH="$shim" \
+  HOME="$fake_home" \
+  GORMES_INSTALL_HOME="$SANDBOX/managed" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --skip-setup --restart-gateway never \
+    > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+
+  # The plan still announces the systemd intent (plan output is platform-
+  # agnostic), but runtime must NOT actually create the unit file because
+  # systemctl wasn't on PATH.
+  assert_not_exists "$fake_home/.config/systemd/user/gormes-gateway.service"
+
+  # And install.sh's sandbox-boundary skip message must NOT have fired,
+  # because we deliberately did NOT set GORMES_BIN_DIR — that confirms the
+  # test actually exercised the no-systemctl branch rather than skipping it.
+  assert_no_grep "skipping system service install" "$SANDBOX/logs/install.log"
+
+  # Binary must be runnable from its real published location (under fake HOME).
+  assert_executable "$fake_home/.local/bin/gormes"
+  PATH="$shim" GORMES_HOME="$SANDBOX/managed" \
+    "$fake_home/.local/bin/gormes" version > "$SANDBOX/logs/version.log" 2>&1
+  assert_grep '^gormes ' "$SANDBOX/logs/version.log"
+
+  # The operator's REAL home was never touched — capture_prestate /
+  # capture_poststate run with the test runner's HOME (unmodified), so
+  # this diff catches any production leak.
+  capture_poststate
+  assert_no_production_state_changes
+}
+
 case_uninstall_dry_run_previews_no_deletion() {
   # Install first.
   GORMES_INSTALL_HOME="$SANDBOX/home" \
@@ -749,6 +833,7 @@ CASES=(
   source_build_clone
   branch_forces_source_build
   no_curl_or_wget_falls_back_to_git_source_build
+  no_systemd_install_skips_service
   uninstall_dry_run_previews_no_deletion
   uninstall_lifecycle
 )
