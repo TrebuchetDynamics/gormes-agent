@@ -210,7 +210,7 @@ func TestCheckpointsCLI_Prune_DeletesOrphanAndStale(t *testing.T) {
 	root := checkpointTestRoot(tmp)
 	os.MkdirAll(root, 0o755)
 
-	now := time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
 	activeWorkdir := filepath.Join(tmp, "active")
 	os.MkdirAll(activeWorkdir, 0o755)
 	seedCheckpointShadow(t, root, "active-shadow", activeWorkdir, now.Add(-1*time.Hour))
