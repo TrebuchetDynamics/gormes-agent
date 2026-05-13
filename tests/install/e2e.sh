@@ -208,6 +208,178 @@ case_api_failure_redirect_fallback() {
   assert_executable "$SANDBOX/bin/gormes"
 }
 
+case_hash_mismatch_aborts() {
+  # Spin up a local HTTP server that serves a wrong tarball + a .sha256
+  # sidecar whose hash doesn't match it. Point GORMES_RELEASES_DOWNLOAD_BASE
+  # at that server (the tag resolver still hits the real api/redirect, which
+  # is fine — we just intercept the download step). install.sh must detect
+  # the mismatch and fall back to source-build. Operators must never get a
+  # silently-corrupted binary, so this contract is load-bearing.
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf '    ! python3 required for this case\n' >&2
+    return 1
+  fi
+
+  local arch
+  case $(uname -s) in
+    Linux)
+      case $(uname -m) in
+        x86_64|amd64) arch="linux-amd64" ;;
+        aarch64|arm64) arch="linux-arm64" ;;
+        *) printf '    ! unsupported test arch: %s\n' "$(uname -m)" >&2; return 1 ;;
+      esac ;;
+    Darwin)
+      case $(uname -m) in
+        x86_64|amd64) arch="darwin-amd64" ;;
+        arm64)        arch="darwin-arm64" ;;
+        *) printf '    ! unsupported test arch: %s\n' "$(uname -m)" >&2; return 1 ;;
+      esac ;;
+    *) printf '    ! unsupported test platform: %s\n' "$(uname -s)" >&2; return 1 ;;
+  esac
+
+  # Resolve the latest release tag via the public redirect (same path the
+  # installer uses when api.github.com is unreachable).
+  local tag
+  tag=$(curl -fsLI --connect-timeout 5 --max-time 20 -o /dev/null \
+        -w '%{url_effective}\n' \
+        https://github.com/TrebuchetDynamics/gormes-agent/releases/latest 2>/dev/null \
+      | sed -n 's|.*/releases/tag/\([^/[:space:]]\{1,\}\).*|\1|p' | tail -1)
+  if [ -z "$tag" ]; then
+    printf '    ! could not resolve latest release tag\n' >&2
+    return 1
+  fi
+  local ver="${tag#v}"
+  local asset="gormes-${ver}-${arch}.tar.gz"
+
+  local webroot="$SANDBOX/web"
+  mkdir -p "$webroot/$tag"
+  printf 'this is not a gormes release tarball\n' > "$webroot/$tag/$asset"
+  # Plausible hex string that obviously won't match the asset content.
+  printf 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef  %s\n' \
+    "$asset" > "$webroot/$tag/$asset.sha256"
+
+  # Pre-allocate a free port (parsing python http.server's startup line is
+  # brittle: it's block-buffered when redirected and may flush after we'd
+  # already given up). Race window between bind/close and the server binding
+  # is microscopic on a localhost test machine.
+  local port
+  port=$(python3 -c 'import socket
+s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+  if [ -z "$port" ]; then
+    printf '    ! could not pre-allocate free port\n' >&2
+    return 1
+  fi
+
+  python3 -m http.server "$port" --bind 127.0.0.1 --directory "$webroot" \
+    > "$SANDBOX/logs/httpd.log" 2>&1 &
+  local httpd_pid=$!
+  # `|| true` after each command: under `set -e` in the subshell, both `kill`
+  # (when the pid is already gone) and `wait` (when the process exited with
+  # signal 143) return non-zero and would abort the trap action mid-flow,
+  # leaving wait's 143 as the subshell exit and producing a spurious FAIL
+  # after every assertion passed. Trailing `; true` alone wasn't enough —
+  # set -e caused the action to abort *before* reaching `true`.
+  trap "kill $httpd_pid 2>/dev/null || true; wait $httpd_pid 2>/dev/null || true" EXIT
+
+  local ready=0 i
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if curl -fsS --max-time 1 "http://127.0.0.1:$port/" >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 0.2
+  done
+  if [ "$ready" -eq 0 ]; then
+    printf '    ! local httpd not responding on port %s within 2s\n' "$port" >&2
+    return 1
+  fi
+
+  # Bad SSH/HTTPS git URLs so the source-build fallback fails fast (DNS
+  # NXDOMAIN). We don't care whether source-build succeeds — the contract
+  # under test is "SHA-256 mismatch is detected and binary-fetch aborts."
+  GORMES_RELEASES_DOWNLOAD_BASE="http://127.0.0.1:$port" \
+  GORMES_REPO_URL_SSH="git@invalid.invalid:foo/bar.git" \
+  GORMES_REPO_URL_HTTPS="https://invalid.invalid/foo/bar.git" \
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_BIN_DIR="$SANDBOX/bin" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --skip-setup --restart-gateway never \
+    > "$SANDBOX/logs/install.log" 2>&1 || true
+
+  assert_grep "SHA-256 mismatch" "$SANDBOX/logs/install.log"
+  assert_grep "binary-fetch failed; falling back to source build" "$SANDBOX/logs/install.log"
+  # Mismatched asset must never reach managed_bin_dir.
+  assert_not_exists "$SANDBOX/home/bin/gormes"
+}
+
+case_no_go_toolchain_binary_fetch() {
+  # Operator guarantee: a host without Go installed must still be able to
+  # install gormes via the binary-fetch path. ensure_go() is only invoked
+  # by ensure_source_prerequisites, which runs only when binary-fetch fails.
+  #
+  # Stripping dirs containing `go` from PATH is unsafe on Ubuntu: apt's
+  # golang-1.22 installs symlinks at /bin/go and /usr/bin/go, so naive
+  # stripping nukes sh/curl/tar. Build a curated shim dir with every tool
+  # binary-fetch needs, set PATH to just that dir, and confirm `command -v
+  # go` resolves to nothing.
+  capture_prestate
+
+  local shim="$SANDBOX/path-no-go"
+  mkdir -p "$shim"
+  # Required base (need) + binary-fetch deps + commonly-invoked coreutils.
+  # ripgrep/node/ffmpeg are optional — install.sh logs warnings if absent.
+  local needed tool real missing=""
+  needed=(
+    sh bash uname mkdir rm ln mv cp chmod sleep
+    curl wget tar gzip gunzip awk grep sed head tail cat tr cut sort
+    id hostname printf date dirname basename true false test '['
+    sha256sum shasum stat readlink which env mktemp file
+    git tput touch chown find xargs ps kill wait
+  )
+  for tool in "${needed[@]}"; do
+    real=$(command -v "$tool" 2>/dev/null || true)
+    if [ -n "$real" ]; then
+      ln -sf "$real" "$shim/$tool"
+    else
+      missing="$missing $tool"
+    fi
+  done
+
+  if PATH="$shim" command -v go >/dev/null 2>&1; then
+    printf '    ! go is still resolvable on shim PATH (bug in case): %s\n' \
+      "$(PATH=$shim command -v go)" >&2
+    return 1
+  fi
+
+  # GOROOT/GOPATH unset for extra safety: a stale GOROOT could make `go`
+  # appear "installed" via $GOROOT/bin even if not on PATH.
+  PATH="$shim" \
+  GOROOT="" \
+  GOPATH="" \
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_BIN_DIR="$SANDBOX/bin" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --skip-setup --restart-gateway never \
+    > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+
+  # Took binary-fetch path; ensure_go was never invoked.
+  assert_grep "Installed gormes" "$SANDBOX/logs/install.log"
+  assert_no_grep "Checking Go" "$SANDBOX/logs/install.log"
+  assert_no_grep "installing managed Go" "$SANDBOX/logs/install.log"
+
+  assert_executable "$SANDBOX/bin/gormes"
+  PATH="$shim" GORMES_HOME="$SANDBOX/home" \
+    "$SANDBOX/bin/gormes" version > "$SANDBOX/logs/version.log" 2>&1
+  assert_grep '^gormes ' "$SANDBOX/logs/version.log"
+
+  capture_poststate
+  assert_no_production_state_changes
+}
+
 case_ssh_origin_update_fallback() {
   # Pre-seed a real checkout via HTTPS so we have history + a valid .git dir.
   if ! git clone --depth 50 --branch main \
@@ -396,7 +568,9 @@ run_case() {
 CASES=(
   plan_dryrun_inside_sandbox
   binary_fetch_happy_path
+  no_go_toolchain_binary_fetch
   api_failure_redirect_fallback
+  hash_mismatch_aborts
   ssh_origin_update_fallback
   source_build_local
   source_build_clone
