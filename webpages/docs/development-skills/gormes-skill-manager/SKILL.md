@@ -101,7 +101,7 @@ Pick the primary intent:
 - **Commit, validate, and push the dirty `development` branch**: use
   `gormes-git`.
 - **Prepare, publish, or recover a Gormes release**: use `gormes-release`.
-  It may route dirty-worktree commit/push/PR work through `gormes-git`, but it
+  It may route dirty-worktree commit/push work through `gormes-git`, but it
   owns release intent, version/tag checks, artifact verification, and recovery
   stop conditions.
 - **Create or improve skills**: use system `skill-creator` plus this manager.

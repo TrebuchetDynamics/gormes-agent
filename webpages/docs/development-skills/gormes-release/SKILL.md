@@ -1,15 +1,16 @@
 ---
 name: gormes-release
-description: Prepare, validate, PR-merge, tag, and publish a Gormes release from the existing development branch. Use when the user asks to release Gormes, bump the operator-facing version, create a GitHub release tag, or run the full development-to-main release lane.
+description: Prepare, commit all intended changes, push development, make CI green, PR-merge to main, tag, and publish a Gormes release. Use when the user asks to release Gormes, bump the operator-facing version, create a GitHub release tag, or run the full development-to-main release lane.
 ---
 
 # Gormes Release
 
 ## Role
 
-Use this skill only for the public release lane: version prep, local and remote
-validation, development-to-main PR merge, annotated tag creation, GitHub release
-artifact verification, and post-release development sync.
+Use this skill only for the public release lane: version prep, commit-all
+development cleanup, local and remote validation, development-to-main PR merge,
+annotated tag creation, GitHub release artifact verification, and post-release
+development sync.
 
 If the user asks to improve `gormes-release` itself, treat that as skill
 maintenance first: use `gormes-skill-manager` plus system `skill-creator`, edit
@@ -23,10 +24,11 @@ Work only on the existing `development` branch. Do not create feature branches,
 release branches, or worktrees. Never edit `main` directly. All source changes
 reach `main` through a PR from `development`.
 
-`gormes-release` may call `gormes-git` as a subroutine for the dirty-worktree
-green/commit/push/PR lane. Do not duplicate or bypass `gormes-git` safeguards
-for staging, generated-surface reconciliation, push rejection recovery, or PR
-checks.
+`gormes-release` calls `gormes-git` as the subroutine for dirty-worktree
+safety scanning, generated-surface reconciliation, coherent split commits,
+local green gates, and pushing `origin development`. The release skill owns the
+GitHub PR, merge-to-main, tag, workflow, release artifact, and post-release
+development sync steps.
 
 ## Intent And Stop Conditions
 
@@ -37,15 +39,17 @@ request before changing files:
 |---|---|
 | Improve `gormes-release` or another skill | Skill-maintenance lane; validate docs only; no release actions. |
 | Prepare release only | Version/changelog/docs prep may happen; no PR merge, tag, or publish unless later requested. |
-| Release/publish Gormes | Run the full release lane after all preflight checks pass. |
+| Release/publish Gormes | Run the full lane: include all safe dirty work, make `development` green, commit, push, open/update PR to `main`, wait for green CI, merge, tag, publish, and sync `development`. |
 | Recover failed release | First classify failure point: before tag, tag workflow before GitHub release, GitHub release exists, or artifact verification failed. |
 
 Stop and report instead of continuing when:
 
 - current branch is not `development`;
 - the requested version/tag is ambiguous;
-- `git status` contains dirty work the user has not agreed to include or leave
-  out of the release commit;
+- dirty work contains credentials, accidental artifacts, generated drift with no
+  source, or changes too ambiguous to include safely. For an explicit full
+  release/publish request, treat current dirty work as agreed for inclusion
+  after the safety scan;
 - `go test ./...`, `go run ./cmd/progress validate`, `git diff --check`, or
   required remote checks fail;
 - tag `v<version>` or GitHub release `v<version>` already exists;
@@ -105,7 +109,9 @@ git fetch origin main development --tags
 
 2. Resolve release scope:
    - version/tag;
-   - whether current dirty work is included in this release or intentionally
+   - whether this is a full release/publish request, which means all safe dirty
+     work must be included through `gormes-git`;
+   - for prep-only requests, which dirty files are intentionally included or
      left dirty;
    - whether this is prep-only, full publish, or recovery.
 3. Fold the latest `origin/main` into `development` if needed, resolving
@@ -131,15 +137,35 @@ Run public-surface gates when `docs/`, `www.gormes.ai/`, `README.md`, or
 progress mirror files changed:
 
 ```sh
-timeout 20m sh -c 'cd webpages/landing && go test ./... -count=1'
+timeout 20m sh -c 'cd webpages/landing/legacy/go-renderer && go test ./... -count=1'
 timeout 30m sh -c 'cd webpages/landing && npm run test:e2e'
 timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
 ```
 
-6. Use `gormes-git` for commit, push, and PR setup once the release diff is
-   green. Stage only the intended release scope unless the user explicitly
-   asked to include all dirty work.
- 7. Wait only with bounded polling. Merge the PR only after required remote
+6. For a full release/publish lane, run `gormes-git` once the release diff is
+   locally green. That subroutine must:
+   - include all tracked and untracked dirty work after the safety scan;
+   - split commits by coherent scope;
+   - rerun the local green gate;
+   - push only `origin development`.
+
+   For prep-only release work, commit only the intended prep scope and leave
+   out-of-scope dirty files unstaged.
+
+7. Open or update the `development` to `main` PR, then wait only with bounded
+   polling. Do not tag before this PR is merged.
+
+   ```sh
+   gh pr list --head development --base main --state open --json number,url,title
+   gh pr create --base main --head development --title "Release v<version>" --body "<body>"
+   gh pr checks <number> --watch --interval 30
+   gh pr view <number> --json state,isDraft,mergeStateStatus,reviewDecision,statusCheckRollup
+   ```
+
+   If checks fail or the PR is not mergeable, fix through `development`, rerun
+   local gates, push `development`, and wait for CI again.
+
+8. Merge the PR only after required remote
     checks pass and the PR is mergeable.
 
     **Merge strategy detection:** GitHub repos may restrict allowed merge
@@ -174,7 +200,7 @@ timeout 30m sh -c 'cd docs/www-tests && npm run test:e2e'
     gh pr view <number> --json state,mergedBy,mergedAt
     ```
 
- 8. After merge, fetch `origin/main`, confirm `cmd/gormes/version.go` on main
+9. After merge, fetch `origin/main`, confirm `cmd/gormes/version.go` on main
    matches the release version, then create and push the annotated tag:
 
 ```sh
@@ -182,7 +208,7 @@ git tag -a "v<version>" "origin/main" -m "Release <version>"
 git push origin "v<version>"
 ```
 
-9. Watch the tag-triggered `Release Binaries` workflow with bounded polling.
+10. Watch the tag-triggered `Release Binaries` workflow with bounded polling.
    Confirm the GitHub release exists and contains archives plus checksums.
    If the tag workflow fails before a GitHub release is created, fix through
    the `development` PR path. Delete a failed local/remote tag only when all
@@ -190,7 +216,7 @@ git push origin "v<version>"
    the user has authorized tag recovery, and the fixed `main` commit is green.
    If a GitHub release already exists, stop and report the recovery options
    instead of mutating public artifacts.
-10. Sync `development` with `origin/main`, push `development`, and leave the
+11. Sync `development` with `origin/main`, push `development`, and leave the
    local checkout on `development`.
 
 ## Recovery Classification
@@ -207,6 +233,7 @@ When recovering a release, first identify the failure point:
 
 ## Final Evidence
 
-Report the release version, PR URL, main merge commit, tag, release URL, local
-and remote gates, artifact/checksum list, post-release `development` sync state,
-and any dirty files left out of the release.
+Report the release version, development commit hashes, PR URL, main merge
+commit, tag, release URL, local and remote gates, artifact/checksum list,
+post-release `development` sync state, and any dirty files left out of the
+release.

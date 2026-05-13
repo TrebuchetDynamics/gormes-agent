@@ -10,7 +10,7 @@ aliases:
 # CLI reference
 
 These pages are generated from `gormes --help`. If a flag is documented here,
-the running binary supports it. Pages are audited against the v0.2.8 binary.
+the running binary supports it. Pages are audited against the v0.2.9 binary.
 
 Runtime-ready commands are promoted for configured local use in the current
 Gormes binary. Row-backed commands are part of the Hermes parity inventory or

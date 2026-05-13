@@ -8,6 +8,39 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-05-13
+
+Date alias: `v2026.5.13`.
+
+> **Unified admin TUI, agent-per-thread controls, and hardened install/release evidence.**
+
+### Added
+- Unified Bubble Tea admin TUI with Setup, Chat, Agents, and Commands tabs.
+- Admin command catalog over the live Cobra command tree, with safe inline
+  execution for read-only commands such as `gormes kanban list`.
+- Agent spawn/list/bind/unbind/inspect CLI for channel-native agent routing.
+- Dynamic Goncho agent registry for runtime-spawned agent personas.
+- Hermes-parity command stubs and profile lifecycle aliases for the wider CLI
+  surface.
+
+### Changed
+- `gormes login --provider openai-codex` and admin command discovery now route
+  through the Gormes command tree instead of falling back to Hermes-owned
+  instructions.
+- Docs and operator release skills now require the full development green gate,
+  PR-to-main merge, tag, release workflow, artifact verification, and
+  post-release development sync.
+- Install and release tests now cover no-curl/no-wget fallback, hash mismatch,
+  missing Go toolchain, `--branch`, `--local`, `--from-source`,
+  `--uninstall --dry-run`, no-systemd skips, and Termux detection.
+
+### Fixed
+- Gateway and Navivox command parsing now rejects unknown subcommands and
+  protects TTY-only setup paths in non-interactive contexts.
+- Telegram client shutdown is guarded against double-close panics.
+- Corrupt SQLite databases for Goncho memory, sessions, and memory.db can
+  self-heal instead of blocking startup.
+
 ## [0.2.8] - 2026-05-11
 
 Date alias: `v2026.5.11`.
@@ -853,7 +886,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.8...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.9...HEAD
+[0.2.9]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.5...v0.2.6
