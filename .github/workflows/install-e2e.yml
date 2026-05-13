@@ -30,6 +30,14 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      # Source-build cases (--local, --from-source) need a Go toolchain at the
+      # same floor install.sh enforces. The binary-fetch / dry-run / fallback
+      # cases don't, but setting it up unconditionally keeps the matrix simple.
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
       - name: Run install.sh e2e probes
         env:
           GORMES_INSTALL_E2E_KEEP: ${{ inputs.keep_sandbox == 'true' && '1' || '' }}

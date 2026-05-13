@@ -32,7 +32,13 @@ fi
 
 TS=$(date -u +%Y%m%dT%H%M%SZ)
 SANDBOX_ROOT="${GORMES_INSTALL_E2E_ROOT:-/tmp/gormes-install-e2e/$TS}"
-mkdir -p "$SANDBOX_ROOT"
+mkdir -p "$SANDBOX_ROOT/tmp"
+
+# Pin TMPDIR to the sandbox so curl/go-build/mktemp don't fight whatever the
+# user's $TMPDIR happens to be (it might be on a low-space partition or a
+# shared cache dir polluted by other tools). Sandbox tmp lives under /tmp
+# tmpfs and is GC'd with the rest of SANDBOX_ROOT.
+export TMPDIR="$SANDBOX_ROOT/tmp"
 
 PASS=0
 FAIL=0
@@ -244,6 +250,78 @@ case_ssh_origin_update_fallback() {
   assert_eq "$origin_url" "git@github.com:TrebuchetDynamics/gormes-agent.git" "origin url preserved"
 }
 
+case_source_build_local() {
+  # --local sets LOCAL_SOURCE_DIR=$(pwd), so the case must run install.sh from
+  # the repo root (where go.mod lives). This exercises the source-build path
+  # without any clone — the operator's existing checkout is the source of truth.
+  capture_prestate
+
+  (
+    cd "$REPO_ROOT"
+    GORMES_INSTALL_HOME="$SANDBOX/home" \
+    GORMES_BIN_DIR="$SANDBOX/bin" \
+    GORMES_SKIP_SETUP=1 \
+    GORMES_RESTART_GATEWAY=never \
+    sh "$INSTALL_SH" --local --skip-setup --restart-gateway never
+  ) > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+
+  # Took the source-build path, not binary-fetch.
+  assert_grep "install_method: source-build" "$SANDBOX/logs/install.log"
+  assert_grep "using local source checkout $REPO_ROOT" "$SANDBOX/logs/install.log"
+  assert_no_grep "Resolving latest release tag" "$SANDBOX/logs/install.log"
+  assert_no_grep "Installed gormes .* from release" "$SANDBOX/logs/install.log"
+
+  # No clone went into the sandbox — --local should not write a checkout.
+  assert_not_exists "$SANDBOX/home/gormes-agent"
+
+  assert_executable "$SANDBOX/bin/gormes"
+  local ver
+  ver=$(GORMES_HOME="$SANDBOX/home" "$SANDBOX/bin/gormes" version 2>&1)
+  printf '%s\n' "$ver" > "$SANDBOX/logs/version.log"
+  assert_grep '^gormes ' "$SANDBOX/logs/version.log"
+
+  capture_poststate
+  assert_no_production_state_changes
+}
+
+case_source_build_clone() {
+  # --from-source forces a clone + build (skip binary-fetch). With a fresh
+  # sandbox the checkout lands at $SANDBOX/home/gormes-agent. This exercises
+  # the path the user originally hit: binary-fetch failed and the installer
+  # fell back to building from a cloned source, which required SSH or HTTPS
+  # to actually reach github.com.
+  capture_prestate
+
+  GORMES_INSTALL_HOME="$SANDBOX/home" \
+  GORMES_BIN_DIR="$SANDBOX/bin" \
+  GORMES_SKIP_SETUP=1 \
+  GORMES_RESTART_GATEWAY=never \
+  sh "$INSTALL_SH" --from-source --skip-setup --restart-gateway never \
+    > "$SANDBOX/logs/install.log" 2>&1
+  local rc=$?
+  assert_eq "$rc" 0 "install exit code"
+
+  # Took the source-build path via clone, not binary-fetch.
+  assert_grep "install_method: source-build" "$SANDBOX/logs/install.log"
+  assert_grep "Cloned via" "$SANDBOX/logs/install.log"
+  assert_no_grep "Resolving latest release tag" "$SANDBOX/logs/install.log"
+  assert_no_grep "Installed gormes .* from release" "$SANDBOX/logs/install.log"
+
+  assert_file_exists "$SANDBOX/home/gormes-agent/.git"
+  assert_file_exists "$SANDBOX/home/gormes-agent/go.mod"
+  assert_executable "$SANDBOX/bin/gormes"
+
+  local ver
+  ver=$(GORMES_HOME="$SANDBOX/home" "$SANDBOX/bin/gormes" version 2>&1)
+  printf '%s\n' "$ver" > "$SANDBOX/logs/version.log"
+  assert_grep '^gormes ' "$SANDBOX/logs/version.log"
+
+  capture_poststate
+  assert_no_production_state_changes
+}
+
 case_uninstall_lifecycle() {
   # Install first.
   GORMES_INSTALL_HOME="$SANDBOX/home" \
@@ -320,6 +398,8 @@ CASES=(
   binary_fetch_happy_path
   api_failure_redirect_fallback
   ssh_origin_update_fallback
+  source_build_local
+  source_build_clone
   uninstall_lifecycle
 )
 
