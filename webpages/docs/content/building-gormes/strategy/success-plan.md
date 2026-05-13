@@ -58,6 +58,7 @@ Q1 ship metric: blog live, 1 writeup public, README rewritten, cost telemetry in
 Goal: make the agentic-engineering skill set a citable asset.
 
 - Extract `gormes-planner`, `gormes-builder`, `gormes-tdd-slice`, `gormes-parity-auditor`, `gormes-references`, `gormes-skill-manager` into a separate public repo (`TrebuchetDynamics/agentic-porting-kit` or equivalent).
+- Use the [agentic-porting-kit extraction spec](../agentic-porting-kit/) as the boundary for repo shape, skill renaming, standalone example validation, and Gormes backlink requirements.
 - Demonstrate the kit on a second porting target.
 - Ship writeup #2: *"Validation-gated agentic engineering: how we keep autonomous commits green for 700+ rows."*
 - Ship writeup #3: *"Cold start, memory, and skill-execution: Gormes vs Hermes-Python head-to-head."*

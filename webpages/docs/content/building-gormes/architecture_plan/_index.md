@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 99/106 subphases shipped · 5 in progress · 2 planned
+**Overall:** 99/106 subphases shipped · 6 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1379,9 +1379,10 @@ classification and row-backed implementation queue.
 - [x] Release archive 30 MB size gate
 - [x] Termux android/arm64 release artifact and installer selector
 
-### 8.E — Toolkit Extraction ⏳
+### 8.E — Toolkit Extraction 🔨
 
-- [ ] Agentic-porting-kit repo scaffold
+- [x] Agentic-porting-kit extraction spec
+- [ ] Agentic-porting-kit public repo scaffold
 
 ### 8.F — Cost Discipline & Loop Economics ✅
 

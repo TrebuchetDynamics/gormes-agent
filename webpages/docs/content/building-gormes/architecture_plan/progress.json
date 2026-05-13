@@ -58144,21 +58144,21 @@
           "name": "Toolkit Extraction",
           "items": [
             {
-              "name": "Agentic-porting-kit repo scaffold",
+              "name": "Agentic-porting-kit extraction spec",
               "priority": "P2",
-              "status": "planned",
+              "status": "complete",
               "provenance": {
                 "origin_type": "gormes"
               },
-              "contract": "The gormes-* skill set (gormes-planner, gormes-builder, gormes-tdd-slice, gormes-parity-auditor, gormes-references, gormes-skill-manager) is extracted into a separate public TrebuchetDynamics repo (`agentic-porting-kit` or equivalent), with a README that frames the kit as a generic Python→Go porting toolkit, a worked example using a small non-Hermes target, and a clear license. The kit must work standalone — its rows must be loadable by Codex or Claude Code in any repo, not just Gormes.",
-              "contract_status": "draft",
-              "slice_size": "large",
-              "execution_owner": "skills",
+              "contract": "A short strategy spec defines the public agentic-porting-kit repository boundary before extraction begins: repo shape, skill renames, Gormes-to-generic terminology rules, standalone example fixture, README promise, license requirement, and acceptance tests for loading the kit without cloning Gormes.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "docs",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "Without extraction, the methodology is invisible to other teams; \"the loop is the product\" cannot be substantiated externally.",
-              "fixture": "(separate repo: TrebuchetDynamics/agentic-porting-kit)",
+              "degraded_mode": "Without a written extraction boundary, a builder can copy Gormes-local process into a public repo that still depends on Gormes paths and cannot prove the methodology is portable.",
+              "fixture": "webpages/docs/content/building-gormes/strategy/agentic-porting-kit.md",
               "source_refs": [
                 "docs/content/building-gormes/strategy/success-plan.md",
                 "webpages/docs/development-skills/gormes-planner/SKILL.md",
@@ -58169,30 +58169,98 @@
                 "webpages/docs/development-skills/gormes-skill-manager/SKILL.md"
               ],
               "ready_when": [
-                "All listed skills have a README of their own that does not assume the Gormes repo layout.",
-                "Skills' references that hard-code Gormes paths have been parameterized or generalized."
+                "Phase 8 toolkit extraction is selected for planning.",
+                "The existing gormes-* skill list is known."
               ],
               "not_ready_when": [
-                "Skills still hard-code paths under docs/content/building-gormes/.",
-                "The extracted kit cannot be tested without cloning Gormes."
+                "The plan attempts to create the external repo before defining standalone acceptance.",
+                "The spec omits the non-Gormes example fixture or skill rename map."
               ],
               "blocked_by": [],
               "acceptance": [
-                "Public repo TrebuchetDynamics/agentic-porting-kit exists with the listed skills.",
-                "Repo README explains the kit independent of Gormes/Hermes.",
-                "A worked example demonstrates the kit on a non-Hermes target (any small Python project being ported to Go).",
-                "Skills can be loaded into a fresh Codex or Claude Code session and successfully plan-and-execute one row in the example target."
+                "agentic-porting-kit.md names the public repo shape, README promise, license requirement, standalone example, and validation command.",
+                "The spec maps each gormes-* skill to a generic kit skill name.",
+                "success-plan.md links to the spec from the Q2 toolkit milestone.",
+                "The follow-on public repo scaffold row references the spec."
               ],
               "write_scope": [
-                "(separate repo)",
-                "webpages/docs/development-skills/ (de-Gormes-fy paths)",
+                "docs/content/building-gormes/strategy/agentic-porting-kit.md",
+                "docs/content/building-gormes/strategy/success-plan.md",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
-              "no_test_required": "Documentation/research/planning row — automated tests not applicable",
-              "done_signal": [
-                "Repo URL recorded in success-plan.md and README.md; star count tracked monthly."
+              "test_commands": [
+                "go run ./cmd/progress validate",
+                "go test ./webpages/docs -count=1"
               ],
-              "note": "Source: success-plan.md Q2 milestone."
+              "done_signal": [
+                "Extraction spec is linked from success-plan.md and the public repo scaffold row is narrowed against it."
+              ],
+              "note": "Complete 2026-05-13: wrote the agentic-porting-kit extraction spec before touching the external repo. The spec defines the repo scaffold, Gormes-to-generic skill rename map, standalone Python greeter example, validation script, README promise, and backlink requirements. Evidence: go run ./cmd/progress validate; go test ./webpages/docs -count=1."
+            },
+            {
+              "name": "Agentic-porting-kit public repo scaffold",
+              "priority": "P2",
+              "status": "planned",
+              "provenance": {
+                "origin_type": "gormes"
+              },
+              "contract": "Create the public TrebuchetDynamics/agentic-porting-kit repository from the extraction spec with README, LICENSE, progress schema, validation script, six renamed porting skills, and a tiny Python-greeter-to-Go example. The copied skills must load in a fresh Codex or Claude Code session without depending on the Gormes checkout.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "skills",
+              "trust_class": [
+                "operator"
+              ],
+              "degraded_mode": "Without the public scaffold, the methodology remains inspectable only inside Gormes and cannot be cited or reused by other teams.",
+              "fixture": "TrebuchetDynamics/agentic-porting-kit:examples/python-greeter-to-go/progress.json",
+              "source_refs": [
+                "docs/content/building-gormes/strategy/agentic-porting-kit.md",
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "webpages/docs/development-skills/gormes-planner/SKILL.md",
+                "webpages/docs/development-skills/gormes-builder/SKILL.md",
+                "webpages/docs/development-skills/gormes-tdd-slice/SKILL.md",
+                "webpages/docs/development-skills/gormes-parity-auditor/SKILL.md",
+                "webpages/docs/development-skills/gormes-references/SKILL.md",
+                "webpages/docs/development-skills/gormes-skill-manager/SKILL.md"
+              ],
+              "ready_when": [
+                "Agentic-porting-kit extraction spec is complete.",
+                "GitHub authentication can create or push to TrebuchetDynamics/agentic-porting-kit, or the operator has created the empty repo.",
+                "The public repo name is confirmed as agentic-porting-kit or an equivalent name before the first push."
+              ],
+              "not_ready_when": [
+                "No authenticated path exists to create or update the public TrebuchetDynamics repo.",
+                "The builder plans to edit Gormes' repo-local skills in place instead of copied kit skills.",
+                "The standalone example still requires cloning Gormes or running cmd/progress."
+              ],
+              "blocked_by": [],
+              "acceptance": [
+                "Public repo exists with README.md, LICENSE, schemas/progress.schema.json, scripts/validate-example.sh, skills/, and examples/python-greeter-to-go/.",
+                "README.md explains the kit independent of Gormes/Hermes and includes Codex plus Claude Code loading instructions.",
+                "Each copied skill uses the porting-* name from the extraction spec and replaces hard-coded Gormes paths with target-repo variables.",
+                "scripts/validate-example.sh validates the example progress file and runs the example tests without cloning Gormes.",
+                "Gormes README.md and success-plan.md record the public repo URL after the repo is reachable."
+              ],
+              "write_scope": [
+                "(separate repo) README.md",
+                "(separate repo) LICENSE",
+                "(separate repo) schemas/progress.schema.json",
+                "(separate repo) scripts/validate-example.sh",
+                "(separate repo) skills/",
+                "(separate repo) examples/python-greeter-to-go/",
+                "README.md",
+                "docs/content/building-gormes/strategy/success-plan.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "cd ${AGENTIC_PORTING_KIT_REPO:-../agentic-porting-kit} && ./scripts/validate-example.sh",
+                "go run ./cmd/progress validate",
+                "go test ./webpages/docs -count=1"
+              ],
+              "done_signal": [
+                "Public repo URL, standalone validation output, and Gormes backlink updates are recorded in the completed row note."
+              ],
+              "note": "Source: success-plan.md Q2 milestone and agentic-porting-kit.md extraction spec. This row owns the external repository scaffold only; deeper skill hardening can be split after the first standalone validation run exposes concrete drift. Contract remains draft so the generated queue keeps it visible until a builder confirms authenticated access to create or update the public repo."
             }
           ]
         },
