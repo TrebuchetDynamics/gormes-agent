@@ -49,7 +49,16 @@ func newAuthCommand() *cobra.Command {
 	cmd.AddCommand(newAuthResetCommand())
 	cmd.AddCommand(newAuthStatusCommand())
 	cmd.AddCommand(newAuthLogoutCommand())
+	cmd.AddCommand(newAuthSpotifyCommand())
 	return cmd
+}
+
+func newAuthSpotifyCommand() *cobra.Command {
+	return newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+		Use:   "spotify",
+		Short: "Manage Spotify service-provider OAuth",
+		Row:   "Hermes auth Spotify service-provider subcommand",
+	})
 }
 
 func newAuthAddCommand() *cobra.Command {
@@ -757,13 +766,52 @@ func runAuthAddCodexEmergencyImportCommand(cmd *cobra.Command, opts authAddOptio
 
 func runAuthListCommand(cmd *cobra.Command, providerInput string, asJSON bool) error {
 	provider := normalizeAuthProvider(providerInput)
-	if provider == "" {
-		if asJSON {
-			return emitAuthListJSON(cmd, "all", []config.RedactedCredentialStatus{})
-		}
-		fmt.Fprintln(cmd.OutOrStdout(), "credential_pool_empty provider=all redacted=true")
-		return nil
+	if provider != "" {
+		return runAuthListProvider(cmd, provider, asJSON)
 	}
+	providers, err := config.ListCredentialPoolProviders(config.CredentialPoolOptions{})
+	if err != nil {
+		return fmt.Errorf("gormes auth list: credential_pool_corrupt")
+	}
+	var allEntries []config.RedactedCredentialStatus
+	printed := false
+	out := cmd.OutOrStdout()
+	for _, p := range providers {
+		pool, _, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: p})
+		if err != nil {
+			continue
+		}
+		status := pool.RedactedStatus()
+		if status.Count == 0 {
+			continue
+		}
+		allEntries = append(allEntries, status.Entries...)
+		if !asJSON {
+			fmt.Fprintf(out, "%s (%d credentials) credentials=%d redacted=%t\n", p, status.Count, status.Count, status.Redacted)
+			for i, entry := range status.Entries {
+				statusText := entry.LastStatus
+				if statusText == "" {
+					statusText = config.CredentialStatusOK
+				}
+				reason := entry.LastErrorReason
+				if reason == "" {
+					reason = "-"
+				}
+				fmt.Fprintf(out, "  %d. id=%s label=%s auth_type=%s source=%s status=%s reason=%s redacted=%t\n", i+1, entry.ID, entry.Label, entry.AuthType, displayCredentialSource(entry.Source), statusText, reason, entry.SecretsRedacted)
+			}
+			printed = true
+		}
+	}
+	if asJSON {
+		return emitAuthListJSON(cmd, "all", allEntries)
+	}
+	if !printed {
+		fmt.Fprintln(out, "credential_pool_empty provider=all redacted=true")
+	}
+	return nil
+}
+
+func runAuthListProvider(cmd *cobra.Command, provider string, asJSON bool) error {
 	pool, evidence, err := config.LoadCredentialPool(config.CredentialPoolOptions{Provider: provider})
 	if err != nil {
 		return fmt.Errorf("gormes auth list %s: %s", provider, evidence.Code)

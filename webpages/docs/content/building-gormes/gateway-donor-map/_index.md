@@ -64,7 +64,7 @@ These PicoClaw files are the highest-leverage shared references across more than
 
 ## Current Gormes Anchors
 
-- [Using Gormes: Telegram Adapter](../../using-gormes/telegram-adapter/) for the shipped baseline
+- [Configure: Telegram](../../configure/telegram/) for the shipped baseline
 - [Gateway](../core-systems/gateway/) for the architecture Gormes keeps authoritative
 - [Phase 2 Gateway](../architecture_plan/phase-2-gateway/) for the roadmap order and shipped/planned status
 - [Subsystem Inventory](../architecture_plan/subsystem-inventory/) for the current port ledger

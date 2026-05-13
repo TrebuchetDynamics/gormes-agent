@@ -69,6 +69,9 @@ const (
 	// claim, block, unblock, link, init). All kanban operations bypass the
 	// model and delegate to the local kanban.Store.
 	EventKanban
+	// EventSpawn handles channel-native dynamic agent spawn UX such as
+	// Telegram forum topics and Discord threads.
+	EventSpawn
 )
 
 // String returns the stable log/test representation of an EventKind.
@@ -124,6 +127,8 @@ func (k EventKind) String() string {
 		return "topic"
 	case EventKanban:
 		return "kanban"
+	case EventSpawn:
+		return "spawn"
 	default:
 		return "unknown"
 	}

@@ -25,7 +25,26 @@ func newMemoryCommand() *cobra.Command {
 		Short: "Inspect persisted memory and extractor state",
 		Args:  cobra.NoArgs,
 	}
-	cmd.AddCommand(newMemoryStatusCommand())
+	cmd.AddCommand(
+		newMemoryStatusCommand(),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "setup",
+			Short: "Configure Hermes-compatible memory",
+			Row:   hermesMemoryRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   "off",
+			Short: "Disable Hermes-compatible memory",
+			Row:   hermesMemoryRow,
+		}),
+		newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:         "reset",
+			Short:       "Reset Hermes-compatible memory state",
+			Row:         hermesMemoryRow,
+			Destructive: true,
+			FlagSet:     hermesUnavailableYesFlag,
+		}),
+	)
 	return cmd
 }
 

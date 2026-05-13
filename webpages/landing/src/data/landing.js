@@ -25,8 +25,8 @@ export const page = {
   description:
     "One Go binary runs 30 Hermes skills on Termux, Windows, and locked-down Linux. No Python, no Docker, no dependency drift. Local SQLite memory, Telegram/Discord/Slack gateways, and an offline TUI — all in ~40 MB.",
   nav: [
+    { label: 'Docs', href: 'https://docs.gormes.ai/' },
     { label: 'Install', href: '#install' },
-    { label: 'Trust', href: '#trust' },
     { label: 'GitHub', href: 'https://github.com/TrebuchetDynamics/gormes-agent' },
   ],
   heroKicker: 'GO-NATIVE · OFFLINE-FIRST · MIT LICENSE',

@@ -57,10 +57,13 @@ func TestLoad_RealFile(t *testing.T) {
 	if err := Validate(p); err != nil {
 		t.Fatalf("Validate() = %v, want nil", err)
 	}
-	// Phase 1 is complete once the legacy loop replacement, skill routing,
-	// and generated docs/control-plane rows are all validated.
-	if got := p.Phases["1"].DerivedStatus(); got != StatusComplete {
-		t.Errorf("Phase 1 = %q, want complete", got)
+	// Phase 1 can reopen when new Gormes-owned TUI/dashboard rows are added
+	// after the historical closeout (1.E Bubble Tea wizards for high-input
+	// CLI commands, future skill-driven control-plane work). Keep the floor
+	// at started work instead of pinning complete against a moving owned
+	// surface.
+	if got := p.Phases["1"].DerivedStatus(); got == StatusPlanned {
+		t.Errorf("Phase 1 = %q, want at least in_progress (core TUI / wire doctor / automation reliability / control plane work has landed)", got)
 	}
 	// Phase 2 can reopen when new gateway/channel parity rows are added after
 	// the historical closeout; keep the floor at started work instead of

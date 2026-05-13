@@ -60,10 +60,11 @@ If `--oneshot` returns, the TUI and gateway have a model to use.
 | Surface | Status |
 |---|---|
 | Install, offline smoke, doctor, dashboard | **Supported** |
-| TUI, one-shot turns, multi-agent routing | **Supported** |
+| CLI-first setup/config, TUI, one-shot turns, multi-agent routing | **Supported** |
 | Providers: OpenAI, Anthropic, DeepSeek, Groq, Ollama, OpenAI Codex, OpenCode, custom endpoints | **Supported** |
 | Local SQLite memory (Goncho), session state | **Supported** |
 | Gateways: Telegram, Discord, Slack | **Supported** |
+| Profiles, local Kanban board, skills/plugins inventory, security/secret audits | **Supported** |
 | Hermes / OpenClaw migration with dry-run | **Supported** |
 | Gateways: WhatsApp, Teams, Yuanbao | **Experimental** |
 | Learning loop, MCP/plugin parity, voice/TTS | **Roadmap** |
@@ -88,6 +89,8 @@ Full Hermes-parity status by phase lives in the [roadmap](https://docs.gormes.ai
 gormes                          # open the native TUI
 gormes onboard --wizard         # guided first-run readiness plan
 gormes dashboard                # web UI at http://127.0.0.1:43827/dashboard
+gormes config show              # inspect config with secrets redacted
+gormes profile use <name>       # switch isolated profile homes
 gormes gateway                  # run the configured messaging gateway
 gormes gateway status --json    # inspect gateway runtime state
 gormes logs                     # read recent gateway logs
@@ -138,6 +141,7 @@ gormes doctor --offline
 |---|---|
 | [Installation](https://docs.gormes.ai/getting-started/installation/) | Source build, installer path, PATH, and offline verification. |
 | [First run](https://docs.gormes.ai/getting-started/first-run/) | `doctor`, `onboard`, provider setup, and first provider-backed turn. |
+| [What you can do](https://docs.gormes.ai/guides/what-you-can-do/) | Outcome-driven recipes for CLI, config, gateway, profiles, memory, and security. |
 | [CLI reference](https://docs.gormes.ai/reference/cli/) | Commands, flags, and operator workflows. |
 | [Providers](https://docs.gormes.ai/reference/providers/) | Supported provider config and credential paths. |
 | [Configuration](https://docs.gormes.ai/reference/config/) | `~/.gormes/config.toml`, `.env`, agents, workspaces, and bindings. |
@@ -173,8 +177,8 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 <!-- PROGRESS:START kind=readme-rollup -->
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | ✅ | 21/21 subphases |
+| Phase 1 — The Dashboard | ✅ | 5/5 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | ✅ | 23/23 subphases |

@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/spf13/cobra"
 	"go.etcd.io/bbolt"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
@@ -44,6 +44,7 @@ func newGatewayCommand() *cobra.Command {
 		Short:        "Run Gormes as a multi-channel messaging gateway",
 		Long:         "Runs every configured channel through one gateway.Manager that drives the same kernel + tool loop as the TUI.",
 		SilenceUsage: true,
+		Args:         cobra.NoArgs,
 		RunE:         runGateway,
 	}
 	cmd.AddCommand(
@@ -56,6 +57,13 @@ func newGatewayCommand() *cobra.Command {
 	)
 	for _, name := range gatewayMutatingUnavailableSubcommands {
 		cmd.AddCommand(newGatewayMutatingUnavailableCommand(name))
+	}
+	for _, name := range gatewayRowBackedUnavailableSubcommands {
+		cmd.AddCommand(newHermesUnavailableCommand(hermesUnavailableCommandSpec{
+			Use:   name,
+			Short: fmt.Sprintf("Manage gateway %s through a row-backed Hermes parity command", name),
+			Row:   hermesGatewayCronRow,
+		}))
 	}
 	return cmd
 }
@@ -74,6 +82,13 @@ var gatewayMutatingUnavailableSubcommands = []string{
 	"restart",
 	"install",
 	"uninstall",
+}
+
+var gatewayRowBackedUnavailableSubcommands = []string{
+	"run",
+	"setup",
+	"migrate-legacy",
+	"list",
 }
 
 func newGatewayMutatingUnavailableCommand(name string) *cobra.Command {
@@ -264,6 +279,10 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 			slog.Warn("memory store close", "err", err)
 		}
 	}()
+	dynamicAgentRegistry, err := goncho.NewDynamicAgentRegistry(mstore.DB())
+	if err != nil {
+		return fmt.Errorf("dynamic agent registry: %w", err)
+	}
 
 	baseHC, err := newGatewayHermesClient(cfg)
 	if err != nil {
@@ -357,6 +376,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		}
 		nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists := gatewayPolicyMaps(next)
 		nextCfg := gatewayManagerConfig(next, nextAllowedChats, nextAllowDiscovery, nextAllowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
+		nextCfg.DynamicAgentRegistry = dynamicAgentRegistry
 		nextCfg.ToolRegistry = buildDefaultRegistry(rootCtx, next, hc, next.Hermes.Model, withSessionSearch(mstore.DB(), smap))
 		nextCfg.SkillRuntime = skills.NewRuntime(next.SkillsRoot(), next.Skills.MaxDocumentBytes, next.Skills.SelectionCap, next.SkillsUsageLogPath())
 		if nextCfg.AgentRouting.Enabled {
@@ -367,6 +387,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return nextCfg, nil
 	}
 	mgrCfg := gatewayManagerConfig(cfg, allowedChats, allowDiscovery, allowedWhitelists, smap, hc, hooks, runtimeStatus, restartCfg)
+	mgrCfg.DynamicAgentRegistry = dynamicAgentRegistry
 	mgrCfg.ToolRegistry = reg
 	mgrCfg.SkillRuntime = skills.NewRuntime(cfg.SkillsRoot(), cfg.Skills.MaxDocumentBytes, cfg.Skills.SelectionCap, cfg.SkillsUsageLogPath())
 	if mgrCfg.AgentRouting.Enabled {
@@ -529,18 +550,18 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 				return nil, err
 			}
 			return telegram.New(telegram.Config{
-				AllowedChatID:        cfg.Telegram.AllowedChatID,
-				AllowedChatIDs:       cfg.Telegram.AllowedChatIDs(),
-				AllowedUserIDs:       cfg.Telegram.AllowedUserIDs,
-				FirstRunDiscovery:    cfg.Telegram.FirstRunDiscovery,
-				RequireMention:       cfg.Telegram.RequireMention,
-				GuestMode:            cfg.Telegram.GuestMode,
-				BotUsername:          cfg.Telegram.BotUsername,
-				Notifications:        cfg.Telegram.Notifications,
-				AudioTranscriber:     resolveTelegramAudioTranscriber(),
-				DynamicCommands:      gatewayTelegramDynamicCommands(context.Background(), cfg),
-				TokenLockDir:         config.GatewayLockDir(),
-				ModelPickerResolver:  gateway.NewModelPickerResolver(&gateway.SessionModelOverride{}),
+				AllowedChatID:       cfg.Telegram.AllowedChatID,
+				AllowedChatIDs:      cfg.Telegram.AllowedChatIDs(),
+				AllowedUserIDs:      cfg.Telegram.AllowedUserIDs,
+				FirstRunDiscovery:   cfg.Telegram.FirstRunDiscovery,
+				RequireMention:      cfg.Telegram.RequireMention,
+				GuestMode:           cfg.Telegram.GuestMode,
+				BotUsername:         cfg.Telegram.BotUsername,
+				Notifications:       cfg.Telegram.Notifications,
+				AudioTranscriber:    resolveTelegramAudioTranscriber(),
+				DynamicCommands:     gatewayTelegramDynamicCommands(context.Background(), cfg),
+				TokenLockDir:        config.GatewayLockDir(),
+				ModelPickerResolver: gateway.NewModelPickerResolver(&gateway.SessionModelOverride{}),
 			}, tc, log), nil
 		},
 		Discord: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
@@ -661,8 +682,8 @@ func gatewayManagerConfig(cfg config.Config, allowedChats map[string]string, all
 			BaseURL:  cfg.Auxiliary.Vision.BaseURL,
 		},
 		SessionResetPolicy:      cfg.Runtime.SessionResetPolicy,
-		SessionResetIdleMinutes:  cfg.Runtime.SessionResetAfterMinutes,
-		SessionResetDailyHour:    cfg.Runtime.SessionResetDailyHour,
+		SessionResetIdleMinutes: cfg.Runtime.SessionResetAfterMinutes,
+		SessionResetDailyHour:   cfg.Runtime.SessionResetDailyHour,
 		AccountUsage: func(ctx context.Context, ev gateway.InboundEvent) (hermes.AccountUsageSnapshot, error) {
 			resolution, _ := config.ResolveTUIInference(config.TUIInferenceRequest{Config: cfg, CommandLabel: "gormes gateway /usage"})
 			provider := inferUsageProvider(resolution.Provider, firstUsageString(resolution.Model, cfg.Hermes.Model))
@@ -1225,6 +1246,20 @@ func classifyGatewayShutdownSignal(sig os.Signal) (bool, gateway.PlannedStopCons
 }
 
 func sqlOpenGoncho(path string) (*sql.DB, error) {
+	db, err := sqlOpenGonchoRaw(path)
+	if err == nil {
+		return db, nil
+	}
+	if !isSQLiteCorruptionError(err) {
+		return nil, err
+	}
+	if _, healErr := selfHealCorruptGonchoSQLite(path); healErr != nil {
+		return nil, fmt.Errorf("%w; self-heal failed: %v", err, healErr)
+	}
+	return sqlOpenGonchoRaw(path)
+}
+
+func sqlOpenGonchoRaw(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		return nil, err

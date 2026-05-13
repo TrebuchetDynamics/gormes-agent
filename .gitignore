@@ -44,6 +44,16 @@ scripts/.swarm/
 .claude/worktrees/
 .claude/scheduled_tasks.lock
 
+# ── Root-level agent identity/memory scratch ─────────
+# Runtime expects these under $GORMES_HOME (not the repo root).
+/IDENTITY.md
+/SOUL.md
+/TOOLS.md
+/memory/
+
+# ── Local third-party reference clones ───────────────
+deer-flow/
+
 # ── Docs/site generated artifacts ────────────────────
 docs/www-tests/node_modules/
 docs/www-tests/test-results/

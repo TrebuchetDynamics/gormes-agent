@@ -7,7 +7,7 @@ weight: 200
 
 Contributor-facing documentation for the Go runtime, roadmap, skill-driven work
 queue, and upstream-porting research. If you want to **use** Gormes, start at
-[Using Gormes](../using-gormes/).
+[Start here](../start-here/).
 
 ## Runtime thesis
 

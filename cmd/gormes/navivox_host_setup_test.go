@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,11 +31,11 @@ func TestNavivoxSetupHostPlan_JSONEmitsStructuredPlan(t *testing.T) {
 			Version string `json:"version"`
 		} `json:"build"`
 		Recommended struct {
-			Path           string   `json:"path"`
-			InstallCommand string   `json:"install_command"`
-			JoinCommand    string   `json:"join_command"`
+			Path           string `json:"path"`
+			InstallCommand string `json:"install_command"`
+			JoinCommand    string `json:"join_command"`
 		} `json:"recommended"`
-		SSHService map[string][]string `json:"ssh_service"`
+		SSHService  map[string][]string `json:"ssh_service"`
 		PairCommand string              `json:"pair_command"`
 	}
 	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
@@ -133,6 +135,48 @@ func TestNavivoxSetupHostApplyDebianUsesTransientSudoAndClearUX(t *testing.T) {
 		if c.Stdin != secret+"\n" {
 			t.Fatalf("command stdin = %q, want transient sudo password newline", c.Stdin)
 		}
+	}
+}
+
+func TestNavivoxSetupHostApplyWithoutYesRequiresTTYInNonInteractiveMode(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	restore := withNavivoxHostSetupTestSeams(t, navivoxHostSetupSeams{
+		Confirm: func(_ *navivoxHostSetupPlan) (bool, error) {
+			t.Fatal("non-interactive apply without --yes must fail before confirmation")
+			return false, nil
+		},
+		ReadSudoPassword: func() (string, error) {
+			t.Fatal("non-interactive apply without --yes must not ask for sudo")
+			return "", nil
+		},
+		Run: func(context.Context, navivoxHostSetupCommand) error {
+			t.Fatal("non-interactive apply without --yes must not run host setup commands")
+			return nil
+		},
+	})
+	defer restore()
+
+	stdin, closeWrite, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	closeWrite.Close()
+	defer stdin.Close()
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	cmd.SetIn(stdin)
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"navivox", "setup-host", "--apply"})
+	err = cmd.Execute()
+	if err == nil {
+		t.Fatalf("non-interactive setup-host --apply without --yes succeeded; stdout=%s stderr=%s", stdout.String(), stderr.String())
+	}
+	combined := stdout.String() + stderr.String() + err.Error()
+	if !strings.Contains(combined, "navivox_setup_requires_tty") {
+		t.Fatalf("non-interactive setup-host --apply error missing evidence code; stdout=%s stderr=%s err=%v",
+			stdout.String(), stderr.String(), err)
 	}
 }
 
@@ -252,6 +296,35 @@ func TestNavivoxSetupHostApplyMissingPackageManagerIsNonMutating(t *testing.T) {
 	}
 	if ran {
 		t.Fatal("missing package manager should not execute host setup commands")
+	}
+}
+
+// TestNavivoxSetupHostApplyRequiresTTY proves `gormes navivox setup-host
+// --apply` without --yes refuses to run in non-TTY mode, returning a
+// clear error instead of printing the plan and then failing with EOF.
+func TestNavivoxSetupHostApplyRequiresTTY(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	restore := withNavivoxHostSetupTestSeams(t, navivoxHostSetupSeams{
+		GOOS: func() string { return "linux" },
+		ReadOSRelease: func() (map[string]string, error) {
+			return map[string]string{"ID": "ubuntu"}, nil
+		},
+		LookPath: func(name string) (string, error) {
+			if name == "apt-get" || name == "sudo" || name == "systemctl" || name == "tailscale" {
+				return "/usr/bin/" + name, nil
+			}
+			return "", errors.New("not found")
+		},
+	})
+	defer restore()
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "navivox", "setup-host", "--apply")
+	if err == nil {
+		t.Fatalf("navivox setup-host --apply in non-TTY must error; stdout=%q stderr=%q", stdout, stderr)
+	}
+	if !strings.Contains(stderr, "navivox_setup_requires_tty") {
+		t.Fatalf("expected navivox_setup_requires_tty in stderr, got stderr=%q", stderr)
 	}
 }
 

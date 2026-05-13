@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -174,5 +176,48 @@ func TestTUIStartupFallsBackWhenSessionDBLocked(t *testing.T) {
 		if !strings.Contains(stderr.String(), want) {
 			t.Fatalf("stderr missing %q:\n%s", want, stderr.String())
 		}
+	}
+}
+
+func TestTUIStartupSelfHealsCorruptSessionDB(t *testing.T) {
+	setupNativeTUITestEnv(t)
+
+	if err := os.MkdirAll(filepath.Dir(config.SessionDBPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(config.SessionDBPath(), []byte("not bolt"), 0o600); err != nil {
+		t.Fatalf("seed corrupt session DB: %v", err)
+	}
+
+	cmd := newRootCommand()
+	if err := cmd.Flags().Set("offline", "true"); err != nil {
+		t.Fatalf("set offline: %v", err)
+	}
+	var stderr bytes.Buffer
+	cmd.SetErr(&stderr)
+
+	var programRuns int
+	err := runResolvedTUIWithRuntime(cmd, tuiInvocation{
+		Config: config.Config{Hermes: config.HermesCfg{Model: "fixture-model"}},
+	}, rootRuntime{
+		tuiProgramFactory: func(_ tea.Model, _ ...tea.ProgramOption) tuiProgram {
+			return fakeTUIProgram{run: func() { programRuns++ }}
+		},
+	})
+	if err != nil {
+		t.Fatalf("runResolvedTUIWithRuntime must self-heal corrupt sessions.db: %v\nstderr=%s", err, stderr.String())
+	}
+	if programRuns != 1 {
+		t.Fatalf("programRuns = %d, want 1", programRuns)
+	}
+	if !strings.Contains(stderr.String(), "session persistence self-healed") {
+		t.Fatalf("stderr must mention session self-heal; got:\n%s", stderr.String())
+	}
+	backups, err := filepath.Glob(config.SessionDBPath() + ".corrupt-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("corrupt sessions.db must be preserved as one quarantine backup, got %v", backups)
 	}
 }

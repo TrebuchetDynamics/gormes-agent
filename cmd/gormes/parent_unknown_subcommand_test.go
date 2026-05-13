@@ -41,6 +41,7 @@ func TestParentCommands_RejectUnknownSubcommands(t *testing.T) {
 		{"curator", []string{"curator", "pausee"}},
 		{"acp", []string{"acp", "servee"}},
 		{"setup", []string{"setup", "providerr-typo"}},
+		{"gateway", []string{"gateway", "staus"}},
 		// `migrate` deliberately omitted: the shared parent guard
 		// preserves SuggestionsMinimumDistance-based typo guidance like
 		// `did you mean "openclaw"?`. Cobra still rejects those typos

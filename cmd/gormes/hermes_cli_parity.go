@@ -52,7 +52,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
 		{Path: []string{"whatsapp"}, Kind: hermesCLICommand, Status: hermesCLIImplemented, SourceRef: "hermes_cli/main.py:whatsapp", Target: "cmd/gormes whatsapp", Row: "WhatsApp top-level pairing wizard shell", Residual: "top-level WhatsApp wizard shell and plan output are implemented; bundling/running the live Baileys QR bridge remains row-backed"},
 		hermesRowCommand("slack", "hermes_cli/main.py:slack", "Gateway, platform, webhook, and cron management CLI", "Slack platform management remains row-backed"),
-		hermesExcludedCommand("login", "hermes_cli/auth.py:login_command", "Hermes top-level login is removed; use `gormes auth add <provider> --type oauth`, `gormes model`, or `gormes setup` parity rows"),
+		hermesImplementedPath([]string{"login"}, hermesCLICommand, "hermes_cli/main.py:login_parser + hermes_cli/auth.py:_login_openai_codex", "cmd/gormes login", "top-level login is a redacted compatibility shortcut for Hermes provider OAuth; `--provider openai-codex` delegates to the Gormes-owned Codex OAuth credential pool"),
 		hermesProviderLogoutCommand(),
 		hermesCommandSet("auth", "hermes_cli/auth_commands.py:auth_command", "provider auth subcommands remain row-backed", "Hermes auth credential-pool command surface"),
 		hermesImplementedCommand("status", "hermes_cli/main.py:status", "cmd/gormes gateway status"),
@@ -148,7 +148,7 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries = append(entries, hermesKanbanCommands()...)
 	entries = append(entries, hermesClawCommands()...)
 	entries = append(entries, hermesCuratorCommands()...)
-	entries = append(entries, hermesNestedCommands("profile", "hermes_cli/main.py:profile_subparsers", "Gormes profile command binding", []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import"})...)
+	entries = append(entries, hermesProfileCommands()...)
 	entries = append(entries, hermesOwnedPath([]string{"agent", "reset"}, "cmd/gormes/agent.go:reset", "Gormes-owned default agent template reset command"))
 
 	entries = append(entries, hermesGatewayHandlers()...)
@@ -264,6 +264,33 @@ func hermesCuratorCommands() []hermesCLIParityEntry {
 		entry := hermesRowPath([]string{"curator", command}, hermesCLICommand, source+":"+command, row, "curator "+command+" is implemented over native Gormes curator state")
 		entry.Status = hermesCLIImplemented
 		entry.Target = "cmd/gormes curator " + command
+		markHermesCLIEntryFlags(&entry)
+		out = append(out, entry)
+	}
+	return out
+}
+
+func hermesProfileCommands() []hermesCLIParityEntry {
+	const row = "Gormes profile command binding"
+	const source = "hermes_cli/main.py:profile_subparsers"
+	implemented := []struct {
+		name     string
+		target   string
+		residual string
+	}{
+		{name: "list", target: "cmd/gormes profile list", residual: "profile list is implemented over native Gormes profile roots"},
+		{name: "use", target: "cmd/gormes profile use", residual: "profile use is implemented as the canonical sticky active-profile switch; profile set remains a Gormes compatibility alias"},
+		{name: "create", target: "cmd/gormes profile create", residual: "profile create is implemented for named Gormes profile roots with clone-all support"},
+		{name: "show", target: "cmd/gormes profile show", residual: "profile show is implemented over the active Gormes profile with redacted root output"},
+		{name: "info", target: "cmd/gormes profile info", residual: "profile info is implemented for distribution.yaml metadata"},
+	}
+	out := make([]hermesCLIParityEntry, 0, 12)
+	for _, command := range implemented {
+		entry := hermesImplementedPath([]string{"profile", command.name}, hermesCLICommand, source+":"+command.name, command.target, command.residual)
+		out = append(out, entry)
+	}
+	for _, command := range []string{"delete", "alias", "rename", "export", "import", "install", "update"} {
+		entry := hermesRowPath([]string{"profile", command}, hermesCLICommand, source+":"+command, row, "profile "+command+" is registered in Gormes as a deterministic row-backed unavailable command; full behavior remains row-backed")
 		markHermesCLIEntryFlags(&entry)
 		out = append(out, entry)
 	}

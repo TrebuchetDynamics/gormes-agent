@@ -304,7 +304,7 @@ Features or dependencies that could derail the plan:
 | `gormes-interface-designer` | [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/) | [Core Systems](../core-systems/) |
 | `gormes-provider-parity` | [GO-HERMES-PORTS-FORKS.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/docs/GO-HERMES-PORTS-FORKS.md) | [Upstream Lessons](../upstream-lessons/) |
 | `gormes-browser-harness` | [Gateway Donor Map](../gateway-donor-map/) | [Core Systems: Gateway](../core-systems/gateway/) |
-| `gormes-dev-runtime` | [Using Gormes](../../using-gormes/) | [Why Gormes](../../why-gormes/) |
+| `gormes-dev-runtime` | [Start here](../../start-here/) | [Why Gormes](../../why-gormes/) |
 | `gormes-references` | [Go Donor Reference Map](../architecture_plan/go-donor-reference-map/) | `references/go-agent-os/` |
 | `gormes-readme` | [README.md](https://github.com/TrebuchetDynamics/gormes-agent/blob/main/README.md) | [Why Gormes](../../why-gormes/) |
 | `gormes-landing-web` | `www.gormes.ai/` | [Why Gormes](../../why-gormes/) |

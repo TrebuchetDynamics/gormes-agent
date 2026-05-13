@@ -412,8 +412,9 @@ func TestSessionCommand_ConstructorReturnsIndependentInstances(t *testing.T) {
 	if a == b {
 		t.Fatal("newSessionCommand must return distinct instances")
 	}
-	if len(a.Commands()) != 5 || len(b.Commands()) != 5 {
-		t.Fatalf("session tree must have 5 subcommands; got len(a)=%d len(b)=%d", len(a.Commands()), len(b.Commands()))
+	const want = 7
+	if len(a.Commands()) != want || len(b.Commands()) != want {
+		t.Fatalf("session tree must have %d subcommands; got len(a)=%d len(b)=%d", want, len(a.Commands()), len(b.Commands()))
 	}
 	for i := range a.Commands() {
 		if a.Commands()[i] == b.Commands()[i] {

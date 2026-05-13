@@ -79,11 +79,18 @@ func (b *Bot) pendingPhotoBatchCount() int {
 	return len(b.photoBatches)
 }
 
+func guardDoubleClosePanic(fn func()) {
+	defer func() {
+		recover()
+	}()
+	fn()
+}
+
 func (b *Bot) Disconnect(ctx context.Context) error {
 	b.cancelPhotoBatches()
 	b.cancelTextBatches(ctx)
 	if b.client != nil {
-		b.client.StopReceivingUpdates()
+		guardDoubleClosePanic(b.client.StopReceivingUpdates)
 	}
 	return nil
 }

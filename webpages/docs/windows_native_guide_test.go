@@ -8,7 +8,7 @@ import (
 )
 
 func TestWindowsNativeGuideMatchesInstallerContract(t *testing.T) {
-	guide := readDoc(t, "content/using-gormes/windows-native.md")
+	guide := readDoc(t, "content/install/windows.md")
 	install := readFirstExisting(t, "../scripts/install.ps1", "../../scripts/install.ps1")
 
 	for _, want := range []string{
@@ -72,16 +72,10 @@ func TestWindowsNativeGuideMatchesInstallerContract(t *testing.T) {
 }
 
 func TestWindowsNativeGuideLinkedFromUsingGormesPages(t *testing.T) {
-	index := readDoc(t, "content/using-gormes/_index.md")
-	install := readDoc(t, "content/using-gormes/install.md")
+	installIndex := readDoc(t, "content/install/_index.md")
 
-	for label, raw := range map[string]string{
-		"using-gormes index": index,
-		"install page":       install,
-	} {
-		if !strings.Contains(raw, "windows-native") && !strings.Contains(raw, "Windows native") {
-			t.Fatalf("%s does not link or label the Windows native guide", label)
-		}
+	if !strings.Contains(installIndex, "./windows/") && !strings.Contains(installIndex, "Windows native") {
+		t.Fatalf("install index does not link or label the Windows native guide")
 	}
 }
 

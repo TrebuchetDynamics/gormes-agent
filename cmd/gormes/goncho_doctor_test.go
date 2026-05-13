@@ -225,7 +225,7 @@ func TestGonchoDoctorCommand_ExitCodeMapping(t *testing.T) {
 		}
 	})
 
-	t.Run("corrupt_memory_database_is_runtime_storage_issue", func(t *testing.T) {
+	t.Run("corrupt_memory_database_self_heals", func(t *testing.T) {
 		setupGonchoDoctorEnv(t)
 		if err := os.MkdirAll(filepath.Dir(config.MemoryDBPath()), 0o755); err != nil {
 			t.Fatal(err)
@@ -234,8 +234,15 @@ func TestGonchoDoctorCommand_ExitCodeMapping(t *testing.T) {
 			t.Fatal(err)
 		}
 		stdout, stderr, err := runGonchoDoctorCommand(t, "goncho", "doctor")
-		if code := commandExitCode(err); code != 2 {
-			t.Fatalf("exit code = %d, want 2\nstdout=%s\nstderr=%s\nerr=%v", code, stdout, stderr, err)
+		if code := commandExitCode(err); code != 0 {
+			t.Fatalf("exit code = %d, want 0 after self-heal\nstdout=%s\nstderr=%s\nerr=%v", code, stdout, stderr, err)
+		}
+		backups, globErr := filepath.Glob(config.MemoryDBPath() + ".corrupt-*")
+		if globErr != nil {
+			t.Fatal(globErr)
+		}
+		if len(backups) != 1 {
+			t.Fatalf("corrupt memory.db must be preserved as one quarantine backup, got %v", backups)
 		}
 	})
 

@@ -100,3 +100,32 @@ func TestOnboard_JSONWithoutWizardFlagStaysSnapshotShape(t *testing.T) {
 		t.Fatalf("plain --json must NOT emit wizard `steps`; got:\n%s", stdout)
 	}
 }
+
+func TestOnboard_AcceptsOfflineSmokeFlag(t *testing.T) {
+	for _, args := range [][]string{
+		{"onboard", "--offline", "--json"},
+		{"--offline", "onboard", "--json"},
+	} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			t.Setenv("GORMES_HOME", t.TempDir())
+			t.Setenv("XDG_DATA_HOME", t.TempDir())
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, args...)
+			if err != nil {
+				t.Fatalf("%v: %v\nstdout=%s\nstderr=%s", args, err, stdout, stderr)
+			}
+
+			var got struct {
+				Home string `json:"home"`
+			}
+			if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+				t.Fatalf("stdout must be valid onboard JSON: %v\nstdout=%s", jsonErr, stdout)
+			}
+			if got.Home == "" {
+				t.Fatalf("onboard JSON home must be populated; stdout=%s", stdout)
+			}
+		})
+	}
+}

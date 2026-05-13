@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 // TestFreshInstallE2E_NoNullArrayFieldsInJSON is the consolidated
@@ -140,6 +142,62 @@ func TestFreshInstallE2E_TypoSuggestionsAcrossParents(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFreshInstallE2E_AllVisibleCommandHelpResolves(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	root := newRootCommandWithRuntime(rootRuntime{})
+	paths := collectVisibleCommandPaths(root, nil)
+	if len(paths) < 80 {
+		t.Fatalf("collected only %d visible command paths; help sweep is no longer covering the CLI surface", len(paths))
+	}
+	for _, path := range paths {
+		path := path
+		t.Run(strings.Join(path, "_"), func(t *testing.T) {
+			args := append(append([]string(nil), path...), "--help")
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, args...)
+			if err != nil {
+				t.Fatalf("`gormes %s --help` must resolve: %v\nstdout=%s\nstderr=%s",
+					strings.Join(path, " "), err, stdout, stderr)
+			}
+			if !strings.Contains(strings.ToLower(stdout), "usage:") {
+				t.Fatalf("`gormes %s --help` did not render usage text:\n%s", strings.Join(path, " "), stdout)
+			}
+		})
+	}
+}
+
+func TestFreshInstallE2E_HermesProfileCommandHelpResolves(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	for _, subcommand := range []string{"list", "use", "create", "delete", "show", "alias", "rename", "export", "import", "install", "update", "info"} {
+		subcommand := subcommand
+		t.Run(subcommand, func(t *testing.T) {
+			cmd := newRootCommandWithRuntime(rootRuntime{})
+			stdout, stderr, err := executeRootCommandForTest(cmd, "profile", subcommand, "--help")
+			if err != nil {
+				t.Fatalf("`gormes profile %s --help` must resolve: %v\nstdout=%s\nstderr=%s", subcommand, err, stdout, stderr)
+			}
+			if !strings.Contains(stdout, "gormes profile "+subcommand) {
+				t.Fatalf("profile %s help missing command path:\n%s", subcommand, stdout)
+			}
+		})
+	}
+}
+
+func collectVisibleCommandPaths(cmd *cobra.Command, prefix []string) [][]string {
+	var paths [][]string
+	for _, child := range cmd.Commands() {
+		if child.Hidden || child.Name() == "help" {
+			continue
+		}
+		path := append(append([]string(nil), prefix...), child.Name())
+		paths = append(paths, path)
+		paths = append(paths, collectVisibleCommandPaths(child, path)...)
+	}
+	return paths
 }
 
 // TestFreshInstallE2E_FreshInstallReadOnlyCommandsExitZero pins the

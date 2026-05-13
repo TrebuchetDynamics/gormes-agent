@@ -61,10 +61,60 @@ func newProfileCommandWithSeams(seams profileCommandSeams) *cobra.Command {
 		SilenceUsage: true,
 		Args:         cobra.NoArgs,
 	}
-	cmd.AddCommand(newProfileShowCommand(seams))
-	cmd.AddCommand(newProfileSetCommand(seams))
-	cmd.AddCommand(newProfileCreateCommand(seams))
 	cmd.AddCommand(newProfileListCommand(seams))
+	cmd.AddCommand(newProfileUseCommand(seams))
+	cmd.AddCommand(newProfileCreateCommand(seams))
+	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
+		Name:        "delete",
+		Use:         "delete <name>",
+		Short:       "Delete a named Gormes profile",
+		Args:        cobra.ExactArgs(1),
+		Destructive: true,
+		FlagSet:     profileUnavailableDeleteFlags,
+	}))
+	cmd.AddCommand(newProfileShowCommand(seams))
+	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
+		Name:    "alias",
+		Use:     "alias <name>",
+		Short:   "Manage profile wrapper aliases",
+		Args:    cobra.ExactArgs(1),
+		FlagSet: profileUnavailableAliasFlags,
+	}))
+	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
+		Name:    "rename",
+		Use:     "rename <old-name> <new-name>",
+		Short:   "Rename a Gormes profile",
+		Args:    cobra.ExactArgs(2),
+		FlagSet: profileUnavailableJSONFlag,
+	}))
+	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
+		Name:    "export",
+		Use:     "export <name>",
+		Short:   "Export a profile archive",
+		Args:    cobra.ExactArgs(1),
+		FlagSet: profileUnavailableExportFlags,
+	}))
+	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
+		Name:    "import",
+		Use:     "import <archive>",
+		Short:   "Import a profile archive",
+		Args:    cobra.ExactArgs(1),
+		FlagSet: profileUnavailableImportFlags,
+	}))
+	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
+		Name:    "install",
+		Use:     "install <source>",
+		Short:   "Install a profile distribution",
+		Args:    cobra.ExactArgs(1),
+		FlagSet: profileUnavailableInstallFlags,
+	}))
+	cmd.AddCommand(newProfileUnavailableCommand(profileUnavailableSpec{
+		Name:    "update",
+		Use:     "update <name>",
+		Short:   "Update a profile distribution",
+		Args:    cobra.ExactArgs(1),
+		FlagSet: profileUnavailableUpdateFlags,
+	}))
 	cmd.AddCommand(newProfileInfoCommand(seams))
 	return cmd
 }
@@ -84,14 +134,19 @@ func newProfileShowCommand(seams profileCommandSeams) *cobra.Command {
 	return cmd
 }
 
-func newProfileSetCommand(seams profileCommandSeams) *cobra.Command {
+func newProfileUseCommand(seams profileCommandSeams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "set <name>",
+		Use:          "use <name>",
+		Aliases:      []string{"set"},
 		Short:        "Switch the active Gormes profile by name",
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runProfileSetCommand(cmd, seams, args[0])
+			action := "use"
+			if cmd.CalledAs() == "set" {
+				action = "set"
+			}
+			return runProfileSetCommand(cmd, seams, args[0], action)
 		},
 	}
 	cmd.Flags().Bool("json", false, "emit machine-readable JSON: `{build, action, active, root}` with the same redacted root path as `profile show`")
@@ -132,6 +187,102 @@ type profileCreateReportJSON struct {
 	Name     string              `json:"name"`
 	Root     string              `json:"root"`
 	CloneAll bool                `json:"clone_all"`
+}
+
+type profileUnavailableSpec struct {
+	Name        string
+	Use         string
+	Short       string
+	Args        cobra.PositionalArgs
+	Destructive bool
+	FlagSet     func(*cobra.Command)
+}
+
+type profileUnavailableReportJSON struct {
+	Build       buildProvenanceJSON `json:"build"`
+	Action      string              `json:"action"`
+	Command     string              `json:"command"`
+	Status      string              `json:"status"`
+	Row         string              `json:"row"`
+	Destructive bool                `json:"destructive,omitempty"`
+	Error       string              `json:"error"`
+}
+
+func newProfileUnavailableCommand(spec profileUnavailableSpec) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          spec.Use,
+		Short:        spec.Short,
+		Args:         spec.Args,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runProfileUnavailableCommand(cmd, spec)
+		},
+	}
+	if spec.FlagSet != nil {
+		spec.FlagSet(cmd)
+	}
+	return cmd
+}
+
+func runProfileUnavailableCommand(cmd *cobra.Command, spec profileUnavailableSpec) error {
+	command := "gormes profile " + spec.Name
+	message := command + " is classified in the Hermes CLI parity manifest but is still row-backed in Gormes"
+	asJSON, _ := cmd.Flags().GetBool("json")
+	if asJSON {
+		body, err := json.MarshalIndent(profileUnavailableReportJSON{
+			Build:       newBuildProvenance(),
+			Action:      "profile_command_unavailable",
+			Command:     command,
+			Status:      string(hermesCLIRowBacked),
+			Row:         "Gormes profile command binding",
+			Destructive: spec.Destructive,
+			Error:       message,
+		}, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(body))
+	}
+	return newExitCodeError(2, fmt.Errorf("%s", message))
+}
+
+func profileUnavailableJSONFlag(cmd *cobra.Command) {
+	cmd.Flags().Bool("json", false, "emit machine-readable JSON for the row-backed unavailable command")
+}
+
+func profileUnavailableDeleteFlags(cmd *cobra.Command) {
+	cmd.Flags().BoolP("yes", "y", false, "skip confirmation")
+	profileUnavailableJSONFlag(cmd)
+}
+
+func profileUnavailableAliasFlags(cmd *cobra.Command) {
+	cmd.Flags().Bool("remove", false, "remove the wrapper alias")
+	cmd.Flags().String("name", "", "custom alias name")
+	profileUnavailableJSONFlag(cmd)
+}
+
+func profileUnavailableExportFlags(cmd *cobra.Command) {
+	cmd.Flags().StringP("output", "o", "", "output archive path")
+	profileUnavailableJSONFlag(cmd)
+}
+
+func profileUnavailableImportFlags(cmd *cobra.Command) {
+	cmd.Flags().String("name", "", "profile name")
+	profileUnavailableJSONFlag(cmd)
+}
+
+func profileUnavailableInstallFlags(cmd *cobra.Command) {
+	cmd.Flags().String("name", "", "profile name")
+	cmd.Flags().Bool("alias", false, "create a shell wrapper alias")
+	cmd.Flags().Bool("force", false, "overwrite an existing profile")
+	cmd.Flags().BoolP("yes", "y", false, "skip confirmation")
+	profileUnavailableJSONFlag(cmd)
+}
+
+func profileUnavailableUpdateFlags(cmd *cobra.Command) {
+	cmd.Flags().Bool("force-config", false, "overwrite config files")
+	cmd.Flags().BoolP("yes", "y", false, "skip confirmation")
+	profileUnavailableJSONFlag(cmd)
 }
 
 func newProfileInfoCommand(seams profileCommandSeams) *cobra.Command {
@@ -216,13 +367,17 @@ func emitProfileShowJSON(cmd *cobra.Command, active, root string, manifest *cli.
 	return err
 }
 
-func runProfileSetCommand(cmd *cobra.Command, seams profileCommandSeams, rawName string) error {
+func runProfileSetCommand(cmd *cobra.Command, seams profileCommandSeams, rawName string, action string) error {
 	name := strings.TrimSpace(rawName)
+	verb := strings.TrimSpace(action)
+	if verb == "" {
+		verb = "use"
+	}
 	if seams.ValidateProfileName == nil || seams.WriteActiveProfile == nil || seams.ResolveProfileRoot == nil {
-		return fmt.Errorf("gormes profile set: %w", cli.ErrSelectorHelperUnavailable)
+		return fmt.Errorf("gormes profile %s: %w", verb, cli.ErrSelectorHelperUnavailable)
 	}
 	if err := seams.ValidateProfileName(name); err != nil {
-		return fmt.Errorf("gormes profile set %q: %w: %w", name, errProfileNameInvalid, err)
+		return fmt.Errorf("gormes profile %s %q: %w: %w", verb, name, errProfileNameInvalid, err)
 	}
 	// Refuse names not in the known-profiles list so operators don't
 	// silently end up pointing at a non-existent profile root. Without
@@ -242,23 +397,23 @@ func runProfileSetCommand(cmd *cobra.Command, seams profileCommandSeams, rawName
 				}
 			}
 			if !recognized {
-				return fmt.Errorf("gormes profile set %q: unknown profile (known: %s)",
-					name, strings.Join(known, ", "))
+				return fmt.Errorf("gormes profile %s %q: unknown profile (known: %s)",
+					verb, name, strings.Join(known, ", "))
 			}
 		}
 	}
 	if err := seams.WriteActiveProfile(name); err != nil {
-		return fmt.Errorf("gormes profile set %q: %w: %w", name, errProfileRootUnwritable, err)
+		return fmt.Errorf("gormes profile %s %q: %w: %w", verb, name, errProfileRootUnwritable, err)
 	}
 	root, err := seams.ResolveProfileRoot(name)
 	if err != nil {
-		return fmt.Errorf("gormes profile set %q: %w: %w", name, errProfileSetPartialFailure, err)
+		return fmt.Errorf("gormes profile %s %q: %w: %w", verb, name, errProfileSetPartialFailure, err)
 	}
 	asJSON, _ := cmd.Flags().GetBool("json")
 	if asJSON {
 		body, marshalErr := json.MarshalIndent(profileSetReportJSON{
 			Build:  newBuildProvenance(),
-			Action: "set",
+			Action: verb,
 			Active: name,
 			Root:   redactProfileRootPath(root),
 		}, "", "  ")
@@ -564,23 +719,32 @@ func newProfileSelectorFromSeams(seams profileCommandSeams) cli.ProfileSelector 
 // newProfileCommandWithSeams.
 func defaultProfileCommandSeams() profileCommandSeams {
 	activePath := filepath.Join(config.GormesHome(), "active_profile")
-	xdgRoot := filepath.Dir(config.GormesHome())
 	return profileCommandSeams{
 		ReadActiveProfileName: func() (string, error) {
 			return cli.ReadActiveProfile(activePath)
 		},
 		ValidateProfileName: cli.ValidateProfileName,
 		ResolveProfileRoot: func(name string) (string, error) {
-			return cli.ResolveProfileRoot(name, xdgRoot)
+			if name == "default" {
+				return config.GormesHome(), nil
+			}
+			if err := cli.ValidateProfileName(name); err != nil {
+				return "", err
+			}
+			return filepath.Join(config.GormesHome(), "profiles", name), nil
 		},
 		WriteActiveProfile: func(name string) error {
 			return cli.WriteActiveProfile(activePath, name)
 		},
 		CreateProfile: func(name string, cloneAll bool) (cli.ProfileCreateResult, error) {
+			if name == "default" {
+				return cli.ProfileCreateResult{}, cli.ErrProfileCreateDefaultReserved
+			}
 			return cli.CreateProfile(cli.ProfileCreateOptions{
-				Name:          name,
-				XDGConfigHome: xdgRoot,
-				CloneAll:      cloneAll,
+				Name:       name,
+				TargetRoot: filepath.Join(config.GormesHome(), "profiles", name),
+				SourceRoot: config.GormesHome(),
+				CloneAll:   cloneAll,
 			})
 		},
 		ListKnownProfiles: func() ([]string, error) {

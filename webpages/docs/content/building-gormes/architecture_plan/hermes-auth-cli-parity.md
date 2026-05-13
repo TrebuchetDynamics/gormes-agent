@@ -73,15 +73,17 @@ Redirect targets:
 - `hermes model` - provider + model picker (and the OAuth flow for that provider).
 - `hermes setup` - full or sectioned wizard.
 
-**Gormes parity rule.** Gormes follows the Q1B decision: do not register a
-top-level `login` subcommand. `gormes login` should travel through Cobra's
-unknown-command path and emit deterministic
-`unknown_command_login_suggested_auth_add` guidance:
-`did you mean "gormes auth add <provider> --type oauth"?`. It must not parse
-legacy login flags, run OAuth, open a browser, or mutate auth state. README and
-docs should never tell a user to run `hermes login --provider openai-codex`;
-the supported recipe is `hermes auth add openai-codex` (or `hermes model` then
-pick OpenAI Codex).
+**Gormes parity rule.** Gormes registers top-level `gormes login` as an
+operator-compatibility shortcut for the provider-auth path users still type from
+Hermes muscle memory. `gormes login --provider openai-codex` must delegate to
+the same Gormes-owned credential-pool flow as
+`gormes auth add openai-codex --type oauth`, preserving Codex token isolation,
+redaction, config updates, and Codex CLI import fallback in one implementation.
+Bare `gormes login` must return `auth_login_provider_required` without side
+effects, and unsupported providers must return redacted allow-list guidance
+without echoing the supplied provider value. The canonical documented recipe
+remains `gormes auth add openai-codex --type oauth`; top-level `login` exists
+for Hermes command compatibility.
 
 ## 3. Per-provider `auth add` behavior matrix
 

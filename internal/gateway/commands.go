@@ -106,6 +106,7 @@ var CommandRegistry = []CommandDef{
 	{Name: "sessions", Description: "List or show sessions", Kind: EventSessions, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate, Aliases: []string{"session"}},
 	{Name: "sethome", Description: "Set this chat as the home channel", Kind: EventUnknown, Aliases: []string{"set-home"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "skills", Description: "List or inspect installed skills", Kind: EventSkills, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
+	{Name: "spawn", Description: "Spawn a channel-native agent thread", Kind: EventSpawn, ActiveTurnPolicy: CommandActiveTurnPolicyImmediate},
 	{Name: "skin", Description: "Show or change the display skin/theme", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "statusbar", Description: "Toggle the context/model status bar", Kind: EventUnknown, Aliases: []string{"sb"}, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
 	{Name: "tools", Description: "Manage tools", Kind: EventUnknown, ActiveTurnPolicy: CommandActiveTurnPolicyUnavailable},
@@ -228,7 +229,7 @@ func ParseInboundText(text string) (EventKind, string) {
 	if cmd.ActiveTurnPolicy == CommandActiveTurnPolicyUnavailable {
 		return EventSubmit, body
 	}
-	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban {
+	if cmd.Kind == EventSteer || cmd.Kind == EventTitle || cmd.Kind == EventSessions || cmd.Kind == EventProfile || cmd.Kind == EventSkills || cmd.Kind == EventReasoning || cmd.Kind == EventBusy || cmd.Kind == EventTTS || cmd.Kind == EventReload || cmd.Kind == EventRetry || cmd.Kind == EventGoal || cmd.Kind == EventTopic || cmd.Kind == EventKanban || cmd.Kind == EventSpawn {
 		return cmd.Kind, body
 	}
 	return cmd.Kind, ""

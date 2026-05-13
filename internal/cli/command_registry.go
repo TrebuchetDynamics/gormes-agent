@@ -149,6 +149,7 @@ var CommandRegistry = []CommandPolicy{
 	{Name: "sessions", Description: "List or show sessions", Aliases: []string{"session"}, Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "sethome", Description: "Set this chat as the home channel", Aliases: []string{"set-home"}, Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "skills", Description: "List or inspect installed skills", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true, Subcommands: []string{"list", "inspect"}},
+	{Name: "spawn", Description: "Spawn a channel-native agent thread", Surface: CommandSurfaceGateway, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},
 	{Name: "skin", Description: "Show or change the display skin/theme", Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "snapshot", Description: "Create or restore state snapshots", Aliases: []string{"snap"}, Surface: CommandSurfaceCLI, ActiveTurnPolicy: ActiveTurnPolicyUnavailable},
 	{Name: "status", Description: "Show session info", Surface: CommandSurfaceShared, ActiveTurnPolicy: ActiveTurnPolicyBypass, Ported: true},

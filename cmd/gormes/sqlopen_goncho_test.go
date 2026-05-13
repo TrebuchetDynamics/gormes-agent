@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -94,6 +95,35 @@ func TestSqlOpenGoncho_ConcurrentConnectionsDoNotLockOut(t *testing.T) {
 	}
 	if n != 2 {
 		t.Errorf("rows = %d, want 2", n)
+	}
+}
+
+func TestSqlOpenGoncho_SelfHealsCorruptDatabase(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "memory.db")
+	if err := os.WriteFile(tmp, []byte("not sqlite"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := sqlOpenGoncho(tmp)
+	if err != nil {
+		t.Fatalf("sqlOpenGoncho must quarantine and recreate corrupt memory.db: %v", err)
+	}
+	defer db.Close()
+
+	var version string
+	if err := db.QueryRowContext(context.Background(), `SELECT v FROM schema_meta WHERE k = 'version'`).Scan(&version); err != nil {
+		t.Fatalf("self-healed memory.db must have goncho schema: %v", err)
+	}
+	if version == "" {
+		t.Fatal("self-healed memory.db schema version is empty")
+	}
+
+	backups, err := filepath.Glob(tmp + ".corrupt-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("corrupt DB must be preserved as one quarantine backup, got %v", backups)
 	}
 }
 

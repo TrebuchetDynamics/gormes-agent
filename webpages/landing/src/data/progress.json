@@ -899,6 +899,493 @@
             "last_upstream_check": "2026-04-28T02:56:53Z",
             "origin_decision": "Skill-driven planning/building is Gormes-owned control-plane architecture. It replaces the deleted loop binaries while preserving progress.json as the only backlog."
           }
+        },
+        "1.E": {
+          "name": "Gormes-owned: Unified Bubble Tea admin TUI",
+          "priority": "P2",
+          "items": [
+            {
+              "name": "Shared Bubble Tea wizard step chassis under internal/tui/wizard",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Step-type chassis is the reusable foundation under both the unified admin TUI screens (1.E.3+) and any future stand-alone wizards. Separating the chassis from the shell keeps step UI testable in isolation via charmbracelet/x/exp/teatest."
+              },
+              "contract": "internal/tui/wizard exposes a small Wizard interface (Run(ctx, steps...) (Result, error)) that drives a sequence of Step values — Text, MultiLine, Password, Pick (single-select), Confirm — under a Bubble Tea program. The chassis owns: (a) TTY detection (refuse to start when stdin is not a terminal, return a typed ErrRequiresTTY so callers emit *_requires_tty evidence), (b) bypass-when-fully-specified (callers compose 'if all inputs already supplied via flags, do not run the wizard'), (c) Ctrl-C / escape returning ErrAbort, (d) golden-snapshot testability via charmbracelet/x/exp/teatest. The chassis must not import any cmd/gormes package; admin-TUI screens (1.E.3+) compose it from their screen models, and stand-alone command callers can compose it independently if needed.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the chassis, every admin-TUI screen would reinvent step UI, TTY detection, and golden testing; the admin-shell rows (1.E.2-1.E.5) cannot land cleanly.",
+              "fixture": "internal/tui/wizard/wizard_test.go teatest scripts",
+              "source_refs": [
+                "internal/tui/model.go (existing Bubble Tea root model — reuse style conventions)",
+                "internal/tui/model_picker.go (existing single-select picker — extract reusable Step)",
+                "github.com/charmbracelet/bubbletea v1.3.10 (already in go.mod)",
+                "github.com/charmbracelet/bubbles v1.0.0 (already in go.mod — textinput, list)",
+                "github.com/charmbracelet/x/exp/teatest (already in go.mod — golden-script harness)",
+                "cmd/gormes/navivox.go runNavivoxSetupHostApply (existing *_requires_tty evidence pattern)"
+              ],
+              "ready_when": [
+                "go.mod already has bubbletea/bubbles/lipgloss/teatest; no new dependency is required for this slice.",
+                "The chassis interface fits inside internal/tui/wizard/ as a sibling package and does not edit existing internal/tui/model.go or hermes_chrome.go behavior.",
+                "Callers can compose the chassis without importing cmd/gormes — the API works for any package that has a *cobra.Command (or just stdio handles)."
+              ],
+              "not_ready_when": [
+                "The slice edits the main Bubble Tea TUI (internal/tui/model.go, hermes_chrome.go, etc.) or the legacy setup/onboard readline prompts.",
+                "The slice persists wizard state to disk or shares storage with sessions/memory.",
+                "The slice adds new third-party dependencies; the chassis must run on the pre-existing Bubble Tea version pin."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Unified admin TUI shell with tab navigation",
+                "Admin TUI: Setup health screen with missing-config callouts",
+                "Admin TUI: Chat tab with keybinding to jump in from any screen",
+                "Admin TUI: Agents screen wired to the 2.H dynamic registry"
+              ],
+              "acceptance": [
+                "TestWizardChassis_TextStepCapturesInput drives a single-step text wizard through teatest and asserts the captured string and clean exit.",
+                "TestWizardChassis_PickerStepReturnsSelection drives a picker step with three options through teatest and asserts the selected ID is returned.",
+                "TestWizardChassis_ConfirmStepHonorsKeybindings drives a confirm step and asserts both yes/no paths return the expected bool.",
+                "TestWizardChassis_NonInteractiveReturnsErrRequiresTTY asserts Run on a non-TTY stdin returns errors.Is(err, wizard.ErrRequiresTTY) without prompting.",
+                "TestWizardChassis_AbortReturnsErrAbort asserts Ctrl-C / escape during a step returns errors.Is(err, wizard.ErrAbort)."
+              ],
+              "write_scope": [
+                "internal/tui/wizard/wizard.go",
+                "internal/tui/wizard/steps.go",
+                "internal/tui/wizard/wizard_test.go",
+                "internal/tui/wizard/testdata/ (teatest golden frames)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/wizard -run '^TestWizardChassis_' -count=1",
+                "go test ./internal/tui/wizard -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "internal/tui/wizard package ships the Wizard + Step interfaces with five named tests green; no edits to internal/tui/model.go or cmd/gormes in this row."
+              ],
+              "note": "Complete 2026-05-12: shipped internal/tui/wizard as the reusable Bubble Tea wizard chassis for the unified admin TUI. The package exposes typed Step constructors for Text, MultiLine, Password, Pick, and Confirm, a Runner/Wizard API with ErrRequiresTTY and ErrAbort sentinels, Result helpers, prefilled-step bypass for fully specified CLI flag flows, and teatest-driven coverage for text capture, picker selection, yes/no confirmation, non-TTY refusal, abort handling, and bypass without launching Bubble Tea. No cmd/gormes, internal/tui/model.go, setup/onboard prompt, persistence, or dependency changes were made."
+            },
+            {
+              "name": "Unified admin TUI shell with tab navigation",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. New `gormes admin` command opens a Bubble Tea TUI whose only job at this slice is the shell: top tab bar, status bar, keybindings, focus/quit handling, and a placeholder Welcome screen. Sibling screens (1.E.3 Setup health, 1.E.4 Chat, 1.E.5 Agents) register against this shell."
+              },
+              "contract": "cmd/gormes/admin.go adds a new top-level `gormes admin` command that opens a Bubble Tea program in internal/tui/admin. The shell owns: (a) a top tab bar listing registered Screen titles, (b) a status bar showing the active screen + global hints, (c) a keybinding map (`tab`/`shift+tab` to cycle screens, digit keys `1..9` for direct jump, `?` for help, `q`/`ctrl+c` to quit), (d) a Screen interface (Title(), Init() tea.Cmd, Update(tea.Msg) (Screen, tea.Cmd), View() string, ShortHelp() []KeyHelp), (e) registry for ordered screen insertion, (f) TTY detection so non-TTY invocations exit with admin_tui_requires_tty evidence instead of hanging. At this slice the shell ships with one Welcome screen as proof; the three concrete screens land in 1.E.3-1.E.5.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the shell, every admin screen would have to ship its own keybindings/navigation/quit handling; 1.E.3-1.E.5 cannot land cleanly. Operators stuck on `gormes setup`/`gormes onboard`/per-subcommand flows cannot see config drift or jump to chat in one place.",
+              "fixture": "internal/tui/admin/shell_test.go teatest scripts + cmd/gormes/admin_test.go entry point test",
+              "source_refs": [
+                "internal/tui/wizard (1.E.1 step chassis — admin screens compose Step values for forms)",
+                "internal/tui/model.go (existing chat TUI — donor style; admin shell is a sibling Bubble Tea program, not an extension of model.go)",
+                "internal/tui/hermes_chrome.go (existing top/bottom bar conventions — visual donor only)",
+                "cmd/gormes/main.go (root command registration — adds newAdminCommand sibling)"
+              ],
+              "ready_when": [
+                "1.E.1 chassis is validated and the Step interface is stable.",
+                "The admin shell lives under internal/tui/admin/ as a sibling to internal/tui/wizard; it does not edit the existing chat TUI root in internal/tui/model.go.",
+                "The new cmd/gormes/admin.go cobra command compiles and runs as a no-arg `gormes admin` entry point."
+              ],
+              "not_ready_when": [
+                "The slice edits internal/tui/model.go, hermes_chrome.go, or any existing chat TUI behavior.",
+                "The slice ships any of the concrete screens (Setup health, Chat, Agents) inline — those are 1.E.3, 1.E.4, 1.E.5.",
+                "The slice prompts on a non-TTY stdin instead of returning admin_tui_requires_tty evidence."
+              ],
+              "blocked_by": [
+                "Shared Bubble Tea wizard step chassis under internal/tui/wizard"
+              ],
+              "unblocks": [
+                "Admin TUI: Setup health screen with missing-config callouts",
+                "Admin TUI: Chat tab with keybinding to jump in from any screen",
+                "Admin TUI: Agents screen wired to the 2.H dynamic registry"
+              ],
+              "acceptance": [
+                "TestAdminShell_TabBarCyclesScreens registers two stub screens and drives a teatest TTY through tab/shift-tab and asserts the active screen index moves in both directions.",
+                "TestAdminShell_DigitKeysJumpToScreen registers three stub screens and asserts pressing '1', '2', '3' jumps directly to the corresponding screen.",
+                "TestAdminShell_HelpOverlayShowsRegisteredKeybindings asserts pressing '?' renders the merged help overlay with each registered screen's ShortHelp entries.",
+                "TestAdminShell_QuitKeyExitsCleanly asserts pressing 'q' or ctrl+c quits the program with exit 0 and leaves no terminal state behind.",
+                "TestAdminCommand_NonTTYReturnsRequiresTTYEvidence asserts `gormes admin` on a non-TTY stdin pipe exits non-zero with admin_tui_requires_tty evidence on stderr, with no Bubble Tea program ever started."
+              ],
+              "write_scope": [
+                "cmd/gormes/admin.go",
+                "cmd/gormes/admin_test.go",
+                "cmd/gormes/main.go",
+                "internal/tui/admin/shell.go",
+                "internal/tui/admin/screen.go",
+                "internal/tui/admin/welcome.go",
+                "internal/tui/admin/shell_test.go",
+                "internal/tui/admin/testdata/ (teatest golden frames)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminShell_' -count=1",
+                "go test ./cmd/gormes -run '^TestAdminCommand_' -count=1",
+                "go test ./internal/tui/admin ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` opens the shell with one Welcome screen, tab navigation works, five named tests green; the chat TUI (internal/tui/model.go) and existing setup/onboard prompts are untouched."
+              ],
+              "note": "Complete 2026-05-12: shipped the unified admin TUI shell and `gormes admin` entry point. internal/tui/admin now owns the Screen interface, ordered shell registry, tab/shift-tab cycling, 1-9 direct jumps, merged help overlay, q/Ctrl-C clean quit handling, TTY-gated Run with ErrRequiresTTY, and the placeholder Welcome screen. cmd/gormes/admin.go registers the top-level command and emits admin_tui_requires_tty evidence on non-TTY stdin. Concrete Setup health, Chat, and Agents tabs remain in their follow-up rows; internal/tui/model.go, hermes_chrome.go, setup/onboard prompts, and persistence were not changed."
+            },
+            {
+              "name": "Admin TUI: Setup health screen with missing-config callouts",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Anchors the user's explicit ask: show what is missing so the operator can act. Wraps the existing doctor checks in an actionable interactive screen instead of one-shot CLI output."
+              },
+              "contract": "internal/tui/admin/screen_health.go ships a Setup screen (the default-focused tab) that lists health items derived from internal/doctor + config presence + the dynamic agent registry. Each item renders as one row with: severity icon (✓/!/✗), short title, one-line detail, and optional [Fix] action key. Items include: provider configured, auth credentials present, agent template seeded, default agent created, Goncho memory.db reachable, gateway tokens (Telegram/Discord/Slack), profile initialized. Pressing Enter on a row with a [Fix] action launches the matching 1.E.1 wizard inline (e.g., Fix on 'no provider' opens a provider+key wizard; result writes through the same auth/config call as `gormes auth add` / `gormes setup provider`). The screen refreshes on focus and after any successful Fix. Read-only checks (memory.db reachable) have no Fix action. No new persistence surface — the screen reads existing config and registry state.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the health screen, operators rely on `gormes doctor --offline` output and CLI exit codes to discover misconfiguration; the user's explicit 'show missing config' anchor is unmet.",
+              "fixture": "internal/tui/admin/health_test.go teatest + tempdir GORMES_HOME",
+              "source_refs": [
+                "internal/doctor/ (existing health checks; the screen reuses, does not duplicate)",
+                "internal/config/config.go (provider/auth/profile config presence)",
+                "internal/config/credential_pool.go (auth store contract)",
+                "internal/agenttemplate/ (template seed detection)",
+                "internal/config/agents.go (default-agent registry)",
+                "internal/tui/wizard (1.E.1 — Fix action launches a Step sequence)",
+                "internal/tui/admin/shell.go (1.E.2 shell)"
+              ],
+              "ready_when": [
+                "1.E.1 chassis and 1.E.2 shell are validated.",
+                "doctor health checks already expose a programmatic API the screen can consume (or one can be added behind a small adapter without touching doctor's CLI contract).",
+                "The screen can be tested entirely with a tempdir GORMES_HOME — no live provider call needed."
+              ],
+              "not_ready_when": [
+                "The slice rewrites internal/doctor checks or alters the `gormes doctor --offline` CLI output.",
+                "The slice introduces new persistence outside the existing auth/config/registry stores.",
+                "The slice runs Fix actions in non-TTY mode or hides items the doctor would otherwise surface."
+              ],
+              "blocked_by": [
+                "Unified admin TUI shell with tab navigation"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminHealth_RendersMissingProviderAndAuthCallouts opens the admin TUI with a tempdir GORMES_HOME (no provider configured, no auth) and asserts the Setup tab shows ✗ rows for 'no provider' and 'no auth credentials' with non-empty [Fix] actions.",
+                "TestAdminHealth_RendersHealthyChecksWithoutFix opens the admin TUI with a fully-configured tempdir GORMES_HOME and asserts every health row renders ✓ with no [Fix] action.",
+                "TestAdminHealth_FixActionRunsWizardAndRefreshesRow drives a teatest TTY: focus the 'no provider' row → Enter → fill provider wizard → close → assert (a) the auth store now contains the entered key, (b) the same row re-renders as ✓ on the next refresh.",
+                "TestAdminHealth_RefreshKeyRecomputesChecks asserts pressing 'r' on the Setup screen recomputes the health list (e.g., after the operator manually edits config.toml outside the TUI)."
+              ],
+              "write_scope": [
+                "cmd/gormes/admin.go",
+                "internal/tui/admin/screen_health.go",
+                "internal/tui/admin/health_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminHealth_' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Setup health screen lands as the default-focused tab in `gormes admin` with four named tests green; doctor CLI output and existing setup/onboard prompts are unchanged."
+              ],
+              "note": "Complete 2026-05-12: shipped the Setup health tab as the default `gormes admin` screen. The screen renders profile, provider, auth, default-agent, agent-template, Goncho memory.db, and Telegram/Discord/Slack token rows with doctor.Status glyphs and [Fix] only on provider/auth gaps. The inline provider fix flow uses the 1.E.1 wizard Step sequence, writes config.toml, .env, and the credential pool, then refreshes the same row to ✓. Read-only checks such as memory.db reachable do not expose Fix. Doctor CLI output plus existing setup/onboard prompts are unchanged."
+            },
+            {
+              "name": "Admin TUI: Chat tab with keybinding to jump in from any screen",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Anchors the user's explicit ask: open chat easily. A first-pass chat surface inside the admin TUI; the full-featured chat TUI in `gormes` (internal/tui/model.go) remains the separate dedicated experience."
+              },
+              "contract": "internal/tui/admin/screen_chat.go ships a Chat screen registered as a tab in the admin shell, plus a global keybinding (`c` from any other screen) that switches focus to it. The screen renders: a scroll buffer of messages from the active session, a single-line input (or expanding textarea via bubbles/textarea), and a status line showing the current agent. Sending a message routes through the existing one-shot provider call path used by `gormes --oneshot`; responses stream into the scroll buffer. The active agent defaults to the static config default; an operator can press `a` to swap to a runtime-spawned agent from the 2.H.1 registry. Chat history is in-memory for the admin TUI session (not yet persisted to Goncho session — that follow-up row will land when admin TUI scope justifies it). The admin Chat tab is intentionally small: full session history, tool calls, slash commands, and the rich chrome stay in the dedicated `gormes` TUI.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the chat tab, every admin TUI session forces operators to leave the TUI (exit, run `gormes`) to test a configured provider; the user's explicit 'open chat easily' anchor is unmet.",
+              "fixture": "internal/tui/admin/chat_test.go teatest fixtures + fake provider seam",
+              "source_refs": [
+                "internal/tui/model.go (existing chat TUI — pattern donor; this row builds a slim sibling, not an embedding)",
+                "internal/tui/composer_ingress.go (existing composer pattern)",
+                "internal/provider/ (one-shot provider call path the chat send wires through)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1 — chat reads to populate agent swap)",
+                "internal/tui/admin/shell.go (1.E.2 shell — registers chat as a tab + handles 'c' global key)"
+              ],
+              "ready_when": [
+                "1.E.2 shell is validated and the global keybinding seam admits a screen-scoped 'jump to me' shortcut.",
+                "The provider-call path admits a fake seam for tests so chat_test.go does not require a live provider.",
+                "Existing chat TUI behavior in internal/tui/model.go is unchanged."
+              ],
+              "not_ready_when": [
+                "The slice rewrites internal/tui/model.go or claims feature parity with the dedicated chat TUI.",
+                "The slice persists chat history outside the in-memory admin session at this slice.",
+                "The slice makes live network calls in tests instead of using a fake provider seam."
+              ],
+              "blocked_by": [
+                "Unified admin TUI shell with tab navigation"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminChat_GlobalKeyJumpsFromOtherScreen drives a teatest TTY: start on the Setup tab, press 'c', assert the Chat tab is now focused and the scroll buffer is rendered.",
+                "TestAdminChat_SendsMessageThroughFakeProvider drives a teatest TTY through send → fake provider returns canned response → asserts the scroll buffer contains both user + assistant lines.",
+                "TestAdminChat_AgentSwapKeyOpensPicker drives a teatest TTY: with a seeded dynamic registry (1.E.1 helpers), press 'a', assert the agent picker overlay renders the list returned by DynamicAgentRegistry.List, pick one, assert the active-agent status line updates.",
+                "TestAdminChat_EscapeReturnsToPreviousScreen drives a teatest TTY: from Chat, press Esc, assert the previously focused tab is re-activated."
+              ],
+              "write_scope": [
+                "internal/tui/admin/shell.go",
+                "internal/tui/admin/screen_health.go",
+                "internal/tui/admin/screen_chat.go",
+                "internal/tui/admin/chat_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminChat_' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Chat tab lands with a working send path through a fake provider, the 'c' global keybinding jumps to it from any screen, four named tests green; the dedicated `gormes` chat TUI remains untouched."
+              ],
+              "note": "Complete 2026-05-12: shipped the slim Chat tab as the second default `gormes admin` screen. The shell now supports global `c` jump to Chat from other tabs, Esc return to the previous tab, and focus Init on tab switches. The Chat screen keeps in-memory user/assistant lines, sends through an injectable responder seam (defaulting to the configured Hermes provider client), preserves typed `c` characters while focused, and exposes an `a` picker backed by Goncho DynamicAgentRegistry.List. Four named TestAdminChat_* tests are green; the dedicated `gormes` chat TUI in internal/tui/model.go was not changed."
+            },
+            {
+              "name": "Admin TUI: Agents screen wired to the 2.H dynamic registry",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Closes the 2.H operator surface inside the unified admin TUI: list / spawn / bind / unbind / inspect from one screen, instead of multiple CLI subcommands."
+              },
+              "contract": "internal/tui/admin/screen_agents.go ships an Agents tab listing DynamicAgentRegistry.List output. Keybindings: 'n' opens a Spawn wizard (Text name → MultiLine persona → Confirm) that writes through goncho.DynamicAgentRegistry.Create; 'b' opens a Bind wizard (Pick agent → Pick channel → Pick peer kind → Text peer ID → Text optional thread → Confirm) that writes through Bind; 'u' opens an Unbind confirm dialog for the currently-selected binding; 'i' opens an Inspect overlay showing the resolved agent for a peer tuple. The screen renders an empty-state CTA ('press n to spawn your first agent') when the registry is empty. All wizards compose 1.E.1 Step values; no new persistence surface is added.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "fixture": "internal/tui/admin/agents_test.go teatest fixtures + tempdir Goncho",
+              "source_refs": [
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1 — Create/List/Bind/Unbind/Resolve)",
+                "cmd/gormes/agent.go (2.H.2 CLI — the screen mirrors its surface area, does not call into it)",
+                "internal/tui/wizard (1.E.1 step chassis)",
+                "internal/tui/admin/shell.go (1.E.2 shell)"
+              ],
+              "ready_when": [
+                "1.E.1, 1.E.2, and 1.E.3 are validated.",
+                "Existing 2.H.2 CLI tests stay green untouched — the Agents screen is a parallel surface, not a replacement for the CLI."
+              ],
+              "not_ready_when": [
+                "The slice modifies the 2.H.2 cobra subcommands or the 2.H.1 registry contract.",
+                "The slice persists agent state outside the existing Goncho registry tables.",
+                "The slice imports cmd/gormes (the screen depends on internal/goncho directly, not the CLI handler)."
+              ],
+              "blocked_by": [
+                "Admin TUI: Setup health screen with missing-config callouts"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminAgents_EmptyRegistryShowsSpawnCTA drives a teatest TTY with an empty tempdir registry and asserts the screen renders the spawn CTA hint.",
+                "TestAdminAgents_SpawnWizardCreatesRecord drives the spawn wizard end-to-end ('n' → name → persona → confirm) and asserts the registry holds the expected record.",
+                "TestAdminAgents_BindWizardWritesBinding drives the bind wizard with a seeded agent and asserts a Resolve(match) call returns the bound agent ID.",
+                "TestAdminAgents_UnbindRemovesBinding drives the unbind keybinding and asserts the binding is gone via Resolve."
+              ],
+              "write_scope": [
+                "internal/tui/admin/screen_health.go",
+                "internal/tui/admin/screen_agents.go",
+                "internal/tui/admin/agents_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminAgents_' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Agents tab lands with spawn/bind/unbind/inspect keybindings, four named tests green; 2.H.2 CLI tests remain untouched."
+              ],
+              "note": "Complete 2026-05-12: shipped the Agents tab as the third default `gormes admin` screen, lazily initialized when focused. The screen lists Goncho DynamicAgentRegistry records, shows the empty-registry spawn CTA, and provides inline Step-based spawn, bind, unbind, and inspect flows without importing cmd/gormes or changing the 2.H.2 CLI. Spawn writes through DynamicAgentRegistry.Create, bind writes through Bind, and unbind removes the last TUI-created binding through Unbind. Four named TestAdminAgents_* tests are green against tempdir memory.db fixtures."
+            },
+            {
+              "name": "Admin TUI: Commands catalog over the root CLI tree",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Makes the unified admin TUI a discoverability surface for the whole Gormes CLI without changing the execution semantics of the individual Cobra commands."
+              },
+              "contract": "cmd/gormes/admin.go walks the live Cobra root command tree at `gormes admin` startup and passes a deterministic list of non-hidden commands into internal/tui/admin. internal/tui/admin/screen_commands.go registers a Commands tab after Setup, Chat, and Agents. The tab renders command count, command use lines, short descriptions, selection movement, and a selected-command detail pane. The screen is read-only: operators discover commands in the unified TUI, then run mutating commands explicitly from the shell. The dedicated root `gormes` chat TUI remains unchanged.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without the Commands tab, the admin TUI covers setup, chat, and agents but still forces operators back to `gormes --help` or scattered subcommand help to discover the rest of the CLI surface.",
+              "fixture": "internal/tui/admin/commands_test.go teatest fixture + cmd/gormes/admin_test.go command-tree catalog assertion",
+              "source_refs": [
+                "cmd/gormes/main.go (root Cobra command registration)",
+                "cmd/gormes/admin.go (admin command entry point and live command catalog builder)",
+                "internal/tui/admin/shell.go (screen registry and tab navigation)",
+                "internal/tui/admin/screen_commands.go (read-only command catalog screen)"
+              ],
+              "ready_when": [
+                "1.E.2 shell is validated and default screen construction can accept runtime-provided data.",
+                "The root Cobra command tree is available from `cmd.Root()` at `gormes admin` runtime.",
+                "The slice can stay read-only and avoid invoking mutating commands inside the TUI."
+              ],
+              "not_ready_when": [
+                "The slice changes root `gormes` startup behavior away from the dedicated chat TUI.",
+                "The slice duplicates command implementations or calls cmd/gormes handlers from internal/tui/admin.",
+                "The slice exposes hidden/internal commands in the operator catalog."
+              ],
+              "blocked_by": [
+                "Unified admin TUI shell with tab navigation"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminCommands_RendersWholeCLICatalog drives the Commands screen through teatest and asserts count, command use lines, descriptions, and selected-command detail rendering.",
+                "TestAdminDefaultScreensIncludesCommandsTab asserts the default admin screen registry includes Setup, Chat, Agents, and Commands in order when command entries are supplied.",
+                "TestAdminCommandCatalogCoversRootCommandTree asserts the live root Cobra catalog includes representative top-level and nested commands such as admin, auth add, gateway status, kanban list, login, mcp login, and session export while excluding hidden help commands."
+              ],
+              "write_scope": [
+                "cmd/gormes/admin.go",
+                "cmd/gormes/admin_test.go",
+                "internal/tui/admin/screen_commands.go",
+                "internal/tui/admin/commands_test.go",
+                "internal/tui/admin/screen_health.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin ./cmd/gormes -run 'TestAdminCommands|TestAdminDefaultScreensIncludesCommandsTab|TestAdminCommandCatalogCoversRootCommandTree' -count=1",
+                "go test ./internal/tui/admin ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` registers a read-only Commands tab built from the live root Cobra command tree, three named tests are green, and existing root chat TUI semantics remain unchanged."
+              ],
+              "note": "Complete 2026-05-12: shipped the read-only Commands tab in the unified admin TUI. cmd/gormes/admin.go now builds a sorted command catalog from the live Cobra root tree, excluding hidden/help commands, and passes it into internal/tui/admin via WithCommandEntries. internal/tui/admin/screen_commands.go renders command count, use lines, descriptions, keyboard selection, and selected-command details. TestAdminCommands_RendersWholeCLICatalog, TestAdminDefaultScreensIncludesCommandsTab, and TestAdminCommandCatalogCoversRootCommandTree are green."
+            },
+            {
+              "name": "Admin TUI: Safe command execution from the Commands tab",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Turns the whole-CLI catalog into an operator command palette for safe/read-only commands while keeping mutating commands explicit at the shell."
+              },
+              "contract": "internal/tui/admin/screen_commands.go accepts an injected CommandRunner and marks only allowlisted CommandEntry values as Runnable. Pressing Enter on a runnable entry runs it through the injected runner and renders stdout/stderr/error output inline; pressing Enter on non-runnable entries renders a refusal that tells the operator to run mutating commands from the shell. cmd/gormes/admin.go owns the allowlist and production runner: `doctor` runs as `gormes doctor --offline`, `auth status` resolves the configured provider, `gateway status` runs directly, and `kanban list` runs directly through a fresh Cobra root with buffered stdio. internal/tui/admin still does not import Cobra or command implementations.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without safe inline execution, the Commands tab is only discoverability; operators still need to leave `gormes admin` for routine read-only checks such as doctor, auth status, gateway status, and kanban list.",
+              "fixture": "internal/tui/admin/commands_test.go teatest runner fixtures + cmd/gormes/admin_test.go safe allowlist and runner tests",
+              "source_refs": [
+                "cmd/gormes/admin.go (safe allowlist, dynamic auth status args, buffered Cobra runner)",
+                "internal/tui/admin/screen_commands.go (Enter key, inline output, non-runnable refusal)",
+                "cmd/gormes/doctor.go (`doctor --offline` safe check)",
+                "cmd/gormes/auth.go (`auth status <provider>` redacted status)",
+                "cmd/gormes/gateway_status.go (`gateway status` read-only runtime summary)",
+                "cmd/gormes/kanban.go (`kanban list` read-only task listing)"
+              ],
+              "ready_when": [
+                "The read-only Commands catalog row is complete.",
+                "The command runner can be injected into internal/tui/admin without importing cmd/gormes from internal packages.",
+                "Safe commands are explicit and non-runnable commands fail closed."
+              ],
+              "not_ready_when": [
+                "The slice executes arbitrary Cobra commands from the TUI.",
+                "The slice runs mutating commands such as auth add, gateway stop, or kanban create inline.",
+                "The slice changes root `gormes` startup behavior away from the dedicated chat TUI."
+              ],
+              "blocked_by": [
+                "Admin TUI: Commands catalog over the root CLI tree"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminCommands_EnterRunsSafeCommandInline drives the Commands screen through teatest, presses Enter on a runnable entry, and asserts inline command output renders.",
+                "TestAdminCommands_EnterRejectsNonRunnableCommand presses Enter on a mutating command and asserts the TUI refuses to run it inline.",
+                "TestAdminCommandCatalogMarksOnlySafeCommandsRunnable asserts doctor, auth status, gateway status, and kanban list are runnable while auth add, gateway stop, and kanban create are not.",
+                "TestAdminCommandRunnerExecutesSafeCommandAndRejectsMutating proves the production runner executes `kanban list` with buffered output and rejects a mutating command.",
+                "TestAdminCommandRunArgsResolveConfiguredAuthProvider proves the `auth status` safe runner resolves the configured provider into concrete Cobra args."
+              ],
+              "write_scope": [
+                "cmd/gormes/admin.go",
+                "cmd/gormes/admin_test.go",
+                "internal/tui/admin/screen_commands.go",
+                "internal/tui/admin/commands_test.go",
+                "internal/tui/admin/screen_health.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin ./cmd/gormes -run 'TestAdminCommands|TestAdminDefaultScreensIncludesCommandsTab|TestAdminCommandCatalogMarksOnlySafeCommandsRunnable|TestAdminCommandRunnerExecutesSafeCommandAndRejectsMutating|TestAdminCommandRunArgsResolveConfiguredAuthProvider' -count=1",
+                "go test ./internal/tui/admin ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` can execute the safe Commands-tab allowlist inline, non-runnable commands fail closed, five named tests are green, and internal/tui/admin remains Cobra-free."
+              ],
+              "note": "Complete 2026-05-12: shipped safe inline execution from the admin Commands tab. CommandEntry now carries Runnable/RunLabel metadata, CommandsScreen accepts an injected CommandRunner, Enter runs allowlisted commands and renders inline output, and non-runnable entries render an explicit refusal. cmd/gormes/admin.go marks only doctor, auth status resolves the configured provider, and the runner executes through a fresh Cobra root with buffered stdio. Focused TUI and cmd/gormes tests are green."
+            },
+            {
+              "name": "Admin TUI: Searchable Commands palette",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned. Makes the unified admin Commands tab usable as the single CLI palette instead of a long read-only list."
+              },
+              "contract": "internal/tui/admin/screen_commands.go lets operators press `/` in the Commands tab, type a query, filter the live command catalog by path/use/description/run label, move through the filtered result set with arrow/home/end keys, press Enter to run the selected safe command through the existing injected runner, and press Escape to clear search. While search text entry is active, the shell delivers focused keypresses to the Commands screen before global rune shortcuts so queries such as `codex` do not jump tabs or quit the admin TUI. Ctrl-C and tab navigation remain global.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without search, the Commands tab can render and safely run commands, but operators still have to scroll through the whole CLI tree to find routine commands.",
+              "fixture": "internal/tui/admin/commands_test.go teatest search fixtures",
+              "source_refs": [
+                "internal/tui/admin/screen_commands.go (search state, filtered selection, Enter on selected match)",
+                "internal/tui/admin/shell.go (focused key capture before global shortcuts)",
+                "internal/tui/admin/screen.go (optional KeyCapturingScreen contract)"
+              ],
+              "ready_when": [
+                "The read-only command catalog and safe inline execution rows are complete.",
+                "The Commands screen owns selection and runner injection without importing Cobra.",
+                "The shell can route focused text-entry keypresses without weakening Ctrl-C or tab navigation."
+              ],
+              "not_ready_when": [
+                "The slice changes root `gormes` startup behavior away from the dedicated chat TUI.",
+                "Search can run commands outside the existing safe allowlist.",
+                "Search text entry consumes Ctrl-C or prevents normal tab navigation."
+              ],
+              "blocked_by": [
+                "Admin TUI: Safe command execution from the Commands tab"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestAdminCommands_SearchFiltersAndRunsSelectedMatch presses `/`, types `gate`, asserts a one-result filtered view, presses Enter, and proves the selected safe match runs inline.",
+                "TestAdminCommands_SearchCapturesGlobalShortcutRunes types `codex` into command search with a Chat tab present and proves the global `c` shortcut does not steal focus during search."
+              ],
+              "write_scope": [
+                "internal/tui/admin/screen.go",
+                "internal/tui/admin/shell.go",
+                "internal/tui/admin/screen_commands.go",
+                "internal/tui/admin/commands_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/tui/admin -run '^TestAdminCommands_Search' -count=1",
+                "go test ./internal/tui/admin -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "`gormes admin` Commands tab behaves as a searchable command palette: `/` filters, Enter runs the filtered safe selection, Escape clears search, and search text is not stolen by global rune shortcuts."
+              ],
+              "note": "Complete 2026-05-13: shipped searchable command palette behavior for the unified admin Commands tab. CommandsScreen now tracks search state, filters command entries by path/use/description/run label, clamps selection to the filtered result set, runs the selected safe match via the existing runner, and clears search with Escape. The admin shell now supports an optional KeyCapturingScreen contract so focused text entry receives runes before global shortcuts while preserving Ctrl-C and tab navigation."
+            }
+          ]
         }
       }
     },
@@ -10799,6 +11286,252 @@
             {
               "name": "Explicit promotion flow",
               "status": "complete"
+            }
+          ]
+        },
+        "2.H": {
+          "name": "Gormes-owned: Dynamic agents and per-thread spawn UX",
+          "priority": "P2",
+          "items": [
+            {
+              "name": "Goncho-backed dynamic agent registry",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned divergence inspired by OpenYabby's runtime agent-spawn pattern (https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native). Layers a SQLite-backed runtime registry on top of existing static config.AgentsCfg/AgentBindingCfg; no Hermes parity contract."
+              },
+              "contract": "internal/goncho/dynamic_agents.go exposes a DynamicAgentRegistry (Create, Get, List, Bind, Unbind, Resolve) persisting agents and channel/peer bindings in new SQLite tables alongside Goncho memory. The gateway's existing agentRouter consults the registry as an overlay on top of config.AgentsCfg/AgentBindingCfg: static config wins on AgentID conflict (enforced at Create via CreateAgentOptions.ReservedIDs — operator-defined identity in config.toml cannot be silently shadowed), but dynamic bindings supplement runtime peer matches that static config does not cover. Public Go interface stays small; persistence and conflict semantics stay hidden behind the registry boundary.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "memory",
+              "trust_class": ["operator"],
+              "degraded_mode": "Without runtime mutation, every new agent persona requires editing config.toml and reloading; in-chat spawn UX from rows 2.H.2-4 cannot exist.",
+              "fixture": "internal/goncho/dynamic_agents_test.go tempdir SQLite + fake clock",
+              "source_refs": [
+                "https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native",
+                "internal/goncho/local_markdown_memory.go (AgentID partition key precedent)",
+                "internal/config/agents.go (AgentsCfg, AgentCfg, AgentBindingCfg schema this layers on top of)",
+                "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — thread-aware peer resolution already wired)"
+              ],
+              "ready_when": [
+                "config.AgentsCfg and config.AgentBindingCfg remain the static-config source of truth; the registry overlays runtime entries without rewriting config.toml.",
+                "Existing internal/goncho schema migrations apply cleanly under a new migration adding dynamic_agents and dynamic_agent_bindings tables.",
+                "The registry interface is testable with a tempdir SQLite DB; no live channel adapter or gateway integration test is needed for this slice."
+              ],
+              "not_ready_when": [
+                "The slice edits internal/config/agents.go schema, internal/gateway/agent_runtime.go resolver semantics beyond a single overlay-lookup hook, or any platform adapter.",
+                "The slice writes to config.toml, persists agent state in cleartext outside Goncho, or shares storage with cross-session memory rows.",
+                "The slice changes static-vs-dynamic conflict order — static config must win on AgentID conflict so operator-defined identity is not silently shadowed."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "gormes agent spawn/list/inspect/bind/unbind CLI",
+                "Telegram /spawn opens forum topic bound to spawned agent"
+              ],
+              "acceptance": [
+                "TestDynamicAgentRegistry_CreateRoundTrips proves Create + Get returns the same AgentRecord with stable ID and persona seed across a registry reopen.",
+                "TestDynamicAgentRegistry_BindResolvesByPeer proves Bind + Resolve returns the dynamic AgentID for a (channel, chat_id, thread_id) match.",
+                "TestDynamicAgentRegistry_StaticConfigWinsOnIDConflict proves an overlapping static AgentCfg.ID is returned by the resolver even when a dynamic record with the same ID exists.",
+                "TestDynamicAgentRegistry_UnbindRemovesMatch proves Unbind removes the persisted binding and Resolve falls back to static config (or returns not-found)."
+              ],
+              "write_scope": [
+                "internal/goncho/dynamic_agents.go",
+                "internal/goncho/dynamic_agents_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/goncho -run '^TestDynamicAgentRegistry_' -count=1",
+                "go test ./internal/goncho -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Registry interface, inline DDL bootstrap, and four named tests landed in internal/goncho with the wider goncho suite and the full ./... gate green; no runtime change in cmd/gormes or gateway in this row."
+              ],
+              "note": "Data foundation row. Implementation used the existing inline-DDL convention (mirrors internal/goncho/webhooks.go ensureWebhookEndpointTable) instead of a separate migrations/ directory; the write_scope was tightened accordingly. The static-vs-dynamic conflict invariant is enforced at Create time via CreateAgentOptions.ReservedIDs rather than at Resolve time — simpler boundary that keeps the registry unaware of static config schema. The CLI surface (2.H.2) and channel slices (2.H.3, 2.H.4) build on this."
+            },
+            {
+              "name": "gormes agent spawn/list/inspect/bind/unbind CLI",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned operator surface for the dynamic registry from 2.H.1. Mirrors the JSON-and-text convention used by gormes profile and gormes navivox pair --json."
+              },
+              "contract": "cmd/gormes/agent.go gains subcommands spawn, list, inspect, bind, and unbind that drive the DynamicAgentRegistry from 2.H.1. Each subcommand accepts --json for fleet automation with leading build provenance. spawn takes a name and optional --persona text. bind matches by --channel, --peer-kind, --peer-id, and optional --thread-id. list shows runtime-spawned agents. inspect resolves a peer tuple back to the agent that would handle it (exits 0 with bound=false in --json mode for unbound peers; exits 1 with agent_not_bound on stderr in text mode). unbind is idempotent. The existing 'gormes agent reset' subcommand stays untouched. --skills/--model flags from the draft contract are deferred to a follow-up row when static-config equivalent semantics are nailed down.",
+              "contract_status": "validated",
+              "slice_size": "small",
+              "execution_owner": "tools",
+              "trust_class": ["operator"],
+              "fixture": "cmd/gormes/agent_spawn_test.go tempdir Goncho home",
+              "source_refs": [
+                "cmd/gormes/agent.go (existing agent command parent + reset child)",
+                "cmd/gormes/profile.go (newProfileCommandWithSeams pattern, seam injection, --json provenance shape)",
+                "cmd/gormes/navivox.go (--json with build provenance shape: navivoxPairReportJSON)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1)"
+              ],
+              "ready_when": [
+                "2.H.1 ships a usable DynamicAgentRegistry interface and migration.",
+                "The CLI can be tested entirely through executeOneshotFlagCommand with a tempdir GORMES_HOME; no live channel adapter is needed.",
+                "Existing cmd/gormes/agent.go subcommand registration pattern admits new sibling commands without restructuring."
+              ],
+              "not_ready_when": [
+                "The slice touches gateway routing, channel adapters, or runtime kernel state.",
+                "The slice persists CLI flags in config.toml or alters the static config schema.",
+                "The slice merges new behavior into the existing 'gormes agent reset' command instead of adding sibling subcommands."
+              ],
+              "blocked_by": [
+                "Goncho-backed dynamic agent registry"
+              ],
+              "unblocks": [
+                "Telegram /spawn opens forum topic bound to spawned agent",
+                "Discord /spawn opens thread bound to spawned agent"
+              ],
+              "acceptance": [
+                "TestAgentSpawn_PersistsAndListsRecord proves 'gormes agent spawn <name> --persona ...' returns an ID and 'gormes agent list --json' contains that ID with build provenance.",
+                "TestAgentBind_ResolvesByPeer proves 'gormes agent bind <id> --channel telegram --peer-kind group --peer-id -100123 --thread-id 7' followed by 'gormes agent inspect --channel telegram --peer-id -100123 --thread-id 7 --json' resolves to that agent.",
+                "TestAgentUnbind_RemovesMatch proves 'gormes agent unbind --channel ... --peer-id ... --thread-id ...' clears the binding and inspect returns the agent_not_bound evidence code.",
+                "TestAgentSpawnRejectsInvalidID proves spawn with a name not matching the static config.AgentsCfg ID pattern returns a non-zero exit and an actionable error."
+              ],
+              "write_scope": [
+                "cmd/gormes/agent.go",
+                "cmd/gormes/agent_spawn_test.go",
+                "cmd/gormes/agent_bind_test.go",
+                "cmd/gormes/agent_inspect_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./cmd/gormes -run '^TestAgent(Spawn|Bind|Unbind|Inspect)' -count=1",
+                "go test ./cmd/gormes -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "Five new agent subcommands (spawn, list, inspect, bind, unbind) shipped with --json shapes that include build provenance and five named tests green (TestAgentSpawn_PersistsAndListsRecord, TestAgentSpawnRejectsInvalidID, TestAgentBind_ResolvesByPeer, TestAgentUnbind_RemovesMatch, TestAgentInspect_JSONReportsUnboundCleanly); existing agent reset behavior unchanged."
+              ],
+              "note": "Operator surface. After this row a fleet can spawn, bind, and inspect dynamic agents from the CLI without yet routing a real channel message — the channel rows (2.H.3, 2.H.4) wire the in-chat slash UX. The CLI routes the SQLite open through the shared sqlOpenGoncho helper (regression-tested) so busy_timeout and WAL match the gateway path; the deferred --skills/--model flags will land alongside a row that nails down dynamic-vs-static semantics for them."
+            },
+            {
+              "name": "Telegram /spawn opens forum topic bound to spawned agent",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned vertical slice that makes the OpenYabby-style in-chat agent spawn UX visible on Telegram. Reuses existing forum-topic send paths (internal/channels/telegram thread_send_test.go) and slash-command dispatch (subphase 2.F.1)."
+              },
+              "contract": "When an operator-tier user runs '/spawn <name> [persona text...]' in a Telegram supergroup with forum topics enabled, the gateway slash handler (a) creates a new agent via 2.H.1's DynamicAgentRegistry with the supplied name and optional persona seed, (b) calls Telegram createForumTopic to create a topic named after the agent, (c) binds the new (channel=telegram, chat_id=<supergroup>, thread_id=<new topic>) tuple to the spawned agent, and (d) sends one acknowledgement message inside the new topic confirming the agent is ready. If the chat is not a forum-enabled supergroup, the handler returns an actionable agent_spawn_requires_forum operator evidence string and does not create a registry record. The slash command is rejected with agent_spawn_not_authorized for non-operator tiers.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": ["operator"],
+              "degraded_mode": "If createForumTopic fails (rate limit, missing permission), the handler reports the API error and does not leave a stranded registry record — registry write is committed only after the topic exists.",
+              "fixture": "internal/channels/telegram/spawn_test.go fake Telegram client + tempdir Goncho",
+              "source_refs": [
+                "https://github.com/OpenYabby/OpenYabby#whatsapp-but-agent-native (donor UX)",
+                "internal/channels/telegram/thread_send_test.go (existing message_thread_id send proof)",
+                "internal/channels/telegram/bot.go (Telegram client wrapper, raw Send / SendMessageThreadID paths)",
+                "internal/gateway/slash_*.go (slash dispatch from subphase 2.F.1)",
+                "internal/gateway/agent_runtime.go (agentRouteRequestFromInbound — already routes by thread_id)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1)",
+                "cmd/gormes/agent.go (CLI surface from 2.H.2 — same registry mutation, different entry point)"
+              ],
+              "ready_when": [
+                "2.H.1 and 2.H.2 are validated; the registry and CLI behavior are stable.",
+                "Telegram createForumTopic and editForumTopic helpers exist in internal/channels/telegram or can be added behind the existing raw-call seam without touching unrelated send paths.",
+                "Slash-command dispatch from 2.F.1 admits a new '/spawn' handler without restructuring the dispatcher."
+              ],
+              "not_ready_when": [
+                "The slice writes new behavior into internal/gateway/agent_runtime.go's resolver beyond the overlay hook already added in 2.H.1.",
+                "The slice fabricates a Telegram topic without using the real createForumTopic API call (the fake client must record the same parameters the real client would send).",
+                "The slice persists a registry agent or binding when the Telegram createForumTopic call fails.",
+                "The slice accepts /spawn from a non-operator-tier user."
+              ],
+              "blocked_by": [
+                "Goncho-backed dynamic agent registry",
+                "gormes agent spawn/list/inspect/bind/unbind CLI"
+              ],
+              "unblocks": [
+                "Discord /spawn opens thread bound to spawned agent"
+              ],
+              "acceptance": [
+                "TestTelegramSpawnSlash_CreatesTopicAndBindsAgent records a /spawn invocation against a fake Telegram client and proves: (a) createForumTopic was called with the agent's name, (b) a registry record was created with the supplied persona, (c) the (channel, chat_id, new thread_id) tuple is bound to the new agent, (d) one acknowledgement was sent inside the new topic with message_thread_id set.",
+                "TestTelegramSpawnSlash_RejectsNonForumChat proves /spawn in a non-forum chat returns agent_spawn_requires_forum evidence and does not write a registry record.",
+                "TestTelegramSpawnSlash_RollsBackOnTopicCreationFailure proves a createForumTopic API error leaves the registry empty and the user gets the upstream error in an actionable form.",
+                "TestTelegramSpawnSlash_RejectsNonOperatorTier proves a non-operator caller gets agent_spawn_not_authorized and no registry or topic state changes."
+              ],
+              "write_scope": [
+                "internal/channels/telegram/spawn.go",
+                "internal/channels/telegram/spawn_test.go",
+                "internal/gateway/slash_spawn.go",
+                "internal/gateway/slash_spawn_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/telegram -run '^TestTelegramSpawnSlash_' -count=1",
+                "go test ./internal/gateway -run '^TestSlashSpawn_' -count=1",
+                "go test ./internal/channels/telegram ./internal/gateway -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "/spawn slash command lands in Telegram with four named tests green and registry rollback on API failure proven; existing thread_send_test.go and slash dispatch tests remain green."
+              ],
+              "note": "Complete 2026-05-12: shipped Telegram /spawn as the first channel-native dynamic-agent slice. Gateway now recognizes /spawn, preserves slash args, enforces operator-tier checks, and dispatches through a shared SlashSpawnRequest handler. Telegram Bot implements CreateForumTopic via the existing raw UploadFiles Bot API seam, then creates the dynamic agent only after topic creation succeeds, binds channel=telegram/peer_kind=group/chat_id/thread_id, and sends agent_spawned evidence inside the new topic. Four named TestTelegramSpawnSlash_* fixtures prove topic creation + bind + ack, non-forum rejection, API-failure no-registry-write behavior, and non-operator rejection; TestSlashSpawn_* covers parser/dispatch evidence."
+            },
+            {
+              "name": "Discord /spawn opens thread bound to spawned agent",
+              "priority": "P2",
+              "status": "complete",
+              "provenance": {
+                "origin_type": "gormes",
+                "note": "Gormes-owned sibling of 2.H.3. Reuses existing Discord ThreadID admission and send paths (internal/channels/discord/bot.go ParticipatedThreadIDs)."
+              },
+              "contract": "Same UX as 2.H.3 on Discord: '/spawn <name> [persona]' in a guild text channel creates a new public thread named after the agent, binds the new (channel=discord, guild_id, channel_id, thread_id) tuple to a new dynamic agent, and sends one ack in the thread. The handler rejects /spawn in DMs with agent_spawn_requires_guild_channel and rejects non-operator callers with agent_spawn_not_authorized.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "gateway",
+              "trust_class": ["operator"],
+              "fixture": "internal/channels/discord/spawn_test.go fake discordgo session + tempdir Goncho",
+              "source_refs": [
+                "internal/channels/discord/bot.go (ThreadID send paths, ParticipatedThreadIDs admission)",
+                "internal/channels/discord/admission_policy.go (admission state to extend, not rewrite)",
+                "internal/channels/telegram/spawn.go (pattern from 2.H.3 — reuse, do not re-invent)",
+                "internal/gateway/slash_spawn.go (dispatch from 2.H.3)",
+                "internal/goncho/dynamic_agents.go (registry from 2.H.1)"
+              ],
+              "ready_when": [
+                "2.H.3 is validated and the slash-dispatch + registry-bind pattern is stable.",
+                "internal/channels/discord/bot.go exposes a thread-create call (or one can be added behind the existing raw-discordgo seam) without changing unrelated participation policy."
+              ],
+              "not_ready_when": [
+                "The slice rewrites admission_policy.go semantics or alters how ParticipatedThreadIDs is maintained.",
+                "The slice copies-and-pastes Telegram spawn logic instead of routing both adapters through the shared gateway slash handler.",
+                "The slice persists a registry binding when the Discord StartThread call fails."
+              ],
+              "blocked_by": [
+                "Telegram /spawn opens forum topic bound to spawned agent"
+              ],
+              "unblocks": [],
+              "acceptance": [
+                "TestDiscordSpawnSlash_CreatesThreadAndBindsAgent proves StartThread is called, the registry records a new agent, the (channel, guild_id, channel_id, thread_id) is bound, and one ack lands in the new thread.",
+                "TestDiscordSpawnSlash_RejectsDirectMessage proves /spawn in a DM returns agent_spawn_requires_guild_channel and writes nothing.",
+                "TestDiscordSpawnSlash_RollsBackOnThreadCreationFailure proves a discordgo StartThread error leaves the registry empty.",
+                "TestDiscordSpawnSlash_RejectsNonOperatorTier proves a non-operator caller gets agent_spawn_not_authorized and no state changes."
+              ],
+              "write_scope": [
+                "internal/channels/discord/spawn.go",
+                "internal/channels/discord/spawn_test.go",
+                "internal/gateway/slash_spawn.go (extension only — shared handler dispatches to platform-specific spawn implementations)",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/channels/discord -run '^TestDiscordSpawnSlash_' -count=1",
+                "go test ./internal/gateway -run '^TestSlashSpawn_' -count=1",
+                "go test ./internal/channels/discord ./internal/gateway -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "/spawn slash command lands in Discord with four named tests green; the shared slash handler dispatches to both Telegram (2.H.3) and Discord without per-platform duplication."
+              ],
+              "note": "Complete 2026-05-12: shipped Discord /spawn as the sibling channel-native dynamic-agent slice. The shared gateway SlashSpawnRequest handler now dispatches both Telegram and Discord while keeping operator-tier checks, usage parsing, and registry writes centralized. Discord Bot implements a direct CreateThread helper over ThreadStartComplex (no seed-message fallback on failure) plus ThreadSender delivery to the new thread channel. Four named TestDiscordSpawnSlash_* fixtures prove StartThread + bind + agent_spawned ack, DM rejection with agent_spawn_requires_guild_channel, StartThread failure with no registry record, and non-operator rejection; TestSlashSpawn_DiscordRejectsDirectMessage covers the shared handler rejection path."
             }
           ]
         }
@@ -41431,7 +42164,7 @@
                 "Gormes auth add openai-codex strict isolation contract",
                 "Gormes auth add bedrock open-question planning note",
                 "Gormes top-level logout provider shortcut",
-                "Gormes login removed-command typo suggestion contract",
+                "Gormes top-level login provider shortcut",
                 "Gormes model interactive provider/model picker",
                 "Gormes setup minimal sectioned wizard slice",
                 "Gormes setup top-level chooser menu",
@@ -42172,7 +42905,7 @@
               ],
               "blocked_by": [],
               "unblocks": [
-                "Gormes login removed-command typo suggestion contract"
+                "Gormes top-level login provider shortcut"
               ],
               "acceptance": [
                 "TestLogoutTopLevelAcceptsAllowedProviders proves `--provider nous`, `--provider openai-codex`, and `--provider spotify` each invoke the shared logout helper and clear only the named provider's auth state.",
@@ -42273,52 +43006,51 @@
               ]
             },
             {
-              "name": "Gormes login removed-command typo suggestion contract",
+              "name": "Gormes top-level login provider shortcut",
               "status": "complete",
               "priority": "P2",
-              "contract": "`gormes login` is NOT registered as a Cobra command. When an operator types `gormes login` (with or without legacy flags such as `--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`), Cobra surfaces unknown-command, and Gormes emits a deterministic suggestion `did you mean \"gormes auth add <provider> --type oauth\"?` (parallel to the `gormes migrate ooenclaw -> gormes migrate openclaw` typo-suggestion contract). The legacy Hermes `--provider` flag set is recognized contextually in the suggestion message but not parsed.",
+              "contract": "`gormes login --provider openai-codex` is registered as a top-level Cobra command and delegates to the same Gormes-owned Codex OAuth credential-pool flow as `gormes auth add openai-codex --type oauth`. The command accepts Hermes' legacy provider-login flags (`--provider`, `--portal-url`, `--inference-url`, `--client-id`, `--scope`, `--no-browser`, `--timeout`, `--ca-bundle`, `--insecure`) and passes the relevant values through to the OAuth adapter. Bare `gormes login` requires an explicit provider and performs no auth side effects. Unsupported provider values return redacted allow-list guidance without echoing the supplied value.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
               "trust_class": [
                 "operator"
               ],
-              "degraded_mode": "`unknown_command_login_suggested_auth_add` typed evidence is emitted; the suggestion redacts any provider name strings that could leak through if the operator passed `--provider <secret>`-shaped tokens; downstream invocation parsers continue to resolve real subcommands without interference.",
-              "fixture": "cmd/gormes/login_typo_suggestion_test.go",
+              "degraded_mode": "`auth_login_provider_required` and `auth_login_provider_unsupported` typed evidence are emitted without opening browsers, contacting providers, mutating auth.json, or leaking provider argument values. Existing `gormes auth add` remains the canonical provider-auth command and top-level login is only a compatibility shortcut for Hermes provider OAuth.",
+              "fixture": "cmd/gormes/login_command_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/auth.py:3848-3853:login_command",
-                "../hermes-agent/hermes_cli/main.py:8186-8227:login_parser",
+                "../hermes-agent/hermes_cli/main.py:9657-9700:login_parser",
+                "../hermes-agent/hermes_cli/auth.py:4488-4560:_login_openai_codex",
+                "../hermes-agent/hermes_cli/auth_commands.py:auth_add_command openai-codex OAuth branch",
                 "cmd/gormes/main.go:newRootCommandWithRuntime",
-                "cmd/gormes/main.go:rootCommandArgs",
-                "cmd/gormes/login_typo_suggestion_test.go",
-                "cmd/gormes/auth_command_test.go:TestGormesLoginPrintsUnknownCommandSuggestion",
+                "cmd/gormes/login.go",
+                "cmd/gormes/login_command_test.go",
+                "cmd/gormes/auth_command_test.go:TestGormesLoginTopLevelCommandIsRegistered",
                 "cmd/gormes/hermes_cli_parity.go:55",
-                "internal/cli/typo_suggestions.go",
-                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md",
-                "cmd/gormes/login_typo_suggestion_test.go",
-                "internal/cli/typo_suggestions_test.go"
+                "docs/content/building-gormes/architecture_plan/hermes-auth-cli-parity.md"
               ],
               "ready_when": [
-                "Hermes auth command-tree manifest refresh classifies top-level `login` as removed/excluded guidance (parity manifest line 55 already encodes this with hermesCLIExcluded).",
-                "Gormes top-level logout provider shortcut row defines the parallelism between removed `login` and live `logout`.",
-                "Tests can capture stdout/stderr from a Cobra invocation; no live OAuth or provider network is required."
+                "Hermes login parser shape is source-backed and the `openai-codex` branch is active through Hermes provider-auth helpers.",
+                "Gormes auth add openai-codex strict isolation contract is complete and owns token storage, config updates, Codex CLI import fallback, and redaction.",
+                "Tests can capture stdout/stderr from a Cobra invocation with fake OAuth seams; no live OAuth or provider network is required."
               ],
               "not_ready_when": [
-                "The slice registers a Cobra command named \"login\" instead of relying on Cobra's unknown-command path.",
-                "The slice silently aliases gormes login to gormes auth add without a deterministic suggestion message.",
-                "The slice performs OAuth work, opens browsers, contacts portal_url, or mutates auth.json.",
-                "The suggestion message is non-deterministic (must be byte-equal across runs for golden-file assertion)."
+                "The slice duplicates Codex token persistence instead of delegating to the existing auth add OAuth path.",
+                "The slice accepts unsupported provider values or echoes secret-shaped provider argument values.",
+                "The slice runs device-code login or mutates auth.json when `--provider` is missing.",
+                "The slice changes `gormes auth add` positional semantics."
               ],
               "acceptance": [
-                "TestGormesLoginUnknownCommandEmitsTypoSuggestion proves `gormes login` returns a non-zero exit with the deterministic suggestion message `did you mean \"gormes auth add <provider> --type oauth\"?`.",
-                "TestGormesLoginWithProviderFlagsEmitsSuggestion proves `gormes login --provider openai-codex` produces the same suggestion (the legacy flags are recognized contextually in the suggestion text, not parsed by Cobra).",
-                "TestGormesLoginIsNotRegisteredAsCobraCommand proves `cobra.Command.Find` for `login` resolves only to the root and no registered `login` subcommand or alias exists.",
-                "TestGormesLoginSuggestionParityWithMigrateTypo proves the suggestion pattern matches the existing `gormes migrate ooenclaw` typo-suggestion pattern: explicit redirect text, no silent execution of the suggested command, no OAuth side effects.",
-                "TestGormesLoginSuggestionRedactsProviderArgValues proves no fixture provider-name string passed via `--provider <value>` leaks into stdout/stderr beyond the literal suggestion template."
+                "TestGormesLoginCodexProviderDelegatesToOAuthAdd proves `gormes login --provider openai-codex --no-browser` invokes the existing Codex OAuth add flow, saves one redacted credential-pool entry, and updates `hermes.provider=openai-codex` without leaking access or refresh tokens.",
+                "TestGormesLoginIsRegisteredAsCobraCommand and TestGormesLoginTopLevelCommandIsRegistered prove `login` is a real top-level Cobra command.",
+                "TestGormesLoginRequiresExplicitProviderWithoutSideEffects proves bare `gormes login` returns `auth_login_provider_required` guidance and does not invoke device-code login or write credentials.",
+                "TestGormesLoginRejectsUnsupportedProviderWithoutLeakingValue proves unsupported provider values return `auth_login_provider_unsupported allowed=nous|openai-codex` without echoing the supplied value.",
+                "TestHermesCLIParityManifestProviderAuthCommandsMatchHermes proves the parity manifest now classifies top-level login as implemented and redacts secrets."
               ],
-              "note": "Validated: gormes no longer registers a top-level login Cobra command; executeRootCommand emits deterministic unknown-command guidance did you mean \"gormes auth add <provider> --type oauth\"? for login with or without legacy provider flags, while redacting provider argument values and performing no OAuth side effects. Evidence: go test ./cmd/gormes -run ^TestGormesLogin -count=1; go test ./internal/cli -run ^TestTypoSuggestion -count=1.",
+              "note": "Updated 2026-05-12: operator parity request promoted top-level login from removed-command guidance to a real provider-auth compatibility shortcut. `cmd/gormes/login.go` registers `gormes login --provider <provider>`, requires an explicit provider, allow-lists `nous|openai-codex`, redacts unsupported provider values, and delegates to `runAuthAddCommand` with OAuth options so Codex token storage/config updates stay in the existing Gormes-owned credential-pool path. The old pre-Cobra `TypoSuggestion(login)` hook now returns no suggestion so the registered command can run.",
               "write_scope": [
-                "cmd/gormes/login_typo_suggestion_test.go",
+                "cmd/gormes/login.go",
+                "cmd/gormes/login_command_test.go",
                 "cmd/gormes/auth.go",
                 "cmd/gormes/auth_command_test.go",
                 "cmd/gormes/main.go",
@@ -42329,18 +43061,18 @@
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run '^TestGormesLogin' -count=1",
+                "go test ./cmd/gormes -run '^TestGormesLogin|TestHermesCLIParityManifestProviderAuthCommandsMatchHermes|TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions' -count=1",
                 "go test ./internal/cli -run '^TestTypoSuggestion' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "Login typo-suggestion fixtures prove no Cobra `login` registration, deterministic unknown-command suggestion message with and without legacy `--provider` tokens, parity with `migrate ooenclaw`, provider-arg-value redaction, and no auth side effects."
+                "Login fixtures prove `gormes login --provider openai-codex` works through the existing Codex OAuth add path, top-level login is registered, bare login has no side effects, unsupported-provider guidance is redacted, and the parity manifest marks login implemented."
               ],
               "provenance": {
                 "origin_type": "upstream",
-                "upstream_ref": "hermes:hermes_cli/auth.py:3848-3853 login_command + main.py:8186-8227 login_parser shim (Q1B decision: do not port the shim — use Cobra unknown-command typo suggestion instead)",
-                "note": "Hermes keeps a deprecated parser as a deliberate shim; Gormes' Q1B decision is to provide a typo guide via Cobra's unknown-command path rather than register a `login` subparser. The parity rule with `gormes migrate ooenclaw` (never silent, always explicit redirect) still holds."
+                "upstream_ref": "hermes:hermes_cli/main.py:9657-9700 login_parser + hermes_cli/auth.py:4488-4560 _login_openai_codex + hermes_cli/auth_commands.py openai-codex OAuth add",
+                "note": "Hermes exposes the parser shape operators still type and has a source-backed OpenAI Codex login helper. Gormes keeps the token lifecycle native by delegating the top-level shortcut to the existing `auth add openai-codex --type oauth` implementation instead of introducing a second token store."
               }
             },
             {
@@ -45942,7 +46674,7 @@
               "name": "Hermes CLI alias and suggestion fidelity matrix",
               "priority": "P2",
               "status": "complete",
-              "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes login` and `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases.",
+              "contract": "Add deterministic fixtures for Hermes-visible command alias, prefix expansion, quick-command alias, and unknown/ambiguous-command guidance across the native CLI, gateway slash dispatcher, and native TUI slash handler. The matrix must prove aliases canonicalize before dispatch and hooks, exact commands win over longer prefix matches, unique prefixes preserve arguments, ambiguous prefixes produce bounded suggestions, quick-command aliases preserve user arguments without recursion loops, and unknown commands show actionable help instead of falling through to the model or silently executing. Gormes-owned typo redirects such as `gormes migrate ooenclaw` remain explicit suggestions, not silent Hermes aliases; `gormes login --provider openai-codex` is now a registered provider-auth compatibility command rather than an alias.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -45960,7 +46692,7 @@
                 "../hermes-agent/ui-tui/src/__tests__/createSlashHandler.test.ts:typed alias, catalog alias, exact-vs-prefix, ambiguous-prefix, and skill-dispatch fixtures",
                 "cmd/gormes/hermes_cli_parity.go",
                 "cmd/gormes/hermes_cli_parity_test.go",
-                "cmd/gormes/login_typo_suggestion_test.go",
+                "cmd/gormes/login_command_test.go",
                 "cmd/gormes/migrate_openclaw_test.go",
                 "internal/cli/command_registry.go",
                 "internal/cli/command_registry_policy_test.go",
@@ -45989,7 +46721,7 @@
                 "49-file CLI tree port"
               ],
               "acceptance": [
-                "TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions proves top-level unknown commands, removed `login`, and `migrate ooenclaw` render deterministic guidance, preserve exit semantics, and do not become silent aliases.",
+                "TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions proves top-level unknown commands, unsupported `login --provider <unknown>` redacted guidance, and `migrate ooenclaw` render deterministic guidance, preserve exit semantics, and do not become silent aliases.",
                 "TestHermesCommandAliasFidelity_SlashRegistryAliasAndPrefix proves `/provider` resolves to `/model`, unique prefixes preserve arguments, exact command names win over longer prefix matches, and ambiguous prefixes list bounded candidates.",
                 "TestHermesCommandAliasFidelity_QuickCommandAliasPreservesArgsAndDetectsCycles proves configured quick-command alias targets retain user arguments and report alias cycles/unsupported targets without recursion loops.",
                 "TestGatewayCommandAliasFidelity_CanonicalHooksKeepRawCommand proves gateway alias dispatch fires hooks/handlers against the canonical command while preserving the typed raw_command and raw_args.",
@@ -46016,7 +46748,7 @@
               "done_signal": [
                 "Alias/suggestion fixtures prove CLI, gateway, and TUI slash command resolution follows Hermes-visible canonicalization, prefix, ambiguity, quick-command alias, plugin/skill fallback, and unknown-command guidance without provider submission leaks."
               ],
-              "note": "Complete: TDD added `internal/cli/command_alias.go` and `internal/cli/command_alias_test.go` to pin exact command, typed alias, unique-prefix, exact-vs-prefix, ambiguous-prefix, unknown-command, and quick-command alias/cycle behavior without provider/config runtime state. `internal/gateway/commands.go` now exposes canonical gateway dispatch evidence with typed `raw_command`/`raw_args` plus bounded unknown-slash guidance reused by `internal/gateway/manager.go`. `internal/tui/slash_dispatch.go` now consumes the shared resolver for default-registry fallbacks; `internal/tui/slash_commands_test.go` proves `/provider -> /model`, unique prefix preservation, exact `/status` precedence over `/statusbar`, bounded ambiguous `/stat`, and unknown slash handling. `cmd/gormes/command_alias_fidelity_test.go` pins top-level unknown command, removed `login`, and `migrate ooenclaw` as explicit guidance paths rather than silent aliases.",
+              "note": "Complete: TDD added `internal/cli/command_alias.go` and `internal/cli/command_alias_test.go` to pin exact command, typed alias, unique-prefix, exact-vs-prefix, ambiguous-prefix, unknown-command, and quick-command alias/cycle behavior without provider/config runtime state. `internal/gateway/commands.go` now exposes canonical gateway dispatch evidence with typed `raw_command`/`raw_args` plus bounded unknown-slash guidance reused by `internal/gateway/manager.go`. `internal/tui/slash_dispatch.go` now consumes the shared resolver for default-registry fallbacks; `internal/tui/slash_commands_test.go` proves `/provider -> /model`, unique prefix preservation, exact `/status` precedence over `/statusbar`, bounded ambiguous `/stat`, and unknown slash handling. `cmd/gormes/command_alias_fidelity_test.go` pins top-level unknown command, unsupported `login --provider <unknown>` redacted guidance, and `migrate ooenclaw` as explicit guidance paths rather than silent aliases.",
               "provenance": {
                 "origin_type": "upstream_reconciliation",
                 "upstream_ref": "hermes:hermes_cli/commands.py + cli.py process_command + gateway/run.py command canonicalization + ui-tui createSlashHandler",

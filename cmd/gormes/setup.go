@@ -442,6 +442,9 @@ func runSetupSection(cmd *cobra.Command, seams setupCommandSeams, section string
 	case "model":
 		return runSetupModelSection(cmd, seams, nonInteractive)
 	case "agent":
+		if !nonInteractive && !seams.IsTTY() {
+			return errSetupRequiresTTY
+		}
 		return runSetupAgentSettingsSection(cmd, nonInteractive)
 	case "workspace":
 		return runSetupAgentSection(cmd, section, seams, nonInteractive)

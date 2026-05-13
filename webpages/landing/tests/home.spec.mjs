@@ -39,7 +39,7 @@ test('homepage renders the redesigned landing', async ({ page }) => {
   await expect(page.getByText('Release signing, voice/TTS, and full Hermes parity are still hardening.')).toBeVisible();
 
   // Nav — 3 items, clean
-  await expect(page.locator('.topnav a')).toHaveText(['Install', 'Trust', 'GitHub']);
+  await expect(page.locator('.topnav a')).toHaveText(['Docs', 'Install', 'GitHub']);
 
   await expect(page.getByRole('img', { name: 'GORMES-AGENT' })).toHaveAttribute('src', '/static/gormes-agent-logo-blue.svg');
   await expect(page.locator('img[src="/static/go-gopher-bear-lowpoly.png"]')).toHaveCount(1);

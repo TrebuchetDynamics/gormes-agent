@@ -62,6 +62,47 @@ func TestSessionList_MissingMemoryDB_JSONEmitsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestSessionList_CorruptMemoryDBSelfHealsToEmptyArray(t *testing.T) {
+	root := t.TempDir()
+	gormesHome := filepath.Join(root, "gormes-home")
+	t.Setenv("GORMES_HOME", gormesHome)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg-data"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
+	if err := os.MkdirAll(gormesHome, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(gormesHome, "memory.db")
+	if err := os.WriteFile(dbPath, []byte("not sqlite"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, err := runSessionsCommand(t, nil, "session", "list", "--json")
+	if err != nil {
+		t.Fatalf("session list --json must self-heal corrupt memory.db; got err=%v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Sessions []any `json:"sessions"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Sessions == nil || len(got.Sessions) != 0 {
+		t.Fatalf("sessions must be empty array after self-heal; stdout=%s", stdout)
+	}
+	combined := stdout + stderr
+	if strings.Contains(combined, "file is not a database") || strings.Contains(combined, "SQL logic error") {
+		t.Fatalf("raw sqlite corruption leaked to operator: %q", combined)
+	}
+	backups, err := filepath.Glob(dbPath + ".corrupt-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("corrupt memory.db must be preserved as one quarantine backup, got %v", backups)
+	}
+}
+
 // TestOpenSessionDirectoryDB_ExportPathStillErrors keeps the
 // regression fence: making `session list` soft on a missing DB must
 // not weaken the export/delete/continue paths, where a missing DB

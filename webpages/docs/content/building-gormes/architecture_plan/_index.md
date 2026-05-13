@@ -87,12 +87,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 97/104 subphases shipped · 4 in progress · 3 planned
+**Overall:** 99/106 subphases shipped · 4 in progress · 3 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
-| Phase 1 — The Dashboard | ✅ | 4/4 subphases |
-| Phase 2 — The Gateway | ✅ | 21/21 subphases |
+| Phase 1 — The Dashboard | ✅ | 5/5 subphases |
+| Phase 2 — The Gateway | ✅ | 22/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | ✅ | 23/23 subphases |
@@ -136,6 +136,17 @@ classification and row-backed implementation queue.
 - [x] Skill-manager selection matrix hardening
 - [x] Skill-pack coverage audit for Hermes-in-Go completion
 - [x] Canonical development-skills directory and loader symlinks
+
+### 1.E — Gormes-owned: Unified Bubble Tea admin TUI ✅
+
+- [x] Shared Bubble Tea wizard step chassis under internal/tui/wizard
+- [x] Unified admin TUI shell with tab navigation
+- [x] Admin TUI: Setup health screen with missing-config callouts
+- [x] Admin TUI: Chat tab with keybinding to jump in from any screen
+- [x] Admin TUI: Agents screen wired to the 2.H dynamic registry
+- [x] Admin TUI: Commands catalog over the root CLI tree
+- [x] Admin TUI: Safe command execution from the Commands tab
+- [x] Admin TUI: Searchable Commands palette
 
 ## Phase 2 — The Gateway ✅
 
@@ -388,6 +399,13 @@ classification and row-backed implementation queue.
 - [x] Kernel injection + usage log
 - [x] Inactive candidate drafting
 - [x] Explicit promotion flow
+
+### 2.H — Gormes-owned: Dynamic agents and per-thread spawn UX ✅
+
+- [x] Goncho-backed dynamic agent registry
+- [x] gormes agent spawn/list/inspect/bind/unbind CLI
+- [x] Telegram /spawn opens forum topic bound to spawned agent
+- [x] Discord /spawn opens thread bound to spawned agent
 
 ## Phase 3 — The Black Box (Memory) ✅
 
@@ -1023,7 +1041,7 @@ classification and row-backed implementation queue.
 - [x] Model and profile selector seam (Cobra + gateway)
 - [x] Gormes top-level logout provider shortcut
 - [x] Top-level logout configured-provider fallback
-- [x] Gormes login removed-command typo suggestion contract
+- [x] Gormes top-level login provider shortcut
 - [x] Gormes model interactive provider/model picker
 - [x] Gormes setup minimal sectioned wizard slice
 - [x] Gormes setup top-level chooser menu
