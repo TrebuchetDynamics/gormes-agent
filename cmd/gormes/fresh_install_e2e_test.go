@@ -347,6 +347,93 @@ func TestFreshInstallE2E_JSONIsParseable(t *testing.T) {
 	}
 }
 
+func TestFreshInstallRootNoTTYPrintsFirstRunGuidance(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{isTTY: func() bool { return false }})
+	stdout, stderr, err := executeRootCommandForTest(cmd)
+	if err != nil {
+		t.Fatalf("fresh-install root command without TTY must exit 0: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	for _, want := range []string{
+		"Gormes setup needed",
+		"Next: gormes setup --quick --target terminal",
+		"Non-interactive mode will not prompt.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("fresh-install root command stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestFreshInstallSetupQuickNonInteractiveDoesNotPrompt(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "setup", "--quick", "--non-interactive")
+	if err != nil {
+		t.Fatalf("fresh-install setup --quick --non-interactive must exit 0: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	for _, want := range []string{
+		"Quick setup targets:",
+		"gormes setup --quick --target terminal",
+		"gormes setup --quick --target telegram",
+		"gormes whatsapp",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("setup --quick --non-interactive stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestFreshInstallOnboardJSONIncludesFirstRunNextCommand(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "onboard", "--json")
+	if err != nil {
+		t.Fatalf("fresh-install onboard --json must exit 0: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var parsed map[string]any
+	if jsonErr := json.Unmarshal([]byte(stdout), &parsed); jsonErr != nil {
+		t.Fatalf("onboard --json stdout must be parseable JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	firstRun, ok := parsed["first_run"].(map[string]any)
+	if !ok {
+		t.Fatalf("onboard --json missing first_run object:\n%v", parsed)
+	}
+	nextCommand, _ := firstRun["next_command"].(string)
+	if strings.TrimSpace(nextCommand) == "" {
+		t.Fatalf("onboard --json first_run.next_command must be populated:\n%v", firstRun)
+	}
+}
+
+func TestFreshInstallDoctorWhatsAppJSONIncludesTargetNextCommand(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "whatsapp", "--json")
+	if err != nil {
+		t.Fatalf("fresh-install doctor --offline --target whatsapp --json must exit 0: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var parsed map[string]any
+	if jsonErr := json.Unmarshal([]byte(stdout), &parsed); jsonErr != nil {
+		t.Fatalf("doctor --offline --target whatsapp --json stdout must be parseable JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	target, ok := parsed["target"].(map[string]any)
+	if !ok {
+		t.Fatalf("doctor --json missing target object:\n%v", parsed)
+	}
+	nextCommand, _ := target["next_command"].(string)
+	if strings.TrimSpace(nextCommand) == "" {
+		t.Fatalf("doctor --json target.next_command must be populated:\n%v", target)
+	}
+}
+
 // TestFreshInstallE2E_NotFoundJSONEmitsStructuredDocument is the
 // "look up X" not-found conformance battery. Every command that
 // resolves an operator-supplied ID (kanban show/claim/complete,
