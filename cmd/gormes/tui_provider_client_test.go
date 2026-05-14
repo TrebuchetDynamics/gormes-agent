@@ -102,38 +102,38 @@ func TestTUIStartupDoesNotProbeProviderHealth(t *testing.T) {
 	}
 }
 
-func TestTUIStartupMissingProviderRendersActionableSetupError(t *testing.T) {
+func TestTUIStartupMissingProviderRendersFirstRunGuidance(t *testing.T) {
 	setupNativeTUITestEnv(t)
 
 	cmd := newRootCommand()
 	stdout, stderr, err := executeNativeTUICommand(cmd)
-	if err == nil {
-		t.Fatalf("Execute() error = nil, want provider setup failure\nstdout=%s\nstderr=%s", stdout, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty provider setup failure output", stdout)
+	if err != nil {
+		t.Fatalf("Execute() error = %v, want nil first-run guidance\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"Gormes provider setup needed",
-		"provider: missing",
-		"gormes setup model",
-		"gormes setup provider",
-		"gormes --offline",
+		"Gormes setup needed",
+		"not ready: provider endpoint is not configured",
+		"Provider: provider endpoint is not configured",
+		"Authentication: provider credential is not configured",
+		"Next: gormes setup --quick --target terminal",
+		"Non-interactive mode will not prompt.",
 	} {
-		if !strings.Contains(stderr, want) {
-			t.Fatalf("stderr missing %q:\n%s", want, stderr)
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
 	for _, forbidden := range []string{
+		"Gormes provider setup needed",
 		"provider setup failed:",
 		"hermes endpoint unconfigured",
+		"gormes --offline",
 	} {
 		if strings.Contains(stderr, forbidden) {
-			t.Fatalf("stderr contains raw setup text %q:\n%s", forbidden, stderr)
+			t.Fatalf("stderr contains old provider setup text %q:\n%s", forbidden, stderr)
 		}
 	}
-	if count := strings.Count(stderr, "Gormes provider setup needed"); count != 1 {
-		t.Fatalf("provider setup heading count = %d, want 1:\n%s", count, stderr)
+	if count := strings.Count(stdout, "Gormes setup needed"); count != 1 {
+		t.Fatalf("first-run setup heading count = %d, want 1:\n%s", count, stdout)
 	}
 }
 
