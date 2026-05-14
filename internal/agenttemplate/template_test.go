@@ -109,6 +109,69 @@ func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
 	}
 }
 
+func TestAgentTemplatePairManifestCoversDefaultFiles(t *testing.T) {
+	manifest := TemplatePairManifest()
+	if len(manifest) == 0 {
+		t.Fatal("template pair manifest must not be empty")
+	}
+
+	byPath := map[string]TemplatePair{}
+	for _, pair := range manifest {
+		path := filepath.ToSlash(filepath.Clean(pair.Path))
+		if pair.Path != path {
+			t.Fatalf("manifest path %q must be slash-cleaned as %q", pair.Path, path)
+		}
+		if _, exists := byPath[pair.Path]; exists {
+			t.Fatalf("duplicate manifest path %q", pair.Path)
+		}
+		if pair.Status != TemplatePairCovered && pair.Status != TemplatePairOwnedDivergence {
+			t.Fatalf("%s has unsupported parity status %q", pair.Path, pair.Status)
+		}
+		if len(pair.HermesSources) == 0 {
+			t.Fatalf("%s missing Hermes source references", pair.Path)
+		}
+		if len(pair.GormesSources) == 0 {
+			t.Fatalf("%s missing Gormes source references", pair.Path)
+		}
+		if strings.TrimSpace(pair.Contract) == "" {
+			t.Fatalf("%s missing parity contract", pair.Path)
+		}
+		byPath[pair.Path] = pair
+	}
+
+	for _, file := range DefaultFiles() {
+		path := filepath.ToSlash(file.Path)
+		pair, ok := byPath[path]
+		if !ok {
+			t.Fatalf("default template %q is missing from the template pair manifest", path)
+		}
+		if !slices.Contains(pair.GormesSources, "internal/agenttemplate/default_templates.go") {
+			t.Fatalf("%s manifest must point back to internal/agenttemplate/default_templates.go: %+v", path, pair)
+		}
+	}
+
+	soul := byPath["SOUL.md"]
+	if soul.Status != TemplatePairCovered {
+		t.Fatalf("SOUL.md status = %q, want %q", soul.Status, TemplatePairCovered)
+	}
+	if !slices.Contains(soul.HermesSources, "hermes_cli/default_soul.py") {
+		t.Fatalf("SOUL.md manifest must cite Hermes DEFAULT_SOUL_MD source: %+v", soul)
+	}
+	if !slices.Contains(soul.GormesSources, "internal/hermes/default_soul.go") {
+		t.Fatalf("SOUL.md manifest must cite the Gormes source-paired default: %+v", soul)
+	}
+
+	for _, path := range []string{"AGENTS.md", "IDENTITY.md", "TOOLS.md", "memory/USER.md", "memory/MEMORY.md"} {
+		pair := byPath[path]
+		if pair.Status != TemplatePairOwnedDivergence {
+			t.Fatalf("%s status = %q, want %q because Hermes consumes or inspires this context but does not seed the same file", path, pair.Status, TemplatePairOwnedDivergence)
+		}
+		if !strings.Contains(strings.ToLower(pair.Contract), "gormes") {
+			t.Fatalf("%s owned-divergence contract must explain the Gormes-owned behavior: %s", path, pair.Contract)
+		}
+	}
+}
+
 func TestAgentTemplateApplyCreatesMissingFiles(t *testing.T) {
 	target := t.TempDir()
 
