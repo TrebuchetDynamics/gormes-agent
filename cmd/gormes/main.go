@@ -135,6 +135,8 @@ type rootRuntime struct {
 	newOneshotClient       oneshotClientFactory
 	configureOneshotKernel oneshotKernelConfigurer
 	tuiProgramFactory      tuiProgramFactory
+	isTTY                  func() bool
+	runFirstRunSetup       func(*cobra.Command) error
 }
 
 type tuiInvocation struct {
@@ -159,6 +161,12 @@ type oneshotInvocation struct {
 }
 
 func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
+	if runtime.isTTY == nil {
+		runtime.isTTY = isStdinTTY
+	}
+	if runtime.runFirstRunSetup == nil {
+		runtime.runFirstRunSetup = runFirstRunSetupCommand
+	}
 	if runtime.tuiProgramFactory == nil {
 		runtime.tuiProgramFactory = defaultTUIProgramFactory
 	}
@@ -486,6 +494,9 @@ func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) erro
 	}
 	invocation, err := resolveTUIInvocation(cmd)
 	if err != nil {
+		return err
+	}
+	if handled, err := maybeHandleRootFirstRun(cmd, invocation, runtime); handled || err != nil {
 		return err
 	}
 	return runtime.runResolvedTUI(cmd, invocation)
