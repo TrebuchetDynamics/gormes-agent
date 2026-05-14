@@ -40,7 +40,7 @@ func runFirstRunSetupCommand(cmd *cobra.Command) error {
 	setup.SetOut(cmd.OutOrStdout())
 	setup.SetErr(cmd.ErrOrStderr())
 	setup.SetIn(cmd.InOrStdin())
-	setup.SetArgs([]string{"--quick", "--target", string(cli.SetupTargetTerminal)})
+	setup.SetArgs([]string{})
 	return setup.Execute()
 }
 
@@ -126,14 +126,14 @@ func printFirstRunGuidance(cmd *cobra.Command, plan cli.FirstRunPlan) {
 }
 
 func detectHermesMigrationSource() string {
+	if path := existingDir(strings.TrimSpace(os.Getenv("HERMES_HOME"))); path != "" {
+		return path
+	}
 	home := strings.TrimSpace(os.Getenv("HOME"))
 	if home != "" {
 		if path := existingDir(filepath.Join(home, ".hermes")); path != "" {
 			return path
 		}
-	}
-	if path := existingDir(strings.TrimSpace(os.Getenv("HERMES_HOME"))); path != "" {
-		return path
 	}
 	return ""
 }

@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
@@ -200,5 +204,59 @@ api_key = "sk-test-oneshot"
 	}
 	if tuiCalls != 0 {
 		t.Fatalf("runResolvedTUI calls = %d, want 0", tuiCalls)
+	}
+}
+
+func TestRootFirstRunSetupCommandUsesCurrentSetupEntrypoint(t *testing.T) {
+	freshInstallE2EHome(t)
+
+	cmd := &cobra.Command{Use: "gormes"}
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+
+	err := runFirstRunSetupCommand(cmd)
+	if err != nil {
+		t.Fatalf("runFirstRunSetupCommand: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
+	}
+	if strings.Contains(stderr.String(), "unknown flag: --target") {
+		t.Fatalf("first-run setup handoff used unsupported --target flag\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Available setup sections:") {
+		t.Fatalf("stdout = %q, want setup command with no args to render current setup entrypoint", stdout.String())
+	}
+}
+
+func TestDetectHermesMigrationSourcePrefersEnvOverHomeDotHermes(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	homeDotHermes := filepath.Join(home, ".hermes")
+	envHermes := filepath.Join(root, "env-hermes")
+	if err := os.MkdirAll(homeDotHermes, 0o755); err != nil {
+		t.Fatalf("create home .hermes: %v", err)
+	}
+	if err := os.MkdirAll(envHermes, 0o755); err != nil {
+		t.Fatalf("create env hermes: %v", err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("HERMES_HOME", envHermes)
+
+	if got := detectHermesMigrationSource(); got != envHermes {
+		t.Fatalf("detectHermesMigrationSource() = %q, want HERMES_HOME path %q", got, envHermes)
+	}
+
+	plan := buildFirstRunPlanFromConfig(config.Config{}, cli.SetupTargetTerminal, false)
+	wantCommand := "gormes migrate hermes --dry-run --source '" + envHermes + "'"
+	var found bool
+	for _, action := range plan.Actions {
+		if action.ID == cli.FirstRunActionMigrateHermes {
+			found = true
+			if action.Command != wantCommand {
+				t.Fatalf("Hermes migration command = %q, want %q", action.Command, wantCommand)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("plan missing Hermes migration action: %+v", plan.Actions)
 	}
 }
