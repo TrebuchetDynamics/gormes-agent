@@ -41,7 +41,7 @@ func runFirstRunSetupCommand(cmd *cobra.Command) error {
 	setup.SetErr(cmd.ErrOrStderr())
 	setup.SetIn(cmd.InOrStdin())
 	setup.SetArgs([]string{})
-	return setup.Execute()
+	return setup.ExecuteContext(cmd.Context())
 }
 
 func buildFirstRunPlanFromConfig(cfg config.Config, target cli.SetupTargetID, interactive bool) cli.FirstRunPlan {
@@ -113,16 +113,24 @@ func printFirstRunGuidance(cmd *cobra.Command, plan cli.FirstRunPlan) {
 		if step.Detail == "" {
 			continue
 		}
-		if step.Command != "" {
-			fmt.Fprintf(out, "- %s: %s (run: %s)\n", step.Label, step.Detail, step.Command)
+		if command := firstRunGuidanceCommand(step.Command); command != "" {
+			fmt.Fprintf(out, "- %s: %s (run: %s)\n", step.Label, step.Detail, command)
 		} else {
 			fmt.Fprintf(out, "- %s: %s\n", step.Label, step.Detail)
 		}
 	}
-	if plan.NextCommand != "" {
-		fmt.Fprintf(out, "Next: %s\n", plan.NextCommand)
+	if command := firstRunGuidanceCommand(plan.NextCommand); command != "" {
+		fmt.Fprintf(out, "Next: %s\n", command)
 	}
 	fmt.Fprintln(out, "Non-interactive mode will not prompt.")
+}
+
+func firstRunGuidanceCommand(command string) string {
+	command = strings.TrimSpace(command)
+	if command == "gormes setup --quick --target terminal" {
+		return "gormes setup --quick"
+	}
+	return command
 }
 
 func detectHermesMigrationSource() string {

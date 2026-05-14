@@ -73,12 +73,15 @@ func TestRootFreshNonTTYPrintsSetupGuidance(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Gormes setup needed",
-		"Next: gormes setup --quick --target terminal",
+		"Next: gormes setup --quick",
 		"Non-interactive mode will not prompt.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\nstdout=%s\nstderr=%s", want, stdout, stderr)
 		}
+	}
+	if strings.Contains(stdout, "Next: gormes setup --quick --target terminal") {
+		t.Fatalf("stdout recommends unsupported setup --target flag:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
