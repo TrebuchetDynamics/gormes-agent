@@ -596,11 +596,12 @@ func coerceTOMLValue(section string, fields []string, value string) (any, error)
 	switch key {
 	case "telegram.allowed_user_ids":
 		return coerceTOMLInt64List(value)
-	case "discord.allowed_channel_id", "slack.allowed_channel_id":
-		return value, nil
 	case "navibox.allow_origins", "navibox.allowed_tailnet_identities":
 		return parseEnvCSV(value), nil
 	default:
+		if (section == "discord" || section == "slack") && len(fields) > 0 && fields[len(fields)-1] == "allowed_channel_id" {
+			return value, nil
+		}
 		return coerceTOMLScalar(value)
 	}
 }

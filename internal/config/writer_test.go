@@ -179,6 +179,47 @@ func TestConfigWriter_WriteTOMLValueAcceptsUpdatesSection(t *testing.T) {
 	}
 }
 
+func TestConfigWriter_WriteTOMLValueNestedAccountAllowedChannelIDsStayStrings(t *testing.T) {
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("GORMES_HOME", filepath.Join(cfgHome, "gormes"))
+	t.Setenv("GORMES_DISCORD_TOKEN", "")
+	t.Setenv("GORMES_SLACK_ENABLED", "")
+	t.Setenv("GORMES_SLACK_BOT_TOKEN", "")
+	t.Setenv("GORMES_SLACK_APP_TOKEN", "")
+	t.Setenv("GORMES_SLACK_CHANNEL_ID", "")
+
+	const snowflake = "123456789012345678"
+	path := ConfigPath()
+	for _, key := range []string{
+		"discord.accounts.main.allowed_channel_id",
+		"slack.accounts.main.allowed_channel_id",
+	} {
+		if err := WriteTOMLValue(path, key, snowflake); err != nil {
+			t.Fatalf("WriteTOMLValue %s: %v", key, err)
+		}
+	}
+
+	cfg, err := Load(nil)
+	if err != nil {
+		t.Fatalf("Load after nested account channel writes: %v", err)
+	}
+	if got := cfg.Discord.Accounts["main"].AllowedChannelID; got != snowflake {
+		t.Fatalf("Discord account allowed_channel_id = %q, want %q", got, snowflake)
+	}
+	if got := cfg.Slack.Accounts["main"].AllowedChannelID; got != snowflake {
+		t.Fatalf("Slack account allowed_channel_id = %q, want %q", got, snowflake)
+	}
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if strings.Contains(string(body), "allowed_channel_id = "+snowflake) {
+		t.Fatalf("nested allowed_channel_id was written as a TOML integer:\n%s", body)
+	}
+}
+
 func TestConfigWriter_WriteTOMLValuePreservesSymlink(t *testing.T) {
 	dir := t.TempDir()
 	realPath := filepath.Join(dir, "real-config.toml")
