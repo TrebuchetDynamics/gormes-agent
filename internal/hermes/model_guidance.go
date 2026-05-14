@@ -68,6 +68,12 @@ func BuildModelPromptGuidance(opts ModelPromptGuidanceOptions) ModelPromptGuidan
 	if matchModelFamily(opts.Model, []string{"gemini", "gemma"}) {
 		blocks = append(blocks, GoogleModelOperationalGuidance)
 	}
+	if hasValidTool(opts.ValidToolNames, "web_search") {
+		blocks = append(blocks, ResearchQualityGuidance)
+		result.Evidence = append(result.Evidence, "research_quality_guidance_injected")
+	} else if hasAnyValidTool(opts.ValidToolNames, "web_extract", "web_crawl") {
+		result.Evidence = append(result.Evidence, "research_quality_guidance_suppressed_no_web_search")
+	}
 
 	result.Guidance = strings.Join(blocks, "\n\n")
 	return result
@@ -116,6 +122,24 @@ func matchModelFamily(model string, families []string) bool {
 	for _, family := range families {
 		needle := strings.ToLower(strings.TrimSpace(family))
 		if needle != "" && strings.Contains(m, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasValidTool(tools []string, name string) bool {
+	for _, tool := range tools {
+		if strings.EqualFold(strings.TrimSpace(tool), name) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnyValidTool(tools []string, names ...string) bool {
+	for _, name := range names {
+		if hasValidTool(tools, name) {
 			return true
 		}
 	}

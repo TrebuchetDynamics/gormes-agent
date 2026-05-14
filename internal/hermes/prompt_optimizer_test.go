@@ -61,6 +61,26 @@ func TestPromptOptimizer_GenerateVariants(t *testing.T) {
 	}
 }
 
+func TestPromptOptimizer_GenerateVariantsIncludesResearchQualityWhenCapacityAllows(t *testing.T) {
+	evaluator := NewPromptEvaluator([]EvalScenario{{Name: "test", Prompt: "hello"}})
+	optimizer := NewPromptOptimizer(evaluator, func(ctx context.Context, prompt string) ([]string, error) {
+		return []string{}, nil
+	})
+	optimizer.variantsPerIteration = 5
+
+	variants := optimizer.GenerateVariants(PromptVariant{ID: "base", Prompt: "be helpful"}, 0)
+	found := false
+	for _, variant := range variants {
+		if strings.Contains(variant.Prompt, "Evaluate external-project research") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("variants missing research-quality mutation: %#v", variants)
+	}
+}
+
 func TestPromptOptimizer_Optimize(t *testing.T) {
 	scenarios := []EvalScenario{
 		{Name: "greet", Prompt: "hello", ExpectedTools: []string{}},

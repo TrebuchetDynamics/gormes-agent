@@ -137,8 +137,8 @@ func TestPromptEvaluator_CompareVariantsRanksByAggregateScore(t *testing.T) {
 
 func TestPromptEvaluator_DefaultScenarioCorpusIsFastAndStable(t *testing.T) {
 	scenarios := DefaultPromptEvalScenarios()
-	if len(scenarios) != 10 {
-		t.Fatalf("default scenarios = %d, want 10", len(scenarios))
+	if len(scenarios) != 11 {
+		t.Fatalf("default scenarios = %d, want 11", len(scenarios))
 	}
 	evaluator := NewPromptEvaluator(scenarios)
 	variant := PromptVariant{ID: "golden", Prompt: "Use the correct tool and concise response."}
@@ -169,6 +169,43 @@ func TestPromptEvaluator_DefaultScenarioCorpusIsFastAndStable(t *testing.T) {
 	}
 	if first.AggregateScore != 1 {
 		t.Fatalf("aggregate = %v, want 1", first.AggregateScore)
+	}
+}
+
+func TestPromptEvaluator_DefaultCorpusRewardsResearchDepth(t *testing.T) {
+	var scenario EvalScenario
+	found := false
+	for _, candidate := range DefaultPromptEvalScenarios() {
+		if candidate.Name == "external project migration research" {
+			scenario = candidate
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("default scenarios missing external project migration research")
+	}
+	if !reflect.DeepEqual(scenario.ExpectedTools, []string{"web_search"}) {
+		t.Fatalf("ExpectedTools = %#v, want web_search", scenario.ExpectedTools)
+	}
+
+	shallow := scoreEvalTrace("candidate", scenario, EvalTrace{
+		Tools:    []string{"web_search"},
+		Response: "Here are some Python-to-Go repos: py2many and pytago. Use tests.",
+	}, nil)
+	if shallow.TaskSuccess {
+		t.Fatalf("shallow repo list should not satisfy research-depth scenario: %+v", shallow)
+	}
+	if shallow.ResponseQuality >= 4 {
+		t.Fatalf("shallow response quality = %v, want below 4", shallow.ResponseQuality)
+	}
+
+	deep := scoreEvalTrace("candidate", scenario, EvalTrace{
+		Tools:    []string{"web_search"},
+		Response: "The strongest candidates are py2many and pytago, but a serious Scrapling migration still needs a Go-native rewrite for browser automation, lxml/parser behavior, async runtime differences, and curl_cffi/TLS impersonation. Evaluate maturity, license, maintenance activity, and compile success; use transpilers only for isolated algorithmic helpers, then preserve behavior with golden tests and a migration workflow.",
+	}, nil)
+	if !deep.TaskSuccess {
+		t.Fatalf("deep response should satisfy research-depth scenario: %+v", deep)
 	}
 }
 

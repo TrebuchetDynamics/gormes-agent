@@ -46,6 +46,7 @@ func TestKernel_LiveTurnGuidanceGatedByCapabilities(t *testing.T) {
 	reg := tools.NewRegistry()
 	reg.MustRegister(&tools.MockTool{NameStr: "session_search"})
 	reg.MustRegister(&tools.MockTool{NameStr: "read_file"})
+	reg.MustRegister(&tools.MockTool{NameStr: "web_search"})
 	recall := &mockRecall{returnContent: "<memory-context>remembered</memory-context>"}
 	skills := &stubSkillProvider{block: "<skills>\n## gormes-tdd-slice\nUse TDD.\n</skills>", names: []string{"gormes-tdd-slice"}}
 
@@ -65,6 +66,7 @@ func TestKernel_LiveTurnGuidanceGatedByCapabilities(t *testing.T) {
 		hermes.SkillsGuidance,
 		hermes.ToolUseEnforcementGuidance,
 		hermes.OpenAIModelExecutionGuidance,
+		hermes.ResearchQualityGuidance,
 		"<memory-context>remembered</memory-context>",
 		"gormes-tdd-slice",
 	} {
@@ -76,6 +78,7 @@ func TestKernel_LiveTurnGuidanceGatedByCapabilities(t *testing.T) {
 		hermes.SessionSearchGuidance,
 		hermes.ToolUseEnforcementGuidance,
 		hermes.OpenAIModelExecutionGuidance,
+		hermes.ResearchQualityGuidance,
 		hermes.MemoryGuidance,
 		"<memory-context>remembered</memory-context>",
 		hermes.SkillsGuidance,
@@ -96,6 +99,7 @@ func TestKernel_LiveTurnGuidanceOmitsUnavailableCapabilities(t *testing.T) {
 		hermes.SkillsGuidance,
 		hermes.ToolUseEnforcementGuidance,
 		hermes.OpenAIModelExecutionGuidance,
+		hermes.ResearchQualityGuidance,
 	} {
 		if strings.Contains(joined, notWant) {
 			t.Fatalf("provider system guidance unexpectedly contains %q in:\n%s", notWant, joined)

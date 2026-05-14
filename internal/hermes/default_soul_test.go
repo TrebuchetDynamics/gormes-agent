@@ -1,0 +1,61 @@
+package hermes
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormesIdentity(t *testing.T) {
+	path, ok := upstreamDefaultSoulPath(t)
+	if !ok {
+		t.Skip("upstream default_soul.py not available; skipping default SOUL drift check")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read upstream default_soul.py: %v", err)
+	}
+	upstream, ok := extractPythonStringConstant(string(data), "DEFAULT_SOUL_MD")
+	if !ok {
+		t.Fatalf("could not extract DEFAULT_SOUL_MD from %s", path)
+	}
+	want := strings.Replace(upstream,
+		"Hermes Agent, an intelligent AI assistant created by Nous Research",
+		"Gormes Agent, a Go-native Hermes-compatible AI assistant",
+		1,
+	)
+	if DefaultSoulMD != want {
+		t.Fatalf("DefaultSoulMD drifted from Hermes DEFAULT_SOUL_MD with Gormes identity substitution\n--- got ---\n%q\n--- want ---\n%q", DefaultSoulMD, want)
+	}
+}
+
+func TestDefaultSoulMDOwnsGormesIdentityBoundary(t *testing.T) {
+	if !strings.Contains(DefaultSoulMD, "Gormes Agent") {
+		t.Fatalf("DefaultSoulMD must identify as Gormes Agent:\n%s", DefaultSoulMD)
+	}
+	for _, forbidden := range []string{"Hermes Agent", "Nous Research"} {
+		if strings.Contains(DefaultSoulMD, forbidden) {
+			t.Fatalf("DefaultSoulMD contains upstream-only identity marker %q:\n%s", forbidden, DefaultSoulMD)
+		}
+	}
+	if DefaultAgentIdentity != DefaultSoulMD {
+		t.Fatalf("DefaultAgentIdentity must reuse DefaultSoulMD")
+	}
+}
+
+func upstreamDefaultSoulPath(t *testing.T) (string, bool) {
+	t.Helper()
+	candidates := []string{
+		filepath.Join("..", "..", "hermes-agent", "hermes_cli", "default_soul.py"),
+		filepath.Join("..", "..", "..", "hermes-agent", "hermes_cli", "default_soul.py"),
+		"/home/xel/git/sages-openclaw/workspace-mineru/hermes-agent/hermes_cli/default_soul.py",
+		"/home/xel/.hermes/hermes-agent/hermes_cli/default_soul.py",
+	}
+	for _, path := range candidates {
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path, true
+		}
+	}
+	return "", false
+}

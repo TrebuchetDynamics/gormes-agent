@@ -291,7 +291,7 @@ func TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates(t *tes
 	system := req.Messages[0].Content
 	for _, want := range []string{
 		"Active workspace: `" + workspace + "`",
-		"# Gormes Agent Persona",
+		hermes.DefaultSoulMD,
 		"## AGENTS.md",
 		"## IDENTITY.md",
 		"## TOOLS.md",

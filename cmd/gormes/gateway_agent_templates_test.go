@@ -87,7 +87,7 @@ func TestEnsureGatewayAgentTemplatesCreatesMissingRuntimeContextAndPromptLoadsIt
 		CWD:        workspace,
 	})
 	for _, want := range []string{
-		"# Gormes Agent Persona",
+		hermes.DefaultSoulMD,
 		"## AGENTS.md",
 		"## IDENTITY.md",
 		"## TOOLS.md",

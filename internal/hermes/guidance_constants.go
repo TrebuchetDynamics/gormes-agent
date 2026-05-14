@@ -76,7 +76,7 @@ const ToolUseEnforcementGuidance = "# Tool-use enforcement\n" +
 // Substring matches against the active model name trigger tool-use enforcement
 // guidance.
 // Source: ./hermes-agent/agent/prompt_builder.py TOOL_USE_ENFORCEMENT_MODELS
-var ToolUseEnforcementModels = []string{"gpt", "codex", "gemini", "gemma", "grok"}
+var ToolUseEnforcementModels = []string{"gpt", "codex", "gemini", "gemma", "grok", "glm"}
 
 // DeveloperRoleModels is the upstream DEVELOPER_ROLE_MODELS tuple. Substring
 // matches against the active model name cause the API boundary to send the

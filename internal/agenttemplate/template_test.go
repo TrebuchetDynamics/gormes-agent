@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
@@ -33,8 +35,77 @@ func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
 			t.Fatalf("missing default template %q; got paths %v", want, sortedTemplatePaths(files))
 		}
 	}
+	if soul := got["SOUL.md"].Content; !strings.HasPrefix(soul, hermes.DefaultSoulMD) {
+		t.Fatalf("SOUL.md template must start with hermes.DefaultSoulMD\n--- got ---\n%s\n--- want prefix ---\n%s", soul, hermes.DefaultSoulMD)
+	}
 	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "Gormes Agent") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
 		t.Fatalf("SOUL.md template does not carry the Hermes-derived persona defaults:\n%s", soul)
+	}
+}
+
+func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
+	files := DefaultFiles()
+	got := map[string]string{}
+	for _, file := range files {
+		got[filepath.ToSlash(file.Path)] = file.Content
+	}
+
+	for path, wants := range map[string][]string{
+		"SOUL.md": {
+			"## Operating Style",
+			"## Boundaries",
+			"evidence",
+			"secrets",
+		},
+		"AGENTS.md": {
+			"## How To Work Here",
+			"## Git And Files",
+			"Do not discard user changes",
+			"do not create branches or worktrees unless the user asks",
+		},
+		"IDENTITY.md": {
+			"## Agent",
+			"## Workspace",
+			"## Update Rules",
+			"Do not store secrets",
+		},
+		"TOOLS.md": {
+			"## Search And Reading",
+			"## External Facts",
+			"## Verification",
+			"web_search",
+		},
+		"memory/USER.md": {
+			"## Stable Preferences",
+			"Do not store secrets",
+		},
+		"memory/MEMORY.md": {
+			"## Durable Facts",
+			"## Procedures",
+			"do not store task progress",
+		},
+	} {
+		body, ok := got[path]
+		if !ok {
+			t.Fatalf("missing template %s", path)
+		}
+		for _, want := range wants {
+			if !containsFold(body, want) {
+				t.Fatalf("%s missing fresh-install marker %q:\n%s", path, want, body)
+			}
+		}
+	}
+
+	combined := strings.Join([]string{got["SOUL.md"], got["AGENTS.md"], got["IDENTITY.md"], got["TOOLS.md"]}, "\n")
+	for _, forbidden := range []string{
+		"short-lived branch",
+		"active Gormes development environment",
+		"This workspace is for Gormes development",
+		"progress.json contract before broad assumptions",
+	} {
+		if strings.Contains(combined, forbidden) {
+			t.Fatalf("fresh-install templates contain stale project-specific guidance %q:\n%s", forbidden, combined)
+		}
 	}
 }
 
@@ -159,4 +230,8 @@ func actionsByPath(result WriteResult) map[string]Action {
 		actions[file.Path] = file.Action
 	}
 	return actions
+}
+
+func containsFold(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
