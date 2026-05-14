@@ -17371,6 +17371,7 @@
               "degraded_mode": "If SOUL.md is missing, the built-in fallback identity is used and records soul_md_fallback evidence",
               "fixture": "internal/hermes/identity_loader_test.go",
               "source_refs": [
+                "../hermes-agent/hermes_cli/default_soul.py:DEFAULT_SOUL_MD",
                 "../hermes-agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY",
                 "../hermes-agent/agent/prompt_builder.py:load_soul_md"
               ],
@@ -17386,15 +17387,19 @@
                 "TestIdentityLoader_Fallback proves built-in fallback is used when SOUL.md is absent",
                 "TestIdentityLoader_SkipSoul proves skip_soul flag suppresses identity injection",
                 "TestIdentityLoader_SoulMdBlocked proves blocked SOUL.md falls back to default identity",
-                "TestIdentityLoader_Pure proves no filesystem access outside temp fixtures in tests"
+                "TestIdentityLoader_Pure proves no filesystem access outside temp fixtures in tests",
+                "TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormesIdentity proves the built-in default is a source-paired port of Hermes DEFAULT_SOUL_MD with only the intentional Gormes identity substitution",
+                "TestDefaultSoulMDOwnsGormesIdentityBoundary proves the fallback identity reuses DefaultSoulMD and does not leak upstream-only Hermes/Nous identity markers"
               ],
               "write_scope": [
+                "internal/hermes/default_soul.go",
+                "internal/hermes/default_soul_test.go",
                 "internal/hermes/identity_loader.go",
                 "internal/hermes/identity_loader_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./internal/hermes -run TestIdentityLoader -count=1",
+                "go test ./internal/hermes -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
                 "go test ./internal/hermes -count=1",
                 "go run ./cmd/progress validate"
               ],
@@ -17403,10 +17408,13 @@
               ],
               "evidence": {
                 "implementation": [
-                  "internal/hermes/identity_loader.go:LoadAgentIdentity, DefaultAgentIdentity, IdentityLoaderOptions, IdentityLoaderResult",
+                  "internal/hermes/default_soul.go:DefaultSoulMD, DefaultAgentIdentity",
+                  "internal/hermes/identity_loader.go:LoadAgentIdentity, IdentityLoaderOptions, IdentityLoaderResult",
                   "Reuses existing loadSoulContext from internal/hermes/context_files.go for scanning and truncation"
                 ],
                 "tests": [
+                  "internal/hermes/default_soul_test.go:TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormesIdentity",
+                  "internal/hermes/default_soul_test.go:TestDefaultSoulMDOwnsGormesIdentityBoundary",
                   "internal/hermes/identity_loader_test.go:TestIdentityLoader_LoadsSoulMd",
                   "internal/hermes/identity_loader_test.go:TestIdentityLoader_Fallback",
                   "internal/hermes/identity_loader_test.go:TestIdentityLoader_SkipSoul",
@@ -42326,6 +42334,7 @@
               ],
               "acceptance": [
                 "TestAgentTemplateDefaultFilesMatchLiveTurnLookup proves the default template set includes SOUL.md at the target root plus memory/USER.md and memory/MEMORY.md under the durable context directory.",
+                "TestAgentTemplateDefaultFilesMatchLiveTurnLookup proves the SOUL.md starter template begins with internal/hermes.DefaultSoulMD instead of carrying an independent inline persona.",
                 "TestAgentTemplateApplyCreatesMissingFiles proves a clean target receives every template with deterministic create actions.",
                 "TestAgentTemplateApplySkipsExistingWithoutForce proves existing files are preserved and reported as skip actions.",
                 "TestAgentTemplateApplyForceOverwritesExisting proves --force overwrites existing template files and reports overwrite actions.",
@@ -42337,7 +42346,7 @@
                 "TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates proves a clean Telegram runtime workspace sends seeded SOUL.md, AGENTS.md, IDENTITY.md, TOOLS.md, USER.md, and MEMORY.md context to the provider before the user message.",
                 "TestContextFilesLoadsGormesOperationalTemplates proves Gormes-owned IDENTITY.md and TOOLS.md are loaded additively after the Hermes-compatible winning project context."
               ],
-              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths.",
+              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths. The 2026-05-14 parity refactor split the starter template data into internal/agenttemplate/default_templates.go and made SOUL.md consume internal/hermes.DefaultSoulMD, which is source-paired to Hermes hermes_cli/default_soul.py.",
               "write_scope": [
                 "cmd/gormes/agent.go",
                 "cmd/gormes/agent_reset_test.go",
@@ -42354,6 +42363,9 @@
                 "internal/hermes/context_files.go",
                 "internal/hermes/context_files_test.go",
                 "internal/hermes/guidance_constants_test.go",
+                "internal/hermes/default_soul.go",
+                "internal/hermes/default_soul_test.go",
+                "internal/agenttemplate/default_templates.go",
                 "internal/agenttemplate/template.go",
                 "internal/agenttemplate/template_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json",
@@ -42381,6 +42393,210 @@
                 "attempt_count": 2,
                 "last_attempt": "2026-05-05T07:00:00Z",
                 "last_success": "2026-05-05T07:00:00Z"
+              }
+            },
+            {
+              "name": "Hermes py2many parity mapping report",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Create a repo-local, non-runtime py2many mapping pass that runs `py2many --go` against the Hermes Python source tree into ignored temporary artifacts, captures success/failure, generated symbol names, imports, and unsupported syntax by source file, and converts discoveries into source-backed progress.json rows for missing Gormes parity contracts. Generated Go is evidence only and must never be imported into production Gormes packages.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "If py2many cannot be installed or the Go backend fails for most files, the report records tool_unavailable or backend_unsupported evidence with commands attempted, still emits an rg-based Hermes source-class inventory, and does not commit generated Go.",
+              "fixture": "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+              "source_refs": [
+                "/py2many/py2many README: `py2many --go <file.py>`",
+                "../hermes-agent/hermes_cli/default_soul.py:DEFAULT_SOUL_MD",
+                "../hermes-agent/hermes_cli/config.py:_ensure_default_soul_md",
+                "../hermes-agent/hermes_cli/profiles.py:create_profile",
+                "../hermes-agent/agent/prompt_builder.py:DEFAULT_AGENT_IDENTITY",
+                "docs/development-skills/gormes-planner/SKILL.md:Persona, Templates, Skills, And Reset Defaults"
+              ],
+              "ready_when": [
+                "The runner uses an isolated temp venv or tool cache and never modifies the Hermes checkout, live GORMES_HOME, live HERMES_HOME, or generated runtime Go packages.",
+                "The report classifies files as transpiles, partial, unsupported, runtime-only, schema/constant candidate, or manual Go-native rewrite.",
+                "The first report includes the default SOUL/config/profile/prompt-builder source family so basic constant/template parity gaps are visible."
+              ],
+              "not_ready_when": [
+                "The slice imports py2many-generated Go into cmd/, internal/, or any production package.",
+                "The slice commits generated Go output instead of a summarized report and optional ignored temp artifact path.",
+                "The slice treats a successful transpilation as behavior parity without Go tests or upstream contract review.",
+                "The slice reads private homes or credentials while scanning Hermes sources."
+              ],
+              "acceptance": [
+                "The report lists the exact py2many version or git SHA, install command, and `py2many --go` command shape used for each source file group.",
+                "The report includes a table of Hermes files with classification, transpile status, generated top-level symbols when available, import blockers, and recommended Gormes target package or manual rewrite rationale.",
+                "At least one discovery is traced into a progress.json row or an existing row update with exact source_refs; the default_soul/config/profile family must be represented.",
+                "Generated Go artifacts are absent from `git status --short` unless they live under an explicitly ignored temp/output directory documented by the report."
+              ],
+              "write_scope": [
+                "cmd/repoctl",
+                "scripts/hermes-py2many-map.sh",
+                "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "scripts/hermes-py2many-map.sh --dry-run",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "py2many mapping report exists, commands and classifications are reproducible, generated Go remains non-runtime evidence, and discovered parity gaps are reflected in progress.json rather than a side queue."
+              ],
+              "note": "Complete 2026-05-14, refreshed 2026-05-14: scripts/hermes-py2many-map.sh mapped all 1,679 Python files in hermes-agent@0f0e20ef8 with py2many 0.8. Report at docs/content/building-gormes/architecture_plan/py2many-hermes-map.md records status counts failed=1606, no-output=31, ok=38, timeout=4 and classification counts test-fixture=1100, manual-go-native-rewrite=281, schema-constant-candidate=109, unsupported-or-partial=184, transpiles=5. Generated Go artifacts stayed outside the repo under /home/xel/.cache/tmp/gormes-hermes-py2many-map.6zEjJ3 and are evidence only.",
+              "evidence": {
+                "report": "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+                "runner": "scripts/hermes-py2many-map.sh",
+                "source_sha": "hermes:0f0e20ef8",
+                "py2many": "0.8",
+                "files_mapped": 1679,
+                "generated_go_artifacts": 1644,
+                "status_counts": {
+                  "failed": 1606,
+                  "no-output": 31,
+                  "ok": 38,
+                  "timeout": 4
+                },
+                "classification_counts": {
+                  "manual-go-native-rewrite": 281,
+                  "schema-constant-candidate": 109,
+                  "test-fixture": 1100,
+                  "transpiles": 5,
+                  "unsupported-or-partial": 184
+                },
+                "verification": [
+                  "scripts/hermes-py2many-map.sh --dry-run",
+                  "scripts/hermes-py2many-map.sh",
+                  "go run ./cmd/progress validate",
+                  "git diff --check"
+                ]
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "py2many:/py2many/py2many README + hermes:source tree",
+                "note": "py2many is a discovery aid for source-backed parity mapping. Gormes remains Go-native; generated Go is used only to expose missing constants, schemas, pure helpers, and manual rewrite boundaries."
+              }
+            },
+            {
+              "name": "Hermes source-pair manifest and Phase 0 refresh mode",
+              "status": "complete",
+              "priority": "P1",
+              "contract": "Create a rerunnable Phase 0 parity guard that maps high-risk Hermes source files to their Gormes targets, validates that covered rows have Go targets and tests, fails when the manifest is stale against the active Hermes checkout, safely fast-forwards the local Hermes checkout on request, syncs source-pair SHAs, and emits generated source-pair and py2many reports without importing generated py2many output into production Gormes packages.",
+              "contract_status": "validated",
+              "slice_size": "medium",
+              "execution_owner": "docs",
+              "trust_class": [
+                "operator",
+                "system"
+              ],
+              "degraded_mode": "`scripts/hermes-parity-refresh.sh --check --no-fetch` validates the pinned local checkout when remote access is unavailable. Plain `--check` fetches origin/main metadata and exits nonzero when upstream Hermes has advanced. `--update` refuses dirty or non-fast-forward Hermes checkouts before moving the detached checkout, syncing manifest SHAs, regenerating reports, and validating progress metadata.",
+              "fixture": "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json + docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+              "source_refs": [
+                "docs/content/building-gormes/architecture_plan/py2many-hermes-map.md",
+                "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+                "scripts/hermes-parity-refresh.sh",
+                "../hermes-agent/hermes_cli/default_soul.py",
+                "../hermes-agent/hermes_cli/config.py",
+                "../hermes-agent/hermes_cli/profiles.py",
+                "../hermes-agent/agent/prompt_builder.py",
+                "../hermes-agent/hermes_cli/main.py",
+                "../hermes-agent/hermes_cli/commands.py",
+                "../hermes-agent/hermes_cli/auth_commands.py",
+                "../hermes-agent/gateway/run.py",
+                "../hermes-agent/tools/skills_tool.py",
+                "../hermes-agent/tools/skill_manager_tool.py",
+                "../hermes-agent/tools/skills_sync.py",
+                "../hermes-agent/run_agent.py",
+                "../hermes-agent/cli.py"
+              ],
+              "ready_when": [
+                "The manifest is checked against the active local Hermes SHA before reporting a row as current.",
+                "High-priority user-visible Hermes sources are represented explicitly instead of inferred from broad globs.",
+                "The check mode is read-only for Gormes runtime state, live homes, and the Hermes checkout.",
+                "The update mode has a clean-tree and fast-forward guard before changing the Hermes checkout or source-pair evidence."
+              ],
+              "not_ready_when": [
+                "A covered source-pair row lacks a Gormes target or a test command.",
+                "A high-priority Hermes source exists locally but is absent from the manifest.",
+                "The Phase 0 command silently accepts a stale Hermes checkout when origin/main has advanced.",
+                "Generated py2many Go is committed or imported into production packages.",
+                "The update mode blindly preserves covered status for a Hermes source file that changed upstream."
+              ],
+              "acceptance": [
+                "`repoctl hermes-source-pairs validate` rejects covered rows without tests, missing Gormes targets, stale Hermes SHAs, and unmapped high-priority sources.",
+                "`repoctl hermes-source-pairs sync-sha` updates manifest and row SHAs and demotes covered rows to partial when their upstream source file changed between pinned SHAs.",
+                "`repoctl hermes-source-pairs report` regenerates a Markdown report with status counts and source-to-target rows.",
+                "`scripts/hermes-parity-refresh.sh --check --no-fetch` validates the pinned local Hermes checkout and py2many dry-run path without mutating runtime state.",
+                "`scripts/hermes-parity-refresh.sh --check` detects when origin/main is newer than the local Hermes checkout and exits nonzero with the current and upstream SHAs.",
+                "`scripts/hermes-parity-refresh.sh --update` fast-forwards a clean Hermes checkout to origin/main, syncs the source-pair manifest, reruns py2many, regenerates the source-pair report, and leaves `--check` green."
+              ],
+              "write_scope": [
+                "internal/repoctl/source_pairs.go",
+                "internal/repoctl/source_pairs_test.go",
+                "internal/hermes/guidance_constants.go",
+                "cmd/repoctl/main.go",
+                "cmd/repoctl/main_test.go",
+                "scripts/hermes-parity-refresh.sh",
+                "webpages/docs/content/upstream-hermes",
+                "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+                "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/repoctl -run SourcePairs -count=1",
+                "go test ./cmd/repoctl -run HermesSourcePairs -count=1",
+                "go test ./internal/hermes -run 'TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream|TestModelPromptGuidance' -count=1",
+                "go run ./cmd/repoctl hermes-source-pairs validate --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
+                "go run ./cmd/repoctl hermes-source-pairs sync-sha --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
+                "go run ./cmd/repoctl hermes-source-pairs report",
+                "scripts/hermes-parity-refresh.sh --update",
+                "scripts/hermes-parity-refresh.sh --check --no-fetch",
+                "scripts/hermes-parity-refresh.sh --check",
+                "go run ./cmd/progress validate",
+                "git diff --check"
+              ],
+              "done_signal": [
+                "Phase 0 now has a source-backed manifest, validation command, SHA sync command, generated reports, read-only check mode, and safe upstream update mode that make future Hermes pulls discoverable and reproducible before new Gormes work starts."
+              ],
+              "note": "Complete 2026-05-14, refreshed 2026-05-14: source-pair manifest tracks 13 high-priority Hermes files at hermes:0f0e20ef81709a6dd590b25af380b116db67628c. Status counts are covered=1 and partial=12. The default SOUL row remains covered because hermes_cli/default_soul.py did not change across the updates; config, profiles, prompt builder, CLI commands, auth commands, gateway, skills tools, run_agent, and legacy cli remain explicit partial rows. Safe update mode ran cleanly from 657874460f8e2cff18e9940df1a987513278c43e through efa97af7e25f0cbef92ed15bbcb47e4788c83058, 55ba02befbb976d2383726f1a44591c8325613f9, and 0f0e20ef81709a6dd590b25af380b116db67628c, detected 427 changed files, then 11 changed files, then the NovitaAI provider delta, demoted zero covered rows, regenerated py2many/source-pair reports, refreshed the upstream docs mirror by adding four pages, removing one deleted page, and carrying NovitaAI provider docs, paired the new prompt_builder.py `TOOL_USE_ENFORCEMENT_MODELS` `glm` entry into internal/hermes/guidance_constants.go, classified NovitaAI in the Go provider manifest, and left `scripts/hermes-parity-refresh.sh --check` green.",
+              "evidence": {
+                "manifest": "docs/content/building-gormes/architecture_plan/hermes-source-pairs.json",
+                "report": "docs/content/building-gormes/architecture_plan/hermes-source-pairs.md",
+                "validator": "cmd/repoctl hermes-source-pairs validate",
+                "phase0_check": "scripts/hermes-parity-refresh.sh --check",
+                "source_sha": "hermes:0f0e20ef81709a6dd590b25af380b116db67628c",
+                "origin_main_sha": "hermes:0f0e20ef81709a6dd590b25af380b116db67628c",
+                "update_runs": 3,
+                "changed_files_first_update": 427,
+                "changed_files_second_update": 11,
+                "demoted_covered_rows": 0,
+                "mirrored_docs_added": 4,
+                "mirrored_docs_removed": 1,
+                "status_counts": {
+                  "covered": 1,
+                  "partial": 12
+                },
+                "verification": [
+                  "go test ./internal/repoctl -run SourcePairs -count=1",
+                  "go test ./cmd/repoctl -run HermesSourcePairs -count=1",
+                  "go test ./internal/hermes -run 'TestGuidanceConstants_ToolUseEnforcementModels_MatchesUpstream|TestModelPromptGuidance' -count=1",
+                  "go run ./cmd/repoctl hermes-source-pairs validate --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
+                  "go run ./cmd/repoctl hermes-source-pairs sync-sha --hermes-sha 0f0e20ef81709a6dd590b25af380b116db67628c",
+                  "go run ./cmd/repoctl hermes-source-pairs report",
+                  "scripts/hermes-parity-refresh.sh --check --no-fetch",
+                  "scripts/hermes-parity-refresh.sh --update",
+                  "scripts/hermes-parity-refresh.sh --check"
+                ]
+              },
+              "provenance": {
+                "origin_type": "hybrid",
+                "upstream_ref": "hermes:source tree + py2many report",
+                "note": "The manifest is a maintainability control for full Hermes-in-Go parity. It pairs user-visible Hermes source contracts to Go targets and makes stale upstream evidence fail before implementation."
               }
             },
             {

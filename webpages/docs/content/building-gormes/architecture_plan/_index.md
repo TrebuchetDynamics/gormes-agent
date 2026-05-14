@@ -87,12 +87,12 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 99/106 subphases shipped · 6 in progress · 1 planned
+**Overall:** 98/106 subphases shipped · 7 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 5/5 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | ✅ | 23/23 subphases |
@@ -148,16 +148,18 @@ classification and row-backed implementation queue.
 - [x] Admin TUI: Safe command execution from the Commands tab
 - [x] Admin TUI: Searchable Commands palette
 
-## Phase 2 — The Gateway ✅
+## Phase 2 — The Gateway 🔨
 
 *Go-native operator wiring harness: tools, Telegram, shared gateway chassis, shipped cron, and the first OS-AI spine slices before focused channel closeout*
 
-### 2.A — Tool Registry ✅
+### 2.A — Tool Registry 🔨
 
 - [x] In-process Go tool registry
 - [x] Streamed tool_calls accumulation
 - [x] Kernel tool loop
 - [x] Doctor verification
+- [ ] Coding-agent delegation tooling (codex/claude-code/opencode)
+- [ ] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
 
 ### 2.B.1 — Telegram Scout ✅
 
@@ -1031,6 +1033,8 @@ classification and row-backed implementation queue.
 - [x] Busy command guard for compression and long CLI actions
 - [x] Config, profile, auth, and setup command surfaces
 - [x] Gormes agent template reset command
+- [x] Hermes py2many parity mapping report
+- [x] Hermes source-pair manifest and Phase 0 refresh mode
 - [x] Gormes auth bare interactive credential-pool readout
 - [x] Gormes auth status per-provider aggregator
 - [x] Gormes auth add openai-codex strict isolation contract

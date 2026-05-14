@@ -27,7 +27,27 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Agentic-porting-kit public repo scaffold
+## 1. Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
+
+- Phase: 2 / 2.A
+- Owner: `tools`
+- Size: `medium`
+- Status: `in_progress`
+- Priority: `P1`
+- Contract: Shared internal/codingagents package providing the CodingAgent interface, CodingAgentRequest/Result, mode constants, binary availability detection, workspace guard with default deny list, git snapshot/diff helper, and prompt wrapper. No tools are registered in this slice; adapters and registry exposure land in later phases.
+- Trust class: operator, system
+- Ready when: Shared CodingAgent interface and CodingAgentRequest/Result cover workspace, prompt, mode, edit permissions, timeout, files-changed, stdout/stderr, and git diff., Availability checks detect codex, claude/claude-code, and opencode binaries and report unavailable cleanly., Workspace guard refuses empty, ambiguous, denied, and outside-allowed inputs and accepts paths under an allowed root., Git snapshot/diff helper captures HEAD/branch/dirty/files for a real repo and returns ErrNotAGitRepo on a non-git dir., Prompt wrapper restates workspace/mode/task and injects gormes-repo rules when the workspace is a gormes-agent checkout.
+- Not ready when: Adapters or tool descriptors register coding_agent / codex_run / claude_code_run / opencode_run before the umbrella's later phases., Results omit files_changed or git_diff across adapters., Workspace identifiers bypass the guard via raw-path voice input.
+- Degraded mode: Without the scaffold, later phases cannot compile codex/claude-code/opencode adapters against a shared contract; doctor cannot probe coding-agent binaries.
+- Fixture: `internal/codingagents`
+- Write scope: `internal/codingagents/`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/codingagents/... -count=1`, `go vet ./internal/codingagents/...`, `go run ./cmd/progress validate`
+- Done signal: go test ./internal/codingagents/... -count=1 passes locally with the scaffold, availability probe, workspace guard, git snapshot, and prompt wrap covered by unit tests.
+- Acceptance: internal/codingagents compiles and tests pass on stdlib only., WorkspaceGuard returns typed sentinels (ErrWorkspaceEmpty/Ambiguous/OutsideAllowed/Denied) and refuses $HOME, /, and ~/.ssh by default., DetectAll returns availability entries for codex, claude, claude-code, and opencode., TakeSnapshot + DiffBetween capture HEAD, dirty status, and a unified diff with file list on a temp repo; non-git dirs raise ErrNotAGitRepo.
+- Source refs: User design: 2026-05-13 coding-agent delegation plan, internal/codingagents/codingagents.go, internal/codingagents/workspace.go, internal/codingagents/git_snapshot.go
+- Why now: Already active; contract metadata keeps execution bounded.
+
+## 2. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`
