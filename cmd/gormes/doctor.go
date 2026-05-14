@@ -102,6 +102,14 @@ func (r *doctorReporter) Finalize() error {
 }
 
 var doctorGitHubAuthRunner = doctor.DefaultGitHubAuthStatusRunner
+var doctorNewTelegramClient = func(token string) error {
+	_, err := telegram.NewRealClient(token)
+	return err
+}
+var doctorNewDiscordSession = func(token string) error {
+	_, err := discord.NewRealSession(token)
+	return err
+}
 
 func buildDoctorCmd() *cobra.Command {
 	return &cobra.Command{
@@ -218,21 +226,29 @@ func buildDoctorCmd() *cobra.Command {
 				reporter.Add(doctor.CheckResult{Name: "gateway", Status: doctor.StatusWarn, Summary: "no channels configured ([telegram], [discord], or [slack])"})
 			} else {
 				if cfg.Telegram.BotToken != "" {
-					if _, err := telegram.NewRealClient(cfg.Telegram.BotToken); err != nil {
-						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusFail, Summary: err.Error()})
-						return newExitCodeError(2, fmt.Errorf("doctor: telegram client init failed: %w", err))
+					if offline {
+						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram) + " (network validation skipped --offline)"})
+					} else if err := doctorNewTelegramClient(cfg.Telegram.BotToken); err != nil {
+						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Telegram.BotToken)
+						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusFail, Summary: redactedErr})
+						return newExitCodeError(2, fmt.Errorf("doctor: telegram client init failed: %s", redactedErr))
+					} else {
+						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram)})
 					}
-					reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram)})
 				} else {
 					reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusSkip, Summary: "disabled"})
 				}
 
 				if cfg.Discord.Enabled() {
-					if _, err := discord.NewRealSession(cfg.Discord.Token); err != nil {
-						reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusFail, Summary: err.Error()})
-						return newExitCodeError(2, fmt.Errorf("doctor: discord session init failed: %w", err))
+					if offline {
+						reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusPass, Summary: "allowed_channel_id=" + cfg.Discord.AllowedChannelID + " (network validation skipped --offline)"})
+					} else if err := doctorNewDiscordSession(cfg.Discord.Token); err != nil {
+						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Discord.Token)
+						reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusFail, Summary: redactedErr})
+						return newExitCodeError(2, fmt.Errorf("doctor: discord session init failed: %s", redactedErr))
+					} else {
+						reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusPass, Summary: "allowed_channel_id=" + cfg.Discord.AllowedChannelID})
 					}
-					reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusPass, Summary: "allowed_channel_id=" + cfg.Discord.AllowedChannelID})
 				} else {
 					reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusSkip, Summary: "disabled"})
 				}

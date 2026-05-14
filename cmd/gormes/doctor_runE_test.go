@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 )
 
 // TestDoctorCommand_OfflineRoutedThroughCobra proves that `gormes
@@ -504,6 +507,144 @@ func TestDoctorInvalidTargetJSONMarksFailed(t *testing.T) {
 		}
 	}
 	t.Fatalf("checks missing FAIL target readiness unsupported-target entry: %+v\nstdout=%s", got.Checks, stdout)
+}
+
+func TestDoctorOfflineGatewayTokensDoNotConstructRealClientsOrLeakSecrets(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	telegramToken := "123456:offline-telegram-secret"
+	discordToken := "discord-offline-secret"
+	writeOneshotFlagConfig(t, []byte(`
+[telegram]
+bot_token = "`+telegramToken+`"
+allowed_chat_id = 42
+
+[discord]
+token = "`+discordToken+`"
+allowed_channel_id = "C123"
+`))
+
+	var telegramCalls, discordCalls int
+	prevTelegram := doctorNewTelegramClient
+	prevDiscord := doctorNewDiscordSession
+	doctorNewTelegramClient = func(token string) error {
+		telegramCalls++
+		t.Fatalf("doctor --offline must not construct Telegram client; token=%q", token)
+		return nil
+	}
+	doctorNewDiscordSession = func(token string) error {
+		discordCalls++
+		t.Fatalf("doctor --offline must not construct Discord session; token=%q", token)
+		return nil
+	}
+	t.Cleanup(func() {
+		doctorNewTelegramClient = prevTelegram
+		doctorNewDiscordSession = prevDiscord
+	})
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if telegramCalls != 0 || discordCalls != 0 {
+		t.Fatalf("offline constructor calls = telegram:%d discord:%d, want zero", telegramCalls, discordCalls)
+	}
+	combined := stdout + stderr + errString(err)
+	for _, secret := range []string{telegramToken, discordToken} {
+		if strings.Contains(combined, secret) {
+			t.Fatalf("doctor --offline leaked secret %q:\nstdout=%s\nstderr=%s\nerr=%v", secret, stdout, stderr, err)
+		}
+	}
+	for _, want := range []string{
+		`"name": "gateway/telegram"`,
+		`"summary": "allowed_chat_id=42 (network validation skipped --offline)"`,
+		`"name": "gateway/discord"`,
+		`"summary": "allowed_channel_id=C123 (network validation skipped --offline)"`,
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestDoctorGatewayInitErrorsRedactTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		configBody    string
+		secret        string
+		replaceSeam   func(t *testing.T, secret string)
+		wantCheckName string
+	}{
+		{
+			name:   "telegram",
+			secret: "123456:live-telegram-secret",
+			configBody: `
+[telegram]
+bot_token = "123456:live-telegram-secret"
+allowed_chat_id = 42
+`,
+			replaceSeam: func(t *testing.T, secret string) {
+				prev := doctorNewTelegramClient
+				doctorNewTelegramClient = func(token string) error {
+					if token != secret {
+						t.Fatalf("telegram token = %q, want fixture secret", token)
+					}
+					return fmt.Errorf("telegram getMe failed at https://api.telegram.org/bot%s/getMe", token)
+				}
+				t.Cleanup(func() { doctorNewTelegramClient = prev })
+			},
+			wantCheckName: "gateway/telegram",
+		},
+		{
+			name:   "discord",
+			secret: "discord-live-secret",
+			configBody: `
+[discord]
+token = "discord-live-secret"
+allowed_channel_id = "C123"
+`,
+			replaceSeam: func(t *testing.T, secret string) {
+				prev := doctorNewDiscordSession
+				doctorNewDiscordSession = func(token string) error {
+					if token != secret {
+						t.Fatalf("discord token = %q, want fixture secret", token)
+					}
+					return fmt.Errorf("discord session failed for Bot %s", token)
+				}
+				t.Cleanup(func() { doctorNewDiscordSession = prev })
+			},
+			wantCheckName: "gateway/discord",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupOneshotFlagTestEnv(t)
+			writeOneshotFlagConfig(t, []byte(`
+[hermes]
+provider = "openai-codex"
+model = "gpt-5.1-codex"
+`+tc.configBody))
+			if _, err := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{}).SaveTokens(config.CodexOAuthTokens{
+				AccessToken:  "codex-access",
+				RefreshToken: "codex-refresh",
+			}); err != nil {
+				t.Fatalf("save codex auth: %v", err)
+			}
+			tc.replaceSeam(t, tc.secret)
+
+			cmd := newRootCommand()
+			stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--json")
+			if err == nil {
+				t.Fatalf("doctor --json err = nil, want gateway init failure\nstdout=%s\nstderr=%s", stdout, stderr)
+			}
+			combined := stdout + stderr + err.Error()
+			if strings.Contains(combined, tc.secret) {
+				t.Fatalf("doctor leaked %s token %q:\nstdout=%s\nstderr=%s\nerr=%v", tc.name, tc.secret, stdout, stderr, err)
+			}
+			if !strings.Contains(stdout, `"failed": true`) || !strings.Contains(stdout, `"name": "`+tc.wantCheckName+`"`) || !strings.Contains(stdout, "[REDACTED]") {
+				t.Fatalf("doctor JSON missing redacted failure evidence:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+			}
+		})
+	}
 }
 
 func checkNames(checks []struct {
