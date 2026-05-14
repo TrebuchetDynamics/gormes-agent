@@ -1310,6 +1310,10 @@ func runSetupWhatsAppCommand(cmd *cobra.Command) error {
 
 func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("setup telegram: load config: %w", err)
+	}
 	token, err := promptSecret(cmd, "Telegram bot token (stored in .env, blank to keep current): ")
 	if err != nil {
 		return err
@@ -1322,6 +1326,9 @@ func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
 		if err := os.Setenv(envName, token); err != nil {
 			return fmt.Errorf("setup telegram: activate token: %w", err)
 		}
+	}
+	if strings.TrimSpace(token) == "" && strings.TrimSpace(cfg.Telegram.BotToken) == "" {
+		return newExitCodeError(2, fmt.Errorf("setup telegram: missing bot token; enter a Telegram bot token or configure one before enabling Telegram"))
 	}
 
 	chatID, err := promptString(cmd, "Allowed chat ID (blank for first-run discovery): ", "")
@@ -1351,6 +1358,10 @@ func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
 
 func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("setup discord: load config: %w", err)
+	}
 	token, err := promptSecret(cmd, "Discord bot token (stored in .env, blank to keep current): ")
 	if err != nil {
 		return err
@@ -1363,6 +1374,9 @@ func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
 		if err := os.Setenv(envName, token); err != nil {
 			return fmt.Errorf("setup discord: activate token: %w", err)
 		}
+	}
+	if strings.TrimSpace(token) == "" && strings.TrimSpace(cfg.Discord.Token) == "" {
+		return newExitCodeError(2, fmt.Errorf("setup discord: missing bot token; enter a Discord bot token or configure one before enabling Discord"))
 	}
 
 	channelID, err := promptString(cmd, "Allowed channel ID (blank for first-run discovery): ", "")
@@ -1420,11 +1434,16 @@ func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
 		}
 	}
 
-	if strings.TrimSpace(botToken) == "" &&
-		strings.TrimSpace(appToken) == "" &&
-		strings.TrimSpace(cfg.Slack.BotToken) == "" &&
-		strings.TrimSpace(cfg.Slack.AppToken) == "" {
-		return newExitCodeError(2, fmt.Errorf("setup slack: missing Slack token; enter a bot or app token, or configure one before enabling Slack"))
+	effectiveBotToken := strings.TrimSpace(botToken)
+	if effectiveBotToken == "" {
+		effectiveBotToken = strings.TrimSpace(cfg.Slack.BotToken)
+	}
+	effectiveAppToken := strings.TrimSpace(appToken)
+	if effectiveAppToken == "" {
+		effectiveAppToken = strings.TrimSpace(cfg.Slack.AppToken)
+	}
+	if effectiveBotToken == "" || effectiveAppToken == "" {
+		return newExitCodeError(2, fmt.Errorf("setup slack: missing Slack tokens; enter both bot and app tokens, or configure both before enabling Slack"))
 	}
 	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.enabled", "true"); err != nil {
 		return fmt.Errorf("setup slack: write enabled config: %w", err)

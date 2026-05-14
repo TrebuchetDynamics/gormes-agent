@@ -170,6 +170,35 @@ func TestSetupGatewayTelegramWritesTokenAndAllowedChatWithoutLeakingSecret(t *te
 	}
 }
 
+func TestSetupGatewayTelegramBlankFreshTokenFailsWithoutWritingChannelConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "")
+	t.Setenv("TELEGRAM_CHAT_ID", "")
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "telegram\n\n4242\n", "gateway")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want missing Telegram token failure stdout=%s stderr=%s", stdout, stderr)
+	}
+	if strings.Contains(stdout, "Telegram gateway channel configured") {
+		t.Fatalf("Telegram setup reported configured despite blank fresh token:\n%s", stdout)
+	}
+	if configBody, readErr := os.ReadFile(config.ConfigPath()); readErr == nil {
+		for _, forbidden := range []string{"[telegram]", "allowed_chat_id", "first_run_discovery"} {
+			if strings.Contains(string(configBody), forbidden) {
+				t.Fatalf("Telegram setup wrote channel config despite blank fresh token:\n%s", configBody)
+			}
+		}
+	} else if !os.IsNotExist(readErr) {
+		t.Fatalf("read config: %v", readErr)
+	}
+}
+
 func TestSetupGatewayDiscordWritesTokenAndAllowedChannelWithoutLeakingSecret(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -207,6 +236,31 @@ func TestSetupGatewayDiscordWritesTokenAndAllowedChannelWithoutLeakingSecret(t *
 	}
 	if cfg.Discord.FirstRunDiscovery {
 		t.Fatalf("Discord.FirstRunDiscovery = true, want false when channel ID is configured")
+	}
+}
+
+func TestSetupGatewayDiscordBlankFreshTokenFailsWithoutWritingChannelConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_DISCORD_TOKEN", "")
+	t.Setenv("GORMES_DISCORD_CHANNEL_ID", "")
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "discord\n\nD4242\n", "gateway")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want missing Discord token failure stdout=%s stderr=%s", stdout, stderr)
+	}
+	if strings.Contains(stdout, "Discord gateway channel configured") {
+		t.Fatalf("Discord setup reported configured despite blank fresh token:\n%s", stdout)
+	}
+	if configBody, readErr := os.ReadFile(config.ConfigPath()); readErr == nil {
+		for _, forbidden := range []string{"[discord]", "allowed_channel_id", "first_run_discovery"} {
+			if strings.Contains(string(configBody), forbidden) {
+				t.Fatalf("Discord setup wrote channel config despite blank fresh token:\n%s", configBody)
+			}
+		}
+	} else if !os.IsNotExist(readErr) {
+		t.Fatalf("read config: %v", readErr)
 	}
 }
 
@@ -318,6 +372,53 @@ func TestSetupGatewaySlackBlankTokensDoesNotEnableOrReportConfigured(t *testing.
 	}
 	if cfg.Slack.Enabled || cfg.Slack.AllowedChannelID != "" || cfg.Slack.FirstRunDiscovery {
 		t.Fatalf("Slack config = %+v, want not enabled and no channel/discovery state", cfg.Slack)
+	}
+}
+
+func TestSetupGatewaySlackPartialTokensDoNotEnableOrReportConfigured(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		input    string
+		envKey   string
+		envValue string
+	}{
+		{name: "bot only", input: "slack\nxoxb-only\n\nC4242\n", envKey: "GORMES_SLACK_APP_TOKEN"},
+		{name: "app only", input: "slack\n\nxapp-only\nC4242\n", envKey: "GORMES_SLACK_BOT_TOKEN"},
+		{name: "existing bot only", input: "slack\n\n\nC4242\n", envKey: "GORMES_SLACK_BOT_TOKEN", envValue: "xoxb-existing"},
+		{name: "existing app only", input: "slack\n\n\nC4242\n", envKey: "GORMES_SLACK_APP_TOKEN", envValue: "xapp-existing"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("GORMES_HOME", home)
+			t.Setenv("GORMES_SLACK_ENABLED", "")
+			t.Setenv("GORMES_SLACK_BOT_TOKEN", "")
+			t.Setenv("GORMES_SLACK_APP_TOKEN", "")
+			t.Setenv("GORMES_SLACK_CHANNEL_ID", "")
+			if tc.envKey != "" {
+				t.Setenv(tc.envKey, tc.envValue)
+			}
+
+			fake := &setupCommandFakeSeams{isTTY: true}
+			stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), tc.input, "gateway")
+			if err == nil {
+				t.Fatalf("Execute() error = nil, want partial Slack token failure stdout=%s stderr=%s", stdout, stderr)
+			}
+			for _, leaked := range []string{"xoxb-only", "xapp-only", "xoxb-existing", "xapp-existing"} {
+				if strings.Contains(stdout+stderr+err.Error(), leaked) {
+					t.Fatalf("partial Slack token failure leaked %q:\nstdout=%s\nstderr=%s\nerr=%v", leaked, stdout, stderr, err)
+				}
+			}
+			if strings.Contains(stdout, "Slack gateway channel configured") {
+				t.Fatalf("Slack setup reported configured despite partial tokens:\n%s", stdout)
+			}
+			cfg, loadErr := config.Load(nil)
+			if loadErr != nil {
+				t.Fatalf("load config: %v", loadErr)
+			}
+			if cfg.Slack.Enabled || cfg.Slack.AllowedChannelID != "" || cfg.Slack.FirstRunDiscovery {
+				t.Fatalf("Slack config = %+v, want not enabled and no channel/discovery state", cfg.Slack)
+			}
+		})
 	}
 }
 
@@ -453,7 +554,7 @@ func TestSetupGatewayDoesNotStartGateway(t *testing.T) {
 	t.Setenv("GORMES_SLACK_CHANNEL_ID", "")
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "slack\nxoxb-no-start-test\n\n\n", "gateway")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "slack\nxoxb-no-start-test\nxapp-no-start-test\n\n", "gateway")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
