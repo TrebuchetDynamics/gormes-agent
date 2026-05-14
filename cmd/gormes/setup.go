@@ -75,16 +75,16 @@ type setupCommandSeams struct {
 type setupAction string
 
 const (
-	setupActionQuick         setupAction = "quick"
-	setupActionFull          setupAction = "full"
-	setupActionModelProvider setupAction = "model_provider"
-	setupActionTerminal      setupAction = "terminal"
-	setupActionGateway       setupAction = "gateway"
-	setupActionTools         setupAction = "tools"
-	setupActionAgent         setupAction = "agent"
+	setupActionQuick           setupAction = "quick"
+	setupActionFull            setupAction = "full"
+	setupActionModelProvider   setupAction = "model_provider"
+	setupActionTerminal        setupAction = "terminal"
+	setupActionGateway         setupAction = "gateway"
+	setupActionTools           setupAction = "tools"
+	setupActionAgent           setupAction = "agent"
 	setupActionMigrateHermes   setupAction = "migrate_hermes"
 	setupActionMigrateOpenClaw setupAction = "migrate_openclaw"
-	setupActionExit          setupAction = "exit"
+	setupActionExit            setupAction = "exit"
 )
 
 type setupMenuOption struct {
@@ -1155,6 +1155,12 @@ func runSetupGatewaySection(cmd *cobra.Command, seams setupCommandSeams, nonInte
 		return nil
 	}
 	for _, platform := range selected {
+		if platform == "navibox" {
+			if err := runSetupNaviboxGateway(cmd, cfg); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := seams.RunGatewayPlatform(cmd, platform); err != nil {
 			return err
 		}
@@ -1180,8 +1186,8 @@ func setupGatewayPlatformOptions(cfg config.Config) []setupGatewayPlatformOption
 		manifestByID[entry.ID] = entry
 	}
 
-	out := make([]setupGatewayPlatformOption, 0, 3)
-	for _, key := range []string{"telegram", "discord", "slack"} {
+	out := make([]setupGatewayPlatformOption, 0, 4)
+	for _, key := range []string{"telegram", "discord", "slack", "navibox"} {
 		label := setupGatewayPlatformFallbackLabel(key)
 		if entry, ok := manifestByID[key]; ok && strings.TrimSpace(entry.DisplayName) != "" {
 			label = entry.DisplayName
@@ -1205,6 +1211,8 @@ func setupGatewayPlatformFallbackLabel(key string) string {
 		return "Discord"
 	case "slack":
 		return "Slack"
+	case "navibox":
+		return "Navibox"
 	default:
 		return key
 	}

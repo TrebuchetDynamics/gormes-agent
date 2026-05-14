@@ -205,6 +205,12 @@ func configuredGatewayStatusChannels(cfg config.Config) []gateway.StatusChannel 
 			Detail: configuredTeamsGatewayStatusDetail(cfg.Teams),
 		})
 	}
+	if cfg.Navibox.Enabled {
+		channels = append(channels, gateway.StatusChannel{
+			Name:   "navibox",
+			Detail: configuredNaviboxGatewayStatusDetail(cfg.Navibox),
+		})
+	}
 	return channels
 }
 
@@ -236,4 +242,8 @@ func configuredSlackGatewayStatusDetail(cfg config.SlackCfg) string {
 
 func configuredTeamsGatewayStatusDetail(cfg config.TeamsCfg) string {
 	return cfg.RedactedStatus()
+}
+
+func configuredNaviboxGatewayStatusDetail(cfg config.NaviboxCfg) string {
+	return fmt.Sprintf("bind=%s:%d exposure=%s auth=%s", cfg.BindHost, cfg.Port, cfg.ExposureMode, cfg.AuthMode)
 }

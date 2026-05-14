@@ -4,6 +4,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -50,6 +51,7 @@ type Config struct {
 	Teams         TeamsCfg          `toml:"teams" yaml:"teams"`
 	Yuanbao       YuanbaoCfg        `toml:"yuanbao" yaml:"yuanbao"`
 	Web           WebCfg            `toml:"web" yaml:"web"`
+	Navibox       NaviboxCfg        `toml:"navibox" yaml:"navibox"`
 	Browser       BrowserCfg        `toml:"browser" yaml:"browser"`
 	Security      SecurityCfg       `toml:"security" yaml:"security"`
 	Secrets       SecretsCfg        `toml:"secrets" yaml:"secrets"`
@@ -76,26 +78,26 @@ type UpdatesCfg struct {
 }
 
 type TelegramAccountCfg struct {
-	BotToken      string  `toml:"bot_token" yaml:"bot_token"`
-	AllowedChatID int64   `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	BotToken       string  `toml:"bot_token" yaml:"bot_token"`
+	AllowedChatID  int64   `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
 	AllowedUserIDs []int64 `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
 }
 
 type TelegramCfg struct {
-	BotToken               string                      `toml:"bot_token" yaml:"bot_token"`
-	BotTokenRef            *SecretRef                  `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
+	BotToken               string                        `toml:"bot_token" yaml:"bot_token"`
+	BotTokenRef            *SecretRef                    `toml:"bot_token_ref" yaml:"bot_token_ref" json:"bot_token_ref,omitempty"`
 	Accounts               map[string]TelegramAccountCfg `toml:"accounts" yaml:"accounts"`
-	AccountID              string                      `toml:"-" yaml:"-"`
-	AllowedChatID          int64                       `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
-	AllowedChats           any                         `toml:"allowed_chats" yaml:"allowed_chats"`
-	AllowedUserIDs         []int64                     `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
-	RequireMention         bool                        `toml:"require_mention" yaml:"require_mention"`
-	GuestMode              bool                        `toml:"guest_mode" yaml:"guest_mode"`
-	BotUsername            string                      `toml:"bot_username" yaml:"bot_username"`
-	CoalesceMs             int                         `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FreshFinalAfterSeconds float64                     `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
-	Notifications          string                      `toml:"notifications" yaml:"notifications"`
-	FirstRunDiscovery      bool                        `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	AccountID              string                        `toml:"-" yaml:"-"`
+	AllowedChatID          int64                         `toml:"allowed_chat_id" yaml:"allowed_chat_id"`
+	AllowedChats           any                           `toml:"allowed_chats" yaml:"allowed_chats"`
+	AllowedUserIDs         []int64                       `toml:"allowed_user_ids" yaml:"allowed_user_ids"`
+	RequireMention         bool                          `toml:"require_mention" yaml:"require_mention"`
+	GuestMode              bool                          `toml:"guest_mode" yaml:"guest_mode"`
+	BotUsername            string                        `toml:"bot_username" yaml:"bot_username"`
+	CoalesceMs             int                           `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FreshFinalAfterSeconds float64                       `toml:"fresh_final_after_seconds" yaml:"fresh_final_after_seconds"`
+	Notifications          string                        `toml:"notifications" yaml:"notifications"`
+	FirstRunDiscovery      bool                          `toml:"first_run_discovery" yaml:"first_run_discovery"`
 	// MemoryQueueCap (Phase 3.A): async worker queue capacity in
 	// the telegram subcommand's SqliteStore. Defaults to 1024.
 	MemoryQueueCap int `toml:"memory_queue_cap" yaml:"memory_queue_cap"`
@@ -142,24 +144,24 @@ type DiscordAccountCfg struct {
 }
 
 type DiscordCfg struct {
-	Token                string                      `toml:"token" yaml:"token"`
-	TokenRef             *SecretRef                  `toml:"token_ref" yaml:"token_ref" json:"token_ref,omitempty"`
+	Token                string                       `toml:"token" yaml:"token"`
+	TokenRef             *SecretRef                   `toml:"token_ref" yaml:"token_ref" json:"token_ref,omitempty"`
 	Accounts             map[string]DiscordAccountCfg `toml:"accounts" yaml:"accounts"`
-	AllowedChannelID     string                      `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
-	AllowedChannels      any                         `toml:"allowed_channels" yaml:"allowed_channels"`
-	IgnoredChannels      any                         `toml:"ignored_channels" yaml:"ignored_channels"`
-	FreeResponseChannels any                         `toml:"free_response_channels" yaml:"free_response_channels"`
-	NoThreadChannels     any                         `toml:"no_thread_channels" yaml:"no_thread_channels"`
-	ChannelSkillBindings any                         `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
-	ChannelPrompts       any                         `toml:"channel_prompts" yaml:"channel_prompts"`
-	RequireMention       any                         `toml:"require_mention" yaml:"require_mention"`
-	AutoThread           any                         `toml:"auto_thread" yaml:"auto_thread"`
-	ReplyToMode          string                      `toml:"reply_to_mode" yaml:"reply_to_mode"`
-	AllowBots            string                      `toml:"allow_bots" yaml:"allow_bots"`
-	ServerActions        []string                    `toml:"server_actions" yaml:"server_actions"`
-	CoalesceMs           int                         `toml:"coalesce_ms" yaml:"coalesce_ms"`
-	FirstRunDiscovery    bool                        `toml:"first_run_discovery" yaml:"first_run_discovery"`
-	AccountID            string                      `toml:"-" yaml:"-"`
+	AllowedChannelID     string                       `toml:"allowed_channel_id" yaml:"allowed_channel_id"`
+	AllowedChannels      any                          `toml:"allowed_channels" yaml:"allowed_channels"`
+	IgnoredChannels      any                          `toml:"ignored_channels" yaml:"ignored_channels"`
+	FreeResponseChannels any                          `toml:"free_response_channels" yaml:"free_response_channels"`
+	NoThreadChannels     any                          `toml:"no_thread_channels" yaml:"no_thread_channels"`
+	ChannelSkillBindings any                          `toml:"channel_skill_bindings" yaml:"channel_skill_bindings"`
+	ChannelPrompts       any                          `toml:"channel_prompts" yaml:"channel_prompts"`
+	RequireMention       any                          `toml:"require_mention" yaml:"require_mention"`
+	AutoThread           any                          `toml:"auto_thread" yaml:"auto_thread"`
+	ReplyToMode          string                       `toml:"reply_to_mode" yaml:"reply_to_mode"`
+	AllowBots            string                       `toml:"allow_bots" yaml:"allow_bots"`
+	ServerActions        []string                     `toml:"server_actions" yaml:"server_actions"`
+	CoalesceMs           int                          `toml:"coalesce_ms" yaml:"coalesce_ms"`
+	FirstRunDiscovery    bool                         `toml:"first_run_discovery" yaml:"first_run_discovery"`
+	AccountID            string                       `toml:"-" yaml:"-"`
 }
 
 func (c DiscordCfg) Enabled() bool {
@@ -267,6 +269,33 @@ type ApprovalsCfg struct {
 type WebCfg struct {
 	Backend    string `toml:"backend" yaml:"backend"`
 	UseGateway bool   `toml:"use_gateway" yaml:"use_gateway"`
+}
+
+const (
+	NaviboxDefaultBindHost = "127.0.0.1"
+	NaviboxDefaultPort     = 8765
+
+	NaviboxExposureLocal     = "local"
+	NaviboxExposureTailscale = "tailscale"
+	NaviboxExposurePublic    = "public"
+
+	NaviboxAuthPairingToken      = "pairing_token"
+	NaviboxAuthStaticToken       = "static_token"
+	NaviboxAuthTailscaleIdentity = "tailscale_identity"
+)
+
+// NaviboxCfg configures the native gateway-owned HTTP/WebSocket channel used
+// by the Flutter Navibox app. The disabled zero value is intentionally safe.
+type NaviboxCfg struct {
+	Enabled                  bool     `toml:"enabled" yaml:"enabled"`
+	BindHost                 string   `toml:"bind_host" yaml:"bind_host"`
+	Port                     int      `toml:"port" yaml:"port"`
+	ExposureMode             string   `toml:"exposure_mode" yaml:"exposure_mode"`
+	AuthMode                 string   `toml:"auth_mode" yaml:"auth_mode"`
+	Token                    string   `toml:"token" yaml:"token"`
+	AllowOrigins             []string `toml:"allow_origins" yaml:"allow_origins"`
+	AllowedTailnetIdentities []string `toml:"allowed_tailnet_identities" yaml:"allowed_tailnet_identities"`
+	PublicConfirmed          bool     `toml:"public_confirmed" yaml:"public_confirmed"`
 }
 
 // BrowserCfg mirrors Hermes browser/CDP connection settings used by browser
@@ -392,15 +421,15 @@ type HermesCfg struct {
 }
 
 type AgentRuntimeCfg struct {
-	ImageInputMode      string            `toml:"image_input_mode" yaml:"image_input_mode"`
-	MaxTurns            int               `toml:"max_turns" yaml:"max_turns"`
-	ReasoningEffort     string            `toml:"reasoning_effort" yaml:"reasoning_effort"`
-	GatewayTimeout      int               `toml:"gateway_timeout" yaml:"gateway_timeout"`
-	GatewayTimeoutWarn  int               `toml:"gateway_timeout_warning" yaml:"gateway_timeout_warning"`
-	APIMaxRetries       int               `toml:"api_max_retries" yaml:"api_max_retries"`
-	Verbose             bool              `toml:"verbose" yaml:"verbose"`
-	Personalities       map[string]string `toml:"personalities" yaml:"personalities"`
-	ActivePersonality   string            `toml:"active_personality" yaml:"active_personality"`
+	ImageInputMode     string            `toml:"image_input_mode" yaml:"image_input_mode"`
+	MaxTurns           int               `toml:"max_turns" yaml:"max_turns"`
+	ReasoningEffort    string            `toml:"reasoning_effort" yaml:"reasoning_effort"`
+	GatewayTimeout     int               `toml:"gateway_timeout" yaml:"gateway_timeout"`
+	GatewayTimeoutWarn int               `toml:"gateway_timeout_warning" yaml:"gateway_timeout_warning"`
+	APIMaxRetries      int               `toml:"api_max_retries" yaml:"api_max_retries"`
+	Verbose            bool              `toml:"verbose" yaml:"verbose"`
+	Personalities      map[string]string `toml:"personalities" yaml:"personalities"`
+	ActivePersonality  string            `toml:"active_personality" yaml:"active_personality"`
 }
 
 type AuxiliaryCfg struct {
@@ -455,19 +484,19 @@ type GatewayPlatformCfg struct {
 }
 
 type DisplayCfg struct {
-	Language                   string                        `toml:"language" yaml:"language"`
-	Personality                string                        `toml:"personality" yaml:"personality"`
-	ToolProgress               string                        `toml:"tool_progress" yaml:"tool_progress"`
-	ToolProgressCommand        bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
-	ShowReasoning              bool                          `toml:"show_reasoning" yaml:"show_reasoning"`
-	Streaming                  bool                          `toml:"streaming" yaml:"streaming"`
-	BellOnComplete             bool                          `toml:"bell_on_complete" yaml:"bell_on_complete"`
-	Compact                    bool                          `toml:"compact" yaml:"compact"`
-	CleanupProgress            bool                          `toml:"cleanup_progress" yaml:"cleanup_progress"`
-	InterimAssistantMessages   bool                          `toml:"interim_assistant_messages" yaml:"interim_assistant_messages"`
-	BackgroundProcessNotifs    string                        `toml:"background_process_notifications" yaml:"background_process_notifications"`
-	BusyInputMode              string                        `toml:"busy_input_mode" yaml:"busy_input_mode"`
-	Platforms                  map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
+	Language                 string                        `toml:"language" yaml:"language"`
+	Personality              string                        `toml:"personality" yaml:"personality"`
+	ToolProgress             string                        `toml:"tool_progress" yaml:"tool_progress"`
+	ToolProgressCommand      bool                          `toml:"tool_progress_command" yaml:"tool_progress_command"`
+	ShowReasoning            bool                          `toml:"show_reasoning" yaml:"show_reasoning"`
+	Streaming                bool                          `toml:"streaming" yaml:"streaming"`
+	BellOnComplete           bool                          `toml:"bell_on_complete" yaml:"bell_on_complete"`
+	Compact                  bool                          `toml:"compact" yaml:"compact"`
+	CleanupProgress          bool                          `toml:"cleanup_progress" yaml:"cleanup_progress"`
+	InterimAssistantMessages bool                          `toml:"interim_assistant_messages" yaml:"interim_assistant_messages"`
+	BackgroundProcessNotifs  string                        `toml:"background_process_notifications" yaml:"background_process_notifications"`
+	BusyInputMode            string                        `toml:"busy_input_mode" yaml:"busy_input_mode"`
+	Platforms                map[string]DisplayPlatformCfg `toml:"platforms" yaml:"platforms"`
 }
 
 type DisplayPlatformCfg struct {
@@ -485,9 +514,9 @@ type InputCfg struct {
 }
 
 type STTCfg struct {
-	Enabled  bool          `toml:"enabled" yaml:"enabled"`
-	Provider string        `toml:"provider" yaml:"provider"`
-	Local    STTLocalCfg   `toml:"local" yaml:"local"`
+	Enabled  bool           `toml:"enabled" yaml:"enabled"`
+	Provider string         `toml:"provider" yaml:"provider"`
+	Local    STTLocalCfg    `toml:"local" yaml:"local"`
 	OpenAI   STTProviderCfg `toml:"openai" yaml:"openai"`
 }
 
@@ -773,6 +802,13 @@ func defaults() Config {
 			FirstRunDiscovery: false,
 			RequireMention:    true,
 			ReplyInThread:     true,
+		},
+		Navibox: NaviboxCfg{
+			Enabled:      false,
+			BindHost:     NaviboxDefaultBindHost,
+			Port:         NaviboxDefaultPort,
+			ExposureMode: NaviboxExposureLocal,
+			AuthMode:     NaviboxAuthPairingToken,
 		},
 		Teams: TeamsCfg{
 			Enabled: false,
@@ -1211,6 +1247,45 @@ func loadEnv(cfg *Config) error {
 		}
 		cfg.Slack.ReplyInThread = parsed
 	}
+	if v := os.Getenv("GORMES_NAVIBOX_ENABLED"); v != "" {
+		parsed, err := parseEnvBool("GORMES_NAVIBOX_ENABLED", v)
+		if err != nil {
+			return err
+		}
+		cfg.Navibox.Enabled = parsed
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_BIND_HOST")); v != "" {
+		cfg.Navibox.BindHost = v
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_PORT")); v != "" {
+		parsed, err := parseEnvInt("GORMES_NAVIBOX_PORT", v)
+		if err != nil {
+			return err
+		}
+		cfg.Navibox.Port = parsed
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_EXPOSURE_MODE")); v != "" {
+		cfg.Navibox.ExposureMode = v
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_AUTH_MODE")); v != "" {
+		cfg.Navibox.AuthMode = v
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_TOKEN")); v != "" {
+		cfg.Navibox.Token = v
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_ALLOW_ORIGINS")); v != "" {
+		cfg.Navibox.AllowOrigins = parseEnvCSV(v)
+	}
+	if v := strings.TrimSpace(os.Getenv("GORMES_NAVIBOX_ALLOWED_TAILNET_IDENTITIES")); v != "" {
+		cfg.Navibox.AllowedTailnetIdentities = parseEnvCSV(v)
+	}
+	if v := os.Getenv("GORMES_NAVIBOX_PUBLIC_CONFIRMED"); v != "" {
+		parsed, err := parseEnvBool("GORMES_NAVIBOX_PUBLIC_CONFIRMED", v)
+		if err != nil {
+			return err
+		}
+		cfg.Navibox.PublicConfirmed = parsed
+	}
 	if v := os.Getenv("GORMES_TEAMS_ENABLED"); v != "" {
 		parsed, err := parseEnvBool("GORMES_TEAMS_ENABLED", v)
 		if err != nil {
@@ -1475,6 +1550,9 @@ func validateConfig(cfg *Config) error {
 	cfg.Gateway.ProxyURL = normalizeGatewayProxyURL(cfg.Gateway.ProxyURL)
 	cfg.Gateway.ProxyKey = strings.TrimSpace(cfg.Gateway.ProxyKey)
 	cfg.Gateway.Platforms = normalizeGatewayPlatformMap(cfg.Gateway.Platforms)
+	if err := normalizeNaviboxConfig(&cfg.Navibox); err != nil {
+		return err
+	}
 	cfg.Agent.ImageInputMode = normalizeAgentImageInputMode(cfg.Agent.ImageInputMode)
 	normalizeAuxiliaryTask(&cfg.Auxiliary.Curator, true)
 	normalizeAuxiliaryTask(&cfg.Auxiliary.Vision, false)
@@ -1542,6 +1620,84 @@ func validateConfig(cfg *Config) error {
 		return fmt.Errorf("config: delegation.max_waiting must be non-negative, got %d", cfg.Delegation.MaxWaiting)
 	}
 	return nil
+}
+
+func normalizeNaviboxConfig(cfg *NaviboxCfg) error {
+	cfg.BindHost = strings.TrimSpace(cfg.BindHost)
+	if cfg.BindHost == "" {
+		cfg.BindHost = NaviboxDefaultBindHost
+	}
+	if cfg.Port == 0 {
+		cfg.Port = NaviboxDefaultPort
+	}
+	cfg.ExposureMode = strings.ToLower(strings.TrimSpace(cfg.ExposureMode))
+	if cfg.ExposureMode == "" {
+		cfg.ExposureMode = NaviboxExposureLocal
+	}
+	cfg.AuthMode = strings.ToLower(strings.TrimSpace(cfg.AuthMode))
+	if cfg.AuthMode == "" {
+		cfg.AuthMode = NaviboxAuthPairingToken
+	}
+	cfg.Token = strings.TrimSpace(cfg.Token)
+	cfg.AllowOrigins = compactStrings(cfg.AllowOrigins)
+	cfg.AllowedTailnetIdentities = compactStrings(cfg.AllowedTailnetIdentities)
+
+	if cfg.Port < 1 || cfg.Port > 65535 {
+		return fmt.Errorf("config: navibox.port must be between 1 and 65535, got %d", cfg.Port)
+	}
+	switch cfg.ExposureMode {
+	case NaviboxExposureLocal, NaviboxExposureTailscale, NaviboxExposurePublic:
+	default:
+		return fmt.Errorf("config: navibox.exposure_mode %q is invalid; want local, tailscale, or public", cfg.ExposureMode)
+	}
+	switch cfg.AuthMode {
+	case NaviboxAuthPairingToken, NaviboxAuthStaticToken:
+		if cfg.Enabled && cfg.Token == "" {
+			return fmt.Errorf("config: navibox.token is required when navibox.enabled=true and auth_mode=%s", cfg.AuthMode)
+		}
+	case NaviboxAuthTailscaleIdentity:
+	default:
+		return fmt.Errorf("config: navibox.auth_mode %q is invalid; want pairing_token, static_token, or tailscale_identity", cfg.AuthMode)
+	}
+	if !cfg.Enabled {
+		return nil
+	}
+	if naviboxWildcardHost(cfg.BindHost) && cfg.ExposureMode != NaviboxExposurePublic {
+		return fmt.Errorf("config: navibox.bind_host %q requires navibox.exposure_mode=public and explicit confirmation", cfg.BindHost)
+	}
+	if cfg.ExposureMode == NaviboxExposureLocal && !naviboxLoopbackHost(cfg.BindHost) {
+		return fmt.Errorf("config: navibox.exposure_mode=local requires loopback bind_host, got %q", cfg.BindHost)
+	}
+	if cfg.ExposureMode == NaviboxExposurePublic && !cfg.PublicConfirmed {
+		return fmt.Errorf("config: navibox.exposure_mode=public requires navibox.public_confirmed=true")
+	}
+	return nil
+}
+
+func ValidateNaviboxForRuntime(cfg *NaviboxCfg) error {
+	return normalizeNaviboxConfig(cfg)
+}
+
+func naviboxLoopbackHost(host string) bool {
+	host = naviboxHostOnly(host)
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func naviboxWildcardHost(host string) bool {
+	host = naviboxHostOnly(host)
+	return host == "" || host == "0.0.0.0" || host == "::" || host == "[::]"
+}
+
+func naviboxHostOnly(raw string) string {
+	host := strings.TrimSpace(raw)
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return strings.Trim(strings.ToLower(host), "[]")
 }
 
 func normalizeAuxiliaryTask(task *AuxiliaryTaskCfg, defaultCurator bool) {

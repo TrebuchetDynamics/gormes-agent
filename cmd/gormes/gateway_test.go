@@ -636,6 +636,50 @@ func TestRegisterConfiguredGatewayChannels_TelegramPerAccountTokens(t *testing.T
 	}
 }
 
+func TestRegisterConfiguredGatewayChannels_NaviboxOnlyWhenEnabled(t *testing.T) {
+	calls := 0
+	factories := gatewayChannelFactories{
+		Navibox: func(cfg config.Config, _ *slog.Logger) (gateway.Channel, error) {
+			calls++
+			return &telegramPerAccountFakeChannel{name: "navibox"}, nil
+		},
+	}
+	mgr := gateway.NewManager(gateway.ManagerConfig{}, nil, slog.Default())
+
+	registered, err := registerConfiguredGatewayChannels(mgr, config.Config{}, map[string]string{}, map[string]bool{}, factories, nil, slog.Default())
+	if err != nil {
+		t.Fatalf("register disabled navibox: %v", err)
+	}
+	if registered != 0 || calls != 0 {
+		t.Fatalf("disabled navibox registered=%d calls=%d, want 0/0", registered, calls)
+	}
+
+	cfg := config.Config{
+		Navibox: config.NaviboxCfg{
+			Enabled:      true,
+			BindHost:     "127.0.0.1",
+			Port:         8765,
+			ExposureMode: "local",
+			AuthMode:     "pairing_token",
+			Token:        "nvbx_test_token",
+		},
+	}
+	registered, err = registerConfiguredGatewayChannels(mgr, cfg, map[string]string{}, map[string]bool{}, factories, nil, slog.Default())
+	if err != nil {
+		t.Fatalf("register enabled navibox: %v", err)
+	}
+	if registered != 1 || calls != 1 {
+		t.Fatalf("enabled navibox registered=%d calls=%d, want 1/1", registered, calls)
+	}
+}
+
+func TestGatewayAllowedUsersIncludesNaviboxSyntheticUser(t *testing.T) {
+	allowed := gatewayAllowedUsers(config.Config{Navibox: config.NaviboxCfg{Enabled: true}})
+	if !allowed["navibox"]["navibox"] {
+		t.Fatalf("gatewayAllowedUsers() = %#v, want navibox synthetic user", allowed)
+	}
+}
+
 type telegramPerAccountFakeChannel struct {
 	name      string
 	accountID string
