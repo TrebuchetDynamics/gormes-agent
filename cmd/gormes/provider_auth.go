@@ -10,6 +10,9 @@ func configuredProviderAuthPresent(cfg config.Config) bool {
 	if strings.TrimSpace(cfg.Hermes.APIKey) != "" {
 		return true
 	}
+	if configuredProviderAPIKeyRefPresent(cfg) {
+		return true
+	}
 	provider := strings.TrimSpace(cfg.Hermes.Provider)
 	if provider == "" {
 		return false
@@ -28,6 +31,14 @@ func configuredProviderAuthPresent(cfg config.Config) bool {
 		}
 	}
 	return false
+}
+
+func configuredProviderAPIKeyRefPresent(cfg config.Config) bool {
+	if cfg.Hermes.APIKeyRef == nil {
+		return false
+	}
+	value, _, err := config.NewSecretResolver(config.SecretResolverConfig{Secrets: cfg.Secrets}).ResolveString(*cfg.Hermes.APIKeyRef)
+	return err == nil && strings.TrimSpace(value) != ""
 }
 
 func pooledCredentialHasUsableAuth(entry config.PooledCredential) bool {

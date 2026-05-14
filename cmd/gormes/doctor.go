@@ -207,12 +207,9 @@ func buildDoctorCmd() *cobra.Command {
 			result := doctor.CheckTools(reg)
 			reporter.Add(result)
 			reporter.Add(doctorWebToolsStatus(cfg))
-			reporter.Add(doctorBrowserRuntimeStatus())
+			reporter.Add(doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{offline: offline}))
 			reporter.Add(doctorACPBridgeStatus())
-			reporter.Add(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
-				Env:             doctorGitHubAuthEnv(),
-				RunGHAuthStatus: doctorGitHubAuthRunner,
-			}))
+			reporter.Add(doctorGitHubAuthStatus(cmd.Context(), offline))
 			reporter.Add(doctorGonchoConfig(cfg))
 
 			runtimeStatus := gateway.RuntimeStatus{}
@@ -373,6 +370,21 @@ func doctorGitHubAuthEnv() map[string]string {
 		"GITHUB_TOKEN": os.Getenv("GITHUB_TOKEN"),
 		"GH_TOKEN":     os.Getenv("GH_TOKEN"),
 	}
+}
+
+func doctorGitHubAuthStatus(ctx context.Context, offline bool) doctor.CheckResult {
+	env := doctorGitHubAuthEnv()
+	if offline && strings.TrimSpace(env["GITHUB_TOKEN"]) == "" && strings.TrimSpace(env["GH_TOKEN"]) == "" {
+		return doctor.CheckResult{
+			Name:    "GitHub auth",
+			Status:  doctor.StatusSkip,
+			Summary: "skipped (--offline; set GITHUB_TOKEN/GH_TOKEN for local token readiness)",
+		}
+	}
+	return doctor.CheckGitHubAuth(ctx, doctor.GitHubAuthOptions{
+		Env:             env,
+		RunGHAuthStatus: doctorGitHubAuthRunner,
+	})
 }
 
 func doctorWebToolsStatus(cfg config.Config) doctor.CheckResult {

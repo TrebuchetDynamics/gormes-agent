@@ -147,6 +147,50 @@ func TestOnboardJSONIncludesFirstRunReadiness(t *testing.T) {
 	}
 }
 
+func TestOnboardJSONIncludesFirstRunReadinessWithSecretRefAuth(t *testing.T) {
+	secret := "sk-onboard-secretref"
+	t.Setenv("GORMES_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("GORMES_PROVIDER_SECRET", secret)
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://provider.example/v1"
+model = "fixture-model"
+
+[hermes.api_key_ref]
+source = "env"
+id = "GORMES_PROVIDER_SECRET"
+`))
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "onboard", "--json")
+	if err != nil {
+		t.Fatalf("onboard --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		AuthConfigured bool `json:"auth_configured"`
+		FirstRun       struct {
+			Ready   bool     `json:"ready"`
+			Target  string   `json:"target"`
+			Missing []string `json:"missing"`
+		} `json:"first_run"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if !got.AuthConfigured {
+		t.Fatalf("auth_configured = false, want true for resolvable API key SecretRef")
+	}
+	if got.FirstRun.Target != "terminal" || !got.FirstRun.Ready || len(got.FirstRun.Missing) != 0 {
+		t.Fatalf("first_run = %+v, want ready terminal with no missing steps", got.FirstRun)
+	}
+	if strings.Contains(stdout+stderr, secret) {
+		t.Fatalf("onboard --json leaked resolved SecretRef value:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
 func TestOnboard_AcceptsOfflineSmokeFlag(t *testing.T) {
 	for _, args := range [][]string{
 		{"onboard", "--offline", "--json"},

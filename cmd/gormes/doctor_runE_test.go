@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 )
 
 // TestDoctorCommand_OfflineRoutedThroughCobra proves that `gormes
@@ -478,6 +480,50 @@ allowed_channel_id = "C123"
 	}
 }
 
+func TestDoctorTargetTerminalReadinessUsesResolvableSecretRefAuth(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	secret := "sk-terminal-secretref"
+	t.Setenv("GORMES_PROVIDER_SECRET", secret)
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://provider.example/v1"
+model = "fixture-model"
+
+[hermes.api_key_ref]
+source = "env"
+id = "GORMES_PROVIDER_SECRET"
+`))
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "terminal", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --target terminal --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Target struct {
+			Name    string   `json:"name"`
+			Ready   bool     `json:"ready"`
+			Missing []string `json:"missing"`
+		} `json:"target"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Target.Name != "terminal" {
+		t.Fatalf("target.name = %q, want terminal", got.Target.Name)
+	}
+	if !got.Target.Ready {
+		t.Fatalf("target.ready = false, want true for resolvable API key SecretRef; target=%+v stdout=%s", got.Target, stdout)
+	}
+	if len(got.Target.Missing) != 0 {
+		t.Fatalf("target.missing = %v, want none", got.Target.Missing)
+	}
+	if strings.Contains(stdout+stderr, secret) {
+		t.Fatalf("doctor target readiness leaked resolved SecretRef value:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
 func TestDoctorInvalidTargetJSONMarksFailed(t *testing.T) {
 	setupOneshotFlagTestEnv(t)
 
@@ -564,6 +610,50 @@ allowed_channel_id = "C123"
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
+	}
+}
+
+func TestDoctorOfflineGitHubAuthDoesNotRunCLIAndStillReportsEnvToken(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		envToken   string
+		wantStatus string
+		wantText   string
+	}{
+		{name: "no env token", wantStatus: `"status": "SKIP"`, wantText: "skipped (--offline"},
+		{name: "env token", envToken: "ghp_offline_secret", wantStatus: `"status": "PASS"`, wantText: "token configured"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupOneshotFlagTestEnv(t)
+			t.Setenv("GITHUB_TOKEN", "")
+			t.Setenv("GH_TOKEN", "")
+			if tc.envToken != "" {
+				t.Setenv("GITHUB_TOKEN", tc.envToken)
+			}
+			called := false
+			prevRunner := doctorGitHubAuthRunner
+			doctorGitHubAuthRunner = func(ctx context.Context) doctor.GitHubAuthStatusResult {
+				called = true
+				t.Fatalf("doctor --offline must not run gh auth status")
+				return doctor.GitHubAuthStatusResult{}
+			}
+			t.Cleanup(func() { doctorGitHubAuthRunner = prevRunner })
+
+			cmd := newRootCommand()
+			stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
+			if err != nil {
+				t.Fatalf("doctor --offline --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+			}
+			if called {
+				t.Fatalf("gh auth runner was called in offline mode")
+			}
+			if tc.envToken != "" && strings.Contains(stdout+stderr, tc.envToken) {
+				t.Fatalf("doctor leaked GitHub token:\nstdout=%s\nstderr=%s", stdout, stderr)
+			}
+			if !strings.Contains(stdout, `"name": "GitHub auth"`) || !strings.Contains(stdout, tc.wantStatus) || !strings.Contains(stdout, tc.wantText) {
+				t.Fatalf("GitHub auth offline report missing status/text %q/%q:\n%s", tc.wantStatus, tc.wantText, stdout)
+			}
+		})
 	}
 }
 
