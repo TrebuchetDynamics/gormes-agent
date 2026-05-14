@@ -22,6 +22,7 @@ var upstreamOverlayProviders = []string{
 	"minimax-cn",
 	"minimax-oauth",
 	"nous",
+	"novita",
 	"nvidia",
 	"ollama-cloud",
 	"openai-codex",
@@ -56,6 +57,7 @@ var upstreamModelsDevProviders = []string{
 	"minimax-cn",
 	"minimax-oauth",
 	"mistral",
+	"novita",
 	"nvidia",
 	"ollama-cloud",
 	"openai",
@@ -119,6 +121,9 @@ var upstreamProviderPrefixes = []string{
 	"nemotron",
 	"nim",
 	"nous",
+	"novita",
+	"novita-ai",
+	"novitaai",
 	"nvidia",
 	"nvidia-nim",
 	"ollama",
@@ -174,6 +179,7 @@ var upstreamAuthProviders = []string{
 	"minimax-cn",
 	"minimax-oauth",
 	"nous",
+	"novita",
 	"nvidia",
 	"ollama-cloud",
 	"openai-codex",
@@ -208,6 +214,7 @@ var upstreamProviderModelProviders = []string{
 	"minimax-oauth",
 	"moonshot",
 	"nous",
+	"novita",
 	"nvidia",
 	"openai",
 	"openai-codex",
@@ -273,6 +280,8 @@ var upstreamProviderAliases = map[string]string{
 	"moonshot":            "kimi-for-coding",
 	"nemotron":            "nvidia",
 	"nim":                 "nvidia",
+	"novita-ai":           "novita",
+	"novitaai":            "novita",
 	"nvidia-nim":          "nvidia",
 	"ollama":              "custom",
 	"openai":              "openrouter",
@@ -379,6 +388,7 @@ func TestHermesProviderRegistryManifestRecordsRequiredMetadata(t *testing.T) {
 		{"minimax-oauth", "anthropic_messages", "oauth_minimax", "row_backed", false},
 		{"copilot-acp", "codex_responses", "external_process", "row_backed", false},
 		{"openrouter", "openai_chat", "api_key", "implemented", true},
+		{"novita-ai", "openai_chat", "api_key", "implemented", true},
 		{"opencode-zen", "openai_chat", "api_key", "implemented", true},
 		{"opencode-go", "openai_chat", "api_key", "implemented", true},
 		{"kilocode", "openai_chat", "api_key", "row_backed", true},
@@ -405,6 +415,11 @@ func TestHermesProviderRegistryManifestRecordsRequiredMetadata(t *testing.T) {
 			if tt.provider == "openrouter" {
 				if !hasString(entry.EnvVars, "OPENROUTER_API_KEY") || !hasString(entry.EnvVars, "OPENAI_API_KEY") {
 					t.Fatalf("OpenRouter EnvVars = %v, want OPENROUTER_API_KEY primary with OPENAI_API_KEY fallback", entry.EnvVars)
+				}
+			}
+			if tt.provider == "novita-ai" {
+				if !hasString(entry.EnvVars, "NOVITA_API_KEY") || entry.BaseURLOverride != "https://api.novita.ai/openai/v1" || entry.BaseURLEnvVar != "NOVITA_BASE_URL" {
+					t.Fatalf("Novita metadata = env=%v base=%q base_env=%q", entry.EnvVars, entry.BaseURLOverride, entry.BaseURLEnvVar)
 				}
 			}
 		})

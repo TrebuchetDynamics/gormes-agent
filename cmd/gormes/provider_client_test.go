@@ -504,6 +504,38 @@ func TestProviderHTTPClient_OpenRouterMissingKeyFailsBeforeRelativeURL(t *testin
 	}
 }
 
+func TestProviderHTTPClient_NovitaAliasUsesCanonicalCredentialPool(t *testing.T) {
+	gormesHome := t.TempDir()
+	t.Setenv("GORMES_HOME", gormesHome)
+	const novitaBaseURL = "https://api.novita.ai/openai/v1"
+	if err := config.SaveCredentialPoolEntries(config.CredentialPoolOptions{Provider: "novita"}, []config.PooledCredential{{
+		ID:               "novita-primary",
+		Label:            "Novita primary",
+		AuthType:         config.CredentialAuthAPIKey,
+		Source:           "manual",
+		AccessToken:      "novita-test-key",
+		BaseURL:          novitaBaseURL,
+		InferenceBaseURL: novitaBaseURL,
+		LastStatus:       config.CredentialStatusOK,
+	}}); err != nil {
+		t.Fatalf("SaveCredentialPoolEntries: %v", err)
+	}
+
+	endpoint, apiKey, err := resolveProviderHTTPClientCredentials(config.Config{Hermes: config.HermesCfg{
+		Model:    "moonshotai/kimi-k2.5",
+		Provider: "novita-ai",
+	}}, "novita-ai")
+	if err != nil {
+		t.Fatalf("resolveProviderHTTPClientCredentials: %v", err)
+	}
+	if endpoint != novitaBaseURL {
+		t.Fatalf("endpoint = %q, want Novita base URL", endpoint)
+	}
+	if apiKey != "novita-test-key" {
+		t.Fatalf("apiKey = %q, want Novita credential pool key", apiKey)
+	}
+}
+
 func TestProviderHTTPClient_CustomOpenRouterBaseUsesOpenRouterKey(t *testing.T) {
 	t.Setenv("GORMES_HOME", t.TempDir())
 	t.Setenv("OPENROUTER_API_KEY", "or-test-key")

@@ -57,6 +57,7 @@ var providerDefaultModelFloor = map[string]string{
 	"kilocode":            "anthropic/claude-opus-4.6",
 	"minimax-cn":          "MiniMax-M2.7",
 	"nous":                "moonshotai/kimi-k2.6",
+	"novita":              "moonshotai/kimi-k2.5",
 	"nvidia":              "nvidia/nemotron-3-super-120b-a12b",
 	"openai":              "gpt-5.4",
 	"openrouter":          "moonshotai/kimi-k2.6",
