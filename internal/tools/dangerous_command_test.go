@@ -66,6 +66,40 @@ func TestDetectDangerous(t *testing.T) {
 	}
 }
 
+func TestDetectDangerousGatewayBackgroundRequiresCommandPosition(t *testing.T) {
+	noMatchCases := []string{
+		`git commit -m "document nohup gateway run"`,
+		`echo nohup gateway run`,
+		`printf '%s\n' 'gateway run &'`,
+	}
+	for _, cmd := range noMatchCases {
+		t.Run("nomatch/"+cmd, func(t *testing.T) {
+			matched, desc := DetectDangerous(cmd)
+			if matched {
+				t.Fatalf("DetectDangerous(%q) matched %q, want false", cmd, desc)
+			}
+		})
+	}
+
+	matchCases := []string{
+		`gateway run &`,
+		`nohup gateway run`,
+		`setsid gormes gateway run`,
+		`true && nohup hermes gateway run`,
+	}
+	for _, cmd := range matchCases {
+		t.Run("match/"+cmd, func(t *testing.T) {
+			matched, desc := DetectDangerous(cmd)
+			if !matched {
+				t.Fatalf("DetectDangerous(%q) matched false, want true", cmd)
+			}
+			if !strings.Contains(strings.ToLower(desc), "gateway") {
+				t.Fatalf("DetectDangerous(%q) description = %q, want gateway background guard", cmd, desc)
+			}
+		})
+	}
+}
+
 func TestGuardCommandHardlineWins(t *testing.T) {
 	result := GuardCommand("rm -rf /", "manual")
 	if !result.Hardline {

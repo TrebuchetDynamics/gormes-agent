@@ -14,6 +14,8 @@ const (
 	sensitiveWriteTarget        = `(?:/etc/|/dev/sd|` + sshSensitivePath + `|` + hermesEnvPath + `)`
 	projectSensitiveWriteTarget = `(?:` + projectEnvPath + `|` + projectConfigPath + `)`
 	commandTail                 = `(?:\s*(?:&&|\|\||;).*)?$`
+	shellCommandStart           = `(?:^|[;&|]\s*|&&\s*|\|\|\s*|\n\s*|\$\(\s*)`
+	gatewayRunCommand           = `(?:hermes\s+|gormes\s+)?gateway\s+run\b`
 )
 
 // DangerousPatterns is the recoverable dangerous-command pattern table,
@@ -57,8 +59,8 @@ var DangerousPatterns = []HardlinePattern{
 	{Regex: `\bfind\b.*-delete\b`, Description: "find -delete"},
 	{Regex: `\bhermes\s+gateway\s+(stop|restart)\b`, Description: "stop/restart hermes gateway (kills running agents)"},
 	{Regex: `\bhermes\s+update\b`, Description: "hermes update (restarts gateway, kills running agents)"},
-	{Regex: `gateway\s+run\b.*(&\s*$|&\s*;|\bdisown\b|\bsetsid\b)`, Description: "start gateway outside systemd (use 'systemctl --user restart hermes-gateway')"},
-	{Regex: `\bnohup\b.*gateway\s+run\b`, Description: "start gateway outside systemd (use 'systemctl --user restart hermes-gateway')"},
+	{Regex: shellCommandStart + gatewayRunCommand + `.*(&\s*$|&\s*;|\bdisown\b|\bsetsid\b)`, Description: "start gateway outside systemd (use 'systemctl --user restart hermes-gateway')"},
+	{Regex: shellCommandStart + `(?:nohup|setsid)\b.*` + gatewayRunCommand, Description: "start gateway outside systemd (use 'systemctl --user restart hermes-gateway')"},
 	{Regex: `\b(pkill|killall)\b.*\b(hermes|gateway|cli\.py)\b`, Description: "kill hermes/gateway process (self-termination)"},
 	{Regex: `\bkill\b.*\$\(\s*pgrep\b`, Description: "kill process via pgrep expansion (self-termination)"},
 	{Regex: "\\bkill\\b.*`\\s*pgrep\\b", Description: "kill process via backtick pgrep expansion (self-termination)"},
