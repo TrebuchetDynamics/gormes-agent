@@ -173,10 +173,16 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 }
 
 func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
-	_ = nonInteractive
-	if target == cli.SetupTargetWhatsApp {
-		fmt.Fprintln(cmd.OutOrStdout(), "WhatsApp setup command: gormes whatsapp")
+	if nonInteractive {
+		if target == cli.SetupTargetWhatsApp {
+			fmt.Fprintln(cmd.OutOrStdout(), "WhatsApp setup command: gormes whatsapp")
+			return nil
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), "Channel setup command: gormes setup gateway")
 		return nil
+	}
+	if target == cli.SetupTargetWhatsApp {
+		return seams.RunWhatsAppSetup(cmd)
 	}
 	return seams.RunGatewayPlatform(cmd, string(target))
 }

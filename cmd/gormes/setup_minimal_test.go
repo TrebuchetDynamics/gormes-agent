@@ -29,6 +29,7 @@ type setupCommandFakeSeams struct {
 	runFullWizard       func(*cobra.Command, bool) error
 	runSetupGateway     func(*cobra.Command, bool) error
 	runGatewayPlatform  func(*cobra.Command, string) error
+	runWhatsAppSetup    func(*cobra.Command) error
 	detectHermes        func() string
 	detectOpenClaw      func() string
 }
@@ -69,6 +70,7 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 		RunFullWizard:                 f.runFullWizard,
 		RunSetupGateway:               f.runSetupGateway,
 		RunGatewayPlatform:            f.runGatewayPlatform,
+		RunWhatsAppSetup:              f.runWhatsAppSetup,
 		DetectHermesMigrationSource:   detectHermes,
 		DetectOpenClawMigrationSource: detectOpenClaw,
 	}

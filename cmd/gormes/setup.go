@@ -74,6 +74,7 @@ type setupCommandSeams struct {
 	RunSetupGateway               func(*cobra.Command, bool) error
 	RunSetupTools                 func(*cobra.Command, bool) error
 	RunGatewayPlatform            func(*cobra.Command, string) error
+	RunWhatsAppSetup              func(*cobra.Command) error
 	LaunchChat                    func(*cobra.Command) error
 }
 
@@ -149,8 +150,13 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	if seams.RunSetupTools == nil {
 		seams.RunSetupTools = runSetupToolsSection
 	}
+	if seams.RunWhatsAppSetup == nil {
+		seams.RunWhatsAppSetup = runSetupWhatsAppCommand
+	}
 	if seams.RunGatewayPlatform == nil {
-		seams.RunGatewayPlatform = runSetupGatewayPlatformRowBacked
+		seams.RunGatewayPlatform = func(cmd *cobra.Command, platform string) error {
+			return runSetupGatewayPlatform(cmd, platform, seams.RunWhatsAppSetup)
+		}
 	}
 	if seams.LaunchChat == nil {
 		seams.LaunchChat = launchSetupChat
@@ -1194,8 +1200,8 @@ func setupGatewayPlatformOptions(cfg config.Config) []setupGatewayPlatformOption
 		manifestByID[entry.ID] = entry
 	}
 
-	out := make([]setupGatewayPlatformOption, 0, 4)
-	for _, key := range []string{"telegram", "discord", "slack", "navibox"} {
+	out := make([]setupGatewayPlatformOption, 0, 5)
+	for _, key := range []string{"telegram", "discord", "slack", "whatsapp", "navibox"} {
 		label := setupGatewayPlatformFallbackLabel(key)
 		if entry, ok := manifestByID[key]; ok && strings.TrimSpace(entry.DisplayName) != "" {
 			label = entry.DisplayName
@@ -1219,6 +1225,8 @@ func setupGatewayPlatformFallbackLabel(key string) string {
 		return "Discord"
 	case "slack":
 		return "Slack"
+	case "whatsapp":
+		return "WhatsApp"
 	case "navibox":
 		return "Navibox"
 	default:
@@ -1271,6 +1279,165 @@ func parseSetupGatewaySelection(input string, options []setupGatewayPlatformOpti
 
 func runSetupGatewayPlatformRowBacked(cmd *cobra.Command, platform string) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "setup_gateway_platform_row_backed: platform=%s recommended_command=\"gormes setup gateway\"\n", platform)
+	return nil
+}
+
+func runSetupGatewayPlatform(cmd *cobra.Command, platform string, runWhatsAppSetup func(*cobra.Command) error) error {
+	switch normalizeSetupChoice(platform) {
+	case "telegram":
+		return runSetupTelegramGatewayPlatform(cmd)
+	case "discord":
+		return runSetupDiscordGatewayPlatform(cmd)
+	case "slack":
+		return runSetupSlackGatewayPlatform(cmd)
+	case "whatsapp":
+		return runWhatsAppSetup(cmd)
+	default:
+		return runSetupGatewayPlatformRowBacked(cmd, platform)
+	}
+}
+
+func runSetupWhatsAppCommand(cmd *cobra.Command) error {
+	whatsAppCmd := newWhatsAppCommand()
+	whatsAppCmd.SetOut(cmd.OutOrStdout())
+	whatsAppCmd.SetErr(cmd.ErrOrStderr())
+	whatsAppCmd.SetIn(cmd.InOrStdin())
+	whatsAppCmd.SetArgs([]string{})
+	whatsAppCmd.SilenceUsage = true
+	whatsAppCmd.SilenceErrors = true
+	return whatsAppCmd.ExecuteContext(cmd.Context())
+}
+
+func runSetupTelegramGatewayPlatform(cmd *cobra.Command) error {
+	out := cmd.OutOrStdout()
+	token, err := promptSecret(cmd, "Telegram bot token (stored in .env, blank to keep current): ")
+	if err != nil {
+		return err
+	}
+	if token != "" {
+		envName := config.SecretEnvName("telegram.bot_token")
+		if err := config.WriteEnvValue(config.EnvPath(), envName, token); err != nil {
+			return fmt.Errorf("setup telegram: write token: %w", err)
+		}
+		if err := os.Setenv(envName, token); err != nil {
+			return fmt.Errorf("setup telegram: activate token: %w", err)
+		}
+	}
+
+	chatID, err := promptString(cmd, "Allowed chat ID (blank for first-run discovery): ", "")
+	if err != nil {
+		return err
+	}
+	chatID = strings.TrimSpace(chatID)
+	if chatID == "" {
+		if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.first_run_discovery", "true"); err != nil {
+			return fmt.Errorf("setup telegram: write discovery config: %w", err)
+		}
+		fmt.Fprintln(out, "Telegram gateway channel configured for first-run discovery.")
+		return nil
+	}
+	if _, err := strconv.ParseInt(chatID, 10, 64); err != nil {
+		return newExitCodeError(2, fmt.Errorf("setup telegram: invalid allowed chat ID"))
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.allowed_chat_id", chatID); err != nil {
+		return fmt.Errorf("setup telegram: write allowed chat ID: %w", err)
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "telegram.first_run_discovery", "false"); err != nil {
+		return fmt.Errorf("setup telegram: write discovery config: %w", err)
+	}
+	fmt.Fprintln(out, "Telegram gateway channel configured.")
+	return nil
+}
+
+func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
+	out := cmd.OutOrStdout()
+	token, err := promptSecret(cmd, "Discord bot token (stored in .env, blank to keep current): ")
+	if err != nil {
+		return err
+	}
+	if token != "" {
+		envName := config.SecretEnvName("discord.token")
+		if err := config.WriteEnvValue(config.EnvPath(), envName, token); err != nil {
+			return fmt.Errorf("setup discord: write token: %w", err)
+		}
+		if err := os.Setenv(envName, token); err != nil {
+			return fmt.Errorf("setup discord: activate token: %w", err)
+		}
+	}
+
+	channelID, err := promptString(cmd, "Allowed channel ID (blank for first-run discovery): ", "")
+	if err != nil {
+		return err
+	}
+	channelID = strings.TrimSpace(channelID)
+	if channelID == "" {
+		if err := config.WriteTOMLValue(config.ConfigPath(), "discord.first_run_discovery", "true"); err != nil {
+			return fmt.Errorf("setup discord: write discovery config: %w", err)
+		}
+		fmt.Fprintln(out, "Discord gateway channel configured for first-run discovery.")
+		return nil
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "discord.allowed_channel_id", channelID); err != nil {
+		return fmt.Errorf("setup discord: write allowed channel ID: %w", err)
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "discord.first_run_discovery", "false"); err != nil {
+		return fmt.Errorf("setup discord: write discovery config: %w", err)
+	}
+	fmt.Fprintln(out, "Discord gateway channel configured.")
+	return nil
+}
+
+func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
+	out := cmd.OutOrStdout()
+	botToken, err := promptSecret(cmd, "Slack bot token (xoxb, stored in .env, blank to keep current): ")
+	if err != nil {
+		return err
+	}
+	if botToken != "" {
+		envName := config.SecretEnvName("slack.bot_token")
+		if err := config.WriteEnvValue(config.EnvPath(), envName, botToken); err != nil {
+			return fmt.Errorf("setup slack: write bot token: %w", err)
+		}
+		if err := os.Setenv(envName, botToken); err != nil {
+			return fmt.Errorf("setup slack: activate bot token: %w", err)
+		}
+	}
+	appToken, err := promptSecret(cmd, "Slack app token (xapp, stored in .env, blank to keep current): ")
+	if err != nil {
+		return err
+	}
+	if appToken != "" {
+		envName := config.SecretEnvName("slack.app_token")
+		if err := config.WriteEnvValue(config.EnvPath(), envName, appToken); err != nil {
+			return fmt.Errorf("setup slack: write app token: %w", err)
+		}
+		if err := os.Setenv(envName, appToken); err != nil {
+			return fmt.Errorf("setup slack: activate app token: %w", err)
+		}
+	}
+
+	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.enabled", "true"); err != nil {
+		return fmt.Errorf("setup slack: write enabled config: %w", err)
+	}
+	channelID, err := promptString(cmd, "Allowed channel ID (blank for first-run discovery): ", "")
+	if err != nil {
+		return err
+	}
+	channelID = strings.TrimSpace(channelID)
+	if channelID == "" {
+		if err := config.WriteTOMLValue(config.ConfigPath(), "slack.first_run_discovery", "true"); err != nil {
+			return fmt.Errorf("setup slack: write discovery config: %w", err)
+		}
+		fmt.Fprintln(out, "Slack gateway channel configured for first-run discovery.")
+		return nil
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.allowed_channel_id", channelID); err != nil {
+		return fmt.Errorf("setup slack: write allowed channel ID: %w", err)
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.first_run_discovery", "false"); err != nil {
+		return fmt.Errorf("setup slack: write discovery config: %w", err)
+	}
+	fmt.Fprintln(out, "Slack gateway channel configured.")
 	return nil
 }
 
