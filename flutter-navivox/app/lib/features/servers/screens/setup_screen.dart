@@ -2,16 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/channel/fake_navivox_channel.dart';
+import '../../../core/channel/navivox_channel_provider.dart';
+import '../../../core/gateway/navibox_gateway_protocol.dart';
 import '../../../router/app_routes.dart';
 import '../../keys/providers/key_store_providers.dart';
 import '../../keys/services/key_store.dart';
 
-class SetupScreen extends ConsumerWidget {
+class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SetupScreen> createState() => _SetupScreenState();
+}
+
+class _SetupScreenState extends ConsumerState<SetupScreen> {
+  final _baseUrlController = TextEditingController(
+    text: 'http://127.0.0.1:8765',
+  );
+  final _tokenController = TextEditingController();
+  bool _connecting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _baseUrlController.dispose();
+    _tokenController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final serverStore = ref.watch(serverStoreProvider);
 
     return Scaffold(
@@ -32,13 +52,48 @@ class SetupScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Start with fake local protocol state while the stdio server '
-                    'contract is being implemented.',
+                    'Connect to the native Gormes gateway over HTTP/WebSocket, '
+                    'or use fake local protocol state for UI development.',
                   ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _baseUrlController,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Gateway base URL',
+                    ),
+                    keyboardType: TextInputType.url,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _tokenController,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      labelText: 'Pairing token',
+                    ),
+                    obscureText: true,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _connecting ? null : _connectGateway,
+                    icon: _connecting
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.hub),
+                    label: const Text('Connect to Gormes gateway'),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_error!, style: const TextStyle(color: Colors.red)),
+                  ],
                   const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: () {
-                      ref.read(fakeNavivoxChannelProvider).enterFakeServerMode();
+                      ref
+                          .read(activeNavivoxChannelProvider)
+                          .enterFakeServerMode();
                       context.go(AppRoutes.chats);
                     },
                     icon: const Icon(Icons.offline_bolt),
@@ -80,5 +135,27 @@ class SetupScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _connectGateway() async {
+    setState(() {
+      _connecting = true;
+      _error = null;
+    });
+    try {
+      final config = NaviboxGatewayConfig.fromBaseUrl(
+        _baseUrlController.text.trim(),
+        token: _tokenController.text.trim(),
+      );
+      await ref.read(gatewayNaviboxChannelProvider).connect(config);
+      ref.read(activeNavivoxChannelProvider).useGateway();
+      if (mounted) context.go(AppRoutes.chats);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not connect to Gormes gateway.');
+      }
+    } finally {
+      if (mounted) setState(() => _connecting = false);
+    }
   }
 }

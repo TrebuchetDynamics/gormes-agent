@@ -56,8 +56,10 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
         if (_captureError != null)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(_captureError!,
-                style: const TextStyle(color: Colors.red)),
+            child: Text(
+              _captureError!,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         SafeArea(
           top: false,
@@ -70,7 +72,7 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
                     controller: _controller,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      hintText: 'Message fake Navivox',
+                      hintText: 'Message Gormes',
                     ),
                     onSubmitted: _send,
                   ),
@@ -119,7 +121,9 @@ class _SimpleChatAdapterState extends State<SimpleChatAdapter> {
       _captureError = null;
     });
     try {
-      final capture = await service.capture(timeout: widget.voiceCaptureTimeout);
+      final capture = await service.capture(
+        timeout: widget.voiceCaptureTimeout,
+      );
       if (!mounted) return;
       widget.onVoice?.call(capture);
     } on VoiceCaptureTimeout {
@@ -212,8 +216,10 @@ class _ToolCallBody extends StatelessWidget {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(artifact.kind,
-                    style: Theme.of(context).textTheme.labelSmall),
+                Text(
+                  artifact.kind,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
                 if (artifact.summary != null) Text(artifact.summary!),
               ],
             ),
