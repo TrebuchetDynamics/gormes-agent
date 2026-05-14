@@ -132,7 +132,11 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 	if err := runSetupQuickCore(cmd, seams, nonInteractive); err != nil {
 		return err
 	}
-	if isSetupQuickChannelTarget(target) {
+	plan, err = buildFirstRunPlanForSetupQuickTarget(target, !nonInteractive)
+	if err != nil {
+		return err
+	}
+	if _, missingChannel := plan.Step(cli.FirstRunStepChannel); missingChannel && isSetupQuickChannelTarget(target) {
 		if err := runSetupQuickChannel(cmd, seams, target, nonInteractive); err != nil {
 			return err
 		}
@@ -143,6 +147,14 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 		return newExitCodeError(1, redactedSetupQuickLiveTestError(err))
 	}
 	return runSetupQuickHandoff(cmd, seams, target, nonInteractive)
+}
+
+func buildFirstRunPlanForSetupQuickTarget(target cli.SetupTargetID, interactive bool) (cli.FirstRunPlan, error) {
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return cli.FirstRunPlan{}, fmt.Errorf("quick setup: load config: %w", err)
+	}
+	return buildFirstRunPlanFromConfig(cfg, target, interactive), nil
 }
 
 func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {

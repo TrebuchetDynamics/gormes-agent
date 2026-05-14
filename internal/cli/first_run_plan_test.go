@@ -195,14 +195,14 @@ func TestBuildFirstRunPlan_ChannelTargetIncludesChannelStep(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing channel step: %#v", plan.MissingSteps)
 	}
-	if step.Command != "gormes whatsapp" {
-		t.Fatalf("channel Command = %q, want WhatsApp setup command", step.Command)
+	if step.Command != "gormes whatsapp --plan" {
+		t.Fatalf("channel Command = %q, want safe WhatsApp setup plan command", step.Command)
 	}
 	if !strings.Contains(step.Detail, "WhatsApp") {
 		t.Fatalf("channel Detail = %q, want selected channel label", step.Detail)
 	}
-	if plan.NextCommand != "gormes whatsapp" {
-		t.Fatalf("NextCommand = %q, want WhatsApp setup", plan.NextCommand)
+	if plan.NextCommand != "gormes whatsapp --plan" {
+		t.Fatalf("NextCommand = %q, want safe WhatsApp setup plan", plan.NextCommand)
 	}
 
 	channelConfiguredCoreMissing := BuildFirstRunPlan(FirstRunPlanInput{
@@ -285,8 +285,8 @@ func TestBuildFirstRunPlan_NonTTYGivesExactCommands(t *testing.T) {
 	if !ok {
 		t.Fatalf("missing channel step: %#v", plan.MissingSteps)
 	}
-	if channel.Command != "gormes whatsapp" {
-		t.Fatalf("channel Command = %q, want WhatsApp setup command", channel.Command)
+	if channel.Command != "gormes whatsapp --plan" {
+		t.Fatalf("channel Command = %q, want safe WhatsApp setup plan command", channel.Command)
 	}
 	if strings.Contains(strings.ToLower(plan.Summary), "prompt") {
 		t.Fatalf("Summary = %q, non-interactive plan must not imply prompting", plan.Summary)

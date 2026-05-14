@@ -730,7 +730,7 @@ model = "gpt-4o-mini"
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
 	for _, want := range []string{
-		"WhatsApp setup command: gormes whatsapp",
+		"WhatsApp setup command: gormes whatsapp --plan",
 		"Channel setup checked. Start messaging with: gormes gateway",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -746,6 +746,12 @@ func TestSetupQuickNonInteractiveTelegramTargetPrintsCommandWithoutPrompting(t *
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
 	t.Setenv("GORMES_API_KEY", "sk-telegram-noninteractive-test")
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "")
+	t.Setenv("TELEGRAM_CHAT_ID", "")
 	writeSetupGatewayFixtureConfig(t, `
 [hermes]
 provider = "openai"
@@ -783,6 +789,61 @@ model = "gpt-4o-mini"
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
+	}
+	if got, want := strings.Join(events, ","), "live-test"; got != want {
+		t.Fatalf("events = %s, want %s", got, want)
+	}
+}
+
+func TestSetupQuickTelegramTargetSkipsConfiguredChannelSetup(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_API_KEY", "sk-telegram-ready-test")
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "")
+	t.Setenv("TELEGRAM_CHAT_ID", "")
+	writeSetupGatewayFixtureConfig(t, `
+[hermes]
+provider = "openai"
+endpoint = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+
+[telegram]
+bot_token = "123456:ready-token"
+allowed_chat_id = 4242
+`)
+
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: "openai", Model: "gpt-4o-mini"},
+	}
+	seams := fake.seams()
+	seams.RunGatewayPlatform = func(*cobra.Command, string) error {
+		t.Fatal("quick Telegram target prompted for already configured platform setup")
+		return nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		events = append(events, "live-test")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		t.Fatal("quick Telegram target launched chat/TUI")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick", "--target", "telegram")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if strings.Contains(stdout, "Channel setup command:") {
+		t.Fatalf("stdout included channel setup guidance for configured Telegram:\n%s", stdout)
+	}
+	if !strings.Contains(stdout, "Channel setup checked. Start messaging with: gormes gateway") {
+		t.Fatalf("stdout missing channel handoff:\n%s", stdout)
 	}
 	if got, want := strings.Join(events, ","), "live-test"; got != want {
 		t.Fatalf("events = %s, want %s", got, want)

@@ -224,7 +224,7 @@ func TestSetupQuickNonInteractivePrintsTargetCommands(t *testing.T) {
 		"Quick setup targets:",
 		"gormes setup --quick --target terminal",
 		"gormes setup --quick --target telegram",
-		"gormes whatsapp",
+		"gormes whatsapp --plan",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)

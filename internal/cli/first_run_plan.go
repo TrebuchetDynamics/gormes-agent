@@ -397,7 +397,7 @@ func setupTargetLabel(id SetupTargetID) string {
 func defaultSetupCommand(id SetupTargetID) string {
 	id = normalizeSetupTarget(id)
 	if id == SetupTargetWhatsApp {
-		return "gormes whatsapp"
+		return "gormes whatsapp --plan"
 	}
 	return quickSetupCommand(id)
 }

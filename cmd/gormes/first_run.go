@@ -73,7 +73,7 @@ func firstRunChannelStates(cfg config.Config) []cli.ChannelState {
 			Label:          "WhatsApp",
 			Configured:     strings.EqualFold(strings.TrimSpace(os.Getenv("WHATSAPP_ENABLED")), "true"),
 			Detail:         "WhatsApp channel",
-			SetupCommand:   "gormes whatsapp",
+			SetupCommand:   "gormes whatsapp --plan",
 			HandoffCommand: "gormes gateway",
 		},
 		{
