@@ -158,6 +158,8 @@ func TestSetupEntryMode_FreshInstallPromptsQuickVsFull(t *testing.T) {
 }
 
 func TestSetupQuickPromptsTargetBeforeProviderWork(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
 	var events []string
 	fake := &setupCommandFakeSeams{
 		isTTY:   true,
@@ -170,6 +172,11 @@ func TestSetupQuickPromptsTargetBeforeProviderWork(t *testing.T) {
 			t.Fatalf("targets=%#v default=%d, want terminal default", targets, defaultOption)
 		}
 		return cli.SetupTargetTerminal, nil
+	}
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		events = append(events, "provider")
+		fake.current = cli.ProviderModel{Provider: "openai-codex", Model: " "}
+		return nil
 	}
 	seams.RunModelPicker = func(*cobra.Command) error {
 		events = append(events, "model")
@@ -188,7 +195,7 @@ func TestSetupQuickPromptsTargetBeforeProviderWork(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	if got, want := strings.Join(events, ","), "target,model,live-test,chat"; got != want {
+	if got, want := strings.Join(events, ","), "target,provider,model,live-test,chat"; got != want {
 		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
 	}
 }

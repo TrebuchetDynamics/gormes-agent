@@ -142,6 +142,16 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 	out := cmd.OutOrStdout()
 	cli.ClearScreen(out)
 	cli.PrintHeader(out, "Quick Setup - configure missing items only")
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("quick setup: load config: %w", err)
+	}
+	if strings.TrimSpace(cfg.Hermes.Endpoint) == "" || !configuredProviderAuthPresent(cfg) {
+		fmt.Fprintln(out, "Provider endpoint or auth is missing.")
+		if err := seams.RunSetupProvider(cmd, nonInteractive); err != nil {
+			return err
+		}
+	}
 	current, err := seams.LoadCurrentModel()
 	if err != nil {
 		return fmt.Errorf("quick setup: load current model: %w", err)

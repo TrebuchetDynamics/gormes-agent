@@ -66,6 +66,7 @@ type setupCommandSeams struct {
 	LoadCurrentModel              func() (cli.ProviderModel, error)
 	ChooseSetupAction             func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
 	ChooseSetupTarget             func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
+	RunSetupProvider              func(*cobra.Command, bool) error
 	RunProviderLiveTest           func(*cobra.Command) error
 	DetectHermesMigrationSource   func() string
 	DetectOpenClawMigrationSource func() string
@@ -130,6 +131,11 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	}
 	if seams.ChooseSetupTarget == nil {
 		seams.ChooseSetupTarget = promptSetupTarget
+	}
+	if seams.RunSetupProvider == nil {
+		seams.RunSetupProvider = func(cmd *cobra.Command, nonInteractive bool) error {
+			return runSetupProviderSection(cmd, seams, nonInteractive)
+		}
 	}
 	if seams.RunProviderLiveTest == nil {
 		seams.RunProviderLiveTest = runSetupProviderLiveTest
@@ -840,7 +846,7 @@ func writeProviderConfig(cmd *cobra.Command, provider, endpoint, apiKey, model s
 		fmt.Fprintf(out, "Provider: %s\n", provider)
 	}
 	fmt.Fprintf(out, "Endpoint: %s\n", endpoint)
-	fmt.Fprintf(out, "API key:  %s***%s\n", apiKey[:min(4, len(apiKey))], apiKey[max(len(apiKey)-4, 0):])
+	fmt.Fprintln(out, "API key:  stored (redacted)")
 	if model != "" {
 		fmt.Fprintf(out, "Model:    %s\n", model)
 	}
