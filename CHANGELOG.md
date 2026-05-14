@@ -8,6 +8,30 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.10] - 2026-05-14
+
+Date alias: `v2026.5.14`.
+
+> **Native Navibox gateway channel over private HTTP/WebSocket transport.**
+
+### Added
+- Native `navibox` gateway channel owned by `gormes gateway`, with HTTP status
+  routes, WebSocket streaming, typed JSON messages, bearer-token auth, safe
+  metadata logging, and no raw shell endpoint.
+- Setup support for enabling the Navibox channel, choosing local/Tailscale/public
+  exposure, bind host, port, auth mode, pairing token generation, and explicit
+  firewall intent without silently changing firewall rules.
+- Flutter Navibox gateway client, active fake/gateway channel switcher, setup
+  screen connection fields, and chat streaming over the native gateway.
+- Navibox gateway runbook covering trust boundaries, setup, Tailscale mode,
+  firewall examples and rollback, endpoints, and smoke tests.
+
+### Security
+- Navibox is disabled by default and binds to loopback by default.
+- Public exposure requires both `navibox.exposure_mode = "public"` and
+  `navibox.public_confirmed = true`.
+- `navibox.token` is routed to `GORMES_NAVIBOX_TOKEN` instead of committed TOML.
+
 ## [0.2.9] - 2026-05-13
 
 Date alias: `v2026.5.13`.
@@ -886,7 +910,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.9...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.10...HEAD
+[0.2.10]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.6...v0.2.7
