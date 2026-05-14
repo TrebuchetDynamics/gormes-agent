@@ -1,7 +1,7 @@
 # Hermes Source Pairs
 
-- Hermes SHA: `26933c2f592bda25df735c555620a2a978cfefb6`
-- Current checkout SHA: `26933c2f592bda25df735c555620a2a978cfefb6`
+- Hermes SHA: `78b842c995d70fccb7fd1113f85e766c1483e562`
+- Current checkout SHA: `78b842c995d70fccb7fd1113f85e766c1483e562`
 - Source pairs: `13`
 
 ## Status Counts
