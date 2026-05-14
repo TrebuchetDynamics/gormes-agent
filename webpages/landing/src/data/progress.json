@@ -17388,8 +17388,8 @@
                 "TestIdentityLoader_SkipSoul proves skip_soul flag suppresses identity injection",
                 "TestIdentityLoader_SoulMdBlocked proves blocked SOUL.md falls back to default identity",
                 "TestIdentityLoader_Pure proves no filesystem access outside temp fixtures in tests",
-                "TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormesIdentity proves the built-in default is a source-paired port of Hermes DEFAULT_SOUL_MD with only the intentional Gormes identity substitution",
-                "TestDefaultSoulMDOwnsGormesIdentityBoundary proves the fallback identity reuses DefaultSoulMD and does not leak upstream-only Hermes/Nous identity markers"
+                "TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona proves the built-in default is a source-paired port of Hermes DEFAULT_SOUL_MD with only the intentional Gorm persona and gormes runtime substitution",
+                "TestDefaultSoulMDOwnsGormPersonaBoundary proves the fallback identity reuses DefaultSoulMD, names Gorm as the editable default persona, names gormes as the runtime, and does not leak upstream-only Hermes/Nous or old Gormes Agent persona markers"
               ],
               "write_scope": [
                 "internal/hermes/default_soul.go",
@@ -17413,8 +17413,8 @@
                   "Reuses existing loadSoulContext from internal/hermes/context_files.go for scanning and truncation"
                 ],
                 "tests": [
-                  "internal/hermes/default_soul_test.go:TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormesIdentity",
-                  "internal/hermes/default_soul_test.go:TestDefaultSoulMDOwnsGormesIdentityBoundary",
+                  "internal/hermes/default_soul_test.go:TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona",
+                  "internal/hermes/default_soul_test.go:TestDefaultSoulMDOwnsGormPersonaBoundary",
                   "internal/hermes/identity_loader_test.go:TestIdentityLoader_LoadsSoulMd",
                   "internal/hermes/identity_loader_test.go:TestIdentityLoader_Fallback",
                   "internal/hermes/identity_loader_test.go:TestIdentityLoader_SkipSoul",
@@ -42346,9 +42346,10 @@
                 "TestTelegramProductionProviderPayloadUsesRuntimeSeededAgentTemplates proves a clean Telegram runtime workspace sends seeded SOUL.md, AGENTS.md, IDENTITY.md, TOOLS.md, USER.md, and MEMORY.md context to the provider before the user message.",
                 "TestContextFilesLoadsGormesOperationalTemplates proves Gormes-owned IDENTITY.md and TOOLS.md are loaded additively after the Hermes-compatible winning project context.",
                 "TestAgentTemplatePairManifestCoversDefaultFiles proves every fresh-install template has an executable source/rationale classification as either Hermes-covered or an explicit Gormes-owned divergence.",
-                "TestAgentTemplatePairManifestValidatesSourceReferences proves the manifest rejects stale Hermes/Gormes source paths instead of accepting unverifiable template-pair evidence."
+                "TestAgentTemplatePairManifestValidatesSourceReferences proves the manifest rejects stale Hermes/Gormes source paths instead of accepting unverifiable template-pair evidence.",
+                "TestAgentTemplateDefaultFilesAreFreshInstallReady proves seeded AGENTS.md is a workspace contract for agents run by `gormes`, while seeded IDENTITY.md uses Gorm as the editable default persona and gormes as the runtime."
               ],
-              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths. The 2026-05-14 parity refactor split the starter template data into internal/agenttemplate/default_templates.go and made SOUL.md consume internal/hermes.DefaultSoulMD, which is source-paired to Hermes hermes_cli/default_soul.py. The 2026-05-14 manifest-gate pass added internal/agenttemplate/parity_manifest.go so any future fresh-install template must be classified with Hermes sources, Gormes sources, and covered/owned-divergence rationale. The 2026-05-14 source-validation pass added ValidateTemplatePairs so those source references must resolve to real checked-out files and stale paths fail focused tests.",
+              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths. The 2026-05-14 parity refactor split the starter template data into internal/agenttemplate/default_templates.go and made SOUL.md consume internal/hermes.DefaultSoulMD, which is source-paired to Hermes hermes_cli/default_soul.py. The 2026-05-14 manifest-gate pass added internal/agenttemplate/parity_manifest.go so any future fresh-install template must be classified with Hermes sources, Gormes sources, and covered/owned-divergence rationale. The 2026-05-14 source-validation pass added ValidateTemplatePairs so those source references must resolve to real checked-out files and stale paths fail focused tests. The 2026-05-14 persona-boundary pass split naming so `gormes` remains the runtime/binary, `Gorm` is only the default editable persona in SOUL.md and IDENTITY.md, and AGENTS.md stays persona-neutral as a workspace contract for agents run by `gormes`.",
               "write_scope": [
                 "cmd/gormes/agent.go",
                 "cmd/gormes/agent_reset_test.go",

@@ -38,7 +38,7 @@ func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
 	if soul := got["SOUL.md"].Content; !strings.HasPrefix(soul, hermes.DefaultSoulMD) {
 		t.Fatalf("SOUL.md template must start with hermes.DefaultSoulMD\n--- got ---\n%s\n--- want prefix ---\n%s", soul, hermes.DefaultSoulMD)
 	}
-	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "Gormes Agent") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
+	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "You are Gorm,") || !strings.Contains(soul, "run by gormes") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
 		t.Fatalf("SOUL.md template does not carry the Hermes-derived persona defaults:\n%s", soul)
 	}
 }
@@ -58,6 +58,7 @@ func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
 			"secrets",
 		},
 		"AGENTS.md": {
+			"agents run by `gormes`",
 			"## How To Work Here",
 			"## Git And Files",
 			"Do not discard user changes",
@@ -65,6 +66,8 @@ func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
 		},
 		"IDENTITY.md": {
 			"## Agent",
+			"Name: Gorm",
+			"Runtime: gormes",
 			"## Workspace",
 			"## Update Rules",
 			"Do not store secrets",
@@ -102,6 +105,8 @@ func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
 		"active Gormes development environment",
 		"This workspace is for Gormes development",
 		"progress.json contract before broad assumptions",
+		"Gormes agents",
+		"Name: Gormes Agent",
 	} {
 		if strings.Contains(combined, forbidden) {
 			t.Fatalf("fresh-install templates contain stale project-specific guidance %q:\n%s", forbidden, combined)
@@ -264,7 +269,7 @@ func TestAgentTemplateApplyForceOverwritesExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read SOUL.md: %v", err)
 	}
-	if strings.Contains(string(body), "custom persona") || !strings.Contains(string(body), "Gormes Agent") {
+	if strings.Contains(string(body), "custom persona") || !strings.Contains(string(body), "You are Gorm,") {
 		t.Fatalf("SOUL.md was not overwritten with the default template:\n%s", body)
 	}
 }

@@ -30,7 +30,7 @@ var defaultFiles = []FileTemplate{
 		Path: "AGENTS.md",
 		Content: `# AGENTS.md
 
-This file is the workspace contract for Gormes agents. Edit it to match this project before relying on it for long-running work.
+This file is the workspace contract for agents run by ` + "`gormes`" + `. Edit it to match this project before relying on it for long-running work.
 
 ## How To Work Here
 
@@ -56,7 +56,8 @@ Use this file for stable identity and workspace facts that should shape every tu
 
 ## Agent
 
-- Name: Gormes Agent
+- Name: Gorm
+- Runtime: gormes
 - Role: local assistant for this workspace
 - Default behavior: direct, evidence-backed, tool-capable, and careful with user data
 

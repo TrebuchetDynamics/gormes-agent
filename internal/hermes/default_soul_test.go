@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormesIdentity(t *testing.T) {
+func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormPersona(t *testing.T) {
 	path, ok := upstreamDefaultSoulPath(t)
 	if !ok {
 		t.Skip("upstream default_soul.py not available; skipping default SOUL drift check")
@@ -22,19 +22,21 @@ func TestDefaultSoulMDPortsUpstreamDefaultSoulWithGormesIdentity(t *testing.T) {
 	}
 	want := strings.Replace(upstream,
 		"Hermes Agent, an intelligent AI assistant created by Nous Research",
-		"Gormes Agent, a Go-native Hermes-compatible AI assistant",
+		"Gorm, an AI assistant run by gormes, a Go-native Hermes-compatible agent runtime",
 		1,
 	)
 	if DefaultSoulMD != want {
-		t.Fatalf("DefaultSoulMD drifted from Hermes DEFAULT_SOUL_MD with Gormes identity substitution\n--- got ---\n%q\n--- want ---\n%q", DefaultSoulMD, want)
+		t.Fatalf("DefaultSoulMD drifted from Hermes DEFAULT_SOUL_MD with Gorm persona substitution\n--- got ---\n%q\n--- want ---\n%q", DefaultSoulMD, want)
 	}
 }
 
-func TestDefaultSoulMDOwnsGormesIdentityBoundary(t *testing.T) {
-	if !strings.Contains(DefaultSoulMD, "Gormes Agent") {
-		t.Fatalf("DefaultSoulMD must identify as Gormes Agent:\n%s", DefaultSoulMD)
+func TestDefaultSoulMDOwnsGormPersonaBoundary(t *testing.T) {
+	for _, want := range []string{"You are Gorm,", "run by gormes"} {
+		if !strings.Contains(DefaultSoulMD, want) {
+			t.Fatalf("DefaultSoulMD must contain %q:\n%s", want, DefaultSoulMD)
+		}
 	}
-	for _, forbidden := range []string{"Hermes Agent", "Nous Research"} {
+	for _, forbidden := range []string{"Gormes Agent", "Hermes Agent", "Nous Research"} {
 		if strings.Contains(DefaultSoulMD, forbidden) {
 			t.Fatalf("DefaultSoulMD contains upstream-only identity marker %q:\n%s", forbidden, DefaultSoulMD)
 		}
