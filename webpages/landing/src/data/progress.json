@@ -2749,7 +2749,7 @@
                   "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_SelfHelpGuidanceGateClosed",
                   "internal/gateway/live_turn_prompt_test.go:TestLiveTurn_SystemPrompt_SelfHelpGuidanceChannelNeutral (sub-tests: telegram, slack, bluebubbles, whatsapp, discord)"
                 ],
-                "captured_session_context_for_full_metadata_gate_open_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\n## AGENTS.md\n\nProject: Gormes — native Go Hermes parity agent.\nYou are Gormes, not ChatGPT.\n\n# Durable User Context\n\nThe following durable user/memory files have been loaded and should be considered when responding:\n\n## USER.md\n\n# User\nName: Juan\n\n## MEMORY.md\n\n# Memory\nLast topic: live prompt parity.\n\nConversation started: Wednesday, April 29, 2026 02:46 PM\nSession ID: sess-1\nModel: claude-opus-4-7\nProvider: anthropic\n\nGormes self-help guidance:\nWhen the user asks about configuring, setting up, troubleshooting, or using Gormes or Gormes Agent itself, consult Gormes-owned self-help material before answering.\n- Prefer the future gormes-self-help skill when it is available.\n- If that skill is unavailable, use the local Hugo docs surface at https://docs.gormes.ai/, especially Using Gormes and Building Gormes pages.\n- Include evidence self-help-unavailable when falling back to docs because the skill is unavailable.\n- Keep this guidance scoped to Gormes/Gormes Agent self-help; omit it for unrelated prompts.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
+                "captured_session_context_for_full_metadata_gate_open_fixture": "# Project Context\n\nThe following project context files have been loaded and should be followed:\n\n## AGENTS.md\n\nProject: Gormes — native Go Hermes parity agent.\nYou are Gormes, not ChatGPT.\n\n# Durable User Context\n\nThe following durable user/memory files have been loaded and should be considered when responding:\n\n## USER.md\n\n# User\nName: Juan\n\n## MEMORY.md\n\n# Memory\nLast topic: live prompt parity.\n\nConversation started: Wednesday, April 29, 2026 02:46 PM\nSession ID: sess-1\nModel: claude-opus-4-7\nProvider: anthropic\n\nGormes self-help guidance:\nWhen the user asks about configuring, setting up, troubleshooting, or using gormes or Gormes itself, consult Gormes-owned self-help material before answering.\n- Prefer the future gormes-self-help skill when it is available.\n- If that skill is unavailable, use the local Astro/Starlight docs surface at https://docs.gormes.ai/, especially Using Gormes and Building Gormes pages.\n- Include evidence self-help-unavailable when falling back to docs because the skill is unavailable.\n- Keep this guidance scoped to gormes/Gormes self-help; omit it for unrelated prompts.\n\n## Current Session Context\n\n**Source:** telegram chat `42`\n**User ID:** `7`\n**Session Key:** `telegram:42`\n**Session ID:** `sess-stored`\n**Delivery Targets:** `origin`, `local`, `telegram`",
                 "self_help_gate_closed_fixture_prompt": "Write a Go unit test for JSON parsing. (proven gate=false by internal/hermes/self_help_guidance_test.go TestGormesSelfHelpGuidanceGateMatchesSetupQuestions/unrelated)",
                 "byte_identity_baseline": "TestLiveTurn_SystemPrompt_TurnMetadataMissingNoPanic captures the slice-2 baseline via dispatchWithMemory(emptyProfile, emptyCWD, emptyMemory) and asserts byte-equality with dispatchFixture(empty seams + 'hello' submitText) — both elide the metadata block (no clock seam) and the self-help block (gate closed for 'hello').",
                 "verification": [
@@ -17844,7 +17844,7 @@
               "name": "Gormes self-help skill/docs prompt guidance",
               "priority": "P2",
               "status": "complete",
-              "contract": "Native prompt assembly exposes a pure guidance block that tells the model, when the user asks about configuring, setting up, troubleshooting, or using Gormes itself, to consult Gormes-owned docs/skills before answering; the block must say Gormes/Gormes Agent, must not mention Hermes Agent as the product, and must be gated so unrelated user prompts do not receive extra self-help text.",
+              "contract": "Native prompt assembly exposes a pure guidance block that tells the model, when the user asks about configuring, setting up, troubleshooting, or using gormes/Gormes itself, to consult Gormes-owned docs/skills before answering; the block must use gormes/Gormes product wording, must not emit deprecated Gormes Agent or upstream Hermes Agent product wording, and must be gated so unrelated user prompts do not receive extra self-help text.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "provider",
@@ -17852,19 +17852,19 @@
                 "system",
                 "operator"
               ],
-              "degraded_mode": "If a future Gormes self-help skill is unavailable, prompt assembly still points to the local Hugo docs surface and emits self-help-unavailable evidence instead of silently falling back to Hermes Agent wording.",
+              "degraded_mode": "If a future Gormes self-help skill is unavailable, prompt assembly still points to the local Astro/Starlight docs surface and emits self-help-unavailable evidence instead of silently falling back to deprecated Gormes Agent or upstream Hermes Agent wording.",
               "fixture": "internal/hermes/self_help_guidance_test.go::TestGormesSelfHelpGuidance*",
               "source_refs": [
                 "../hermes-agent/agent/prompt_builder.py@920ebd83:HERMES_AGENT_HELP_GUIDANCE",
                 "../hermes-agent/run_agent.py@920ebd83",
-                "docs/hugo.toml",
+                "webpages/docs/astro.config.mjs",
                 "docs/content/_index.md",
                 "docs/content/building-gormes/_index.md"
               ],
               "ready_when": [
                 "Native prompt-builder slices can add one pure helper or constant without replacing the full Python prompt bridge.",
                 "The test fixture can assert string content and gating decisions only; no model call, provider adapter, or live docs fetch is required.",
-                "The public docs base URL remains https://docs.gormes.ai/ in docs/hugo.toml."
+                "The public docs base URL remains https://docs.gormes.ai/ in the Astro/Starlight docs surface."
               ],
               "not_ready_when": [
                 "The slice copies Hermes Agent product wording, skill name, docs URL, or support instructions verbatim.",
@@ -17872,12 +17872,12 @@
                 "The slice requires a live skill install or network access to pass tests."
               ],
               "acceptance": [
-                "TestGormesSelfHelpGuidanceMentionsGormesDocs asserts the guidance mentions Gormes/Gormes Agent and docs.gormes.ai.",
+                "TestGormesSelfHelpGuidanceMentionsGormesDocs asserts the guidance mentions Gormes and docs.gormes.ai while rejecting deprecated Gormes Agent output.",
                 "TestGormesSelfHelpGuidanceDoesNotMentionHermesAgent asserts the rendered block contains no Hermes Agent product guidance.",
-                "TestGormesSelfHelpGuidanceGateMatchesSetupQuestions covers configure/setup/troubleshoot/use questions and a negative unrelated prompt.",
+                "TestGormesSelfHelpGuidanceGateMatchesSetupQuestions covers configure/setup/troubleshoot/use questions, preserves the legacy Gormes Agent input alias, and covers a negative unrelated prompt.",
                 "The helper returns deterministic text suitable for prompt snapshots and does not inspect the user's filesystem."
               ],
-              "note": "Hermes 920ebd83 points its agent at Hermes Agent skill/docs for self-help. Gormes needs the same UX pattern, but with Gormes-owned docs and future skill naming so prompt drift does not route users back to upstream Python documentation.",
+              "note": "Hermes 920ebd83 points its agent at Hermes Agent skill/docs for self-help. Gormes needs the same UX pattern, but with Gormes-owned docs and future skill naming so prompt drift does not route users back to upstream Python documentation. 2026-05-14 naming cleanup keeps Gormes Agent as a legacy input alias only and removes it from current self-help output.",
               "write_scope": [
                 "internal/hermes/self_help_guidance.go",
                 "internal/hermes/self_help_guidance_test.go",
@@ -45777,7 +45777,7 @@
             {
               "name": "Gateway mutating-subcommand unavailability stub",
               "status": "complete",
-              "contract": "Gateway lifecycle CLI provides a local safe `stop` command over validated runtime PID evidence, while unsupported start/restart/install/uninstall subcommands surface a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out to systemd/launchd",
+              "contract": "Gateway lifecycle CLI provides local safe `stop` and `restart` commands over validated runtime PID evidence: stop interrupts only the validated live gateway, restart first tries a fakeable systemd user-service restart on Linux and otherwise falls back to the recorded live runtime, while unsupported start/install/uninstall subcommands surface a stable `unavailable` error with a pointer to the existing internal/cli/service_restart.go helper instead of silently failing or shelling out through untested paths.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -45786,12 +45786,13 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "`gormes gateway stop` is idempotent when runtime status is missing, stale, or pid-reused; it signals only a PID validated as the live Gormes gateway and refuses to stop while active_agents is non-zero. Unsupported mutating subcommands print a deterministic `gateway: <subcommand> is not available; use the systemd/service_restart helper` message and exit with a stable non-zero code; no service-manager call is made under tests.",
+              "degraded_mode": "`gormes gateway stop` is idempotent when runtime status is missing, stale, or pid-reused; it signals only a PID validated as the live Gormes gateway and refuses to stop while active_agents is non-zero. `gormes gateway restart` reports service-manager restart evidence when systemd succeeds, falls back to the recorded live runtime when the service manager is unavailable, and refuses active-agent restarts. Unsupported start/install/uninstall subcommands print a deterministic `gateway: <subcommand> is not available; use the systemd/service_restart helper` message and exit with a stable non-zero code.",
               "fixture": "cmd/gormes/gateway_mutating_unavailable_test.go",
               "source_refs": [
-                "../hermes-agent/hermes_cli/gateway.py@edc78e25:systemd_install,launchd_install,systemd_start,launchd_start",
+                "../hermes-agent/hermes_cli/gateway.py@edc78e25:systemd_install,launchd_install,systemd_start,launchd_start,systemd_restart,launchd_restart",
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_stop.go",
+                "cmd/gormes/gateway_restart.go",
                 "cmd/gormes/gateway_status.go",
                 "internal/cli/service_restart.go"
               ],
@@ -45813,25 +45814,28 @@
               "acceptance": [
                 "`gormes gateway stop` reads validated runtime status, sends an interrupt only to the validated live gateway PID when active_agents is zero, waits for status to become non-live, and reports the validation status used for the stop result.",
                 "`gormes gateway stop` exits successfully without signalling when runtime status is missing, stale, stopped, pid-reused, or otherwise not live; it returns an actionable error without signalling when active_agents is non-zero.",
-                "Adding mutating subcommands `start`, `restart`, `install`, `uninstall` to gatewayCmd registers a deterministic unavailability handler that returns `gateway: <subcommand> is not available; use the service_restart helper` and exits non-zero.",
-                "Tests in cmd/gormes/gateway_mutating_unavailable_test.go invoke `gormes gateway stop` and every unsupported mutating verb, asserting signal/no-signal behavior or unavailable error + non-zero exit code without opening systemd/launchd.",
+                "`gormes gateway restart` on Linux delegates to a fakeable systemd user-service manager when available and emits JSON restart evidence after active-status polling reports restarted.",
+                "`gormes gateway restart` falls back to the recorded live runtime when the service manager is unavailable: it writes planned-stop evidence, interrupts the validated live PID, starts a detached gateway process, waits for a new live PID, and refuses restarts while active_agents is non-zero.",
+                "Adding unsupported mutating subcommands `start`, `install`, and `uninstall` to gatewayCmd registers a deterministic unavailability handler that returns `gateway: <subcommand> is not available; use the service_restart helper` and exits non-zero.",
+                "Tests in cmd/gormes/gateway_mutating_unavailable_test.go invoke `gormes gateway stop`, `gormes gateway restart`, and every unsupported mutating verb, asserting signal/no-signal behavior, service-manager/runtime restart evidence, or unavailable error + non-zero exit code without requiring live systemd/launchd.",
                 "The existing `gateway status` subcommand and runtime status path are unchanged.",
-                "No new gateway runtime state file or service manager dependency is introduced."
+                "No new persistent gateway runtime state file is introduced; service-manager access remains behind fakeable seams and unit tests do not shell out to live service managers."
               ],
-              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go originally registered start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covered each verb, asserted no runtime/state file is opened, and verified `gateway status` is unaffected. 2026-04-30 dev-loop hardening promotes `gateway stop` from unavailable stub to safe local stop: cmd/gormes/gateway_stop.go reads validated runtime status, signals only the live gateway PID with os.Interrupt, waits for non-live validation, and treats missing/stale runtime as idempotent no-op so bin/gormes and go-run gateway testing can release sessions.db without killing by process name.",
+              "note": "Split out of `Gateway management CLI read-model closeout` 2026-04-26 and closed the same day. cmd/gormes/gateway.go originally registered start/stop/restart/install/uninstall as deterministic unavailability stubs (gatewayMutatingUnavailableSubcommands + newGatewayMutatingUnavailableCommand) returning `gateway: <subcommand> is not available; use the service_restart helper` with stable exit code 2 via newExitCodeError; cmd/gormes/gateway_mutating_unavailable_test.go covered each verb, asserted no runtime/state file is opened, and verified `gateway status` is unaffected. 2026-04-30 dev-loop hardening promotes `gateway stop` from unavailable stub to safe local stop: cmd/gormes/gateway_stop.go reads validated runtime status, signals only the live gateway PID with os.Interrupt, waits for non-live validation, and treats missing/stale runtime as idempotent no-op so bin/gormes and go-run gateway testing can release sessions.db without killing by process name. 2026-05-14 lifecycle follow-up promotes non-Windows `gateway restart` from unavailable stub to a fakeable service-manager/runtime restart command while keeping start/install/uninstall on the deterministic unavailable path.",
               "write_scope": [
                 "cmd/gormes/gateway.go",
                 "cmd/gormes/gateway_stop.go",
+                "cmd/gormes/gateway_restart.go",
                 "cmd/gormes/gateway_mutating_unavailable_test.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "test_commands": [
-                "go test ./cmd/gormes -run 'TestGatewayStop|TestGatewayMutating' -count=1",
+                "go test ./cmd/gormes -run 'TestGatewayStop|TestGatewayRestart|TestGatewayMutating' -count=1",
                 "go test ./cmd/gormes -count=1",
                 "go run ./cmd/progress validate"
               ],
               "done_signal": [
-                "TestGatewayStop* fixtures prove validated live gateway PIDs are interrupted only when active_agents is zero, missing/stale runtimes are no-op, active runtimes with active_agents are refused, and TestGatewayMutating* fixtures prove unsupported mutating subcommands still return the stable unavailability error without invoking a live service manager."
+                "TestGatewayStop* fixtures prove validated live gateway PIDs are interrupted only when active_agents is zero, missing/stale runtimes are no-op, active runtimes with active_agents are refused, TestGatewayRestart* fixtures prove service-manager and recorded-runtime restart paths with fake seams, and TestGatewayMutating* fixtures prove unsupported start/install/uninstall subcommands still return the stable unavailability error."
               ],
               "health": {
                 "attempt_count": 1,
@@ -45848,7 +45852,7 @@
               "name": "Windows gateway Scheduled Task lifecycle commands",
               "priority": "P1",
               "status": "complete",
-              "contract": "On Windows, `gormes gateway install`, `start`, `restart`, and `uninstall` use the native Scheduled Task service path instead of the generic unavailable stub: install registers the login task and starts it inline, start/restart delegate to the Scheduled Task runner, and non-Windows platforms keep the existing deterministic unavailable guidance.",
+              "contract": "On Windows, `gormes gateway install`, `start`, `restart`, and `uninstall` use the native Scheduled Task service path instead of the generic unavailable stub: install registers the login task and starts it inline, start/restart delegate to the Scheduled Task runner, and non-Windows platforms keep deterministic unavailable guidance for start/install/uninstall while `gateway restart` uses the Go-native service-manager/runtime restart path.",
               "contract_status": "validated",
               "slice_size": "small",
               "execution_owner": "tools",
@@ -45857,7 +45861,7 @@
                 "gateway",
                 "system"
               ],
-              "degraded_mode": "Windows lifecycle commands return scheduled_task_unavailable evidence when schtasks cannot be invoked; non-Windows lifecycle commands continue returning the stable `gateway: <subcommand> is not available; use the service_restart helper` message without touching runtime stores.",
+              "degraded_mode": "Windows lifecycle commands return scheduled_task_unavailable evidence when schtasks cannot be invoked; non-Windows start/install/uninstall continue returning the stable `gateway: <subcommand> is not available; use the service_restart helper` message without touching runtime stores, while non-Windows restart reports service-manager or recorded-runtime restart evidence.",
               "fixture": "cmd/gormes/gateway_mutating_unavailable_test.go::TestGatewayWindowsScheduledTaskLifecycleCommands",
               "source_refs": [
                 "./hermes-agent/hermes_cli/setup.py@a54cae60d:setup_gateway Windows Scheduled Task service offer",
@@ -45881,7 +45885,7 @@
               "acceptance": [
                 "A fake-Windows fixture proves `gormes gateway install` calls the Scheduled Task runner's install then start path exactly once and prints Scheduled Task evidence.",
                 "Fake-Windows fixtures prove `gormes gateway start`, `restart`, and `uninstall` delegate to the matching Scheduled Task runner operation with stable operator output.",
-                "Existing non-Windows fixtures continue proving `start`, `restart`, `install`, and `uninstall` return the deterministic unavailable error and do not open runtime/session/memory stores.",
+                "Existing non-Windows fixtures continue proving `start`, `install`, and `uninstall` return the deterministic unavailable error and do not open runtime/session/memory stores; restart is covered by the Go-native restart fixtures.",
                 "No live service manager is invoked under tests; the real runner is isolated behind an interface."
               ],
               "write_scope": [
@@ -45895,9 +45899,9 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Gateway lifecycle command tests prove Windows Scheduled Task install/start/restart/uninstall behavior while preserving non-Windows unavailable guidance and store isolation."
+                "Gateway lifecycle command tests prove Windows Scheduled Task install/start/restart/uninstall behavior while preserving the remaining non-Windows unavailable guidance, Go-native restart coverage, and store isolation."
               ],
-              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes from 26bac67ef to a54cae60d. The fresh upstream change was Hermes a54cae60d, which makes Windows a supported Scheduled Task gateway service manager in both setup wizards; provider/auth, tools/browser, sessions/memory/Goncho, docs/public, and release/operator surfaces had no higher unblocked source delta. Planned rows were 29 before adding this P1 row. TDD added a fakeable Windows Scheduled Task lifecycle branch for `gormes gateway install/start/restart/uninstall`: install invokes install then start inline, start/restart/uninstall delegate to the runner, errors return scheduled_task_unavailable evidence, and existing non-Windows unavailable fixtures still pass without opening runtime/session/memory stores.",
+              "note": "Complete 2026-05-08: bounded all-topic weakness sweep covered CLI/TUI, provider/auth, gateway/channels, tools, sessions/memory/Goncho, install/runtime, browser automation, docs/public surfaces, and release/operator flows after refreshing Hermes from 26bac67ef to a54cae60d. The fresh upstream change was Hermes a54cae60d, which makes Windows a supported Scheduled Task gateway service manager in both setup wizards; provider/auth, tools/browser, sessions/memory/Goncho, docs/public, and release/operator surfaces had no higher unblocked source delta. Planned rows were 29 before adding this P1 row. TDD added a fakeable Windows Scheduled Task lifecycle branch for `gormes gateway install/start/restart/uninstall`: install invokes install then start inline, start/restart/uninstall delegate to the runner, errors return scheduled_task_unavailable evidence, and existing non-Windows unavailable fixtures still passed without opening runtime/session/memory stores. 2026-05-14 lifecycle follow-up keeps the Windows Scheduled Task path for restart and maps non-Windows restart to the Go-native service-manager/runtime restart command.",
               "provenance": {
                 "origin_type": "upstream",
                 "upstream_ref": "hermes:a54cae60d fix(setup): offer gateway service install on Windows",
@@ -45944,7 +45948,7 @@
                 "A pure signal-plan fixture proves Windows foreground gateway runs still subscribe to os.Interrupt so Ctrl+C remains the documented stop path.",
                 "A pure signal-plan fixture proves Windows detached gateway runs with GORMES_GATEWAY_DETACHED=1 omit os.Interrupt from the graceful shutdown subscription and request interrupt absorption.",
                 "A Scheduled Task command-line fixture proves the Windows task launch sets GORMES_GATEWAY_DETACHED=1 before invoking `gormes gateway`.",
-                "Existing fake Windows lifecycle fixtures keep proving install/start/restart/uninstall delegation and non-Windows unavailable guidance without opening runtime stores."
+                "Existing fake Windows lifecycle fixtures keep proving install/start/restart/uninstall delegation and the remaining non-Windows unavailable guidance without opening runtime stores."
               ],
               "write_scope": [
                 "cmd/gormes/gateway.go",
