@@ -64,8 +64,8 @@ func TestBuildFirstRunPlan_MigrationsAppearOnlyWhenAvailable(t *testing.T) {
 	assertActionIDs(t, withoutSources.Actions, []FirstRunActionID{FirstRunActionQuick, FirstRunActionFull})
 
 	withSources := BuildFirstRunPlan(FirstRunPlanInput{
-		HermesSourcePath:   "/tmp/hermes",
-		OpenClawSourcePath: "/tmp/openclaw",
+		HermesSourcePath:   "/tmp/hermes space",
+		OpenClawSourcePath: "/tmp/openclaw'quote",
 	})
 	assertActionIDs(t, withSources.Actions, []FirstRunActionID{
 		FirstRunActionQuick,
@@ -79,11 +79,11 @@ func TestBuildFirstRunPlan_MigrationsAppearOnlyWhenAvailable(t *testing.T) {
 		}
 		switch action.ID {
 		case FirstRunActionMigrateHermes:
-			if action.Command != "gormes migrate hermes --dry-run --source /tmp/hermes" {
+			if action.Command != "gormes migrate hermes --dry-run --source '/tmp/hermes space'" {
 				t.Fatalf("Hermes migration command = %q, want dry-run preview handoff", action.Command)
 			}
 		case FirstRunActionMigrateOpenClaw:
-			if action.Command != "gormes migrate openclaw --dry-run --source /tmp/openclaw" {
+			if action.Command != "gormes migrate openclaw --dry-run --source '/tmp/openclaw'\"'\"'quote'" {
 				t.Fatalf("OpenClaw migration command = %q, want dry-run preview handoff", action.Command)
 			}
 		default:

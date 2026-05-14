@@ -277,7 +277,7 @@ func buildFirstRunActions(input FirstRunPlanInput, target SetupTargetID) []First
 			Label:     "Migrate Hermes",
 			Available: true,
 			Detail:    "import settings from an existing Hermes install",
-			Command:   fmt.Sprintf("gormes migrate hermes --dry-run --source %s", path),
+			Command:   fmt.Sprintf("gormes migrate hermes --dry-run --source %s", shellQuoteFirstRunArg(path)),
 		})
 	}
 	if path := strings.TrimSpace(input.OpenClawSourcePath); path != "" {
@@ -286,10 +286,14 @@ func buildFirstRunActions(input FirstRunPlanInput, target SetupTargetID) []First
 			Label:     "Migrate OpenClaw",
 			Available: true,
 			Detail:    "import settings from an existing OpenClaw install",
-			Command:   fmt.Sprintf("gormes migrate openclaw --dry-run --source %s", path),
+			Command:   fmt.Sprintf("gormes migrate openclaw --dry-run --source %s", shellQuoteFirstRunArg(path)),
 		})
 	}
 	return actions
+}
+
+func shellQuoteFirstRunArg(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 func firstRunChannelConfigured(channels []ChannelState, target SetupTargetID) bool {
