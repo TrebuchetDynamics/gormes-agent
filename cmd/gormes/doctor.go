@@ -130,18 +130,27 @@ func buildDoctorCmd() *cobra.Command {
 			}
 
 			offline, _ := cmd.Flags().GetBool("offline")
+			var target cli.SetupTargetID
 			targetName, _ := cmd.Flags().GetString("target")
 			if strings.TrimSpace(targetName) != "" {
-				target, ok := doctorSetupTargetFromString(targetName)
+				var ok bool
+				target, ok = doctorSetupTargetFromString(targetName)
 				if !ok {
+					reporter.Add(doctor.CheckResult{
+						Name:    "target readiness",
+						Status:  doctor.StatusFail,
+						Summary: doctorUnsupportedTargetSummary(targetName),
+					})
 					return newExitCodeError(2, fmt.Errorf("doctor: unsupported target %q", targetName))
 				}
+			}
+			activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
+			cfg = activatedCfg
+			if target != "" {
 				plan := buildFirstRunPlanFromConfig(cfg, target, false)
 				reporter.target = doctorTargetReadinessFromPlan(plan)
 				reporter.Add(doctorTargetReadinessStatus(plan))
 			}
-			activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
-			cfg = activatedCfg
 			secretRuntimeResult := doctorSecretRuntimeStatus(secretSnapshot, secretActivationErr)
 			reporter.Add(secretRuntimeResult)
 			if secretRuntimeResult.Status == doctor.StatusFail {
@@ -235,6 +244,10 @@ func buildDoctorCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func doctorUnsupportedTargetSummary(value string) string {
+	return fmt.Sprintf("unsupported target %q (supported: terminal, telegram, whatsapp, discord, slack, navibox)", strings.TrimSpace(value))
 }
 
 func doctorSetupTargetFromString(value string) (cli.SetupTargetID, bool) {

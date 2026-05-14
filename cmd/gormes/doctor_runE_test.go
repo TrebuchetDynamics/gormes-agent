@@ -413,6 +413,99 @@ func TestDoctorJSONIncludesTargetReadiness(t *testing.T) {
 	}
 }
 
+func TestDoctorTargetReadinessUsesResolvedSecretRefAuth(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	t.Setenv("GORMES_PROVIDER_SECRET", "sk-doctor-target-secretref")
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://provider.example/v1"
+model = "fixture-model"
+
+[hermes.api_key_ref]
+source = "env"
+id = "GORMES_PROVIDER_SECRET"
+
+[slack]
+enabled = true
+allowed_channel_id = "C123"
+`))
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "slack", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --target slack --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Target struct {
+			Name        string   `json:"name"`
+			Ready       bool     `json:"ready"`
+			Summary     string   `json:"summary"`
+			NextCommand string   `json:"next_command"`
+			Missing     []string `json:"missing"`
+		} `json:"target"`
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+		} `json:"checks"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Target.Name != "slack" {
+		t.Fatalf("target.name = %q, want slack", got.Target.Name)
+	}
+	if !got.Target.Ready {
+		t.Fatalf("target.ready = false, want true after SecretRef auth activation; target=%+v stdout=%s", got.Target, stdout)
+	}
+	if got.Target.NextCommand != "gormes gateway" {
+		t.Fatalf("target.next_command = %q, want gormes gateway", got.Target.NextCommand)
+	}
+	if len(got.Target.Missing) != 0 {
+		t.Fatalf("target.missing = %v, want none after SecretRef auth activation", got.Target.Missing)
+	}
+	for _, c := range got.Checks {
+		if c.Name == "target readiness" && strings.Contains(c.Summary, "provider credential is not configured") {
+			t.Fatalf("target readiness used pre-activation auth state: %+v\nstdout=%s", c, stdout)
+		}
+	}
+	if strings.Contains(stdout, "sk-doctor-target-secretref") {
+		t.Fatalf("doctor target JSON leaked resolved secret:\n%s", stdout)
+	}
+}
+
+func TestDoctorInvalidTargetJSONMarksFailed(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "pagerduty", "--json")
+	if err == nil {
+		t.Fatalf("doctor --target pagerduty --json err = nil, want nonzero failure\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var got struct {
+		Failed bool `json:"failed"`
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+		} `json:"checks"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must remain finalized JSON on invalid target: %v\nstdout=%s\nstderr=%s", jsonErr, stdout, stderr)
+	}
+	if !got.Failed {
+		t.Fatalf("failed = false, want true for invalid target\nstdout=%s", stdout)
+	}
+	for _, c := range got.Checks {
+		if c.Name == "target readiness" && c.Status == "FAIL" && strings.Contains(c.Summary, "unsupported target") {
+			return
+		}
+	}
+	t.Fatalf("checks missing FAIL target readiness unsupported-target entry: %+v\nstdout=%s", got.Checks, stdout)
+}
+
 func checkNames(checks []struct {
 	Name    string `json:"name"`
 	Status  string `json:"status"`
