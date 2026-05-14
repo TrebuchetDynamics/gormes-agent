@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
@@ -91,6 +94,133 @@ func TestGatewayWindowsScheduledTaskLifecycleCommands(t *testing.T) {
 			}
 			assertGatewayStopDidNotOpenDurableStores(t)
 		})
+	}
+}
+
+func TestGatewayRestartUsesServiceManagerOnLinux(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
+	defer restoreGOOS()
+	runner := &fakeGatewayRestartServiceManager{
+		statuses: []cli.ServiceActiveStatusCheck{{
+			Status: cli.ServiceActiveStatusActive,
+			Raw:    "active\n",
+		}},
+	}
+	restoreService := gatewayRestartServiceManagerForTest(t, runner)
+	defer restoreService()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "restart", "--timeout=100ms", "--json")
+	if err != nil {
+		t.Fatalf("gateway restart --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(runner.restarts) != 1 || runner.restarts[0] != defaultGatewayServiceName {
+		t.Fatalf("service restarts = %v, want [%s]", runner.restarts, defaultGatewayServiceName)
+	}
+
+	var got struct {
+		Action  string `json:"action"`
+		Manager string `json:"manager"`
+		Service string `json:"service"`
+		Outcome string `json:"outcome"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway restart --json output must be valid JSON: %v\nstdout=%s", err, stdout)
+	}
+	if got.Action != "restarted" || got.Manager != "systemd" || got.Service != defaultGatewayServiceName || got.Outcome != string(cli.ServiceRestartPollRestarted) {
+		t.Fatalf("restart json = %+v, want service-manager restart evidence", got)
+	}
+}
+
+func TestGatewayRestartFallsBackToRecordedLiveRuntime(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	restoreGOOS := gatewayRuntimeGOOSForTest(t, "linux")
+	defer restoreGOOS()
+	restoreService := gatewayRestartServiceManagerForTest(t, &fakeGatewayRestartServiceManager{
+		restartErr: errors.New("unit not found"),
+	})
+	defer restoreService()
+	store := &fakeGatewayRestartRuntimeStore{
+		snapshots: []gateway.RuntimeStatusSnapshot{
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					StartTime:    100,
+					Generation:   7,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:            gateway.RuntimeProcessValidationLive,
+					Live:              true,
+					PID:               4242,
+					ExpectedStartTime: 100,
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          4242,
+					GatewayState: gateway.GatewayStateStopped,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status:  gateway.RuntimeProcessValidationStalePID,
+					Live:    false,
+					PID:     4242,
+					Message: "process is not running",
+				},
+			},
+			{
+				Status: gateway.RuntimeStatus{
+					Kind:         "gormes-gateway",
+					PID:          5151,
+					GatewayState: gateway.GatewayStateRunning,
+				},
+				Validation: gateway.RuntimeProcessValidation{
+					Status: gateway.RuntimeProcessValidationLive,
+					Live:   true,
+					PID:    5151,
+				},
+			},
+		},
+	}
+	restoreStore := gatewayRestartRuntimeStoreForTest(t, store)
+	defer restoreStore()
+	var signals []gatewayStopSignal
+	restoreSignal := gatewayRestartSignalForTest(t, func(pid int, signal os.Signal) error {
+		signals = append(signals, gatewayStopSignal{pid: pid, signal: signal})
+		return nil
+	})
+	defer restoreSignal()
+	starts := 0
+	restoreStarter := gatewayRestartStarterForTest(t, func(context.Context, gatewayRestartStartConfig) error {
+		starts++
+		return nil
+	})
+	defer restoreStarter()
+
+	stdout, stderr, err := executeGatewayMutatingCommand(t, "restart", "--timeout=100ms", "--json")
+	if err != nil {
+		t.Fatalf("gateway restart fallback: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if len(signals) != 1 || signals[0].pid != 4242 || signals[0].signal != os.Interrupt {
+		t.Fatalf("signals = %+v, want one interrupt for pid 4242", signals)
+	}
+	if starts != 1 {
+		t.Fatalf("starts = %d, want 1", starts)
+	}
+
+	var got struct {
+		Action string `json:"action"`
+		Mode   string `json:"mode"`
+		OldPID int    `json:"old_pid"`
+		NewPID int    `json:"new_pid"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("gateway restart fallback output must be valid JSON: %v\nstdout=%s", err, stdout)
+	}
+	if got.Action != "restarted" || got.Mode != "runtime" || got.OldPID != 4242 || got.NewPID != 5151 {
+		t.Fatalf("restart fallback json = %+v, want runtime restart evidence", got)
 	}
 }
 
@@ -966,4 +1096,108 @@ func (r *fakeGatewayWindowsScheduledTaskRunner) Uninstall(_ context.Context, cfg
 	r.calls = append(r.calls, "uninstall")
 	r.configs = append(r.configs, cfg)
 	return nil
+}
+
+type fakeGatewayRestartServiceManager struct {
+	restarts   []string
+	statuses   []cli.ServiceActiveStatusCheck
+	restartErr error
+	statusErr  error
+}
+
+func (r *fakeGatewayRestartServiceManager) Restart(_ context.Context, service string) error {
+	r.restarts = append(r.restarts, service)
+	return r.restartErr
+}
+
+func (r *fakeGatewayRestartServiceManager) ServiceActiveStatus(service string) (cli.ServiceActiveStatusCheck, error) {
+	if r.statusErr != nil {
+		return cli.ServiceActiveStatusCheck{}, r.statusErr
+	}
+	idx := len(r.restarts) - 1
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(r.statuses) {
+		idx = len(r.statuses) - 1
+	}
+	if idx < 0 {
+		return cli.ServiceActiveStatusCheck{Status: cli.ServiceActiveStatusActive}, nil
+	}
+	return r.statuses[idx], nil
+}
+
+type fakeGatewayRestartRuntimeStore struct {
+	snapshots []gateway.RuntimeStatusSnapshot
+	err       error
+	reads     int
+}
+
+func (s *fakeGatewayRestartRuntimeStore) ReadValidatedRuntimeStatusSnapshot(context.Context) (gateway.RuntimeStatusSnapshot, error) {
+	if s.err != nil {
+		return gateway.RuntimeStatusSnapshot{}, s.err
+	}
+	if len(s.snapshots) == 0 {
+		return gateway.RuntimeStatusSnapshot{}, nil
+	}
+	idx := s.reads
+	if idx >= len(s.snapshots) {
+		idx = len(s.snapshots) - 1
+	}
+	s.reads++
+	return s.snapshots[idx], nil
+}
+
+func gatewayRestartServiceManagerForTest(t *testing.T, runner gatewayRestartServiceManager) func() {
+	t.Helper()
+	previous := newGatewayRestartServiceManager
+	newGatewayRestartServiceManager = func() gatewayRestartServiceManager {
+		return runner
+	}
+	return func() {
+		newGatewayRestartServiceManager = previous
+	}
+}
+
+func gatewayRestartRuntimeStoreForTest(t *testing.T, store gatewayRestartRuntimeStore) func() {
+	t.Helper()
+	previous := newGatewayRestartRuntimeStore
+	newGatewayRestartRuntimeStore = func(string) gatewayRestartRuntimeStore {
+		return store
+	}
+	return func() {
+		newGatewayRestartRuntimeStore = previous
+	}
+}
+
+func gatewayRestartSignalForTest(t *testing.T, signal func(int, os.Signal) error) func() {
+	t.Helper()
+	previous := signalGatewayRestartProcess
+	signalGatewayRestartProcess = signal
+	return func() {
+		signalGatewayRestartProcess = previous
+	}
+}
+
+func gatewayRestartStarterForTest(t *testing.T, start func(context.Context, gatewayRestartStartConfig) error) func() {
+	t.Helper()
+	previous := startGatewayRestartProcess
+	startGatewayRestartProcess = start
+	return func() {
+		startGatewayRestartProcess = previous
+	}
+}
+
+func TestGatewayRestartDetachedStartConfigUsesLogUnderGormesHome(t *testing.T) {
+	setupGatewayStatusTestEnv(t)
+	cfg, err := defaultGatewayRestartStartConfig()
+	if err != nil {
+		t.Fatalf("defaultGatewayRestartStartConfig: %v", err)
+	}
+	if !strings.HasSuffix(cfg.Args[0], "gateway") {
+		t.Fatalf("args = %#v, want gateway subcommand", cfg.Args)
+	}
+	if filepath.Dir(cfg.LogPath) != config.GormesHome() {
+		t.Fatalf("log path = %q, want under %q", cfg.LogPath, config.GormesHome())
+	}
 }

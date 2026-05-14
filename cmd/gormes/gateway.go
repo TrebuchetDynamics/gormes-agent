@@ -50,6 +50,7 @@ func newGatewayCommand() *cobra.Command {
 	}
 	cmd.AddCommand(
 		newGatewayStopCommand(),
+		newGatewayRestartCommand(),
 		newGatewayReloadCommand(),
 		newGatewayStatusCommand(),
 		newGatewayDiscoverCommand(),
@@ -80,7 +81,6 @@ const gatewayDetachedEnvName = "GORMES_GATEWAY_DETACHED"
 
 var gatewayMutatingUnavailableSubcommands = []string{
 	"start",
-	"restart",
 	"install",
 	"uninstall",
 }
