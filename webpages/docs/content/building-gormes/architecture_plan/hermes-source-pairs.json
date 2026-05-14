@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+  "hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
   "pairs": [
     {
       "hermes_file": "agent/prompt_builder.py",
@@ -24,7 +24,7 @@
         "tests/hermes_cli/test_ignore_user_config_flags.py",
         "tests/cron/test_cron_workdir.py"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Prompt fragments are split across Go-native helpers; file-shape parity means named homes for contract families, not one monolithic prompt_builder.go."
     },
     {
@@ -43,7 +43,7 @@
         "Hermes CLI command-tree parity manifest",
         "TUI startup/setup behavior"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Current Hermes ui-tui remains the authoritative modern TUI source; cli.py is retained as legacy command/turn evidence."
     },
     {
@@ -66,7 +66,7 @@
         "Gateway, platform, webhook, and cron management CLI",
         "Telegram on shared chassis"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Python async process shape is manual Go-native rewrite; behavior atoms stay paired here."
     },
     {
@@ -91,7 +91,7 @@
       "upstream_tests": [
         "tests/hermes_cli/test_auth_commands.py"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Gormes stores credentials Go-natively while preserving user-visible command/status/redaction contracts."
     },
     {
@@ -109,7 +109,7 @@
       "progress_rows": [
         "Hermes CLI command-tree parity manifest"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Command handlers are split by Go package ownership; the manifest tracks command-family coverage."
     },
     {
@@ -133,7 +133,7 @@
       "upstream_tests": [
         "tests/hermes_cli/test_config.py"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Gormes uses TOML/XDG-style config but must keep Hermes-visible defaults and setup behavior explicit."
     },
     {
@@ -155,7 +155,7 @@
         "tests/hermes_cli/test_config.py",
         "tests/hermes_cli/test_profiles.py"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Gormes identity substitution is intentional owned divergence; all other default-persona phrasing is source-paired."
     },
     {
@@ -172,7 +172,7 @@
       "progress_rows": [
         "Hermes CLI command-tree parity manifest"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Go Cobra command tree is native, but root command names/flags must stay source-paired."
     },
     {
@@ -197,7 +197,7 @@
         "tests/hermes_cli/test_profile_distribution.py",
         "tests/hermes_cli/test_profile_export_credentials.py"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Profile storage is Go-native; per-profile SOUL/default file contracts are explicitly paired."
     },
     {
@@ -218,7 +218,7 @@
         "Kernel tool loop",
         "Background review fork"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "The Python runtime loop is a manual Go-native rewrite; this pair tracks behavior contracts rather than file-level implementation."
     },
     {
@@ -237,7 +237,7 @@
         "Hermes skill_manage support-file and curator intent actions",
         "Native skills list/view tool surface"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Skill file mutation is Go-native but paired to Hermes tool behavior."
     },
     {
@@ -256,7 +256,7 @@
         "Native skills list/view tool surface",
         "Portable SKILL.md format"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "Skill sync remains row-backed and must be rechecked when Hermes changes bundled-skill distribution."
     },
     {
@@ -275,7 +275,7 @@
         "Native skills list/view tool surface",
         "Deterministic selection + prompt block"
       ],
-      "last_checked_hermes_sha": "0f0e20ef81709a6dd590b25af380b116db67628c",
+      "last_checked_hermes_sha": "26933c2f592bda25df735c555620a2a978cfefb6",
       "notes": "The tool implementation is split between tool wrappers and skill store/rendering helpers."
     }
   ]
