@@ -183,7 +183,13 @@ func WriteEnvValue(path, key, value string) error {
 		out.WriteString(encoded)
 		out.WriteByte('\n')
 	}
-	return os.WriteFile(path, out.Bytes(), 0o600)
+	if err := os.WriteFile(path, out.Bytes(), 0o600); err != nil {
+		return err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("config: chmod %s: %w", path, err)
+	}
+	return nil
 }
 
 func splitTOMLDotPath(key string) (section string, fields []string, err error) {

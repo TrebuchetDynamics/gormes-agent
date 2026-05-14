@@ -329,3 +329,22 @@ func TestConfigWriter_WriteEnvValueCreatesParentDirAndUsesRestrictivePerms(t *te
 		t.Fatalf("env perms = %o, want group/other unreadable", perm)
 	}
 }
+
+func TestConfigWriter_WriteEnvValueTightensExistingDotenvPerms(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	if err := os.WriteFile(path, []byte("GORMES_API_KEY=sk-old\n"), 0o644); err != nil {
+		t.Fatalf("seed .env: %v", err)
+	}
+
+	if err := WriteEnvValue(path, "GORMES_API_KEY", "sk-new"); err != nil {
+		t.Fatalf("WriteEnvValue update: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("env perms = %o, want 600 after update", perm)
+	}
+}
