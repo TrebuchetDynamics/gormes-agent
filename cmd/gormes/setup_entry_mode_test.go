@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -228,6 +229,124 @@ func TestSetupQuickNonInteractivePrintsTargetCommands(t *testing.T) {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
+	}
+}
+
+func TestSetupQuickLiveTestFailureRedactsSecretsAndDoesNotLaunchChat(t *testing.T) {
+	home := t.TempDir()
+	secret := "sk-live-test-secret"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_API_KEY", secret)
+	if err := os.MkdirAll(filepath.Dir(config.ConfigPath()), 0o700); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(config.ConfigPath(), []byte(`
+[hermes]
+provider = "openai"
+endpoint = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+api_key = "`+secret+`"
+`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	if err := os.WriteFile(config.EnvPath(), []byte("GORMES_API_KEY="+secret+"\n"), 0o600); err != nil {
+		t.Fatalf("write env: %v", err)
+	}
+
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: "openai", Model: "gpt-4o-mini"},
+	}
+	seams := fake.seams()
+	seams.ChooseSetupTarget = func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error) {
+		return cli.SetupTargetTerminal, nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		return fmt.Errorf("provider rejected credential %s", secret)
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		t.Fatal("chat launched after live-test failure")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want live-test failure stdout=%s stderr=%s", stdout, stderr)
+	}
+	for _, want := range []string{"Provider live test failed. Chat was not opened.", "Repair:"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, output := range []string{stdout, stderr, err.Error()} {
+		if strings.Contains(output, secret) {
+			t.Fatalf("live-test failure leaked secret in %q\nstdout=%s\nstderr=%s\nerr=%v", output, stdout, stderr, err)
+		}
+	}
+}
+
+func TestSetupQuickNonInteractiveTerminalTargetPrintsHandoffWithoutLaunchingChat(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"},
+	}
+	seams := fake.seams()
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		events = append(events, "provider")
+		return nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		events = append(events, "live-test")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		t.Fatal("non-interactive terminal quick setup launched chat")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick", "--non-interactive", "--target", "terminal")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "Terminal chat ready. Start chatting with: gormes") {
+		t.Fatalf("stdout missing terminal handoff:\n%s", stdout)
+	}
+	if got, want := strings.Join(events, ","), "provider,live-test"; got != want {
+		t.Fatalf("events = %s, want %s", got, want)
+	}
+}
+
+func TestSetupQuickInvalidExplicitTargetFailsFast(t *testing.T) {
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"},
+	}
+	seams := fake.seams()
+	seams.RunSetupProvider = func(*cobra.Command, bool) error {
+		t.Fatal("invalid target ran provider setup")
+		return nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		t.Fatal("invalid target ran live test")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		t.Fatal("invalid target launched chat")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick", "--target", "telegrm")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want invalid target stdout=%s stderr=%s", stdout, stderr)
+	}
+	if code := exitCodeFromError(err); code != 2 {
+		t.Fatalf("exit code = %d, want 2 err=%v stdout=%s stderr=%s", code, err, stdout, stderr)
+	}
+	if !strings.Contains(err.Error(), "setup_target_invalid_selection: telegrm") {
+		t.Fatalf("err = %v, want invalid target detail", err)
 	}
 }
 

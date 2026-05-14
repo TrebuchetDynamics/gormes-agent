@@ -103,7 +103,10 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 		return fmt.Errorf("quick setup: load config: %w", err)
 	}
 	rawTarget := strings.TrimSpace(string(requestedTarget))
-	normalizedTarget := normalizeSetupQuickTarget(requestedTarget)
+	normalizedTarget, ok := parseSetupQuickTarget(rawTarget)
+	if !ok {
+		return newExitCodeError(2, fmt.Errorf("setup_target_invalid_selection: %s", rawTarget))
+	}
 	plan := buildFirstRunPlanFromConfig(cfg, normalizedTarget, !nonInteractive)
 	target := normalizedTarget
 
@@ -119,7 +122,11 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 		if err != nil {
 			return err
 		}
-		target = normalizeSetupQuickTarget(selected)
+		var ok bool
+		target, ok = parseSetupQuickTarget(string(selected))
+		if !ok {
+			return newExitCodeError(2, fmt.Errorf("setup_target_invalid_selection: %s", selected))
+		}
 	}
 
 	if err := runSetupQuickCore(cmd, seams, nonInteractive); err != nil {
@@ -133,9 +140,9 @@ func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive b
 	if err := seams.RunProviderLiveTest(cmd); err != nil {
 		fmt.Fprintln(cmd.OutOrStdout(), "Provider live test failed. Chat was not opened.")
 		fmt.Fprintf(cmd.OutOrStdout(), "Repair: %s\n", setupQuickRepairCommand(cmd, target))
-		return newExitCodeError(1, fmt.Errorf("quick setup: provider live test failed: %w", err))
+		return newExitCodeError(1, redactedSetupQuickLiveTestError(err))
 	}
-	return runSetupQuickHandoff(cmd, seams, target)
+	return runSetupQuickHandoff(cmd, seams, target, nonInteractive)
 }
 
 func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
@@ -174,9 +181,13 @@ func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cl
 	return seams.RunGatewayPlatform(cmd, string(target))
 }
 
-func runSetupQuickHandoff(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID) error {
+func runSetupQuickHandoff(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
 	if isSetupQuickChannelTarget(target) {
 		fmt.Fprintln(cmd.OutOrStdout(), "Channel setup checked. Start messaging with: gormes gateway")
+		return nil
+	}
+	if nonInteractive {
+		fmt.Fprintln(cmd.OutOrStdout(), "Terminal chat ready. Start chatting with: gormes")
 		return nil
 	}
 	return seams.LaunchChat(cmd)
@@ -197,21 +208,29 @@ func runSetupProviderLiveTest(cmd *cobra.Command) error {
 }
 
 func normalizeSetupQuickTarget(target cli.SetupTargetID) cli.SetupTargetID {
-	switch cli.SetupTargetID(strings.ToLower(strings.TrimSpace(string(target)))) {
+	normalized, ok := parseSetupQuickTarget(string(target))
+	if !ok {
+		return cli.SetupTargetTerminal
+	}
+	return normalized
+}
+
+func parseSetupQuickTarget(target string) (cli.SetupTargetID, bool) {
+	switch cli.SetupTargetID(strings.ToLower(strings.TrimSpace(target))) {
 	case "", cli.SetupTargetTerminal, "chat", "tui":
-		return cli.SetupTargetTerminal
+		return cli.SetupTargetTerminal, true
 	case cli.SetupTargetTelegram:
-		return cli.SetupTargetTelegram
+		return cli.SetupTargetTelegram, true
 	case cli.SetupTargetWhatsApp, "wa":
-		return cli.SetupTargetWhatsApp
+		return cli.SetupTargetWhatsApp, true
 	case cli.SetupTargetDiscord:
-		return cli.SetupTargetDiscord
+		return cli.SetupTargetDiscord, true
 	case cli.SetupTargetSlack:
-		return cli.SetupTargetSlack
+		return cli.SetupTargetSlack, true
 	case cli.SetupTargetNavibox:
-		return cli.SetupTargetNavibox
+		return cli.SetupTargetNavibox, true
 	default:
-		return cli.SetupTargetTerminal
+		return "", false
 	}
 }
 
@@ -247,4 +266,21 @@ func setupQuickRepairCommand(cmd *cobra.Command, target cli.SetupTargetID) strin
 		return plan.NextCommand
 	}
 	return "gormes doctor"
+}
+
+func redactedSetupQuickLiveTestError(err error) error {
+	message := "quick setup: provider live test failed"
+	if err != nil {
+		message += ": " + err.Error()
+	}
+	cfg, loadErr := config.Load(nil)
+	var secrets []string
+	if loadErr == nil {
+		secrets = append(secrets, cfg.Hermes.APIKey)
+	}
+	secrets = append(secrets, os.Getenv("GORMES_API_KEY"))
+	if dotenv := readDotenvValues(config.EnvPath()); dotenv != nil {
+		secrets = append(secrets, dotenv["GORMES_API_KEY"])
+	}
+	return fmt.Errorf("%s", redactRuntimeSecretText(message, secrets...))
 }
