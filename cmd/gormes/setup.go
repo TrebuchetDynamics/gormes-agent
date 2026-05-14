@@ -59,17 +59,21 @@ var knownProviderModels = map[string]string{
 }
 
 type setupCommandSeams struct {
-	IsTTY              func() bool
-	HasExistingInstall func() (bool, error)
-	ResetConfig        func() (string, error)
-	RunModelPicker     func(*cobra.Command) error
-	LoadCurrentModel   func() (cli.ProviderModel, error)
-	ChooseSetupAction  func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	RunFullWizard      func(*cobra.Command, bool) error
-	RunSetupGateway    func(*cobra.Command, bool) error
-	RunSetupTools      func(*cobra.Command, bool) error
-	RunGatewayPlatform func(*cobra.Command, string) error
-	LaunchChat         func(*cobra.Command) error
+	IsTTY                         func() bool
+	HasExistingInstall            func() (bool, error)
+	ResetConfig                   func() (string, error)
+	RunModelPicker                func(*cobra.Command) error
+	LoadCurrentModel              func() (cli.ProviderModel, error)
+	ChooseSetupAction             func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	ChooseSetupTarget             func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
+	RunProviderLiveTest           func(*cobra.Command) error
+	DetectHermesMigrationSource   func() string
+	DetectOpenClawMigrationSource func() string
+	RunFullWizard                 func(*cobra.Command, bool) error
+	RunSetupGateway               func(*cobra.Command, bool) error
+	RunSetupTools                 func(*cobra.Command, bool) error
+	RunGatewayPlatform            func(*cobra.Command, string) error
+	LaunchChat                    func(*cobra.Command) error
 }
 
 type setupAction string
@@ -124,6 +128,18 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	if seams.ChooseSetupAction == nil {
 		seams.ChooseSetupAction = promptSetupAction
 	}
+	if seams.ChooseSetupTarget == nil {
+		seams.ChooseSetupTarget = promptSetupTarget
+	}
+	if seams.RunProviderLiveTest == nil {
+		seams.RunProviderLiveTest = runSetupProviderLiveTest
+	}
+	if seams.DetectHermesMigrationSource == nil {
+		seams.DetectHermesMigrationSource = detectHermesMigrationSource
+	}
+	if seams.DetectOpenClawMigrationSource == nil {
+		seams.DetectOpenClawMigrationSource = detectOpenClawMigrationSource
+	}
 	if seams.RunSetupTools == nil {
 		seams.RunSetupTools = runSetupToolsSection
 	}
@@ -148,6 +164,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	var reset bool
 	var reconfigure bool
 	var quick bool
+	var targetFlag string
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "setup [section]",
@@ -183,6 +200,9 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 				section := strings.ToLower(strings.TrimSpace(args[0]))
 				return runSetupSection(cmd, seams, section, nonInteractive)
 			}
+			if quick {
+				return runSetupQuick(cmd, seams, headless, cli.SetupTargetID(targetFlag))
+			}
 			if headless {
 				printSetupSections(cmd)
 				return nil
@@ -190,12 +210,6 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 			existing, err := seams.HasExistingInstall()
 			if err != nil {
 				return err
-			}
-			if quick {
-				if existing {
-					return runSetupQuick(cmd, seams, false)
-				}
-				return runSetupFirstTimeChoice(cmd, seams, false)
 			}
 			if reconfigure {
 				if existing {
@@ -213,6 +227,7 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	cmd.Flags().BoolVar(&reset, "reset", false, "DESTRUCTIVE: overwrite config.toml back to defaults, then re-run the setup wizard")
 	cmd.Flags().BoolVar(&reconfigure, "reconfigure", false, "re-run the setup wizard against the current config (non-destructive; existing values are kept where the operator skips a step)")
 	cmd.Flags().BoolVar(&quick, "quick", false, "configure missing setup items only")
+	cmd.Flags().StringVar(&targetFlag, "target", "", "setup target for --quick: terminal, telegram, whatsapp, discord, slack, or navibox")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit machine-readable JSON for `--reset`: `{build, action: 'reset', config_path, breadcrumb_path}`")
 	return cmd
 }
@@ -230,11 +245,15 @@ type setupResetReportJSON struct {
 
 func defaultSetupCommandSeams() setupCommandSeams {
 	return setupCommandSeams{
-		IsTTY:              isStdinTTY,
-		HasExistingInstall: defaultSetupHasExistingInstall,
-		ResetConfig:        resetSetupDefaultConfig,
-		LoadCurrentModel:   defaultSetupLoadCurrentModel,
-		ChooseSetupAction:  promptSetupAction,
+		IsTTY:                         isStdinTTY,
+		HasExistingInstall:            defaultSetupHasExistingInstall,
+		ResetConfig:                   resetSetupDefaultConfig,
+		LoadCurrentModel:              defaultSetupLoadCurrentModel,
+		ChooseSetupAction:             promptSetupAction,
+		ChooseSetupTarget:             promptSetupTarget,
+		RunProviderLiveTest:           runSetupProviderLiveTest,
+		DetectHermesMigrationSource:   detectHermesMigrationSource,
+		DetectOpenClawMigrationSource: detectOpenClawMigrationSource,
 	}
 }
 
@@ -325,7 +344,7 @@ func runSetupRoot(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bo
 
 	switch action {
 	case setupActionQuick:
-		return runSetupQuick(cmd, seams, nonInteractive)
+		return runSetupQuick(cmd, seams, nonInteractive, "")
 	case setupActionFull:
 		return seams.RunFullWizard(cmd, nonInteractive)
 	case setupActionModelProvider:
@@ -398,10 +417,7 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 		printSetupSections(cmd)
 		return nil
 	}
-	options := []setupMenuOption{
-		{Action: setupActionQuick, Label: "Quick setup - provider, model, and messaging"},
-		{Action: setupActionFull, Label: "Full setup - configure everything"},
-	}
+	options := firstRunSetupOptions(seams)
 	out := cmd.OutOrStdout()
 	cli.ClearScreen(out)
 	cli.PrintHeader(out, "How would you like to set up Gormes?")
@@ -425,9 +441,13 @@ func runSetupFirstTimeChoice(cmd *cobra.Command, seams setupCommandSeams, nonInt
 	}
 	switch action {
 	case setupActionQuick:
-		return runSetupQuick(cmd, seams, false)
+		return runSetupQuick(cmd, seams, false, "")
 	case setupActionFull:
 		return seams.RunFullWizard(cmd, false)
+	case setupActionMigrateHermes:
+		return runSetupMigrate(cmd, "hermes")
+	case setupActionMigrateOpenClaw:
+		return runSetupMigrate(cmd, "openclaw")
 	case setupActionExit:
 		return nil
 	default:
@@ -583,24 +603,6 @@ func stripSetupInputNoise(answer string) string {
 		i++
 	}
 	return b.String()
-}
-
-func runSetupQuick(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {
-	out := cmd.OutOrStdout()
-	cli.ClearScreen(out)
-	cli.PrintHeader(out, "Quick Setup - configure missing items only")
-	current, err := seams.LoadCurrentModel()
-	if err != nil {
-		return fmt.Errorf("quick setup: load current model: %w", err)
-	}
-	if strings.TrimSpace(current.Provider) == "" || strings.TrimSpace(current.Model) == "" {
-		fmt.Fprintln(out, "Model/provider defaults are missing.")
-		return runSetupModelSection(cmd, seams, nonInteractive)
-	}
-	fmt.Fprintf(out, "Current model/provider: %s via %s\n", current.Model, current.Provider)
-	fmt.Fprintln(out, "No missing core setup items detected.")
-	printSetupSummary(cmd)
-	return nil
 }
 
 func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteractive bool) error {

@@ -78,6 +78,7 @@ func TestSetupEntryMode_ReconfigureMatchesExistingBare(t *testing.T) {
 func TestSetupEntryMode_QuickExistingRunsMissingItemsOnly(t *testing.T) {
 	fullCalls := 0
 	chooserCalls := 0
+	var events []string
 	fake := &setupCommandFakeSeams{
 		isTTY:   true,
 		current: cli.ProviderModel{Provider: "anthropic", Model: "claude-sonnet-4"},
@@ -89,6 +90,18 @@ func TestSetupEntryMode_QuickExistingRunsMissingItemsOnly(t *testing.T) {
 	}
 	seams.RunFullWizard = func(*cobra.Command, bool) error {
 		fullCalls++
+		return nil
+	}
+	seams.ChooseSetupTarget = func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error) {
+		events = append(events, "target")
+		return cli.SetupTargetTerminal, nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		events = append(events, "live-test")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		events = append(events, "chat")
 		return nil
 	}
 
@@ -104,10 +117,13 @@ func TestSetupEntryMode_QuickExistingRunsMissingItemsOnly(t *testing.T) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
+	if got, want := strings.Join(events, ","), "target,live-test,chat"; got != want {
+		t.Fatalf("events = %s, want %s", got, want)
+	}
 }
 
 func TestSetupEntryMode_FreshInstallPromptsQuickVsFull(t *testing.T) {
-	for _, args := range [][]string{nil, []string{"--reconfigure"}, []string{"--quick"}} {
+	for _, args := range [][]string{nil, []string{"--reconfigure"}} {
 		t.Run(strings.Join(args, "_"), func(t *testing.T) {
 			chooserCalls := 0
 			fullCalls := 0
@@ -138,6 +154,117 @@ func TestSetupEntryMode_FreshInstallPromptsQuickVsFull(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSetupQuickPromptsTargetBeforeProviderWork(t *testing.T) {
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: " ", Model: " "},
+	}
+	seams := fake.seams()
+	seams.ChooseSetupTarget = func(_ *cobra.Command, targets []cli.SetupTargetOption, defaultOption int) (cli.SetupTargetID, error) {
+		events = append(events, "target")
+		if defaultOption != 0 || len(targets) == 0 || targets[0].ID != cli.SetupTargetTerminal {
+			t.Fatalf("targets=%#v default=%d, want terminal default", targets, defaultOption)
+		}
+		return cli.SetupTargetTerminal, nil
+	}
+	seams.RunModelPicker = func(*cobra.Command) error {
+		events = append(events, "model")
+		return nil
+	}
+	seams.RunProviderLiveTest = func(*cobra.Command) error {
+		events = append(events, "live-test")
+		return nil
+	}
+	seams.LaunchChat = func(*cobra.Command) error {
+		events = append(events, "chat")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "target,model,live-test,chat"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+}
+
+func TestSetupQuickNonInteractivePrintsTargetCommands(t *testing.T) {
+	prompted := false
+	fake := &setupCommandFakeSeams{
+		isTTY:   true,
+		current: cli.ProviderModel{Provider: " ", Model: " "},
+	}
+	seams := fake.seams()
+	seams.ChooseSetupTarget = func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error) {
+		prompted = true
+		return cli.SetupTargetTerminal, nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams, "--quick", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if prompted {
+		t.Fatalf("non-interactive quick setup prompted")
+	}
+	for _, want := range []string{
+		"Quick setup targets:",
+		"gormes setup --quick --target terminal",
+		"gormes setup --quick --target telegram",
+		"gormes whatsapp",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestSetupFirstRunRouterShowsConditionalMigrations(t *testing.T) {
+	home := t.TempDir()
+	hermes := filepath.Join(home, ".hermes")
+	openclaw := filepath.Join(home, ".openclaw")
+	var captured []setupMenuOption
+	fake := &setupCommandFakeSeams{
+		isTTY:        true,
+		freshInstall: true,
+		detectHermes: func() string {
+			return hermes
+		},
+		detectOpenClaw: func() string {
+			return openclaw
+		},
+	}
+	seams := fake.seams()
+	seams.ChooseSetupAction = func(_ *cobra.Command, options []setupMenuOption, defaultOption int) (setupAction, error) {
+		captured = append([]setupMenuOption(nil), options...)
+		if defaultOption != 0 {
+			t.Fatalf("defaultOption=%d, want quick default", defaultOption)
+		}
+		return setupActionExit, nil
+	}
+
+	stdout, stderr, err := runSetupTestCommand(t, seams)
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if len(captured) != 4 {
+		t.Fatalf("captured options=%#v, want quick/full/hermes/openclaw", captured)
+	}
+	wantActions := []setupAction{setupActionQuick, setupActionFull, setupActionMigrateHermes, setupActionMigrateOpenClaw}
+	for i, want := range wantActions {
+		if captured[i].Action != want {
+			t.Fatalf("option %d action=%s, want %s (options=%#v)", i, captured[i].Action, want, captured)
+		}
+	}
+	for _, want := range []string{"Migrate Hermes", "Migrate OpenClaw"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
 	}
 }
 

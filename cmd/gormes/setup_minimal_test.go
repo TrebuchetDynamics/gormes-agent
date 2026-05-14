@@ -22,10 +22,14 @@ type setupCommandFakeSeams struct {
 	modelPickerCalls int
 	loadedCurrent    int
 
-	chooseSetupAction  func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	runFullWizard      func(*cobra.Command, bool) error
-	runSetupGateway    func(*cobra.Command, bool) error
-	runGatewayPlatform func(*cobra.Command, string) error
+	chooseSetupAction   func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	chooseSetupTarget   func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
+	runProviderLiveTest func(*cobra.Command) error
+	runFullWizard       func(*cobra.Command, bool) error
+	runSetupGateway     func(*cobra.Command, bool) error
+	runGatewayPlatform  func(*cobra.Command, string) error
+	detectHermes        func() string
+	detectOpenClaw      func() string
 }
 
 func (f *setupCommandFakeSeams) seams() setupCommandSeams {
@@ -36,6 +40,14 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 		f.current.Model = "gpt-5.5"
 	}
 	existingInstall := !f.freshInstall
+	detectHermes := f.detectHermes
+	if detectHermes == nil {
+		detectHermes = func() string { return "" }
+	}
+	detectOpenClaw := f.detectOpenClaw
+	if detectOpenClaw == nil {
+		detectOpenClaw = func() string { return "" }
+	}
 	return setupCommandSeams{
 		IsTTY: func() bool { return f.isTTY },
 		HasExistingInstall: func() (bool, error) {
@@ -49,10 +61,14 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 			f.loadedCurrent++
 			return f.current, nil
 		},
-		ChooseSetupAction:  f.chooseSetupAction,
-		RunFullWizard:      f.runFullWizard,
-		RunSetupGateway:    f.runSetupGateway,
-		RunGatewayPlatform: f.runGatewayPlatform,
+		ChooseSetupAction:             f.chooseSetupAction,
+		ChooseSetupTarget:             f.chooseSetupTarget,
+		RunProviderLiveTest:           f.runProviderLiveTest,
+		RunFullWizard:                 f.runFullWizard,
+		RunSetupGateway:               f.runSetupGateway,
+		RunGatewayPlatform:            f.runGatewayPlatform,
+		DetectHermesMigrationSource:   detectHermes,
+		DetectOpenClawMigrationSource: detectOpenClaw,
 	}
 }
 

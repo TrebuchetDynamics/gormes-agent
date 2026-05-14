@@ -126,11 +126,7 @@ func printFirstRunGuidance(cmd *cobra.Command, plan cli.FirstRunPlan) {
 }
 
 func firstRunGuidanceCommand(command string) string {
-	command = strings.TrimSpace(command)
-	if command == "gormes setup --quick --target terminal" {
-		return "gormes setup --quick"
-	}
-	return command
+	return strings.TrimSpace(command)
 }
 
 func detectHermesMigrationSource() string {

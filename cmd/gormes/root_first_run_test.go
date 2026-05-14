@@ -73,15 +73,12 @@ func TestRootFreshNonTTYPrintsSetupGuidance(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Gormes setup needed",
-		"Next: gormes setup --quick",
+		"Next: gormes setup --quick --target terminal",
 		"Non-interactive mode will not prompt.",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\nstdout=%s\nstderr=%s", want, stdout, stderr)
 		}
-	}
-	if strings.Contains(stdout, "Next: gormes setup --quick --target terminal") {
-		t.Fatalf("stdout recommends unsupported setup --target flag:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
 
@@ -221,9 +218,6 @@ func TestRootFirstRunSetupCommandUsesCurrentSetupEntrypoint(t *testing.T) {
 	err := runFirstRunSetupCommand(cmd)
 	if err != nil {
 		t.Fatalf("runFirstRunSetupCommand: %v\nstdout=%s\nstderr=%s", err, stdout.String(), stderr.String())
-	}
-	if strings.Contains(stderr.String(), "unknown flag: --target") {
-		t.Fatalf("first-run setup handoff used unsupported --target flag\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "Available setup sections:") {
 		t.Fatalf("stdout = %q, want setup command with no args to render current setup entrypoint", stdout.String())
