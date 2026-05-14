@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -336,6 +337,79 @@ func TestDoctorCommand_OfflineJSONEmitsCheckArray(t *testing.T) {
 	}
 	if strings.Contains(stdout.String(), "[PASS]") || strings.Contains(stdout.String(), "[WARN]") {
 		t.Fatalf("--json must not emit bracketed human lines; got:\n%s", stdout.String())
+	}
+}
+
+func TestDoctorTargetTelegramReportsMissingChannelCommand(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "telegram")
+	if err != nil {
+		t.Fatalf("doctor --offline --target telegram: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	for _, want := range []string{
+		"target readiness",
+		"not ready: provider endpoint is not configured",
+		"Telegram channel is not configured",
+		"gormes setup --quick --target telegram",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestDoctorJSONIncludesTargetReadiness(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "whatsapp", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --target whatsapp --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Failed bool `json:"failed"`
+		Target struct {
+			Name        string   `json:"name"`
+			Ready       bool     `json:"ready"`
+			Summary     string   `json:"summary"`
+			NextCommand string   `json:"next_command"`
+			Missing     []string `json:"missing"`
+		} `json:"target"`
+		Checks []struct {
+			Name string `json:"name"`
+		} `json:"checks"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if len(got.Checks) == 0 {
+		t.Fatalf("existing checks array must remain populated; stdout=%s", stdout)
+	}
+	if got.Target.Name != "whatsapp" {
+		t.Fatalf("target.name = %q, want whatsapp", got.Target.Name)
+	}
+	if got.Target.Ready {
+		t.Fatalf("target.ready = true, want false for fresh home")
+	}
+	if !strings.Contains(got.Target.Summary, "provider endpoint is not configured") {
+		t.Fatalf("target.summary = %q", got.Target.Summary)
+	}
+	if got.Target.NextCommand != "gormes setup --quick --target whatsapp" {
+		t.Fatalf("target.next_command = %q", got.Target.NextCommand)
+	}
+	wantMissing := []string{"provider", "auth", "channel"}
+	if !reflect.DeepEqual(got.Target.Missing, wantMissing) {
+		t.Fatalf("target.missing = %v, want %v", got.Target.Missing, wantMissing)
 	}
 }
 

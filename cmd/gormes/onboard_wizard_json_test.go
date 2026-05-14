@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -98,6 +99,51 @@ func TestOnboard_JSONWithoutWizardFlagStaysSnapshotShape(t *testing.T) {
 	}
 	if strings.Contains(stdout, `"steps"`) {
 		t.Fatalf("plain --json must NOT emit wizard `steps`; got:\n%s", stdout)
+	}
+}
+
+func TestOnboardJSONIncludesFirstRunReadiness(t *testing.T) {
+	t.Setenv("GORMES_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	cmd := newRootCommandWithRuntime(rootRuntime{})
+	stdout, stderr, err := executeRootCommandForTest(cmd, "onboard", "--json")
+	if err != nil {
+		t.Fatalf("onboard --json: %v\nstderr=%s", err, stderr)
+	}
+
+	var got struct {
+		Home               string `json:"home"`
+		ProviderConfigured bool   `json:"provider_configured"`
+		FirstRun           struct {
+			Ready       bool     `json:"ready"`
+			Target      string   `json:"target"`
+			NextCommand string   `json:"next_command"`
+			Missing     []string `json:"missing"`
+		} `json:"first_run"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Home == "" {
+		t.Fatalf("existing snapshot field home must remain populated; stdout=%s", stdout)
+	}
+	if got.FirstRun.Ready {
+		t.Fatalf("first_run.ready = true, want false for fresh home; stdout=%s", stdout)
+	}
+	if got.FirstRun.Target != "terminal" {
+		t.Fatalf("first_run.target = %q, want terminal", got.FirstRun.Target)
+	}
+	if got.FirstRun.NextCommand != "gormes setup --quick --target terminal" {
+		t.Fatalf("first_run.next_command = %q", got.FirstRun.NextCommand)
+	}
+	wantMissing := []string{"provider", "auth"}
+	if !reflect.DeepEqual(got.FirstRun.Missing, wantMissing) {
+		t.Fatalf("first_run.missing = %v, want %v", got.FirstRun.Missing, wantMissing)
+	}
+	if strings.Contains(stdout, "api_key") || strings.Contains(stdout, "token") {
+		t.Fatalf("onboard --json must not leak secret material or secret field names:\n%s", stdout)
 	}
 }
 

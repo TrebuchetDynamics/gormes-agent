@@ -17,6 +17,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/acp"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
@@ -32,6 +33,7 @@ func newDoctorCommand() *cobra.Command {
 	cmd := buildDoctorCmd()
 	cmd.Flags().Bool("offline", false, "skip the provider health check and validate local runtime checks")
 	cmd.Flags().Bool("json", false, "emit a machine-readable {checks: [...]} JSON document (suitable for fleet-health monitoring)")
+	cmd.Flags().String("target", "", "report first-run readiness for a setup target (terminal, telegram, whatsapp, discord, slack, navibox)")
 	return cmd
 }
 
@@ -44,6 +46,7 @@ type doctorReporter struct {
 	asJSON    bool
 	collected []doctor.CheckResult
 	failed    bool
+	target    *doctorTargetReadinessJSON
 }
 
 func (r *doctorReporter) Add(c doctor.CheckResult) {
@@ -63,9 +66,18 @@ func (r *doctorReporter) Add(c doctor.CheckResult) {
 // convention update --json / status --json / restore --list --json
 // use.
 type doctorReportJSON struct {
-	Build  buildProvenanceJSON  `json:"build"`
-	Failed bool                 `json:"failed"`
-	Checks []doctor.CheckResult `json:"checks"`
+	Build  buildProvenanceJSON        `json:"build"`
+	Failed bool                       `json:"failed"`
+	Target *doctorTargetReadinessJSON `json:"target,omitempty"`
+	Checks []doctor.CheckResult       `json:"checks"`
+}
+
+type doctorTargetReadinessJSON struct {
+	Name        string   `json:"name"`
+	Ready       bool     `json:"ready"`
+	Summary     string   `json:"summary"`
+	NextCommand string   `json:"next_command"`
+	Missing     []string `json:"missing"`
 }
 
 func (r *doctorReporter) Finalize() error {
@@ -79,6 +91,7 @@ func (r *doctorReporter) Finalize() error {
 	body, err := json.MarshalIndent(doctorReportJSON{
 		Build:  newBuildProvenance(),
 		Failed: r.failed,
+		Target: r.target,
 		Checks: checks,
 	}, "", "  ")
 	if err != nil {
@@ -97,120 +110,196 @@ func buildDoctorCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-		out := cmd.OutOrStdout()
-		errOut := cmd.ErrOrStderr()
-		asJSON, _ := cmd.Flags().GetBool("json")
-		reporter := &doctorReporter{w: out, asJSON: asJSON}
-		// Defer Finalize so JSON output renders even on early-return
-		// failure paths. Errors from finalize are best-effort logged.
-		defer func() {
-			if err := reporter.Finalize(); err != nil {
-				fmt.Fprintf(errOut, "doctor: emit json: %v\n", err)
-			}
-		}()
-
-		reporter.Add(doctorBuildIdentityStatus())
-
-		cfg, err := config.Load(nil)
-		if err != nil {
-			return err
-		}
-
-		offline, _ := cmd.Flags().GetBool("offline")
-		activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
-		cfg = activatedCfg
-		secretRuntimeResult := doctorSecretRuntimeStatus(secretSnapshot, secretActivationErr)
-		reporter.Add(secretRuntimeResult)
-		if secretRuntimeResult.Status == doctor.StatusFail {
-			return newExitCodeError(2, fmt.Errorf("doctor: secret runtime failed"))
-		}
-
-		if !offline {
-			providerName := cfg.Hermes.Provider
-			if doctorProviderHealthUsesAuthReadiness(cfg) {
-				if !configuredProviderAuthPresent(cfg) {
-					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("auth missing (%s)", doctorProviderHealthTarget(cfg))})
-					fmt.Fprintf(errOut,
-						"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
-					return newExitCodeError(1, fmt.Errorf("doctor: provider auth missing"))
+			out := cmd.OutOrStdout()
+			errOut := cmd.ErrOrStderr()
+			asJSON, _ := cmd.Flags().GetBool("json")
+			reporter := &doctorReporter{w: out, asJSON: asJSON}
+			// Defer Finalize so JSON output renders even on early-return
+			// failure paths. Errors from finalize are best-effort logged.
+			defer func() {
+				if err := reporter.Finalize(); err != nil {
+					fmt.Fprintf(errOut, "doctor: emit json: %v\n", err)
 				}
-				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("auth-ready (%s)", doctorProviderHealthTarget(cfg))})
+			}()
+
+			reporter.Add(doctorBuildIdentityStatus())
+
+			cfg, err := config.Load(nil)
+			if err != nil {
+				return err
+			}
+
+			offline, _ := cmd.Flags().GetBool("offline")
+			targetName, _ := cmd.Flags().GetString("target")
+			if strings.TrimSpace(targetName) != "" {
+				target, ok := doctorSetupTargetFromString(targetName)
+				if !ok {
+					return newExitCodeError(2, fmt.Errorf("doctor: unsupported target %q", targetName))
+				}
+				plan := buildFirstRunPlanFromConfig(cfg, target, false)
+				reporter.target = doctorTargetReadinessFromPlan(plan)
+				reporter.Add(doctorTargetReadinessStatus(plan))
+			}
+			activatedCfg, secretSnapshot, secretActivationErr := activateGatewaySecretRuntime(cmd.Context(), cfg, nil)
+			cfg = activatedCfg
+			secretRuntimeResult := doctorSecretRuntimeStatus(secretSnapshot, secretActivationErr)
+			reporter.Add(secretRuntimeResult)
+			if secretRuntimeResult.Status == doctor.StatusFail {
+				return newExitCodeError(2, fmt.Errorf("doctor: secret runtime failed"))
+			}
+
+			if !offline {
+				providerName := cfg.Hermes.Provider
+				if doctorProviderHealthUsesAuthReadiness(cfg) {
+					if !configuredProviderAuthPresent(cfg) {
+						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("auth missing (%s)", doctorProviderHealthTarget(cfg))})
+						fmt.Fprintf(errOut,
+							"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
+						return newExitCodeError(1, fmt.Errorf("doctor: provider auth missing"))
+					}
+					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("auth-ready (%s)", doctorProviderHealthTarget(cfg))})
+				} else {
+					c, err := newProviderHTTPClient(cfg, providerName)
+					if err != nil {
+						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+						reporter.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: redactedErr})
+						fmt.Fprintf(errOut,
+							"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
+						return newExitCodeError(1, fmt.Errorf("doctor: provider setup failed: %s", redactedErr))
+					}
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
+					if err := c.Health(ctx); err != nil {
+						target := doctorProviderHealthTarget(cfg)
+						redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
+						reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("NOT reachable (%s): %s", target, redactedErr)})
+						fmt.Fprintf(errOut,
+							"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
+						return newExitCodeError(1, fmt.Errorf("doctor: provider unreachable"))
+					}
+					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("reachable (%s)", doctorProviderHealthTarget(cfg))})
+				}
 			} else {
-				c, err := newProviderHTTPClient(cfg, providerName)
-				if err != nil {
-					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-					reporter.Add(doctor.CheckResult{Name: "provider setup", Status: doctor.StatusFail, Summary: redactedErr})
-					fmt.Fprintf(errOut,
-						"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
-					return newExitCodeError(1, fmt.Errorf("doctor: provider setup failed: %s", redactedErr))
-				}
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-				defer cancel()
-				if err := c.Health(ctx); err != nil {
-					target := doctorProviderHealthTarget(cfg)
-					redactedErr := redactRuntimeSecretText(err.Error(), cfg.Hermes.APIKey)
-					reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusFail, Summary: fmt.Sprintf("NOT reachable (%s): %s", target, redactedErr)})
-					fmt.Fprintf(errOut,
-						"\nConfigure Gormes provider credentials/endpoint, or pass --offline to validate local runtime checks only.\n")
-					return newExitCodeError(1, fmt.Errorf("doctor: provider unreachable"))
-				}
-				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusPass, Summary: fmt.Sprintf("reachable (%s)", doctorProviderHealthTarget(cfg))})
+				reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusSkip, Summary: "skipped (--offline)"})
 			}
-		} else {
-			reporter.Add(doctor.CheckResult{Name: "provider health", Status: doctor.StatusSkip, Summary: "skipped (--offline)"})
-		}
 
-		reporter.Add(doctorTUIStatus())
+			reporter.Add(doctorTUIStatus())
 
-		// Toolbox section — inspect the built-in registry. Runs in both modes.
-		reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
-		result := doctor.CheckTools(reg)
-		reporter.Add(result)
-		reporter.Add(doctorWebToolsStatus(cfg))
-		reporter.Add(doctorBrowserRuntimeStatus())
-		reporter.Add(doctorACPBridgeStatus())
-		reporter.Add(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
-			Env:             doctorGitHubAuthEnv(),
-			RunGHAuthStatus: doctorGitHubAuthRunner,
-		}))
-		reporter.Add(doctorGonchoConfig(cfg))
+			// Toolbox section — inspect the built-in registry. Runs in both modes.
+			reg := buildDefaultRegistry(context.Background(), cfg, nil, cfg.Hermes.Model)
+			result := doctor.CheckTools(reg)
+			reporter.Add(result)
+			reporter.Add(doctorWebToolsStatus(cfg))
+			reporter.Add(doctorBrowserRuntimeStatus())
+			reporter.Add(doctorACPBridgeStatus())
+			reporter.Add(doctor.CheckGitHubAuth(cmd.Context(), doctor.GitHubAuthOptions{
+				Env:             doctorGitHubAuthEnv(),
+				RunGHAuthStatus: doctorGitHubAuthRunner,
+			}))
+			reporter.Add(doctorGonchoConfig(cfg))
 
-		runtimeStatus := gateway.RuntimeStatus{}
-		if snapshot, err := gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()).ReadRuntimeStatusSnapshot(context.Background()); err == nil && !snapshot.Missing {
-			runtimeStatus = snapshot.Status
-		}
-		reporter.Add(doctorSlackGatewayConfig(cfg, runtimeStatus))
-		reporter.Add(doctorCustomEndpointReadiness(cfg))
+			runtimeStatus := gateway.RuntimeStatus{}
+			if snapshot, err := gateway.NewRuntimeStatusStore(config.GatewayRuntimeStatusPath()).ReadRuntimeStatusSnapshot(context.Background()); err == nil && !snapshot.Missing {
+				runtimeStatus = snapshot.Status
+			}
+			reporter.Add(doctorSlackGatewayConfig(cfg, runtimeStatus))
+			reporter.Add(doctorCustomEndpointReadiness(cfg))
 
-		if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled {
-			reporter.Add(doctor.CheckResult{Name: "gateway", Status: doctor.StatusWarn, Summary: "no channels configured ([telegram], [discord], or [slack])"})
-		} else {
-			if cfg.Telegram.BotToken != "" {
-				if _, err := telegram.NewRealClient(cfg.Telegram.BotToken); err != nil {
-					reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusFail, Summary: err.Error()})
-					return newExitCodeError(2, fmt.Errorf("doctor: telegram client init failed: %w", err))
-				}
-				reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram)})
+			if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled {
+				reporter.Add(doctor.CheckResult{Name: "gateway", Status: doctor.StatusWarn, Summary: "no channels configured ([telegram], [discord], or [slack])"})
 			} else {
-				reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusSkip, Summary: "disabled"})
-			}
-
-			if cfg.Discord.Enabled() {
-				if _, err := discord.NewRealSession(cfg.Discord.Token); err != nil {
-					reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusFail, Summary: err.Error()})
-					return newExitCodeError(2, fmt.Errorf("doctor: discord session init failed: %w", err))
+				if cfg.Telegram.BotToken != "" {
+					if _, err := telegram.NewRealClient(cfg.Telegram.BotToken); err != nil {
+						reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusFail, Summary: err.Error()})
+						return newExitCodeError(2, fmt.Errorf("doctor: telegram client init failed: %w", err))
+					}
+					reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusPass, Summary: configuredTelegramGatewayStatusDetail(cfg.Telegram)})
+				} else {
+					reporter.Add(doctor.CheckResult{Name: "gateway/telegram", Status: doctor.StatusSkip, Summary: "disabled"})
 				}
-				reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusPass, Summary: "allowed_channel_id=" + cfg.Discord.AllowedChannelID})
-			} else {
-				reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusSkip, Summary: "disabled"})
-			}
-		}
 
-		if result.Status == doctor.StatusFail {
-			return newExitCodeError(2, fmt.Errorf("doctor: toolbox check failed"))
-		}
-		return nil
+				if cfg.Discord.Enabled() {
+					if _, err := discord.NewRealSession(cfg.Discord.Token); err != nil {
+						reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusFail, Summary: err.Error()})
+						return newExitCodeError(2, fmt.Errorf("doctor: discord session init failed: %w", err))
+					}
+					reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusPass, Summary: "allowed_channel_id=" + cfg.Discord.AllowedChannelID})
+				} else {
+					reporter.Add(doctor.CheckResult{Name: "gateway/discord", Status: doctor.StatusSkip, Summary: "disabled"})
+				}
+			}
+
+			if result.Status == doctor.StatusFail {
+				return newExitCodeError(2, fmt.Errorf("doctor: toolbox check failed"))
+			}
+			return nil
 		},
+	}
+}
+
+func doctorSetupTargetFromString(value string) (cli.SetupTargetID, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case string(cli.SetupTargetTerminal):
+		return cli.SetupTargetTerminal, true
+	case string(cli.SetupTargetTelegram):
+		return cli.SetupTargetTelegram, true
+	case string(cli.SetupTargetWhatsApp):
+		return cli.SetupTargetWhatsApp, true
+	case string(cli.SetupTargetDiscord):
+		return cli.SetupTargetDiscord, true
+	case string(cli.SetupTargetSlack):
+		return cli.SetupTargetSlack, true
+	case string(cli.SetupTargetNavibox):
+		return cli.SetupTargetNavibox, true
+	default:
+		return "", false
+	}
+}
+
+func doctorTargetReadinessStatus(plan cli.FirstRunPlan) doctor.CheckResult {
+	status := doctor.StatusPass
+	if !plan.Ready {
+		status = doctor.StatusWarn
+	}
+	summary := plan.Summary
+	if command := firstRunGuidanceCommand(plan.NextCommand); command != "" {
+		if summary == "" {
+			summary = "next: " + command
+		} else {
+			summary += "; next: " + command
+		}
+	}
+	items := make([]doctor.ItemInfo, 0, len(plan.MissingSteps))
+	for _, step := range plan.MissingSteps {
+		note := step.Detail
+		if command := firstRunGuidanceCommand(step.Command); command != "" {
+			note += "; run: " + command
+		}
+		items = append(items, doctor.ItemInfo{
+			Name:   step.Label,
+			Status: doctor.StatusWarn,
+			Note:   note,
+		})
+	}
+	return doctor.CheckResult{
+		Name:    "target readiness",
+		Status:  status,
+		Summary: summary,
+		Items:   items,
+	}
+}
+
+func doctorTargetReadinessFromPlan(plan cli.FirstRunPlan) *doctorTargetReadinessJSON {
+	missing := make([]string, 0, len(plan.MissingSteps))
+	for _, step := range plan.MissingSteps {
+		missing = append(missing, string(step.ID))
+	}
+	return &doctorTargetReadinessJSON{
+		Name:        string(plan.Target),
+		Ready:       plan.Ready,
+		Summary:     plan.Summary,
+		NextCommand: plan.NextCommand,
+		Missing:     missing,
 	}
 }
 
