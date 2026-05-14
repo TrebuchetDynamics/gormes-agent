@@ -77,8 +77,19 @@ func TestBuildFirstRunPlan_MigrationsAppearOnlyWhenAvailable(t *testing.T) {
 		if !action.Available {
 			t.Fatalf("action %q Available = false, want true: %#v", action.ID, action)
 		}
-		if action.Command == "" {
-			t.Fatalf("action %q missing command: %#v", action.ID, action)
+		switch action.ID {
+		case FirstRunActionMigrateHermes:
+			if action.Command != "gormes migrate hermes --dry-run --source /tmp/hermes" {
+				t.Fatalf("Hermes migration command = %q, want dry-run preview handoff", action.Command)
+			}
+		case FirstRunActionMigrateOpenClaw:
+			if action.Command != "gormes migrate openclaw --dry-run --source /tmp/openclaw" {
+				t.Fatalf("OpenClaw migration command = %q, want dry-run preview handoff", action.Command)
+			}
+		default:
+			if action.Command == "" {
+				t.Fatalf("action %q missing command: %#v", action.ID, action)
+			}
 		}
 	}
 }
@@ -194,6 +205,26 @@ func TestBuildFirstRunPlan_ChannelTargetIncludesChannelStep(t *testing.T) {
 		t.Fatalf("NextCommand = %q, want WhatsApp setup", plan.NextCommand)
 	}
 
+	channelConfiguredCoreMissing := BuildFirstRunPlan(FirstRunPlanInput{
+		Target: SetupTargetSlack,
+		Channels: DefaultFirstRunChannels(map[SetupTargetID]ChannelState{
+			SetupTargetSlack: {
+				Configured: true,
+				Detail:     "slack app configured",
+			},
+		}),
+	})
+	slackTarget, ok := firstRunTarget(channelConfiguredCoreMissing, SetupTargetSlack)
+	if !ok {
+		t.Fatalf("missing Slack target: %#v", channelConfiguredCoreMissing.Targets)
+	}
+	if slackTarget.Configured {
+		t.Fatalf("Slack target Configured = true, want false when provider core is missing: %#v", slackTarget)
+	}
+	if slackTarget.Detail != "slack app configured" {
+		t.Fatalf("Slack target Detail = %q, want channel-specific evidence detail", slackTarget.Detail)
+	}
+
 	ready := BuildFirstRunPlan(FirstRunPlanInput{
 		Provider:      "openai",
 		Endpoint:      "https://api.openai.com/v1",
@@ -272,4 +303,13 @@ func assertActionIDs(t *testing.T, actions []FirstRunAction, want []FirstRunActi
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("action IDs = %#v, want %#v; actions=%#v", got, want, actions)
 	}
+}
+
+func firstRunTarget(plan FirstRunPlan, id SetupTargetID) (SetupTargetOption, bool) {
+	for _, target := range plan.Targets {
+		if target.ID == id {
+			return target, true
+		}
+	}
+	return SetupTargetOption{}, false
 }
