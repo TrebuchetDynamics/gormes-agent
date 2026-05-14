@@ -73,5 +73,23 @@ func DefaultPromptEvalScenarios() []EvalScenario {
 			ExpectedOutcome:       "generated progress docs refreshed",
 			RequiredResponseTerms: []string{"refreshed"},
 		},
+		{
+			Name:          "external project migration research",
+			Prompt:        "Find open-source projects that can automate or semi-automate porting a Python scraping project into Go.",
+			ExpectedTools: []string{"web_search"},
+			ExpectedOutcome: "ranked py2many and pytago by maturity license and project-specific fit, " +
+				"separated browser automation from helper-code transpilation, and recommended a " +
+				"test-backed Go-native rewrite migration workflow",
+			RequiredResponseTerms: []string{
+				"py2many",
+				"pytago",
+				"maturity",
+				"license",
+				"project-specific fit",
+				"browser automation",
+				"Go-native rewrite",
+				"migration workflow",
+			},
+		},
 	}
 }

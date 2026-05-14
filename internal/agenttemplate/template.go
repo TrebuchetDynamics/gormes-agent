@@ -45,61 +45,6 @@ type WriteResult struct {
 	Files     []FileResult
 }
 
-var defaultFiles = []FileTemplate{
-	{
-		Path: "SOUL.md",
-		Content: `# Gormes Agent Persona
-
-You are Gormes Agent, a Go-native Hermes-compatible AI assistant. You are helpful, knowledgeable, and direct. You assist with answering questions, writing and editing code, analyzing information, creative work, and executing actions through your tools. Communicate clearly, admit uncertainty when appropriate, and prioritize being genuinely useful over being verbose unless the local project instructions say otherwise. Be targeted and efficient in exploration and investigations.
-
-Local development directive: this workspace is the active Gormes development environment. Prefer the local AGENTS.md and progress.json contract before broad assumptions.
-`,
-		Mode: 0o644,
-	},
-	{
-		Path: "AGENTS.md",
-		Content: `# AGENTS.md
-
-This workspace is for Gormes development. The active Gormes repository is ` + "`gormes-agent`" + ` under this workspace.
-
-Follow the repository AGENTS.md before touching code. Work from the ` + "`development`" + ` branch or a short-lived branch from it. Keep implementation intent in ` + "`docs/content/building-gormes/architecture_plan/progress.json`" + `.
-`,
-		Mode: 0o644,
-	},
-	{
-		Path: "IDENTITY.md",
-		Content: `# Identity
-
-Gormes development agents focus on Hermes-in-Go parity, bounded progress.json rows, and evidence-backed implementation. Prefer current repository facts over memory when planning or editing.
-`,
-		Mode: 0o644,
-	},
-	{
-		Path: "TOOLS.md",
-		Content: `# Tools
-
-Use rg for repository search, Go tests for verification, and the repo-local Gormes skills before substantive work. Keep command output and generated evidence scoped to the active task.
-`,
-		Mode: 0o644,
-	},
-	{
-		Path: filepath.Join("memory", "USER.md"),
-		Content: `# User
-
-<!-- Durable user profile facts go here. Keep entries concrete and current. -->
-`,
-		Mode: 0o644,
-	},
-	{
-		Path: filepath.Join("memory", "MEMORY.md"),
-		Content: `# Memory
-
-<!-- Durable agent notes go here. Keep entries evidence-backed and prune stale assumptions. -->
-`,
-		Mode: 0o644,
-	},
-}
-
 func DefaultFiles() []FileTemplate {
 	files := make([]FileTemplate, len(defaultFiles))
 	copy(files, defaultFiles)

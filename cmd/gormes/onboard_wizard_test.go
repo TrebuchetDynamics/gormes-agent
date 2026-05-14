@@ -90,6 +90,32 @@ api_key = "sk-ant-fixture-token"
 	}
 }
 
+func TestOnboardStatusPrintsFirstRunNextCommand(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SKILLS_ROOT", "")
+	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
+
+	cmd := newOnboardCommandWithSeams(onboardCommandSeams{})
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("onboard: %v\nstderr=%s", err, stderr.String())
+	}
+
+	for _, want := range []string{
+		"First-run readiness: setup needed",
+		"not ready: provider endpoint is not configured",
+		"Provider: provider endpoint is not configured",
+		"Next: gormes setup --quick --target terminal",
+	} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+}
 
 func TestOnboardWizardInteractivePromptsForStepActions(t *testing.T) {
 	home := t.TempDir()

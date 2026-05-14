@@ -2,9 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 )
 
 // TestDoctorCommand_OfflineRoutedThroughCobra proves that `gormes
@@ -336,6 +342,398 @@ func TestDoctorCommand_OfflineJSONEmitsCheckArray(t *testing.T) {
 	}
 	if strings.Contains(stdout.String(), "[PASS]") || strings.Contains(stdout.String(), "[WARN]") {
 		t.Fatalf("--json must not emit bracketed human lines; got:\n%s", stdout.String())
+	}
+}
+
+func TestDoctorTargetTelegramReportsMissingChannelCommand(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "telegram")
+	if err != nil {
+		t.Fatalf("doctor --offline --target telegram: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	for _, want := range []string{
+		"target readiness",
+		"not ready: provider endpoint is not configured",
+		"Telegram channel is not configured",
+		"gormes setup --quick --target telegram",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestDoctorJSONIncludesTargetReadiness(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "whatsapp", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --target whatsapp --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Build struct {
+			Version string `json:"version"`
+		} `json:"build"`
+		Failed bool `json:"failed"`
+		Target struct {
+			Name        string   `json:"name"`
+			Ready       bool     `json:"ready"`
+			Summary     string   `json:"summary"`
+			NextCommand string   `json:"next_command"`
+			Missing     []string `json:"missing"`
+		} `json:"target"`
+		Checks []struct {
+			Name string `json:"name"`
+		} `json:"checks"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Build.Version != Version {
+		t.Fatalf("build.version = %q, want %q", got.Build.Version, Version)
+	}
+	if len(got.Checks) == 0 {
+		t.Fatalf("existing checks array must remain populated; stdout=%s", stdout)
+	}
+	if got.Target.Name != "whatsapp" {
+		t.Fatalf("target.name = %q, want whatsapp", got.Target.Name)
+	}
+	if got.Target.Ready {
+		t.Fatalf("target.ready = true, want false for fresh home")
+	}
+	if !strings.Contains(got.Target.Summary, "provider endpoint is not configured") {
+		t.Fatalf("target.summary = %q", got.Target.Summary)
+	}
+	if got.Target.NextCommand != "gormes setup --quick --target whatsapp" {
+		t.Fatalf("target.next_command = %q", got.Target.NextCommand)
+	}
+	wantMissing := []string{"provider", "auth", "channel"}
+	if !reflect.DeepEqual(got.Target.Missing, wantMissing) {
+		t.Fatalf("target.missing = %v, want %v", got.Target.Missing, wantMissing)
+	}
+}
+
+func TestDoctorTargetReadinessUsesResolvedSecretRefAuth(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	t.Setenv("GORMES_PROVIDER_SECRET", "sk-doctor-target-secretref")
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://provider.example/v1"
+model = "fixture-model"
+
+[hermes.api_key_ref]
+source = "env"
+id = "GORMES_PROVIDER_SECRET"
+
+[slack]
+enabled = true
+allowed_channel_id = "C123"
+`))
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "slack", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --target slack --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Target struct {
+			Name        string   `json:"name"`
+			Ready       bool     `json:"ready"`
+			Summary     string   `json:"summary"`
+			NextCommand string   `json:"next_command"`
+			Missing     []string `json:"missing"`
+		} `json:"target"`
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+		} `json:"checks"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Target.Name != "slack" {
+		t.Fatalf("target.name = %q, want slack", got.Target.Name)
+	}
+	if !got.Target.Ready {
+		t.Fatalf("target.ready = false, want true after SecretRef auth activation; target=%+v stdout=%s", got.Target, stdout)
+	}
+	if got.Target.NextCommand != "gormes gateway" {
+		t.Fatalf("target.next_command = %q, want gormes gateway", got.Target.NextCommand)
+	}
+	if len(got.Target.Missing) != 0 {
+		t.Fatalf("target.missing = %v, want none after SecretRef auth activation", got.Target.Missing)
+	}
+	for _, c := range got.Checks {
+		if c.Name == "target readiness" && strings.Contains(c.Summary, "provider credential is not configured") {
+			t.Fatalf("target readiness used pre-activation auth state: %+v\nstdout=%s", c, stdout)
+		}
+	}
+	if strings.Contains(stdout, "sk-doctor-target-secretref") {
+		t.Fatalf("doctor target JSON leaked resolved secret:\n%s", stdout)
+	}
+}
+
+func TestDoctorTargetTerminalReadinessUsesResolvableSecretRefAuth(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	secret := "sk-terminal-secretref"
+	t.Setenv("GORMES_PROVIDER_SECRET", secret)
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+endpoint = "https://provider.example/v1"
+model = "fixture-model"
+
+[hermes.api_key_ref]
+source = "env"
+id = "GORMES_PROVIDER_SECRET"
+`))
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "terminal", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --target terminal --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+
+	var got struct {
+		Target struct {
+			Name    string   `json:"name"`
+			Ready   bool     `json:"ready"`
+			Missing []string `json:"missing"`
+		} `json:"target"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must be valid JSON: %v\nstdout=%s", jsonErr, stdout)
+	}
+	if got.Target.Name != "terminal" {
+		t.Fatalf("target.name = %q, want terminal", got.Target.Name)
+	}
+	if !got.Target.Ready {
+		t.Fatalf("target.ready = false, want true for resolvable API key SecretRef; target=%+v stdout=%s", got.Target, stdout)
+	}
+	if len(got.Target.Missing) != 0 {
+		t.Fatalf("target.missing = %v, want none", got.Target.Missing)
+	}
+	if strings.Contains(stdout+stderr, secret) {
+		t.Fatalf("doctor target readiness leaked resolved SecretRef value:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}
+
+func TestDoctorInvalidTargetJSONMarksFailed(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "pagerduty", "--json")
+	if err == nil {
+		t.Fatalf("doctor --target pagerduty --json err = nil, want nonzero failure\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+
+	var got struct {
+		Failed bool `json:"failed"`
+		Checks []struct {
+			Name    string `json:"name"`
+			Status  string `json:"status"`
+			Summary string `json:"summary"`
+		} `json:"checks"`
+	}
+	if jsonErr := json.Unmarshal([]byte(stdout), &got); jsonErr != nil {
+		t.Fatalf("stdout must remain finalized JSON on invalid target: %v\nstdout=%s\nstderr=%s", jsonErr, stdout, stderr)
+	}
+	if !got.Failed {
+		t.Fatalf("failed = false, want true for invalid target\nstdout=%s", stdout)
+	}
+	for _, c := range got.Checks {
+		if c.Name == "target readiness" && c.Status == "FAIL" && strings.Contains(c.Summary, "unsupported target") {
+			return
+		}
+	}
+	t.Fatalf("checks missing FAIL target readiness unsupported-target entry: %+v\nstdout=%s", got.Checks, stdout)
+}
+
+func TestDoctorOfflineGatewayTokensDoNotConstructRealClientsOrLeakSecrets(t *testing.T) {
+	setupOneshotFlagTestEnv(t)
+	telegramToken := "123456:offline-telegram-secret"
+	discordToken := "discord-offline-secret"
+	writeOneshotFlagConfig(t, []byte(`
+[telegram]
+bot_token = "`+telegramToken+`"
+allowed_chat_id = 42
+
+[discord]
+token = "`+discordToken+`"
+allowed_channel_id = "C123"
+`))
+
+	var telegramCalls, discordCalls int
+	prevTelegram := doctorNewTelegramClient
+	prevDiscord := doctorNewDiscordSession
+	doctorNewTelegramClient = func(token string) error {
+		telegramCalls++
+		t.Fatalf("doctor --offline must not construct Telegram client; token=%q", token)
+		return nil
+	}
+	doctorNewDiscordSession = func(token string) error {
+		discordCalls++
+		t.Fatalf("doctor --offline must not construct Discord session; token=%q", token)
+		return nil
+	}
+	t.Cleanup(func() {
+		doctorNewTelegramClient = prevTelegram
+		doctorNewDiscordSession = prevDiscord
+	})
+
+	cmd := newRootCommand()
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
+	if err != nil {
+		t.Fatalf("doctor --offline --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+	}
+	if telegramCalls != 0 || discordCalls != 0 {
+		t.Fatalf("offline constructor calls = telegram:%d discord:%d, want zero", telegramCalls, discordCalls)
+	}
+	combined := stdout + stderr + errString(err)
+	for _, secret := range []string{telegramToken, discordToken} {
+		if strings.Contains(combined, secret) {
+			t.Fatalf("doctor --offline leaked secret %q:\nstdout=%s\nstderr=%s\nerr=%v", secret, stdout, stderr, err)
+		}
+	}
+	for _, want := range []string{
+		`"name": "gateway/telegram"`,
+		`"summary": "allowed_chat_id=42 (network validation skipped --offline)"`,
+		`"name": "gateway/discord"`,
+		`"summary": "allowed_channel_id=C123 (network validation skipped --offline)"`,
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestDoctorOfflineGitHubAuthDoesNotRunCLIAndStillReportsEnvToken(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		envToken   string
+		wantStatus string
+		wantText   string
+	}{
+		{name: "no env token", wantStatus: `"status": "SKIP"`, wantText: "skipped (--offline"},
+		{name: "env token", envToken: "ghp_offline_secret", wantStatus: `"status": "PASS"`, wantText: "token configured"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupOneshotFlagTestEnv(t)
+			t.Setenv("GITHUB_TOKEN", "")
+			t.Setenv("GH_TOKEN", "")
+			if tc.envToken != "" {
+				t.Setenv("GITHUB_TOKEN", tc.envToken)
+			}
+			called := false
+			prevRunner := doctorGitHubAuthRunner
+			doctorGitHubAuthRunner = func(ctx context.Context) doctor.GitHubAuthStatusResult {
+				called = true
+				t.Fatalf("doctor --offline must not run gh auth status")
+				return doctor.GitHubAuthStatusResult{}
+			}
+			t.Cleanup(func() { doctorGitHubAuthRunner = prevRunner })
+
+			cmd := newRootCommand()
+			stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--json")
+			if err != nil {
+				t.Fatalf("doctor --offline --json: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+			}
+			if called {
+				t.Fatalf("gh auth runner was called in offline mode")
+			}
+			if tc.envToken != "" && strings.Contains(stdout+stderr, tc.envToken) {
+				t.Fatalf("doctor leaked GitHub token:\nstdout=%s\nstderr=%s", stdout, stderr)
+			}
+			if !strings.Contains(stdout, `"name": "GitHub auth"`) || !strings.Contains(stdout, tc.wantStatus) || !strings.Contains(stdout, tc.wantText) {
+				t.Fatalf("GitHub auth offline report missing status/text %q/%q:\n%s", tc.wantStatus, tc.wantText, stdout)
+			}
+		})
+	}
+}
+
+func TestDoctorGatewayInitErrorsRedactTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		configBody    string
+		secret        string
+		replaceSeam   func(t *testing.T, secret string)
+		wantCheckName string
+	}{
+		{
+			name:   "telegram",
+			secret: "123456:live-telegram-secret",
+			configBody: `
+[telegram]
+bot_token = "123456:live-telegram-secret"
+allowed_chat_id = 42
+`,
+			replaceSeam: func(t *testing.T, secret string) {
+				prev := doctorNewTelegramClient
+				doctorNewTelegramClient = func(token string) error {
+					if token != secret {
+						t.Fatalf("telegram token = %q, want fixture secret", token)
+					}
+					return fmt.Errorf("telegram getMe failed at https://api.telegram.org/bot%s/getMe", token)
+				}
+				t.Cleanup(func() { doctorNewTelegramClient = prev })
+			},
+			wantCheckName: "gateway/telegram",
+		},
+		{
+			name:   "discord",
+			secret: "discord-live-secret",
+			configBody: `
+[discord]
+token = "discord-live-secret"
+allowed_channel_id = "C123"
+`,
+			replaceSeam: func(t *testing.T, secret string) {
+				prev := doctorNewDiscordSession
+				doctorNewDiscordSession = func(token string) error {
+					if token != secret {
+						t.Fatalf("discord token = %q, want fixture secret", token)
+					}
+					return fmt.Errorf("discord session failed for Bot %s", token)
+				}
+				t.Cleanup(func() { doctorNewDiscordSession = prev })
+			},
+			wantCheckName: "gateway/discord",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupOneshotFlagTestEnv(t)
+			writeOneshotFlagConfig(t, []byte(`
+[hermes]
+provider = "openai-codex"
+model = "gpt-5.1-codex"
+`+tc.configBody))
+			if _, err := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{}).SaveTokens(config.CodexOAuthTokens{
+				AccessToken:  "codex-access",
+				RefreshToken: "codex-refresh",
+			}); err != nil {
+				t.Fatalf("save codex auth: %v", err)
+			}
+			tc.replaceSeam(t, tc.secret)
+
+			cmd := newRootCommand()
+			stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--json")
+			if err == nil {
+				t.Fatalf("doctor --json err = nil, want gateway init failure\nstdout=%s\nstderr=%s", stdout, stderr)
+			}
+			combined := stdout + stderr + err.Error()
+			if strings.Contains(combined, tc.secret) {
+				t.Fatalf("doctor leaked %s token %q:\nstdout=%s\nstderr=%s\nerr=%v", tc.name, tc.secret, stdout, stderr, err)
+			}
+			if !strings.Contains(stdout, `"failed": true`) || !strings.Contains(stdout, `"name": "`+tc.wantCheckName+`"`) || !strings.Contains(stdout, "[REDACTED]") {
+				t.Fatalf("doctor JSON missing redacted failure evidence:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+			}
+		})
 	}
 }
 

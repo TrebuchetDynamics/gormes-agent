@@ -106,6 +106,39 @@ func TestModelOperationalGuidanceByFamily(t *testing.T) {
 	}
 }
 
+func TestResearchQualityGuidanceRequiresWebSearchTool(t *testing.T) {
+	got := BuildModelPromptGuidance(ModelPromptGuidanceOptions{
+		Model:          "gpt-5",
+		ValidToolNames: []string{"read_file", "web_search", "web_extract"},
+	})
+	for _, want := range []string{
+		"# Research quality",
+		"open-source projects",
+		"maturity",
+		"license",
+		"project-specific fit",
+		"migration workflow",
+	} {
+		if !strings.Contains(got.Guidance, want) {
+			t.Fatalf("research guidance missing %q:\n%s", want, got.Guidance)
+		}
+	}
+	if !containsModelGuidanceEvidence(got.Evidence, "research_quality_guidance_injected") {
+		t.Fatalf("missing injected evidence: %#v", got.Evidence)
+	}
+
+	withoutSearch := BuildModelPromptGuidance(ModelPromptGuidanceOptions{
+		Model:          "gpt-5",
+		ValidToolNames: []string{"read_file", "web_extract"},
+	})
+	if strings.Contains(withoutSearch.Guidance, "# Research quality") {
+		t.Fatalf("research guidance emitted without web_search:\n%s", withoutSearch.Guidance)
+	}
+	if !containsModelGuidanceEvidence(withoutSearch.Evidence, "research_quality_guidance_suppressed_no_web_search") {
+		t.Fatalf("missing suppressed evidence: %#v", withoutSearch.Evidence)
+	}
+}
+
 func TestPromptGuidanceIsPure(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "model_guidance.go", nil, parser.ImportsOnly)

@@ -25,6 +25,7 @@ type onboardStatusReportJSON struct {
 	SkillsRoot         string                       `json:"skills_root"`
 	SkillsLocal        int                          `json:"skills_local"`
 	SkillsBundled      int                          `json:"skills_bundled"`
+	FirstRun           onboardFirstRunReadinessJSON `json:"first_run"`
 	ProviderConfigured bool                         `json:"provider_configured"`
 	Provider           string                       `json:"provider,omitempty"`
 	Endpoint           string                       `json:"endpoint,omitempty"`
@@ -33,6 +34,14 @@ type onboardStatusReportJSON struct {
 	DefaultAgent       string                       `json:"default_agent,omitempty"`
 	Agents             []onboardAgentJSON           `json:"agents,omitempty"`
 	Bindings           []onboardBindingJSON         `json:"bindings,omitempty"`
+}
+
+type onboardFirstRunReadinessJSON struct {
+	Ready       bool     `json:"ready"`
+	Target      string   `json:"target"`
+	NextCommand string   `json:"next_command"`
+	Missing     []string `json:"missing"`
+	Summary     string   `json:"summary,omitempty"`
 }
 
 type onboardAgentJSON struct {
@@ -114,6 +123,7 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 func writeOnboardStatusJSON(cmd *cobra.Command, cfg config.Config) error {
 	local, builtin := onboardSkillCounts(cfg)
 	defaultAgent := cfg.Agents.DefaultAgentID()
+	firstRun := buildFirstRunPlanFromConfig(cfg, cli.SetupTargetTerminal, false)
 	report := onboardStatusReportJSON{
 		Build:              newBuildProvenance(),
 		Home:               config.GormesHome(),
@@ -121,6 +131,7 @@ func writeOnboardStatusJSON(cmd *cobra.Command, cfg config.Config) error {
 		SkillsRoot:         cfg.SkillsRoot(),
 		SkillsLocal:        local,
 		SkillsBundled:      builtin,
+		FirstRun:           onboardFirstRunReadinessFromPlan(firstRun),
 		ProviderConfigured: onboardProviderConfigured(cfg),
 		Provider:           strings.TrimSpace(cfg.Hermes.Provider),
 		Endpoint:           strings.TrimSpace(cfg.Hermes.Endpoint),
@@ -150,6 +161,20 @@ func writeOnboardStatusJSON(cmd *cobra.Command, cfg config.Config) error {
 	return err
 }
 
+func onboardFirstRunReadinessFromPlan(plan cli.FirstRunPlan) onboardFirstRunReadinessJSON {
+	missing := make([]string, 0, len(plan.MissingSteps))
+	for _, step := range plan.MissingSteps {
+		missing = append(missing, string(step.ID))
+	}
+	return onboardFirstRunReadinessJSON{
+		Ready:       plan.Ready,
+		Target:      string(plan.Target),
+		NextCommand: plan.NextCommand,
+		Missing:     missing,
+		Summary:     plan.Summary,
+	}
+}
+
 func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	skillsRoot := cfg.SkillsRoot()
 	local, builtin := onboardSkillCounts(cfg)
@@ -161,6 +186,9 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	fmt.Fprintf(out, "Config: %s\n", config.ConfigPath())
 	fmt.Fprintf(out, "Runtime skills root: %s\n", skillsRoot)
 	fmt.Fprintf(out, "Runtime skills: %d local, %d bundled\n", local, builtin)
+	fmt.Fprintln(out)
+
+	printOnboardFirstRunReadiness(out, buildFirstRunPlanFromConfig(cfg, cli.SetupTargetTerminal, false))
 	fmt.Fprintln(out)
 
 	providerConfigured := onboardProviderConfigured(cfg)
@@ -241,6 +269,26 @@ func printOnboardStatus(cmd *cobra.Command, cfg config.Config) {
 	if _, ok := os.LookupEnv("GORMES_SKILLS_ROOT"); ok {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "GORMES_SKILLS_ROOT is set; runtime skill tools and `gormes skills` will use that override.")
+	}
+}
+
+func printOnboardFirstRunReadiness(out io.Writer, plan cli.FirstRunPlan) {
+	status := "ready"
+	if !plan.Ready {
+		status = "setup needed"
+	}
+	fmt.Fprintf(out, "First-run readiness: %s\n", status)
+	if plan.Summary != "" {
+		fmt.Fprintf(out, "%s\n", plan.Summary)
+	}
+	for _, step := range plan.MissingSteps {
+		if step.Detail == "" {
+			continue
+		}
+		fmt.Fprintf(out, "%s: %s\n", step.Label, step.Detail)
+	}
+	if command := firstRunGuidanceCommand(plan.NextCommand); command != "" {
+		fmt.Fprintf(out, "Next: %s\n", command)
 	}
 }
 

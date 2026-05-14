@@ -8,6 +8,36 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+## [0.2.11] - 2026-05-14
+
+Date alias: `v2026.5.14`.
+
+> **First-run CLI/TUI setup, safer channel onboarding, and refreshed Hermes parity evidence.**
+
+### Added
+- Shared first-run readiness planner used by root launch, setup, onboard, and doctor surfaces.
+- Target-first `gormes setup --quick` flow for terminal, Telegram, WhatsApp, Discord, Slack, and Navibox.
+- Minimal Telegram, Discord, and Slack channel setup prompts with secret-safe config writes.
+- Planner-backed `gormes onboard` and `gormes doctor --target` text/JSON readiness reports.
+- Fresh-install e2e coverage for root no-TTY guidance, quick setup non-interactive mode, onboard JSON, and doctor target JSON.
+- Hermes parity refresh automation, source-pair evidence, and default template/guidance fixtures.
+- Novita provider parity classification and local install CLI smoke coverage.
+
+### Changed
+- Fresh `gormes` launches now show setup guidance or route into setup instead of opening an unusable TUI.
+- WhatsApp setup guidance now uses the plan-only `gormes whatsapp --plan` path unless the operator explicitly runs the live command.
+- `setup --quick --target <channel>` skips channel setup when that channel is already configured.
+- `gormes doctor --offline` now stays local-only for provider, gateway, CDP, and GitHub auth checks.
+- Gateway background command guards and quick setup entry-mode isolation were tightened.
+- Progress, benchmark, upstream Hermes mirror, and cross-project parity evidence were refreshed.
+
+### Fixed
+- Browser skip installer flags are accepted by the source-build installer path.
+- Existing `.env` permissions are tightened without clobbering operator secrets.
+- SecretRef-backed provider auth is counted correctly in terminal/onboard readiness without leaking resolved values.
+- Discord and Slack numeric channel IDs remain string-safe in nested config paths.
+- Kanban board pinning and fresh-install kanban environment isolation no longer leak across tests.
+
 ## [0.2.10] - 2026-05-14
 
 Date alias: `v2026.5.14`.
@@ -910,7 +940,8 @@ until the release workflow accepts date-based tags as a separate concern).
 - Gateway event routing
 - SQLite session store
 
-[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.10...HEAD
+[Unreleased]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.11...HEAD
+[0.2.11]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.10...v0.2.11
 [0.2.10]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/TrebuchetDynamics/gormes-agent/compare/v0.2.7...v0.2.8

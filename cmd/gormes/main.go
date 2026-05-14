@@ -135,6 +135,8 @@ type rootRuntime struct {
 	newOneshotClient       oneshotClientFactory
 	configureOneshotKernel oneshotKernelConfigurer
 	tuiProgramFactory      tuiProgramFactory
+	isTTY                  func() bool
+	runFirstRunSetup       func(*cobra.Command) error
 }
 
 type tuiInvocation struct {
@@ -159,6 +161,12 @@ type oneshotInvocation struct {
 }
 
 func newRootCommandWithRuntime(runtime rootRuntime) *cobra.Command {
+	if runtime.isTTY == nil {
+		runtime.isTTY = isStdinTTY
+	}
+	if runtime.runFirstRunSetup == nil {
+		runtime.runFirstRunSetup = runFirstRunSetupCommand
+	}
 	if runtime.tuiProgramFactory == nil {
 		runtime.tuiProgramFactory = defaultTUIProgramFactory
 	}
@@ -435,7 +443,8 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 		Short: "Open chat or send a one-shot query",
 		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pinCurrentKanbanBoardDBForChat()
+			restoreKanbanDB := pinCurrentKanbanBoardDBForChat()
+			defer restoreKanbanDB()
 			prompt := strings.TrimSpace(query)
 			if prompt == "" && len(args) > 0 {
 				prompt = strings.TrimSpace(strings.Join(args, " "))
@@ -458,25 +467,39 @@ func newChatCommand(runtime rootRuntime) *cobra.Command {
 	return cmd
 }
 
-func pinCurrentKanbanBoardDBForChat() {
-	if strings.TrimSpace(os.Getenv("GORMES_KANBAN_DB")) != "" {
-		return
+func pinCurrentKanbanBoardDBForChat() func() {
+	current, hadCurrent := os.LookupEnv("GORMES_KANBAN_DB")
+	if strings.TrimSpace(current) != "" {
+		return func() {}
 	}
 	board, err := kanban.NewBoardRegistry(config.KanbanHome()).Current()
 	if err != nil {
 		slog.Debug("chat: kanban board pin unavailable", "err", err)
-		return
+		return func() {}
 	}
 	if strings.TrimSpace(board.Path) == "" {
-		return
+		return func() {}
 	}
 	if err := os.Setenv("GORMES_KANBAN_DB", board.Path); err != nil {
 		slog.Debug("chat: kanban board pin failed", "err", err)
+		return func() {}
+	}
+	return func() {
+		if hadCurrent {
+			if err := os.Setenv("GORMES_KANBAN_DB", current); err != nil {
+				slog.Debug("chat: kanban board pin restore failed", "err", err)
+			}
+			return
+		}
+		if err := os.Unsetenv("GORMES_KANBAN_DB"); err != nil {
+			slog.Debug("chat: kanban board pin restore failed", "err", err)
+		}
 	}
 }
 
 func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) error {
-	pinCurrentKanbanBoardDBForChat()
+	restoreKanbanDB := pinCurrentKanbanBoardDBForChat()
+	defer restoreKanbanDB()
 	if cmd.Flags().Changed("oneshot") {
 		invocation, err := resolveOneshotInvocation(cmd)
 		if err != nil {
@@ -486,6 +509,9 @@ func runRootCommand(cmd *cobra.Command, args []string, runtime rootRuntime) erro
 	}
 	invocation, err := resolveTUIInvocation(cmd)
 	if err != nil {
+		return err
+	}
+	if handled, err := maybeHandleRootFirstRun(cmd, invocation, runtime); handled || err != nil {
 		return err
 	}
 	return runtime.runResolvedTUI(cmd, invocation)

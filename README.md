@@ -169,7 +169,7 @@ Hermes-Agent, with upstream Git history preserved for attribution, remains the p
 
 ## Status
 
-Latest public release: [v0.2.10](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.10).
+Latest public release: [v0.2.11](https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.11).
 
 CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git diff --check`. The single static binary ships for Linux, macOS, Windows, and Termux/Android. The current Linux build measures ~40.4 MB (`benchmarks.json`). WASI Whisper tiny.en runs at 3.78x realtime (`benchmarks.json`, 2026-05-10).
 
@@ -180,7 +180,7 @@ CI runs `go test ./... -count=1`, `go run ./cmd/progress validate`, and `git dif
 | Phase | Status | Shipped |
 |-------|--------|---------|
 | Phase 1 — The Dashboard | ✅ | 5/5 subphases |
-| Phase 2 — The Gateway | ✅ | 22/22 subphases |
+| Phase 2 — The Gateway | 🔨 | 21/22 subphases |
 | Phase 3 — The Black Box (Memory) | ✅ | 15/15 subphases |
 | Phase 4 — The Brain Transplant | ✅ | 13/13 subphases |
 | Phase 5 — The Final Purge | ✅ | 23/23 subphases |

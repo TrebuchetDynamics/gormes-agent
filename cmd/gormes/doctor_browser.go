@@ -32,6 +32,7 @@ type browserRuntimeDoctorDeps struct {
 	lookPath func(string) (string, error)
 	getenv   func(string) string
 	probeCDP func(context.Context, string) error
+	offline  bool
 }
 
 func doctorBrowserRuntimeStatus() doctor.CheckResult {
@@ -71,6 +72,15 @@ func doctorBrowserRuntimeStatusWithDeps(deps browserRuntimeDoctorDeps) doctor.Ch
 			Note:   browserCDPSetupRecommendation(chromeLaunchCommand(chromePath)),
 		})
 		return doctor.CheckResult{Name: "Browser runtime", Status: status, Summary: summary, Items: items}
+	}
+
+	if deps.offline {
+		items = append(items, doctor.ItemInfo{
+			Name:   "cdp",
+			Status: doctor.StatusSkip,
+			Note:   "configured at " + endpoint + "; reachability probe skipped --offline",
+		})
+		return doctor.CheckResult{Name: "Browser runtime", Status: status, Summary: "cdp_configured_offline", Items: items}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 750*time.Millisecond)

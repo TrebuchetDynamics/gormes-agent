@@ -14,6 +14,8 @@ Active sources:
 - **space-agent**: browser-first UX and metadata-driven skill placement patterns.
 - **picoclaw**: Go-native channel/provider examples.
 - **go-agent-os references**: Go patterns for OAuth, retry, tools, state, stores, and queues.
+- **goscrapling**: local Go-native Scrapling-style extraction engine candidate
+  for future web extraction and crawl tools.
 
 The rule is unchanged: Hermes defines what to port, Honcho defines memory
 compatibility, and Go donors only shape implementation details.
@@ -24,6 +26,7 @@ compatibility, and Go donors only shape implementation details.
 |---|---|---|---|
 | Provider adapters | Hermes | Many core providers are implemented; fallback, pricing, and error parity continue | Provider fallback chain, retry-after parsing, model metadata |
 | Browser automation | Hermes + go-browser-harness | Core actions are implemented; daemon/profile diagnostics remain | Browser doctor, profile lifecycle, event drain |
+| Web extraction | Hermes + goscrapling | Generic web fetch/search tools exist; specialized extraction/crawl engine remains a candidate integration | Static goscrapling adapter with structured evidence |
 | Tool registry | Hermes | Native registry exists, but broad file/web/MCP/tool safety parity remains | Permission-hardened shell, tool descriptor layer, truncation |
 | Memory | Honcho + Go donors | Goncho exists as the local compatibility lane | Typed memory, provenance, retrieval evaluation, durable write queue |
 | Gateway/channels | Hermes + Picoclaw | Telegram, Discord, and Slack are runtime-ready; wider channels remain row-backed | Channel status labels, adapter parity fixtures |
@@ -40,6 +43,7 @@ compatibility, and Go donors only shape implementation details.
 | P0 | Native prompt builder | `../hermes-agent/agent/prompt_builder.py` | `internal/agenttemplate`, prompt assembly packages |
 | P1 | Provider fallback chain | `mercury-agent/src/core/providers.ts`, `picoclaw/pkg/providers/` | `internal/provider` |
 | P1 | Browser harness doctor | `go-browser-harness` docs and tests | browser harness CLI and Gormes doctor evidence |
+| P1 | goscrapling static extraction adapter | `../goscrapling/docs/content/building-goscrapling/strategy/portfolio-and-gormes-fit.md`, `../goscrapling/docs/content/building-goscrapling/architecture_plan/progress.json` | Gormes web extraction tool schema plus local fixture evidence |
 | P1 | Loop detection | Mercury loop-detection patterns | `internal/kernel`, `internal/agent` |
 | P2 | Structured memory types | Honcho models, Engram store references | `internal/goncho` |
 | P2 | Skill metadata placement | Space Agent skill metadata patterns, Hermes skills | `internal/skills` |
@@ -51,6 +55,7 @@ compatibility, and Go donors only shape implementation details.
 |---|---|---|
 | Browser-first runtime | Space Agent | Different product model; Gormes remains a Go-native runtime. |
 | WebLLM in-browser inference | Space Agent | Requires browser runtime and conflicts with the one-binary operator path. |
+| Replacing all web tools with goscrapling at once | goscrapling | goscrapling should enter as a narrow extraction adapter first; search routing, browser actions, approval policy, and channel rendering remain Gormes concerns. |
 | Full TUI gateway server at once | Hermes | Too large; port incrementally through visible contracts. |
 | Kubernetes ACP controllers | Go references | Use local state machines first. |
 | Telegram org model | Mercury | Gormes gateway channels use a different session/routing abstraction. |

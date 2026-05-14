@@ -91,6 +91,9 @@ func TestChatCommandPinsCurrentKanbanBoardDBForTools(t *testing.T) {
 	if os.Getenv("HERMES_HOME") != hermesHome {
 		t.Fatalf("HERMES_HOME changed to %q, want %q", os.Getenv("HERMES_HOME"), hermesHome)
 	}
+	if got := os.Getenv("GORMES_KANBAN_DB"); got != "" {
+		t.Fatalf("GORMES_KANBAN_DB after chat = %q, want restored empty", got)
+	}
 }
 
 func TestChatCommandPreservesExplicitKanbanDBPin(t *testing.T) {
@@ -120,6 +123,9 @@ func TestChatCommandPreservesExplicitKanbanDBPin(t *testing.T) {
 	}
 	if gotDB != explicitDB {
 		t.Fatalf("GORMES_KANBAN_DB during chat = %q, want explicit pin %q", gotDB, explicitDB)
+	}
+	if got := os.Getenv("GORMES_KANBAN_DB"); got != explicitDB {
+		t.Fatalf("GORMES_KANBAN_DB after chat = %q, want explicit pin preserved %q", got, explicitDB)
 	}
 }
 

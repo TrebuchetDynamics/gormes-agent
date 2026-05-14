@@ -22,10 +22,16 @@ type setupCommandFakeSeams struct {
 	modelPickerCalls int
 	loadedCurrent    int
 
-	chooseSetupAction  func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	runFullWizard      func(*cobra.Command, bool) error
-	runSetupGateway    func(*cobra.Command, bool) error
-	runGatewayPlatform func(*cobra.Command, string) error
+	chooseSetupAction   func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	chooseSetupTarget   func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
+	runSetupProvider    func(*cobra.Command, bool) error
+	runProviderLiveTest func(*cobra.Command) error
+	runFullWizard       func(*cobra.Command, bool) error
+	runSetupGateway     func(*cobra.Command, bool) error
+	runGatewayPlatform  func(*cobra.Command, string) error
+	runWhatsAppSetup    func(*cobra.Command) error
+	detectHermes        func() string
+	detectOpenClaw      func() string
 }
 
 func (f *setupCommandFakeSeams) seams() setupCommandSeams {
@@ -36,6 +42,14 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 		f.current.Model = "gpt-5.5"
 	}
 	existingInstall := !f.freshInstall
+	detectHermes := f.detectHermes
+	if detectHermes == nil {
+		detectHermes = func() string { return "" }
+	}
+	detectOpenClaw := f.detectOpenClaw
+	if detectOpenClaw == nil {
+		detectOpenClaw = func() string { return "" }
+	}
 	return setupCommandSeams{
 		IsTTY: func() bool { return f.isTTY },
 		HasExistingInstall: func() (bool, error) {
@@ -49,10 +63,16 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 			f.loadedCurrent++
 			return f.current, nil
 		},
-		ChooseSetupAction:  f.chooseSetupAction,
-		RunFullWizard:      f.runFullWizard,
-		RunSetupGateway:    f.runSetupGateway,
-		RunGatewayPlatform: f.runGatewayPlatform,
+		ChooseSetupAction:             f.chooseSetupAction,
+		ChooseSetupTarget:             f.chooseSetupTarget,
+		RunSetupProvider:              f.runSetupProvider,
+		RunProviderLiveTest:           f.runProviderLiveTest,
+		RunFullWizard:                 f.runFullWizard,
+		RunSetupGateway:               f.runSetupGateway,
+		RunGatewayPlatform:            f.runGatewayPlatform,
+		RunWhatsAppSetup:              f.runWhatsAppSetup,
+		DetectHermesMigrationSource:   detectHermes,
+		DetectOpenClawMigrationSource: detectOpenClaw,
 	}
 }
 
@@ -305,13 +325,15 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Setup section: provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "sk-t***7890"} {
+	for _, want := range []string{"Setup section: provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	if strings.Contains(stdout+stderr, secret) {
-		t.Fatalf("setup output leaked raw API key:\nstdout=%s\nstderr=%s", stdout, stderr)
+	for _, leaked := range []string{secret, "sk-t***7890", "sk-t", "7890"} {
+		if strings.Contains(stdout+stderr, leaked) {
+			t.Fatalf("setup output leaked API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
+		}
 	}
 	configBody, err := os.ReadFile(config.ConfigPath())
 	if err != nil {
@@ -344,13 +366,15 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Provider: groq", "Endpoint: https://api.groq.com/openai/v1", "Model:    llama-3.3-70b-versatile", "sk-g***7890"} {
+	for _, want := range []string{"Provider: groq", "Endpoint: https://api.groq.com/openai/v1", "Model:    llama-3.3-70b-versatile", "API key:  stored (redacted)"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}
 	}
-	if strings.Contains(stdout+stderr, secret) {
-		t.Fatalf("setup output leaked raw API key:\nstdout=%s\nstderr=%s", stdout, stderr)
+	for _, leaked := range []string{secret, "sk-g***7890", "sk-g", "7890"} {
+		if strings.Contains(stdout+stderr, leaked) {
+			t.Fatalf("setup output leaked API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
+		}
 	}
 	configBody, err := os.ReadFile(config.ConfigPath())
 	if err != nil {
@@ -363,6 +387,35 @@ func TestSetupProviderInteractiveWritesSelectedProvider(t *testing.T) {
 	}
 	if strings.Contains(string(configBody), secret) || strings.Contains(string(configBody), "api_key") {
 		t.Fatalf("config.toml leaked secret material:\n%s", string(configBody))
+	}
+	envBody, err := os.ReadFile(config.EnvPath())
+	if err != nil {
+		t.Fatalf("read env: %v", err)
+	}
+	if !strings.Contains(string(envBody), "GORMES_API_KEY="+secret) {
+		t.Fatalf(".env missing API key entry:\n%s", string(envBody))
+	}
+}
+
+func TestSetupProviderDoesNotPrintShortSecretMaterial(t *testing.T) {
+	home := t.TempDir()
+	secret := "abcd"
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_ENDPOINT", "https://provider.example/v1")
+	t.Setenv("GORMES_API_KEY", secret)
+
+	fake := &setupCommandFakeSeams{isTTY: false}
+	stdout, stderr, err := runSetupTestCommand(t, fake.seams(), "provider", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "API key:  stored (redacted)") {
+		t.Fatalf("stdout missing redacted key confirmation:\n%s", stdout)
+	}
+	for _, leaked := range []string{secret, "abcd***abcd", "abc", "bcd"} {
+		if strings.Contains(stdout+stderr, leaked) {
+			t.Fatalf("setup output leaked short API key material %q:\nstdout=%s\nstderr=%s", leaked, stdout, stderr)
+		}
 	}
 	envBody, err := os.ReadFile(config.EnvPath())
 	if err != nil {

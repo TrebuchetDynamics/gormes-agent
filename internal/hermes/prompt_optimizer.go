@@ -180,6 +180,10 @@ func (o *PromptOptimizer) GenerateVariants(base PromptVariant, iteration int) []
 			idSuffix: "command-safety",
 			line:     "Classify commands before execution and block destructive operations.",
 		},
+		{
+			idSuffix: "research-quality",
+			line:     "Evaluate external-project research with source-backed maturity, license, fit, limitations, and a test-backed workflow recommendation.",
+		},
 	}
 
 	limit := o.variantsPerIteration

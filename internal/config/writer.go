@@ -183,7 +183,13 @@ func WriteEnvValue(path, key, value string) error {
 		out.WriteString(encoded)
 		out.WriteByte('\n')
 	}
-	return os.WriteFile(path, out.Bytes(), 0o600)
+	if err := os.WriteFile(path, out.Bytes(), 0o600); err != nil {
+		return err
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("config: chmod %s: %w", path, err)
+	}
+	return nil
 }
 
 func splitTOMLDotPath(key string) (section string, fields []string, err error) {
@@ -599,6 +605,9 @@ func coerceTOMLValue(section string, fields []string, value string) (any, error)
 	case "navibox.allow_origins", "navibox.allowed_tailnet_identities":
 		return parseEnvCSV(value), nil
 	default:
+		if (section == "discord" || section == "slack") && len(fields) > 0 && fields[len(fields)-1] == "allowed_channel_id" {
+			return value, nil
+		}
 		return coerceTOMLScalar(value)
 	}
 }

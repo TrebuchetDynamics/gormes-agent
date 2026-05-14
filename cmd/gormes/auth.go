@@ -1077,6 +1077,8 @@ func normalizeAuthProvider(provider string) string {
 	switch normalized {
 	case "or", "open-router":
 		return "openrouter"
+	case "novita-ai", "novitaai":
+		return "novita"
 	case "minimax-global", "minimax-portal", "minimax-oauth":
 		return "minimax-oauth"
 	default:
@@ -1120,6 +1122,8 @@ func providerBaseURL(provider, override string) string {
 		return "https://chatgpt.com/backend-api/codex"
 	case config.NousOAuthProvider:
 		return "https://inference-api.nousresearch.com/v1"
+	case "novita":
+		return "https://api.novita.ai/openai/v1"
 	case "google-gemini-cli":
 		return "cloudcode-pa://google"
 	case "qwen-oauth":

@@ -229,7 +229,13 @@ func codexOAuthSetupError(reason string) error {
 }
 
 func normalizeProviderName(provider string) string {
-	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(provider)), "_", "-")
+	normalized := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(provider)), "_", "-")
+	switch normalized {
+	case "novita-ai", "novitaai":
+		return "novita"
+	default:
+		return normalized
+	}
 }
 
 func firstNonEmpty(values ...string) string {

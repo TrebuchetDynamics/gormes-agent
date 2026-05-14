@@ -163,3 +163,39 @@ func TestDoctorBrowserRuntimeWarnsWhenCDPEndpointIsConfiguredButUnreachable(t *t
 		t.Fatalf("cdp note = %q, want reachability error plus launch guidance", cdp.Note)
 	}
 }
+
+func TestDoctorBrowserRuntimeOfflineDoesNotProbeConfiguredCDP(t *testing.T) {
+	got := doctorBrowserRuntimeStatusWithDeps(browserRuntimeDoctorDeps{
+		offline: true,
+		lookPath: func(name string) (string, error) {
+			if name == "google-chrome" {
+				return "/bin/google-chrome", nil
+			}
+			return "", errors.New("not found")
+		},
+		getenv: func(key string) string {
+			if key == "BROWSER_CDP_URL" {
+				return "http://127.0.0.1:9333"
+			}
+			return ""
+		},
+		probeCDP: func(context.Context, string) error {
+			t.Fatalf("offline browser runtime status must not probe CDP")
+			return nil
+		},
+	})
+
+	if got.Status != doctor.StatusPass {
+		t.Fatalf("Status = %v, want PASS for local offline CDP config\n%s", got.Status, got.Format())
+	}
+	if !strings.Contains(got.Summary, "cdp_configured_offline") {
+		t.Fatalf("Summary = %q, want cdp_configured_offline", got.Summary)
+	}
+	cdp, ok := findItem(got.Items, "cdp")
+	if !ok {
+		t.Fatalf("missing cdp item in %+v", got.Items)
+	}
+	if cdp.Status != doctor.StatusSkip || !strings.Contains(cdp.Note, "skipped --offline") {
+		t.Fatalf("cdp item = %+v, want SKIP with offline note", cdp)
+	}
+}

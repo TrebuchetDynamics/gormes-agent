@@ -5,13 +5,25 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/doctor"
 )
 
 func TestDoctorCommandRendersGitHubAuthFallback(t *testing.T) {
-	setupCustomEndpointDoctorEnv(t)
+	setupOneshotFlagTestEnv(t)
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GH_TOKEN", "")
+	writeOneshotFlagConfig(t, []byte(`
+[hermes]
+provider = "openai-codex"
+model = "gpt-5.1-codex"
+`))
+	if _, err := config.NewCodexOAuthStateStore(config.CodexOAuthStateStoreOptions{}).SaveTokens(config.CodexOAuthTokens{
+		AccessToken:  "codex-access",
+		RefreshToken: "codex-refresh",
+	}); err != nil {
+		t.Fatalf("save codex auth: %v", err)
+	}
 
 	orig := doctorGitHubAuthRunner
 	doctorGitHubAuthRunner = func(context.Context) doctor.GitHubAuthStatusResult {
@@ -21,7 +33,7 @@ func TestDoctorCommandRendersGitHubAuthFallback(t *testing.T) {
 
 	stdout, err := captureDoctorStdout(t, func() error {
 		cmd := newRootCommand()
-		cmd.SetArgs([]string{"doctor", "--offline"})
+		cmd.SetArgs([]string{"doctor"})
 		return cmd.Execute()
 	})
 	if err != nil {

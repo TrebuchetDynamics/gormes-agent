@@ -187,7 +187,7 @@ func New(cfg Config, c hermes.Client, s store.Store, tm telemetry.Telemetry, log
 }
 
 func (k *Kernel) liveTurnGuidanceBlocks(model string) []string {
-	blocks := make([]string, 0, 5)
+	blocks := make([]string, 0, 6)
 	if k.toolRegistered("memory") {
 		blocks = append(blocks, hermes.MemoryGuidance)
 	}
@@ -202,6 +202,9 @@ func (k *Kernel) liveTurnGuidanceBlocks(model string) []string {
 		blocks = append(blocks, hermes.OpenAIModelExecutionGuidance)
 	} else if modelMatchesAny(modelLower, []string{"gemini", "gemma"}) {
 		blocks = append(blocks, hermes.GoogleModelOperationalGuidance)
+	}
+	if k.toolRegistered(tools.WebToolSearch) {
+		blocks = append(blocks, hermes.ResearchQualityGuidance)
 	}
 	return blocks
 }

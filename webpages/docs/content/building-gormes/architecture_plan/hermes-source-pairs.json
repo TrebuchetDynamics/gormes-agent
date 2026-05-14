@@ -1,0 +1,284 @@
+{
+  "schema_version": "1.0",
+  "hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+  "pairs": [
+    {
+      "hermes_file": "agent/prompt_builder.py",
+      "gormes_targets": [
+        "internal/hermes/prompt_assembly.go",
+        "internal/hermes/context_files.go",
+        "internal/hermes/default_soul.go",
+        "internal/hermes/skills_prompt.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes system-prompt assembly, identity fallback, context-file loading, skill guidance, memory guidance, and provider-visible prompt fragment ordering.",
+      "tests": [
+        "go test ./internal/hermes -run 'TestPrompt|TestContextFiles|TestDefaultSoul|TestGuidanceConstants|TestSkillsPrompt' -count=1"
+      ],
+      "progress_rows": [
+        "Default agent identity / SOUL.md loader",
+        "Context-file discovery + injection scan",
+        "Hermes live-turn prompt assembly parity (channel-neutral)"
+      ],
+      "upstream_tests": [
+        "tests/hermes_cli/test_ignore_user_config_flags.py",
+        "tests/cron/test_cron_workdir.py"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Prompt fragments are split across Go-native helpers; file-shape parity means named homes for contract families, not one monolithic prompt_builder.go."
+    },
+    {
+      "hermes_file": "cli.py",
+      "gormes_targets": [
+        "cmd/gormes/main.go",
+        "internal/tui"
+      ],
+      "status": "partial",
+      "contract": "Legacy terminal CLI and interactive turn UX semantics that remain user-visible outside the current ui-tui implementation.",
+      "tests": [
+        "go test ./cmd/gormes -run 'TestChat|TestCommandAlias|TestTUI' -count=1",
+        "go test ./internal/tui -count=1"
+      ],
+      "progress_rows": [
+        "Hermes CLI command-tree parity manifest",
+        "TUI startup/setup behavior"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Current Hermes ui-tui remains the authoritative modern TUI source; cli.py is retained as legacy command/turn evidence."
+    },
+    {
+      "hermes_file": "gateway/run.py",
+      "gormes_targets": [
+        "internal/gateway",
+        "cmd/gormes/gateway.go",
+        "cmd/gormes/gateway_status.go",
+        "cmd/gormes/gateway_reload.go",
+        "cmd/gormes/gateway_stop.go"
+      ],
+      "status": "partial",
+      "contract": "Gateway process lifecycle, channel dispatch, visible tool-progress/status artifacts, reload/stop/status commands, and platform message routing.",
+      "tests": [
+        "go test ./internal/gateway -count=1",
+        "go test ./cmd/gormes -run 'TestGateway' -count=1"
+      ],
+      "progress_rows": [
+        "Reusable gateway chassis",
+        "Gateway, platform, webhook, and cron management CLI",
+        "Telegram on shared chassis"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Python async process shape is manual Go-native rewrite; behavior atoms stay paired here."
+    },
+    {
+      "hermes_file": "hermes_cli/auth_commands.py",
+      "gormes_targets": [
+        "cmd/gormes/auth.go",
+        "cmd/gormes/provider_auth.go",
+        "internal/config/credential_pool.go",
+        "internal/config/token_vault.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes-compatible auth command tree, credential-pool status/readout, OAuth/API-key storage, and secret redaction behavior.",
+      "tests": [
+        "go test ./cmd/gormes -run 'TestAuth' -count=1",
+        "go test ./internal/config -run 'TestCredential|TestTokenVault|TestOAuth' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes auth command-tree manifest refresh",
+        "Gormes auth bare interactive credential-pool readout",
+        "Gormes auth status per-provider aggregator"
+      ],
+      "upstream_tests": [
+        "tests/hermes_cli/test_auth_commands.py"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Gormes stores credentials Go-natively while preserving user-visible command/status/redaction contracts."
+    },
+    {
+      "hermes_file": "hermes_cli/commands.py",
+      "gormes_targets": [
+        "cmd/gormes/hermes_cli_parity.go",
+        "cmd/gormes/hermes_rowbacked_commands.go",
+        "cmd/gormes/main.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes top-level command aliases, row-backed command surfaces, and user-visible command classification.",
+      "tests": [
+        "go test ./cmd/gormes -run 'TestHermesCLIParity|TestCommandAlias' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes CLI command-tree parity manifest"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Command handlers are split by Go package ownership; the manifest tracks command-family coverage."
+    },
+    {
+      "hermes_file": "hermes_cli/config.py",
+      "gormes_targets": [
+        "internal/config",
+        "cmd/gormes/config.go",
+        "internal/hermes/default_soul.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes home/config defaults, config load/save behavior, secure default SOUL seeding, provider defaults, and user-visible config command behavior.",
+      "tests": [
+        "go test ./internal/config -count=1",
+        "go test ./cmd/gormes -run 'TestConfig' -count=1"
+      ],
+      "progress_rows": [
+        "Gormes config command surface",
+        "Default agent identity / SOUL.md loader",
+        "Gormes agent template reset command"
+      ],
+      "upstream_tests": [
+        "tests/hermes_cli/test_config.py"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Gormes uses TOML/XDG-style config but must keep Hermes-visible defaults and setup behavior explicit."
+    },
+    {
+      "hermes_file": "hermes_cli/default_soul.py",
+      "gormes_targets": [
+        "internal/hermes/default_soul.go",
+        "internal/agenttemplate/default_templates.go",
+        "internal/agenttemplate/parity_manifest.go"
+      ],
+      "status": "covered",
+      "contract": "Default SOUL.md seed text, built-in identity fallback, and fresh-install template classification, with only the intentional Gorm default-persona and gormes runtime substitution.",
+      "tests": [
+        "go test ./internal/hermes -run 'TestDefaultSoul|TestIdentityLoader' -count=1",
+        "go test ./internal/agenttemplate -count=1"
+      ],
+      "progress_rows": [
+        "Default agent identity / SOUL.md loader",
+        "Gormes agent template reset command"
+      ],
+      "upstream_tests": [
+        "tests/hermes_cli/test_config.py",
+        "tests/hermes_cli/test_profiles.py"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "The Gorm persona plus gormes runtime substitution is intentional owned divergence; all other default-persona phrasing is source-paired. The agenttemplate manifest gates every seeded fresh-install template as either covered by Hermes or an explicit Gormes-owned divergence."
+    },
+    {
+      "hermes_file": "hermes_cli/main.py",
+      "gormes_targets": [
+        "cmd/gormes/main.go",
+        "cmd/gormes/hermes_cli_parity.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes CLI root parser, top-level command registration, help-visible command tree, and global flag compatibility.",
+      "tests": [
+        "go test ./cmd/gormes -run 'TestRootCommand|TestHermesCLIParity|TestCommandAlias' -count=1"
+      ],
+      "progress_rows": [
+        "Hermes CLI command-tree parity manifest"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Go Cobra command tree is native, but root command names/flags must stay source-paired."
+    },
+    {
+      "hermes_file": "hermes_cli/profiles.py",
+      "gormes_targets": [
+        "cmd/gormes/profile.go",
+        "internal/config/agents.go"
+      ],
+      "status": "partial",
+      "contract": "Profile creation/list/use behavior, profile root resolution, default SOUL seeding for profiles, and profile export/import-visible files.",
+      "tests": [
+        "go test ./cmd/gormes -run 'TestProfile' -count=1",
+        "go test ./internal/config -run 'TestAgent' -count=1"
+      ],
+      "progress_rows": [
+        "Gormes profile command binding",
+        "CLI active-profile store",
+        "CLI profile root resolver"
+      ],
+      "upstream_tests": [
+        "tests/hermes_cli/test_profiles.py",
+        "tests/hermes_cli/test_profile_distribution.py",
+        "tests/hermes_cli/test_profile_export_credentials.py"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Profile storage is Go-native; per-profile SOUL/default file contracts are explicitly paired."
+    },
+    {
+      "hermes_file": "run_agent.py",
+      "gormes_targets": [
+        "internal/kernel/kernel.go",
+        "internal/hermes/prompt_assembly.go",
+        "internal/subagent"
+      ],
+      "status": "partial",
+      "contract": "Main Hermes agent turn loop, tool execution budget, background review hooks, subagent behavior, provider turn assembly, and session reset boundaries.",
+      "tests": [
+        "go test ./internal/kernel -count=1",
+        "go test ./internal/hermes -count=1",
+        "go test ./internal/subagent -count=1"
+      ],
+      "progress_rows": [
+        "Kernel tool loop",
+        "Background review fork"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "The Python runtime loop is a manual Go-native rewrite; this pair tracks behavior contracts rather than file-level implementation."
+    },
+    {
+      "hermes_file": "tools/skill_manager_tool.py",
+      "gormes_targets": [
+        "internal/tools/skill_manager.go",
+        "internal/skills"
+      ],
+      "status": "partial",
+      "contract": "Hermes skill_manage support-file and curator intent actions, mutation safety, and user-visible skill-management results.",
+      "tests": [
+        "go test ./internal/tools -run TestSkillManager -count=1",
+        "go test ./internal/skills -count=1"
+      ],
+      "progress_rows": [
+        "Hermes skill_manage support-file and curator intent actions",
+        "Native skills list/view tool surface"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Skill file mutation is Go-native but paired to Hermes tool behavior."
+    },
+    {
+      "hermes_file": "tools/skills_sync.py",
+      "gormes_targets": [
+        "internal/skills/profile_sync.go",
+        "cmd/gormes/skills.go"
+      ],
+      "status": "partial",
+      "contract": "Hermes bundled/user skill sync semantics, profile skill distribution, and update/sync user-visible behavior.",
+      "tests": [
+        "go test ./internal/skills -run 'Test.*Sync|TestProfile' -count=1",
+        "go test ./cmd/gormes -run 'TestSkills' -count=1"
+      ],
+      "progress_rows": [
+        "Native skills list/view tool surface",
+        "Portable SKILL.md format"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "Skill sync remains row-backed and must be rechecked when Hermes changes bundled-skill distribution."
+    },
+    {
+      "hermes_file": "tools/skills_tool.py",
+      "gormes_targets": [
+        "internal/tools/skills_tools.go",
+        "internal/skills"
+      ],
+      "status": "partial",
+      "contract": "Hermes skills list/view tool surface, skill metadata rendering, and prompt-visible skill lookup behavior.",
+      "tests": [
+        "go test ./internal/tools -run 'TestSkills' -count=1",
+        "go test ./internal/skills -count=1"
+      ],
+      "progress_rows": [
+        "Native skills list/view tool surface",
+        "Deterministic selection + prompt block"
+      ],
+      "last_checked_hermes_sha": "9ed751b96706ffd343ae26531cd0e2152a1c7036",
+      "notes": "The tool implementation is split between tool wrappers and skill store/rendering helpers."
+    }
+  ]
+}

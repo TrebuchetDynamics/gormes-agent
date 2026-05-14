@@ -36,6 +36,7 @@ BRANCH="${GORMES_BRANCH:-main}"
 GO_VERSION="${GORMES_GO_VERSION:-1.26.0}"
 RESTART_GATEWAY="${GORMES_RESTART_GATEWAY:-auto}"
 RUN_SETUP=true
+SKIP_BROWSER=false
 VERBOSE="${GORMES_INSTALL_VERBOSE:-0}"
 DRY_RUN=0
 UNINSTALL=0
@@ -156,6 +157,8 @@ Options:
   --dry-run      Print the resolved plan without cloning, building, publishing,
                  or restarting the gateway
   --skip-setup   Skip the post-install setup wizard
+  --skip-browser Skip browser setup. Accepted for Hermes compatibility; Gormes
+                 has no Playwright/Chromium install step.
   -v, --verbose  Print resolved paths, platform details, and step diagnostics
   --uninstall    Delegate to an existing "gormes uninstall" command and exit.
                  Flags after --uninstall are passed through, for example:
@@ -576,6 +579,10 @@ parse_args() {
         ;;
       --skip-setup)
         RUN_SETUP=false
+        shift
+        ;;
+      --skip-browser|--no-playwright)
+        SKIP_BROWSER=true
         shift
         ;;
       -v|--verbose)
@@ -2012,6 +2019,9 @@ print_install_plan_body() {
   log "  install_home: $(managed_home_dir)"
   log "  managed_binary: $(managed_bin_dir)/gormes"
   log "  published_binary: $(pick_bin_dir)/gormes"
+  if [ "$SKIP_BROWSER" = "true" ]; then
+    log "  browser_setup: skipped (--skip-browser accepted for Hermes compatibility; Gormes installs as a single Go binary with no Playwright setup step)"
+  fi
   if sandbox_bin_dir_set; then
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
     log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"
@@ -2077,6 +2087,9 @@ print_verbose_plan() {
   log "  managed_binary: $(managed_bin_dir)/gormes"
   log "  published_binary: $(pick_bin_dir)/gormes"
   log "  active_command: ${active_bin}"
+  if [ "$SKIP_BROWSER" = "true" ]; then
+    log "  browser_setup: skipped (--skip-browser accepted for Hermes compatibility; Gormes installs as a single Go binary with no Playwright setup step)"
+  fi
   if sandbox_bin_dir_set; then
     log "  update_active_path_command: skipped (sandbox bin dir set via ${GORMES_BIN_DIR:+GORMES_BIN_DIR}${GORMES_PREFIX:+ GORMES_PREFIX}; respecting boundary)"
     log "  edit_shell_rc_files: skipped (sandbox bin dir set; ~/.bashrc, ~/.profile, ~/.zshrc, fish config left untouched)"

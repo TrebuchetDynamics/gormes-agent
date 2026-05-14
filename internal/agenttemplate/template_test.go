@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 )
 
 func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
@@ -33,8 +35,174 @@ func TestAgentTemplateDefaultFilesMatchLiveTurnLookup(t *testing.T) {
 			t.Fatalf("missing default template %q; got paths %v", want, sortedTemplatePaths(files))
 		}
 	}
-	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "Gormes Agent") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
+	if soul := got["SOUL.md"].Content; !strings.HasPrefix(soul, hermes.DefaultSoulMD) {
+		t.Fatalf("SOUL.md template must start with hermes.DefaultSoulMD\n--- got ---\n%s\n--- want prefix ---\n%s", soul, hermes.DefaultSoulMD)
+	}
+	if soul := got["SOUL.md"].Content; !strings.Contains(soul, "You are Gorm,") || !strings.Contains(soul, "run by gormes") || !strings.Contains(soul, "helpful, knowledgeable, and direct") {
 		t.Fatalf("SOUL.md template does not carry the Hermes-derived persona defaults:\n%s", soul)
+	}
+}
+
+func TestAgentTemplateDefaultFilesAreFreshInstallReady(t *testing.T) {
+	files := DefaultFiles()
+	got := map[string]string{}
+	for _, file := range files {
+		got[filepath.ToSlash(file.Path)] = file.Content
+	}
+
+	for path, wants := range map[string][]string{
+		"SOUL.md": {
+			"## Operating Style",
+			"## Boundaries",
+			"evidence",
+			"secrets",
+		},
+		"AGENTS.md": {
+			"agents run by `gormes`",
+			"## How To Work Here",
+			"## Git And Files",
+			"Do not discard user changes",
+			"do not create branches or worktrees unless the user asks",
+		},
+		"IDENTITY.md": {
+			"## Agent",
+			"Name: Gorm",
+			"Runtime: gormes",
+			"## Workspace",
+			"## Update Rules",
+			"Do not store secrets",
+		},
+		"TOOLS.md": {
+			"## Search And Reading",
+			"## External Facts",
+			"## Verification",
+			"web_search",
+		},
+		"memory/USER.md": {
+			"## Stable Preferences",
+			"Do not store secrets",
+		},
+		"memory/MEMORY.md": {
+			"## Durable Facts",
+			"## Procedures",
+			"do not store task progress",
+		},
+	} {
+		body, ok := got[path]
+		if !ok {
+			t.Fatalf("missing template %s", path)
+		}
+		for _, want := range wants {
+			if !containsFold(body, want) {
+				t.Fatalf("%s missing fresh-install marker %q:\n%s", path, want, body)
+			}
+		}
+	}
+
+	combined := strings.Join([]string{got["SOUL.md"], got["AGENTS.md"], got["IDENTITY.md"], got["TOOLS.md"]}, "\n")
+	for _, forbidden := range []string{
+		"short-lived branch",
+		"active Gormes development environment",
+		"This workspace is for Gormes development",
+		"progress.json contract before broad assumptions",
+		"Gormes agents",
+		"Name: Gormes Agent",
+	} {
+		if strings.Contains(combined, forbidden) {
+			t.Fatalf("fresh-install templates contain stale project-specific guidance %q:\n%s", forbidden, combined)
+		}
+	}
+}
+
+func TestAgentTemplatePairManifestCoversDefaultFiles(t *testing.T) {
+	manifest := TemplatePairManifest()
+	if len(manifest) == 0 {
+		t.Fatal("template pair manifest must not be empty")
+	}
+
+	byPath := map[string]TemplatePair{}
+	for _, pair := range manifest {
+		path := filepath.ToSlash(filepath.Clean(pair.Path))
+		if pair.Path != path {
+			t.Fatalf("manifest path %q must be slash-cleaned as %q", pair.Path, path)
+		}
+		if _, exists := byPath[pair.Path]; exists {
+			t.Fatalf("duplicate manifest path %q", pair.Path)
+		}
+		if pair.Status != TemplatePairCovered && pair.Status != TemplatePairOwnedDivergence {
+			t.Fatalf("%s has unsupported parity status %q", pair.Path, pair.Status)
+		}
+		if len(pair.HermesSources) == 0 {
+			t.Fatalf("%s missing Hermes source references", pair.Path)
+		}
+		if len(pair.GormesSources) == 0 {
+			t.Fatalf("%s missing Gormes source references", pair.Path)
+		}
+		if strings.TrimSpace(pair.Contract) == "" {
+			t.Fatalf("%s missing parity contract", pair.Path)
+		}
+		byPath[pair.Path] = pair
+	}
+
+	for _, file := range DefaultFiles() {
+		path := filepath.ToSlash(file.Path)
+		pair, ok := byPath[path]
+		if !ok {
+			t.Fatalf("default template %q is missing from the template pair manifest", path)
+		}
+		if !slices.Contains(pair.GormesSources, "internal/agenttemplate/default_templates.go") {
+			t.Fatalf("%s manifest must point back to internal/agenttemplate/default_templates.go: %+v", path, pair)
+		}
+	}
+
+	soul := byPath["SOUL.md"]
+	if soul.Status != TemplatePairCovered {
+		t.Fatalf("SOUL.md status = %q, want %q", soul.Status, TemplatePairCovered)
+	}
+	if !slices.Contains(soul.HermesSources, "hermes_cli/default_soul.py") {
+		t.Fatalf("SOUL.md manifest must cite Hermes DEFAULT_SOUL_MD source: %+v", soul)
+	}
+	if !slices.Contains(soul.GormesSources, "internal/hermes/default_soul.go") {
+		t.Fatalf("SOUL.md manifest must cite the Gormes source-paired default: %+v", soul)
+	}
+
+	for _, path := range []string{"AGENTS.md", "IDENTITY.md", "TOOLS.md", "memory/USER.md", "memory/MEMORY.md"} {
+		pair := byPath[path]
+		if pair.Status != TemplatePairOwnedDivergence {
+			t.Fatalf("%s status = %q, want %q because Hermes consumes or inspires this context but does not seed the same file", path, pair.Status, TemplatePairOwnedDivergence)
+		}
+		if !strings.Contains(strings.ToLower(pair.Contract), "gormes") {
+			t.Fatalf("%s owned-divergence contract must explain the Gormes-owned behavior: %s", path, pair.Contract)
+		}
+	}
+}
+
+func TestAgentTemplatePairManifestValidatesSourceReferences(t *testing.T) {
+	repoRoot, hermesRoot := templatePairSourceRoots(t)
+	opts := TemplatePairValidationOptions{
+		RepoRoot:   repoRoot,
+		HermesRoot: hermesRoot,
+	}
+
+	if err := ValidateTemplatePairs(TemplatePairManifest(), opts); err != nil {
+		t.Fatalf("template pair manifest source references must resolve: %v", err)
+	}
+
+	stale := []TemplatePair{
+		{
+			Path:          "SOUL.md",
+			Status:        TemplatePairCovered,
+			HermesSources: []string{"hermes_cli/missing_default_soul.py"},
+			GormesSources: []string{"internal/agenttemplate/default_templates.go"},
+			Contract:      "Gormes fixture for stale source validation.",
+		},
+	}
+	err := ValidateTemplatePairs(stale, opts)
+	if err == nil {
+		t.Fatal("ValidateTemplatePairs accepted a stale Hermes source reference")
+	}
+	if got := err.Error(); !strings.Contains(got, "missing Hermes source") || !strings.Contains(got, "hermes_cli/missing_default_soul.py") {
+		t.Fatalf("stale source error = %q, want missing Hermes source path", got)
 	}
 }
 
@@ -101,7 +269,7 @@ func TestAgentTemplateApplyForceOverwritesExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read SOUL.md: %v", err)
 	}
-	if strings.Contains(string(body), "custom persona") || !strings.Contains(string(body), "Gormes Agent") {
+	if strings.Contains(string(body), "custom persona") || !strings.Contains(string(body), "You are Gorm,") {
 		t.Fatalf("SOUL.md was not overwritten with the default template:\n%s", body)
 	}
 }
@@ -159,4 +327,24 @@ func actionsByPath(result WriteResult) map[string]Action {
 		actions[file.Path] = file.Action
 	}
 	return actions
+}
+
+func containsFold(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+func templatePairSourceRoots(t *testing.T) (string, string) {
+	t.Helper()
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err != nil {
+		t.Fatalf("repo root %s missing go.mod: %v", repoRoot, err)
+	}
+	hermesRoot := filepath.Join(repoRoot, "hermes-agent")
+	if _, err := os.Stat(filepath.Join(hermesRoot, "hermes_cli", "default_soul.py")); err != nil {
+		t.Skipf("upstream Hermes checkout unavailable for manifest source validation: %v", err)
+	}
+	return repoRoot, hermesRoot
 }
