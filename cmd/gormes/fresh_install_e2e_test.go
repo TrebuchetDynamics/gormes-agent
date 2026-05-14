@@ -606,6 +606,11 @@ func freshInstallE2EHome(t *testing.T) string {
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg-config"))
 	t.Setenv("HERMES_HOME", filepath.Join(root, "hermes-home"))
 	t.Setenv("CODEX_HOME", filepath.Join(root, "codex-home"))
+	t.Setenv("GORMES_KANBAN_DB", "")
+	t.Setenv("GORMES_KANBAN_HOME", "")
+	t.Setenv("GORMES_KANBAN_TASK", "")
+	t.Setenv("HERMES_KANBAN_BOARD", "")
+	t.Setenv("HERMES_KANBAN_DB", "")
 	// Belt-and-suspenders: zero out any provider env that could
 	// otherwise let auth status pick up the developer's real creds.
 	t.Setenv("GORMES_API_KEY", "")
