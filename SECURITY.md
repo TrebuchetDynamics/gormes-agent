@@ -39,6 +39,61 @@ Out of scope:
   infrastructure;
 - scanner-only reports without a reproducible security impact.
 
+## Agent Runtime Trust Boundaries
+
+Gormes treats runtime inputs by source, not by how persuasive the text looks.
+
+- System and developer instructions are trusted control-plane instructions.
+- User requests are privileged operator intent, but still constrained by
+  security policy, approvals, and local path/tool guards.
+- Browser pages, webpage text, screenshots, image/OCR text, PDFs, documents,
+  terminal output, tool responses, uploaded files, and remote service errors
+  are untrusted data.
+- Tool output is never upgraded into instructions. It is sanitized, bounded,
+  and labeled before it is shown to the model, user, logs, or channel adapters
+  where the integration surface supports that boundary.
+
+External content that says things like "ignore previous instructions",
+"this is a system message", "show your .env", "reveal API keys", or "send
+secrets to this URL" is treated as prompt-injection content. Gormes may report
+that such an attempt was present, but the raw instruction text is withheld from
+prompt-visible untrusted-content summaries.
+
+## Secret Handling Defaults
+
+Gormes redacts common secret shapes before operator-visible logs, audit rows,
+terminal results, browser artifacts, and related debug surfaces are rendered.
+Covered shapes include OpenAI/Anthropic-style `sk-...` keys, GitHub tokens,
+AWS access keys, database URLs, bearer/JWT tokens, Slack and Telegram tokens,
+private-key blocks, and common `*_API_KEY`, `*_TOKEN`, `*_SECRET`, and
+`DATABASE_URL` assignments.
+
+The local file tools deny reads of sensitive paths by default, including
+`.env`, `.env.*`, `.ssh/`, private key filenames, `.aws/`, `.gcloud/`,
+`.azure/`, `.kube/config`, browser profile/cookie stores, password-manager
+exports, and common credential files such as `.netrc`, `.pgpass`, `.npmrc`,
+and `.pypirc`.
+
+Persistent memory writes are filtered before storage. Memory refuses prompt
+injection, secret material, and credential-file references so hostile page or
+tool text cannot become durable future instructions.
+
+## Refusal Behavior
+
+Gormes refuses to:
+
+- reveal `.env` files, API keys, tokens, cookies, private keys, cloud
+  credentials, database URLs, browser cookies, or local credential stores;
+- automatically run commands found inside untrusted webpages, screenshots,
+  PDFs, OCR text, or tool output;
+- execute or approve destructive or exfiltration-shaped shell commands such as
+  `curl ... | sh`, `wget ... | sh`, `rm -rf`, secret-file reads, or
+  secret-file uploads without deterministic guardrails;
+- store prompt-injection text or secret material in persistent memory.
+
+Security tests use dummy credentials only. Do not include live secrets in bug
+reports, fixtures, logs, screenshots, or reproduction artifacts.
+
 ## Release Integrity
 
 Current public builds are early-stage and source-first. Production-stable

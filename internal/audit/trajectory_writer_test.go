@@ -64,3 +64,39 @@ func TestTrajectoryWriterAuditRecordRedactsEvidence(t *testing.T) {
 		t.Fatalf("audit args = %+v, want code/completed/redacted evidence", args)
 	}
 }
+
+func TestJSONLWriterRedactsCommonSecretShapes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "audit.jsonl")
+	rec := Record{
+		Source: "kernel",
+		Tool:   "terminal",
+		Args: json.RawMessage(`{
+			"command": "printf $OPENAI_API_KEY",
+			"env": {"OPENAI_API_KEY": "sk-test-abcdefghijklmnopqrstuvwxyz"},
+			"url": "postgres://user:pass@example.test/db"
+		}`),
+		Status: "failed",
+		Error:  "upstream rejected Authorization: Bearer token-secret-1234567890 and AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}
+	if err := NewJSONLWriter(path).Record(rec); err != nil {
+		t.Fatalf("Record: %v", err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%q): %v", path, err)
+	}
+	rendered := string(raw)
+	for _, leaked := range []string{
+		"sk-test-abcdefghijklmnopqrstuvwxyz",
+		"postgres://user:pass",
+		"token-secret-1234567890",
+		"wJalrXUtnFEMI",
+	} {
+		if strings.Contains(rendered, leaked) {
+			t.Fatalf("audit log leaked %q in:\n%s", leaked, rendered)
+		}
+	}
+	if !strings.Contains(rendered, "[redacted]") {
+		t.Fatalf("audit log missing redacted marker:\n%s", rendered)
+	}
+}

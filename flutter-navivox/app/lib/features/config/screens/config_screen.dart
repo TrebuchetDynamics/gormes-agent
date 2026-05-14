@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/channel/fake_navivox_channel.dart';
+import '../../../core/channel/navivox_channel.dart';
+import '../../../core/channel/navivox_channel_provider.dart';
 
 class ConfigScreen extends ConsumerStatefulWidget {
   const ConfigScreen({super.key});
@@ -11,7 +12,7 @@ class ConfigScreen extends ConsumerStatefulWidget {
 }
 
 class _ConfigScreenState extends ConsumerState<ConfigScreen> {
-  FakeNavivoxChannel? _subscribed;
+  NavivoxChannel? _subscribed;
   String? _editingField;
   final TextEditingController _controller = TextEditingController();
 
@@ -35,14 +36,14 @@ class _ConfigScreenState extends ConsumerState<ConfigScreen> {
       value = raw.toLowerCase() == 'true';
     }
     ref
-        .read(fakeNavivoxChannelProvider)
+        .read(activeNavivoxChannelProvider)
         .sendConfigSet(field: field, value: value);
     setState(() => _editingField = null);
   }
 
   @override
   Widget build(BuildContext context) {
-    final channel = ref.watch(fakeNavivoxChannelProvider);
+    final channel = ref.watch(activeNavivoxChannelProvider);
     if (!identical(_subscribed, channel)) {
       _subscribed?.removeListener(_onChannelChanged);
       channel.addListener(_onChannelChanged);
@@ -117,8 +118,7 @@ class _ConfigRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(field,
-                    style: Theme.of(context).textTheme.titleSmall),
+                Text(field, style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 4),
                 if (isEditing)
                   TextField(
@@ -139,10 +139,7 @@ class _ConfigRow extends StatelessWidget {
               icon: const Icon(Icons.check),
               onPressed: onSave,
             ),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: onCancel,
-            ),
+            IconButton(icon: const Icon(Icons.close), onPressed: onCancel),
           ] else
             IconButton(
               key: ValueKey('config-edit-$field'),

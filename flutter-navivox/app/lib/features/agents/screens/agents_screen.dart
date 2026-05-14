@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/channel/fake_navivox_channel.dart';
+import '../../../core/channel/navivox_channel.dart';
+import '../../../core/channel/navivox_channel_provider.dart';
 
 class AgentsScreen extends ConsumerStatefulWidget {
   const AgentsScreen({super.key});
@@ -11,7 +12,7 @@ class AgentsScreen extends ConsumerStatefulWidget {
 }
 
 class _AgentsScreenState extends ConsumerState<AgentsScreen> {
-  FakeNavivoxChannel? _subscribed;
+  NavivoxChannel? _subscribed;
 
   void _onChannelChanged() {
     if (mounted) setState(() {});
@@ -25,7 +26,7 @@ class _AgentsScreenState extends ConsumerState<AgentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final channel = ref.watch(fakeNavivoxChannelProvider);
+    final channel = ref.watch(activeNavivoxChannelProvider);
     if (!identical(_subscribed, channel)) {
       _subscribed?.removeListener(_onChannelChanged);
       channel.addListener(_onChannelChanged);

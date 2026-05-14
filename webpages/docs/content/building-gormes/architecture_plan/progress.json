@@ -1450,6 +1450,102 @@
             {
               "name": "Doctor verification",
               "status": "complete"
+            },
+            {
+              "name": "Coding-agent delegation tooling (codex/claude-code/opencode)",
+              "status": "planned",
+              "priority": "P1",
+              "contract": "Workspace-guarded delegation of coding tasks to external agent binaries (codex, claude-code, opencode) with structured request/result, mode/edit-permission/timeout controls, and git-diff capture so Gormes can compare workers and present diffs to the operator.",
+              "contract_status": "draft",
+              "slice_size": "umbrella",
+              "execution_owner": "tools",
+              "trust_class": ["operator", "system"],
+              "degraded_mode": "Without the delegation surface, Gormes operators cannot hand a coding task to codex/claude-code/opencode from within Gormes and must shell out manually; doctor and tool registry report no coding-agent workers.",
+              "fixture": "internal/codingagents",
+              "source_refs": [
+                "User design: 2026-05-13 coding-agent delegation plan",
+                "internal/codingagents/codingagents.go"
+              ],
+              "ready_when": [
+                "internal/codingagents scaffold (interface, request/result, availability, workspace guard, git snapshot, prompt wrap) is merged.",
+                "Per-backend adapters (codex, claude-code, opencode) implement CodingAgent against the scaffold."
+              ],
+              "not_ready_when": [
+                "Phase 1: internal/codingagents scaffolding and workspace guard (in_progress).",
+                "Phase 2: codex adapter implementing CodingAgent with snapshot+diff capture.",
+                "Phase 3: claude-code adapter implementing CodingAgent.",
+                "Phase 4: opencode adapter implementing CodingAgent.",
+                "Phase 5: tool registry exposure of codex_run / claude_code_run / opencode_run with workspace-guard enforcement.",
+                "Phase 6: doctor + status surfaces for backend availability and last-run summaries.",
+                "Phase 7: TUI/voice-path integration honoring workspace-ID-over-raw-path safety."
+              ],
+              "write_scope": [
+                "internal/codingagents/",
+                "internal/tools/",
+                "internal/doctor/",
+                "cmd/gormes/",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/codingagents/... -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "All seven per-phase splits land as their own progress rows and complete with passing tests; doctor lists available coding-agent workers."
+              ],
+              "acceptance": [
+                "Umbrella is replaced by seven assignable phase rows.",
+                "Each adapter returns the shared CodingAgentResult with files_changed and git_diff populated.",
+                "Workspace guard refuses ambiguous, denied, or outside-root inputs across the voice path."
+              ]
+            },
+            {
+              "name": "Coding-agent delegation: Phase 1 scaffold (internal/codingagents)",
+              "status": "in_progress",
+              "priority": "P1",
+              "contract": "Shared internal/codingagents package providing the CodingAgent interface, CodingAgentRequest/Result, mode constants, binary availability detection, workspace guard with default deny list, git snapshot/diff helper, and prompt wrapper. No tools are registered in this slice; adapters and registry exposure land in later phases.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tools",
+              "trust_class": ["operator", "system"],
+              "degraded_mode": "Without the scaffold, later phases cannot compile codex/claude-code/opencode adapters against a shared contract; doctor cannot probe coding-agent binaries.",
+              "fixture": "internal/codingagents",
+              "source_refs": [
+                "User design: 2026-05-13 coding-agent delegation plan",
+                "internal/codingagents/codingagents.go",
+                "internal/codingagents/workspace.go",
+                "internal/codingagents/git_snapshot.go"
+              ],
+              "ready_when": [
+                "Shared CodingAgent interface and CodingAgentRequest/Result cover workspace, prompt, mode, edit permissions, timeout, files-changed, stdout/stderr, and git diff.",
+                "Availability checks detect codex, claude/claude-code, and opencode binaries and report unavailable cleanly.",
+                "Workspace guard refuses empty, ambiguous, denied, and outside-allowed inputs and accepts paths under an allowed root.",
+                "Git snapshot/diff helper captures HEAD/branch/dirty/files for a real repo and returns ErrNotAGitRepo on a non-git dir.",
+                "Prompt wrapper restates workspace/mode/task and injects gormes-repo rules when the workspace is a gormes-agent checkout."
+              ],
+              "not_ready_when": [
+                "Adapters or tool descriptors register coding_agent / codex_run / claude_code_run / opencode_run before the umbrella's later phases.",
+                "Results omit files_changed or git_diff across adapters.",
+                "Workspace identifiers bypass the guard via raw-path voice input."
+              ],
+              "write_scope": [
+                "internal/codingagents/",
+                "webpages/docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/codingagents/... -count=1",
+                "go vet ./internal/codingagents/...",
+                "go run ./cmd/progress validate"
+              ],
+              "done_signal": [
+                "go test ./internal/codingagents/... -count=1 passes locally with the scaffold, availability probe, workspace guard, git snapshot, and prompt wrap covered by unit tests."
+              ],
+              "acceptance": [
+                "internal/codingagents compiles and tests pass on stdlib only.",
+                "WorkspaceGuard returns typed sentinels (ErrWorkspaceEmpty/Ambiguous/OutsideAllowed/Denied) and refuses $HOME, /, and ~/.ssh by default.",
+                "DetectAll returns availability entries for codex, claude, claude-code, and opencode.",
+                "TakeSnapshot + DiffBetween capture HEAD, dirty status, and a unified diff with file list on a temp repo; non-git dirs raise ErrNotAGitRepo."
+              ]
             }
           ]
         },

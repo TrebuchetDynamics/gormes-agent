@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 import '../protocol/navivox_event.dart';
 
@@ -90,7 +90,7 @@ class NavivoxChannelState {
   }
 }
 
-abstract interface class NavivoxChannel {
+abstract interface class NavivoxChannel implements Listenable {
   NavivoxChannelState get state;
   Stream<NavivoxApprovalRequest> get approvalRequests;
   void enterFakeServerMode();

@@ -21,6 +21,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/audit"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/channels/discord"
+	naviboxchannel "github.com/TrebuchetDynamics/gormes-agent/internal/channels/navibox"
 	telegram "github.com/TrebuchetDynamics/gormes-agent/internal/channels/telegram"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cron"
@@ -236,6 +237,7 @@ type gatewayChannelFactories struct {
 	Slack    gatewayChannelFactory
 	Teams    gatewayChannelFactory
 	Yuanbao  gatewayChannelFactory
+	Navibox  gatewayChannelFactory
 }
 
 func runGateway(cmd *cobra.Command, _ []string) error {
@@ -253,8 +255,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 	securityReport := evaluateGatewayStartupSecurity(cfg, os.Getenv)
 	cfg = securityReport.Config
 	logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled {
-		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], or [yuanbao] in config.toml")
+	if cfg.Telegram.BotToken == "" && !cfg.Discord.Enabled() && !cfg.Slack.Enabled && !cfg.Teams.Enabled && !cfg.Yuanbao.Enabled && !cfg.Navibox.Enabled {
+		return fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], or [navibox] in config.toml")
 	}
 	if _, err := ensureGatewayAgentTemplates(cfg, slog.Default()); err != nil {
 		return err
@@ -364,8 +366,8 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		securityReport := evaluateGatewayStartupSecurity(next, os.Getenv)
 		next = securityReport.Config
 		logGatewayStartupSecurityEvidence(securityReport.Evidence, slog.Default())
-		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled {
-			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], or [yuanbao] in config.toml")
+		if next.Telegram.BotToken == "" && !next.Discord.Enabled() && !next.Slack.Enabled && !next.Teams.Enabled && !next.Yuanbao.Enabled && !next.Navibox.Enabled {
+			return gateway.ManagerConfig{}, fmt.Errorf("no channels configured — set at least one of [telegram], [discord], [slack], [teams], [yuanbao], or [navibox] in config.toml")
 		}
 		if _, err := ensureGatewayAgentTemplates(next, slog.Default()); err != nil {
 			return gateway.ManagerConfig{}, err
@@ -401,7 +403,7 @@ func runGateway(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if registeredChannels == 0 {
-		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], [slack], or [yuanbao] in config.toml")
+		return fmt.Errorf("no runnable channels configured — complete at least one of [telegram], [discord], [slack], [yuanbao], or [navibox] in config.toml")
 	}
 
 	go k.Run(rootCtx)
@@ -602,6 +604,9 @@ func defaultGatewayChannelFactories() gatewayChannelFactories {
 		Yuanbao: func(config.Config, *slog.Logger) (gateway.Channel, error) {
 			return nil, errors.New("yuanbao_runtime_unavailable: live Yuanbao transport is not implemented; the runtime slice binds fake clients only")
 		},
+		Navibox: func(cfg config.Config, log *slog.Logger) (gateway.Channel, error) {
+			return naviboxchannel.NewChannel(cfg.Navibox, log)
+		},
 	}
 }
 
@@ -722,6 +727,9 @@ func gatewayAllowedUsers(cfg config.Config) map[string]map[string]bool {
 		}
 		out["teams"] = users
 	}
+	if cfg.Navibox.Enabled {
+		out[naviboxchannel.PlatformName] = map[string]bool{"navibox": true}
+	}
 	return out
 }
 
@@ -764,6 +772,9 @@ func gatewayPolicyMaps(cfg config.Config) (map[string]string, map[string]bool, m
 			allowedChats["yuanbao"] = cfg.Yuanbao.AllowedConversationID
 		}
 		allowDiscovery["yuanbao"] = cfg.Yuanbao.FirstRunDiscovery
+	}
+	if cfg.Navibox.Enabled {
+		allowDiscovery[naviboxchannel.PlatformName] = false
 	}
 	return allowedChats, allowDiscovery, whitelists
 }
@@ -1018,6 +1029,26 @@ func registerConfiguredGatewayChannels(mgr *gateway.Manager, cfg config.Config, 
 		log.Info("gateway: yuanbao channel enabled", "allowed_conversation_id", cfg.Yuanbao.AllowedConversationID)
 	}
 
+	if cfg.Navibox.Enabled {
+		if factories.Navibox == nil {
+			return registered, fmt.Errorf("register navibox: missing channel factory")
+		}
+		ch, err := factories.Navibox(cfg, log)
+		if err != nil {
+			writeGatewayChannelDegraded(status, naviboxchannel.PlatformName, "navibox: startup failed: "+err.Error())
+			return registered, fmt.Errorf("register navibox: %w", err)
+		}
+		if err := mgr.Register(ch); err != nil {
+			return registered, fmt.Errorf("register navibox: %w", err)
+		}
+		registered++
+		log.Info("gateway: navibox channel enabled",
+			"bind_host", cfg.Navibox.BindHost,
+			"port", cfg.Navibox.Port,
+			"exposure_mode", cfg.Navibox.ExposureMode,
+			"auth_mode", cfg.Navibox.AuthMode)
+	}
+
 	return registered, nil
 }
 
@@ -1113,6 +1144,9 @@ func gatewayStartupAllowlistConfigured(cfg config.Config, lookupEnv func(string)
 		return true
 	}
 	if strings.TrimSpace(cfg.Yuanbao.AllowedConversationID) != "" {
+		return true
+	}
+	if cfg.Navibox.Enabled {
 		return true
 	}
 	for _, key := range []string{

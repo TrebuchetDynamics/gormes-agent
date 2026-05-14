@@ -64,6 +64,9 @@ func TestVisionAnalyzeNativeLocalFileReturnsMultimodalEnvelope(t *testing.T) {
 	if env.Content[0].Type != "text" || !strings.Contains(env.Content[0].Text, "what text is present?") {
 		t.Fatalf("text part = %+v, want question preserved", env.Content[0])
 	}
+	if !strings.Contains(env.Content[0].Text, "untrusted external content") || !strings.Contains(env.Content[0].Text, "not instructions") {
+		t.Fatalf("text part missing untrusted-image boundary guidance: %q", env.Content[0].Text)
+	}
 	wantURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(tinyVisionPNG)
 	if env.Content[1].Type != "image_url" || env.Content[1].ImageURL.URL != wantURL {
 		t.Fatalf("image part = %+v, want data URL %q", env.Content[1], wantURL)

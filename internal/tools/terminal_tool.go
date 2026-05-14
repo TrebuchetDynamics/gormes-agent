@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 )
 
 const (
@@ -67,7 +69,7 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	}
 	if in.Background {
 		if _, cwdErr := terminalWorkdir(t.cfg.Workdir, in.Workdir); cwdErr != nil && strings.Contains(cwdErr.Error(), "terminal_cwd_deleted") {
-			return marshalToolPayload(terminalResult{Status: "error", ExitCode: -1, Error: cwdErr.Error(), Command: in.Command})
+			return marshalToolPayload(redactTerminalResult(terminalResult{Status: "error", ExitCode: -1, Error: cwdErr.Error(), Command: in.Command}))
 		}
 		return marshalToolPayload(terminalResult{
 			Status:   "unsupported",
@@ -99,15 +101,15 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 			Status:      status,
 			ExitCode:    -1,
 			Error:       errText,
-			Command:     in.Command,
+			Command:     redaction.RedactSecrets(in.Command),
 			Description: guard.Description,
-			Evidence:    cloneStringMap(guard.Evidence),
+			Evidence:    redactStringMapSecrets(guard.Evidence),
 		})
 	}
 
 	workdir, err := terminalWorkdir(t.cfg.Workdir, in.Workdir)
 	if err != nil {
-		return marshalToolPayload(terminalResult{Status: "error", ExitCode: -1, Error: err.Error(), Command: in.Command})
+		return marshalToolPayload(redactTerminalResult(terminalResult{Status: "error", ExitCode: -1, Error: err.Error(), Command: in.Command}))
 	}
 	timeout := t.cfg.DefaultTimeout
 	if timeout <= 0 {
@@ -162,6 +164,7 @@ func (t *TerminalTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	result.Output, result.Truncated = truncateText(result.Output, maxOutput)
 	result.Stdout, _ = truncateText(result.Stdout, maxOutput)
 	result.Stderr, _ = truncateText(result.Stderr, maxOutput)
+	result = redactTerminalResult(result)
 	return marshalToolPayload(result)
 }
 
@@ -181,6 +184,30 @@ type terminalResult struct {
 	PTYNote      string            `json:"pty_note,omitempty"`
 	CWDRecovered bool              `json:"cwd_recovered,omitempty"`
 	CWDRecovery  string            `json:"cwd_recovery,omitempty"`
+}
+
+func redactTerminalResult(result terminalResult) terminalResult {
+	result.Command = redaction.RedactSecrets(result.Command)
+	result.Workdir = redaction.RedactSecrets(result.Workdir)
+	result.Output = redaction.RedactSecrets(result.Output)
+	result.Stdout = redaction.RedactSecrets(result.Stdout)
+	result.Stderr = redaction.RedactSecrets(result.Stderr)
+	result.Error = redaction.RedactSecrets(result.Error)
+	result.Description = redaction.RedactSecrets(result.Description)
+	result.CWDRecovery = redaction.RedactSecrets(result.CWDRecovery)
+	result.Evidence = redactStringMapSecrets(result.Evidence)
+	return result
+}
+
+func redactStringMapSecrets(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = redaction.RedactSecrets(value)
+	}
+	return out
 }
 
 type terminalWorkdirResult struct {

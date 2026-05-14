@@ -1,7 +1,7 @@
 {
-  "version": "0.2.9",
-  "tag": "v0.2.9",
-  "date_alias": "v2026.5.13",
-  "url": "https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.9",
+  "version": "0.2.10",
+  "tag": "v0.2.10",
+  "date_alias": "v2026.5.14",
+  "url": "https://github.com/TrebuchetDynamics/gormes-agent/releases/tag/v0.2.10",
   "source": "cmd/gormes/version.go"
 }

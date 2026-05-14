@@ -311,6 +311,27 @@ func TestMemoryToolRejectsUnsafePromptInjectionContent(t *testing.T) {
 	}
 }
 
+func TestMemoryToolRejectsSecretMaterial(t *testing.T) {
+	dir := t.TempDir()
+	tool := NewMemoryTool(MemoryToolConfig{MemoryDir: dir})
+
+	result := executeMemoryTool(t, tool, map[string]any{
+		"action":  "add",
+		"target":  "memory",
+		"content": "OPENAI_API_KEY=sk-test-abcdefghijklmnopqrstuvwxyz",
+	})
+
+	if result.Success || result.Evidence != MemoryEvidenceUnsafeContent {
+		t.Fatalf("secret memory result = %#v, want %s", result, MemoryEvidenceUnsafeContent)
+	}
+	if strings.Contains(result.Error, "sk-test-abcdefghijklmnopqrstuvwxyz") || strings.Contains(result.Error, "OPENAI_API_KEY") {
+		t.Fatalf("memory secret rejection leaked content: %q", result.Error)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "MEMORY.md")); !os.IsNotExist(err) {
+		t.Fatalf("secret add created MEMORY.md, err=%v", err)
+	}
+}
+
 func TestMemoryToolSchemaDocumentsReadActionAndGuidance(t *testing.T) {
 	tool := NewMemoryTool(MemoryToolConfig{})
 	description := tool.Description()

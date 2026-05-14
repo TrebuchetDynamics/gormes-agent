@@ -29,6 +29,8 @@ func TestSetupGatewayChecklistShowsCorePlatforms(t *testing.T) {
 		"discord",
 		"Slack",
 		"slack",
+		"Navibox",
+		"navibox",
 		"not configured",
 	} {
 		if !strings.Contains(stdout, want) {
@@ -104,6 +106,71 @@ func TestSetupGatewayNoSelectionDoesNotMutateConfig(t *testing.T) {
 	}
 	if _, err := os.Stat(config.ConfigPath()); !os.IsNotExist(err) {
 		t.Fatalf("blank setup gateway mutated config path %s: %v", config.ConfigPath(), err)
+	}
+}
+
+func TestSetupGatewayNaviboxCanRemainDisabled(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navibox\nn\n", "gateway")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Enable Navibox Gateway Channel?",
+		"Navibox gateway channel disabled.",
+		"No firewall rules were changed.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Navibox.Enabled {
+		t.Fatalf("Navibox enabled = true, want disabled")
+	}
+}
+
+func TestSetupGatewayNaviboxLocalModeWritesSafeConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "navibox\ny\n\n\n\n\n\n", "gateway")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"Navibox gateway channel configured.",
+		"HTTP base URL: http://127.0.0.1:8765",
+		"WebSocket URL: ws://127.0.0.1:8765/v1/navibox/stream",
+		"Pairing token: generated and stored",
+		"Firewall: no rules were changed.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Navibox.Enabled {
+		t.Fatal("Navibox enabled = false, want true")
+	}
+	if cfg.Navibox.BindHost != "127.0.0.1" || cfg.Navibox.Port != 8765 || cfg.Navibox.ExposureMode != "local" {
+		t.Fatalf("Navibox config = %+v, want local 127.0.0.1:8765", cfg.Navibox)
+	}
+	if cfg.Navibox.Token == "" {
+		t.Fatal("Navibox token was not generated into the environment")
+	}
+	if strings.Contains(stdout, cfg.Navibox.Token) {
+		t.Fatal("setup output leaked generated Navibox token")
 	}
 }
 

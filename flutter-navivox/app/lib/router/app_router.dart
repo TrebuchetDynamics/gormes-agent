@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/channel/fake_navivox_channel.dart';
+import '../core/channel/navivox_channel_provider.dart';
 import '../features/agents/screens/agents_screen.dart';
 import '../features/chat/screens/chat_screen.dart';
 import '../features/config/screens/config_screen.dart';
@@ -13,7 +13,7 @@ import '../shared/widgets/app_shell.dart';
 import 'app_routes.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final channel = ref.watch(fakeNavivoxChannelProvider);
+  final channel = ref.watch(activeNavivoxChannelProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.chats,

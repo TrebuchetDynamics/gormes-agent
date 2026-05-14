@@ -84,6 +84,39 @@ func TestReadFileTool_BlocksSymlinkEscapingRoot(t *testing.T) {
 	}
 }
 
+func TestReadFileTool_BlocksSensitiveFilesInsideRoot(t *testing.T) {
+	root := t.TempDir()
+	fixtures := map[string]string{
+		".env":             "OPENAI_API_KEY=sk-test-abcdefghijklmnopqrstuvwxyz",
+		".ssh/id_ed25519":  "-----BEGIN OPENSSH PRIVATE KEY-----\nsecret\n-----END OPENSSH PRIVATE KEY-----",
+		".aws/credentials": "[default]\naws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		".kube/config":     "users:\n- token: secret-token",
+	}
+	for rel, body := range fixtures {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatalf("mkdir %s: %v", rel, err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", rel, err)
+		}
+	}
+
+	tool := NewReadFileTool(ReadFileToolConfig{Root: root})
+	for rel, secret := range fixtures {
+		t.Run(rel, func(t *testing.T) {
+			out := executeReadFileTool(t, tool, `{"path":`+quoteJSON(t, rel)+`}`)
+			if !strings.Contains(asString(out["error"]), "sensitive path blocked") {
+				t.Fatalf("error = %v, want sensitive path denial", out["error"])
+			}
+			rendered := mustJSONMap(t, out)
+			if strings.Contains(rendered, secret) || strings.Contains(rendered, "sk-test-abcdefghijklmnopqrstuvwxyz") || strings.Contains(rendered, "BEGIN OPENSSH PRIVATE KEY") {
+				t.Fatalf("sensitive read leaked content in response:\n%s", rendered)
+			}
+		})
+	}
+}
+
 func TestReadFileTool_DuplicateReadReturnsStatusNotContent(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "notes.txt")
@@ -1213,6 +1246,15 @@ func quoteJSON(t *testing.T, s string) string {
 func asString(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+func mustJSONMap(t *testing.T, value map[string]any) string {
+	t.Helper()
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal map: %v", err)
+	}
+	return string(raw)
 }
 
 func assertStringListContains(t *testing.T, raw any, want string) {

@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/TrebuchetDynamics/gormes-agent/internal/redaction"
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -81,7 +82,6 @@ func atomicFileTaskWrite(name string, data []byte, perm os.FileMode) error {
 	return AtomicWrite(name, data)
 }
 
-
 type ReadFileToolConfig = FileTaskToolConfig
 
 // ReadFileTool implements the Hermes read_file contract for local text files.
@@ -125,6 +125,13 @@ func (t *ReadFileTool) Execute(ctx context.Context, args json.RawMessage) (json.
 	resolved, rel, root, cwd, err := resolveFileTaskPath(t.cfg, in.Path)
 	if err != nil {
 		return marshalToolPayload(map[string]any{"path": in.Path, "error": err.Error()})
+	}
+	if decision := redaction.CheckSensitivePath(resolved); decision.Blocked {
+		return marshalToolPayload(map[string]any{
+			"path":     rel,
+			"error":    "sensitive path blocked: " + decision.Reason,
+			"evidence": decision.Evidence,
+		})
 	}
 	info, err := os.Stat(resolved)
 	if err != nil {
@@ -365,12 +372,18 @@ func (t *SearchFilesTool) searchFileNames(ctx context.Context, root, base, relBa
 			return ctx.Err()
 		}
 		if d.IsDir() {
+			if decision := redaction.CheckSensitivePath(path); decision.Blocked {
+				return filepath.SkipDir
+			}
 			if shouldSkipSearchDir(base, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 		rel := workspaceRel(root, path)
+		if decision := redaction.CheckSensitivePath(path); decision.Blocked {
+			return nil
+		}
 		if globMatches(pattern, rel) || globMatches(pattern, filepath.Base(path)) {
 			matches = append(matches, rel)
 		}
@@ -425,12 +438,18 @@ func (t *SearchFilesTool) searchContents(ctx context.Context, root, base, relBas
 			return ctx.Err()
 		}
 		if d.IsDir() {
+			if decision := redaction.CheckSensitivePath(path); decision.Blocked {
+				return filepath.SkipDir
+			}
 			if shouldSkipSearchDir(base, path, d.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 		rel := workspaceRel(root, path)
+		if decision := redaction.CheckSensitivePath(path); decision.Blocked {
+			return nil
+		}
 		if in.FileGlob != "" && !globMatches(in.FileGlob, rel) && !globMatches(in.FileGlob, filepath.Base(path)) {
 			return nil
 		}

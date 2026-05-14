@@ -92,6 +92,16 @@ func resolveProviderHTTPClientCredentialsWithHome(cfg config.Config, provider, c
 	apiKey = strings.TrimSpace(cfg.Hermes.APIKey)
 	provider = normalizeProviderName(provider)
 	if provider == "openrouter" || hermes.IsOpenRouterBaseURL(endpoint) {
+		if provider != "" && (endpoint == "" || apiKey == "") {
+			credential, evidence, err := selectProviderCredential(provider, credentialHome)
+			if err != nil && endpoint == "" && apiKey == "" {
+				return "", "", providerCredentialSetupError(provider, evidence.Code)
+			}
+			if err == nil && credential != nil {
+				endpoint = firstNonEmpty(endpoint, credentialEndpoint(*credential))
+				apiKey = firstNonEmpty(apiKey, credentialAPIKey(*credential))
+			}
+		}
 		runtime := hermes.ResolveOpenRouterRuntime(hermes.OpenRouterRuntimeRequest{
 			Provider: provider,
 			BaseURL:  endpoint,
@@ -104,6 +114,26 @@ func resolveProviderHTTPClientCredentialsWithHome(cfg config.Config, provider, c
 	}
 	if provider == config.CodexOAuthProvider {
 		return resolveCodexOAuthHTTPClientCredentials(endpoint, apiKey, credentialHome)
+	}
+	if provider != "" && (endpoint == "" || apiKey == "") {
+		credential, evidence, err := selectProviderCredential(provider, credentialHome)
+		if err != nil {
+			if endpoint != "" {
+				return endpoint, apiKey, nil
+			}
+			return "", "", providerCredentialSetupError(provider, evidence.Code)
+		}
+		if credential != nil {
+			endpoint = firstNonEmpty(endpoint, credentialEndpoint(*credential))
+			apiKey = firstNonEmpty(apiKey, credentialAPIKey(*credential))
+			if endpoint == "" {
+				return "", "", providerCredentialSetupError(provider, "credential_missing_inference_base_url")
+			}
+			if apiKey == "" {
+				return "", "", providerCredentialSetupError(provider, "credential_missing_access_token")
+			}
+			return endpoint, apiKey, nil
+		}
 	}
 	if endpoint != "" {
 		return endpoint, apiKey, nil
@@ -126,16 +156,15 @@ func resolveCodexOAuthHTTPClientCredentials(endpoint, apiKey, credentialHome str
 		}
 		return endpoint, apiKey, nil
 	}
-	pool, evidence, err := config.LoadCredentialPool(config.CredentialPoolOptions{HermesHome: credentialHome, Provider: config.CodexOAuthProvider})
+	credential, evidence, err := selectProviderCredential(config.CodexOAuthProvider, credentialHome)
 	if err != nil {
 		return "", "", codexOAuthSetupError(evidence.Code)
 	}
-	credential, selection := pool.Select()
 	if credential == nil {
-		return "", "", codexOAuthSetupError(selection.Code)
+		return "", "", codexOAuthSetupError(evidence.Code)
 	}
-	resolvedEndpoint := strings.TrimRight(strings.TrimSpace(firstNonEmpty(endpoint, credential.InferenceBaseURL, credential.BaseURL)), "/")
-	resolvedAPIKey := strings.TrimSpace(credential.AccessToken)
+	resolvedEndpoint := strings.TrimRight(strings.TrimSpace(firstNonEmpty(endpoint, credentialEndpoint(*credential))), "/")
+	resolvedAPIKey := strings.TrimSpace(firstNonEmpty(apiKey, credentialAPIKey(*credential)))
 	if resolvedEndpoint == "" {
 		return "", "", codexOAuthSetupError("credential_missing_inference_base_url")
 	}
@@ -143,6 +172,52 @@ func resolveCodexOAuthHTTPClientCredentials(endpoint, apiKey, credentialHome str
 		return "", "", codexOAuthSetupError("credential_missing_access_token")
 	}
 	return resolvedEndpoint, resolvedAPIKey, nil
+}
+
+func selectProviderCredential(provider, credentialHome string) (*config.PooledCredential, config.CredentialPoolEvidence, error) {
+	pool, evidence, err := loadProviderCredentialPool(provider, credentialHome)
+	if err != nil {
+		return nil, evidence, err
+	}
+	credential, selection := pool.Select()
+	if credential == nil && shouldFallbackProviderCredentialHome(credentialHome, evidence) {
+		pool, evidence, err = loadProviderCredentialPool(provider, "")
+		if err != nil {
+			return nil, evidence, err
+		}
+		credential, selection = pool.Select()
+	}
+	if credential == nil {
+		return nil, selection, nil
+	}
+	return credential, evidence, nil
+}
+
+func loadProviderCredentialPool(provider, credentialHome string) (*config.CredentialPool, config.CredentialPoolEvidence, error) {
+	return config.LoadCredentialPool(config.CredentialPoolOptions{HermesHome: credentialHome, Provider: provider})
+}
+
+func shouldFallbackProviderCredentialHome(credentialHome string, evidence config.CredentialPoolEvidence) bool {
+	return strings.TrimSpace(credentialHome) != "" && evidence.Code == config.CredentialPoolEvidenceEmpty
+}
+
+func credentialEndpoint(credential config.PooledCredential) string {
+	return strings.TrimRight(strings.TrimSpace(firstNonEmpty(credential.InferenceBaseURL, credential.BaseURL)), "/")
+}
+
+func credentialAPIKey(credential config.PooledCredential) string {
+	return strings.TrimSpace(firstNonEmpty(credential.AccessToken, credential.AgentKey))
+}
+
+func providerCredentialSetupError(provider, reason string) error {
+	if provider == config.CodexOAuthProvider {
+		return codexOAuthSetupError(reason)
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		reason = "credential_unavailable"
+	}
+	return fmt.Errorf("%s credential unavailable: run `gormes auth add %s` (status=%s)", provider, provider, reason)
 }
 
 func codexOAuthSetupError(reason string) error {

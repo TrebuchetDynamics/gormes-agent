@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/channel/fake_navivox_channel.dart';
+import '../../../core/channel/navivox_channel.dart';
+import '../../../core/channel/navivox_channel_provider.dart';
 import '../../voice/services/voice_capture_service.dart';
 import '../widgets/approval_banner.dart';
 import '../widgets/simple_chat_adapter.dart';
@@ -21,7 +22,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 }
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
-  FakeNavivoxChannel? _subscribed;
+  NavivoxChannel? _subscribed;
 
   void _onChannelChanged() {
     if (mounted) setState(() {});
@@ -35,7 +36,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final channel = ref.watch(fakeNavivoxChannelProvider);
+    final channel = ref.watch(activeNavivoxChannelProvider);
     if (!identical(_subscribed, channel)) {
       _subscribed?.removeListener(_onChannelChanged);
       channel.addListener(_onChannelChanged);
@@ -48,8 +49,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final selectedAgent = state.selectedAgentId == null
         ? null
         : state.agents
-            .where((agent) => agent.id == state.selectedAgentId)
-            .firstOrNull;
+              .where((agent) => agent.id == state.selectedAgentId)
+              .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(
