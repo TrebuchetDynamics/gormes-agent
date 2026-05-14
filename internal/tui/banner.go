@@ -31,7 +31,7 @@ const (
 ⣿⠁
 ⠈⠁`
 
-	welcomeDefault = "Welcome to Gormes Agent! Type your message or /help for commands."
+	welcomeDefault = "Welcome to Gormes. Type your message or /help for commands."
 )
 
 var logoGradientColors = []string{

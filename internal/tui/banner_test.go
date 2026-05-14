@@ -28,7 +28,10 @@ func TestBannerCaduceus_NonEmpty(t *testing.T) {
 
 func TestBannerWelcome(t *testing.T) {
 	w := bannerWelcome()
-	if !strings.Contains(w, "Gormes") {
-		t.Fatalf("welcome = %q, want Gormes branding", w)
+	if !strings.Contains(w, "Welcome to Gormes. Type your message or /help for commands.") {
+		t.Fatalf("welcome = %q, want Gormes product branding", w)
+	}
+	if strings.Contains(w, "Gormes Agent") {
+		t.Fatalf("welcome must not emit deprecated Gormes Agent wording: %q", w)
 	}
 }
