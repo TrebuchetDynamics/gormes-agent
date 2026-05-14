@@ -77,6 +77,21 @@ func TestSetupEntryMode_ReconfigureMatchesExistingBare(t *testing.T) {
 }
 
 func TestSetupEntryMode_QuickExistingRunsMissingItemsOnly(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := os.MkdirAll(filepath.Dir(config.ConfigPath()), 0o700); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(config.ConfigPath(), []byte(`
+[hermes]
+provider = "anthropic"
+endpoint = "https://api.anthropic.com/v1"
+model = "claude-sonnet-4"
+api_key = "test-api-key"
+`), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
 	fullCalls := 0
 	chooserCalls := 0
 	var events []string
