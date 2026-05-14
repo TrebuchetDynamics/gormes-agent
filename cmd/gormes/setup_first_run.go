@@ -175,7 +175,7 @@ func runSetupQuickCore(cmd *cobra.Command, seams setupCommandSeams, nonInteracti
 func runSetupQuickChannel(cmd *cobra.Command, seams setupCommandSeams, target cli.SetupTargetID, nonInteractive bool) error {
 	if nonInteractive {
 		if target == cli.SetupTargetWhatsApp {
-			fmt.Fprintln(cmd.OutOrStdout(), "WhatsApp setup command: gormes whatsapp")
+			fmt.Fprintln(cmd.OutOrStdout(), "WhatsApp setup command: gormes whatsapp --plan")
 			return nil
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), "Channel setup command: gormes setup gateway")

@@ -210,6 +210,36 @@ func TestSetupGatewayDiscordWritesTokenAndAllowedChannelWithoutLeakingSecret(t *
 	}
 }
 
+func TestSetupGatewayDiscordWritesNumericSnowflakeChannelAsString(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_DISCORD_TOKEN", "")
+	t.Setenv("GORMES_DISCORD_CHANNEL_ID", "")
+
+	const token = "discord-snowflake-secret"
+	const channelID = "123456789012345678"
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "discord\n"+token+"\n"+channelID+"\n", "gateway")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	cfg, err := config.Load(nil)
+	if err != nil {
+		t.Fatalf("load config after numeric Discord channel setup: %v", err)
+	}
+	if cfg.Discord.AllowedChannelID != channelID {
+		t.Fatalf("Discord.AllowedChannelID = %q, want %q", cfg.Discord.AllowedChannelID, channelID)
+	}
+	configBody, err := os.ReadFile(config.ConfigPath())
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(configBody), `allowed_channel_id = "`+channelID+`"`) &&
+		!strings.Contains(string(configBody), `allowed_channel_id = '`+channelID+`'`) {
+		t.Fatalf("Discord allowed_channel_id was not written as a TOML string:\n%s", configBody)
+	}
+}
+
 func TestSetupGatewaySlackWritesTokensAndAllowedChannelWithoutLeakingSecrets(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
@@ -263,6 +293,31 @@ func TestSetupGatewaySlackWritesTokensAndAllowedChannelWithoutLeakingSecrets(t *
 	}
 	if cfg.Slack.FirstRunDiscovery {
 		t.Fatalf("Slack.FirstRunDiscovery = true, want false when channel ID is configured")
+	}
+}
+
+func TestSetupGatewaySlackBlankTokensDoesNotEnableOrReportConfigured(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_SLACK_ENABLED", "")
+	t.Setenv("GORMES_SLACK_BOT_TOKEN", "")
+	t.Setenv("GORMES_SLACK_APP_TOKEN", "")
+	t.Setenv("GORMES_SLACK_CHANNEL_ID", "")
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "slack\n\n\nC4242\n", "gateway")
+	if err == nil {
+		t.Fatalf("Execute() error = nil, want missing Slack token failure stdout=%s stderr=%s", stdout, stderr)
+	}
+	if strings.Contains(stdout, "Slack gateway channel configured") {
+		t.Fatalf("Slack setup reported configured despite blank tokens:\n%s", stdout)
+	}
+	cfg, loadErr := config.Load(nil)
+	if loadErr != nil {
+		t.Fatalf("load config: %v", loadErr)
+	}
+	if cfg.Slack.Enabled || cfg.Slack.AllowedChannelID != "" || cfg.Slack.FirstRunDiscovery {
+		t.Fatalf("Slack config = %+v, want not enabled and no channel/discovery state", cfg.Slack)
 	}
 }
 
@@ -384,9 +439,21 @@ func TestSetupGatewaySelectedPlatformDelegatesOrReportsRowBacked(t *testing.T) {
 func TestSetupGatewayDoesNotStartGateway(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_TELEGRAM_TOKEN", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("TELEGRAM_TOKEN", "")
+	t.Setenv("GORMES_TELEGRAM_CHAT_ID", "")
+	t.Setenv("TELEGRAM_HOME_CHANNEL", "")
+	t.Setenv("TELEGRAM_CHAT_ID", "")
+	t.Setenv("GORMES_TELEGRAM_ALLOWED_USERS", "")
+	t.Setenv("TELEGRAM_ALLOWED_USERS", "")
+	t.Setenv("GORMES_SLACK_ENABLED", "")
+	t.Setenv("GORMES_SLACK_BOT_TOKEN", "")
+	t.Setenv("GORMES_SLACK_APP_TOKEN", "")
+	t.Setenv("GORMES_SLACK_CHANNEL_ID", "")
 
 	fake := &setupCommandFakeSeams{isTTY: true}
-	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "slack\n\n\n\n", "gateway")
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "slack\nxoxb-no-start-test\n\n\n", "gateway")
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
@@ -430,6 +497,35 @@ func TestSetupGatewayWhatsAppSelectionRoutesThroughWhatsAppSetupSeam(t *testing.
 	}
 	if !strings.Contains(stdout, "whatsapp seam reached") {
 		t.Fatalf("stdout missing WhatsApp seam output:\n%s", stdout)
+	}
+}
+
+func TestSetupGatewayWhatsAppDefaultRendersPlanWithoutLivePairing(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	fake := &setupCommandFakeSeams{isTTY: true}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "whatsapp\n", "gateway")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"WhatsApp pairing setup",
+		"Run without --plan to start the live QR pairing wizard.",
+		"Start messaging with: gormes gateway",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout+stderr, "Installing WhatsApp bridge dependencies") ||
+		strings.Contains(stdout+stderr, "WhatsApp paired successfully") {
+		t.Fatalf("default setup WhatsApp path launched live pairing work:\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if _, err := os.Stat(config.EnvPath()); err == nil {
+		t.Fatalf("plan-only WhatsApp setup wrote dotenv file at %s", config.EnvPath())
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat dotenv: %v", err)
 	}
 }
 

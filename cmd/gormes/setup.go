@@ -1302,7 +1302,7 @@ func runSetupWhatsAppCommand(cmd *cobra.Command) error {
 	whatsAppCmd.SetOut(cmd.OutOrStdout())
 	whatsAppCmd.SetErr(cmd.ErrOrStderr())
 	whatsAppCmd.SetIn(cmd.InOrStdin())
-	whatsAppCmd.SetArgs([]string{})
+	whatsAppCmd.SetArgs([]string{"--plan"})
 	whatsAppCmd.SilenceUsage = true
 	whatsAppCmd.SilenceErrors = true
 	return whatsAppCmd.ExecuteContext(cmd.Context())
@@ -1389,6 +1389,10 @@ func runSetupDiscordGatewayPlatform(cmd *cobra.Command) error {
 
 func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
 	out := cmd.OutOrStdout()
+	cfg, err := config.Load(nil)
+	if err != nil {
+		return fmt.Errorf("setup slack: load config: %w", err)
+	}
 	botToken, err := promptSecret(cmd, "Slack bot token (xoxb, stored in .env, blank to keep current): ")
 	if err != nil {
 		return err
@@ -1416,6 +1420,12 @@ func runSetupSlackGatewayPlatform(cmd *cobra.Command) error {
 		}
 	}
 
+	if strings.TrimSpace(botToken) == "" &&
+		strings.TrimSpace(appToken) == "" &&
+		strings.TrimSpace(cfg.Slack.BotToken) == "" &&
+		strings.TrimSpace(cfg.Slack.AppToken) == "" {
+		return newExitCodeError(2, fmt.Errorf("setup slack: missing Slack token; enter a bot or app token, or configure one before enabling Slack"))
+	}
 	if err := config.WriteTOMLValue(config.ConfigPath(), "slack.enabled", "true"); err != nil {
 		return fmt.Errorf("setup slack: write enabled config: %w", err)
 	}
