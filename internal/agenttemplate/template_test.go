@@ -172,6 +172,35 @@ func TestAgentTemplatePairManifestCoversDefaultFiles(t *testing.T) {
 	}
 }
 
+func TestAgentTemplatePairManifestValidatesSourceReferences(t *testing.T) {
+	repoRoot, hermesRoot := templatePairSourceRoots(t)
+	opts := TemplatePairValidationOptions{
+		RepoRoot:   repoRoot,
+		HermesRoot: hermesRoot,
+	}
+
+	if err := ValidateTemplatePairs(TemplatePairManifest(), opts); err != nil {
+		t.Fatalf("template pair manifest source references must resolve: %v", err)
+	}
+
+	stale := []TemplatePair{
+		{
+			Path:          "SOUL.md",
+			Status:        TemplatePairCovered,
+			HermesSources: []string{"hermes_cli/missing_default_soul.py"},
+			GormesSources: []string{"internal/agenttemplate/default_templates.go"},
+			Contract:      "Gormes fixture for stale source validation.",
+		},
+	}
+	err := ValidateTemplatePairs(stale, opts)
+	if err == nil {
+		t.Fatal("ValidateTemplatePairs accepted a stale Hermes source reference")
+	}
+	if got := err.Error(); !strings.Contains(got, "missing Hermes source") || !strings.Contains(got, "hermes_cli/missing_default_soul.py") {
+		t.Fatalf("stale source error = %q, want missing Hermes source path", got)
+	}
+}
+
 func TestAgentTemplateApplyCreatesMissingFiles(t *testing.T) {
 	target := t.TempDir()
 
@@ -297,4 +326,20 @@ func actionsByPath(result WriteResult) map[string]Action {
 
 func containsFold(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
+}
+
+func templatePairSourceRoots(t *testing.T) (string, string) {
+	t.Helper()
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repo root: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err != nil {
+		t.Fatalf("repo root %s missing go.mod: %v", repoRoot, err)
+	}
+	hermesRoot := filepath.Join(repoRoot, "hermes-agent")
+	if _, err := os.Stat(filepath.Join(hermesRoot, "hermes_cli", "default_soul.py")); err != nil {
+		t.Skipf("upstream Hermes checkout unavailable for manifest source validation: %v", err)
+	}
+	return repoRoot, hermesRoot
 }
