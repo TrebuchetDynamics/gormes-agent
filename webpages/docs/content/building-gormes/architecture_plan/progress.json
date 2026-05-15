@@ -1997,11 +1997,10 @@
                 "internal/codingagents/codingagents.go"
               ],
               "ready_when": [
-                "internal/codingagents scaffold (interface, request/result, availability, workspace guard, git snapshot, prompt wrap) is merged.",
+                "internal/codingagents scaffold (interface, request/result, availability, workspace guard, git snapshot, prompt wrap) is complete.",
                 "Per-backend adapters (codex, claude-code, opencode) implement CodingAgent against the scaffold."
               ],
               "not_ready_when": [
-                "Phase 1: internal/codingagents scaffolding and workspace guard (in_progress).",
                 "Phase 2: codex adapter implementing CodingAgent with snapshot+diff capture.",
                 "Phase 3: claude-code adapter implementing CodingAgent.",
                 "Phase 4: opencode adapter implementing CodingAgent.",
@@ -2031,10 +2030,10 @@
             },
             {
               "name": "Coding-agent delegation: Phase 1 scaffold (internal/codingagents)",
-              "status": "in_progress",
+              "status": "complete",
               "priority": "P1",
               "contract": "Shared internal/codingagents package providing the CodingAgent interface, CodingAgentRequest/Result, mode constants, binary availability detection, workspace guard with default deny list, git snapshot/diff helper, and prompt wrapper. No tools are registered in this slice; adapters and registry exposure land in later phases.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tools",
               "trust_class": [
@@ -2078,7 +2077,21 @@
                 "WorkspaceGuard returns typed sentinels (ErrWorkspaceEmpty/Ambiguous/OutsideAllowed/Denied) and refuses $HOME, /, and ~/.ssh by default.",
                 "DetectAll returns availability entries for codex, claude, claude-code, and opencode.",
                 "TakeSnapshot + DiffBetween capture HEAD, dirty status, and a unified diff with file list on a temp repo; non-git dirs raise ErrNotAGitRepo."
-              ]
+              ],
+              "evidence": {
+                "implementation": [
+                  "internal/codingagents/codingagents.go defines the shared CodingAgent interface, modes, request, and result fields for workspace, prompt, edit permission, timeout, stdout/stderr, files_changed, and git_diff.",
+                  "internal/codingagents/availability.go detects codex, claude, claude-code, and opencode without treating missing binaries as hard errors.",
+                  "internal/codingagents/workspace.go enforces allowed roots and default denied paths with typed sentinel errors.",
+                  "internal/codingagents/git_snapshot.go captures HEAD, branch, dirty state, committed diffs, working-tree diffs, and untracked worker-created file paths.",
+                  "internal/codingagents/prompt_wrap.go restates workspace/mode/task and injects Gormes repository rules for gormes-agent workspaces."
+                ],
+                "tests": [
+                  "go test ./internal/codingagents/... -count=1",
+                  "go vet ./internal/codingagents/..."
+                ],
+                "note": "Completed 2026-05-15 after adding regression coverage that DiffBetween includes untracked working-tree files in FilesChanged for later adapters."
+              }
             }
           ]
         },

@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
-
-- Phase: 2 / 2.A
-- Owner: `tools`
-- Size: `medium`
-- Status: `in_progress`
-- Priority: `P1`
-- Contract: Shared internal/codingagents package providing the CodingAgent interface, CodingAgentRequest/Result, mode constants, binary availability detection, workspace guard with default deny list, git snapshot/diff helper, and prompt wrapper. No tools are registered in this slice; adapters and registry exposure land in later phases.
-- Trust class: operator, system
-- Ready when: Shared CodingAgent interface and CodingAgentRequest/Result cover workspace, prompt, mode, edit permissions, timeout, files-changed, stdout/stderr, and git diff., Availability checks detect codex, claude/claude-code, and opencode binaries and report unavailable cleanly., Workspace guard refuses empty, ambiguous, denied, and outside-allowed inputs and accepts paths under an allowed root., Git snapshot/diff helper captures HEAD/branch/dirty/files for a real repo and returns ErrNotAGitRepo on a non-git dir., Prompt wrapper restates workspace/mode/task and injects gormes-repo rules when the workspace is a gormes-agent checkout.
-- Not ready when: Adapters or tool descriptors register coding_agent / codex_run / claude_code_run / opencode_run before the umbrella's later phases., Results omit files_changed or git_diff across adapters., Workspace identifiers bypass the guard via raw-path voice input.
-- Degraded mode: Without the scaffold, later phases cannot compile codex/claude-code/opencode adapters against a shared contract; doctor cannot probe coding-agent binaries.
-- Fixture: `internal/codingagents`
-- Write scope: `internal/codingagents/`, `webpages/docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/codingagents/... -count=1`, `go vet ./internal/codingagents/...`, `go run ./cmd/progress validate`
-- Done signal: go test ./internal/codingagents/... -count=1 passes locally with the scaffold, availability probe, workspace guard, git snapshot, and prompt wrap covered by unit tests.
-- Acceptance: internal/codingagents compiles and tests pass on stdlib only., WorkspaceGuard returns typed sentinels (ErrWorkspaceEmpty/Ambiguous/OutsideAllowed/Denied) and refuses $HOME, /, and ~/.ssh by default., DetectAll returns availability entries for codex, claude, claude-code, and opencode., TakeSnapshot + DiffBetween capture HEAD, dirty status, and a unified diff with file list on a temp repo; non-git dirs raise ErrNotAGitRepo.
-- Source refs: User design: 2026-05-13 coding-agent delegation plan, internal/codingagents/codingagents.go, internal/codingagents/workspace.go, internal/codingagents/git_snapshot.go
-- Why now: Already active; contract metadata keeps execution bounded.
-
-## 2. PicoClaw-derived channel media and identity regression matrix
+## 1. PicoClaw-derived channel media and identity regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -67,7 +47,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2855, https://github.com/sipeed/picoclaw/issues/2843, https://github.com/sipeed/picoclaw/issues/2839, https://github.com/sipeed/picoclaw/issues/2817, https://github.com/sipeed/picoclaw/issues/2816, https://github.com/sipeed/picoclaw/issues/2815, https://github.com/sipeed/picoclaw/issues/2798, https://github.com/sipeed/picoclaw/issues/2785, https://github.com/sipeed/picoclaw/issues/2702, internal/gateway/channel.go, internal/gateway/coalesce.go, internal/gateway/session_context.go, internal/gateway/media_delivery.go, internal/channels/threadtext/contract.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 3. PicoClaw-derived session ledger read-model regression matrix
+## 2. PicoClaw-derived session ledger read-model regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `memory`
@@ -87,7 +67,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2820, https://github.com/sipeed/picoclaw/issues/2796, https://github.com/sipeed/picoclaw/issues/2795, https://github.com/sipeed/picoclaw/issues/2787, internal/session/directory.go, internal/session/lineage.go, internal/transcript/markdown.go, internal/store/recording.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. PicoClaw-derived provider stream and auth regression matrix
+## 3. PicoClaw-derived provider stream and auth regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `provider`
@@ -107,7 +87,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2769, https://github.com/sipeed/picoclaw/issues/2745, https://github.com/sipeed/picoclaw/issues/2674, https://github.com/sipeed/picoclaw/issues/2404, https://github.com/sipeed/picoclaw/issues/629, https://github.com/sipeed/picoclaw/issues/28, internal/hermes/stream.go, internal/hermes/http_client.go, internal/hermes/codex_responses_stream.go, internal/hermes/reasoning_tag_sanitizer.go, internal/hermes/lmstudio_adapter.go, internal/hermes/errors.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. MCP Streamable HTTP session lifecycle compatibility
+## 4. MCP Streamable HTTP session lifecycle compatibility
 
 - Phase: 9 / 9.F
 - Owner: `tools`
@@ -127,7 +107,7 @@ selection.
 - Source refs: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility, https://github.com/sipeed/picoclaw/issues/2782, https://github.com/sipeed/picoclaw/issues/2546, internal/tools/mcp_http.go, internal/tools/mcp_client.go, internal/tools/mcp_oauth_store.go, internal/tools/managed_tool_gateway.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. Dynamic agent identity inheritance regression matrix
+## 5. Dynamic agent identity inheritance regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `orchestrator`
@@ -147,7 +127,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/1934, https://github.com/sipeed/picoclaw/issues/2148, https://github.com/sipeed/picoclaw/issues/2775, https://github.com/sipeed/picoclaw/issues/294, https://github.com/sipeed/picoclaw/issues/284, internal/subagent/, internal/goncho/dynamic_agents.go, internal/agent/middleware.go, internal/skills/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Native TUI /model slash command binding over the existing model picker
+## 6. Native TUI /model slash command binding over the existing model picker
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -168,7 +148,7 @@ selection.
 - Unblocks: Native TUI slash handler-port coverage
 - Why now: Unblocks Native TUI slash handler-port coverage.
 
-## 8. Termux storage and path safety audit
+## 7. Termux storage and path safety audit
 
 - Phase: 1 / 5.X
 - Owner: `orchestrator`
@@ -188,7 +168,7 @@ selection.
 - Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 9. Termux gateway foreground tmux lifecycle
+## 8. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -208,7 +188,7 @@ selection.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Termux notification bridge via termux-api
+## 9. Termux notification bridge via termux-api
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -226,6 +206,27 @@ selection.
 - Done signal: Optional termux-api notification adapter sends through fake exec under Termux and degrades cleanly everywhere else.
 - Acceptance: Fake-exec tests prove Termux notification sends title/body through termux-notification with bounded arguments., Non-Termux and missing-command tests return structured no-op/WARN evidence., Doctor/status output references notification availability without requiring Termux:API., Secret redaction tests prove tokens are not passed into notification bodies.
 - Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Termux real-device smoke evidence
+
+- Phase: 1 / 5.X
+- Owner: `docs`
+- Size: `small`
+- Status: `planned`
+- Priority: `P1`
+- Contract: Capture a dated real-device no-root Android Termux smoke record for the current release: install via repo-root install.sh release asset, run gormes version, gormes doctor --offline --json, gormes config check, initialize SQLite/Goncho state, and run a provider-backed gormes chat -q "hello from Termux" when a test credential is available. The evidence must record Android/Termux versions, device arch, install method, and any caveats without leaking credentials.
+- Trust class: operator, system
+- Ready when: Termux runtime doctor check is complete., Termux install and release smoke guide is complete., A real no-root Android arm64/aarch64 Termux environment is available to the operator.
+- Not ready when: The evidence is only CI simulation or local Linux fake TERMUX_VERSION output., The smoke transcript includes raw provider keys, bot tokens, device-private paths beyond normal Termux paths, or personal chat IDs., The smoke uses source build as the primary install path unless the release asset is explicitly unavailable.
+- Degraded mode: If no provider credential is available, record provider-backed oneshot as skipped with credential-unavailable evidence; local install/version/doctor/config/Goncho smoke remains required.
+- Fixture: `webpages/docs/content/install/termux-smoke.md or release evidence note`
+- Write scope: `webpages/docs/content/install/`, `docs/content/building-gormes/architecture_plan/progress.json`, `README.md`
+- Test commands: -
+- No test required: Manual real-device evidence row; CI simulation cannot replace the Android smoke transcript.
+- Done signal: A dated redacted real-device Termux smoke record is checked in and linked from the install docs/progress row.
+- Acceptance: Evidence records exact date, device arch, Android version, Termux version, and Gormes version/commit., Evidence shows install.sh release-binary path into $PREFIX/bin/gormes., Evidence includes gormes version, gormes doctor --offline --json, gormes config check, and SQLite/Goncho initialization outputs or redacted summaries., Provider-backed gormes chat -q succeeds or is explicitly skipped for missing test credential., The public compatibility claim remains bounded to the proven support matrix.
+- Source refs: install.sh, cmd/gormes/version.go, cmd/gormes/doctor.go, cmd/gormes/config.go, cmd/gormes/goncho.go, internal/doctor/termux.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

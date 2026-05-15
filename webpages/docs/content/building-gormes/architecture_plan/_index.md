@@ -174,7 +174,7 @@ classification and row-backed implementation queue.
 - [x] Kernel tool loop
 - [x] Doctor verification
 - [ ] Coding-agent delegation tooling (codex/claude-code/opencode)
-- [ ] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
+- [x] Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
 
 ### 2.B.1 — Telegram Scout ✅
 
