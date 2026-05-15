@@ -52316,32 +52316,38 @@
               "name": "Native TUI /model slash command binding over the existing model picker",
               "priority": "P1",
               "status": "planned",
-              "contract": "The native Bubble Tea TUI treats `/model` (and the `/m` prefix) as a local operator command, not prompt text: dispatching it opens the already-implemented ModelPicker overlay (internal/tui/model_picker.go RenderModelPicker/UpdateModelPicker), populated from the existing model catalog, clears the editor, and never calls Submitter. Confirming a selection (modelPickerConfirmedMsg/ModelPickerResult) applies a model switch to the active kernel session through the existing model-override seam; cancel returns to the transcript unchanged. This removes the current `/m -> /model is recognized but unavailable in the native TUI` fallback (slash_dispatch.go slashKnownUnhandledStatus) by registering a real handler in NewDefaultSlashRegistry. The picker render/key engine already exists and MUST be reused, not reimplemented.",
+              "contract": "The native Bubble Tea TUI treats `/model` (and the `/m` prefix) as a local operator command, not prompt text: dispatching it opens the already-implemented ModelPicker overlay (internal/tui/model_picker.go RenderModelPicker/UpdateModelPicker — a TUI-LOCAL overlay, unlike the kernel-driven Approval/Clarify/Secret panels, so it needs its own Model overlay state + update.go key routing + view.go render slot), clears the editor, never calls Submitter; confirming applies an IN-SESSION model switch; cancel returns unchanged. BLOCKED: builder-pass 2026-05-15 established there is NO in-session model-switch seam in the local kernel path — PlatformEventKind is {Submit,Cancel,Quit,ResetSession,Steer} with no model override; kernel.go SetModel is construction-only; the completed 5.O picker is config-TOML-persist only; SessionModelOverride is gateway-server-only and not wired to the local Bubble Tea kernel. This row therefore depends on the new 'Kernel in-session model-switch seam for the native TUI' prerequisite. The picker render/key engine already exists and MUST be reused, not reimplemented; the missing piece is the apply seam plus a model-catalog -> internal/tui data seam.",
               "contract_status": "draft",
-              "slice_size": "medium",
+              "slice_size": "large",
               "execution_owner": "tui",
               "degraded_mode": "If the model catalog is unavailable, `/model` is consumed with `model: ...` status evidence instead of forwarding the slash text to the model or silently dropping it; the picker is not opened with an empty/invalid catalog.",
               "fixture": "internal/tui/slash_model_test.go; cmd/gormes/tui_model_slash_test.go",
               "source_refs": [
                 "internal/tui/model_picker.go (ModelPickerState/ProviderEntry/ModelEntry/ModelPickerResult/modelPickerConfirmedMsg/RenderModelPicker/UpdateModelPicker — reuse engine, do not reimplement)",
                 "internal/tui/slash_dispatch.go (NewDefaultSlashRegistry; slashFallbackResult/slashKnownUnhandledStatus produce today's 'recognized but unavailable')",
-                "internal/tui/panels_wiring.go:RenderActivePanel (overlay render slot)",
-                "internal/tui/model.go (Model state + key routing for the active overlay)",
-                "cmd/gormes/model.go (model catalog + model-switch seam used by the gateway/Cobra picker)",
+                "internal/tui/update.go (Model.Update key routing — local overlay must intercept keys when active)",
+                "internal/tui/view.go (render slot — the local picker overlay is NOT a kernel panel, RenderActivePanel does not cover it)",
+                "internal/tui/model.go (new local overlay state field)",
+                "internal/kernel/frame.go (PlatformEventKind {Submit,Cancel,Quit,ResetSession,Steer} — NO model override; proves the missing seam)",
+                "internal/gateway/model_picker.go (SessionModelOverride — gateway-server-only, NOT the local kernel seam; do not bind the local TUI to this)",
+                "cmd/gormes/model.go (5.O picker — config-TOML-persist only, NOT a live session switch)",
                 "./hermes-agent/ui-tui/src/app/slash/registry.ts (slash dispatch parity reference, as cited by the completed /kanban row)",
-                "progress 5.O 'Gormes model interactive provider/model picker' (engine, complete); 5.Q 'Native TUI Hermes tool progress + modal panel renderers' (overlay precedent, complete)"
+                "progress 5.O 'Gormes model interactive provider/model picker' (config-only, complete); prerequisite row 'Kernel in-session model-switch seam for the native TUI'"
               ],
               "ready_when": [
-                "The model picker engine is complete (5.O 'Gormes model interactive provider/model picker' and 4.D model catalog cache are complete).",
-                "The native TUI slash registry consumes recognized commands before kernel submit (5.Q 'Native TUI slash-command dispatch table' complete)."
+                "The 'Kernel in-session model-switch seam for the native TUI' prerequisite row is complete (a real apply seam exists).",
+                "A model-catalog -> internal/tui data seam exists so the picker can be populated without internal/tui importing the cmd/gormes catalog.",
+                "The native TUI slash registry consumes recognized commands before kernel submit (5.Q 'Native TUI slash-command dispatch table' complete, satisfied)."
               ],
               "not_ready_when": [
+                "No in-session model-switch seam exists in the local kernel path (current state — blocked on the prerequisite row; shipping open/render/cancel without a working apply yields a non-functional /model that fails acceptance).",
                 "The slice reimplements RenderModelPicker/UpdateModelPicker instead of reusing internal/tui/model_picker.go.",
-                "The slice starts a gateway, dashboard, provider, or live channel adapter.",
-                "Unknown or failing `/model` invocations leak raw slash text to the model.",
-                "The slice replaces the existing kernel model-override seam instead of binding to it."
+                "The slice binds the local TUI to the gateway-only SessionModelOverride instead of the local kernel seam.",
+                "Unknown or failing `/model` invocations leak raw slash text to the model."
               ],
-              "blocked_by": [],
+              "blocked_by": [
+                "Kernel in-session model-switch seam for the native TUI"
+              ],
               "unblocks": [
                 "Native TUI slash handler-port coverage"
               ],
@@ -52353,6 +52359,8 @@
               ],
               "write_scope": [
                 "internal/tui/model.go",
+                "internal/tui/update.go",
+                "internal/tui/view.go",
                 "internal/tui/slash_dispatch.go",
                 "internal/tui/slash_model.go",
                 "internal/tui/slash_model_test.go",
@@ -52368,7 +52376,56 @@
               "done_signal": [
                 "Native TUI `/model` dispatch is fixture-proven over the reused ModelPicker engine, consumes slash text instead of leaking it, applies the model switch through the existing seam, and the 'recognized but unavailable' fallback no longer fires for /model."
               ],
-              "note": "Functional command parity (model switching), not Gormes-owned presentation divergence, so the chat-TUI ownership rule does not exempt it. Root cause (established 2026-05-15): NewDefaultSlashRegistry wires only 9 handlers (mouse/scroll/save/branch/copy/browser/kanban/quit/exit); /model is recognized via cli.ResolveCommandAlias but unhandled. The picker engine already exists and is merely unregistered — this is the highest-ROI native-TUI slash binding. Mirrors the completed /save, /branch, /kanban 5.Q binding rows. swarm_origin: planner-pass 2026-05-15/tui-slash-model."
+              "note": "Functional command parity (model switching), not Gormes-owned presentation divergence. Root cause (2026-05-15): NewDefaultSlashRegistry wires only 9 handlers; /model is recognized via cli.ResolveCommandAlias but unhandled. BUILDER-PASS CORRECTION 2026-05-15/tui-slash-model: the earlier 'highest-ROI quick win, picker just unregistered' assessment was wrong on the hardest dependency. The picker RENDERER (model_picker.go) exists, but the APPLY mechanism does not: the local kernel has no in-session model-switch (PlatformEventKind lacks a model event; kernel.go SetModel is construction-only; 5.O is config-persist only; SessionModelOverride is gateway-only). Wiring open/render/cancel without a working apply would ship a non-functional /model. Row demoted from medium to large, blocked_by the new 'Kernel in-session model-switch seam for the native TUI' prerequisite, write_scope corrected to include update.go (key routing) and view.go (local-overlay render slot). No code was written against the false seam contract. swarm_origin: planner-pass 2026-05-15/tui-slash-model; corrected builder-pass 2026-05-15/tui-slash-model."
+            },
+            {
+              "name": "Kernel in-session model-switch seam for the native TUI",
+              "priority": "P1",
+              "status": "planned",
+              "contract": "Introduce the in-session model-switch mechanism the local Bubble Tea kernel currently lacks, so a confirmed selection (e.g. from the /model picker) changes the model used by subsequent provider calls WITHOUT resetting history. Today PlatformEventKind is {Submit,Cancel,Quit,ResetSession,Steer} and kernel.go:171 tm.SetModel(cfg.Model) runs once at construction; the only live override (internal/gateway/model_picker.go SessionModelOverride) is gateway-server-only. The seam shape (a new PlatformEventKind such as PlatformEventSetModel carrying provider+model, vs a kernel reconfigure call, vs reusing telemetry/SetModel) is an interface-design decision and MUST go through gormes-interface-designer before implementation. Also covers the model-catalog -> internal/tui data seam so a picker can be populated without internal/tui importing the cmd/gormes catalog.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tui",
+              "source_refs": [
+                "internal/kernel/frame.go (PlatformEventKind / PlatformEvent — extension point)",
+                "internal/kernel/kernel.go:171 (tm.SetModel(cfg.Model) — construction-only today)",
+                "internal/gateway/model_picker.go (SessionModelOverride — gateway-only prior art, NOT reusable as-is for the local kernel)",
+                "progress 5.O 'Gormes model interactive provider/model picker' (config-persist only); 5.O 'Model and profile selector seam (Cobra + gateway)'"
+              ],
+              "ready_when": [
+                "An interface-design pass (gormes-interface-designer) has chosen the seam shape (PlatformEvent vs kernel reconfigure) and the catalog->TUI data seam shape."
+              ],
+              "not_ready_when": [
+                "Implementation starts before the seam shape is interface-designed.",
+                "The local kernel path is bound to the gateway-only SessionModelOverride instead of a real kernel mechanism.",
+                "A model switch silently resets session history (must preserve history like a normal continuation)."
+              ],
+              "blocked_by": [],
+              "unblocks": [
+                "Native TUI /model slash command binding over the existing model picker"
+              ],
+              "write_scope": [
+                "internal/kernel/frame.go",
+                "internal/kernel/kernel.go",
+                "internal/kernel/kernel_test.go",
+                "internal/tui/model.go",
+                "cmd/gormes/main.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run 'Model|SetModel|SwitchModel' -count=1",
+                "go test ./internal/tui -run 'ModelPicker|ModelSwitch' -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "acceptance": [
+                "The kernel exposes a fixture-proven in-session model switch that changes the model on the next provider call and preserves history.",
+                "A model-catalog -> internal/tui seam lets a picker be populated without internal/tui importing cmd/gormes.",
+                "The gateway-only SessionModelOverride is not repurposed for the local kernel path."
+              ],
+              "done_signal": [
+                "An in-session model-switch seam (interface-designed shape) is fixture-proven in internal/kernel, history is preserved across a switch, and the /model row's blocker is cleared."
+              ],
+              "note": "Filed by the corrected builder-pass 2026-05-15/tui-slash-model after discovering the local kernel has no in-session model-switch (the /model 'quick win' assumed a seam that does not exist). Prerequisite for the /model native-TUI binding. Needs gormes-interface-designer for the kernel seam + catalog->TUI data seam shape before any builder pass. swarm_origin: builder-pass 2026-05-15/tui-slash-model."
             },
             {
               "name": "Native TUI slash handler-port coverage",

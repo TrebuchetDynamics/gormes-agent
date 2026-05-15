@@ -1192,6 +1192,7 @@ classification and row-backed implementation queue.
 - [x] API server legacy jobs routes + default toolset
 - [x] Provider client lazy-init for TUI cold-start budget
 - [ ] Native TUI /model slash command binding over the existing model picker
+- [ ] Kernel in-session model-switch seam for the native TUI
 - [ ] Native TUI slash handler-port coverage
 
 ### 5.R — Code Execution Mode Policy ✅
