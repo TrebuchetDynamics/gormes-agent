@@ -1,6 +1,6 @@
 ---
 title: "From source"
-description: "Build Gormes from a local Git checkout, or install the latest commit with go install."
+description: "Build Gormes from a local Git checkout."
 weight: 30
 aliases:
   - /using-gormes/quickstart/
@@ -26,13 +26,20 @@ Source builds require Git and Go 1.26+. The installer can fetch a managed Go for
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
-make build
-export PATH="$PWD/bin:$PATH"
-gormes --version
-gormes doctor --offline
+mkdir -p bin
+CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes
+./bin/gormes --version
+./bin/gormes doctor --offline
 ```
 
-`make build` produces `bin/gormes` from `./cmd/gormes` using `CGO_ENABLED=0 go build -trimpath` with build-time version metadata. Putting `$PWD/bin` first on PATH while validating local changes prevents an older installed `gormes` from shadowing the fresh build.
+The command produces `bin/gormes` from `./cmd/gormes` without CGO or local path metadata. Running `./bin/gormes` while validating local changes prevents an older installed `gormes` from shadowing the fresh build.
+
+To use that checkout build as `gormes` from the current shell:
+
+```bash
+export PATH="$PWD/bin:$PATH"
+gormes --version
+```
 
 To run the binary directly without installing:
 
@@ -41,23 +48,13 @@ go run ./cmd/gormes --version
 go run ./cmd/gormes doctor --offline
 ```
 
-## go install
-
-If you only need the latest tagged release on the default branch, `go install` works without a manual clone:
-
-```bash
-go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest
-```
-
-This drops the binary in `$(go env GOBIN)` (usually `$HOME/go/bin`). Put that directory on PATH if it is not already.
-
 ## Build profiles
 
 | Profile | Command | Notes |
 |---|---|---|
-| Full (default) | `make build` | All standard tools and helpers compiled in. Linux release build is ~40 MB. |
-| Slim | `make build-slim` | `go build -tags slim`. Excludes TTS, transcription, voice mode, and image generation helpers at compile time. Smaller binary. |
-| Lite | `go build -tags gormes_lite ./cmd/gormes` | Omits audio/image helpers from the default tool registry; intended for constrained hosts. |
+| Full (default) | `mkdir -p bin && CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes` | All standard tools and helpers compiled in. Linux release build is ~40 MB. |
+| Slim | `mkdir -p bin && CGO_ENABLED=0 go build -trimpath -tags slim -o bin/gormes-slim ./cmd/gormes` | Excludes TTS, transcription, voice mode, and image generation helpers at compile time. Smaller binary. |
+| Lite | `mkdir -p bin && CGO_ENABLED=0 go build -trimpath -tags gormes_lite -o bin/gormes-lite ./cmd/gormes` | Omits audio/image helpers from the default tool registry; intended for constrained hosts. |
 
 ## Pre-compiled release archives
 

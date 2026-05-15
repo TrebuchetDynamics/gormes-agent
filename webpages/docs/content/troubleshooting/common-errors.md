@@ -19,7 +19,7 @@ gormes gateway status
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `gormes` not found after `install.sh` | Install put the binary in `$HOME/go/bin` but it is not on `PATH`. | Add `export PATH="$HOME/go/bin:$PATH"` to your shell rc. |
+| `gormes` not found after `install.sh` | The current shell has not picked up the installer's published bin directory. Non-root Unix installs use `$HOME/.local/bin` by default. | Open a new shell, or add `export PATH="$HOME/.local/bin:$PATH"` to your shell rc. |
 | Command behavior looks stale or matches an older release | Multiple `gormes` binaries on `PATH`. | `which -a gormes` and run the intended path directly, or remove the older copy. |
 | `gormes --oneshot "..."` fails with "provider auth missing" | No API key for the configured provider. | `gormes auth add <provider> --api-key ...` or run `gormes setup provider`. |
 | `gormes doctor` reports provider not reachable | Endpoint, network, or credential mismatch. | `gormes config show` and verify `[hermes].endpoint`, then re-run `gormes doctor`. |

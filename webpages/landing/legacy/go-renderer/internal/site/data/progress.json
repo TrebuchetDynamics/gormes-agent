@@ -8365,8 +8365,8 @@
               "fixture": "internal/channels/navivox/protocol_test.go and internal/channels/navivox/server_test.go",
               "source_refs": [
                 "flutter-navivox/navivox-decision-record.md:Protocol Framing",
-                "flutter-navivox/navibox-prd.md:Navivox Protocol",
-                "flutter-navivox/navibox-testing-plan.md:Protocol Codecs",
+                "flutter-navivox/navivox-prd.md:Navivox Protocol",
+                "flutter-navivox/navivox-testing-plan.md:Protocol Codecs",
                 "webpages/docs/content/building-gormes/architecture_plan/hermes-honcho-feature-map.md:Navivox SSH/Flutter channel",
                 "internal/gateway/channel.go",
                 "cmd/gormes/acp.go",
@@ -8512,9 +8512,9 @@
               "degraded_mode": "Reduced-motion settings freeze phase-driven animation without removing the state-specific visual. Intensity is clamped to 0.0..1.0 so malformed audio levels cannot distort layout or painter behavior.",
               "fixture": "flutter-navivox/app/test/features/voice/widgets/voice_morph_surface_test.dart",
               "source_refs": [
-                "flutter-navivox/navibox-prd.md:Voice",
-                "flutter-navivox/navibox-ui-design.md:chat and voice surfaces",
-                "flutter-navivox/navibox-testing-plan.md:Voice and chat UI tests",
+                "flutter-navivox/navivox-prd.md:Voice",
+                "flutter-navivox/navivox-ui-design.md:chat and voice surfaces",
+                "flutter-navivox/navivox-testing-plan.md:Voice and chat UI tests",
                 "Context7 /websites/flutter_dev: CustomPaint, AnimationController, RepaintBoundary, accessibility testing"
               ],
               "ready_when": [
@@ -42347,9 +42347,11 @@
                 "TestContextFilesLoadsGormesOperationalTemplates proves Gormes-owned IDENTITY.md and TOOLS.md are loaded additively after the Hermes-compatible winning project context.",
                 "TestAgentTemplatePairManifestCoversDefaultFiles proves every fresh-install template has an executable source/rationale classification as either Hermes-covered or an explicit Gormes-owned divergence.",
                 "TestAgentTemplatePairManifestValidatesSourceReferences proves the manifest rejects stale Hermes/Gormes source paths instead of accepting unverifiable template-pair evidence.",
-                "TestAgentTemplateDefaultFilesAreFreshInstallReady proves seeded AGENTS.md is a workspace contract for agents run by `gormes`, while seeded IDENTITY.md uses Gorm as the editable default persona and gormes as the runtime."
+                "TestAgentTemplateDefaultFilesAreFreshInstallReady proves seeded AGENTS.md is a workspace contract for agents run by `gormes`, while seeded IDENTITY.md uses Gorm as the editable default persona and gormes as the runtime.",
+                "TestAgentTemplateDefaultFilesExposeStableRegistryIDs proves every fresh-install template has a stable registry ID independent of its output path.",
+                "TestAgentTemplatePairManifestCoversDefaultFiles proves every manifest pair links back to the registry ID and declares status, transform reason, owner row, and test gate metadata for rerunnable parity checks."
               ],
-              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths. The 2026-05-14 parity refactor split the starter template data into internal/agenttemplate/default_templates.go and made SOUL.md consume internal/hermes.DefaultSoulMD, which is source-paired to Hermes hermes_cli/default_soul.py. The 2026-05-14 manifest-gate pass added internal/agenttemplate/parity_manifest.go so any future fresh-install template must be classified with Hermes sources, Gormes sources, and covered/owned-divergence rationale. The 2026-05-14 source-validation pass added ValidateTemplatePairs so those source references must resolve to real checked-out files and stale paths fail focused tests. The 2026-05-14 persona-boundary pass split naming so `gormes` remains the runtime/binary, `Gorm` is only the default editable persona in SOUL.md and IDENTITY.md, and AGENTS.md stays persona-neutral as a workspace contract for agents run by `gormes`.",
+              "note": "Complete: TDD added internal/agenttemplate for fixed default context templates plus `gormes agent reset` with --target, --dry-run, and --force. Fixtures prove live-turn lookup-compatible SOUL and memory paths, non-destructive skip behavior, force overwrite, dry-run without filesystem writes, root command registration, and Gormes-owned parity manifest classification. The 2026-05-05 runtime pass added gateway/Telegram startup seeding for clean configured workspaces, provider-payload coverage for the Telegram SOUL.md transcript regression, additive IDENTITY.md/TOOLS.md prompt loading, and manager seam fixes so configured ContextFilesCWD drives SOUL and memory discovery instead of the source checkout cwd. Full-suite cleanup also made upstream-Hermes fixture lookup prefer the active workspace-gormes/shared workspace-mineru layout before stale developer fallback paths. The 2026-05-14 parity refactor split the starter template data into internal/agenttemplate/default_templates.go and made SOUL.md consume internal/hermes.DefaultSoulMD, which is source-paired to Hermes hermes_cli/default_soul.py. The 2026-05-14 manifest-gate pass added internal/agenttemplate/parity_manifest.go so any future fresh-install template must be classified with Hermes sources, Gormes sources, and covered/owned-divergence rationale. The 2026-05-14 source-validation pass added ValidateTemplatePairs so those source references must resolve to real checked-out files and stale paths fail focused tests. The 2026-05-14 persona-boundary pass split naming so `gormes` remains the runtime/binary, `Gorm` is only the default editable persona in SOUL.md and IDENTITY.md, and AGENTS.md stays persona-neutral as a workspace contract for agents run by `gormes`. The 2026-05-14 registry-contract hardening pass added stable template IDs plus manifest fields for transformed/gormes_owned status, transform reason, owner row, and test gates so Phase 0/1 checks are rerunnable after Hermes upstream refreshes.",
               "write_scope": [
                 "cmd/gormes/agent.go",
                 "cmd/gormes/agent_reset_test.go",
@@ -42386,7 +42388,7 @@
                 "git diff --check"
               ],
               "done_signal": [
-                "Template, CLI, runtime startup, and Telegram provider fixtures prove targetable non-destructive reset, dry-run, force overwrite, live-turn lookup-compatible paths, seeded workspace prompt loading, root registration, and manifest classification."
+                "Template, CLI, runtime startup, and Telegram provider fixtures prove targetable non-destructive reset, dry-run, force overwrite, live-turn lookup-compatible paths, seeded workspace prompt loading, root registration, stable template IDs, and test-gated manifest classification."
               ],
               "provenance": {
                 "origin_type": "hybrid",

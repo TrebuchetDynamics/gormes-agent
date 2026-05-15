@@ -14,7 +14,7 @@ aliases:
 ## 60-second install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh
+curl -fsSL https://gormes.ai/install.sh | sh
 ```
 
 After the installer finishes:
@@ -38,12 +38,12 @@ By default the installer:
 If you would rather read the script before executing it:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
+curl -fsSLO https://gormes.ai/install.sh
 less install.sh
 sh install.sh
 ```
 
-The script is the same content served from the repository's `install.sh` at the `main` branch. The convenience one-liner and the inspect-first form produce the same install.
+The script served at `https://gormes.ai/install.sh` is the canonical public installer mirror for the current release line. The convenience one-liner and the inspect-first form produce the same install.
 
 ## Customize
 

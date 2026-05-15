@@ -19,7 +19,7 @@ Pick one. Full details for each path live in [Install](../install/).
 Linux, macOS, WSL2:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh
+curl -fsSLO https://gormes.ai/install.sh
 less install.sh
 sh install.sh
 ```
@@ -27,7 +27,7 @@ sh install.sh
 Native Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1 -OutFile install.ps1
+irm https://gormes.ai/install.ps1 -OutFile install.ps1
 Get-Content .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
@@ -37,16 +37,20 @@ From source (requires Go 1.26+):
 ```bash
 git clone https://github.com/TrebuchetDynamics/gormes-agent.git
 cd gormes-agent
-make build
-export PATH="$PWD/bin:$PATH"
+mkdir -p bin
+CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes
+./bin/gormes --version
+./bin/gormes doctor --offline
 ```
 
-Verify the binary is on `PATH`:
+Verify the installer-published binary is on `PATH`:
 
 ```bash
 gormes version
 gormes doctor --offline
 ```
+
+For source builds, keep using `./bin/gormes` from the checkout, or add `export PATH="$PWD/bin:$PATH"` temporarily while testing that build.
 
 ## Your first turn
 

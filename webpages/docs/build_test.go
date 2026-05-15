@@ -229,11 +229,70 @@ func TestAstroBuild_IndexQuickstartUsesCurrentInstallCommand(t *testing.T) {
 	if !strings.Contains(text, "git clone https://github.com/TrebuchetDynamics/gormes-agent.git") {
 		t.Fatalf("built index.html missing current install command")
 	}
+	if !strings.Contains(text, "CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes") {
+		t.Fatalf("built index.html missing current source build command")
+	}
+	if !strings.Contains(text, "curl -fsSLO https://gormes.ai/install.sh") {
+		t.Fatalf("built index.html missing canonical install.sh command")
+	}
+	if !strings.Contains(text, "irm https://gormes.ai/install.ps1 -OutFile install.ps1") {
+		t.Fatalf("built index.html missing canonical install.ps1 command")
+	}
+	if strings.Contains(text, "make build") {
+		t.Fatalf("built index.html still contains stale make build command")
+	}
 	if strings.Contains(text, "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh") {
 		t.Fatalf("built index.html still contains curl-pipe install command")
 	}
+	if strings.Contains(text, "https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh") {
+		t.Fatalf("built index.html still contains raw GitHub install.sh URL")
+	}
+	if strings.Contains(text, "https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1") {
+		t.Fatalf("built index.html still contains raw GitHub install.ps1 URL")
+	}
 	if strings.Contains(text, "brew install trebuchet/gormes") {
 		t.Fatalf("built index.html still contains stale Homebrew install command")
+	}
+}
+
+func TestAstroBuild_InstallPagesUseCurrentCommands(t *testing.T) {
+	tmp := t.TempDir()
+	runDocsAstroBuild(t, tmp)
+
+	pages := map[string]string{
+		"start-here/index.html":                    "",
+		"install/linux-macos/index.html":           "curl -fsSL https://gormes.ai/install.sh | sh",
+		"install/windows/index.html":               "irm https://gormes.ai/install.ps1 | iex",
+		"install/from-source/index.html":           "CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes",
+		"troubleshooting/common-errors/index.html": "$HOME/.local/bin",
+	}
+	for pagePath, want := range pages {
+		raw, err := os.ReadFile(filepath.Join(tmp, pagePath))
+		if err != nil {
+			t.Fatalf("read built %s: %v", pagePath, err)
+		}
+		text := string(raw)
+		if want != "" && !strings.Contains(text, want) {
+			t.Fatalf("built %s missing %q", pagePath, want)
+		}
+		for _, reject := range []string{
+			"https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh",
+			"https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/scripts/install.ps1",
+			"go install github.com/TrebuchetDynamics/gormes-agent/cmd/gormes@latest",
+			"$HOME/go/bin",
+		} {
+			if strings.Contains(text, reject) {
+				t.Fatalf("built %s contains stale token %q", pagePath, reject)
+			}
+		}
+	}
+
+	fromSource, err := os.ReadFile(filepath.Join(tmp, "install/from-source/index.html"))
+	if err != nil {
+		t.Fatalf("read built install/from-source/index.html: %v", err)
+	}
+	if strings.Contains(string(fromSource), "make build") {
+		t.Fatalf("built install/from-source/index.html still contains stale make build command")
 	}
 }
 
@@ -259,7 +318,7 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 		"Support labels",
 		"Runtime-ready",
 		"Trust posture",
-		"Source build and inspectable",
+		"Source build and release-first",
 		"Progress data is generated from the canonical",
 		"Users and operators",
 		"Browse sessions, config, skills, logs, and audits",
@@ -279,6 +338,7 @@ func TestAstroBuild_IndexUsesOperatorFirstDocsStructure(t *testing.T) {
 		"connect a Hermes backend",
 		"Run Hermes Through a Go Operator Console",
 		"curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh",
+		"https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh",
 	} {
 		if strings.Contains(text, reject) {
 			t.Fatalf("built index.html contains stale token %q", reject)
@@ -377,7 +437,9 @@ func TestDocsDeployWorkflowUsesCloudflarePages(t *testing.T) {
 		"npm run build",
 		"Verify homepage content",
 		`grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" dist/index.html >/dev/null`,
-		`! grep -F "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh" dist/index.html >/dev/null`,
+		`grep -F "CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes" dist/index.html >/dev/null`,
+		`grep -F "curl -fsSLO https://gormes.ai/install.sh" dist/index.html >/dev/null`,
+		`! grep -F "https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh" dist/index.html >/dev/null`,
 		`! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null`,
 		"cloudflare/wrangler-action@v3",
 		"command: pages project create gormes-docs --production-branch=main",

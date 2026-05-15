@@ -140,7 +140,7 @@ func TestDocsHomePageIsGormesBranded(t *testing.T) {
 		"## Support labels",
 		"Runtime-ready",
 		"## Trust posture",
-		"Source build and inspectable",
+		"Source build and release-first",
 	}
 	for _, want := range wants {
 		if !strings.Contains(raw, want) {

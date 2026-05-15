@@ -50,7 +50,9 @@ jobs:
         working-directory: webpages/docs
         run: |
           grep -F "git clone https://github.com/TrebuchetDynamics/gormes-agent.git" dist/index.html >/dev/null
-          ! grep -F "curl -fsSL https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh | sh" dist/index.html >/dev/null
+          grep -F "CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes" dist/index.html >/dev/null
+          grep -F "curl -fsSLO https://gormes.ai/install.sh" dist/index.html >/dev/null
+          ! grep -F "https://raw.githubusercontent.com/TrebuchetDynamics/gormes-agent/main/install.sh" dist/index.html >/dev/null
           ! grep -F "brew install trebuchet/gormes" dist/index.html >/dev/null
 
       - name: Ensure Pages project exists

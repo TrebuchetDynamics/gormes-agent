@@ -14,7 +14,7 @@ The Unix and Windows installers are release-first: they fetch the latest signed 
 
 - [Linux and macOS](./linux-macos/) — `install.sh` one-liner, inspect-first variant, customization flags, and `gormes doctor --offline` verification.
 - [Windows native](./windows/) — `install.ps1` one-liner, inspect-first variant, PowerShell parameters, and verification.
-- [From source](./from-source/) — `git clone` plus `make build`, `go install ...@latest`, and when to prefer source over the installer (advanced, air-gapped, custom build flags).
+- [From source](./from-source/) — `git clone` plus `CGO_ENABLED=0 go build -trimpath -o bin/gormes ./cmd/gormes`, and when to prefer source over the installer (advanced, air-gapped, custom build flags).
 
 ## Platform support
 
