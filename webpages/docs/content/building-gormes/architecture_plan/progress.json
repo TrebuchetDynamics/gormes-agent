@@ -59509,7 +59509,7 @@
             },
             {
               "name": "Navivox HTTP gateway connect-info command",
-              "status": "planned",
+              "status": "complete",
               "execution_owner": "gateway",
               "slice_size": "small",
               "provenance": {
@@ -59518,7 +59518,7 @@
                 "note": "Replaces the deleted `gormes navivox pair` SSH command with an HTTP-only equivalent."
               },
               "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "ready_when": [
                 "internal/network/vpnhost shipped.",
                 "Navivox HTTP gateway mandatory-VPN bind shipped.",
@@ -59556,7 +59556,8 @@
               ],
               "done_signal": [
                 "`go test ./cmd/gormes -run NavivoxConnectInfo -count=1` passes; on a tailscale host `gormes navivox connect-info --json` prints one base_url with host_source=tailscale and no token value."
-              ]
+              ],
+              "note": "Shipped 2026-05-14. New cmd/gormes/navivox_connect_info.go (and reintroduced top-level `gormes navivox` cobra command). `gormes navivox connect-info [--json]` emits one entry per reachable Navivox interface: loopback for exposure_mode=local; tailscale/wireguard/tun-other entries from vpnhostList for VPN-class modes. JSON shape {entries:[{host, host_source, port, base_url, healthz_url, token_required}]}; never includes the static_token value. Disabled config returns a typed error pointing at [navivox].enabled. Tests (6): disabled, local-mode JSON, never-leaks-token (both formats), tailscale-mode JSON, vpn-mode lists all kinds, text-output includes URL+kind+healthz."
             }
           ]
         }

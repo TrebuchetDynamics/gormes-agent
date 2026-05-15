@@ -1429,7 +1429,7 @@ classification and row-backed implementation queue.
 - [ ] Remove Flutter SSH keys feature
 - [x] Navivox VPN host enumeration helper
 - [x] Navivox HTTP gateway mandatory-VPN bind
-- [ ] Navivox HTTP gateway connect-info command
+- [x] Navivox HTTP gateway connect-info command
 
 <!-- PROGRESS:END -->
 
