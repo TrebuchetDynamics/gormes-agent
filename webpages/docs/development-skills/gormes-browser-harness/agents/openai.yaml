@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Browser Harness"
+  short_description: "Plan and verify browser automation parity."
+  default_prompt: "Use $gormes-browser-harness to audit or implement Gormes browser automation parity, including Browser Use, CDP, /browser connect, and provider routing."

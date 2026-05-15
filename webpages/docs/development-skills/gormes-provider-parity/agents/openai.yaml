@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Provider Parity"
+  short_description: "Fix provider, auth, and model routing parity."
+  default_prompt: "Use $gormes-provider-parity to diagnose and fix Gormes provider, auth, credential, endpoint, model-routing, streaming, rate-limit, or safe provider-error behavior against Hermes."

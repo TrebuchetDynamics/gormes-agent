@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes References"
+  short_description: "Find Go donor patterns for Gormes."
+  default_prompt: "Use $gormes-references to choose the right Go donor file under references/go-agent-os before writing uncertain Gormes implementation code, while preserving Hermes as the parity contract."

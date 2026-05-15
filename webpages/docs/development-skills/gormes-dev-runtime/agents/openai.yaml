@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gormes Dev Runtime"
+  short_description: "Validate local Gormes runtime surfaces."
+  default_prompt: "Use $gormes-dev-runtime to distinguish go run, ./bin/gormes, installed gormes, GORMES_HOME, PATH, gateway ownership, and setup/runtime smoke evidence."
