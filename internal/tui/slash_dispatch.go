@@ -139,6 +139,8 @@ func NewDefaultSlashRegistry() *SlashRegistry {
 	r.Register("copy", copySlashHandler)
 	r.Register("browser", browserSlashHandler, WithBusyAvailable())
 	r.Register("kanban", kanbanSlashHandler, WithBusyAvailable())
+	r.Register("model", modelSlashHandler)
+	r.Register("m", modelSlashHandler)
 	r.Register("quit", quitSlashHandler)
 	r.Register("exit", quitSlashHandler)
 	return r

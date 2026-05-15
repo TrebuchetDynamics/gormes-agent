@@ -1254,11 +1254,15 @@ func runResolvedTUIWithRuntime(cmd *cobra.Command, invocation tuiInvocation, run
 		KanbanSlash: func(input string) (string, error) {
 			return runTUIKanbanSlashCommand(rootCtx, input)
 		},
-		OfflineSmoke:     offline,
-		StartupNotice:    startupNotice,
-		WelcomeVersion:   welcomeVersion,
-		WelcomeToolCount: welcomeToolCount,
-		WelcomeToolsets:  welcomeToolsets,
+		SetSessionModelFunc: k.SetSessionModel,
+		ModelPickerCatalog:  tui.DefaultModelPickerCatalog,
+		ModelProvider:       providerName,
+		ModelName:           modelName,
+		OfflineSmoke:        offline,
+		StartupNotice:       startupNotice,
+		WelcomeVersion:      welcomeVersion,
+		WelcomeToolCount:    welcomeToolCount,
+		WelcomeToolsets:     welcomeToolsets,
 	})
 	// Hermes' current Ink TUI runs in an alternate screen by default. The
 	// Bubble Tea port mirrors that for the full-screen dashboard so repeated

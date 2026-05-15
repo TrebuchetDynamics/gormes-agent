@@ -410,8 +410,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.editor.SetWidth(maxInt(msg.Width, 20))
+		if m.modelPicker != nil {
+			m.modelPicker.Width = msg.Width
+			m.modelPicker.Height = msg.Height
+		}
 
 	case tea.KeyMsg:
+		if m.modelPicker != nil {
+			if cmd := m.updateModelPickerForKey(msg); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+			return m, tea.Batch(cmds...)
+		}
 		if got, ok := resolveVoiceRecordTeaKey(msg, m.voiceRecordKey); ok && got.Action == HermesActionToggleVoiceRecording {
 			key := tools.ResolveVoiceRecordKey(m.voiceRecordKey, tools.VoiceRecordKeyOptions{})
 			m.statusMessage = "voice recording toggle unavailable in native TUI (" + string(key.Evidence) + "; key " + key.Display + ")"
@@ -499,6 +509,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case submittedMsg, cancelledMsg:
 		// No-op — submit/cancel are fire-and-forget. The render-frame pump
 		// provides authoritative feedback via frameMsg / m.frame.Phase.
+
+	case modelPickerConfirmedMsg:
+		cmd := m.handleModelPickerConfirmed(ModelPickerResult(msg))
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		return m, tea.Batch(cmds...)
+
+	case modelSessionSetMsg:
+		m.handleModelSessionSet(msg)
+		return m, tea.Batch(cmds...)
 	}
 
 	// Forward the message to the textarea for cursor / input handling.

@@ -22,6 +22,11 @@ type Submitter func(text string)
 // Canceller is the callback wired by main.go to send PlatformEventCancel.
 type Canceller func()
 
+// SetSessionModelFunc is the TUI-local bridge to the kernel's resident
+// in-session model override. It applies to future turns without resetting the
+// current transcript.
+type SetSessionModelFunc func(provider, model string) error
+
 // Options carries local TUI settings that do not belong to kernel state.
 type Options struct {
 	MouseTracking bool
@@ -56,6 +61,17 @@ type Options struct {
 	// nil keeps /kanban consumed with unavailable evidence; cmd/gormes wires
 	// this to the same Cobra command tree as `gormes kanban`.
 	KanbanSlash KanbanSlashFunc
+	// SetSessionModel is the injected kernel apply seam invoked by /model.
+	// nil keeps /model consumed with visible degraded evidence.
+	SetSessionModelFunc SetSessionModelFunc
+	// ModelPickerCatalog provides the TUI-local provider/model choices for
+	// /model. Local TUI startup wires DefaultModelPickerCatalog; remote TUI
+	// intentionally leaves it nil.
+	ModelPickerCatalog ModelPickerCatalogFunc
+	// ModelProvider and ModelName seed the local picker with the active
+	// provider/model before the first kernel frame arrives.
+	ModelProvider string
+	ModelName     string
 	// TodoReader returns the current session's active todo items for the TUI
 	// todo panel. nil disables the panel.
 	TodoReader func(sessionID string) []TodoItem
@@ -133,6 +149,13 @@ type Model struct {
 
 	slashRegistry *SlashRegistry
 
+	setSessionModel    SetSessionModelFunc
+	modelPickerCatalog ModelPickerCatalogFunc
+	modelProvider      string
+	modelName          string
+	modelPicker        *ModelPickerState
+	modelPickerChoices []ModelPickerCatalogProvider
+
 	// PanelState holds the active modal panel derived from the latest
 	// RenderFrame. These fields are updated by Update() when a frameMsg
 	// arrives so that View() can render the appropriate panel chrome.
@@ -168,22 +191,26 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 	ta.SetHeight(1)
 	ta.Focus()
 	return Model{
-		editor:         ta,
-		frames:         frames,
-		submit:         submit,
-		cancel:         cancel,
-		mouseTracking:  opts.MouseTracking,
-		mouseModeCmd:   opts.MouseModeCmd,
-		voiceRecordKey: opts.VoiceRecordKey,
-		sessionBranch:  opts.SessionBranch,
-		busyGuard:      opts.BusyGuard,
-		statusMessage:  opts.StartupNotice,
-		sessionExport:  opts.SessionExport,
-		clipboardWrite: opts.ClipboardWrite,
-		kanbanSlash:    opts.KanbanSlash,
-		todoReader:     opts.TodoReader,
-		offlineSmoke:   opts.OfflineSmoke,
-		slashRegistry:  NewDefaultSlashRegistry(),
+		editor:             ta,
+		frames:             frames,
+		submit:             submit,
+		cancel:             cancel,
+		mouseTracking:      opts.MouseTracking,
+		mouseModeCmd:       opts.MouseModeCmd,
+		voiceRecordKey:     opts.VoiceRecordKey,
+		sessionBranch:      opts.SessionBranch,
+		busyGuard:          opts.BusyGuard,
+		statusMessage:      opts.StartupNotice,
+		sessionExport:      opts.SessionExport,
+		clipboardWrite:     opts.ClipboardWrite,
+		kanbanSlash:        opts.KanbanSlash,
+		todoReader:         opts.TodoReader,
+		setSessionModel:    opts.SetSessionModelFunc,
+		modelPickerCatalog: opts.ModelPickerCatalog,
+		modelProvider:      opts.ModelProvider,
+		modelName:          opts.ModelName,
+		offlineSmoke:       opts.OfflineSmoke,
+		slashRegistry:      NewDefaultSlashRegistry(),
 	}
 }
 

@@ -1192,7 +1192,7 @@ classification and row-backed implementation queue.
 - [x] API server cron admin mutating endpoints
 - [x] API server legacy jobs routes + default toolset
 - [x] Provider client lazy-init for TUI cold-start budget
-- [ ] Native TUI /model slash command binding over the existing model picker
+- [x] Native TUI /model slash command binding over the existing model picker
 - [x] Kernel in-session model-switch seam for the native TUI
 - [ ] Kernel cross-provider client swap for in-session model switch
 - [ ] Native TUI slash handler-port coverage
@@ -1425,7 +1425,7 @@ classification and row-backed implementation queue.
 - [x] Built-with-Gormes page scaffold
 - [x] Upstream Hermes user-stories static mirror
 
-## Phase 9 — Design & Security Hardening 🔨
+## Phase 9 — Design & Security Hardening ✅
 
 *Owned architecture improvements from DeerFlow patterns: declarative middleware chain for the agent runtime, and sandbox provider abstraction with virtual path security layer.*
 
