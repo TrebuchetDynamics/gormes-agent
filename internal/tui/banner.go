@@ -87,3 +87,96 @@ func bannerCaduceus() string {
 func bannerWelcome() string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true).Render(welcomeDefault)
 }
+
+// welcomeContext carries the live session data the welcome panel renders.
+// Every field is optional: empty fields are omitted so the panel degrades
+// gracefully when a value is not reachable from the render frame.
+type welcomeContext struct {
+	Model     string
+	Provider  string
+	Runtime   string
+	CWD       string
+	SessionID string
+	Version   string // best-effort; "" => version line omitted
+}
+
+// welcomePalette is the small set of colors the welcome panel needs. It is
+// always derived from the active HermesSkin's banner tokens (never hardcoded)
+// so every built-in skin keeps theming the panel.
+type welcomePalette struct {
+	border string
+	title  string
+	accent string
+	dim    string
+}
+
+func welcomePaletteFor(skin HermesSkin) welcomePalette {
+	return welcomePalette{
+		border: skin.Colors.BannerBorder,
+		title:  skin.Colors.BannerTitle,
+		accent: skin.Colors.BannerAccent,
+		dim:    skin.Colors.BannerDim,
+	}
+}
+
+// welcomePanel renders the session-aware empty-transcript intro: a bordered,
+// skin-themed panel that preserves the "⚕ Gormes" caduceus identity and the
+// pinned intro phrasing while adding live session context. Under
+// HermesSkin.UseMinimalChrome (terminal width < 64) it degrades to a compact
+// non-bordered form. Layout/composition is patterned after ccx-go's
+// RenderWelcomeInline; no code is copied and colors come from the skin.
+func welcomePanel(skin HermesSkin, ctx welcomeContext, width int) string {
+	pal := welcomePaletteFor(skin)
+	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.title)).Bold(true)
+	accentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.accent))
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(pal.dim))
+
+	body := []string{
+		titleStyle.Render("⚕ Gormes"),
+		dimStyle.Render("Go-native Hermes-compatible agent"),
+	}
+
+	var ctxLines []string
+	addCtx := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		ctxLines = append(ctxLines, accentStyle.Render(label+" ")+dimStyle.Render(value))
+	}
+	addCtx("model", ctx.Model)
+	addCtx("provider", strings.TrimSpace(ctx.Provider+" "+ctx.Runtime))
+	addCtx("cwd", ctx.CWD)
+	if id := strings.TrimSpace(ctx.SessionID); id != "" {
+		addCtx("session", shortSessionID(id))
+	}
+	addCtx("version", ctx.Version)
+	if len(ctxLines) > 0 {
+		body = append(body, "")
+		body = append(body, ctxLines...)
+	}
+
+	body = append(body, "")
+	body = append(body, dimStyle.Render("Type your message or /help for commands."))
+	content := strings.Join(body, "\n")
+
+	if skin.UseMinimalChrome(width) {
+		return content
+	}
+
+	// Frame with skin-colored horizontal rules only. Gormes' bottom-pinned
+	// chrome forbids vertical pipe pairs on the response/identity row (the
+	// no-sidebar contract), so the panel must never wrap content in a box
+	// border. This mirrors ccx-go's header-rule pattern, not its side box.
+	ruleW := width - 2
+	if ruleW < 8 {
+		ruleW = 8
+	}
+	if ruleW > 78 {
+		ruleW = 78
+	}
+	rule := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(pal.border)).
+		Render(strings.Repeat("─", ruleW))
+	return strings.Join([]string{rule, content, rule}, "\n")
+}

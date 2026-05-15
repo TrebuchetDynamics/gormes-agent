@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -207,7 +208,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
 	if len(lines) == 0 {
-		return conversationEmptyIntro(compact)
+		return conversationEmptyIntro(f, width, compact)
 	}
 	return strings.Join(lines, "\n\n")
 }
@@ -351,20 +352,35 @@ func renderedLineCount(s string) int {
 	return strings.Count(s, "\n") + 1
 }
 
-func conversationEmptyIntro(compact bool) string {
+func conversationEmptyIntro(f kernel.RenderFrame, width int, compact bool) string {
 	if compact {
 		return muted.Render("⚕ Gormes · /help for commands")
 	}
-	skin := DefaultHermesSkin()
-	title := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(skin.Colors.BannerTitle)).
-		Bold(true).
-		Render("⚕ Gormes")
-	subtitle := muted.Render("Go-native Hermes-compatible agent")
-	help := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(skin.Colors.BannerDim)).
-		Render("Type your message or /help for commands.")
-	return strings.Join([]string{title, subtitle, help}, "\n")
+	ctx := welcomeContext{
+		Model:     f.Model,
+		Provider:  f.ProviderStatus.Provider,
+		Runtime:   f.ProviderStatus.Runtime,
+		CWD:       hermesWorkingDirLabel(),
+		SessionID: f.SessionID,
+		Version:   buildInfoVersion(),
+	}
+	return welcomePanel(DefaultHermesSkin(), ctx, width)
+}
+
+// buildInfoVersion returns the operator-facing module version when the binary
+// carries one, or "" for source/dev builds. internal/tui cannot import the
+// cmd/gormes main.Version symbol; the seeded value is wired later by the
+// "Gormes welcome panel version/tool-count wiring" follow-up row.
+func buildInfoVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	v := strings.TrimSpace(info.Main.Version)
+	if v == "" || v == "(devel)" || v == "unknown" {
+		return ""
+	}
+	return v
 }
 
 func transcriptRow(role, content string) string {
