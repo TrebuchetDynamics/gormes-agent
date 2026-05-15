@@ -12,6 +12,7 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
 )
 
 func TestStatusRequiresAuthAndHealthzIsPublic(t *testing.T) {
@@ -215,4 +216,79 @@ func dialTestWebSocket(t *testing.T, httpURL string) *websocket.Conn {
 		t.Fatal(err)
 	}
 	return conn
+}
+
+func TestNewChannel_TailscaleExposureWithLoopbackBind_FailsClosed(t *testing.T) {
+	prev := vpnHostLister
+	t.Cleanup(func() { vpnHostLister = prev })
+	vpnHostLister = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+		}, nil
+	}
+
+	_, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "127.0.0.1",
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureTailscale,
+		AuthMode:     config.NavivoxAuthStaticToken,
+		Token:        "x",
+	}, nil)
+	if err == nil {
+		t.Fatal("NewChannel err = nil, want VPN bind mismatch error")
+	}
+	for _, want := range []string{"127.0.0.1", "100.64.1.2", "exposure_mode=tailscale"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %q, missing %q", err, want)
+		}
+	}
+}
+
+func TestNewChannel_TailscaleExposureWithMatchingVPNBind_Succeeds(t *testing.T) {
+	prev := vpnHostLister
+	t.Cleanup(func() { vpnHostLister = prev })
+	vpnHostLister = func(context.Context) ([]vpnhost.Host, error) {
+		return []vpnhost.Host{
+			{Iface: "tailscale0", Kind: vpnhost.KindTailscale, IPv4: "100.64.1.2"},
+		}, nil
+	}
+
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "100.64.1.2",
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureTailscale,
+		AuthMode:     config.NavivoxAuthStaticToken,
+		Token:        "x",
+	}, nil)
+	if err != nil {
+		t.Fatalf("NewChannel err = %v, want nil for matching VPN bind", err)
+	}
+	if ch == nil {
+		t.Fatal("NewChannel returned nil channel")
+	}
+}
+
+func TestNewChannel_LocalExposureUnaffectedByVPNCheck(t *testing.T) {
+	prev := vpnHostLister
+	t.Cleanup(func() { vpnHostLister = prev })
+	vpnHostLister = func(context.Context) ([]vpnhost.Host, error) {
+		return nil, nil // no VPN
+	}
+
+	ch, err := NewChannel(config.NavivoxCfg{
+		Enabled:      true,
+		BindHost:     "127.0.0.1",
+		Port:         config.NavivoxDefaultPort,
+		ExposureMode: config.NavivoxExposureLocal,
+		AuthMode:     config.NavivoxAuthStaticToken,
+		Token:        "x",
+	}, nil)
+	if err != nil {
+		t.Fatalf("NewChannel err = %v, want nil (local mode is not VPN-gated)", err)
+	}
+	if ch == nil {
+		t.Fatal("NewChannel returned nil channel")
+	}
 }

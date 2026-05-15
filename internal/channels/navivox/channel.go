@@ -19,9 +19,14 @@ import (
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
 )
 
 const PlatformName = "navivox"
+
+// vpnHostLister is the seam tests override to inject deterministic VPN
+// host enumeration into NewChannel; production callers use the real CLIs.
+var vpnHostLister = vpnhost.List
 
 type Channel struct {
 	cfg config.NavivoxCfg
@@ -89,6 +94,21 @@ func NewChannel(cfg config.NavivoxCfg, log *slog.Logger) (*Channel, error) {
 	}
 	if err := config.ValidateNavivoxForRuntime(&cfg); err != nil {
 		return nil, err
+	}
+	if cfg.Enabled && config.NavivoxExposureRequiresVPN(cfg.ExposureMode) {
+		hosts, _ := vpnHostLister(context.Background())
+		ips := make([]string, 0, len(hosts)*2)
+		for _, h := range hosts {
+			if h.IPv4 != "" {
+				ips = append(ips, h.IPv4)
+			}
+			if h.IPv6 != "" {
+				ips = append(ips, h.IPv6)
+			}
+		}
+		if err := config.ValidateNavivoxBindAgainstVPN(&cfg, ips); err != nil {
+			return nil, err
+		}
 	}
 	return &Channel{
 		cfg:      cfg,

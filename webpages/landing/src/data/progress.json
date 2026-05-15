@@ -43980,7 +43980,7 @@
               "status": "planned",
               "priority": "P0",
               "contract": "`gormes setup gateway` becomes the Bubble Tea-only Messaging Platforms setup surface for TTY users and the source of channel setup truth for first-run setup. The first executable slice ships Telegram end to end: token capture and validation, allowlist/pairing/open access policy, structured home_channel config, redacted review-before-write, `--plan`, non-TTY guidance, GORMES_* plus Hermes-compatible env aliases, explicit Hermes migration mapping, channel-scoped offline doctor evidence, and one consolidated gateway lifecycle recommendation after selected flows complete. Runtime paths stay Gormes-owned and normal runtime never reads Hermes config or dotenv files.",
-              "contract_status": "draft",
+              "contract_status": "fixture_ready",
               "slice_size": "medium",
               "execution_owner": "gateway",
               "trust_class": [
@@ -59453,7 +59453,7 @@
             },
             {
               "name": "Navivox HTTP gateway mandatory-VPN bind",
-              "status": "planned",
+              "status": "complete",
               "execution_owner": "gateway",
               "slice_size": "small",
               "provenance": {
@@ -59461,7 +59461,7 @@
                 "owned_since": "2026-05-14"
               },
               "contract": "When `[navivox]` exposure_mode is `tailscale`, `wireguard`, or `vpn`, config validation and gateway startup refuse to start unless bind_host matches an active VPN interface IP returned by internal/network/vpnhost. Loopback (127.0.0.1) remains valid only under exposure_mode=local; 0.0.0.0/:: remains gated behind exposure_mode=public + public_confirmed=true. The exposure_mode allowlist is extended to add `wireguard` and `vpn` alongside existing `local`/`tailscale`/`public`.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "ready_when": [
                 "internal/network/vpnhost shipped per `Navivox VPN host enumeration helper`.",
                 "internal/config navivox validation surface (NavivoxCfg / Validate path in internal/config/config.go) is the only mutation site for bind-host enforcement."
@@ -59504,7 +59504,8 @@
               ],
               "done_signal": [
                 "`go test ./internal/config ./internal/channels/navivox -count=1` passes; `gormes gateway` exits non-zero with a typed error when [navivox] exposure_mode=tailscale and bind_host=127.0.0.1."
-              ]
+              ],
+              "note": "Shipped 2026-05-14. Added NavivoxExposureWireGuard and NavivoxExposureVPN constants; extended normalizeNavivoxConfig allowlist; added NavivoxExposureRequiresVPN(mode) helper and ValidateNavivoxBindAgainstVPN(cfg, vpnIPs) — pure structural validator that accepts IPs as []string so internal/config has no dependency on internal/network/vpnhost. internal/channels/navivox/channel.go now calls vpnHostLister (test-overridable var, defaults to vpnhost.List) in NewChannel after structural validation and runs the bind check; loopback bind for exposure_mode=local stays untouched. Tests: 6 new internal/config cases (mode allowlist + helper truth table + nil/disabled + local-or-public no-op + match + no-VPN failure + mismatch listing). 3 new internal/channels/navivox cases (loopback rejected, matching VPN accepted, local unaffected)."
             },
             {
               "name": "Navivox HTTP gateway connect-info command",

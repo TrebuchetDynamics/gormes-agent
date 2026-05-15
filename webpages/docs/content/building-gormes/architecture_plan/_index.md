@@ -1428,7 +1428,7 @@ classification and row-backed implementation queue.
 - [ ] Remove Flutter Navivox fake-server mode and wire protocol
 - [ ] Remove Flutter SSH keys feature
 - [x] Navivox VPN host enumeration helper
-- [ ] Navivox HTTP gateway mandatory-VPN bind
+- [x] Navivox HTTP gateway mandatory-VPN bind
 - [ ] Navivox HTTP gateway connect-info command
 
 <!-- PROGRESS:END -->

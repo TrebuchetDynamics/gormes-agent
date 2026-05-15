@@ -277,6 +277,8 @@ const (
 
 	NavivoxExposureLocal     = "local"
 	NavivoxExposureTailscale = "tailscale"
+	NavivoxExposureWireGuard = "wireguard"
+	NavivoxExposureVPN       = "vpn"
 	NavivoxExposurePublic    = "public"
 
 	NavivoxAuthPairingToken      = "pairing_token"
@@ -1646,9 +1648,13 @@ func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 		return fmt.Errorf("config: navivox.port must be between 1 and 65535, got %d", cfg.Port)
 	}
 	switch cfg.ExposureMode {
-	case NavivoxExposureLocal, NavivoxExposureTailscale, NavivoxExposurePublic:
+	case NavivoxExposureLocal,
+		NavivoxExposureTailscale,
+		NavivoxExposureWireGuard,
+		NavivoxExposureVPN,
+		NavivoxExposurePublic:
 	default:
-		return fmt.Errorf("config: navivox.exposure_mode %q is invalid; want local, tailscale, or public", cfg.ExposureMode)
+		return fmt.Errorf("config: navivox.exposure_mode %q is invalid; want local, tailscale, wireguard, vpn, or public", cfg.ExposureMode)
 	}
 	switch cfg.AuthMode {
 	case NavivoxAuthPairingToken, NavivoxAuthStaticToken:
@@ -1676,6 +1682,44 @@ func normalizeNavivoxConfig(cfg *NavivoxCfg) error {
 
 func ValidateNavivoxForRuntime(cfg *NavivoxCfg) error {
 	return normalizeNavivoxConfig(cfg)
+}
+
+// NavivoxExposureRequiresVPN reports whether the given exposure_mode value
+// requires bind_host to match an active VPN interface IP.
+func NavivoxExposureRequiresVPN(mode string) bool {
+	switch mode {
+	case NavivoxExposureTailscale, NavivoxExposureWireGuard, NavivoxExposureVPN:
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidateNavivoxBindAgainstVPN returns nil when navivox.bind_host either is
+// not required to be a VPN interface IP (exposure_mode local/public, or
+// channel disabled) or matches one of the live VPN IPs supplied by the
+// caller. The list is supplied as plain strings so config has no dependency
+// on the network/vpnhost package.
+func ValidateNavivoxBindAgainstVPN(cfg *NavivoxCfg, vpnIPs []string) error {
+	if cfg == nil || !cfg.Enabled {
+		return nil
+	}
+	if !NavivoxExposureRequiresVPN(cfg.ExposureMode) {
+		return nil
+	}
+	host := navivoxHostOnly(cfg.BindHost)
+	if host == "" {
+		return fmt.Errorf("config: navivox.bind_host is empty; exposure_mode=%s requires a VPN interface IP", cfg.ExposureMode)
+	}
+	for _, ip := range vpnIPs {
+		if strings.EqualFold(strings.TrimSpace(ip), host) {
+			return nil
+		}
+	}
+	if len(vpnIPs) == 0 {
+		return fmt.Errorf("config: navivox.exposure_mode=%s but no active VPN interface was detected; bind_host %q cannot be validated", cfg.ExposureMode, cfg.BindHost)
+	}
+	return fmt.Errorf("config: navivox.bind_host %q does not match any active VPN interface IP (%v); exposure_mode=%s requires a VPN bind", cfg.BindHost, vpnIPs, cfg.ExposureMode)
 }
 
 func navivoxLoopbackHost(host string) bool {
