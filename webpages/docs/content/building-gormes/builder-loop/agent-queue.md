@@ -27,27 +27,7 @@ handoff contract, validate `progress.json`, and then return to builder
 selection.
 
 <!-- PROGRESS:START kind=agent-queue -->
-## 1. PicoClaw-derived tool path safety regression pack
-
-- Phase: 9 / 9.F
-- Owner: `tools`
-- Size: `small`
-- Status: `planned`
-- Priority: `P0`
-- Contract: Add a workspace path-safety regression pack that proves Gormes command/file tools keep relative paths relative to the active workspace, reject root enumeration such as `find /`, preserve virtual-path masking, and apply command guards to the parsed command body before execution.
-- Trust class: operator, system
-- Ready when: Sandbox provider virtual-path security, pre-execution command classification, strict-mode CWD parity, and filesystem scoping remain complete., Tests can use temp directories and fake tool requests only; no shell command that mutates the real host is executed.
-- Not ready when: The slice broadens filesystem access, permits root-scoped discovery for convenience, or relies on shell-specific parsing that bypasses existing command classification., The fixture executes real `find /`, reads outside the temp workspace, or depends on host-specific absolute paths.
-- Degraded mode: Unsafe or ambiguous paths are blocked with typed redacted evidence and no filesystem mutation; virtual host paths are masked back to virtual paths before returning tool output.
-- Fixture: `internal/tools/picoclaw_path_safety_regression_test.go`
-- Write scope: `internal/tools/picoclaw_path_safety_regression_test.go`, `internal/tools/`, `internal/sandbox/`, `docs/content/building-gormes/architecture_plan/progress.json`
-- Test commands: `go test ./internal/tools ./internal/sandbox -run '^TestPicoClawPathSafety_' -count=1`, `go test ./internal/tools ./internal/sandbox -count=1`, `go run ./cmd/progress validate`, `git diff --check`
-- Done signal: Path-safety fixtures prove relative-path confinement, root-enumeration denial, parsed command-body guarding, and virtual-path output masking with only temp workspace state.
-- Acceptance: TestPicoClawPathSafety_RelativePathsStayUnderWorkspace proves `./file`, `../outside`, and bare relative paths resolve or fail against the configured workspace, never process cwd or filesystem root., TestPicoClawPathSafety_FindRootDenied proves `find /`, equivalent root walks, and symlink escapes are denied before execution., TestPicoClawPathSafety_CommandGuardSeesParsedBody proves terminal, execute_code, cmd, command, and script payload fields are classified on the actual command body., TestPicoClawPathSafety_VirtualPathMaskingPreserved proves host paths in tool output are masked to `/mnt/user-data/...` paths.
-- Source refs: https://github.com/sipeed/picoclaw/issues/2688, https://github.com/sipeed/picoclaw/issues/2749, https://github.com/sipeed/picoclaw/issues/1042, internal/tools/filesystem_scope.go, internal/tools/command_classifier.go, internal/tools/dangerous_command.go, internal/tools/execute_code.go, internal/sandbox/paths.go
-- Why now: P0 handoff; needs contract proof before closeout.
-
-## 2. Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
+## 1. Coding-agent delegation: Phase 1 scaffold (internal/codingagents)
 
 - Phase: 2 / 2.A
 - Owner: `tools`
@@ -67,7 +47,7 @@ selection.
 - Source refs: User design: 2026-05-13 coding-agent delegation plan, internal/codingagents/codingagents.go, internal/codingagents/workspace.go, internal/codingagents/git_snapshot.go
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 3. PicoClaw-derived channel media and identity regression matrix
+## 2. PicoClaw-derived channel media and identity regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `gateway`
@@ -87,7 +67,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2855, https://github.com/sipeed/picoclaw/issues/2843, https://github.com/sipeed/picoclaw/issues/2839, https://github.com/sipeed/picoclaw/issues/2817, https://github.com/sipeed/picoclaw/issues/2816, https://github.com/sipeed/picoclaw/issues/2815, https://github.com/sipeed/picoclaw/issues/2798, https://github.com/sipeed/picoclaw/issues/2785, https://github.com/sipeed/picoclaw/issues/2702, internal/gateway/channel.go, internal/gateway/coalesce.go, internal/gateway/session_context.go, internal/gateway/media_delivery.go, internal/channels/threadtext/contract.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 4. PicoClaw-derived session ledger read-model regression matrix
+## 3. PicoClaw-derived session ledger read-model regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `memory`
@@ -107,7 +87,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2820, https://github.com/sipeed/picoclaw/issues/2796, https://github.com/sipeed/picoclaw/issues/2795, https://github.com/sipeed/picoclaw/issues/2787, internal/session/directory.go, internal/session/lineage.go, internal/transcript/markdown.go, internal/store/recording.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 5. PicoClaw-derived provider stream and auth regression matrix
+## 4. PicoClaw-derived provider stream and auth regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `provider`
@@ -127,7 +107,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/2769, https://github.com/sipeed/picoclaw/issues/2745, https://github.com/sipeed/picoclaw/issues/2674, https://github.com/sipeed/picoclaw/issues/2404, https://github.com/sipeed/picoclaw/issues/629, https://github.com/sipeed/picoclaw/issues/28, internal/hermes/stream.go, internal/hermes/http_client.go, internal/hermes/codex_responses_stream.go, internal/hermes/reasoning_tag_sanitizer.go, internal/hermes/lmstudio_adapter.go, internal/hermes/errors.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 6. MCP Streamable HTTP session lifecycle compatibility
+## 5. MCP Streamable HTTP session lifecycle compatibility
 
 - Phase: 9 / 9.F
 - Owner: `tools`
@@ -147,7 +127,7 @@ selection.
 - Source refs: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management, https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility, https://github.com/sipeed/picoclaw/issues/2782, https://github.com/sipeed/picoclaw/issues/2546, internal/tools/mcp_http.go, internal/tools/mcp_client.go, internal/tools/mcp_oauth_store.go, internal/tools/managed_tool_gateway.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 7. Dynamic agent identity inheritance regression matrix
+## 6. Dynamic agent identity inheritance regression matrix
 
 - Phase: 9 / 9.F
 - Owner: `orchestrator`
@@ -167,7 +147,7 @@ selection.
 - Source refs: https://github.com/sipeed/picoclaw/issues/1934, https://github.com/sipeed/picoclaw/issues/2148, https://github.com/sipeed/picoclaw/issues/2775, https://github.com/sipeed/picoclaw/issues/294, https://github.com/sipeed/picoclaw/issues/284, internal/subagent/, internal/goncho/dynamic_agents.go, internal/agent/middleware.go, internal/skills/
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 8. Native TUI /model slash command binding over the existing model picker
+## 7. Native TUI /model slash command binding over the existing model picker
 
 - Phase: 5 / 5.Q
 - Owner: `tui`
@@ -188,7 +168,7 @@ selection.
 - Unblocks: Native TUI slash handler-port coverage
 - Why now: Unblocks Native TUI slash handler-port coverage.
 
-## 9. Termux storage and path safety audit
+## 8. Termux storage and path safety audit
 
 - Phase: 1 / 5.X
 - Owner: `orchestrator`
@@ -208,7 +188,7 @@ selection.
 - Source refs: internal/config/config.go, internal/store/, internal/goncho/, cmd/gormes/goncho.go, cmd/gormes/doctor.go, install.sh
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
-## 10. Termux gateway foreground tmux lifecycle
+## 9. Termux gateway foreground tmux lifecycle
 
 - Phase: 1 / 5.X
 - Owner: `gateway`
@@ -226,6 +206,26 @@ selection.
 - Done signal: Gateway fixtures and docs prove Termux uses the same operator CLI with foreground/tmux lifecycle guidance and bounded Android process-survival claims.
 - Acceptance: Synthetic Termux doctor/status output includes foreground/tmux and wake-lock guidance., Gateway start/status/stop command surfaces keep the same names and JSON contracts under synthetic Termux env., Termux docs explain tmux, termux-wake-lock, battery optimization, and Termux:Boot as operator-managed aids., No test starts live Telegram/Discord/Slack connections or Android services.
 - Source refs: cmd/gormes/gateway.go, cmd/gormes/gateway_status.go, cmd/gormes/doctor.go, internal/gateway/status.go, internal/doctor/termux.go
+- Why now: Contract metadata is present; ready for a focused spec or fixture slice.
+
+## 10. Termux notification bridge via termux-api
+
+- Phase: 1 / 5.X
+- Owner: `gateway`
+- Size: `small`
+- Status: `planned`
+- Priority: `P2`
+- Contract: Add an optional Termux notification adapter that shells out to termux-notification only when Termux and the command are detected. Gateway/long-run status can emit Android notifications through this adapter, while non-Termux hosts and Termux hosts without Termux:API degrade to structured no-op/WARN evidence. The adapter must redact secrets and never make termux-api a hard dependency.
+- Trust class: operator, gateway, system
+- Ready when: Termux runtime doctor check is complete., A small notification sender interface can be injected into gateway/status paths without changing core gateway contracts., Tests can fake command lookup and command execution.
+- Not ready when: The adapter invokes live termux-notification in tests., Missing Termux:API fails doctor, gateway, or long-running tasks., Notification text can include provider tokens, bot tokens, prompts containing secrets, or raw command output without redaction.
+- Degraded mode: Missing termux-notification or missing Termux:API app returns optional_notification_unavailable evidence; Gormes continues normally without Android notifications.
+- Fixture: `internal/gateway or internal/tools Termux notification adapter tests with fake exec runner`
+- Write scope: `internal/gateway/`, `internal/tools/`, `internal/doctor/`, `cmd/gormes/`, `docs/content/building-gormes/architecture_plan/progress.json`
+- Test commands: `go test ./internal/gateway ./internal/tools -run 'Termux.*Notification\|Notification.*Termux' -count=1`, `go test ./cmd/gormes -run 'Termux\|Notification' -count=1`, `go run ./cmd/progress validate`
+- Done signal: Optional termux-api notification adapter sends through fake exec under Termux and degrades cleanly everywhere else.
+- Acceptance: Fake-exec tests prove Termux notification sends title/body through termux-notification with bounded arguments., Non-Termux and missing-command tests return structured no-op/WARN evidence., Doctor/status output references notification availability without requiring Termux:API., Secret redaction tests prove tokens are not passed into notification bodies.
+- Source refs: internal/doctor/termux.go, internal/tools/voice_mode_env.go:termux-api detection precedent, internal/gateway/, cmd/gormes/kanban_notify_test.go
 - Why now: Contract metadata is present; ready for a focused spec or fixture slice.
 
 <!-- PROGRESS:END -->

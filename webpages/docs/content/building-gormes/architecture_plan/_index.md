@@ -91,7 +91,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/109 subphases shipped · 9 in progress · 2 planned
+**Overall:** 98/109 subphases shipped · 10 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1454,12 +1454,12 @@ classification and row-backed implementation queue.
 - [x] Navivox HTTP gateway mandatory-VPN bind
 - [x] Navivox HTTP gateway connect-info command
 
-### 9.F — External Issue Radar Regression Guards ⏳
+### 9.F — External Issue Radar Regression Guards 🔨
 
 - [ ] PicoClaw-derived channel media and identity regression matrix
 - [ ] PicoClaw-derived session ledger read-model regression matrix
 - [ ] PicoClaw-derived provider stream and auth regression matrix
-- [ ] PicoClaw-derived tool path safety regression pack
+- [x] PicoClaw-derived tool path safety regression pack
 - [ ] MCP Streamable HTTP session lifecycle compatibility
 - [ ] Dynamic agent identity inheritance regression matrix
 

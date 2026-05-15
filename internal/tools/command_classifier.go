@@ -78,6 +78,7 @@ func NewCommandClassifierWithConfig(cfg CommandClassifierConfig) *CommandClassif
 			regexp.MustCompile(`wget.*\|.*sh`),
 			regexp.MustCompile(`chmod\s+[0-7]*7`),
 			regexp.MustCompile(`git\s+push\s+--force`),
+			regexp.MustCompile(`(?i)` + findRootWalkCommand),
 		},
 	}
 	classifier.allowedPrefixes = append(classifier.allowedPrefixes, cfg.AllowedPrefixes...)

@@ -60981,9 +60981,9 @@
         {
           "name": "PicoClaw-derived tool path safety regression pack",
           "priority": "P0",
-          "status": "planned",
+          "status": "complete",
           "contract": "Add a workspace path-safety regression pack that proves Gormes command/file tools keep relative paths relative to the active workspace, reject root enumeration such as `find /`, preserve virtual-path masking, and apply command guards to the parsed command body before execution.",
-          "contract_status": "fixture_ready",
+          "contract_status": "validated",
           "slice_size": "small",
           "execution_owner": "tools",
           "trust_class": [
@@ -61031,6 +61031,19 @@
           "done_signal": [
             "Path-safety fixtures prove relative-path confinement, root-enumeration denial, parsed command-body guarding, and virtual-path output masking with only temp workspace state."
           ],
+          "evidence": {
+            "implementation": [
+              "internal/tools/picoclaw_path_safety_regression_test.go: fixture covers workspace-relative path confinement, root find denial, parsed command-body classification, and virtual-path masking.",
+              "internal/tools/filesystem_scope.go: CheckRead and CheckWrite now use real path-boundary checks and resolve existing symlink ancestors before scope decisions.",
+              "internal/tools/dangerous_hardline.go and internal/tools/command_classifier.go: find root walks are classified and hardline-blocked before terminal execution.",
+              "internal/sandbox/paths.go: virtual and host path boundary checks preserve /mnt/user-data masking without prefix-sibling rewrites."
+            ],
+            "tests": [
+              "go test ./internal/tools ./internal/sandbox -run '^TestPicoClawPathSafety_' -count=1",
+              "go test ./internal/tools ./internal/sandbox -count=1"
+            ],
+            "note": "Completed 2026-05-15 with temp-directory fixtures only; no test executes a real root walk or mutates outside the workspace."
+          },
           "provenance": {
             "origin_type": "gormes",
             "owned_since": "2026-05-15",

@@ -14,9 +14,9 @@ type FilesystemScope struct {
 }
 
 type PathCheckResult struct {
-	Allowed   bool
+	Allowed    bool
 	Normalized string
-	Evidence  string
+	Evidence   string
 }
 
 func NewFilesystemScope(cwd string, readPaths, writePaths []string) *FilesystemScope {
@@ -35,26 +35,33 @@ func NewFilesystemScope(cwd string, readPaths, writePaths []string) *FilesystemS
 func normalizePaths(paths []string, cwd string) []string {
 	result := make([]string, 0, len(paths))
 	for _, p := range paths {
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(cwd, p)
-		}
-		p, _ = filepath.EvalSymlinks(p)
-		p = filepath.Clean(p)
+		p, _ = normalizePath(p, cwd)
 		result = append(result, p)
 	}
 	return result
 }
 
 func normalizePath(path, cwd string) (string, error) {
+	if strings.TrimSpace(cwd) == "" {
+		var err error
+		cwd, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
+	}
+	cwd, err := filepath.Abs(cwd)
+	if err != nil {
+		return "", err
+	}
+	cwd = filepath.Clean(cwd)
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(cwd, path)
 	}
-	path = filepath.Clean(path)
-	resolved, err := filepath.EvalSymlinks(path)
+	abs, err := filepath.Abs(path)
 	if err != nil {
-		return path, nil
+		return "", err
 	}
-	return resolved, nil
+	return evalPathOrExistingAncestor(filepath.Clean(abs)), nil
 }
 
 func (fs *FilesystemScope) CheckRead(path, cwd string) PathCheckResult {
@@ -72,7 +79,7 @@ func (fs *FilesystemScope) checkPath(path, cwd string, allowed []string, violati
 	}
 
 	if fs.CWDOnly {
-		if !strings.HasPrefix(normalized, cwd) {
+		if !pathWithinRoot(cwd, normalized) {
 			return PathCheckResult{Allowed: false, Normalized: normalized, Evidence: violationEvidence}
 		}
 		return PathCheckResult{Allowed: true, Normalized: normalized, Evidence: "path_normalized"}
@@ -83,7 +90,7 @@ func (fs *FilesystemScope) checkPath(path, cwd string, allowed []string, violati
 	}
 
 	for _, a := range allowed {
-		if strings.HasPrefix(normalized, a) || normalized == a {
+		if pathWithinRoot(a, normalized) {
 			return PathCheckResult{Allowed: true, Normalized: normalized, Evidence: "path_normalized"}
 		}
 	}
@@ -99,5 +106,30 @@ func (fs *FilesystemScope) GetDoctorReport(cwd string) map[string]interface{} {
 			"allowed_write_paths": fs.AllowedWritePaths,
 			"cwd":                 cwd,
 		},
+	}
+}
+
+func evalPathOrExistingAncestor(path string) string {
+	if evaluated, err := filepath.EvalSymlinks(path); err == nil {
+		return filepath.Clean(evaluated)
+	}
+
+	cleaned := filepath.Clean(path)
+	ancestor := cleaned
+	var suffix []string
+	for {
+		if evaluated, err := filepath.EvalSymlinks(ancestor); err == nil {
+			resolved := filepath.Clean(evaluated)
+			for i := len(suffix) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, suffix[i])
+			}
+			return filepath.Clean(resolved)
+		}
+		parent := filepath.Dir(ancestor)
+		if parent == ancestor {
+			return cleaned
+		}
+		suffix = append(suffix, filepath.Base(ancestor))
+		ancestor = parent
 	}
 }
