@@ -11,7 +11,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/network/vpnhost"
 )
+
+// vpnhostList is the seam test code can override to inject deterministic
+// VPN host enumeration; production callers go through the real CLIs.
+var vpnhostList = vpnhost.List
 
 func runSetupNavivoxGateway(cmd *cobra.Command, cfg config.Config) error {
 	out := cmd.OutOrStdout()
@@ -200,9 +205,12 @@ func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) 
 	case config.NavivoxExposurePublic:
 		return "0.0.0.0"
 	case config.NavivoxExposureTailscale:
-		// VPN auto-detection lands with the internal/network/vpnhost row (9.E).
-		// Until then, require the operator to fill bind_host explicitly when
-		// choosing tailscale exposure.
+		hosts, _ := vpnhostList(ctx)
+		for _, h := range hosts {
+			if h.Kind == vpnhost.KindTailscale && h.IPv4 != "" {
+				return h.IPv4
+			}
+		}
 		return config.NavivoxDefaultBindHost
 	default:
 		return config.NavivoxDefaultBindHost
