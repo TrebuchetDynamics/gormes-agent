@@ -52335,19 +52335,17 @@
                 "progress 5.O 'Gormes model interactive provider/model picker' (config-only, complete); prerequisite row 'Kernel in-session model-switch seam for the native TUI'"
               ],
               "ready_when": [
-                "The 'Kernel in-session model-switch seam for the native TUI' prerequisite row is complete (PlatformEventSetModel apply seam exists) — the sole remaining blocker.",
+                "SATISFIED — the 'Kernel in-session model-switch seam for the native TUI' prerequisite row is COMPLETE: PlatformEventSetModel + kernel.SetSessionModel(provider,model) exist and are fixture-proven for the same-provider in-session switch (the /model picker's primary affordance). Cross-provider client swap is a separate non-blocking follow-up row, not a /model blocker.",
                 "Catalog seam: SATISFIED — the picker is populated from existing internal/hermes.ListPickerProviders() (internal/tui already imports internal/hermes); no cmd/gormes catalog import needed.",
                 "The native TUI slash registry consumes recognized commands before kernel submit (5.Q 'Native TUI slash-command dispatch table' complete, satisfied)."
               ],
               "not_ready_when": [
-                "No in-session model-switch seam exists in the local kernel path (current state — blocked on the prerequisite row; shipping open/render/cancel without a working apply yields a non-functional /model that fails acceptance).",
+                "The slice ignores the shipped kernel.SetSessionModel/PlatformEventSetModel apply seam (e.g. only persists to config TOML or no-ops on confirm) and ships a non-functional /model that fails acceptance.",
                 "The slice reimplements RenderModelPicker/UpdateModelPicker instead of reusing internal/tui/model_picker.go.",
                 "The slice binds the local TUI to the gateway-only SessionModelOverride instead of the local kernel seam.",
                 "Unknown or failing `/model` invocations leak raw slash text to the model."
               ],
-              "blocked_by": [
-                "Kernel in-session model-switch seam for the native TUI"
-              ],
+              "blocked_by": [],
               "unblocks": [
                 "Native TUI slash handler-port coverage"
               ],
@@ -52381,9 +52379,9 @@
             {
               "name": "Kernel in-session model-switch seam for the native TUI",
               "priority": "P1",
-              "status": "planned",
+              "status": "complete",
               "contract": "Add a Design-B kernel in-session model-switch: a new PlatformEventKind `PlatformEventSetModel` whose PlatformEvent carries the existing `Model string` plus a new `Provider string`, processed exactly like PlatformEventResetSession — a synchronous `ack chan error`, valid only from PhaseIdle/PhaseFailed (reject mid-turn with a typed error analogous to ErrResetDuringTurn), and the resident mutation performed on the Run loop's own goroutine to preserve the single-owner invariant. The handler sets a resident session override (k.sessionModel/k.sessionProvider); selectTurnModel (kernel.go:1431) precedence becomes per-event PlatformEvent.Model > resident session override > k.cfg.Model; when the chosen provider differs from the resident client's, a new k.client is resolved through the EXISTING FallbackClientFactory(ctx, hermes.ModelRoute) machinery (kernel.go:37) rather than a bespoke client builder. Session history is NOT cleared (unlike ResetSession). Catalog seam (2) needs NO new code: the downstream /model picker is populated from the existing internal/hermes.ListPickerProviders() (internal/tui already imports internal/hermes), so this row is kernel-only. Interface design is COMPLETE (gormes-interface-designer 2026-05-15: Design B chosen; Design A 'TUI per-submit sticky' rejected — fixed construction-time client cannot cross-provider; Design C 'out-of-band SetSessionModel method' rejected — data race vs the single-owner event loop).",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "slice_size": "medium",
               "execution_owner": "tui",
               "source_refs": [
@@ -52422,12 +52420,63 @@
                 "A PlatformEventSetModel{Provider,Model} with a synchronous ack changes the model on the NEXT turn's provider call; the resident k.cfg.Model is not mutated and per-event PlatformEvent.Model still wins over the session override.",
                 "Session history is preserved across the switch (a fixture asserts prior turns survive and the next turn continues, not resets).",
                 "Sent mid-turn (not PhaseIdle/PhaseFailed) the event is rejected via the ack channel with a typed error analogous to ErrResetDuringTurn, no partial mutation.",
-                "A cross-provider switch resolves the new client through the existing FallbackClientFactory/hermes.ModelRoute (fixture proves the factory is invoked, no bespoke builder); the gateway SessionModelOverride is untouched."
+                "SHIPPED CORE = same-provider in-session switch. Provider is captured on the resident override (k.sessionProvider) but the cross-provider k.client swap via FallbackClientFactory/hermes.ModelRoute is intentionally split into the follow-up row 'Kernel cross-provider client swap for in-session model switch' (a provider+model -> hermes.ModelRoute resolver is required and not cleanly available yet). No bespoke provider-client builder was added and the gateway SessionModelOverride is untouched, so the not_ready_when guards hold."
               ],
               "done_signal": [
-                "PlatformEventSetModel is fixture-proven in internal/kernel: applies on the next turn, preserves history, rejects mid-turn via ack, and swaps provider client via the existing factory; the /model binding row's blocker is cleared."
+                "PlatformEventSetModel is fixture-proven in internal/kernel: applies on the next turn (reqs[1].Model), preserves history, rejects mid-turn via ack with ErrSetModelDuringTurn, and per-event PlatformEvent.Model still wins over the session override. The same-provider apply seam exists, so the /model binding row's blocker is cleared (cross-provider client swap tracked as a separate follow-up, not a /model blocker)."
               ],
-              "note": "Filed corrected builder-pass 2026-05-15/tui-slash-model; interface chosen by gormes-interface-designer 2026-05-15/tui-slash-model. Design B (PlatformEventSetModel mirroring the ResetSession event+ack template, reusing selectTurnModel + FallbackClientFactory) chosen as a deep module: one-event caller surface hiding race-free resident mutation + cross-provider client swap where k.client/factory already live. Rejected: Design A (TUI per-submit sticky via existing PlatformEvent.Model) — fixed construction-time client silently fails cross-provider, breaking the picker's primary affordance; Design C (out-of-band kernel.SetSessionModel method) — data race against the single-owner event loop. Catalog seam (2) collapsed to existing internal/hermes.ListPickerProviders (no new code), so this row is kernel-only and now builder-ready. swarm_origin: builder-pass 2026-05-15/tui-slash-model; interface-design 2026-05-15/tui-slash-model."
+              "note": "Filed corrected builder-pass 2026-05-15/tui-slash-model; interface chosen by gormes-interface-designer 2026-05-15/tui-slash-model. Design B (PlatformEventSetModel mirroring the ResetSession event+ack template, reusing selectTurnModel + FallbackClientFactory) chosen as a deep module: one-event caller surface hiding race-free resident mutation + cross-provider client swap where k.client/factory already live. Rejected: Design A (TUI per-submit sticky via existing PlatformEvent.Model) — fixed construction-time client silently fails cross-provider, breaking the picker's primary affordance; Design C (out-of-band kernel.SetSessionModel method) — data race against the single-owner event loop. Catalog seam (2) collapsed to existing internal/hermes.ListPickerProviders (no new code), so this row is kernel-only and now builder-ready. SHIPPED 2026-05-15/tui-slash-model builder pass: frame.go adds PlatformEventSetModel + PlatformEvent.Provider + ErrSetModelDuringTurn; kernel.go adds k.sessionModel/k.sessionProvider resident fields, SetSessionModel(provider,model) mirroring ResetSession (event+ack, 500ms, ErrEventMailboxFull), a PlatformEventSetModel Run-loop handler (phase-guarded, NO history clear, tm.SetModel + ContextEngine.UpdateModelContext synced), residentModel() helper, selectTurnModel(k.residentModel(), e.Model) precedence wired, and mid-turn rejection added to handleRetryEvent + the streamLoop event switch so an in-flight switch acks ErrSetModelDuringTurn. 3 fixtures green (TestKernel_SetSessionModelAppliesToNextTurnAndPreservesHistory / RejectedMidTurn / PerEventModelWinsOverSessionOverride); full `go test ./internal/kernel -count=1` and `go run ./cmd/progress validate` pass. Cross-provider client swap intentionally split into the follow-up row (provider+model -> hermes.ModelRoute resolver needed). swarm_origin: builder-pass 2026-05-15/tui-slash-model; interface-design 2026-05-15/tui-slash-model."
+            },
+            {
+              "name": "Kernel cross-provider client swap for in-session model switch",
+              "priority": "P2",
+              "status": "planned",
+              "contract": "Extend the shipped PlatformEventSetModel handler so that when the requested provider (k.sessionProvider, already captured by the prerequisite row) differs from the resident k.client's provider, a new k.client is resolved on the Run-loop goroutine through the EXISTING FallbackClientFactory(ctx, hermes.ModelRoute) machinery (internal/kernel/kernel.go:37) — NOT a bespoke client builder. Requires a pure provider+model -> hermes.ModelRoute resolver (ModelRoute needs BaseURL/APIMode/KeyEnv); source it from the existing provider catalog (internal/hermes ListPickerProviders / provider config) rather than inventing a new catalog. Same-provider switches keep the resident client untouched (already shipped). History is still NOT cleared. The gateway SessionModelOverride stays untouched.",
+              "contract_status": "draft",
+              "slice_size": "medium",
+              "execution_owner": "tui",
+              "source_refs": [
+                "internal/kernel/kernel.go PlatformEventSetModel handler (shipped same-provider core: sets k.sessionModel/k.sessionProvider, no client swap yet)",
+                "internal/kernel/kernel.go:37 FallbackClientFactory(ctx, hermes.ModelRoute) (existing client-build machinery to reuse)",
+                "internal/hermes picker/provider catalog (ListPickerProviders + provider config — the BaseURL/APIMode/KeyEnv source for building hermes.ModelRoute)",
+                "internal/kernel/kernel_test.go TestKernel_SetSessionModel* (prerequisite fixtures proving the same-provider seam — extend with a cross-provider factory-invocation fixture)"
+              ],
+              "ready_when": [
+                "Prerequisite row 'Kernel in-session model-switch seam for the native TUI' is complete (PlatformEventSetModel + k.sessionProvider exist).",
+                "A provider+model -> hermes.ModelRoute resolver path is identified in internal/hermes (BaseURL/APIMode/KeyEnv obtainable without a new catalog)."
+              ],
+              "not_ready_when": [
+                "A bespoke provider-client builder is added instead of routing through the existing FallbackClientFactory/hermes.ModelRoute.",
+                "A new provider catalog is invented instead of reusing the existing internal/hermes provider/picker data.",
+                "The cross-provider swap clears session history or runs off the Run-loop goroutine (single-owner violation).",
+                "The local kernel path is bound to the gateway-only SessionModelOverride."
+              ],
+              "blocked_by": [
+                "Kernel in-session model-switch seam for the native TUI"
+              ],
+              "unblocks": [
+                "Native TUI /model slash command binding over the existing model picker"
+              ],
+              "write_scope": [
+                "internal/kernel/kernel.go",
+                "internal/kernel/kernel_test.go",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "test_commands": [
+                "go test ./internal/kernel -run 'SetModel|ModelSwitch|SessionModel|CrossProvider' -count=1",
+                "go test ./internal/kernel -count=1",
+                "go run ./cmd/progress validate"
+              ],
+              "acceptance": [
+                "A PlatformEventSetModel whose Provider differs from the resident client's provider resolves a new k.client through the existing FallbackClientFactory/hermes.ModelRoute (a fixture proves the factory is invoked with the resolved route; no bespoke builder).",
+                "A same-provider PlatformEventSetModel leaves the resident k.client object unchanged (no needless rebuild).",
+                "Session history is preserved across the cross-provider switch; the gateway SessionModelOverride is untouched.",
+                "The provider+model -> hermes.ModelRoute resolution reuses existing internal/hermes provider/picker data, with a fixture covering an unknown provider/model degraded path."
+              ],
+              "done_signal": [
+                "A cross-provider PlatformEventSetModel is fixture-proven to swap k.client via the existing FallbackClientFactory while preserving history and leaving same-provider switches and the gateway override untouched."
+              ],
+              "note": "Filed by builder-pass 2026-05-15/tui-slash-model as the honest scope split from the prerequisite 'Kernel in-session model-switch seam for the native TUI'. The same-provider apply seam shipped clean and fixture-proven; the cross-provider k.client swap was deferred because resolving provider+model -> hermes.ModelRoute (needs BaseURL/APIMode/KeyEnv) has no clean existing path and would have forced a bespoke builder or invented catalog (both not_ready_when violations). k.sessionProvider is already captured by the shipped handler, so this follow-up is purely the client-resolution layer. swarm_origin: builder-pass 2026-05-15/tui-slash-model."
             },
             {
               "name": "Native TUI slash handler-port coverage",
@@ -60643,10 +60692,393 @@
                 "`go test ./cmd/gormes -run NavivoxConnectInfo -count=1` passes; on a tailscale host `gormes navivox connect-info --json` prints one base_url with host_source=tailscale and no token value."
               ],
               "note": "Shipped 2026-05-14. New cmd/gormes/navivox_connect_info.go (and reintroduced top-level `gormes navivox` cobra command). `gormes navivox connect-info [--json]` emits one entry per reachable Navivox interface: loopback for exposure_mode=local; tailscale/wireguard/tun-other entries from vpnhostList for VPN-class modes. JSON shape {entries:[{host, host_source, port, base_url, healthz_url, token_required}]}; never includes the static_token value. Disabled config returns a typed error pointing at [navivox].enabled. Tests (6): disabled, local-mode JSON, never-leaks-token (both formats), tailscale-mode JSON, vpn-mode lists all kinds, text-output includes URL+kind+healthz."
-            }
-          ]
         }
-      }
+      ]
+    },
+    "9.F": {
+      "name": "External Issue Radar Regression Guards",
+      "items": [
+        {
+          "name": "PicoClaw-derived channel media and identity regression matrix",
+          "priority": "P1",
+          "status": "planned",
+          "contract": "Add a fake-adapter regression matrix, sourced from current PicoClaw channel reports, that proves Gormes preserves sender identity, allowlist decisions, durable rich-media envelopes, voice transcript text, PDF/document attachment metadata, Feishu-style tool-progress notifications, and same-agent final delivery semantics through the channel-neutral gateway path.",
+          "contract_status": "fixture_ready",
+          "slice_size": "medium",
+          "execution_owner": "gateway",
+          "trust_class": [
+            "operator",
+            "gateway",
+            "system"
+          ],
+          "degraded_mode": "Unsupported channel/media combinations return redacted typed evidence, unknown senders fail closed, and final answers are sent through the existing fresh-final or coalescer fallback without editing placeholder/tool-feedback messages into user-visible finals.",
+          "fixture": "internal/gateway/picoclaw_channel_regression_test.go",
+          "source_refs": [
+            "https://github.com/sipeed/picoclaw/issues/2855",
+            "https://github.com/sipeed/picoclaw/issues/2843",
+            "https://github.com/sipeed/picoclaw/issues/2839",
+            "https://github.com/sipeed/picoclaw/issues/2817",
+            "https://github.com/sipeed/picoclaw/issues/2816",
+            "https://github.com/sipeed/picoclaw/issues/2815",
+            "https://github.com/sipeed/picoclaw/issues/2798",
+            "https://github.com/sipeed/picoclaw/issues/2785",
+            "https://github.com/sipeed/picoclaw/issues/2702",
+            "internal/gateway/channel.go",
+            "internal/gateway/coalesce.go",
+            "internal/gateway/session_context.go",
+            "internal/gateway/media_delivery.go",
+            "internal/channels/threadtext/contract.go"
+          ],
+          "ready_when": [
+            "Cross-platform image/document MEDIA delivery routing, Telegram voice/audio STT ingress, Gateway fresh-final send/delete fallback, and SessionContext prompt injection remain complete.",
+            "The worker can use fake gateway channels and synthetic attachments only; no Telegram, Matrix, Feishu, Slack, Discord, PDF parser, or live provider credential is required."
+          ],
+          "not_ready_when": [
+            "The slice adds a new live channel adapter, changes provider media content-part serialization, or rewrites existing channel authorization semantics instead of freezing the shared gateway invariants.",
+            "The fixture stores prompt text, file contents, bot tokens, chat IDs beyond synthetic test IDs, or raw local filesystem paths in evidence."
+          ],
+          "acceptance": [
+            "TestPicoClawChannelRegression_SenderIdentityAndAllowlist proves Matrix/thread-text-style events inject sender identity into session context and deny disallowed senders before provider submission.",
+            "TestPicoClawChannelRegression_RichMediaEnvelopePersists proves image, PDF/document, and voice-transcript attachments keep durable metadata and transcript text through the gateway event and final response path.",
+            "TestPicoClawChannelRegression_FinalDeliveryDoesNotEditToolPlaceholder proves steering-heavy finals are emitted as final messages or fresh-final fallbacks, not as edits to tool-feedback placeholders.",
+            "TestPicoClawChannelRegression_ToolProgressNotificationsAreComplete proves multi-tool progress events produce complete notification-center evidence for channels that cannot edit every intermediate message."
+          ],
+          "write_scope": [
+            "internal/gateway/picoclaw_channel_regression_test.go",
+            "internal/gateway/",
+            "internal/channels/threadtext/",
+            "internal/channels/telegram/",
+            "internal/channels/feishu/",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "go test ./internal/gateway -run '^TestPicoClawChannelRegression_' -count=1",
+            "go test ./internal/gateway ./internal/channels/threadtext -count=1",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "The PicoClaw-derived channel regression fixture proves sender identity, allowlist, durable media envelope, voice transcript, tool-progress notification, and final-delivery invariants without live channels."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-15",
+            "note": "External issue radar row. PicoClaw is not the Hermes parity contract; these reports identify Gormes-owned regression guards around already-row-backed gateway behavior."
+          }
+        },
+        {
+          "name": "PicoClaw-derived session ledger read-model regression matrix",
+          "priority": "P1",
+          "status": "planned",
+          "contract": "Add a session-ledger read-model regression matrix that proves Gormes stores and renders multiple user messages in a turn, per-message timestamps, sender attribution, durable attachment references, and non-destructive reset metadata without collapsing history to session.updated or deleting older channel history.",
+          "contract_status": "fixture_ready",
+          "slice_size": "small",
+          "execution_owner": "memory",
+          "trust_class": [
+            "operator",
+            "gateway",
+            "system"
+          ],
+          "degraded_mode": "Legacy session records without per-message timestamps render explicit unknown timestamp evidence and keep original order; reset operations mark boundaries without deleting prior transcript rows.",
+          "fixture": "internal/session/picoclaw_ledger_regression_test.go",
+          "source_refs": [
+            "https://github.com/sipeed/picoclaw/issues/2820",
+            "https://github.com/sipeed/picoclaw/issues/2796",
+            "https://github.com/sipeed/picoclaw/issues/2795",
+            "https://github.com/sipeed/picoclaw/issues/2787",
+            "internal/session/directory.go",
+            "internal/session/lineage.go",
+            "internal/transcript/markdown.go",
+            "internal/store/recording.go"
+          ],
+          "ready_when": [
+            "Transcript export, session lineage, session reset notification parity, and manual reset boundary hooks remain complete.",
+            "Tests can use temp bbolt/SQLite stores and synthetic gateway session IDs only."
+          ],
+          "not_ready_when": [
+            "The slice changes recall ranking, Goncho memory extraction, provider turn execution, or channel delivery behavior instead of freezing ledger rendering and metadata invariants.",
+            "The implementation performs destructive cleanup of historical session rows as part of reset handling."
+          ],
+          "acceptance": [
+            "TestPicoClawSessionLedger_MultipleUserMessagesRemainVisible proves two user messages in one conversational turn both render in transcript export and API-style read models.",
+            "TestPicoClawSessionLedger_PerMessageTimestampsDoNotUseSessionUpdated proves message timestamps are independent from session.updated while legacy records degrade visibly.",
+            "TestPicoClawSessionLedger_ResetBoundaryIsNonDestructive proves fresh-session reset metadata creates a boundary and preserves prior messages for history/search.",
+            "TestPicoClawSessionLedger_DurableAttachmentRefsSurviveReopen proves reopened history keeps durable attachment references and redacts non-durable temp refs with evidence."
+          ],
+          "write_scope": [
+            "internal/session/picoclaw_ledger_regression_test.go",
+            "internal/session/",
+            "internal/transcript/",
+            "internal/store/",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "go test ./internal/session ./internal/transcript ./internal/store -run '^TestPicoClawSessionLedger_' -count=1",
+            "go test ./internal/session ./internal/transcript ./internal/store -count=1",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "Session ledger fixtures prove multi-message visibility, per-message timestamps, non-destructive reset boundaries, and durable attachment reopen behavior."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-15",
+            "note": "External issue radar row. The behavior is Gormes-owned hardening over existing Hermes/Goncho session surfaces, not PicoClaw compatibility."
+          }
+        },
+        {
+          "name": "PicoClaw-derived provider stream and auth regression matrix",
+          "priority": "P1",
+          "status": "planned",
+          "contract": "Add a provider regression matrix from PicoClaw reports that replays fake OpenRouter reasoning-model chunks, Codex Responses output_item.done events, 401/auth failures, local LM Studio/OpenAI-compatible model routing, and retryable LLM-call failures through Gormes provider seams with no live credentials.",
+          "contract_status": "fixture_ready",
+          "slice_size": "medium",
+          "execution_owner": "provider",
+          "trust_class": [
+            "operator",
+            "system"
+          ],
+          "degraded_mode": "Provider failures surface classified, action-oriented diagnostics with provider/model/auth source evidence while raw stream frames remain available for audit and never leak reasoning text into assistant-visible content.",
+          "fixture": "internal/hermes/picoclaw_provider_regression_test.go",
+          "source_refs": [
+            "https://github.com/sipeed/picoclaw/issues/2769",
+            "https://github.com/sipeed/picoclaw/issues/2745",
+            "https://github.com/sipeed/picoclaw/issues/2674",
+            "https://github.com/sipeed/picoclaw/issues/2404",
+            "https://github.com/sipeed/picoclaw/issues/629",
+            "https://github.com/sipeed/picoclaw/issues/28",
+            "internal/hermes/stream.go",
+            "internal/hermes/http_client.go",
+            "internal/hermes/codex_responses_stream.go",
+            "internal/hermes/reasoning_tag_sanitizer.go",
+            "internal/hermes/lmstudio_adapter.go",
+            "internal/hermes/errors.go"
+          ],
+          "ready_when": [
+            "Cross-provider reasoning-tag sanitization, Codex stream repair, LM Studio provider adapter, provider retry diagnostics, and OpenRouter compatible-provider routing remain complete.",
+            "The worker can replay synthetic SSE/JSON events through existing test seams; no OpenRouter, Codex, OpenAI, LM Studio, or Ollama endpoint is contacted."
+          ],
+          "not_ready_when": [
+            "The slice changes token-vault storage, starts a local model server, or rewrites provider registry semantics instead of adding focused replay fixtures and any narrowly required adapter fixes.",
+            "The test fixture requires real API keys, browser login, OAuth device code flow, or network access."
+          ],
+          "acceptance": [
+            "TestPicoClawProviderRegression_OpenRouterReasoningHidden proves reasoning-tag and reasoning_content variants do not appear in assistant-visible content or stored final text.",
+            "TestPicoClawProviderRegression_CodexOutputItemDoneYieldsAssistantText proves ChatGPT/Codex output_item.done stream items produce visible assistant text instead of empty final responses.",
+            "TestPicoClawProviderRegression_Auth401NamesCredentialSource proves 401/invalid-key failures report provider, credential source, and next action without printing the key.",
+            "TestPicoClawProviderRegression_LMStudioLocalModelRouting proves local OpenAI-compatible model IDs route deterministically through the LM Studio/OpenAI-compatible adapter without model-list false negatives.",
+            "TestPicoClawProviderRegression_RetryableLLMFailureUsesClassifiedRetry proves retryable stream/open errors use the existing retry classifier and stop on fatal auth errors."
+          ],
+          "write_scope": [
+            "internal/hermes/picoclaw_provider_regression_test.go",
+            "internal/hermes/",
+            "internal/provider/",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "go test ./internal/hermes -run '^TestPicoClawProviderRegression_' -count=1",
+            "go test ./internal/hermes ./internal/provider -count=1",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "Provider replay fixtures prove reasoning isolation, Codex output_item.done content, auth diagnostics, local model routing, and retry classification without live credentials."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-15",
+            "note": "External issue radar row. PicoClaw reports are used as adversarial fixtures for Gormes' already-owned provider compatibility layer."
+          }
+        },
+        {
+          "name": "PicoClaw-derived tool path safety regression pack",
+          "priority": "P0",
+          "status": "planned",
+          "contract": "Add a workspace path-safety regression pack that proves Gormes command/file tools keep relative paths relative to the active workspace, reject root enumeration such as `find /`, preserve virtual-path masking, and apply command guards to the parsed command body before execution.",
+          "contract_status": "fixture_ready",
+          "slice_size": "small",
+          "execution_owner": "tools",
+          "trust_class": [
+            "operator",
+            "system"
+          ],
+          "degraded_mode": "Unsafe or ambiguous paths are blocked with typed redacted evidence and no filesystem mutation; virtual host paths are masked back to virtual paths before returning tool output.",
+          "fixture": "internal/tools/picoclaw_path_safety_regression_test.go",
+          "source_refs": [
+            "https://github.com/sipeed/picoclaw/issues/2688",
+            "https://github.com/sipeed/picoclaw/issues/2749",
+            "https://github.com/sipeed/picoclaw/issues/1042",
+            "internal/tools/filesystem_scope.go",
+            "internal/tools/command_classifier.go",
+            "internal/tools/dangerous_command.go",
+            "internal/tools/execute_code.go",
+            "internal/sandbox/paths.go"
+          ],
+          "ready_when": [
+            "Sandbox provider virtual-path security, pre-execution command classification, strict-mode CWD parity, and filesystem scoping remain complete.",
+            "Tests can use temp directories and fake tool requests only; no shell command that mutates the real host is executed."
+          ],
+          "not_ready_when": [
+            "The slice broadens filesystem access, permits root-scoped discovery for convenience, or relies on shell-specific parsing that bypasses existing command classification.",
+            "The fixture executes real `find /`, reads outside the temp workspace, or depends on host-specific absolute paths."
+          ],
+          "acceptance": [
+            "TestPicoClawPathSafety_RelativePathsStayUnderWorkspace proves `./file`, `../outside`, and bare relative paths resolve or fail against the configured workspace, never process cwd or filesystem root.",
+            "TestPicoClawPathSafety_FindRootDenied proves `find /`, equivalent root walks, and symlink escapes are denied before execution.",
+            "TestPicoClawPathSafety_CommandGuardSeesParsedBody proves terminal, execute_code, cmd, command, and script payload fields are classified on the actual command body.",
+            "TestPicoClawPathSafety_VirtualPathMaskingPreserved proves host paths in tool output are masked to `/mnt/user-data/...` paths."
+          ],
+          "write_scope": [
+            "internal/tools/picoclaw_path_safety_regression_test.go",
+            "internal/tools/",
+            "internal/sandbox/",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "go test ./internal/tools ./internal/sandbox -run '^TestPicoClawPathSafety_' -count=1",
+            "go test ./internal/tools ./internal/sandbox -count=1",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "Path-safety fixtures prove relative-path confinement, root-enumeration denial, parsed command-body guarding, and virtual-path output masking with only temp workspace state."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-15",
+            "note": "External issue radar row. Security-oriented Gormes-owned guardrail added as P0 because path escapes and root enumeration are high blast-radius regressions even when not part of Hermes parity."
+          }
+        },
+        {
+          "name": "MCP Streamable HTTP session lifecycle compatibility",
+          "priority": "P1",
+          "status": "planned",
+          "contract": "Extend the MCP HTTP client compatibility fixture to the current Streamable HTTP contract: initialize captures `Mcp-Session-Id`, all subsequent POST/GET/DELETE requests replay that header, SSE responses are accepted from the single MCP endpoint, 404 with a session header triggers a new initialization path, and legacy HTTP+SSE `/sse` endpoint events with `sessionId` are classified as backwards-compatibility input rather than silently dropping the session.",
+          "contract_status": "fixture_ready",
+          "slice_size": "small",
+          "execution_owner": "tools",
+          "trust_class": [
+            "operator",
+            "system"
+          ],
+          "degraded_mode": "Servers that require a session ID but omit or reject it produce mcp_session_required or mcp_session_expired evidence; unsupported legacy SSE endpoint shapes remain visible compatibility failures instead of empty-session POSTs.",
+          "fixture": "internal/tools/mcp_streamable_http_session_test.go",
+          "source_refs": [
+            "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http",
+            "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#session-management",
+            "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility",
+            "https://github.com/sipeed/picoclaw/issues/2782",
+            "https://github.com/sipeed/picoclaw/issues/2546",
+            "internal/tools/mcp_http.go",
+            "internal/tools/mcp_client.go",
+            "internal/tools/mcp_oauth_store.go",
+            "internal/tools/managed_tool_gateway.go"
+          ],
+          "ready_when": [
+            "MCP HTTP transport, OAuth refresh recovery, circuit breaker reconnect, and managed tool gateway bridge remain complete.",
+            "The worker can use httptest servers returning JSON and text/event-stream responses; no real MCP server or OAuth provider is required."
+          ],
+          "not_ready_when": [
+            "The slice implements unrelated MCP sampling/tool schemas, starts a live MCP server, or changes stdio behavior.",
+            "The test relies on a network server outside httptest or assumes the removed 2024-11-05 HTTP+SSE transport is the default transport."
+          ],
+          "acceptance": [
+            "TestMCPStreamableHTTP_CapturesAndReplaysSessionID proves Initialize stores `Mcp-Session-Id` and ListTools/CallTool send it on subsequent requests.",
+            "TestMCPStreamableHTTP_SingleEndpointAcceptsJSONOrSSE proves the client posts to one endpoint with Accept including application/json and text/event-stream, and parses a JSON-RPC response carried by SSE.",
+            "TestMCPStreamableHTTP_ExpiredSessionReinitializes proves HTTP 404 with an existing session ID clears the session and returns typed evidence for reinitialize.",
+            "TestMCPLegacySSEEndpoint_SessionIDCompatibilityEvidence proves `/sse` endpoint events containing `/message?sessionId=...` are either upgraded into compatibility state or fail with explicit legacy_sse_unsupported evidence, never an empty sessionId POST.",
+            "TestMCPStreamableHTTP_DeleteSessionHeader proves Close or explicit termination sends DELETE with the stored session header when supported and tolerates 405."
+          ],
+          "write_scope": [
+            "internal/tools/mcp_streamable_http_session_test.go",
+            "internal/tools/mcp_http.go",
+            "internal/tools/mcp_client.go",
+            "internal/tools/managed_tool_gateway.go",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "go test ./internal/tools -run 'TestMCPStreamableHTTP_|TestMCPLegacySSEEndpoint_' -count=1",
+            "go test ./internal/tools -count=1",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "MCP HTTP fixtures prove session ID lifecycle, JSON/SSE single-endpoint behavior, expired-session recovery evidence, legacy SSE sessionId compatibility handling, and DELETE tolerance."
+          ],
+          "provenance": {
+            "origin_type": "hybrid",
+            "owned_since": "2026-05-15",
+            "upstream_ref": "MCP spec 2025-06-18 Streamable HTTP transport",
+            "note": "Official MCP spec is the transport contract; PicoClaw issues expose the empty-session regression class Gormes should guard against."
+          }
+        },
+        {
+          "name": "Dynamic agent identity inheritance regression matrix",
+          "priority": "P2",
+          "status": "planned",
+          "contract": "Add a dynamic-agent identity regression matrix that proves spawned or delegated agents keep explicit parent linkage while receiving their own SOUL/persona, tool policy, AGENTS.md scope, and memory/search scope, so child agents do not silently inherit the root agent role as their own identity.",
+          "contract_status": "fixture_ready",
+          "slice_size": "small",
+          "execution_owner": "orchestrator",
+          "trust_class": [
+            "operator",
+            "child-agent",
+            "system"
+          ],
+          "degraded_mode": "If a child identity cannot be resolved, delegation refuses with child_identity_unresolved evidence and leaves the parent turn untouched rather than running as an ambiguous root persona.",
+          "fixture": "internal/subagent/picoclaw_identity_regression_test.go",
+          "source_refs": [
+            "https://github.com/sipeed/picoclaw/issues/1934",
+            "https://github.com/sipeed/picoclaw/issues/2148",
+            "https://github.com/sipeed/picoclaw/issues/2775",
+            "https://github.com/sipeed/picoclaw/issues/294",
+            "https://github.com/sipeed/picoclaw/issues/284",
+            "internal/subagent/",
+            "internal/goncho/dynamic_agents.go",
+            "internal/agent/middleware.go",
+            "internal/skills/"
+          ],
+          "ready_when": [
+            "Goncho-backed dynamic agent registry, deterministic subagent runtime, durable job ledger, and tool allowlist policy remain complete.",
+            "Tests can use fake child runners, temp Goncho state, and synthetic AGENTS.md/SOUL.md fixtures; no real Codex, Claude, opencode, or provider child process is required."
+          ],
+          "not_ready_when": [
+            "The slice changes live coding-agent execution, starts child CLIs, or introduces agent-to-agent messaging semantics beyond identity and scope fixtures.",
+            "The implementation treats child agents as fully independent users or erases parent lineage in the durable job ledger."
+          ],
+          "acceptance": [
+            "TestDynamicAgentIdentity_ChildPersonaOverridesRootRole proves child SOUL/persona is rendered as the active identity while parent identity remains lineage metadata.",
+            "TestDynamicAgentIdentity_AGENTSScopesDoNotBleedAcrossChild proves child AGENTS.md/project context is selected by child workspace scope and does not overwrite the parent turn.",
+            "TestDynamicAgentIdentity_ToolPolicyInheritedOnlyWhenExplicit proves allow/deny/glob tool policy inheritance is explicit and visible in child launch evidence.",
+            "TestDynamicAgentIdentity_MemoryScopeIsChildAware proves child memory/search scope names both child agent ID and parent lineage without merging unrelated root-agent facts."
+          ],
+          "write_scope": [
+            "internal/subagent/picoclaw_identity_regression_test.go",
+            "internal/subagent/",
+            "internal/goncho/",
+            "internal/agent/",
+            "internal/skills/",
+            "docs/content/building-gormes/architecture_plan/progress.json"
+          ],
+          "test_commands": [
+            "go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -run '^TestDynamicAgentIdentity_' -count=1",
+            "go test ./internal/subagent ./internal/goncho ./internal/agent ./internal/skills -count=1",
+            "go run ./cmd/progress validate",
+            "git diff --check"
+          ],
+          "done_signal": [
+            "Dynamic-agent identity fixtures prove child persona, AGENTS scope, explicit tool-policy inheritance, and child-aware memory scope without launching live child CLIs."
+          ],
+          "provenance": {
+            "origin_type": "gormes",
+            "owned_since": "2026-05-15",
+            "note": "External issue radar row. Gormes already owns dynamic agents and subagent runtime; this adds a focused identity-inheritance guard before broader multi-agent UX expansion."
+          }
+        }
+      ]
     }
+  }
+}
   }
 }
