@@ -221,7 +221,8 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 
 func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool) []string {
 	var blocks []string
-	if !frameHasFinalAssistant(f) {
+	hasFinal := frameHasFinalAssistant(f)
+	if !hasFinal {
 		if progress := conversationToolProgressBlock(f, compact); progress != "" {
 			blocks = append(blocks, progress)
 		}
@@ -232,7 +233,38 @@ func conversationForcedBlocks(f kernel.RenderFrame, wrapWidth int, compact bool)
 	if f.LastError != "" {
 		blocks = append(blocks, conversationErrorBlock(f.LastError, compact))
 	}
+	// R3 streaming feedback: when a turn is active but nothing concrete has
+	// surfaced yet (no tool trace, draft, or error), show the reused
+	// thinking indicator so the user is never left wondering. Suppressed the
+	// moment any real signal exists so it never disturbs transcript order.
+	if len(blocks) == 0 && !hasFinal && turnIsActive(f.Phase) {
+		if think := conversationThinkingBlock(compact); think != "" {
+			blocks = append(blocks, think)
+		}
+	}
 	return blocks
+}
+
+func turnIsActive(p kernel.Phase) bool {
+	switch p {
+	case kernel.PhaseConnecting, kernel.PhaseStreaming, kernel.PhaseFinalizing, kernel.PhaseReconnecting:
+		return true
+	default:
+		return false
+	}
+}
+
+// conversationThinkingBlock reuses thinking.go's RenderThinking (it is not
+// reimplemented here) to render the live "reasoning" indicator.
+func conversationThinkingBlock(compact bool) string {
+	t := RenderThinking(ThinkingState{Visible: true})
+	if t == "" {
+		return ""
+	}
+	if compact {
+		return compactViewportText(t)
+	}
+	return muted.Render(t)
 }
 
 func frameHasFinalAssistant(f kernel.RenderFrame) bool {
@@ -318,6 +350,16 @@ func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool
 	}
 	content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	lines := strings.Split(content, "\n")
+	// R3: collapse long tool output to a head plus a summary (ccx-go
+	// RenderToolOutputInline pattern) so a verbose tool result never floods
+	// the transcript. Short output (fidelity small-content) stays intact.
+	const collapseOver, collapseHead = 5, 3
+	if len(lines) > collapseOver {
+		hidden := len(lines) - collapseHead
+		kept := append([]string{}, lines[:collapseHead]...)
+		kept = append(kept, fmt.Sprintf("[+%d more lines]", hidden))
+		lines = kept
+	}
 	out := []string{"   ╭─ ⚡ " + name}
 	for i, line := range lines {
 		lines[i] = "   │ " + line
