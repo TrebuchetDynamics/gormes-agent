@@ -19,20 +19,27 @@ type setupCommandFakeSeams struct {
 	freshInstall bool
 	current      cli.ProviderModel
 
-	modelPickerCalls int
-	loadedCurrent    int
+	modelPickerCalls               int
+	activeProviderModelPickerCalls int
+	activeProviderModelPickerInput cli.ProviderModel
+	loadedCurrent                  int
 
-	chooseSetupAction     func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	chooseSetupTarget     func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
-	runSetupProvider      func(*cobra.Command, bool) error
-	runProviderLiveTest   func(*cobra.Command) error
-	runFullWizard         func(*cobra.Command, bool) error
-	runSetupGateway       func(*cobra.Command, bool) error
-	runGatewaySetupWizard func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
-	runGatewayPlatform    func(*cobra.Command, string) error
-	runWhatsAppSetup      func(*cobra.Command) error
-	detectHermes          func() string
-	detectOpenClaw        func() string
+	chooseSetupAction              func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	chooseSetupTarget              func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
+	chooseSetupProvider            func(*cobra.Command, []cli.ProviderMenuEntry, int) (int, error)
+	chooseProviderCredentialAction func(*cobra.Command, setupProviderCredentialPrompt) (setupProviderCredentialAction, error)
+	runSetupProvider               func(*cobra.Command, bool) error
+	runProviderLiveTest            func(*cobra.Command) error
+	runProviderAuth                func(*cobra.Command, string) error
+	runActiveProviderModelPicker   func(*cobra.Command, cli.ProviderModel) error
+	runFullWizard                  func(*cobra.Command, bool) error
+	runSetupGateway                func(*cobra.Command, bool) error
+	runGatewaySetupWizard          func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
+	runGatewayPlatform             func(*cobra.Command, string) error
+	runWhatsAppSetup               func(*cobra.Command) error
+	providerAuthStatus             cli.ProviderAuthStatus
+	detectHermes                   func() string
+	detectOpenClaw                 func() string
 }
 
 func (f *setupCommandFakeSeams) seams() setupCommandSeams {
@@ -60,19 +67,44 @@ func (f *setupCommandFakeSeams) seams() setupCommandSeams {
 			f.modelPickerCalls++
 			return nil
 		},
+		RunActiveProviderModelPicker: func(cmd *cobra.Command, current cli.ProviderModel) error {
+			f.activeProviderModelPickerCalls++
+			f.activeProviderModelPickerInput = current
+			if f.runActiveProviderModelPicker != nil {
+				return f.runActiveProviderModelPicker(cmd, current)
+			}
+			return nil
+		},
 		LoadCurrentModel: func() (cli.ProviderModel, error) {
 			f.loadedCurrent++
 			return f.current, nil
 		},
-		ChooseSetupAction:             f.chooseSetupAction,
-		ChooseSetupTarget:             f.chooseSetupTarget,
-		RunSetupProvider:              f.runSetupProvider,
-		RunProviderLiveTest:           f.runProviderLiveTest,
-		RunFullWizard:                 f.runFullWizard,
-		RunSetupGateway:               f.runSetupGateway,
-		RunGatewaySetupWizard:         firstSetupGatewayWizardSeam(f.runGatewaySetupWizard),
-		RunGatewayPlatform:            f.runGatewayPlatform,
-		RunWhatsAppSetup:              f.runWhatsAppSetup,
+		ChooseSetupAction:              f.chooseSetupAction,
+		ChooseSetupTarget:              f.chooseSetupTarget,
+		ChooseSetupProvider:            f.chooseSetupProvider,
+		ChooseProviderCredentialAction: f.chooseProviderCredentialAction,
+		RunSetupProvider:               f.runSetupProvider,
+		RunProviderLiveTest:            f.runProviderLiveTest,
+		RunProviderAuth:                f.runProviderAuth,
+		RunFullWizard:                  f.runFullWizard,
+		RunSetupGateway:                f.runSetupGateway,
+		RunGatewaySetupWizard:          firstSetupGatewayWizardSeam(f.runGatewaySetupWizard),
+		RunGatewayPlatform:             f.runGatewayPlatform,
+		RunWhatsAppSetup:               f.runWhatsAppSetup,
+		LoadProviderAuthStatus: func(_ string) (cli.ProviderAuthStatus, error) {
+			status := f.providerAuthStatus
+			if status.Provider == "" {
+				status.Provider = f.current.Provider
+			}
+			if status.AuthType == "" {
+				status.AuthType = "oauth_external"
+			}
+			if status.Status == "" {
+				status.Status = cli.AuthStatusLoggedIn
+				status.Authenticated = true
+			}
+			return status, nil
+		},
 		DetectHermesMigrationSource:   detectHermes,
 		DetectOpenClawMigrationSource: detectOpenClaw,
 	}
@@ -239,7 +271,7 @@ func TestSetupFullWizardOffersGormesLaunchPromptAfterSummary(t *testing.T) {
 	fake.chooseSetupAction = func(_ *cobra.Command, _ []setupMenuOption, _ int) (setupAction, error) {
 		return setupActionFull, nil
 	}
-	input := strings.Repeat("\n", 8) + "n\n"
+	input := strings.Repeat("\n", 10) + "n\n"
 	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), input)
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
@@ -251,6 +283,140 @@ func TestSetupFullWizardOffersGormesLaunchPromptAfterSummary(t *testing.T) {
 	}
 	if strings.Contains(stdout, "Launch hermes chat now?") {
 		t.Fatalf("stdout contains Hermes-owned launch prompt:\n%s", stdout)
+	}
+}
+
+func TestSetupFullWizardPrintsReconfigureAndProviderPrelude(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	t.Setenv("GORMES_INSTALL_HOME", home)
+
+	fake := &setupCommandFakeSeams{
+		isTTY: true,
+		current: cli.ProviderModel{
+			Provider: "openai-codex",
+			Model:    "gpt-5.5",
+		},
+	}
+	stdout, stderr, err := runSetupTestCommandWithInput(t, fake.seams(), "40\n"+strings.Repeat("\n", 12)+"n\n")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	for _, want := range []string{
+		"◆ Reconfigure",
+		"✓ You already have Gormes configured.",
+		"Running the full wizard - each prompt shows your current value.",
+		"Tip: jump straight to a section with 'gormes setup model|terminal|",
+		"◆ Configuration Location",
+		"Config file:  " + config.ConfigPath(),
+		"Secrets file: " + config.EnvPath(),
+		"Data folder:  " + config.GormesHome(),
+		"Install dir:  " + filepath.Join(home, "gormes-agent"),
+		"You can edit these files directly or use 'gormes config edit'",
+		"◆ Inference Provider",
+		"Guide: https://hermes-agent.nousresearch.com/docs/integrations/providers",
+		"Current model:    gpt-5.5",
+		"Active provider:  OpenAI Codex",
+		"No change.",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout)
+		}
+	}
+	for _, want := range []string{
+		"Select provider:",
+		"1. Nous Portal (Nous Research subscription)",
+		"6. OpenAI Codex  ← currently active",
+		"39. Configure auxiliary models...",
+		"40. Leave unchanged",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("stdout missing provider picker row %q:\n%s", want, stdout)
+		}
+	}
+	if strings.Contains(stdout, "OpenAI Codex credentials:") {
+		t.Fatalf("setup showed Codex credential submenu before provider selection:\n%s", stdout)
+	}
+	if fake.modelPickerCalls != 0 || fake.activeProviderModelPickerCalls != 0 {
+		t.Fatalf("picker calls after Leave unchanged: general=%d active=%d, want none", fake.modelPickerCalls, fake.activeProviderModelPickerCalls)
+	}
+}
+
+func TestSetupFullWizardReauthenticateRunsAuthBeforeModelPicker(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+
+	var events []string
+	fake := &setupCommandFakeSeams{
+		isTTY: true,
+		current: cli.ProviderModel{
+			Provider: "openai-codex",
+			Model:    "gpt-5.5",
+		},
+	}
+	fake.chooseSetupProvider = func(_ *cobra.Command, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
+		if defaultIndex != 5 {
+			t.Fatalf("default index = %d, want 5", defaultIndex)
+		}
+		return 5, nil
+	}
+	fake.chooseProviderCredentialAction = func(_ *cobra.Command, _ setupProviderCredentialPrompt) (setupProviderCredentialAction, error) {
+		return setupProviderCredentialReauthenticate, nil
+	}
+	fake.runProviderAuth = func(_ *cobra.Command, provider string) error {
+		events = append(events, "auth:"+provider)
+		return nil
+	}
+	seams := fake.seams()
+	seams.RunActiveProviderModelPicker = func(_ *cobra.Command, current cli.ProviderModel) error {
+		if current.Provider != "openai-codex" {
+			t.Fatalf("active model picker provider = %q, want openai-codex", current.Provider)
+		}
+		events = append(events, "model")
+		return nil
+	}
+
+	stdout, stderr, err := runSetupTestCommandWithInput(t, seams, strings.Repeat("\n", 12)+"n\n")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
+	}
+	if got, want := strings.Join(events, ","), "auth:openai-codex,model"; got != want {
+		t.Fatalf("events = %s, want %s\nstdout=%s", got, want, stdout)
+	}
+	if !strings.Contains(stdout, "Starting a fresh OpenAI Codex login...") {
+		t.Fatalf("stdout missing reauth handoff:\n%s", stdout)
+	}
+}
+
+func TestSetupActiveProviderModelPickerSkipsProviderList(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("GORMES_HOME", home)
+	if err := config.WriteTOMLValue(config.ConfigPath(), "hermes.provider", "openai-codex"); err != nil {
+		t.Fatalf("write provider: %v", err)
+	}
+	if err := config.WriteTOMLValue(config.ConfigPath(), "hermes.model", "gpt-5.5"); err != nil {
+		t.Fatalf("write model: %v", err)
+	}
+
+	cmd := &cobra.Command{}
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetIn(strings.NewReader("\n"))
+
+	err := runSetupActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: "openai-codex", Model: "gpt-5.5"})
+	if err != nil {
+		t.Fatalf("runSetupActiveProviderModelPicker() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	for _, want := range []string{"Suggested models for openai-codex:", "Model for openai-codex [gpt-5.5]", "model selection saved: provider=openai-codex model=gpt-5.5"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("stdout missing %q:\n%s", want, stdout.String())
+		}
+	}
+	for _, forbidden := range []string{"Choose a provider", "github-models (api_key)", "openai-codex (oauth_external)"} {
+		if strings.Contains(stdout.String(), forbidden) {
+			t.Fatalf("stdout contains provider-list artifact %q:\n%s", forbidden, stdout.String())
+		}
 	}
 }
 

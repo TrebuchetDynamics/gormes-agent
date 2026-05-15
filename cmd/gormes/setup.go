@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -15,6 +17,7 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/config"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
+	"github.com/TrebuchetDynamics/gormes-agent/internal/hermes"
 	"github.com/TrebuchetDynamics/gormes-agent/internal/plugins"
 	toolspkg "github.com/TrebuchetDynamics/gormes-agent/internal/tools"
 	setupwizard "github.com/TrebuchetDynamics/gormes-agent/internal/tui/wizard"
@@ -61,24 +64,29 @@ var knownProviderModels = map[string]string{
 }
 
 type setupCommandSeams struct {
-	IsTTY                         func() bool
-	HasExistingInstall            func() (bool, error)
-	ResetConfig                   func() (string, error)
-	RunModelPicker                func(*cobra.Command) error
-	LoadCurrentModel              func() (cli.ProviderModel, error)
-	ChooseSetupAction             func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
-	ChooseSetupTarget             func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
-	RunSetupProvider              func(*cobra.Command, bool) error
-	RunProviderLiveTest           func(*cobra.Command) error
-	DetectHermesMigrationSource   func() string
-	DetectOpenClawMigrationSource func() string
-	RunFullWizard                 func(*cobra.Command, bool) error
-	RunSetupGateway               func(*cobra.Command, bool) error
-	RunSetupTools                 func(*cobra.Command, bool) error
-	RunGatewaySetupWizard         func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
-	RunGatewayPlatform            func(*cobra.Command, string) error
-	RunWhatsAppSetup              func(*cobra.Command) error
-	LaunchChat                    func(*cobra.Command) error
+	IsTTY                          func() bool
+	HasExistingInstall             func() (bool, error)
+	ResetConfig                    func() (string, error)
+	RunModelPicker                 func(*cobra.Command) error
+	RunActiveProviderModelPicker   func(*cobra.Command, cli.ProviderModel) error
+	LoadCurrentModel               func() (cli.ProviderModel, error)
+	LoadProviderAuthStatus         func(string) (cli.ProviderAuthStatus, error)
+	ChooseSetupAction              func(*cobra.Command, []setupMenuOption, int) (setupAction, error)
+	ChooseSetupTarget              func(*cobra.Command, []cli.SetupTargetOption, int) (cli.SetupTargetID, error)
+	ChooseSetupProvider            func(*cobra.Command, []cli.ProviderMenuEntry, int) (int, error)
+	ChooseProviderCredentialAction func(*cobra.Command, setupProviderCredentialPrompt) (setupProviderCredentialAction, error)
+	RunSetupProvider               func(*cobra.Command, bool) error
+	RunProviderLiveTest            func(*cobra.Command) error
+	RunProviderAuth                func(*cobra.Command, string) error
+	DetectHermesMigrationSource    func() string
+	DetectOpenClawMigrationSource  func() string
+	RunFullWizard                  func(*cobra.Command, bool) error
+	RunSetupGateway                func(*cobra.Command, bool) error
+	RunSetupTools                  func(*cobra.Command, bool) error
+	RunGatewaySetupWizard          func(*cobra.Command, config.Config) (setupGatewayWizardResult, error)
+	RunGatewayPlatform             func(*cobra.Command, string) error
+	RunWhatsAppSetup               func(*cobra.Command) error
+	LaunchChat                     func(*cobra.Command) error
 }
 
 type setupGatewayWizardResult struct {
@@ -116,6 +124,20 @@ type setupMenuOption struct {
 	Label  string
 }
 
+type setupProviderCredentialAction string
+
+const (
+	setupProviderCredentialUseExisting    setupProviderCredentialAction = "use_existing"
+	setupProviderCredentialReauthenticate setupProviderCredentialAction = "reauthenticate"
+	setupProviderCredentialCancel         setupProviderCredentialAction = "cancel"
+)
+
+type setupProviderCredentialPrompt struct {
+	Provider      string
+	ProviderLabel string
+	Status        cli.ProviderAuthStatus
+}
+
 func newSetupCommand() *cobra.Command {
 	return newSetupCommandWithSeams(defaultSetupCommandSeams())
 }
@@ -142,14 +164,28 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 			return pickerCmd.ExecuteContext(cmd.Context())
 		}
 	}
+	if seams.RunActiveProviderModelPicker == nil {
+		seams.RunActiveProviderModelPicker = runSetupActiveProviderModelPicker
+	}
 	if seams.LoadCurrentModel == nil {
 		seams.LoadCurrentModel = defaultSetupLoadCurrentModel
+	}
+	if seams.LoadProviderAuthStatus == nil {
+		seams.LoadProviderAuthStatus = func(provider string) (cli.ProviderAuthStatus, error) {
+			return cli.ResolveAuthStatus(context.Background(), provider, cli.AuthStatusOptions{})
+		}
 	}
 	if seams.ChooseSetupAction == nil {
 		seams.ChooseSetupAction = promptSetupAction
 	}
 	if seams.ChooseSetupTarget == nil {
 		seams.ChooseSetupTarget = promptSetupTarget
+	}
+	if seams.ChooseSetupProvider == nil {
+		seams.ChooseSetupProvider = promptSetupProviderChoice
+	}
+	if seams.ChooseProviderCredentialAction == nil {
+		seams.ChooseProviderCredentialAction = promptSetupProviderCredentialAction
 	}
 	if seams.RunSetupProvider == nil {
 		seams.RunSetupProvider = func(cmd *cobra.Command, nonInteractive bool) error {
@@ -158,6 +194,9 @@ func newSetupCommandWithSeams(seams setupCommandSeams) *cobra.Command {
 	}
 	if seams.RunProviderLiveTest == nil {
 		seams.RunProviderLiveTest = runSetupProviderLiveTest
+	}
+	if seams.RunProviderAuth == nil {
+		seams.RunProviderAuth = runSetupProviderAuth
 	}
 	if seams.DetectHermesMigrationSource == nil {
 		seams.DetectHermesMigrationSource = detectHermesMigrationSource
@@ -280,15 +319,22 @@ type setupResetReportJSON struct {
 
 func defaultSetupCommandSeams() setupCommandSeams {
 	return setupCommandSeams{
-		IsTTY:                         isStdinTTY,
-		HasExistingInstall:            defaultSetupHasExistingInstall,
-		ResetConfig:                   resetSetupDefaultConfig,
-		LoadCurrentModel:              defaultSetupLoadCurrentModel,
-		ChooseSetupAction:             promptSetupAction,
-		ChooseSetupTarget:             promptSetupTarget,
-		RunProviderLiveTest:           runSetupProviderLiveTest,
-		DetectHermesMigrationSource:   detectHermesMigrationSource,
-		DetectOpenClawMigrationSource: detectOpenClawMigrationSource,
+		IsTTY:                        isStdinTTY,
+		HasExistingInstall:           defaultSetupHasExistingInstall,
+		ResetConfig:                  resetSetupDefaultConfig,
+		LoadCurrentModel:             defaultSetupLoadCurrentModel,
+		RunActiveProviderModelPicker: runSetupActiveProviderModelPicker,
+		LoadProviderAuthStatus: func(provider string) (cli.ProviderAuthStatus, error) {
+			return cli.ResolveAuthStatus(context.Background(), provider, cli.AuthStatusOptions{})
+		},
+		ChooseSetupAction:              promptSetupAction,
+		ChooseSetupTarget:              promptSetupTarget,
+		ChooseSetupProvider:            promptSetupProviderChoice,
+		ChooseProviderCredentialAction: promptSetupProviderCredentialAction,
+		RunProviderLiveTest:            runSetupProviderLiveTest,
+		RunProviderAuth:                runSetupProviderAuth,
+		DetectHermesMigrationSource:    detectHermesMigrationSource,
+		DetectOpenClawMigrationSource:  detectOpenClawMigrationSource,
 	}
 }
 
@@ -665,8 +711,12 @@ func runSetupFullWizard(cmd *cobra.Command, seams setupCommandSeams, nonInteract
 		return nil
 	}
 
-	if err := runSetupModelSection(cmd, seams, false); err != nil {
+	continued, err := runSetupInferenceProviderSection(cmd, seams)
+	if err != nil {
 		return err
+	}
+	if !continued {
+		return nil
 	}
 	if err := runSetupTTSSection(cmd, false); err != nil {
 		return err
@@ -696,6 +746,318 @@ func printSetupWizardHeader(cmd *cobra.Command) {
 	fmt.Fprintln(out, "│  Press Ctrl+C at any time to exit.                      │")
 	fmt.Fprintln(out, "└─────────────────────────────────────────────────────────┘")
 	fmt.Fprintln(out)
+}
+
+func runSetupInferenceProviderSection(cmd *cobra.Command, seams setupCommandSeams) (bool, error) {
+	if !seams.IsTTY() {
+		fmt.Fprintln(cmd.ErrOrStderr(), "setup_requires_tty: run `gormes setup model --non-interactive` to use defaults without prompts")
+		return false, errSetupRequiresTTY
+	}
+
+	current, err := seams.LoadCurrentModel()
+	if err != nil {
+		return false, fmt.Errorf("setup model: load current model: %w", err)
+	}
+	provider := strings.TrimSpace(current.Provider)
+	label := setupProviderDisplayLabel(provider)
+
+	printSetupReconfigureBlock(cmd)
+	printSetupConfigurationLocation(cmd)
+	printSetupInferenceProviderBlock(cmd, current, label)
+
+	entries, defaultIndex := cli.HermesProviderCatalogMenu(provider)
+	idx, err := seams.ChooseSetupProvider(cmd, entries, defaultIndex)
+	if err != nil {
+		if errors.Is(err, cli.ErrModelPickerCancelled) {
+			fmt.Fprintln(cmd.OutOrStdout(), "No change.")
+			return true, nil
+		}
+		return false, err
+	}
+	if idx < 0 || idx >= len(entries) || entries[idx].ID == cli.ProviderCatalogLeaveUnchanged {
+		fmt.Fprintln(cmd.OutOrStdout(), "No change.")
+		return true, nil
+	}
+	selectedProvider := strings.TrimSpace(entries[idx].ID)
+	if selectedProvider == cli.ProviderCatalogAuxConfig {
+		fmt.Fprintln(cmd.OutOrStdout(), "Auxiliary model setup is not available in the Go wizard yet.")
+		return true, nil
+	}
+	if selectedProvider == "custom-endpoint" {
+		selectedProvider = "custom"
+	}
+	if err := runSetupSelectedProviderFlow(cmd, seams, current, selectedProvider); err != nil {
+		if errors.Is(err, cli.ErrModelPickerCancelled) {
+			fmt.Fprintln(cmd.OutOrStdout(), "No change.")
+			return true, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func printSetupReconfigureBlock(cmd *cobra.Command) {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "◆ Reconfigure")
+	fmt.Fprintln(out, "✓ You already have Gormes configured.")
+	fmt.Fprintln(out, "  Running the full wizard - each prompt shows your current value.")
+	fmt.Fprintln(out, "  Press Enter to keep it, or type a new value to change it.")
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "  Tip: jump straight to a section with 'gormes setup model|terminal|")
+	fmt.Fprintln(out, "       gateway|tools|agent', or fill only missing items with --quick.")
+	fmt.Fprintln(out)
+}
+
+func printSetupConfigurationLocation(cmd *cobra.Command) {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "◆ Configuration Location")
+	fmt.Fprintf(out, "  Config file:  %s\n", config.ConfigPath())
+	fmt.Fprintf(out, "  Secrets file: %s\n", config.EnvPath())
+	fmt.Fprintf(out, "  Data folder:  %s\n", config.GormesHome())
+	fmt.Fprintf(out, "  Install dir:  %s\n", setupManagedInstallDir())
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "  You can edit these files directly or use 'gormes config edit'")
+	fmt.Fprintln(out)
+}
+
+func printSetupInferenceProviderBlock(cmd *cobra.Command, current cli.ProviderModel, providerLabel string) {
+	out := cmd.OutOrStdout()
+	model := strings.TrimSpace(current.Model)
+	if model == "" {
+		model = "(not configured)"
+	}
+	if providerLabel == "" {
+		providerLabel = "(not configured)"
+	}
+	fmt.Fprintln(out, "◆ Inference Provider")
+	fmt.Fprintln(out, "  Choose how to connect to your main chat model.")
+	fmt.Fprintln(out, "     Guide: https://hermes-agent.nousresearch.com/docs/integrations/providers")
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "  Current model:    %s\n", model)
+	fmt.Fprintf(out, "  Active provider:  %s\n", providerLabel)
+	fmt.Fprintln(out)
+}
+
+func printSetupProviderCredentialChoices(cmd *cobra.Command) {
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "    1. Use existing credentials")
+	fmt.Fprintln(out, "    2. Reauthenticate (new OAuth login)")
+	fmt.Fprintln(out, "    3. Cancel")
+	fmt.Fprintln(out)
+}
+
+func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
+	out := cmd.OutOrStdout()
+	if len(entries) == 0 {
+		return -1, cli.ErrModelPickerNoProviders
+	}
+	if defaultIndex < 0 || defaultIndex >= len(entries) {
+		defaultIndex = len(entries) - 1
+	}
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt)
+	defer signal.Stop(interrupts)
+
+	fmt.Fprintln(out, "Select provider:")
+	for i, entry := range entries {
+		marker := " "
+		if i == defaultIndex {
+			marker = "→"
+		}
+		fmt.Fprintf(out, "  %s %d. %s\n", marker, i+1, entry.Label)
+	}
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "Choice [1-%d] (%d): ", len(entries), defaultIndex+1)
+
+	answer, err := scanPromptString(cmd, strconv.Itoa(defaultIndex+1))
+	select {
+	case <-interrupts:
+		fmt.Fprintln(out)
+		return -1, cli.ErrModelPickerCancelled
+	default:
+	}
+	if err != nil {
+		fmt.Fprintln(out)
+		return -1, cli.ErrModelPickerCancelled
+	}
+	answer = strings.TrimSpace(cli.StripANSI(answer))
+	if answer == "" {
+		return defaultIndex, nil
+	}
+	if strings.EqualFold(answer, "q") || strings.EqualFold(answer, "cancel") {
+		return -1, cli.ErrModelPickerCancelled
+	}
+	idx, err := strconv.Atoi(answer)
+	if err != nil || idx < 1 || idx > len(entries) {
+		return -1, newExitCodeError(2, fmt.Errorf("setup_provider_invalid_selection: %s", answer))
+	}
+	return idx - 1, nil
+}
+
+func runSetupSelectedProviderFlow(cmd *cobra.Command, seams setupCommandSeams, current cli.ProviderModel, provider string) error {
+	provider = strings.TrimSpace(provider)
+	if provider == "" {
+		return cli.ErrSelectorNoMatch
+	}
+	if provider == config.CodexOAuthProvider {
+		return runSetupOpenAICodexProviderFlow(cmd, seams, current)
+	}
+	if err := seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: provider, Model: current.Model}); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Provider auth was not changed. If credentials are missing, run: gormes auth add %s\n", provider)
+	return nil
+}
+
+func runSetupOpenAICodexProviderFlow(cmd *cobra.Command, seams setupCommandSeams, current cli.ProviderModel) error {
+	status, statusErr := seams.LoadProviderAuthStatus(config.CodexOAuthProvider)
+	label := setupProviderDisplayLabel(config.CodexOAuthProvider)
+	fmt.Fprintf(cmd.OutOrStdout(), "  %s credentials: %s\n", label, setupCredentialStatusMark(status, statusErr))
+	if status.Authenticated || status.Status == cli.AuthStatusLoggedIn {
+		prompt := setupProviderCredentialPrompt{Provider: config.CodexOAuthProvider, ProviderLabel: label, Status: status}
+		printSetupProviderCredentialChoices(cmd)
+		action, err := seams.ChooseProviderCredentialAction(cmd, prompt)
+		if err != nil {
+			return err
+		}
+		switch action {
+		case setupProviderCredentialUseExisting:
+		case setupProviderCredentialReauthenticate:
+			fmt.Fprintf(cmd.OutOrStdout(), "Starting a fresh %s login...\n\n", label)
+			if err := seams.RunProviderAuth(cmd, config.CodexOAuthProvider); err != nil {
+				return err
+			}
+		case setupProviderCredentialCancel:
+			return cli.ErrModelPickerCancelled
+		default:
+			return newExitCodeError(2, fmt.Errorf("setup_provider_credentials_invalid_selection: %s", action))
+		}
+	} else {
+		fmt.Fprintln(cmd.OutOrStdout(), "Not logged into OpenAI Codex. Starting login...")
+		fmt.Fprintln(cmd.OutOrStdout())
+		if err := seams.RunProviderAuth(cmd, config.CodexOAuthProvider); err != nil {
+			return err
+		}
+	}
+	return seams.RunActiveProviderModelPicker(cmd, cli.ProviderModel{Provider: config.CodexOAuthProvider, Model: current.Model})
+}
+
+func promptSetupProviderCredentialAction(cmd *cobra.Command, _ setupProviderCredentialPrompt) (setupProviderCredentialAction, error) {
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt)
+	defer signal.Stop(interrupts)
+
+	answer, err := promptString(cmd, "  Choice [1/2/3]: ", "1")
+	select {
+	case <-interrupts:
+		fmt.Fprintln(cmd.OutOrStdout())
+		return setupProviderCredentialUseExisting, nil
+	default:
+	}
+	if err != nil {
+		return setupProviderCredentialUseExisting, nil
+	}
+	answer = strings.ToLower(strings.TrimSpace(cli.StripANSI(answer)))
+	switch answer {
+	case "", "1", "use", "use-existing", "existing":
+		return setupProviderCredentialUseExisting, nil
+	case "2", "reauth", "reauthenticate", "login":
+		return setupProviderCredentialReauthenticate, nil
+	case "3", "cancel", "q", "quit", "exit":
+		return setupProviderCredentialCancel, nil
+	default:
+		return "", newExitCodeError(2, fmt.Errorf("setup_provider_credentials_invalid_selection: %s", answer))
+	}
+}
+
+func runSetupActiveProviderModelPicker(cmd *cobra.Command, current cli.ProviderModel) error {
+	provider := strings.TrimSpace(current.Provider)
+	if provider == "" {
+		return cli.ErrSelectorNoMatch
+	}
+	model, err := promptModelChoice(cmd.InOrStdin(), cmd.OutOrStdout(), provider, current.Model, defaultModelCatalogSuggestions(provider))
+	if err != nil {
+		return err
+	}
+	model = hermes.NormalizeProviderModelID(provider, model)
+	if err := persistModelSelectionToConfig(cli.Selection{Provider: provider, Model: model}); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "model selection saved: provider=%s model=%s\n", provider, model)
+	return nil
+}
+
+func runSetupProviderAuth(cmd *cobra.Command, provider string) error {
+	authCmd := newAuthCommand()
+	authCmd.SetOut(cmd.OutOrStdout())
+	authCmd.SetErr(cmd.ErrOrStderr())
+	authCmd.SetIn(cmd.InOrStdin())
+	authCmd.SetArgs([]string{"add", provider, "--type", "oauth"})
+	authCmd.SilenceUsage = true
+	authCmd.SilenceErrors = true
+	return authCmd.ExecuteContext(cmd.Context())
+}
+
+func setupManagedInstallDir() string {
+	if dir, err := resolveManagedCheckoutDir(); err == nil && strings.TrimSpace(dir) != "" {
+		return dir
+	}
+	return filepath.Join(config.GormesHome(), "gormes-agent")
+}
+
+func setupCredentialStatusMark(status cli.ProviderAuthStatus, err error) string {
+	if err != nil || status.Status == cli.AuthStatusError {
+		return "!"
+	}
+	if status.Authenticated || status.Status == cli.AuthStatusLoggedIn {
+		return "✓"
+	}
+	return "missing"
+}
+
+func setupProviderDisplayLabel(provider string) string {
+	provider = strings.TrimSpace(strings.ToLower(provider))
+	if provider == "" {
+		return ""
+	}
+	switch provider {
+	case config.CodexOAuthProvider:
+		return "OpenAI Codex"
+	case config.AnthropicProvider:
+		return "Anthropic"
+	case config.NousOAuthProvider:
+		return "Nous"
+	case "google-gemini-cli":
+		return "Google Gemini CLI"
+	case "qwen-oauth":
+		return "Qwen OAuth"
+	}
+	if entry, ok := hermes.ResolveProviderManifestEntry(provider); ok {
+		provider = entry.ID
+	}
+	parts := strings.Fields(strings.ReplaceAll(provider, "-", " "))
+	for i, part := range parts {
+		parts[i] = setupTitleProviderWord(part)
+	}
+	return strings.Join(parts, " ")
+}
+
+func setupTitleProviderWord(word string) string {
+	switch strings.ToLower(word) {
+	case "ai":
+		return "AI"
+	case "api":
+		return "API"
+	case "cli":
+		return "CLI"
+	case "oauth":
+		return "OAuth"
+	case "":
+		return ""
+	default:
+		return strings.ToUpper(word[:1]) + word[1:]
+	}
 }
 
 func printSetupSummary(cmd *cobra.Command) {

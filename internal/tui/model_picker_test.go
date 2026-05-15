@@ -11,8 +11,8 @@ import (
 // in a 2-column grid with the selected provider highlighted by "❯".
 func TestModelPicker_RenderProviderList(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   20,
+		Width:  60,
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 			{ID: "openai", Label: "OpenAI"},
@@ -20,7 +20,7 @@ func TestModelPicker_RenderProviderList(t *testing.T) {
 			{ID: "ollama", Label: "Ollama"},
 		},
 		SelectedProviderIndex: 1, // OpenAI selected
-		SelectedModelIndex:   -1,
+		SelectedModelIndex:    -1,
 	}
 
 	got := RenderModelPicker(state)
@@ -63,13 +63,39 @@ func TestModelPicker_RenderProviderList(t *testing.T) {
 	}
 }
 
+func TestModelPickerProvidersUseHermesProviderCatalog(t *testing.T) {
+	providers := HermesModelPickerProviders()
+	if len(providers) != 37 {
+		t.Fatalf("providers = %d, want 37", len(providers))
+	}
+	for _, want := range []struct {
+		index int
+		id    string
+		label string
+	}{
+		{0, "nous", "Nous Portal (Nous Research subscription)"},
+		{5, "openai-codex", "OpenAI Codex"},
+		{36, "custom", "custom (direct API)"},
+	} {
+		got := providers[want.index]
+		if got.ID != want.id || got.Label != want.label {
+			t.Fatalf("provider[%d] = %#v, want id=%q label=%q", want.index, got, want.id, want.label)
+		}
+	}
+	for _, provider := range providers {
+		if strings.Contains(provider.Label, "(oauth_external)") || strings.Contains(provider.Label, "(api_key)") {
+			t.Fatalf("provider leaked raw auth taxonomy: %#v", provider)
+		}
+	}
+}
+
 // TestModelPicker_RenderModelListWhenProviderSelected proves that when a
 // provider is selected, the model list column appears with models for that
 // provider and the current model is marked with "*".
 func TestModelPicker_RenderModelListWhenProviderSelected(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   24,
+		Width:  60,
+		Height: 24,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 		},
@@ -126,8 +152,8 @@ func TestModelPicker_RenderModelListWhenProviderSelected(t *testing.T) {
 // model equals the current model, it shows "*❯" or "❯ *" combining both markers.
 func TestModelPicker_RenderCurrentModelIndicator(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   24,
+		Width:  60,
+		Height: 24,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 		},
@@ -137,8 +163,8 @@ func TestModelPicker_RenderCurrentModelIndicator(t *testing.T) {
 			{ID: "claude-sonnet-4", Label: "Claude Sonnet 4"},
 		},
 		SelectedModelIndex: 1, // Sonnet 4 selected
-		CurrentProvider:   "anthropic",
-		CurrentModel:      "claude-sonnet-4", // Same as selected
+		CurrentProvider:    "anthropic",
+		CurrentModel:       "claude-sonnet-4", // Same as selected
 	}
 
 	got := RenderModelPicker(state)
@@ -168,8 +194,8 @@ func TestModelPicker_RenderCurrentModelIndicator(t *testing.T) {
 // appear at the bottom of the rendered picker.
 func TestModelPicker_RenderKeyboardHints(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   20,
+		Width:  60,
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 		},
@@ -194,15 +220,15 @@ func TestModelPicker_RenderKeyboardHints(t *testing.T) {
 // through the provider list when no provider is selected.
 func TestModelPicker_KeyboardNavUpDownProviderNavigation(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   20,
+		Width:  60,
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 			{ID: "openai", Label: "OpenAI"},
 			{ID: "google", Label: "Google"},
 		},
 		SelectedProviderIndex: 1, // OpenAI selected initially
-		SelectedModelIndex:   -1,
+		SelectedModelIndex:    -1,
 	}
 
 	// Press Up - should move to Anthropic
@@ -229,8 +255,8 @@ func TestModelPicker_KeyboardNavUpDownProviderNavigation(t *testing.T) {
 // modelPickerConfirmedMsg with the selected provider and model.
 func TestModelPicker_KeyboardNavEnterConfirmsSelection(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   20,
+		Width:  60,
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 		},
@@ -239,8 +265,8 @@ func TestModelPicker_KeyboardNavEnterConfirmsSelection(t *testing.T) {
 			{ID: "claude-opus-4", Label: "Claude Opus 4"},
 		},
 		SelectedModelIndex: 0,
-		CurrentProvider:   "other",
-		CurrentModel:      "other-model",
+		CurrentProvider:    "other",
+		CurrentModel:       "other-model",
 	}
 
 	var cmd tea.Cmd
@@ -268,8 +294,8 @@ func TestModelPicker_KeyboardNavEnterConfirmsSelection(t *testing.T) {
 // modelPickerConfirmedMsg to signal cancellation.
 func TestModelPicker_KeyboardNavEscapeCancels(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   20,
+		Width:  60,
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 		},
@@ -299,8 +325,8 @@ func TestModelPicker_KeyboardNavEscapeCancels(t *testing.T) {
 // when on a provider enters the model list and selects the first model.
 func TestModelPicker_KeyboardNavRightEntersModelList(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   20,
+		Width:  60,
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 		},
@@ -329,8 +355,8 @@ func TestModelPicker_KeyboardNavRightEntersModelList(t *testing.T) {
 // through the model list when a provider is selected and model list is active.
 func TestModelPicker_KeyboardNavUpDownInModelList(t *testing.T) {
 	state := ModelPickerState{
-		Width:    60,
-		Height:   20,
+		Width:  60,
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 		},
@@ -372,8 +398,8 @@ func TestModelPicker_KeyboardNavUpDownInModelList(t *testing.T) {
 // terminals (< 30 cols) gracefully with a single-column layout.
 func TestModelPicker_NarrowTerminalFallback(t *testing.T) {
 	state := ModelPickerState{
-		Width:    25, // Narrow
-		Height:   20,
+		Width:  25, // Narrow
+		Height: 20,
 		Providers: []ProviderEntry{
 			{ID: "anthropic", Label: "Anthropic"},
 			{ID: "openai", Label: "OpenAI"},
@@ -396,9 +422,9 @@ func TestModelPicker_NarrowTerminalFallback(t *testing.T) {
 // an empty provider list without panicking.
 func TestModelPicker_EmptyProvidersHandlesGracefully(t *testing.T) {
 	state := ModelPickerState{
-		Width:               60,
-		Height:              20,
-		Providers:           []ProviderEntry{},
+		Width:                 60,
+		Height:                20,
+		Providers:             []ProviderEntry{},
 		SelectedProviderIndex: -1,
 	}
 

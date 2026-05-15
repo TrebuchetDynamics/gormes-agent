@@ -102,18 +102,7 @@ func stdinIsTerminal(file *os.File) bool {
 }
 
 func defaultModelProviderEntries() ([]cli.ProviderMenuEntry, error) {
-	entries := make([]cli.ProviderMenuEntry, 0)
-	for _, entry := range hermes.HermesProviderRegistryManifest() {
-		if entry.ImplementationStatus == hermes.ProviderExcluded {
-			continue
-		}
-		label := entry.ID
-		if entry.AuthType != "" {
-			label += " (" + entry.AuthType + ")"
-		}
-		entries = append(entries, cli.ProviderMenuEntry{ID: entry.ID, Label: label})
-	}
-	return entries, nil
+	return cli.HermesModelProviderMenu(), nil
 }
 
 func promptProviderChoice(in *os.File, out io.Writer, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
