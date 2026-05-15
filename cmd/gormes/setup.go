@@ -848,6 +848,51 @@ func printSetupProviderCredentialChoices(cmd *cobra.Command) {
 }
 
 func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
+	if len(entries) == 0 {
+		return -1, cli.ErrModelPickerNoProviders
+	}
+	if defaultIndex < 0 || defaultIndex >= len(entries) {
+		defaultIndex = len(entries) - 1
+	}
+
+	if stdin, ok := cmd.InOrStdin().(*os.File); ok && setupInputIsTerminal(stdin) {
+		selected, err := runBubbleTeaPick(
+			cmd.Context(),
+			stdin,
+			cmd.OutOrStdout(),
+			"Select provider",
+			setupProviderPickerChoices(entries),
+			strconv.Itoa(defaultIndex),
+		)
+		if err == nil {
+			if selected == "" {
+				return -1, cli.ErrModelPickerCancelled
+			}
+			index, parseErr := strconv.Atoi(selected)
+			if parseErr != nil || index < 0 || index >= len(entries) {
+				return -1, newExitCodeError(2, fmt.Errorf("setup_provider_invalid_selection: %s", selected))
+			}
+			return index, nil
+		}
+		if !bubbleTeaPickShouldFallback(err) {
+			return -1, err
+		}
+	}
+
+	return promptSetupProviderChoiceText(cmd, entries, defaultIndex)
+}
+
+func setupProviderPickerChoices(entries []cli.ProviderMenuEntry) []tuiPickChoice {
+	choices := make([]tuiPickChoice, len(entries))
+	for i, entry := range entries {
+		choices[i] = tuiPickChoice{ID: strconv.Itoa(i), Label: entry.Label}
+	}
+	return choices
+}
+
+// promptSetupProviderChoiceText is the fallback line-input version used for
+// piped stdin, CI, and command runners that do not expose a terminal.
+func promptSetupProviderChoiceText(cmd *cobra.Command, entries []cli.ProviderMenuEntry, defaultIndex int) (int, error) {
 	out := cmd.OutOrStdout()
 	if len(entries) == 0 {
 		return -1, cli.ErrModelPickerNoProviders
@@ -855,6 +900,7 @@ func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEnt
 	if defaultIndex < 0 || defaultIndex >= len(entries) {
 		defaultIndex = len(entries) - 1
 	}
+
 	interrupts := make(chan os.Signal, 1)
 	signal.Notify(interrupts, os.Interrupt)
 	defer signal.Stop(interrupts)
@@ -881,7 +927,7 @@ func promptSetupProviderChoice(cmd *cobra.Command, entries []cli.ProviderMenuEnt
 		fmt.Fprintln(out)
 		return -1, cli.ErrModelPickerCancelled
 	}
-	answer = strings.TrimSpace(cli.StripANSI(answer))
+	answer = strings.TrimSpace(stripSetupInputNoise(cli.StripANSI(answer)))
 	if answer == "" {
 		return defaultIndex, nil
 	}

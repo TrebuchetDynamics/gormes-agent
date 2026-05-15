@@ -152,6 +152,24 @@ func firstSetupGatewayWizardSeam(fn func(*cobra.Command, config.Config) (setupGa
 	}
 }
 
+func TestSetupProviderChoiceTextIgnoresArrowEscapeNoise(t *testing.T) {
+	cmd := &cobra.Command{}
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetIn(strings.NewReader("\x1b[B\n"))
+
+	got, err := promptSetupProviderChoiceText(cmd, []cli.ProviderMenuEntry{
+		{ID: "nous", Label: "Nous Portal"},
+		{ID: "openai-codex", Label: "OpenAI Codex"},
+	}, 1)
+	if err != nil {
+		t.Fatalf("promptSetupProviderChoiceText() error = %v stdout=%s", err, stdout.String())
+	}
+	if got != 1 {
+		t.Fatalf("promptSetupProviderChoiceText() = %d, want default index 1", got)
+	}
+}
+
 func TestSetupNoSectionNonTTYPrintsSectionList(t *testing.T) {
 	fake := &setupCommandFakeSeams{isTTY: false}
 	stdout, stderr, err := runSetupTestCommand(t, fake.seams())

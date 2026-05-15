@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/TrebuchetDynamics/gormes-agent/internal/cli"
 )
 
 func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
@@ -20,6 +22,39 @@ func TestSetupInteractiveMenusUseBubbleTeaPicker(t *testing.T) {
 		if !strings.Contains(text, "runBubbleTeaPick") {
 			t.Fatalf("%s does not route interactive setup selection through the Bubble Tea setup picker", path)
 		}
+	}
+}
+
+func TestSetupProviderChoiceUsesBubbleTeaPickerForTTY(t *testing.T) {
+	raw, err := os.ReadFile("setup.go")
+	if err != nil {
+		t.Fatalf("read setup.go: %v", err)
+	}
+	text := string(raw)
+	for _, want := range []string{
+		"setupProviderPickerChoices(entries)",
+		"runBubbleTeaPick(",
+		"promptSetupProviderChoiceText(cmd, entries, defaultIndex)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("setup provider choice missing Bubble Tea routing marker %q", want)
+		}
+	}
+}
+
+func TestSetupProviderPickerChoicesUseStableIndices(t *testing.T) {
+	choices := setupProviderPickerChoices([]cli.ProviderMenuEntry{
+		{ID: "nous", Label: "Nous Portal"},
+		{ID: "openai-codex", Label: "OpenAI Codex"},
+	})
+	if len(choices) != 2 {
+		t.Fatalf("choices len = %d, want 2", len(choices))
+	}
+	if choices[0] != (tuiPickChoice{ID: "0", Label: "Nous Portal"}) {
+		t.Fatalf("choice[0] = %#v", choices[0])
+	}
+	if choices[1] != (tuiPickChoice{ID: "1", Label: "OpenAI Codex"}) {
+		t.Fatalf("choice[1] = %#v", choices[1])
 	}
 }
 
