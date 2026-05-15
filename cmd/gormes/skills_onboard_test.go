@@ -37,16 +37,11 @@ func TestOnboardExplainsRuntimeSkillsAndLearningState(t *testing.T) {
 	t.Setenv("GORMES_SKILLS_ROOT", "")
 	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{})
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	output := stdout.String()
+	output := stdout
 	for _, want := range []string{
 		"Gormes onboarding",
 		filepath.Join(home, "skills"),
@@ -73,16 +68,11 @@ func TestOnboardShowsConfiguredProviderDetails(t *testing.T) {
 		t.Fatalf("write env: %v", err)
 	}
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{})
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	output := stdout.String()
+	output := stdout
 	for _, want := range []string{
 		"Provider: groq",
 		"Endpoint: https://api.groq.com/openai/v1",
@@ -107,16 +97,11 @@ func TestOnboardShowsProviderDetailsWhenCodexAuthMissing(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{})
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	output := stdout.String()
+	output := stdout
 	for _, want := range []string{
 		"Provider: openai-codex",
 		"Endpoint: https://chatgpt.com/backend-api/codex",
@@ -153,16 +138,11 @@ func TestOnboardShowsCodexCredentialPoolAuthConfigured(t *testing.T) {
 		t.Fatalf("SaveCredentialPoolEntries: %v", err)
 	}
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{})
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	output := stdout.String()
+	output := stdout
 	for _, want := range []string{
 		"Provider: openai-codex",
 		"Auth: configured",
@@ -201,16 +181,11 @@ func TestOnboardWizardShowsCodexCredentialPoolAuthConfigured(t *testing.T) {
 		t.Fatalf("SaveCredentialPoolEntries: %v", err)
 	}
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard", "--wizard", "--non-interactive"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--wizard", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	output := stdout.String()
+	output := stdout
 	for _, want := range []string{
 		"Provider: configured",
 		"openai-codex",
@@ -236,16 +211,11 @@ func TestOnboardWizardNonInteractiveShowsOrderedPlanAndSkipWarnings(t *testing.T
 	t.Setenv("GORMES_SKILLS_ROOT", "")
 	t.Setenv("GORMES_BUNDLED_SKILLS_ROOT", "")
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard", "--wizard", "--non-interactive"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--wizard", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	output := stdout.String()
+	output := stdout
 	for _, want := range []string{
 		"Gormes first-run wizard",
 		"Mode: non-interactive plan",
@@ -283,16 +253,11 @@ func TestOnboardWizardPrefillsConfiguredProviderAndAuth(t *testing.T) {
 		t.Fatalf("write env: %v", err)
 	}
 
-	cmd := newRootCommandWithRuntime(rootRuntime{})
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"onboard", "--wizard", "--non-interactive"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	stdout, stderr, err := executeOnboardCommandWithSeams(t, onboardCommandSeams{}, "--wizard", "--non-interactive")
+	if err != nil {
+		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	output := stdout.String()
+	output := stdout
 	for _, want := range []string{
 		"Model: configured",
 		"llama-3.3-70b-versatile",

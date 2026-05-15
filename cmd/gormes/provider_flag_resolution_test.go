@@ -75,11 +75,11 @@ model = "config-model"
 
 	stdout, stderr, err := executeOneshotFlagCommand(
 		cmd,
-		"-z", "hi",
 		"--endpoint", "http://flag-endpoint:8642",
 		"--api-key", "sk-flag-secret-123456",
 		"--model", "flag-model",
 		"--provider", "openrouter",
+		"chat", "-q", "hi",
 	)
 	if err == nil {
 		t.Fatalf("Execute() error = nil, want setup failure\nstdout=%s\nstderr=%s", stdout, stderr)
@@ -165,7 +165,7 @@ func TestProviderFlagResolution_RedactsAPIKeyFromReturnedErrorsAndStderr(t *test
 		},
 	})
 
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "hi", "--model", "flag-model", "--api-key", secret)
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "flag-model", "--api-key", secret, "chat", "-q", "hi")
 	if err == nil {
 		t.Fatalf("Execute() error = nil, want provider setup failure\nstdout=%s\nstderr=%s", stdout, stderr)
 	}

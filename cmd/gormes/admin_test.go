@@ -39,7 +39,6 @@ func TestAdminCommandCatalogCoversRootCommandTree(t *testing.T) {
 		"auth add",
 		"gateway status",
 		"kanban list",
-		"login",
 		"mcp login",
 		"session export",
 	} {
@@ -49,6 +48,11 @@ func TestAdminCommandCatalogCoversRootCommandTree(t *testing.T) {
 	}
 	if paths["help"] {
 		t.Fatalf("admin command catalog should not include Cobra help command: %#v", entries)
+	}
+	for _, removed := range []string{"login", "onboard"} {
+		if paths[removed] {
+			t.Fatalf("admin command catalog should not include removed top-level command %q in %#v", removed, entries)
+		}
 	}
 }
 

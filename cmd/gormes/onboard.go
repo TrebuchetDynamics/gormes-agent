@@ -13,9 +13,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// onboardStatusReportJSON is the wire shape for `gormes onboard --json`.
-// Fleet automation querying first-run readiness across machines parses
-// this to inventory configured/missing setup without scraping prose.
+// onboardStatusReportJSON is the internal first-run readiness JSON shape.
+// Public fleet automation should query doctor readiness JSON; tests keep
+// this helper shape stable without registering a public command.
 // Build provenance leads — same convention as the rest of the `--json`
 // arc. Secrets stay out: only `auth_configured` signals key presence.
 type onboardStatusReportJSON struct {
@@ -56,10 +56,6 @@ type onboardBindingJSON struct {
 	AgentID   string `json:"agent_id"`
 }
 
-func newOnboardCommand() *cobra.Command {
-	return newOnboardCommandWithSeams(defaultOnboardCommandSeams())
-}
-
 type onboardCommandSeams struct {
 	IsTTY        func() bool
 	PromptAction func(*cobra.Command, cli.OnboardStep, string) (string, error)
@@ -90,7 +86,8 @@ func newOnboardCommandWithSeams(seams onboardCommandSeams) *cobra.Command {
 	var asJSON bool
 	cmd := &cobra.Command{
 		Use:          "onboard",
-		Short:        "First-run status — see what's configured and what to do next",
+		Short:        "Use gormes setup",
+		Hidden:       true,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := config.Load(nil)
@@ -292,13 +289,10 @@ func printOnboardFirstRunReadiness(out io.Writer, plan cli.FirstRunPlan) {
 	}
 }
 
-// onboardWizardPlanJSON is the wire shape for `gormes onboard
-// --wizard --json`. Without this path the same snapshot shape that
-// `--json` returns is emitted regardless of `--wizard` — operators
-// driving fleet provisioning from JSON had to scrape the numbered
-// step rows the human surface prints. The structured plan mirrors
-// the text ladder field-for-field so consumers can render the same
-// step ordering, status, next-command, and skip-warning copy.
+// onboardWizardPlanJSON is the internal onboarding wizard-plan JSON shape.
+// The structured plan mirrors the text ladder field-for-field so setup
+// integrations can render the same step ordering, status, next-command,
+// and skip-warning copy.
 type onboardWizardPlanJSON struct {
 	Build buildProvenanceJSON     `json:"build"`
 	Mode  string                  `json:"mode"`

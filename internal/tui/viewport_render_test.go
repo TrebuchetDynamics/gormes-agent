@@ -131,7 +131,10 @@ func TestRenderConvViewportBinding_RenderedLineBudget(t *testing.T) {
 
 func TestRenderConvViewportBinding_EmptyFramePlaceholder(t *testing.T) {
 	got := renderConv(kernel.RenderFrame{}, 80, 8)
-	if !strings.Contains(got, "start typing below to begin") {
-		t.Fatalf("renderConv() empty frame missing placeholder in:\n%s", got)
+	if !strings.Contains(got, "Type your message or /help for commands.") {
+		t.Fatalf("renderConv() empty frame missing intro copy in:\n%s", got)
+	}
+	if strings.Contains(got, "start typing below to begin") {
+		t.Fatalf("renderConv() empty frame leaked legacy placeholder in:\n%s", got)
 	}
 }

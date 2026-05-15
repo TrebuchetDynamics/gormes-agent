@@ -41,7 +41,7 @@ func TestOneshotSafety_ClarifyToolCallReturnsNoninteractiveAssumptionWithoutStdo
 		},
 	})
 
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "deploy?", "--model", "fixture-model")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "chat", "-q", "deploy?")
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
@@ -124,7 +124,7 @@ func TestOneshotSafety_DangerousCommandBlockedAuditedAndToolNotExecuted(t *testi
 		},
 	})
 
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "clean temp files", "--model", "fixture-model")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "chat", "-q", "clean temp files")
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}

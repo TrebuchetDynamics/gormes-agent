@@ -880,7 +880,7 @@ func writeProviderConfig(cmd *cobra.Command, provider, endpoint, apiKey, model s
 		fmt.Fprintf(out, "Model:    %s\n", model)
 	}
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Test it:  gormes --oneshot \"hello\"")
+	fmt.Fprintln(out, "Test it:  gormes chat")
 	return nil
 }
 
@@ -2179,7 +2179,7 @@ func setupSectionOwnership(section string) string {
 	switch normalizeSetupChoice(section) {
 	case "model", "tts", "terminal", "gateway", "tools", "agent":
 		return "hermes_owned"
-	case "provider", "workspace", "bindings", "onboard":
+	case "provider", "workspace", "bindings":
 		return "gormes_owned_extension"
 	default:
 		return "unknown"

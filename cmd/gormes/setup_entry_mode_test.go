@@ -471,7 +471,7 @@ func TestSetupSections_HermesOwnedVsGormesOwned(t *testing.T) {
 			t.Fatalf("setupSectionOwnership(%q) = %q, want hermes_owned", section, got)
 		}
 	}
-	for _, section := range []string{"provider", "workspace", "bindings", "onboard"} {
+	for _, section := range []string{"provider", "workspace", "bindings"} {
 		if got := setupSectionOwnership(section); got != "gormes_owned_extension" {
 			t.Fatalf("setupSectionOwnership(%q) = %q, want gormes_owned_extension", section, got)
 		}

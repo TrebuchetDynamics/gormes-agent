@@ -15,7 +15,6 @@ import (
 var (
 	muted     = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
 	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("69")).Bold(true)
-	botStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
 	errStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 )
 
@@ -187,8 +186,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 
 	var visible []string
 	for i := len(f.History) - 1; i >= 0; i-- {
-		msg := f.History[i]
-		block := conversationMessageBlock(msg, wrapWidth, compact)
+		block := conversationMessageBlockAt(f.History, i, wrapWidth, compact)
 		omitted := i
 		candidate := append([]string{block}, visible...)
 		if omitted > 0 {
@@ -209,7 +207,7 @@ func conversationViewportTail(f kernel.RenderFrame, width, height int) string {
 	lines = append(lines, visible...)
 	lines = append(lines, forced...)
 	if len(lines) == 0 {
-		return muted.Render("(start typing below to begin)")
+		return conversationEmptyIntro(compact)
 	}
 	return strings.Join(lines, "\n\n")
 }
@@ -279,25 +277,47 @@ func conversationMessageBlock(msg hermes.Message, wrapWidth int, compact bool) s
 	} else {
 		content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	}
-	return roleTag(msg.Role) + " " + content
+	return transcriptRow(msg.Role, content)
+}
+
+func conversationMessageBlockAt(history []hermes.Message, idx, wrapWidth int, compact bool) string {
+	block := conversationMessageBlock(history[idx], wrapWidth, compact)
+	if !compact && conversationNeedsTurnSeparator(history, idx) {
+		return muted.Render("───") + "\n\n" + block
+	}
+	return block
+}
+
+func conversationNeedsTurnSeparator(history []hermes.Message, idx int) bool {
+	if idx < 0 || idx >= len(history) || history[idx].Role != "user" {
+		return false
+	}
+	for i := 0; i < idx; i++ {
+		if history[i].Role == "user" {
+			return true
+		}
+	}
+	return false
 }
 
 func conversationToolResultBlock(msg hermes.Message, wrapWidth int, compact bool) string {
 	name := strings.TrimSpace(msg.Name)
-	label := "tool result"
-	if name != "" {
-		label += ": " + name
+	if name == "" {
+		name = "tool"
 	}
 	content := strings.TrimSpace(msg.Content)
 	if compact {
-		return muted.Render(label) + " " + compactViewportText(content)
+		return muted.Render("⚡ " + name + " " + compactViewportText(content))
 	}
 	content = RenderMarkdownSoftWrapTrim(content, wrapWidth)
 	lines := strings.Split(content, "\n")
+	out := []string{"   ╭─ ⚡ " + name}
 	for i, line := range lines {
-		lines[i] = "│ " + line
+		lines[i] = "   │ " + line
 	}
-	return muted.Render("╭─ " + label + "\n" + strings.Join(lines, "\n") + "\n╰─")
+	out = append(out, lines...)
+	out = append(out, "   ╰─")
+	return muted.Render(strings.Join(out, "\n"))
 }
 
 func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
@@ -306,7 +326,7 @@ func conversationDraftBlock(draft string, wrapWidth int, compact bool) string {
 	} else {
 		draft = RenderMarkdownSoftWrapTrim(draft, wrapWidth)
 	}
-	return botStyle.Render(HermesChromeAssistantLabel()) + " " + draft
+	return transcriptRow("assistant", draft)
 }
 
 func conversationErrorBlock(lastError string, compact bool) string {
@@ -331,16 +351,76 @@ func renderedLineCount(s string) int {
 	return strings.Count(s, "\n") + 1
 }
 
-func roleTag(role string) string {
+func conversationEmptyIntro(compact bool) string {
+	if compact {
+		return muted.Render("⚕ Gormes · /help for commands")
+	}
+	skin := DefaultHermesSkin()
+	title := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(skin.Colors.BannerTitle)).
+		Bold(true).
+		Render("⚕ Gormes")
+	subtitle := muted.Render("Go-native Hermes-compatible agent")
+	help := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(skin.Colors.BannerDim)).
+		Render("Type your message or /help for commands.")
+	return strings.Join([]string{title, subtitle, help}, "\n")
+}
+
+func transcriptRow(role, content string) string {
+	glyph := transcriptGlyph(role)
+	style := transcriptGlyphStyle(role)
+	lines := strings.Split(content, "\n")
+	if len(lines) == 0 {
+		return style.Render(glyph)
+	}
+
+	prefix := style.Render(glyph) + " "
+	continuation := strings.Repeat(" ", lipgloss.Width(glyph)+1)
+	for i, line := range lines {
+		if i == 0 {
+			lines[i] = prefix + line
+			continue
+		}
+		lines[i] = continuation + line
+	}
+	return strings.Join(lines, "\n")
+}
+
+func transcriptGlyph(role string) string {
+	skin := DefaultHermesSkin()
 	switch role {
 	case "user":
-		return userStyle.Render("you:")
+		prompt := strings.TrimSpace(skin.PromptSymbol)
+		if prompt == "" {
+			return "❯"
+		}
+		return prompt
 	case "assistant":
-		return botStyle.Render(HermesChromeAssistantLabel())
+		toolPrefix := strings.TrimSpace(skin.ToolPrefix)
+		if toolPrefix == "" {
+			return "┊"
+		}
+		return toolPrefix
 	case "system":
-		return muted.Render("sys:")
+		return "·"
 	}
-	return muted.Render(role + ":")
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return "·"
+	}
+	return role
+}
+
+func transcriptGlyphStyle(role string) lipgloss.Style {
+	switch role {
+	case "user":
+		return userStyle
+	case "assistant":
+		return muted
+	default:
+		return muted
+	}
 }
 
 func truncateEllipsis(s string, n int) string {

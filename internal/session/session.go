@@ -48,8 +48,9 @@ type LineageResolver interface {
 }
 
 // ErrDBLocked is returned by OpenBolt when another process holds the bbolt
-// file lock. Caller should exit 1 with a clear message — retrying is
-// pointless because dual-instance is a config bug.
+// file lock. Long-running gateway/channel callers usually fail fast; foreground
+// TUI callers may fall back to in-memory state with clear degraded-state
+// evidence.
 var ErrDBLocked = errors.New("session: database locked by another process")
 
 // ErrDBCorrupt is returned by OpenBolt when the bbolt file's magic bytes

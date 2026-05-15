@@ -398,10 +398,10 @@ func TestRenderMarkdownSoftWrapTrim_PreservesLeadingIndentation(t *testing.T) {
 
 func TestConversationMessageBlock_UsesSoftWrapTrim(t *testing.T) {
 	got := conversationMessageBlock(hermes.Message{Role: "assistant", Content: "Let me"}, 5, false)
-	if strings.Contains(got, "\n me") {
+	if strings.Contains(got, "\n   me") {
 		t.Fatalf("conversationMessageBlock() kept a boundary space on continuation line: %q", got)
 	}
-	if !strings.Contains(got, "\nme") {
-		t.Fatalf("conversationMessageBlock() = %q, want continuation line without leading boundary space", got)
+	if !strings.Contains(got, "\n  me") {
+		t.Fatalf("conversationMessageBlock() = %q, want continuation aligned under transcript gutter", got)
 	}
 }

@@ -348,7 +348,7 @@ func TestSetupProviderNonInteractiveWritesConfigAndDotenv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v stdout=%s stderr=%s", err, stdout, stderr)
 	}
-	for _, want := range []string{"Setup section: provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)"} {
+	for _, want := range []string{"Setup section: provider", "Provider configured.", config.ConfigPath(), config.EnvPath(), "provider-fixture-model", "API key:  stored (redacted)", "Test it:  gormes chat"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, stdout)
 		}

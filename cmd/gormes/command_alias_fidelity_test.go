@@ -22,15 +22,17 @@ func TestHermesCommandAliasFidelity_RootUnknownAndTypoSuggestions(t *testing.T) 
 		}
 	})
 
-	t.Run("login unsupported provider is explicit redacted guidance", func(t *testing.T) {
+	t.Run("removed login command gives redacted auth add guidance", func(t *testing.T) {
 		cmd := newRootCommandWithRuntime(rootRuntime{})
 		stdout, stderr, err := executeRootCommandForTest(cmd, "login", "--provider", "plain-secret-provider")
 		if err == nil {
 			t.Fatalf("login error = nil; stdout=%s stderr=%s", stdout, stderr)
 		}
 		combined := stdout + stderr + err.Error()
-		if !strings.Contains(combined, "auth_login_provider_unsupported") || !strings.Contains(combined, "allowed=nous|openai-codex") {
-			t.Fatalf("login output missing unsupported-provider guidance:\nstdout=%s\nstderr=%s\nerr=%v", stdout, stderr, err)
+		for _, want := range []string{"unknown command \"login\"", "gormes auth add <provider> --type oauth"} {
+			if !strings.Contains(combined, want) {
+				t.Fatalf("login output missing %q:\nstdout=%s\nstderr=%s\nerr=%v", want, stdout, stderr, err)
+			}
 		}
 		if strings.Contains(combined, "plain-secret-provider") {
 			t.Fatalf("login guidance leaked provider argument:\n%s", combined)

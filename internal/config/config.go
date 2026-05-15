@@ -579,12 +579,12 @@ type InferenceResolution struct {
 type OneshotInferenceResolution = InferenceResolution
 type TUIInferenceResolution = InferenceResolution
 
-// ResolveOneshotInference applies the Hermes-compatible one-shot precedence:
+// ResolveOneshotInference applies the scripted-chat inference precedence:
 // flag > GORMES_INFERENCE_* env > config defaults. A provider override without
 // a flag/env model is rejected so a stale configured model is not silently
 // paired with a different provider.
 func ResolveOneshotInference(req OneshotInferenceRequest) (OneshotInferenceResolution, error) {
-	req.CommandLabel = "gormes -z"
+	req.CommandLabel = "gormes chat -q"
 	return ResolveInference(req)
 }
 

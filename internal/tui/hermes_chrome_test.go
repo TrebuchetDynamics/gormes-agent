@@ -122,7 +122,7 @@ func TestHermesChrome_BottomPinnedOrder_View(t *testing.T) {
 	convIdx := strings.Index(got, "pong from hermes")
 	// The status rule carries the current Hermes Ink status + model label.
 	statusIdx := strings.Index(got, "─ ready │ sonnet 4 20250514")
-	promptIdx := strings.Index(got, "❯")
+	promptIdx := strings.LastIndex(got, "❯")
 
 	if convIdx < 0 {
 		t.Fatalf("View missing conversation content:\n%s", got)
@@ -141,7 +141,7 @@ func TestHermesChrome_BottomPinnedOrder_View(t *testing.T) {
 	}
 }
 
-func TestHermesChrome_ResponseBoxLabel(t *testing.T) {
+func TestHermesChrome_InkStyleTranscriptGutter(t *testing.T) {
 	frames := make(chan kernel.RenderFrame, 1)
 	f := newHermesChromeFrame()
 	frames <- f
@@ -158,18 +158,38 @@ func TestHermesChrome_ResponseBoxLabel(t *testing.T) {
 	if strings.Contains(got, "⚕ Hermes") {
 		t.Fatalf("View leaked upstream Hermes product label instead of Gormes label:\n%s", got)
 	}
-	if !strings.Contains(got, "Gormes") {
-		t.Fatalf("View missing Gormes response label:\n%s", got)
+	if strings.Contains(got, "⚕ Gormes") {
+		t.Fatalf("View leaked old label-heavy assistant tag instead of Hermes Ink message gutter:\n%s", got)
 	}
-	if !strings.Contains(got, "pong from hermes") {
-		t.Fatalf("View missing assistant content under Hermes label:\n%s", got)
+	if strings.Contains(got, "you:") {
+		t.Fatalf("View leaked old label-heavy user tag instead of Hermes Ink prompt glyph:\n%s", got)
 	}
-	// User previews must remain visible — only the assistant tag is rebranded.
-	if !strings.Contains(got, "you:") {
-		t.Fatalf("View dropped user preview tag:\n%s", got)
+	assertContainsInOrder(t, got, "❯", "ping from operator", "┊", "pong from hermes")
+}
+
+func TestHermesChrome_EmptyChatIntroUsesBubbleTeaView(t *testing.T) {
+	frames := make(chan kernel.RenderFrame, 1)
+	f := kernel.RenderFrame{
+		Phase: kernel.PhaseIdle,
+		Model: "anthropic/claude-sonnet-4-20250514",
 	}
-	if !strings.Contains(got, "ping from operator") {
-		t.Fatalf("View missing user preview content:\n%s", got)
+	frames <- f
+	m := NewModel(frames, func(string) {}, func() {})
+	m.width = 100
+	m.height = 28
+	m.frame = f
+
+	got := m.View()
+
+	assertContainsInOrder(t, got,
+		"⚕ Gormes",
+		"Go-native Hermes-compatible agent",
+		"Type your message or /help for commands.",
+		"─ ready │ sonnet 4 20250514",
+		"❯ Type a message",
+	)
+	if strings.Contains(got, "start typing below to begin") {
+		t.Fatalf("Bubble Tea chat view leaked old empty placeholder:\n%s", got)
 	}
 }
 
@@ -189,8 +209,8 @@ func TestHermesChrome_InputPromptIsUnboxedSingleLineByDefault(t *testing.T) {
 			t.Fatalf("View rendered boxed input chrome %q; Hermes prompt should be unboxed:\n%s", banned, got)
 		}
 	}
-	if count := strings.Count(got, "❯"); count != 1 {
-		t.Fatalf("View rendered %d prompt symbols, want one single-line idle prompt:\n%s", count, got)
+	if count := strings.Count(got, "❯ Type a message"); count != 1 {
+		t.Fatalf("View rendered %d composer prompts, want one single-line idle prompt:\n%s", count, got)
 	}
 	if strings.Contains(got, "phase:") {
 		t.Fatalf("View rendered debug phase chrome in idle state; Hermes keeps idle composer chrome quiet:\n%s", got)

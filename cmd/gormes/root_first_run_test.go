@@ -159,7 +159,7 @@ func TestRootFirstRunBypassOfflineAndRemote(t *testing.T) {
 	}
 }
 
-func TestRootFirstRunDoesNotAffectOneshot(t *testing.T) {
+func TestRootFirstRunDoesNotAffectScriptedChat(t *testing.T) {
 	freshInstallE2EHome(t)
 	writeOneshotFlagConfig(t, []byte(`
 [hermes]
@@ -192,12 +192,12 @@ api_key = "sk-test-oneshot"
 		},
 	})
 
-	stdout, stderr, err := executeRootCommandForTest(cmd, "--oneshot", "hello")
+	stdout, stderr, err := executeRootCommandForTest(cmd, "chat", "-q", "hello")
 	if err != nil {
-		t.Fatalf("root oneshot: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+		t.Fatalf("chat -q: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 	if gotPrompt != "hello" {
-		t.Fatalf("oneshot prompt = %q, want hello", gotPrompt)
+		t.Fatalf("scripted chat prompt = %q, want hello", gotPrompt)
 	}
 	if setupCalls != 0 {
 		t.Fatalf("runFirstRunSetup calls = %d, want 0", setupCalls)

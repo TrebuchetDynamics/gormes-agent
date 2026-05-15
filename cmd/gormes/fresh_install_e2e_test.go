@@ -51,8 +51,7 @@ func TestFreshInstallE2E_NoNullArrayFieldsInJSON(t *testing.T) {
 		{"channels", "capabilities", "--json"},
 		{"config", "show", "--json"},
 		{"config", "check", "--json"},
-		{"onboard", "--json"},
-		{"onboard", "--wizard", "--json", "--non-interactive"},
+		{"doctor", "--offline", "--target", "terminal", "--json"},
 		{"version", "--json"},
 		{"restore", "--list", "--json"},
 		{"update", "--check", "--json"},
@@ -261,8 +260,7 @@ func TestFreshInstallE2E_BuildProvenancePresentInJSON(t *testing.T) {
 		{"channels", "capabilities", "--json"},
 		{"config", "show", "--json"},
 		{"config", "check", "--json"},
-		{"onboard", "--json"},
-		{"onboard", "--wizard", "--json", "--non-interactive"},
+		{"doctor", "--offline", "--target", "terminal", "--json"},
 		{"restore", "--list", "--json"},
 		{"update", "--check", "--json"},
 		{"plugins", "list", "--json"},
@@ -322,8 +320,7 @@ func TestFreshInstallE2E_JSONIsParseable(t *testing.T) {
 		{"config", "show", "--json"},
 		{"config", "check", "--json"},
 		{"config", "get", "hermes.model", "--json"},
-		{"onboard", "--json"},
-		{"onboard", "--wizard", "--json", "--non-interactive"},
+		{"doctor", "--offline", "--target", "terminal", "--json"},
 		{"version", "--json"},
 		{"restore", "--list", "--json"},
 		{"update", "--check", "--json"},
@@ -388,26 +385,26 @@ func TestFreshInstallSetupQuickNonInteractiveDoesNotPrompt(t *testing.T) {
 	}
 }
 
-func TestFreshInstallOnboardJSONIncludesFirstRunNextCommand(t *testing.T) {
+func TestFreshInstallDoctorJSONIncludesFirstRunNextCommand(t *testing.T) {
 	freshInstallE2EHome(t)
 
 	cmd := newRootCommandWithRuntime(rootRuntime{})
-	stdout, stderr, err := executeRootCommandForTest(cmd, "onboard", "--json")
+	stdout, stderr, err := executeRootCommandForTest(cmd, "doctor", "--offline", "--target", "terminal", "--json")
 	if err != nil {
-		t.Fatalf("fresh-install onboard --json must exit 0: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
+		t.Fatalf("fresh-install doctor --offline --target terminal --json must exit 0: %v\nstdout=%s\nstderr=%s", err, stdout, stderr)
 	}
 
 	var parsed map[string]any
 	if jsonErr := json.Unmarshal([]byte(stdout), &parsed); jsonErr != nil {
-		t.Fatalf("onboard --json stdout must be parseable JSON: %v\nstdout=%s", jsonErr, stdout)
+		t.Fatalf("doctor --json stdout must be parseable JSON: %v\nstdout=%s", jsonErr, stdout)
 	}
-	firstRun, ok := parsed["first_run"].(map[string]any)
+	firstRun, ok := parsed["target"].(map[string]any)
 	if !ok {
-		t.Fatalf("onboard --json missing first_run object:\n%v", parsed)
+		t.Fatalf("doctor --json missing target object:\n%v", parsed)
 	}
 	nextCommand, _ := firstRun["next_command"].(string)
 	if strings.TrimSpace(nextCommand) == "" {
-		t.Fatalf("onboard --json first_run.next_command must be populated:\n%v", firstRun)
+		t.Fatalf("doctor --json target.next_command must be populated:\n%v", firstRun)
 	}
 }
 

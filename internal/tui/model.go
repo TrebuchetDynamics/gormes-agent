@@ -63,6 +63,10 @@ type Options struct {
 	// `gormes --offline` so the demo path proves the native UI without
 	// contacting a provider or enqueueing a kernel turn.
 	OfflineSmoke bool
+	// StartupNotice is rendered in the normal TUI hint row after startup.
+	// Runtime callers use it for recoverable degraded state that should not
+	// scar terminal scrollback before Bubble Tea enters the alt screen.
+	StartupNotice string
 }
 
 // BusyInputVerdict mirrors the cli.BusyInputVerdict shape for callers that
@@ -160,6 +164,7 @@ func NewModelWithOptions(frames <-chan kernel.RenderFrame, submit Submitter, can
 		voiceRecordKey: opts.VoiceRecordKey,
 		sessionBranch:  opts.SessionBranch,
 		busyGuard:      opts.BusyGuard,
+		statusMessage:  opts.StartupNotice,
 		sessionExport:  opts.SessionExport,
 		clipboardWrite: opts.ClipboardWrite,
 		kanbanSlash:    opts.KanbanSlash,

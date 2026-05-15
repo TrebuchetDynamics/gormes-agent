@@ -27,7 +27,7 @@ func TestOneshotFlags_ModelFlagParsesWithoutTUIOrHealthCheck(t *testing.T) {
 			return nil
 		},
 	})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "hi", "--model", "fixture-model")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--model", "fixture-model", "chat", "-q", "hi")
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
@@ -69,7 +69,7 @@ model = "stale-configured-model"
 			return nil
 		},
 	})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "hi", "--provider", "openrouter")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--provider", "openrouter", "chat", "-q", "hi")
 	if err == nil {
 		t.Fatalf("Execute() error = nil, want provider/model ambiguity error\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
@@ -80,7 +80,7 @@ model = "stale-configured-model"
 		t.Fatalf("runner calls = tui:%d oneshot:%d, want none", tuiCalls, oneshotCalls)
 	}
 	for _, want := range []string{
-		"gormes -z: --provider requires --model (or GORMES_INFERENCE_MODEL)",
+		"gormes chat -q: --provider requires --model (or GORMES_INFERENCE_MODEL)",
 		"Pass both explicitly, or neither to use your configured defaults.",
 	} {
 		if !strings.Contains(stderr, want) {
@@ -111,7 +111,7 @@ model = "configured-model"
 			return nil
 		},
 	})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "hi", "--provider", "openrouter")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--provider", "openrouter", "chat", "-q", "hi")
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
@@ -150,7 +150,7 @@ func TestOneshotFlags_EnvModelAndProviderFallbacksAreRecorded(t *testing.T) {
 			return nil
 		},
 	})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "--oneshot", "hi")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "chat", "-q", "hi")
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}
@@ -183,7 +183,7 @@ model = "configured-model"
 			return nil
 		},
 	})
-	stdout, stderr, err := executeOneshotFlagCommand(cmd, "-z", "hi")
+	stdout, stderr, err := executeOneshotFlagCommand(cmd, "chat", "-q", "hi")
 	if err != nil {
 		t.Fatalf("Execute() error = %v\nstderr=%s\nstdout=%s", err, stderr, stdout)
 	}

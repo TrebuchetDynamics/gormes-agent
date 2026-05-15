@@ -97,15 +97,17 @@ func TestInstallLocalEndToEnd_PublishedBinaryRunsCoreCLI(t *testing.T) {
 	}
 
 	assertJSONCommand(t, bin, runtimeEnv, "gateway", "reload", "--json")
-	onboard := assertJSONCommand(t, bin, runtimeEnv, "onboard", "--json")
-	var onboardReport struct {
-		Home string `json:"home"`
+	readiness := assertJSONCommand(t, bin, runtimeEnv, "doctor", "--offline", "--target", "terminal", "--json")
+	var readinessReport struct {
+		Target struct {
+			NextCommand string `json:"next_command"`
+		} `json:"target"`
 	}
-	if err := json.Unmarshal([]byte(onboard), &onboardReport); err != nil {
-		t.Fatalf("onboard --json should be valid JSON: %v\noutput:\n%s", err, onboard)
+	if err := json.Unmarshal([]byte(readiness), &readinessReport); err != nil {
+		t.Fatalf("doctor --offline --target terminal --json should be valid JSON: %v\noutput:\n%s", err, readiness)
 	}
-	if onboardReport.Home != runtimeHome {
-		t.Fatalf("onboard --json home = %q, want isolated runtime home %q\noutput:\n%s", onboardReport.Home, runtimeHome, onboard)
+	if strings.TrimSpace(readinessReport.Target.NextCommand) == "" {
+		t.Fatalf("doctor target readiness next_command is empty:\n%s", readiness)
 	}
 
 	doctor := assertJSONCommand(t, bin, runtimeEnv, "doctor", "--offline", "--json")

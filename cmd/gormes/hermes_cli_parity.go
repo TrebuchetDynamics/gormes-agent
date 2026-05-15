@@ -45,14 +45,14 @@ type hermesCLIParityEntry struct {
 
 func hermesCLIParityManifest() []hermesCLIParityEntry {
 	entries := []hermesCLIParityEntry{
-		hermesImplementedCommand("chat", "hermes_cli/main.py:chat", "cmd/gormes root TUI/oneshot"),
+		hermesImplementedCommand("chat", "hermes_cli/main.py:chat", "cmd/gormes chat/root TUI"),
 		hermesImplementedCommand("model", "hermes_cli/main.py:model_command", "internal/gateway model handler"),
 		hermesImplementedCommand("fallback", "hermes_cli/main.py:fallback", "cmd/gormes fallback"),
 		hermesCommandSet("gateway", "hermes_cli/main.py:gateway", "gateway lifecycle subcommands are partly implemented; missing mutating/service commands remain row-backed", "Gateway, platform, webhook, and cron management CLI"),
 		hermesRowCommand("setup", "hermes_cli/main.py:setup", "Gormes config command surface", "interactive setup wizard remains row-backed; current config is TOML/env loaded non-interactively"),
 		{Path: []string{"whatsapp"}, Kind: hermesCLICommand, Status: hermesCLIImplemented, SourceRef: "hermes_cli/main.py:whatsapp", Target: "cmd/gormes whatsapp", Row: "WhatsApp top-level pairing wizard shell", Residual: "top-level WhatsApp wizard shell and plan output are implemented; bundling/running the live Baileys QR bridge remains row-backed"},
 		hermesRowCommand("slack", "hermes_cli/main.py:slack", "Gateway, platform, webhook, and cron management CLI", "Slack platform management remains row-backed"),
-		hermesImplementedPath([]string{"login"}, hermesCLICommand, "hermes_cli/main.py:login_parser + hermes_cli/auth.py:_login_openai_codex", "cmd/gormes login", "top-level login is a redacted compatibility shortcut for Hermes provider OAuth; `--provider openai-codex` delegates to the Gormes-owned Codex OAuth credential pool"),
+		hermesExcludedCommand("login", "hermes_cli/main.py:login_parser + hermes_cli/auth.py:_login_openai_codex", "removed top-level command; use `gormes auth add <provider> --type oauth`"),
 		hermesProviderLogoutCommand(),
 		hermesCommandSet("auth", "hermes_cli/auth_commands.py:auth_command", "provider auth subcommands remain row-backed", "Hermes auth credential-pool command surface"),
 		hermesImplementedCommand("status", "hermes_cli/main.py:status", "cmd/gormes gateway status"),
@@ -88,8 +88,8 @@ func hermesCLIParityManifest() []hermesCLIParityEntry {
 		hermesRowCommand("logs", "hermes_cli/main.py:logs", "Diagnostics, backup, logs, and status CLI", "log snapshot command remains row-backed"),
 		hermesOwnedCommand("goncho", "cmd/gormes/goncho.go", "Gormes-owned Honcho-compatible local memory namespace"),
 		hermesOwnedCommand("agent", "cmd/gormes/agent.go", "Gormes-owned agent context template reset command"),
-		hermesGlobalFlag("-z", "hermes_cli/main.py:--oneshot", hermesCLIImplemented, "cmd/gormes --oneshot", "Hermes oneshot short flag parity"),
-		hermesGlobalFlag("--oneshot", "hermes_cli/main.py:--oneshot", hermesCLIImplemented, "cmd/gormes --oneshot", "Hermes oneshot flag parity"),
+		hermesGlobalFlag("-z", "hermes_cli/main.py:--oneshot", hermesCLIExcluded, "", "removed root flag; use `gormes chat -q`"),
+		hermesGlobalFlag("--oneshot", "hermes_cli/main.py:--oneshot", hermesCLIExcluded, "", "removed root flag; use `gormes chat -q`"),
 		hermesGlobalFlag("--model", "hermes_cli/main.py:--model", hermesCLIImplemented, "cmd/gormes --model", "model override is implemented for startup resolution"),
 		hermesGlobalFlag("--provider", "hermes_cli/main.py:--provider", hermesCLIImplemented, "cmd/gormes --provider", "provider override is implemented for startup resolution"),
 		hermesGlobalFlag("--offline", "cmd/gormes/main.go:--offline", hermesCLIOwned, "cmd/gormes --offline", "Gormes-owned local smoke-test mode"),
@@ -401,7 +401,7 @@ func markHermesCLIEntryFlags(entry *hermesCLIParityEntry) {
 		entry.Destructive = true
 	}
 	switch key {
-	case "config set", "auth login", "login":
+	case "config set", "auth login":
 		entry.RedactsSecrets = true
 	}
 	switch key {
@@ -424,7 +424,7 @@ func hermesProviderAuthCommands() []hermesCLIParityEntry {
 		{
 			name:        "add",
 			sourceRef:   "hermes_cli/auth_commands.py:auth_add_command",
-			residual:    "non-deprecated provider login/add flow is implemented for API keys plus openai-codex, anthropic, nous, google-gemini-cli, and qwen-oauth native OAuth adapters; Spotify remains a separate service-provider subcommand",
+			residual:    "provider auth/add flow is implemented for API keys plus openai-codex, anthropic, nous, google-gemini-cli, and qwen-oauth native OAuth adapters; Spotify remains a separate service-provider subcommand",
 			status:      hermesCLIImplemented,
 			target:      "cmd/gormes auth add",
 			redacts:     true,
