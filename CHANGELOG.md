@@ -8,6 +8,9 @@ inside the 0.x compatibility window.
 
 ## [Unreleased]
 
+### Removed
+- SSH stdio Navivox transport: `gormes navivox serve|pair|setup-host` CLI subcommands, the wire-protocol Go package (`internal/channels/navivox/{protocol,server,status}.go`), the Flutter `Dartssh2ByteTransport` + `SshNavivoxChannel` clients, and the `dartssh2` Dart dependency. The HTTP/WS gateway channel (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`) is now the only supported Navivox transport. Operators using `[navivox]` config must run with `auth_mode = "static_token"` or `"pairing_token"` and connect over HTTP/WS.
+
 ## [0.2.11] - 2026-05-14
 
 Date alias: `v2026.5.14`.

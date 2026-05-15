@@ -47,27 +47,7 @@ selection.
 - Source refs: User design: 2026-05-13 coding-agent delegation plan, internal/codingagents/codingagents.go, internal/codingagents/workspace.go, internal/codingagents/git_snapshot.go
 - Why now: Already active; contract metadata keeps execution bounded.
 
-## 2. Remove SSH Navivox stdio path
-
-- Phase: 9 / 9.E
-- Owner: `gateway`
-- Size: `medium`
-- Status: `planned`
-- Contract: Delete the SSH stdio Navivox transport — `gormes navivox serve\|pair\|setup-host` CLI surface, the wire-protocol Go package (codec/frames/server/status), the Flutter dartssh2 transport and ssh_navivox_channel client, and the `dartssh2` dependency. Preserve the HTTP/WS path (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`). Move `PlatformName = "navivox"` from `protocol.go` into the surviving channel package so deleting protocol.go does not break the gateway import.
-- Trust class: -
-- Ready when: Inventory confirms `internal/channels/navivox/channel.go` and `cmd/gormes/gateway.go` only depend on `PlatformName` from the SSH protocol package; no live consumers of NewServer/NewCodec/Frame/Header/StatusProvider remain outside the deletion set., Flutter HTTP gateway client (`lib/core/gateway/navivox_gateway_*`) and `gateway_navivox_channel.dart` already build and tests pass with no dependency on dartssh2.
-- Not ready when: The slice tries to also redesign the HTTP channel surface in the same commit., The slice keeps dartssh2 in pubspec.yaml "for later"., The slice removes `internal/channels/navivox/channel.go` or any HTTP-side code.
-- Degraded mode: -
-- Fixture: `internal/channels/navivox/channel_test.go`
-- Write scope: `internal/channels/navivox/protocol.go`, `internal/channels/navivox/protocol_test.go`, `internal/channels/navivox/server.go`, `internal/channels/navivox/server_test.go`, `internal/channels/navivox/status.go`, `internal/channels/navivox/channel.go`, `cmd/gormes/navivox.go`, `cmd/gormes/navivox_test.go`, `cmd/gormes/navivox_host_setup.go`, `cmd/gormes/navivox_host_setup_test.go`, `flutter-navivox/app/lib/core/protocol/`, `flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart`, `flutter-navivox/app/lib/core/transport/byte_transport.dart`, `flutter-navivox/app/lib/core/transport/in_memory_transport.dart`, `flutter-navivox/app/lib/core/channel/ssh_navivox_channel.dart`, `flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart`, `flutter-navivox/app/lib/features/keys/services/openssh_key_validator.dart`, `flutter-navivox/app/test/core/channel/ssh_navivox_channel*.dart`, `flutter-navivox/app/test/core/transport/dartssh2_byte_transport_test.dart`, `flutter-navivox/app/test/features/keys/openssh_key_validator_test.dart`, `flutter-navivox/app/pubspec.yaml`, `docs/content/building-gormes/architecture_plan/progress.json`, `CHANGELOG.md`
-- Test commands: `go test ./... -count=1`, `sh -c 'cd flutter-navivox/app && flutter test'`
-- Done signal: `go test ./... -count=1` and `cd flutter-navivox/app && flutter test` both pass; `git grep dartssh2` and `git grep 'navivox.NewServer'` return empty.
-- Acceptance: `grep -rE "dartssh2\|navivox.NewServer\|navivox.NewCodec\|navivox.Frame" cmd/ internal/ flutter-navivox/app/lib flutter-navivox/app/test` returns no matches., `gormes navivox --help` no longer lists `serve`, `pair`, or `setup-host` subcommands (or `gormes navivox` itself is removed if no replacement subcommands exist yet)., `grep -n 'dartssh2' flutter-navivox/app/pubspec.yaml` returns nothing; `flutter pub get` succeeds., Both `go test ./... -count=1` and `flutter test` are green., `PlatformName` constant survives the deletion and is reachable from `cmd/gormes/gateway.go` via `internal/channels/navivox`.
-- Source refs: internal/channels/navivox/protocol.go:PlatformName, internal/channels/navivox/server.go:Server, cmd/gormes/navivox.go:navivoxServe, cmd/gormes/navivox.go:navivoxPair, cmd/gormes/navivox_host_setup_test.go, flutter-navivox/app/lib/core/channel/ssh_navivox_channel.dart, flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart
-- Unblocks: Navivox VPN host enumeration helper, Navivox HTTP gateway mandatory-VPN bind, Navivox HTTP gateway connect-info command
-- Why now: Unblocks Navivox VPN host enumeration helper, Navivox HTTP gateway mandatory-VPN bind, Navivox HTTP gateway connect-info command.
-
-## 3. Agentic-porting-kit public repo scaffold
+## 2. Agentic-porting-kit public repo scaffold
 
 - Phase: 8 / 8.E
 - Owner: `skills`

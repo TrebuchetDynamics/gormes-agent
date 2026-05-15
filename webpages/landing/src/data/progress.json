@@ -59128,7 +59128,7 @@
           "items": [
             {
               "name": "Remove SSH Navivox stdio path",
-              "status": "planned",
+              "status": "complete",
               "execution_owner": "gateway",
               "slice_size": "medium",
               "provenance": {
@@ -59137,7 +59137,7 @@
                 "note": "Operator decided 2026-05-14 that the SSH stdio path is too complicated for the product; HTTP/WS gateway becomes the only Navivox transport."
               },
               "contract": "Delete the SSH stdio Navivox transport — `gormes navivox serve|pair|setup-host` CLI surface, the wire-protocol Go package (codec/frames/server/status), the Flutter dartssh2 transport and ssh_navivox_channel client, and the `dartssh2` dependency. Preserve the HTTP/WS path (`internal/channels/navivox/channel.go` and `flutter-navivox/app/lib/core/gateway/*`). Move `PlatformName = \"navivox\"` from `protocol.go` into the surviving channel package so deleting protocol.go does not break the gateway import.",
-              "contract_status": "draft",
+              "contract_status": "validated",
               "ready_when": [
                 "Inventory confirms `internal/channels/navivox/channel.go` and `cmd/gormes/gateway.go` only depend on `PlatformName` from the SSH protocol package; no live consumers of NewServer/NewCodec/Frame/Header/StatusProvider remain outside the deletion set.",
                 "Flutter HTTP gateway client (`lib/core/gateway/navivox_gateway_*`) and `gateway_navivox_channel.dart` already build and tests pass with no dependency on dartssh2."
@@ -59162,30 +59162,22 @@
                 "internal/channels/navivox/channel.go",
                 "cmd/gormes/navivox.go",
                 "cmd/gormes/navivox_test.go",
-                "cmd/gormes/navivox_host_setup.go",
                 "cmd/gormes/navivox_host_setup_test.go",
-                "flutter-navivox/app/lib/core/protocol/",
-                "flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart",
-                "flutter-navivox/app/lib/core/transport/byte_transport.dart",
-                "flutter-navivox/app/lib/core/transport/in_memory_transport.dart",
+                "cmd/gormes/main.go",
+                "cmd/gormes/setup_navivox.go",
                 "flutter-navivox/app/lib/core/channel/ssh_navivox_channel.dart",
-                "flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart",
-                "flutter-navivox/app/lib/features/keys/services/openssh_key_validator.dart",
-                "flutter-navivox/app/test/core/channel/ssh_navivox_channel*.dart",
+                "flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart",
+                "flutter-navivox/app/test/core/channel/ssh_navivox_channel_test.dart",
+                "flutter-navivox/app/test/core/channel/ssh_navivox_channel_agents_test.dart",
+                "flutter-navivox/app/test/core/channel/ssh_navivox_channel_artifacts_test.dart",
+                "flutter-navivox/app/test/core/channel/ssh_navivox_channel_config_test.dart",
+                "flutter-navivox/app/test/core/channel/ssh_navivox_channel_tools_test.dart",
                 "flutter-navivox/app/test/core/transport/dartssh2_byte_transport_test.dart",
-                "flutter-navivox/app/test/features/keys/openssh_key_validator_test.dart",
                 "flutter-navivox/app/pubspec.yaml",
-                "docs/content/building-gormes/architecture_plan/progress.json",
-                "CHANGELOG.md"
+                "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "source_refs": [
-                "internal/channels/navivox/protocol.go:PlatformName",
-                "internal/channels/navivox/server.go:Server",
-                "cmd/gormes/navivox.go:navivoxServe",
-                "cmd/gormes/navivox.go:navivoxPair",
-                "cmd/gormes/navivox_host_setup_test.go",
-                "flutter-navivox/app/lib/core/channel/ssh_navivox_channel.dart",
-                "flutter-navivox/app/lib/core/transport/dartssh2_byte_transport.dart"
+                "internal/channels/navivox/channel.go:PlatformName"
               ],
               "fixture": "internal/channels/navivox/channel_test.go",
               "test_commands": [
@@ -59194,13 +59186,122 @@
               ],
               "acceptance": [
                 "`grep -rE \"dartssh2|navivox.NewServer|navivox.NewCodec|navivox.Frame\" cmd/ internal/ flutter-navivox/app/lib flutter-navivox/app/test` returns no matches.",
-                "`gormes navivox --help` no longer lists `serve`, `pair`, or `setup-host` subcommands (or `gormes navivox` itself is removed if no replacement subcommands exist yet).",
+                "`gormes navivox --help` returns \"unknown command\" (entire `navivox` cobra command removed from main.go registration).",
                 "`grep -n 'dartssh2' flutter-navivox/app/pubspec.yaml` returns nothing; `flutter pub get` succeeds.",
                 "Both `go test ./... -count=1` and `flutter test` are green.",
-                "`PlatformName` constant survives the deletion and is reachable from `cmd/gormes/gateway.go` via `internal/channels/navivox`."
+                "`PlatformName` constant survives the deletion and is reachable from `cmd/gormes/gateway.go` via `internal/channels/navivox.PlatformName`."
               ],
               "done_signal": [
                 "`go test ./... -count=1` and `cd flutter-navivox/app && flutter test` both pass; `git grep dartssh2` and `git grep 'navivox.NewServer'` return empty."
+              ],
+              "note": "Shipped 2026-05-14. Deleted Go: cmd/gormes/{navivox.go,navivox_test.go,navivox_host_setup_test.go} and internal/channels/navivox/{protocol.go,protocol_test.go,server.go,server_test.go,status.go}. Deleted Flutter: lib/core/channel/ssh_navivox_channel.dart, lib/core/transport/dartssh2_byte_transport.dart, and the 5 ssh_navivox_channel_* + 1 dartssh2_byte_transport_test test files. Moved PlatformName const into internal/channels/navivox/channel.go. Patched cmd/gormes/setup_navivox.go to stop calling the deleted resolveNavivoxPairHost (auto-detect deferred to the vpnhost row). Removed `newNavivoxCommand()` from main.go cobra registration. dartssh2 dropped from pubspec.yaml (along with transitive deps asn1lib/pinenacl/pointycastle). Validation: `go test ./... -count=1` all packages OK; `flutter test` 83/83 passed (down from 113 — 30 tests deleted with the SSH transport)."
+            },
+            {
+              "name": "Remove Flutter Navivox fake-server mode and wire protocol",
+              "status": "planned",
+              "execution_owner": "gateway",
+              "slice_size": "small",
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-14",
+                "note": "Discovered while shipping `Remove SSH Navivox stdio path`: FakeNavivoxChannel still uses the SSH wire frame types, blocking deletion of lib/core/protocol/."
+              },
+              "contract": "Delete the Flutter SSH wire-protocol artifacts that survived the first cut: `lib/core/protocol/navivox_frame.dart`, `lib/core/protocol/frame_reader.dart`, `lib/core/transport/byte_transport.dart`, `lib/core/transport/in_memory_transport.dart`, `lib/core/channel/fake_navivox_channel.dart`. Rework `lib/core/channel/navivox_channel_provider.dart` so `activeNavivoxChannelProvider` returns the gateway channel directly (no fake/gateway switcher), and delete `NavivoxChannelMode`/`NavivoxChannelSwitcher`. Update `enterFakeServerMode` callers in the router to use a real local gateway against a test fixture instead.",
+              "contract_status": "draft",
+              "ready_when": [
+                "`Remove SSH Navivox stdio path` shipped.",
+                "Test inventory shows the only callers of `enterFakeServerMode` are the router and a couple of widget tests — easy to migrate to a real GatewayNavivoxChannel against a fixture server.",
+                "`flutter test` is green on development."
+              ],
+              "not_ready_when": [
+                "The slice tries to also delete the SSH keys feature (separate row).",
+                "The slice removes `gateway_navivox_channel.dart` or any HTTP-side code."
+              ],
+              "blocked_by": [
+                "Remove SSH Navivox stdio path"
+              ],
+              "unblocks": [
+                "Remove Flutter SSH keys feature"
+              ],
+              "write_scope": [
+                "flutter-navivox/app/lib/core/channel/navivox_channel_provider.dart",
+                "flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart",
+                "flutter-navivox/app/lib/core/protocol/",
+                "flutter-navivox/app/lib/core/transport/byte_transport.dart",
+                "flutter-navivox/app/lib/core/transport/in_memory_transport.dart",
+                "flutter-navivox/app/test/router/",
+                "flutter-navivox/app/test/core/channel/",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "source_refs": [
+                "flutter-navivox/app/lib/core/channel/navivox_channel_provider.dart:NavivoxChannelSwitcher",
+                "flutter-navivox/app/lib/core/channel/fake_navivox_channel.dart:FakeNavivoxChannel"
+              ],
+              "fixture": "flutter-navivox/app/test/router/app_router_test.dart",
+              "test_commands": [
+                "sh -c 'cd flutter-navivox/app && flutter test'"
+              ],
+              "acceptance": [
+                "`grep -rE 'FakeNavivoxChannel|NavivoxFrame|FrameReader|ByteTransport|InMemoryTransport' flutter-navivox/app/lib flutter-navivox/app/test` returns no matches.",
+                "`activeNavivoxChannelProvider` returns `GatewayNavivoxChannel` directly without a switcher.",
+                "Router test suite still covers the no-server-configured starting state and a successful chat path against a fixture HTTP gateway (or marks the chat path as a deferred integration test if no fixture server is feasible).",
+                "`flutter test` is green."
+              ],
+              "done_signal": [
+                "`cd flutter-navivox/app && flutter test` passes; `git grep FakeNavivoxChannel flutter-navivox/app/lib` returns empty."
+              ]
+            },
+            {
+              "name": "Remove Flutter SSH keys feature",
+              "status": "planned",
+              "execution_owner": "gateway",
+              "slice_size": "small",
+              "provenance": {
+                "origin_type": "gormes",
+                "owned_since": "2026-05-14",
+                "note": "Keys feature managed OpenSSH identities for the deleted SSH transport; with HTTP/WS as the only Navivox path the feature is dead code. Side-effect: drops the `drift` + `sqlite3` deps, which were the other blocker for Flutter web builds."
+              },
+              "contract": "Delete the Flutter SSH keys feature in its entirety: `lib/features/keys/` (data, services, screens), the `lib/features/keys/services/openssh_key_validator.dart` already on the SSH deletion shortlist, and the entire `test/features/keys/` directory. Remove the Keys route from the router and any sidebar/menu entries. Drop `drift`, `drift_dev`, and `sqlite3` from `pubspec.yaml` (sole consumers are KeyDatabase/DriftKeyStore). Drop generated `key_database.g.dart`. After this slice, Flutter Navivox has no `dart:io`-only or native-FFI-only dependencies and can be web-targeted (the original blocker the operator flagged on 2026-05-14).",
+              "contract_status": "draft",
+              "ready_when": [
+                "`Remove Flutter Navivox fake-server mode and wire protocol` shipped.",
+                "`flutter test` is green on development."
+              ],
+              "not_ready_when": [
+                "The slice keeps the Keys route in the router \"in case we add it back\".",
+                "The slice ships before the fake-server-mode row (a stale fake mode may pull in obsolete keys references)."
+              ],
+              "blocked_by": [
+                "Remove Flutter Navivox fake-server mode and wire protocol"
+              ],
+              "unblocks": [],
+              "write_scope": [
+                "flutter-navivox/app/lib/features/keys/",
+                "flutter-navivox/app/lib/router/",
+                "flutter-navivox/app/lib/app.dart",
+                "flutter-navivox/app/test/features/keys/",
+                "flutter-navivox/app/test/router/",
+                "flutter-navivox/app/pubspec.yaml",
+                "docs/content/building-gormes/architecture_plan/progress.json"
+              ],
+              "source_refs": [
+                "flutter-navivox/app/lib/features/keys/services/openssh_key_validator.dart",
+                "flutter-navivox/app/lib/features/keys/data/key_database.dart",
+                "flutter-navivox/app/lib/features/keys/services/drift_key_store.dart"
+              ],
+              "fixture": "flutter-navivox/app/test/router/app_router_test.dart",
+              "test_commands": [
+                "sh -c 'cd flutter-navivox/app && flutter test'",
+                "sh -c 'cd flutter-navivox/app && flutter build web --release'"
+              ],
+              "acceptance": [
+                "`flutter-navivox/app/lib/features/keys/` no longer exists.",
+                "`grep -E 'drift|sqlite3' flutter-navivox/app/pubspec.yaml` returns nothing.",
+                "`flutter build web --release` succeeds (no native-FFI blocker remains).",
+                "`flutter test` is green."
+              ],
+              "done_signal": [
+                "`cd flutter-navivox/app && flutter test && flutter build web --release` both succeed; `ls flutter-navivox/app/build/web/index.html` exists."
               ]
             },
             {
@@ -59215,7 +59316,7 @@
               "contract": "An owned `internal/network/vpnhost` package enumerates active VPN interfaces — Tailscale (via `tailscale ip -4/-6`), WireGuard (via `ip -j link show type wireguard`), and tun-class OpenVPN/IPSec devices — returning `{iface, kind, ipv4, ipv6}` tuples ordered Tailscale → WireGuard → other VPN. The navivox HTTP gateway channel (mandatory-VPN bind, connect-info command) consumes it. The package is built fresh — no SSH-pair code remains by this point.",
               "contract_status": "draft",
               "ready_when": [
-                "`Remove SSH Navivox stdio path` shipped; cmd/gormes no longer holds tailscale-only host detection.",
+                "`Remove SSH Navivox stdio path` shipped (no leftover tailscale-only detection in cmd/gormes).",
                 "`go test ./... -count=1` is green on development."
               ],
               "not_ready_when": [
@@ -59231,18 +59332,22 @@
               ],
               "write_scope": [
                 "internal/network/vpnhost/",
+                "cmd/gormes/setup_navivox.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "source_refs": [
-                "internal/channels/navivox/channel.go:NewChannel"
+                "internal/channels/navivox/channel.go:NewChannel",
+                "cmd/gormes/setup_navivox.go:navivoxSetupBindDefault"
               ],
               "fixture": "internal/network/vpnhost/vpnhost_test.go",
               "test_commands": [
-                "go test ./internal/network/vpnhost -count=1"
+                "go test ./internal/network/vpnhost -count=1",
+                "go test ./cmd/gormes -run NavivoxSetup -count=1"
               ],
               "acceptance": [
                 "internal/network/vpnhost.List(ctx) returns at least one entry on a host with Tailscale or WireGuard up, with kind ∈ {tailscale, wireguard, tun-other}.",
                 "internal/network/vpnhost has zero imports from internal/channels or cmd/ so both can import it.",
+                "`cmd/gormes/setup_navivox.go:navivoxSetupBindDefault` consumes vpnhost.List for exposure_mode=tailscale instead of returning the loopback default.",
                 "Tests use seamed fakes for `tailscale` CLI and `ip` CLI — no live commands at test time."
               ],
               "done_signal": [
@@ -59314,12 +59419,12 @@
                 "owned_since": "2026-05-14",
                 "note": "Replaces the deleted `gormes navivox pair` SSH command with an HTTP-only equivalent."
               },
-              "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`.",
+              "contract": "A `gormes navivox connect-info` subcommand prints the connect URL(s) for the live navivox HTTP channel — one per active VPN interface returned by internal/network/vpnhost — with `--json` shape `{build, host, host_source, port, token_required, base_url, healthz_url}`. Loopback URL is included only when exposure_mode=local. The command never prints the static_token value; it only reports `token_required: true/false`. A new top-level `gormes navivox` cobra command is reintroduced (deleted with the SSH path) and re-registered in cmd/gormes/main.go.",
               "contract_status": "draft",
               "ready_when": [
                 "internal/network/vpnhost shipped.",
                 "Navivox HTTP gateway mandatory-VPN bind shipped.",
-                "Remove SSH Navivox stdio path shipped (so `gormes navivox` has no leftover subcommands to collide with)."
+                "Remove SSH Navivox stdio path shipped (so reintroducing `gormes navivox` does not collide with deleted subcommands)."
               ],
               "not_ready_when": [
                 "The slice also implements an HTTP /v1/navivox/connect-info server endpoint (split row).",
@@ -59327,13 +59432,13 @@
               ],
               "blocked_by": [
                 "Navivox VPN host enumeration helper",
-                "Navivox HTTP gateway mandatory-VPN bind",
-                "Remove SSH Navivox stdio path"
+                "Navivox HTTP gateway mandatory-VPN bind"
               ],
               "unblocks": [],
               "write_scope": [
                 "cmd/gormes/navivox_connect_info.go",
                 "cmd/gormes/navivox_connect_info_test.go",
+                "cmd/gormes/main.go",
                 "docs/content/building-gormes/architecture_plan/progress.json"
               ],
               "source_refs": [

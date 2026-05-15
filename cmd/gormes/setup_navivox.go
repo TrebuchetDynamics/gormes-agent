@@ -200,10 +200,9 @@ func navivoxSetupBindDefault(ctx context.Context, current, exposureMode string) 
 	case config.NavivoxExposurePublic:
 		return "0.0.0.0"
 	case config.NavivoxExposureTailscale:
-		host, source, err := resolveNavivoxPairHost(ctx, "")
-		if err == nil && source == "tailscale" && strings.TrimSpace(host) != "" {
-			return host
-		}
+		// VPN auto-detection lands with the internal/network/vpnhost row (9.E).
+		// Until then, require the operator to fill bind_host explicitly when
+		// choosing tailscale exposure.
 		return config.NavivoxDefaultBindHost
 	default:
 		return config.NavivoxDefaultBindHost

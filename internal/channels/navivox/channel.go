@@ -21,6 +21,8 @@ import (
 	"github.com/TrebuchetDynamics/gormes-agent/internal/gateway"
 )
 
+const PlatformName = "navivox"
+
 type Channel struct {
 	cfg config.NavivoxCfg
 	log *slog.Logger

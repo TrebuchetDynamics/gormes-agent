@@ -87,7 +87,7 @@ classification and row-backed implementation queue.
 ## Progress
 
 <!-- PROGRESS:START kind=docs-full-checklist -->
-**Overall:** 98/107 subphases shipped · 7 in progress · 2 planned
+**Overall:** 98/107 subphases shipped · 8 in progress · 1 planned
 
 | Phase | Status | Shipped |
 |-------|--------|---------|
@@ -1417,9 +1417,11 @@ classification and row-backed implementation queue.
 
 - [x] Transcribe audio tool registration + local whisper provider
 
-### 9.E — Navivox HTTP-only Hardening ⏳
+### 9.E — Navivox HTTP-only Hardening 🔨
 
-- [ ] Remove SSH Navivox stdio path
+- [x] Remove SSH Navivox stdio path
+- [ ] Remove Flutter Navivox fake-server mode and wire protocol
+- [ ] Remove Flutter SSH keys feature
 - [ ] Navivox VPN host enumeration helper
 - [ ] Navivox HTTP gateway mandatory-VPN bind
 - [ ] Navivox HTTP gateway connect-info command
